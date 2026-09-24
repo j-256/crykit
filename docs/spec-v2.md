@@ -6,7 +6,7 @@ Date: 2026-09-24. This is the implementation contract for a local inventory, cha
 
 The core journey is record, search, select, compare, check, and plan. Reference definitions describe documented game content; observations describe what a player explicitly recorded; builds and teams describe alternatives. Editing one layer must never silently mutate another. The application does not connect to a console, change a game save, buy equipment, learn abilities, or infer events from plans.
 
-A new installation starts blank. A player can import local research, create unmatched entries, or record a character without completing a catalog. Missing data restricts conclusions while preserving the ability to record facts.
+A new installation starts with blank personal state and a partial public names catalog. A player can search references immediately, import local research, create unmatched entries, or record a character without completing a catalog. Missing data restricts conclusions while preserving the ability to record facts. Built-in names do not establish platform applicability or game mechanics.
 
 The first complete release comprises data-preserving storage, useful tracking, and descriptive build/party planning. It does not require damage simulation, displayed-stat prediction, optimization, OCR, hosted synchronization, or a complete game database. There is no universal build score. Item-listed values and observed final character stats remain separate.
 
@@ -21,7 +21,7 @@ The first complete release comprises data-preserving storage, useful tracking, a
 | Catalog upgrades | Retain immutable snapshots and build locks. A new catalog must not rewrite a saved revision. Explicit build rebasing creates a new checkpoint. |
 | Slots and PP | Rulesets contain editable slot definitions and capacity/cost knowledge. Suggested slots are a user configuration, not a verified claim about a platform or mod. |
 | Game mechanics | Typed, scoped rules only. Descriptions, spreadsheet formulas, and planner notes remain inert text. Unknown applicability yields an explained unresolved result. |
-| Publication | Source repository is private. Publish only generic application code, documentation, original assets, and synthetic fixtures. Reference data rights are independent of the code license. |
+| Publication | Source repository is private. Publish generic application code, documentation, original assets, synthetic fixtures, and reviewed public factual reference names with source attribution. Private inputs remain excluded. Reference data rights are independent of the code license. |
 | CI | GitHub Actions stays disabled and the source contains no executable workflow. Build, security, and browser verification run locally. |
 | Deployment | The app builds as portable static files, including under a subpath. No public host, custom domain, account, or backend is required. |
 | Optional depth | Evidence attachments, rich audits, three-way merge, advanced saved queries, recipe execution, and numerical engines may ship independently after the complete core. Unsupported operations must be described honestly rather than represented by nonfunctional controls. |
@@ -37,6 +37,8 @@ Catalog snapshots carry identity, revision, digest, source metadata, raw/unmappe
 Knowledge is known, unknown, conflicting, or not applicable. Values preserve provenance and source locators. Known zero differs from an empty cell; a false observation differs from no observation. Import/check timestamps never substitute for gameplay event dates. Catalog coverage is descriptive metadata, not certification of mechanics or platform parity.
 
 Build checkpoints are immutable and pin ruleset and catalog revisions. Working drafts can change without updating a checkpoint or a team's pinned selection. Old checkpoints remain inspectable when a later reference changes or removes an entry.
+
+Personal definition edits append immutable overrides with exact source and predecessor references. Ordinary pickers prefer the latest revision, while stock and learning retain logical identity and saved selections retain their exact definition. Selected overrides can be collected into a new ruleset revision with explicit pins and source catalog locks. Collection preserves other pins and does not activate the new revision or rewrite existing builds.
 
 ## Required workflows
 
@@ -74,6 +76,8 @@ Use a structured query tree and three-valued predicates. Ordinary multiselect al
 
 Raw-text matches are labeled as text, not asserted as verified effects. Pickers use the same search and validation functions with explicit slot, ruleset, character, and scenario context. Browser Back restores the relevant query and picker route. Stable secondary sorting prevents rows from jumping unpredictably.
 
+Every game-definition field is a searchable picker with inline creation and editing. Cmd/Ctrl+K and visible desktop/mobile controls open universal search over definitions and profile records. Keyboard navigation, Escape, and focus restoration work with nested editors. Choosing a result opens the exact record, and navigation cannot discard an open form or unsaved build revision.
+
 ## Validation contract
 
 Every check receives explicit inputs rather than reading React state or storage. Results include a stable code, dimension, status, relevant selections, explanation, and suggested correction. Separate structural integrity, equipment legality, passive legality, character readiness, inventory sufficiency, ruleset certainty, and calculation readiness.
@@ -110,7 +114,7 @@ Desktop can use a navigation rail and adjacent selection/detail panels. Mobile u
 
 | Gate | Required evidence |
 | --- | --- |
-| Privacy | Clean tracked tree and history, private remote, no personal fixture/static seed, no credentials/machine paths, Actions disabled, no workflow runs |
+| Privacy | Clean tracked tree and history, private remote, no personal fixtures or personal static seeds, no credentials/machine paths, Actions disabled, no workflow runs |
 | Import | Synthetic schema/security fixtures plus local real-workbook assertions; source state retained without invented characters, learning, possession, quantities, or dates |
 | Domain | Quantity/PP bounds, three-valued logic, separate party/character state, same-name identity, alternative versus simultaneous allocations, replacement semantics, revision locks |
 | Persistence | Real IndexedDB browser flow plus integration tests for atomic save/import, expected revision, rollback, unsupported backup, independent profile restore, and failed-save draft recovery |

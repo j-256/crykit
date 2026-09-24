@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { compareBuildRevisions, effectiveScenarioAssignments, entityDefinitionKey, partitionQuery } from '../domain'
-import type { Build, BuildKind, BuildRevision, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Knowledge, Profile, QueryNode, QueryRecord, ScenarioKind, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
+import { compareBuildRevisions, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, sameLogicalEntity } from '../domain'
+import type { Build, BuildKind, BuildRevision, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, ScenarioKind, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { catalogLocksMatch, entityName, formatRelativeDate, resolveEntity } from './model'
 import { closeBuildPickerRoute, commitBuildPickerRouteState, readBuildPickerRouteState, readStoredBuildPickerRouteState } from './route-state'
 import { Sheet } from './Sheet'
+import { DefinitionPickerDialog } from './definitions'
+import { useSearchTarget } from './use-search-target'
 
 export interface BuildDraft { readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
 export interface RevisionDraft { readonly primaryClass: EntityRef | null; readonly secondaryClass: EntityRef | null; readonly selections: Readonly<Record<string, BuildSelection | null>>; readonly rotationNotes?: string; readonly contextAssumptions: readonly string[]; readonly note?: string }
@@ -23,13 +25,6 @@ function AddBuildForm({ profile, onCancel, onSubmit }: { profile: Profile; onCan
 }
 
 interface PickerTarget { readonly key: 'primaryClass' | 'secondaryClass' | string; readonly label: string; readonly kinds: readonly CatalogEntityKind[] }
-
-function ppLabel(value: Knowledge<number> | undefined) {
-  if (!value || value.state === 'unknown') return 'PP unknown'
-  if (value.state === 'conflicting') return 'PP claims conflict'
-  if (value.state === 'notApplicable') return 'No PP cost'
-  return `${value.value} PP source cost`
-}
 
 function checkpointSuffix(revision: BuildRevision) {
   const name = revision.note?.trim()
@@ -117,15 +112,6 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       window.removeEventListener('hashchange', restore)
     }
   }, [build.id, ruleset])
-  const candidates = useMemo(() => {
-    if (!picker) return []
-    const personal = Object.values(profile.personalDefinitions).filter((definition) => picker.kinds.includes(definition.kind)).map((definition) => ({ name: definition.name, kind: definition.kind, description: definition.rawDescription, ppCost: definition.ppCost, sourceLabel: 'Personal definition', ref: { kind: 'personal', definitionId: definition.id } as EntityRef }))
-    const imported = catalogs.flatMap((catalog) => Object.values(catalog.entities).filter((entity) => picker.kinds.includes(entity.kind)).map((entity) => ({ name: entity.name, kind: entity.kind, description: entity.rawDescription, ppCost: entity.ppCost, sourceLabel: `${catalog.id} · revision ${catalog.revisionId}`, ref: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id } as EntityRef })))
-    const all = [...personal, ...imported].sort((left, right) => left.name.localeCompare(right.name) || left.sourceLabel.localeCompare(right.sourceLabel) || entityDefinitionKey(left.ref).localeCompare(entityDefinitionKey(right.ref)))
-    const tree: QueryNode = query.trim() ? { kind: 'predicate', field: 'search', operator: 'contains', value: query.trim() } : { kind: 'and', children: [] }
-    const partition = partitionQuery(all, tree, (candidate): QueryRecord => ({ search: { state: 'known', value: `${candidate.name} ${candidate.description ?? ''} ${candidate.kind}` } }))
-    return [...partition.confirmed, ...partition.possible]
-  }, [catalogs, picker, profile.personalDefinitions, query])
   const selectedRef = picker?.key === 'primaryClass' ? draft.primaryClass : picker?.key === 'secondaryClass' ? draft.secondaryClass : picker ? draft.selections[picker.key]?.ref ?? null : null
   const choose = (ref: EntityRef | null) => {
     if (!picker) return
@@ -145,7 +131,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       const current = selections[slotId]
       if (!current || !peerSlotId) return { ...value, selections }
       const peer = selections[peerSlotId]
-      if (!peer || entityDefinitionKey(peer.ref) !== entityDefinitionKey(current.ref)) return value
+      if (!peer || !sameLogicalEntity(profile, peer.ref, current.ref)) return value
       const allocationId = peer.allocationId ?? JSON.stringify(['shared-copy', ...[slotId, peerSlotId].sort()])
       selections[slotId] = { ...current, allocationId }
       selections[peerSlotId] = { ...peer, allocationId }
@@ -167,7 +153,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
           const accepted: readonly CatalogEntityKind[] = slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value : slot.kind === 'passive' ? ['passive', 'innate'] : ['item']
           const peers = selected && slot.kind === 'equipment' ? equipmentSlots.filter((candidate) => {
             const candidateSelection = draft.selections[candidate.id]
-            return candidate.id !== slot.id && candidateSelection && entityDefinitionKey(candidateSelection.ref) === entityDefinitionKey(selected.ref)
+            return candidate.id !== slot.id && candidateSelection && sameLogicalEntity(profile, candidateSelection.ref, selected.ref)
           }) : []
           const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.selections[candidate.id]?.allocationId === selected.allocationId) : undefined
           return <div className="slot-entry" key={slot.id}>
@@ -182,7 +168,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
       <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save new revision'}</Button></div>
     </form>
-    <Sheet description={`${build.characterId ? profile.characters[build.characterId]?.name ?? 'Character' : 'Template'} · ${ruleset.label}${profile.activeScenarioId ? ` · ${profile.scenarios[profile.activeScenarioId]?.label ?? 'Scenario unresolved'}` : ''}`} onClose={closePicker} open={Boolean(picker)} title={picker ? `Choose ${picker.label}` : 'Choose definition'}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => { const nextQuery = event.target.value; setQuery(nextQuery); setCandidateLimit(100); if (picker) commitBuildPickerRouteState({ buildId: build.id, pickerKey: picker.key, query: nextQuery, resultLimit: 100 }, 'replace') }} placeholder="Search names, descriptions, and types" type="search" value={query}/></div><InlineNotice title="Candidate list, not a legality result">Type and slot metadata narrow this list. Scenario validation reports legality, learning, PP, and stock uncertainty after a pinned revision is assigned.</InlineNotice><button aria-pressed={selectedRef === null} className="picker-result" onClick={() => choose(null)} type="button"><span><strong>Leave empty</strong><small>Remove the current selection from this draft</small></span><Badge>None</Badge></button>{candidates.slice(0, candidateLimit).map((candidate) => { const inventory = Object.values(profile.inventory).find((position) => entityDefinitionKey(position.ref) === entityDefinitionKey(candidate.ref)); const selected = selectedRef ? entityDefinitionKey(selectedRef) === entityDefinitionKey(candidate.ref) : false; return <button aria-pressed={selected} className="picker-result" key={entityDefinitionKey(candidate.ref)} onClick={() => choose(candidate.ref)} type="button"><span><strong>{candidate.name}</strong><small>{candidate.kind} · {candidate.sourceLabel}<br/>{candidate.description ?? 'No description supplied'}</small></span><span className="picker-result__status"><Badge tone={inventory?.possession === 'owned' ? 'positive' : inventory?.possession === 'unknown' ? 'warning' : 'neutral'}>{inventory?.possession === 'owned' ? inventory.quantity.kind === 'exact' ? `${inventory.quantity.value} owned` : inventory.quantity.kind === 'atLeast' ? `${inventory.quantity.value}+ owned` : 'Owned, count unknown' : inventory?.possession === 'notOwned' ? 'Not owned' : 'Possession unknown'}</Badge>{candidate.kind === 'passive' || candidate.kind === 'innate' ? <Badge tone={candidate.ppCost?.state === 'known' ? 'info' : 'warning'}>{ppLabel(candidate.ppCost)}</Badge> : null}</span></button>})}{candidates.length > candidateLimit && <Button onClick={() => { const nextLimit = candidateLimit + 100; setCandidateLimit(nextLimit); if (picker) commitBuildPickerRouteState({ buildId: build.id, pickerKey: picker.key, query, resultLimit: nextLimit }, 'replace') }} tone="secondary">Show {Math.min(100, candidates.length - candidateLimit)} more candidates</Button>}{candidates.length === 0 && <InlineNotice title="No matching definitions">Add a personal item or import a reference definition, then return to this picker.</InlineNotice>}</div></Sheet>
+    <DefinitionPickerDialog allowEmpty allowUnknown={false} allowedKinds={picker?.kinds ?? []} emptyDescription="Remove the current selection from this draft" emptyLabel="Leave empty" description={`${build.characterId ? profile.characters[build.characterId]?.name ?? 'Character' : 'Template'} · ${ruleset.label}. Candidate type and slot metadata do not assert legality; scenario validation checks learning, PP, and stock after assignment.`} onClose={closePicker} onQueryChange={(nextQuery) => { setQuery(nextQuery); setCandidateLimit(100); if (picker) commitBuildPickerRouteState({ buildId: build.id, pickerKey: picker.key, query: nextQuery, resultLimit: 100 }, 'replace') }} onResultLimitChange={(nextLimit) => { setCandidateLimit(nextLimit); if (picker) commitBuildPickerRouteState({ buildId: build.id, pickerKey: picker.key, query, resultLimit: nextLimit }, 'replace') }} onSelect={(ref) => choose(ref ?? null)} open={Boolean(picker)} query={query} resultLimit={candidateLimit} selected={selectedRef} title={picker ? `Choose ${picker.label}` : 'Choose definition'}/>
   </>
 }
 
@@ -237,7 +223,7 @@ function ScenarioCard({ scenario, profile, catalogs, validation, onAssign }: { s
     setAssignmentError(undefined)
     try { await onAssign(scenario.id, characterId, revisionId) } catch (reason) { setAssignmentError(reason instanceof Error ? reason.message : 'The scenario assignment could not be saved.') }
   }
-  return <article className="panel"><header className="panel__header"><div><div className="cluster"><h2>{scenario.label}</h2><Badge tone={scenario.kind === 'recordedCurrent' ? 'positive' : scenario.kind === 'hypothetical' ? 'warning' : 'info'}>{scenario.kind === 'recordedCurrent' ? 'Recorded current' : scenario.kind === 'hypothetical' ? 'Hypothetical' : 'Draft team'}</Badge></div><p>{scenario.inventoryPolicy.enforceStock ? 'Stock checks enabled' : 'Stock checks informational'} · {scenario.inventoryPolicy.includeProtected ? 'Protected copies allowed' : 'Protected copies excluded'}</p></div></header><div className="panel__body stack">{scenario.kind === 'recordedCurrent' && <InlineNotice title="Recorded assignments follow confirmed observations">Use a build's Record as current action after applying it in game. Draft and hypothetical scenarios remain directly editable.</InlineNotice>}<div className="grid-2">{characters.map((character) => <Field hint={scenario.kind === 'recordedCurrent' ? 'Record a pinned build as current to change this assignment.' : undefined} key={character.id} label={character.name}><select disabled={scenario.kind === 'recordedCurrent'} onChange={(event) => void assign(character.id, event.target.value)} value={effectiveAssignments[character.id] ?? ''}><option value="">No build assigned</option>{revisions.filter((revision) => { const build = profile.builds[revision.buildId]; return build && (!build.characterId || build.characterId === character.id) }).map((revision) => <option key={revision.id} value={revision.id}>{revisionOptionLabel(profile, revision)}</option>)}</select></Field>)}</div>{assignmentError && <InlineNotice title="Assignment not saved" tone="danger">{assignmentError} The prior pinned assignment remains active.</InlineNotice>}<ValidationPanel catalogs={catalogs} profile={profile} report={validation} scenario={scenario}/></div></article>
+  return <article className="panel" id={`scenario-${scenario.id}`}><header className="panel__header"><div><div className="cluster"><h2>{scenario.label}</h2><Badge tone={scenario.kind === 'recordedCurrent' ? 'positive' : scenario.kind === 'hypothetical' ? 'warning' : 'info'}>{scenario.kind === 'recordedCurrent' ? 'Recorded current' : scenario.kind === 'hypothetical' ? 'Hypothetical' : 'Draft team'}</Badge></div><p>{scenario.inventoryPolicy.enforceStock ? 'Stock checks enabled' : 'Stock checks informational'} · {scenario.inventoryPolicy.includeProtected ? 'Protected copies allowed' : 'Protected copies excluded'}</p></div></header><div className="panel__body stack">{scenario.kind === 'recordedCurrent' && <InlineNotice title="Recorded assignments follow confirmed observations">Use a build's Record as current action after applying it in game. Draft and hypothetical scenarios remain directly editable.</InlineNotice>}<div className="grid-2">{characters.map((character) => <Field hint={scenario.kind === 'recordedCurrent' ? 'Record a pinned build as current to change this assignment.' : undefined} key={character.id} label={character.name}><select disabled={scenario.kind === 'recordedCurrent'} onChange={(event) => void assign(character.id, event.target.value)} value={effectiveAssignments[character.id] ?? ''}><option value="">No build assigned</option>{revisions.filter((revision) => { const build = profile.builds[revision.buildId]; return build && (!build.characterId || build.characterId === character.id) }).map((revision) => <option key={revision.id} value={revision.id}>{revisionOptionLabel(profile, revision)}</option>)}</select></Field>)}</div>{assignmentError && <InlineNotice title="Assignment not saved" tone="danger">{assignmentError} The prior pinned assignment remains active.</InlineNotice>}<ValidationPanel catalogs={catalogs} profile={profile} report={validation} scenario={scenario}/></div></article>
 }
 
 export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCloneBuild, onSaveRevision, onCreateScenario, onAssign, onRecordCurrent, onOpenSettings, onDraftChange }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; validations: Readonly<Record<string, ValidationReport | undefined>>; onCreateBuild: (draft: BuildDraft) => Promise<void>; onCloneBuild: (buildId: string) => Promise<string>; onSaveRevision: (buildId: string, draft: RevisionDraft) => Promise<void>; onCreateScenario: (draft: ScenarioDraft) => Promise<void>; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void>; onRecordCurrent: (buildId: string) => Promise<void>; onOpenSettings: () => void; onDraftChange: (dirty: boolean) => void }) {
@@ -263,6 +249,17 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
   const [mobileCloseWarning, setMobileCloseWarning] = useState<string>()
   const [cloneBusy, setCloneBusy] = useState(false)
   const [cloneError, setCloneError] = useState<string>()
+  useSearchTarget((target) => {
+    if (target.kind === 'build' && profile.builds[target.buildId]) {
+      setSection('library')
+      setSelectedId(target.buildId)
+      setBuildQuery('')
+    }
+    if (target.kind === 'scenario' && profile.scenarios[target.scenarioId]) {
+      setSection('teams')
+      window.requestAnimationFrame(() => document.getElementById(`scenario-${target.scenarioId}`)?.scrollIntoView({ block: 'start' }))
+    }
+  })
   useEffect(() => {
     const restorePickerBuild = () => {
       const route = readBuildPickerRouteState()
@@ -350,7 +347,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
           else unresolvedPp += 1
         }
         if (slot?.kind === 'equipment') {
-          const key = entityDefinitionKey(selection.ref)
+          const key = logicalEntityKey(profile, selection.ref)
           const requirement = stockRequirements.get(key) ?? { ref: selection.ref, allocations: new Set<string>() }
           requirement.allocations.add(selection.allocationId ?? `slot:${slotId}`)
           stockRequirements.set(key, requirement)
@@ -358,7 +355,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       }
       for (const requirement of stockRequirements.values()) {
         const needed = requirement.allocations.size
-        const inventory = Object.values(profile.inventory).find((position) => entityDefinitionKey(position.ref) === entityDefinitionKey(requirement.ref))
+        const inventory = Object.values(profile.inventory).find((position) => sameLogicalEntity(profile, position.ref, requirement.ref))
         if (!inventory || inventory.possession === 'unknown' || inventory.quantity.kind === 'unknown') unknownStock += needed
         else if (inventory.possession === 'notOwned') missing += needed
         else {

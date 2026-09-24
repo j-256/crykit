@@ -52,6 +52,16 @@ export interface ReferenceFilters {
   readonly pp?: NumericBound
 }
 
+export interface PersonalDefinitionSearchOption {
+  readonly kind: CatalogEntityKind
+  readonly name: string
+  readonly aliases: readonly string[]
+  readonly description?: string
+  readonly category?: Knowledge<string>
+  readonly ppCost?: Knowledge<number>
+  readonly sourceLabel: string
+}
+
 export interface ReferenceSearchPartition {
   readonly confirmed: readonly ReferenceSearchItem[]
   readonly possible: readonly ReferenceSearchItem[]
@@ -124,6 +134,14 @@ function ppCostKnowledge(entity: CatalogEntity): Knowledge<number> {
   const field = Object.entries(entity.fields).find(([name]) => PP_FIELDS.has(normalizeImportedFieldName(name)))?.[1]
   return numberKnowledge(field) ?? (
     entity.kind === 'passive' || entity.kind === 'innate'
+      ? { state: 'unknown', reason: 'No numeric PP cost was supplied' }
+      : { state: 'notApplicable', reason: 'PP cost does not apply to this definition kind' }
+  )
+}
+
+function personalPpCost(option: PersonalDefinitionSearchOption): Knowledge<number> {
+  return option.ppCost ?? (
+    option.kind === 'passive' || option.kind === 'innate'
       ? { state: 'unknown', reason: 'No numeric PP cost was supplied' }
       : { state: 'notApplicable', reason: 'PP cost does not apply to this definition kind' }
   )
@@ -264,6 +282,33 @@ export function partitionReferenceItems(
 ): ReferenceSearchPartition {
   const query = buildReferenceQuery(filters)
   return { ...partitionQuery(items, query, (item) => item.projection), query }
+}
+
+export function personalDefinitionCategoryValues(option: PersonalDefinitionSearchOption): readonly string[] {
+  return option.category
+    ? Array.from(new Set(knowledgeStringValues(option.category))).sort(compareText)
+    : []
+}
+
+export function partitionPersonalDefinitionOptions<Option extends PersonalDefinitionSearchOption>(
+  options: readonly Option[],
+  filters: ReferenceFilters,
+) {
+  const query = buildReferenceQuery(filters)
+  return {
+    ...partitionQuery(options, query, (option): QueryRecord => {
+      const ppCost = personalPpCost(option)
+      return {
+        text: { state: 'known', value: [option.name, ...option.aliases, option.description ?? '', option.kind, option.sourceLabel].join('\n').normalize('NFKC') },
+        kind: { state: 'known', value: option.kind },
+        category: stringKnowledge(option.category ? [option.category] : []),
+        source: { state: 'known', value: ['Personal definitions'] },
+        ppCost,
+        ppCostUnit: ppUnitKnowledge(ppCost),
+      }
+    }),
+    query,
+  }
 }
 
 export function buildFacetOptions(items: readonly ReferenceSearchItem[], field: 'kind' | 'category' | 'source'): readonly FacetOption[] {

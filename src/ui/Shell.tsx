@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react'
-import type { Profile } from '../domain/types'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { CatalogSnapshot, Profile } from '../domain/types'
 import { activeRuleset } from './model'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
+import { UniversalSearch } from './UniversalSearch'
+import type { UniversalSearchTarget } from './search-navigation'
 
 export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference'
 
@@ -18,13 +20,23 @@ function Brand({ compact = false }: { compact?: boolean }) {
   return <div className="brand"><span className="brand__mark"><Icon name="compass" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">{compact ? 'Local expedition record' : 'Inventory & party planner'}</span></span></div>
 }
 
-export function Shell({ profile, destination, saveState, onNavigate, onOpenData, children }: { profile: Profile; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; onNavigate: (destination: Destination) => void; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ profile, catalogs, destination, saveState, onNavigate, onOpenData, children }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; onNavigate: (destination: Destination, target?: UniversalSearchTarget) => boolean; onOpenData: () => void; children: ReactNode }) {
   const ruleset = activeRuleset(profile)
   const scenario = profile.activeScenarioId ? profile.scenarios[profile.activeScenarioId] : undefined
+  const [searchOpen, setSearchOpen] = useState(false)
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
   const navigate = (next: Destination) => {
     onNavigate(next)
   }
+  useEffect(() => {
+    const openSearch = (event: globalThis.KeyboardEvent) => {
+      if (event.key.toLocaleLowerCase() !== 'k' || (!event.metaKey && !event.ctrlKey) || event.altKey) return
+      event.preventDefault()
+      setSearchOpen(true)
+    }
+    window.addEventListener('keydown', openSearch)
+    return () => window.removeEventListener('keydown', openSearch)
+  }, [])
 
   return <div className="app-shell">
     <aside className="rail">
@@ -32,12 +44,13 @@ export function Shell({ profile, destination, saveState, onNavigate, onOpenData,
       <div className="rail__rule" />
       <nav aria-label="Primary navigation"><ul className="nav-list">{destinations.map((item) => <li key={item.id}><button aria-current={destination === item.id ? 'page' : undefined} className="nav-link" onClick={() => navigate(item.id)} type="button"><Icon name={item.icon}/><span>{item.label}</span></button></li>)}</ul></nav>
       <div className="rail__footer">
+        <button className="nav-link rail__search" onClick={() => setSearchOpen(true)} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
         <button className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
         <div className="local-note"><strong>Private by default</strong>Your records stay in this browser until you export them.</div>
       </div>
     </aside>
     <main className="main-shell">
-      <header className="mobile-header"><Brand compact/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></header>
+      <header className="mobile-header"><Brand compact/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={() => setSearchOpen(true)}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
         <div className="context-bar__group">
           <div className="context-item context-item--profile"><Icon name="archive"/><span><span className="context-item__label">Playthrough</span><span className="context-item__value">{profile.label}</span></span></div>
@@ -49,6 +62,7 @@ export function Shell({ profile, destination, saveState, onNavigate, onOpenData,
       <div className="content">{children}</div>
     </main>
     <nav aria-label="Primary navigation" className="bottom-nav">{destinations.map((item) => <button aria-current={destination === item.id ? 'page' : undefined} key={item.id} onClick={() => navigate(item.id)} type="button"><Icon name={item.icon}/><span>{item.label.replace(' & teams', '')}</span></button>)}</nav>
+    <UniversalSearch catalogs={catalogs} onClose={() => setSearchOpen(false)} onNavigate={(next, target) => onNavigate(next, target)} open={searchOpen}/>
   </div>
 }
 

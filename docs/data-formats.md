@@ -2,6 +2,16 @@
 
 Crystal Companion separates reference definitions, personal observations, and hypothetical plans. Importing reference material does not establish current stock or character learning. Original source bytes and unmapped fields are retained for inspection and native backup.
 
+## Starter catalog and personal overrides
+
+The built-in [public names catalog](catalog-sources.md) is installed locally for every profile without creating personal records or undo entries. No runtime request is needed. Reference imports add separate immutable catalogs; equal names across sources do not automatically merge. A backup includes the starter revision when personal records or retained history reference it, without inventing an imported source file.
+
+Creating or saving a ruleset in Data & settings includes the built-in catalog in the new revision's lock when it is not already pinned. Existing catalog pins remain unchanged. For an older ruleset that lacks this catalog, save a new ruleset revision before selecting its definitions in a build.
+
+Creating a definition adds a profile-owned record. Editing a definition creates another immutable personal record with an exact `baseRef` and, for a personal revision, `previousRevision`. The original catalog or personal definition remains available. Preferred revisions are suggested by ordinary pickers, while existing build checkpoints and observations keep their exact references. Stock, learning, and progress use the lineage's logical identity so an edit does not create another owned copy or erase learning.
+
+Reference can collect selected preferred personal definitions into an immutable ruleset revision. Its `definitionOverrides` field pins exact personal references and its catalog lock includes required source revisions. Collecting replaces selected logical roots in the source layer and retains its other pins. This is an explicit reviewed collection: it does not rewrite selections, substitute new mechanics into historical builds, or activate the resulting ruleset. Original sources and all referenced personal revisions remain in native backups. Older backups without override metadata remain supported; malformed or branched lineage is rejected.
+
 ## Supported inputs
 
 | Input | Recognition | Applied data |

@@ -14,7 +14,9 @@ import {
   buildReferenceSearchItems,
   decodeReferenceEntityKey,
   encodeReferenceEntityKey,
+  partitionPersonalDefinitionOptions,
   partitionReferenceItems,
+  personalDefinitionCategoryValues,
   projectReferenceEntity,
 } from './search'
 
@@ -132,5 +134,31 @@ describe('reference search projection', () => {
     expect(left).not.toBe(right)
     expect(decodeReferenceEntityKey(left)).toEqual({ catalogId: 'a:b', catalogRevisionId: 'c', entityId: 'd' })
     expect(decodeReferenceEntityKey('a:b:c:d')).toBeUndefined()
+  })
+
+  it('keeps uncertain personal facets possible and excludes known mismatches', () => {
+    const personal = [
+      { name: 'Unknown Ward', kind: 'passive' as const, aliases: [], sourceLabel: 'Personal definitions', category: { state: 'unknown' as const }, ppCost: { state: 'unknown' as const } },
+      { name: 'Conflicted Ward', kind: 'passive' as const, aliases: [], sourceLabel: 'Personal definitions', category: { state: 'conflicting' as const, claims: [
+        { value: 'Defense', sources: [] },
+        { value: 'Support', sources: [] },
+      ] }, ppCost: { state: 'conflicting' as const, claims: [
+        { value: 2, sources: [] },
+        { value: 6, sources: [] },
+      ] } },
+      { name: 'Known Ward', kind: 'passive' as const, aliases: [], sourceLabel: 'Personal definitions', category: { state: 'known' as const, value: 'Defense' }, ppCost: { state: 'known' as const, value: 4 } },
+      { name: 'Known Mismatch', kind: 'passive' as const, aliases: [], sourceLabel: 'Personal definitions', category: { state: 'known' as const, value: 'Offense' }, ppCost: { state: 'known' as const, value: 9 } },
+    ]
+    const partition = partitionPersonalDefinitionOptions(personal, {
+      query: '',
+      kinds: ['passive'],
+      categories: ['Defense'],
+      sources: ['Personal definitions'],
+      pp: { min: 3, max: 5, unit: 'PP' },
+    })
+    expect(partition.confirmed.map((option) => option.name)).toEqual(['Known Ward'])
+    expect(partition.possible.map((option) => option.name)).toEqual(['Unknown Ward', 'Conflicted Ward'])
+    expect(partition.excluded.map((option) => option.name)).toEqual(['Known Mismatch'])
+    expect(personalDefinitionCategoryValues(personal[1]!)).toEqual(['Defense', 'Support'])
   })
 })

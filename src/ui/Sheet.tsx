@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode } from 'react'
+import { createPortal, flushSync } from 'react-dom'
 import { IconButton } from './components'
 
 const openSheetStack: HTMLDialogElement[] = []
@@ -25,7 +26,7 @@ function focusableElements(dialog: HTMLDialogElement) {
   })
 }
 
-export function Sheet({ open, title, description, onClose, onRequestClose, footer, children, width = 'standard' }: PropsWithChildren<{ open: boolean; title: string; description?: string; onClose: () => void; onRequestClose?: () => boolean; footer?: ReactNode; width?: 'standard' | 'wide' }>) {
+export function Sheet({ open, title, description, onClose, onRequestClose, footer, children, width = 'standard', universalSearch = false }: PropsWithChildren<{ open: boolean; title: string; description?: string; onClose: () => void; onRequestClose?: () => boolean; footer?: ReactNode; width?: 'standard' | 'wide' | 'command'; universalSearch?: boolean }>) {
   const titleId = useId()
   const descriptionId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -37,6 +38,8 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
   const requestClose = () => {
     if (onRequestCloseRef.current?.() === false) return
     dialogRef.current?.close()
+    // Native close events arrive later; synchronize state before a shortcut can reopen
+    flushSync(() => onCloseRef.current())
   }
 
   useEffect(() => {
@@ -49,6 +52,12 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
       requestClose()
     }
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && openSheetStack.at(-1) === dialog) {
+        event.preventDefault()
+        event.stopPropagation()
+        requestClose()
+        return
+      }
       if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return
       if (openSheetStack.at(-1) !== dialog) return
       const focusable = focusableElements(dialog)
@@ -85,5 +94,5 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
   }, [open])
 
   if (!open) return null
-  return <dialog aria-describedby={description ? descriptionId : undefined} aria-labelledby={titleId} className={`sheet-dialog sheet-dialog--${width}`} ref={dialogRef}><section className="sheet"><header className="sheet__header"><div><p className="eyebrow">Workspace panel</p><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><IconButton icon="close" label="Close panel" onClick={requestClose}/></header><div className="sheet__body">{children}</div>{footer && <footer className="sheet__footer">{footer}</footer>}</section></dialog>
+  return createPortal(<dialog aria-describedby={description ? descriptionId : undefined} aria-labelledby={titleId} className={`sheet-dialog sheet-dialog--${width}`} data-universal-search={universalSearch ? 'true' : undefined} ref={dialogRef}><section className="sheet"><header className="sheet__header"><div><p className="eyebrow">Workspace panel</p><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><IconButton icon="close" label="Close panel" onClick={requestClose}/></header><div className="sheet__body">{children}</div>{footer && <footer className="sheet__footer">{footer}</footer>}</section></dialog>, document.body)
 }

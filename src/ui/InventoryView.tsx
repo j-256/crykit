@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { entityDefinitionKey, partitionQuery } from '../domain'
-import type { CatalogRef, CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord } from '../domain/types'
+import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { entityName, formatRelativeDate, knowledgeLabel, quantityLabel } from './model'
 import { INVENTORY_PAGE_SIZE, ROUTE_MAX_RESULT_LIMIT, commitInventoryRouteState, readInventoryRouteState, type InventoryRouteState } from './route-state'
 import { buildFacetOptions, buildReferenceSearchItems } from './search'
 import { Sheet } from './Sheet'
+import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
+import { useSearchTarget } from './use-search-target'
 
 export interface InventoryDraft {
   readonly name: string
@@ -29,25 +31,6 @@ export interface InventoryEventDraft {
   readonly note?: string
 }
 
-interface ItemOption {
-  readonly key: string
-  readonly name: string
-  readonly ref: EntityRef
-  readonly sourceLabel: string
-}
-
-function itemOptions(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly ItemOption[] {
-  const personal = Object.values(profile.personalDefinitions).filter((definition) => definition.kind === 'item').map((definition): ItemOption => {
-    const ref = { kind: 'personal', definitionId: definition.id } as const
-    return { key: entityDefinitionKey(ref), name: definition.name, ref, sourceLabel: 'Personal entry' }
-  })
-  const imported = catalogs.flatMap((catalog) => Object.values(catalog.entities).filter((entity) => entity.kind === 'item').map((entity): ItemOption => {
-    const ref: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }
-    return { key: entityDefinitionKey(ref), name: entity.name, ref, sourceLabel: `Catalog revision ${catalog.revisionId}` }
-  }))
-  return [...personal, ...imported].sort((left, right) => left.name.localeCompare(right.name) || left.key.localeCompare(right.key))
-}
-
 const filters = ['All', 'Owned', 'Unknown', 'Wishlist', 'Protected'] as const
 
 function toggleValue(values: readonly string[], value: string): readonly string[] {
@@ -58,23 +41,13 @@ function blankDraft(): InventoryDraft {
   return { name: '', possession: 'unknown', quantity: { kind: 'unknown' }, favorite: false, protectedQuantity: 0, wishlist: false }
 }
 
-function InventoryForm({ catalogs, initial, onCancel, onSubmit, submitLabel }: { catalogs: readonly CatalogSnapshot[]; initial?: InventoryDraft; onCancel: () => void; onSubmit: (draft: InventoryDraft) => Promise<void> | void; submitLabel: string }) {
+function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?: InventoryDraft; onCancel: () => void; onSubmit: (draft: InventoryDraft) => Promise<void> | void; submitLabel: string }) {
+  const { options } = useDefinitionWorkspace()
   const [draft, setDraft] = useState(initial ?? blankDraft())
   const [quantityKind, setQuantityKind] = useState<Quantity['kind']>(draft.quantity.kind)
   const [quantityValue, setQuantityValue] = useState(draft.quantity.kind === 'unknown' ? 1 : draft.quantity.value)
-  const [referenceQuery, setReferenceQuery] = useState('')
-  const [referenceLimit, setReferenceLimit] = useState(100)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const catalogItems = useMemo(() => buildReferenceSearchItems(catalogs).filter((item) => item.entity.kind === 'item').map((item) => ({ entity: item.entity, ref: { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id } as CatalogRef, sourceLabel: `${item.catalog.id} · revision ${item.catalog.revisionId}`, searchText: `${item.entity.name} ${item.entity.aliases.join(' ')} ${item.entity.rawDescription ?? ''} ${item.catalog.id}`.toLocaleLowerCase() })), [catalogs])
-  const matchingCatalogItems = useMemo(() => {
-    const tokens = referenceQuery.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-    return tokens.length ? catalogItems.filter((item) => tokens.every((token) => item.searchText.includes(token))) : catalogItems
-  }, [catalogItems, referenceQuery])
-  const visibleCatalogItems = matchingCatalogItems.slice(0, referenceLimit)
-  const selectedCatalogKey = draft.ref?.kind === 'catalog' ? entityDefinitionKey(draft.ref) : ''
-  const selectedCatalog = selectedCatalogKey ? catalogItems.find((item) => entityDefinitionKey(item.ref) === selectedCatalogKey) : undefined
-  const selectedCatalogVisible = visibleCatalogItems.some((item) => entityDefinitionKey(item.ref) === selectedCatalogKey)
   const selectPossession = (possession: PossessionState) => {
     setDraft({ ...draft, possession })
     if (possession === 'notOwned') { setQuantityKind('exact'); setQuantityValue(0) }
@@ -94,7 +67,7 @@ function InventoryForm({ catalogs, initial, onCancel, onSubmit, submitLabel }: {
     }
   }
   return <form className="stack" id="inventory-entry" onSubmit={submit}>
-    {catalogItems.length > 0 && <Field hint="Search and choose an exact catalog revision, or keep a personal unmatched entry." label="Reference link"><input aria-label="Search item references" onChange={(event) => { setReferenceQuery(event.target.value); setReferenceLimit(100) }} placeholder="Search reference names, descriptions, or packs" type="search" value={referenceQuery}/><select onChange={(event) => { const match = catalogItems.find((item) => entityDefinitionKey(item.ref) === event.target.value); setDraft({ ...draft, ref: match?.ref, name: match?.entity.name ?? draft.name }) }} value={selectedCatalogKey}><option value="">Personal unmatched item</option>{selectedCatalog && !selectedCatalogVisible && <option value={selectedCatalogKey}>{selectedCatalog.entity.name} · {selectedCatalog.sourceLabel}</option>}{visibleCatalogItems.map(({ entity, ref, sourceLabel }) => <option key={entityDefinitionKey(ref)} value={entityDefinitionKey(ref)}>{entity.name} · {sourceLabel}</option>)}</select>{matchingCatalogItems.length > referenceLimit && <Button onClick={() => setReferenceLimit((value) => value + 100)} tone="secondary" type="button">Show {Math.min(100, matchingCatalogItems.length - referenceLimit)} more references</Button>}{matchingCatalogItems.length === 0 && <span className="field__hint">No reference definitions match this search.</span>}</Field>}
+    <DefinitionPickerField allowedKinds={['item']} hint="Search an exact definition, create a personal item, or keep the reference unknown." label="Item definition" onChange={(ref) => { const selected = findDefinitionOption(options, ref); setDraft({ ...draft, ref: ref ?? undefined, name: selected?.name ?? draft.name }) }} value={draft.ref}/>
     <Field label="Item name" required><input autoComplete="off" autoFocus name="name" onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Enter the name shown in game" required value={draft.name}/></Field>
     <div className="grid-2"><Field label="Current possession"><select onChange={(event) => selectPossession(event.target.value as PossessionState)} value={draft.possession}><option value="unknown">Current possession unknown</option><option value="owned">Owned now</option><option value="notOwned">Not currently owned</option></select></Field><Field label="Quantity certainty"><select disabled={draft.possession === 'notOwned'} onChange={(event) => setQuantityKind(event.target.value as Quantity['kind'])} value={quantityKind}><option value="unknown">Unknown count</option><option value="atLeast">At least</option><option value="exact">Exact count</option></select></Field></div>
     {quantityKind !== 'unknown' && <Field hint="Total stock includes equipped copies." label={quantityKind === 'exact' ? 'Current count' : 'Known minimum'}><input inputMode="numeric" min="0" onChange={(event) => setQuantityValue(event.target.valueAsNumber || 0)} type="number" value={quantityValue}/></Field>}
@@ -110,15 +83,14 @@ function positionDraft(profile: Profile, catalogs: readonly CatalogSnapshot[], p
   return { name: position.observedName ?? entityName(profile, catalogs, position.ref), ref: position.ref, possession: position.possession, quantity: position.quantity, favorite: position.favorite, protectedQuantity: position.protectedQuantity, wishlist: position.wishlist, note: position.note, observedAt: position.observedAt }
 }
 
-function InventoryEventForm({ options, onCancel, onSubmit }: {
-  readonly options: readonly ItemOption[]
+function InventoryEventForm({ onCancel, onSubmit }: {
   readonly onCancel: () => void
   readonly onSubmit: (draft: InventoryEventDraft) => Promise<void>
 }) {
+  const { options } = useDefinitionWorkspace()
   const [draft, setDraft] = useState<InventoryEventDraft>({ name: '', kind: 'acquired', quantity: { state: 'unknown' } })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const selectedKey = draft.ref ? entityDefinitionKey(draft.ref) : ''
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
@@ -126,7 +98,7 @@ function InventoryEventForm({ options, onCancel, onSubmit }: {
     try { await onSubmit(draft) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The inventory event could not be saved.') } finally { setBusy(false) }
   }
   return <form className="stack" onSubmit={submit}>
-    <Field hint="Choose an exact item definition or keep a personal unmatched entry." label="Item reference"><select autoFocus onChange={(event) => { const option = options.find((candidate) => candidate.key === event.target.value); setDraft({ ...draft, ref: option?.ref, name: option?.name ?? draft.name }) }} value={selectedKey}><option value="">Personal unmatched item</option>{options.map((option) => <option key={option.key} value={option.key}>{option.name} · {option.sourceLabel}</option>)}</select></Field>
+    <DefinitionPickerField allowedKinds={['item']} autoFocus hint="Choose an exact item definition or create a personal entry." label="Item reference" onChange={(ref) => { const option = findDefinitionOption(options, ref); setDraft({ ...draft, ref: ref ?? undefined, name: option?.name ?? draft.name }) }} value={draft.ref}/>
     <Field label="Item display name" required><input onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Enter the observed item name" required value={draft.name}/></Field>
     <div className="grid-2"><Field label="Event"><select onChange={(event) => setDraft({ ...draft, kind: event.target.value as InventoryEventKind })} value={draft.kind}><option value="acquired">Acquired</option><option value="lost">Lost</option></select></Field><Field label="Amount certainty"><select onChange={(event) => setDraft({ ...draft, quantity: event.target.value === 'known' ? { state: 'known', value: 1 } : { state: 'unknown' } })} value={draft.quantity.state === 'known' ? 'known' : 'unknown'}><option value="unknown">Amount unknown</option><option value="known">Known amount</option></select></Field></div>
     {draft.quantity.state === 'known' && <Field hint="This amount is event history, not a current stock count." label="Amount"><input inputMode="numeric" min="1" onChange={(event) => setDraft({ ...draft, quantity: { state: 'known', value: event.target.valueAsNumber } })} required type="number" value={draft.quantity.value}/></Field>}
@@ -146,17 +118,29 @@ export interface InventoryViewProps {
   readonly onOpenData: () => void
 }
 
+function categoryFacetValues(option: DefinitionOption | undefined) {
+  if (option?.category?.state === 'known') return [option.category.value]
+  if (option?.category?.state === 'conflicting') return option.category.claims.map((claim) => claim.value)
+  return []
+}
+
 export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEvent, onOpenData }: InventoryViewProps) {
+  const { options } = useDefinitionWorkspace()
   const positions = Object.values(profile.inventory)
   const events = Object.values(profile.inventoryEvents).sort((left, right) => (right.observedAt ?? right.recordedAt).localeCompare(left.observedAt ?? left.recordedAt))
-  const options = useMemo(() => itemOptions(profile, catalogs), [catalogs, profile])
   const [adding, setAdding] = useState(false)
   const [recordingEvent, setRecordingEvent] = useState(false)
   const [editing, setEditing] = useState<InventoryPosition>()
   const [route, setRoute] = useState(readInventoryRouteState)
   const [eventLimit, setEventLimit] = useState(100)
+  useSearchTarget((target) => {
+    if (target.kind !== 'inventory') return
+    const position = profile.inventory[target.positionId]
+    if (position) setEditing(position)
+  })
   const referenceItems = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
   const referenceByDefinition = useMemo(() => new Map(referenceItems.map((item) => [entityDefinitionKey({ kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }), item])), [referenceItems])
+  const optionByDefinition = useMemo(() => new Map(options.map((option) => [option.key, option])), [options])
   const linkedReferenceItems = useMemo(() => {
     const linked = new Map<string, (typeof referenceItems)[number]>()
     for (const position of positions) {
@@ -165,7 +149,14 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     }
     return [...linked.values()]
   }, [positions, referenceByDefinition, referenceItems])
-  const categoryOptions = useMemo(() => buildFacetOptions(linkedReferenceItems, 'category'), [linkedReferenceItems])
+  const categoryOptions = useMemo(() => {
+    const counts = new Map(buildFacetOptions(linkedReferenceItems, 'category').map((option) => [option.value, option.count]))
+    for (const position of positions) {
+      if (position.ref.kind !== 'personal') continue
+      for (const value of new Set(categoryFacetValues(optionByDefinition.get(entityDefinitionKey(position.ref))))) counts.set(value, (counts.get(value) ?? 0) + 1)
+    }
+    return [...counts].map(([value, count]) => ({ value, count })).sort((left, right) => left.value.localeCompare(right.value))
+  }, [linkedReferenceItems, optionByDefinition, positions])
   const sourceOptions = useMemo(() => {
     const imported = buildFacetOptions(linkedReferenceItems, 'source')
     const personalCount = positions.filter((position) => position.ref.kind === 'personal').length
@@ -196,19 +187,20 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     const tree: QueryNode = { kind: 'and', children }
     return partitionQuery(positions, tree, (position): QueryRecord => {
       const reference = referenceByDefinition.get(entityDefinitionKey(position.ref))
+      const personalDefinition = position.ref.kind === 'personal' ? optionByDefinition.get(entityDefinitionKey(position.ref)) : undefined
       const name = position.observedName ?? entityName(profile, catalogs, position.ref)
-      const referenceText = reference ? `${reference.entity.name} ${reference.entity.aliases.join(' ')} ${reference.entity.rawDescription ?? ''}` : ''
+      const referenceText = reference ? `${reference.entity.name} ${reference.entity.aliases.join(' ')} ${reference.entity.rawDescription ?? ''}` : personalDefinition ? `${personalDefinition.name} ${personalDefinition.aliases.join(' ')} ${personalDefinition.description ?? ''} ${categoryFacetValues(personalDefinition).join(' ')}` : ''
       return {
         text: { state: 'known', value: `${name} ${referenceText}` },
         possession: { state: 'known', value: position.possession },
         quantityKind: { state: 'known', value: position.quantity.kind },
         wishlist: { state: 'known', value: position.wishlist },
         protectedQuantity: { state: 'known', value: position.protectedQuantity },
-        category: reference?.projection.category ?? { state: 'unknown', reason: 'No linked catalog category' },
+        category: reference?.projection.category ?? personalDefinition?.category ?? { state: 'unknown', reason: 'No linked definition category' },
         source: position.ref.kind === 'personal' ? { state: 'known', value: ['Personal entry'] } : reference?.projection.source ?? { state: 'unknown', reason: 'No linked catalog source' },
       }
     })
-  }, [catalogs, positions, profile, referenceByDefinition, route])
+  }, [catalogs, optionByDefinition, positions, profile, referenceByDefinition, route])
   const visible = [...partition.confirmed, ...partition.possible]
 
   const add = async (draft: InventoryDraft) => {
@@ -234,8 +226,8 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
       })}</ul>{visible.length > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + INVENTORY_PAGE_SIZE) })} tone="secondary">Show {Math.min(INVENTORY_PAGE_SIZE, visible.length - route.resultLimit)} more</Button></div>}{visible.length > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Inventory display limit reached">Refine the name, category, source, or inventory-state filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}</> : <div className="panel__body"><InlineNotice title="No matching entries">Change the search or filters to see another part of your recorded inventory. Unknown catalog facets remain possible matches.</InlineNotice></div>}
     </div>}
     <section className="panel" style={{ marginTop: 18 }}><div className="panel__header"><div><h2>Acquisition & loss history</h2><p>Historical events stay separate from current stock</p></div><Button onClick={() => setRecordingEvent(true)} tone="secondary">Record event</Button></div>{events.length ? <><ul className="list">{events.slice(0, eventLimit).map((entry) => <li className="list-row" key={entry.id}><div className="list-row__primary"><strong>{entry.observedName ?? entityName(profile, catalogs, entry.ref)}</strong><small>{formatRelativeDate(entry.observedAt)} · Recorded {formatRelativeDate(entry.recordedAt)}</small></div><Badge tone={entry.kind === 'acquired' ? 'positive' : 'warning'}>{entry.kind === 'acquired' ? 'Acquired' : 'Lost'}</Badge><div className="list-row__fact"><strong>{knowledgeLabel(entry.quantity, (value) => `${value}`)}</strong><small>{entry.quantity.state === 'known' ? 'Recorded amount' : 'Amount unknown'}</small></div><div className="list-row__fact">{entry.note ?? 'No event note'}</div></li>)}</ul>{events.length > eventLimit && <div className="panel__body"><Button onClick={() => setEventLimit((value) => value + 100)} tone="secondary">Show 100 more events</Button></div>}</> : <div className="panel__body"><InlineNotice title="No acquisition or loss events">Add historical events here without changing the current inventory observation.</InlineNotice></div>}</section>
-    <Sheet description="Record current possession and quantity without implying anything from earlier acquisitions." onClose={() => setAdding(false)} open={adding} title="Add inventory item"><InventoryForm catalogs={catalogs} onCancel={() => setAdding(false)} onSubmit={add} submitLabel="Add item"/></Sheet>
-    <Sheet description="This records a corrected current observation. It does not create a gain or loss event." onClose={() => setEditing(undefined)} open={Boolean(editing)} title="Edit inventory observation">{editing && <InventoryForm catalogs={catalogs} initial={positionDraft(profile, catalogs, editing)} onCancel={() => setEditing(undefined)} onSubmit={update} submitLabel="Save observation"/>}</Sheet>
-    <Sheet description="Record a historical event without adjusting current stock." onClose={() => setRecordingEvent(false)} open={recordingEvent} title="Record acquisition or loss"><InventoryEventForm onCancel={() => setRecordingEvent(false)} onSubmit={recordEvent} options={options}/></Sheet>
+    <Sheet description="Record current possession and quantity without implying anything from earlier acquisitions." onClose={() => setAdding(false)} open={adding} title="Add inventory item"><InventoryForm onCancel={() => setAdding(false)} onSubmit={add} submitLabel="Add item"/></Sheet>
+    <Sheet description="This records a corrected current observation. It does not create a gain or loss event." onClose={() => setEditing(undefined)} open={Boolean(editing)} title="Edit inventory observation">{editing && <InventoryForm initial={positionDraft(profile, catalogs, editing)} onCancel={() => setEditing(undefined)} onSubmit={update} submitLabel="Save observation"/>}</Sheet>
+    <Sheet description="Record a historical event without adjusting current stock." onClose={() => setRecordingEvent(false)} open={recordingEvent} title="Record acquisition or loss"><InventoryEventForm onCancel={() => setRecordingEvent(false)} onSubmit={recordEvent}/></Sheet>
   </>
 }

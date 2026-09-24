@@ -2,7 +2,7 @@
 
 A local-first inventory, character, and party planner for Crystal Project. Personal records live in the browser and move between devices through explicit file backups. The application does not connect to the game or infer unrecorded possessions, mastery, or combat rules.
 
-The application starts with a blank playthrough. Reference files and personal records are imported locally; no private playthrough or third-party game dataset is bundled with the source.
+The application starts with a blank playthrough and a searchable public names catalog for items, classes, abilities, passives, innates, and Monster Magic. Catalog presence never establishes ownership or learning. Coverage is partial, and game mechanics and platform applicability remain unknown; see [catalog sources](docs/catalog-sources.md). Additional reference files and personal records can be imported locally.
 
 Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
 
@@ -40,6 +40,10 @@ Original workbooks, trackers, personal exports, and private screenshots do not b
 Record current inventory and character observations, then configure the playthrough's ruleset and ordered slots in Data & settings. Create character builds or reusable templates, choose exact reference definitions, and save named checkpoints. Cloning makes a separate draft; editing a checkpoint creates a new immutable revision. When one equipped item occupies several slots, mark those selections as the same copy.
 
 Assign checkpoints to a team scenario to check simultaneous stock, learning, PP, equipment permissions, and source applicability. Alternative library builds do not reserve stock. Each dimension reports proved issues separately from facts that still need confirmation. Recording a build as current requires an explicit in-game confirmation and preserves the previous character snapshots.
+
+Definition fields open searchable pickers with inline creation and editing. An edit saves a separate personal override and preserves its source and earlier revisions. Ownership and learning follow the underlying identity; saved builds retain their exact definitions. Reference can collect reviewed personal definitions into a new ruleset revision without changing the active ruleset or existing selections.
+
+Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to search definitions, inventory, characters, builds, teams, and progress. Arrow keys move through results, Enter opens one, and Escape closes the search. Open forms and unsaved build edits must be finished before navigating to another record.
 
 Reference search supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 

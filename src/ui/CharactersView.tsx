@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { entityDefinitionKey } from '../domain'
 import type {
   CatalogEntityKind,
-  CatalogRef,
   CatalogSnapshot,
   CharacterClassProgress,
   CharacterId,
@@ -18,11 +17,12 @@ import type {
 import { Badge, Button, DefinitionRow, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { entityName, formatRelativeDate, initials, knowledgeLabel } from './model'
 import { Sheet } from './Sheet'
+import { DefinitionPickerField } from './definitions'
+import { useSearchTarget } from './use-search-target'
 
 const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
 const UNKNOWN_REF: Knowledge<EntityRef> = { state: 'unknown' }
-const OBSERVED_EMPTY_OPTION = '__observed-empty__'
 
 export interface CharacterDraft {
   readonly name: string
@@ -62,15 +62,6 @@ export interface CharactersViewProps {
   readonly onCapture: (characterId: CharacterId, draft: SnapshotDraft) => Promise<void>
   readonly onUpsertClass: (characterId: CharacterId, draft: ClassProgressDraft) => Promise<void>
   readonly onUpsertLearned: (characterId: CharacterId, draft: LearnedNodeDraft) => Promise<void>
-  readonly onCreateDefinition: (kind: CatalogEntityKind, name: string) => Promise<EntityRef>
-}
-
-interface DefinitionOption {
-  readonly key: string
-  readonly kind: CatalogEntityKind
-  readonly name: string
-  readonly ref: EntityRef
-  readonly sourceLabel: string
 }
 
 interface StatRow {
@@ -85,78 +76,8 @@ function kindLabel(kind: CatalogEntityKind | LearnedNodeKind): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1)
 }
 
-function definitionOptions(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly DefinitionOption[] {
-  const personal = Object.values(profile.personalDefinitions).map((definition): DefinitionOption => {
-    const ref = { kind: 'personal', definitionId: definition.id } as const
-    return { key: entityDefinitionKey(ref), kind: definition.kind, name: definition.name, ref, sourceLabel: 'Personal entry' }
-  })
-  const imported = catalogs.flatMap((catalog) => Object.values(catalog.entities).map((entity): DefinitionOption => {
-    const ref: CatalogRef = {
-      kind: 'catalog',
-      catalogId: catalog.id,
-      catalogRevisionId: catalog.revisionId,
-      entityId: entity.id,
-    }
-    return { key: entityDefinitionKey(ref), kind: entity.kind, name: entity.name, ref, sourceLabel: `Catalog revision ${catalog.revisionId}` }
-  }))
-  return [...personal, ...imported].sort((left, right) => left.name.localeCompare(right.name) || left.kind.localeCompare(right.kind) || left.key.localeCompare(right.key))
-}
-
 function selectedRef(value: Knowledge<EntityRef>): EntityRef | undefined {
   return value.state === 'known' ? value.value : undefined
-}
-
-function EntityRefField({ label, hint, options, manualKinds, value, disabled = false, observedEmpty = false, onChange, onObservedEmpty, onCreateDefinition }: {
-  readonly label: string
-  readonly hint?: string
-  readonly options: readonly DefinitionOption[]
-  readonly manualKinds: readonly CatalogEntityKind[]
-  readonly value?: EntityRef
-  readonly disabled?: boolean
-  readonly observedEmpty?: boolean
-  readonly onChange: (ref: EntityRef | undefined) => void
-  readonly onObservedEmpty?: () => void
-  readonly onCreateDefinition: CharactersViewProps['onCreateDefinition']
-}) {
-  const [manualName, setManualName] = useState('')
-  const [manualKind, setManualKind] = useState<CatalogEntityKind>(manualKinds[0] ?? 'other')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  const selectedKey = value ? entityDefinitionKey(value) : observedEmpty ? OBSERVED_EMPTY_OPTION : ''
-  const hasSelectedOption = options.some((option) => option.key === selectedKey)
-  const create = async () => {
-    const name = manualName.trim()
-    if (!name) return
-    setBusy(true)
-    setError(undefined)
-    try {
-      const ref = await onCreateDefinition(manualKind, name)
-      onChange(ref)
-      setManualName('')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The personal definition could not be created.')
-    } finally {
-      setBusy(false)
-    }
-  }
-  return <div className="field">
-    <span className="field__label">{label}</span>
-    <select aria-label={label} disabled={disabled} onChange={(event) => event.target.value === OBSERVED_EMPTY_OPTION ? onObservedEmpty?.() : onChange(options.find((option) => option.key === event.target.value)?.ref)} value={selectedKey}>
-      <option value="">Unknown or unrecorded</option>
-      {onObservedEmpty && <option value={OBSERVED_EMPTY_OPTION}>Observed empty</option>}
-      {!hasSelectedOption && value && <option value={selectedKey}>Current unresolved reference</option>}
-      {options.map((option) => <option key={option.key} value={option.key}>{option.name} · {option.sourceLabel}</option>)}
-    </select>
-    {!disabled && <><div className="grid-2">
-      <input aria-label={`New personal ${label.toLowerCase()} name`} onChange={(event) => setManualName(event.target.value)} placeholder="New personal definition" value={manualName}/>
-      {manualKinds.length > 1
-        ? <select aria-label={`New personal ${label.toLowerCase()} type`} onChange={(event) => setManualKind(event.target.value as CatalogEntityKind)} value={manualKind}>{manualKinds.map((kind) => <option key={kind} value={kind}>{kindLabel(kind)}</option>)}</select>
-        : <Button disabled={busy || !manualName.trim()} onClick={() => void create()} tone="secondary" type="button">{busy ? 'Adding...' : 'Add personal entry'}</Button>}
-    </div>
-    {manualKinds.length > 1 && <Button disabled={busy || !manualName.trim()} onClick={() => void create()} tone="secondary" type="button">{busy ? 'Adding...' : 'Add personal entry'}</Button>}</>}
-    {hint && <span className="field__hint">{hint}</span>}
-    {error && <InlineNotice title="Definition not created" tone="danger">{error}</InlineNotice>}
-  </div>
 }
 
 function NumberKnowledgeField({ label, hint, min, value, onChange }: {
@@ -231,13 +152,11 @@ function slotEntityKinds(slot: SlotDefinition): readonly CatalogEntityKind[] {
   return slot.kind === 'passive' ? ['passive', 'innate'] : ['item']
 }
 
-function SnapshotForm({ profile, options, initial, onCancel, onSubmit, onCreateDefinition }: {
+function SnapshotForm({ profile, initial, onCancel, onSubmit }: {
   readonly profile: Profile
-  readonly options: readonly DefinitionOption[]
   readonly initial?: CharacterSnapshot
   readonly onCancel: () => void
   readonly onSubmit: (draft: SnapshotDraft) => Promise<void>
-  readonly onCreateDefinition: CharactersViewProps['onCreateDefinition']
 }) {
   const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
   const [draft, setDraft] = useState<SnapshotDraft>(() => snapshotDraft(initial))
@@ -245,7 +164,6 @@ function SnapshotForm({ profile, options, initial, onCancel, onSubmit, onCreateD
   const [nextStatId, setNextStatId] = useState(stats.length)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const classes = options.filter((option) => option.kind === 'class')
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setError(undefined)
@@ -268,7 +186,7 @@ function SnapshotForm({ profile, options, initial, onCancel, onSubmit, onCreateD
   return <form className="stack" onSubmit={submit}>
     {initial && <InlineNotice title="Starting from the latest snapshot">Review the carried-forward values before saving this new observation. The observation date and note start blank.</InlineNotice>}
     <div className="grid-2"><NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/><NumberKnowledgeField hint="Displayed capacity, not inferred from selections." label="PP capacity" min={0} onChange={(ppCapacity) => setDraft({ ...draft, ppCapacity })} value={draft.ppCapacity}/></div>
-    <div className="grid-2"><EntityRefField label="Primary class" manualKinds={['class']} onChange={(ref) => setDraft({ ...draft, primaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} onCreateDefinition={onCreateDefinition} options={classes} value={selectedRef(draft.primaryClass)}/><EntityRefField label="Secondary class" manualKinds={['class']} onChange={(ref) => setDraft({ ...draft, secondaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} onCreateDefinition={onCreateDefinition} options={classes} value={selectedRef(draft.secondaryClass)}/></div>
+    <div className="grid-2"><DefinitionPickerField allowedKinds={['class']} label="Primary class" onChange={(ref) => setDraft({ ...draft, primaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} value={selectedRef(draft.primaryClass)}/><DefinitionPickerField allowedKinds={['class']} label="Secondary class" onChange={(ref) => setDraft({ ...draft, secondaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} value={selectedRef(draft.secondaryClass)}/></div>
     <div className="stack"><div className="split"><div><h3>Displayed final stats</h3><p className="settings-section__intro">Record only totals visible on the character screen.</p></div><Button onClick={() => { setStats((current) => [...current, { id: nextStatId, key: '', unit: 'displayed', value: UNKNOWN_NUMBER }]); setNextStatId((value) => value + 1) }} tone="secondary" type="button">Add stat</Button></div>{stats.length === 0 ? <InlineNotice title="No displayed stats recorded">Unlisted stats remain unrecorded and are never treated as zero.</InlineNotice> : stats.map((stat) => <div className="grid-3" key={stat.id}><Field label="Stat name" required><input onChange={(event) => updateStat(stat.id, { key: event.target.value })} placeholder="For example: Max HP" required value={stat.key}/></Field><NumberKnowledgeField label="Displayed value" min={0} onChange={(value) => updateStat(stat.id, { value })} value={stat.value}/><div className="field"><span className="field__label">Unit</span><input aria-label="Stat unit" onChange={(event) => updateStat(stat.id, { unit: event.target.value })} placeholder="displayed" value={stat.unit}/><Button onClick={() => setStats((current) => current.filter((entry) => entry.id !== stat.id))} tone="quiet" type="button">Remove stat</Button></div></div>)}</div>
     {ruleset?.slots.length ? <div className="stack"><div><h3>Observed selections</h3><p className="settings-section__intro">Each saved choice keeps its exact personal or catalog identity. Candidate lists do not assert legality.</p></div><div className="grid-2">{[...ruleset.slots].sort((left, right) => left.order - right.order).map((slot) => {
       const kinds = slotEntityKinds(slot)
@@ -280,21 +198,19 @@ function SnapshotForm({ profile, options, initial, onCancel, onSubmit, onCreateD
         else selections[slot.id] = ref
         return { ...current, selections }
       })
-      return <EntityRefField hint="Choose unknown when the slot was not checked, or observed empty when you confirmed it had no selection." key={slot.id} label={slot.label} manualKinds={kinds} observedEmpty={observed && selection === null} onChange={setSelection} onCreateDefinition={onCreateDefinition} onObservedEmpty={() => setSelection(null)} options={options.filter((option) => kinds.includes(option.kind))} value={selection ?? undefined}/>
+      return <DefinitionPickerField allowEmpty allowedKinds={kinds} hint="Choose unknown when the slot was not checked, or observed empty when you confirmed it had no selection." key={slot.id} label={slot.label} onChange={setSelection} value={observed ? selection : undefined}/>
     })}</div></div> : <InlineNotice title="No slots configured">Configure an active ruleset to capture ordered equipment and passive slots in this snapshot.</InlineNotice>}
     <div className="grid-2"><Field label="Observed on"><input onChange={(event) => setDraft({ ...draft, observedAt: event.target.value || undefined })} type="date" value={draft.observedAt ?? ''}/></Field><Field label="Snapshot note"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} placeholder="Optional context" value={draft.note ?? ''}/></Field></div>
-    <InlineNotice title="Observed totals stay observed">Displayed values are not recalculated or treated as base stats. Adding a personal definition saves only its identity and name.</InlineNotice>
+    <InlineNotice title="Observed totals stay observed">Displayed values are not recalculated or treated as base stats. Personal definitions are saved separately from this observation.</InlineNotice>
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
     <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>
   </form>
 }
 
-function ClassProgressForm({ options, initial, onCancel, onSubmit, onCreateDefinition }: {
-  readonly options: readonly DefinitionOption[]
+function ClassProgressForm({ initial, onCancel, onSubmit }: {
   readonly initial?: CharacterClassProgress
   readonly onCancel: () => void
   readonly onSubmit: (draft: ClassProgressDraft) => Promise<void>
-  readonly onCreateDefinition: CharactersViewProps['onCreateDefinition']
 }) {
   const [classRef, setClassRef] = useState<EntityRef | undefined>(initial?.classRef)
   const [unlocked, setUnlocked] = useState(initial?.unlocked ?? UNKNOWN_BOOLEAN)
@@ -311,7 +227,7 @@ function ClassProgressForm({ options, initial, onCancel, onSubmit, onCreateDefin
     try { await onSubmit({ classRef, unlocked, coreTreeComplete, mastered, observedLp }) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The class observation could not be saved.') } finally { setBusy(false) }
   }
   return <form className="stack" onSubmit={submit}>
-    <EntityRefField disabled={Boolean(initial)} hint={initial ? 'The linked class identity stays unchanged while its observed facts are edited.' : 'Choose an exact reference or create a personal class definition.'} label="Class" manualKinds={['class']} onChange={setClassRef} onCreateDefinition={onCreateDefinition} options={options.filter((option) => option.kind === 'class')} value={classRef}/>
+    <DefinitionPickerField allowedKinds={['class']} disabled={Boolean(initial)} hint={initial ? 'The linked class identity stays unchanged while its observed facts are edited.' : 'Choose an exact reference or create a personal class definition.'} label="Class" onChange={(value) => setClassRef(value ?? undefined)} value={classRef}/>
     <div className="grid-3"><BooleanKnowledgeField label="Unlocked" onChange={setUnlocked} value={unlocked}/><BooleanKnowledgeField label="Core tree complete" onChange={setCoreTreeComplete} value={coreTreeComplete}/><BooleanKnowledgeField label="Mastered" onChange={setMastered} value={mastered}/></div>
     <NumberKnowledgeField hint="Leave unknown when the displayed LP was not checked." label="Observed LP" min={0} onChange={setObservedLp} value={observedLp}/>
     <InlineNotice title="Character-specific progress">This record does not change party-wide collection, class progress, or another character.</InlineNotice>
@@ -320,14 +236,12 @@ function ClassProgressForm({ options, initial, onCancel, onSubmit, onCreateDefin
   </form>
 }
 
-function LearnedNodeForm({ options, initial, defaultKind, lockedKind, onCancel, onSubmit, onCreateDefinition }: {
-  readonly options: readonly DefinitionOption[]
+function LearnedNodeForm({ initial, defaultKind, lockedKind, onCancel, onSubmit }: {
   readonly initial?: LearnedNode
   readonly defaultKind: LearnedNodeKind
   readonly lockedKind?: LearnedNodeKind
   readonly onCancel: () => void
   readonly onSubmit: (draft: LearnedNodeDraft) => Promise<void>
-  readonly onCreateDefinition: CharactersViewProps['onCreateDefinition']
 }) {
   const [kind, setKind] = useState<LearnedNodeKind>(initial?.kind ?? defaultKind)
   const [ref, setRef] = useState<EntityRef | undefined>(initial?.ref)
@@ -345,7 +259,7 @@ function LearnedNodeForm({ options, initial, defaultKind, lockedKind, onCancel, 
   }
   return <form className="stack" onSubmit={submit}>
     {!lockedKind && <Field label="Knowledge type"><select disabled={Boolean(initial)} onChange={(event) => { setKind(event.target.value as LearnedNodeKind); setRef(undefined) }} value={kind}>{kinds.map((value) => <option key={value} value={value}>{kindLabel(value)}</option>)}</select></Field>}
-    <EntityRefField disabled={Boolean(initial)} hint={initial ? 'The linked definition identity stays unchanged while its observed facts are edited.' : 'Names never link records. Select or create the exact definition.'} key={kind} label={kindLabel(kind)} manualKinds={[kind]} onChange={setRef} onCreateDefinition={onCreateDefinition} options={options.filter((option) => option.kind === kind)} value={ref}/>
+    <DefinitionPickerField allowedKinds={[kind]} disabled={Boolean(initial)} hint={initial ? 'The linked definition identity stays unchanged while its observed facts are edited.' : 'Names never link records. Select or create the exact definition.'} key={kind} label={kindLabel(kind)} onChange={(value) => setRef(value ?? undefined)} value={ref}/>
     <div className="grid-2"><BooleanKnowledgeField label="Learned" onChange={setLearned} value={learned}/><NumberKnowledgeField hint="Actual observed spend, not a catalog price." label="Paid LP" min={0} onChange={setActualPaidLp} value={actualPaidLp}/></div>
     <InlineNotice title="Explicit learning record">Equipping a selection, mastering a class, or recording party progress does not mark this node learned.</InlineNotice>
     {error && <InlineNotice title="Learning not saved" tone="danger">{error}</InlineNotice>}
@@ -356,15 +270,19 @@ function LearnedNodeForm({ options, initial, defaultKind, lockedKind, onCancel, 
 type CharacterTab = 'current' | 'classes' | 'knowledge' | 'magic' | 'history'
 const tabs: readonly { readonly id: CharacterTab; readonly label: string }[] = [{ id: 'current', label: 'Current' }, { id: 'classes', label: 'Classes' }, { id: 'knowledge', label: 'Abilities & passives' }, { id: 'magic', label: 'Monster Magic' }, { id: 'history', label: 'History' }]
 
-export function CharactersView({ profile, catalogs, onAdd, onCapture, onUpsertClass, onUpsertLearned, onCreateDefinition }: CharactersViewProps) {
+export function CharactersView({ profile, catalogs, onAdd, onCapture, onUpsertClass, onUpsertLearned }: CharactersViewProps) {
   const characters = Object.values(profile.characters)
-  const options = useMemo(() => definitionOptions(profile, catalogs), [catalogs, profile])
   const [adding, setAdding] = useState(false)
   const [capturing, setCapturing] = useState(false)
   const [classEditor, setClassEditor] = useState<CharacterClassProgress | null>()
   const [learnedEditor, setLearnedEditor] = useState<{ readonly node?: LearnedNode; readonly kind: LearnedNodeKind }>()
   const [selectedId, setSelectedId] = useState<string>()
   const [tab, setTab] = useState<CharacterTab>('current')
+  useSearchTarget((target) => {
+    if (target.kind !== 'character' || !profile.characters[target.characterId]) return
+    setSelectedId(target.characterId)
+    setTab('current')
+  })
   const selected = profile.characters[selectedId ?? ''] ?? characters[0]
   const snapshot = selected?.currentSnapshotId ? selected.snapshots[selected.currentSnapshotId] : undefined
   const orderedSlots = useMemo(() => {
@@ -390,8 +308,8 @@ export function CharactersView({ profile, catalogs, onAdd, onCapture, onUpsertCl
           {tab === 'history' && <div className="stack">{Object.values(selected.snapshots).length ? Object.values(selected.snapshots).sort((left, right) => right.recordedAt.localeCompare(left.recordedAt)).map((entry) => <article className="panel snapshot-card" key={entry.id}><div className="split"><div><h3>{formatRelativeDate(entry.observedAt)}</h3><p className="settings-section__intro">Recorded {formatRelativeDate(entry.recordedAt)}</p></div>{entry.id === selected.currentSnapshotId && <Badge tone="positive">Current snapshot</Badge>}</div>{entry.note && <p>{entry.note}</p>}</article>) : <InlineNotice title="No snapshot history">Capture the first observed sheet to begin a revision history.</InlineNotice>}</div>}
         </div></section></div>}
     <Sheet onClose={() => setAdding(false)} open={adding} title="Add character"><AddCharacterForm onCancel={() => setAdding(false)} onSubmit={add}/></Sheet>
-    <Sheet description={selected ? `Record a new observed state for ${selected.name}.` : undefined} onClose={() => setCapturing(false)} open={capturing} title="Capture character snapshot" width="wide">{selected && <SnapshotForm initial={snapshot} onCancel={() => setCapturing(false)} onCreateDefinition={onCreateDefinition} onSubmit={capture} options={options} profile={profile}/>}</Sheet>
-    <Sheet description="Record only this character's observed class state." onClose={() => setClassEditor(undefined)} open={classEditor !== undefined} title={classEditor ? 'Edit class progress' : 'Add class progress'}>{selected && classEditor !== undefined && <ClassProgressForm initial={classEditor ?? undefined} onCancel={() => setClassEditor(undefined)} onCreateDefinition={onCreateDefinition} onSubmit={saveClass} options={options}/>}</Sheet>
-    <Sheet description="Record explicit learning without inferring it from equipment or party progress." onClose={() => setLearnedEditor(undefined)} open={Boolean(learnedEditor)} title={learnedEditor?.kind === 'monsterMagic' ? 'Record Monster Magic' : 'Record learned node'}>{selected && learnedEditor && <LearnedNodeForm defaultKind={learnedEditor.kind} initial={learnedEditor.node} lockedKind={learnedEditor.kind === 'monsterMagic' ? 'monsterMagic' : undefined} onCancel={() => setLearnedEditor(undefined)} onCreateDefinition={onCreateDefinition} onSubmit={saveLearned} options={options}/>}</Sheet>
+    <Sheet description={selected ? `Record a new observed state for ${selected.name}.` : undefined} onClose={() => setCapturing(false)} open={capturing} title="Capture character snapshot" width="wide">{selected && <SnapshotForm initial={snapshot} onCancel={() => setCapturing(false)} onSubmit={capture} profile={profile}/>}</Sheet>
+    <Sheet description="Record only this character's observed class state." onClose={() => setClassEditor(undefined)} open={classEditor !== undefined} title={classEditor ? 'Edit class progress' : 'Add class progress'}>{selected && classEditor !== undefined && <ClassProgressForm initial={classEditor ?? undefined} onCancel={() => setClassEditor(undefined)} onSubmit={saveClass}/>}</Sheet>
+    <Sheet description="Record explicit learning without inferring it from equipment or party progress." onClose={() => setLearnedEditor(undefined)} open={Boolean(learnedEditor)} title={learnedEditor?.kind === 'monsterMagic' ? 'Record Monster Magic' : 'Record learned node'}>{selected && learnedEditor && <LearnedNodeForm defaultKind={learnedEditor.kind} initial={learnedEditor.node} lockedKind={learnedEditor.kind === 'monsterMagic' ? 'monsterMagic' : undefined} onCancel={() => setLearnedEditor(undefined)} onSubmit={saveLearned}/>}</Sheet>
   </>
 }

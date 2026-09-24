@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CatalogClaim, CatalogSnapshot, JsonValue, Knowledge, Profile, SourceRef } from '../domain/types'
+import { entityDefinitionKey, preferredDefinitionRef } from '../domain'
+import type { CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
-import { knowledgeTone } from './model'
+import { formatAppError, knowledgeTone } from './model'
+import { DefinitionEditor, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
+import { formatSearchDestination, parseUniversalSearchTarget } from './search-navigation'
+import { Sheet } from './Sheet'
 import {
   aggregateKnowledgeCounts,
   buildFacetOptions,
   buildReferenceSearchItems,
+  partitionPersonalDefinitionOptions,
   partitionReferenceItems,
+  personalDefinitionCategoryValues,
   type ReferenceSearchItem,
 } from './search'
 import {
@@ -69,9 +75,9 @@ function ppLabel(item: ReferenceSearchItem): string {
   return 'PP n/a'
 }
 
-function DetailView({ item, onBack }: { item: ReferenceSearchItem; onBack: () => void }) {
+function DetailView({ item, onBack, onEdit }: { item: ReferenceSearchItem; onBack: () => void; onEdit: () => void }) {
   return <div className="panel__body stack">
-    <Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button>
+    <div className="split"><Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button><Button icon="edit" onClick={onEdit} tone="secondary">Edit as personal override</Button></div>
     <div><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge><Badge tone={knowledgeTone(item.catalog.applicability)}>{item.catalog.applicability.state === 'known' ? item.catalog.applicability.value : 'Applicability unknown'}</Badge>{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">{item.knowledgeCounts.conflicting} conflicts</Badge>}</div><h2>{item.entity.name}</h2><p>{item.entity.rawDescription ?? 'No raw description supplied.'}</p>{item.entity.aliases.length > 0 && <small>Aliases: {item.entity.aliases.join(', ')}</small>}</div>
     <div className="grid-2">
       <div className="panel"><div className="panel__header"><h3>Normalized fields</h3></div><div className="panel__body">{Object.keys(item.entity.fields).length ? <dl className="definition-list">{Object.entries(item.entity.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd>{knowledgeValue(value)} <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No normalized fields">Identity and source claims may still contain useful source details.</InlineNotice>}</div></div>
@@ -81,13 +87,40 @@ function DetailView({ item, onBack }: { item: ReferenceSearchItem; onBack: () =>
   </div>
 }
 
-export function ReferenceView({ profile, catalogs, onOpenData }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void }) {
+function PersonalDetail({ option, onBack, onEdit }: { option: DefinitionOption; onBack: () => void; onEdit: () => void }) {
+  const definition = option.record
+  return <div className="panel__body stack">
+    <div className="split"><Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button><Button icon="edit" onClick={onEdit} tone="secondary">Edit definition</Button></div>
+    <div><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal definition</Badge><Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge></div><h2>{option.name}</h2><p>{option.description ?? 'No description supplied.'}</p>{option.aliases.length > 0 && <small>Aliases: {option.aliases.join(', ')}</small>}</div>
+    <InlineNotice title="Immutable definition history">Edits create a new personal revision. Inventory observations, learning records, and build checkpoints keep their exact saved reference.</InlineNotice>
+    <div className="grid-2"><div className="panel"><div className="panel__header"><h3>Recorded fields</h3></div><div className="panel__body">{Object.keys(definition.fields).length ? <dl className="definition-list">{Object.entries(definition.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd>{knowledgeValue(value)} <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No recorded fields">Unrecorded fields remain unknown.</InlineNotice>}</div></div><div className="panel"><div className="panel__header"><h3>Lineage</h3></div><div className="panel__body"><dl className="definition-list"><div className="definition-row"><dt>Exact identity</dt><dd>{option.key}</dd></div><div className="definition-row"><dt>Revision</dt><dd>{'revision' in definition ? definition.revision : 'Catalog base'}</dd></div>{'baseRef' in definition && definition.baseRef && <div className="definition-row"><dt>Based on</dt><dd>{entityDefinitionKey(definition.baseRef)}</dd></div>}{'previousRevision' in definition && definition.previousRevision && <div className="definition-row"><dt>Previous revision</dt><dd>{entityDefinitionKey(definition.previousRevision)}</dd></div>}<div className="definition-row"><dt>Source</dt><dd>{option.sourceLabel}</dd></div></dl></div></div></div>
+  </div>
+}
+
+function mergeFacetOptions(base: readonly { readonly value: string; readonly count: number }[], additions: readonly string[]) {
+  const counts = new Map(base.map((option) => [option.value, option.count]))
+  for (const value of additions) counts.set(value, (counts.get(value) ?? 0) + 1)
+  return [...counts].map(([value, count]) => ({ value, count })).sort((left, right) => left.value.localeCompare(right.value))
+}
+
+export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefinitions }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void; onPromoteDefinitions: (sourceRulesetRevisionId: RulesetRevisionId, definitionRefs: readonly EntityRef[], label: string) => Promise<void> }) {
+  const { options } = useDefinitionWorkspace()
   const [route, setRoute] = useState<ReferenceRouteState>(() => readReferenceRouteState())
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [selectedPersonalRef, setSelectedPersonalRef] = useState<EntityRef>()
+  const [editingRef, setEditingRef] = useState<EntityRef>()
+  const [promoting, setPromoting] = useState(false)
+  const [promotionRefs, setPromotionRefs] = useState<readonly EntityRef[]>([])
+  const [promotionRulesetId, setPromotionRulesetId] = useState<RulesetRevisionId | ''>(profile.activeRulesetRevisionId ?? '')
+  const [promotionLabel, setPromotionLabel] = useState('Reviewed personal definitions')
+  const [promotionBusy, setPromotionBusy] = useState(false)
+  const [promotionError, setPromotionError] = useState<string>()
   const items = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
-  const kindOptions = useMemo(() => buildFacetOptions(items, 'kind'), [items])
-  const categoryOptions = useMemo(() => buildFacetOptions(items, 'category'), [items])
-  const sourceOptions = useMemo(() => buildFacetOptions(items, 'source'), [items])
+  const personalOptions = useMemo(() => options.filter((option) => option.ref.kind === 'personal'), [options])
+  const preferredPersonalOptions = useMemo(() => personalOptions.filter((option) => option.preferred), [personalOptions])
+  const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'kind'), personalOptions.map((option) => option.kind)), [items, personalOptions])
+  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'category'), personalOptions.flatMap(personalDefinitionCategoryValues)), [items, personalOptions])
+  const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'source'), personalOptions.map(() => 'Personal definitions')), [items, personalOptions])
   const partition = useMemo(() => partitionReferenceItems(items, {
     query: route.query,
     kinds: route.kinds,
@@ -96,20 +129,49 @@ export function ReferenceView({ profile, catalogs, onOpenData }: { profile: Prof
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
   }), [items, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
   const results = useMemo(() => [...partition.confirmed, ...partition.possible], [partition.confirmed, partition.possible])
+  const personalPartition = useMemo(() => partitionPersonalDefinitionOptions(personalOptions, {
+    query: route.query,
+    kinds: route.kinds,
+    categories: route.categories,
+    sources: route.sources,
+    ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
+  }), [personalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
+  const personalResults = useMemo(() => [...personalPartition.confirmed, ...personalPartition.possible], [personalPartition.confirmed, personalPartition.possible])
+  const visiblePersonalResults = personalResults.slice(0, route.resultLimit)
+  const visibleCatalogResults = results.slice(0, Math.max(0, route.resultLimit - visiblePersonalResults.length))
+  const totalResults = personalResults.length + results.length
   const selected = route.selectedKey ? items.find((item) => item.key === route.selectedKey) : undefined
+  const selectedPersonal = findDefinitionOption(options, selectedPersonalRef)
   const knowledgeCounts = useMemo(() => aggregateKnowledgeCounts(results), [results])
-  const personalDefinitions = Object.values(profile.personalDefinitions)
+  const rulesets = Object.values(profile.rulesets).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 
   useEffect(() => {
-    commitReferenceRouteState(route, 'replace')
-    const restore = () => setRoute(readReferenceRouteState())
+    const restore = () => {
+      const target = parseUniversalSearchTarget(window.location.hash)
+      if (target?.kind === 'definition') {
+        if (target.ref.kind === 'personal') {
+          setSelectedPersonalRef(target.ref)
+          setRoute((current) => ({ ...current, selectedKey: undefined }))
+          return
+        }
+        const ref = target.ref
+        const item = items.find((candidate) => candidate.catalog.id === ref.catalogId && candidate.catalog.revisionId === ref.catalogRevisionId && candidate.entity.id === ref.entityId)
+        setSelectedPersonalRef(undefined)
+        setRoute({ ...readReferenceRouteState(), ...(item ? { selectedKey: item.key } : {}) })
+        return
+      }
+      setSelectedPersonalRef(undefined)
+      setRoute(readReferenceRouteState())
+    }
+    if (parseUniversalSearchTarget(window.location.hash)?.kind === 'definition') restore()
+    else commitReferenceRouteState(route, 'replace')
     window.addEventListener('popstate', restore)
     window.addEventListener('hashchange', restore)
     return () => {
       window.removeEventListener('popstate', restore)
       window.removeEventListener('hashchange', restore)
     }
-  }, [])
+  }, [items])
 
   const updateRoute = useCallback((change: Partial<ReferenceRouteState>, mode: 'push' | 'replace' = 'replace') => {
     setRoute((current) => commitReferenceRouteState({ ...current, ...change }, mode))
@@ -120,14 +182,41 @@ export function ReferenceView({ profile, catalogs, onOpenData }: { profile: Prof
   }, [route.selectedKey, selected, updateRoute])
 
   const updateFilter = useCallback((change: Partial<ReferenceRouteState>, mode: 'push' | 'replace' = 'replace') => {
+    setSelectedPersonalRef(undefined)
     updateRoute({ ...change, selectedKey: undefined, resultLimit: REFERENCE_PAGE_SIZE }, mode)
   }, [updateRoute])
 
+  const openPersonal = (ref: EntityRef) => {
+    setSelectedPersonalRef(ref)
+    setRoute((current) => ({ ...current, selectedKey: undefined }))
+    window.history.pushState({}, '', formatSearchDestination('reference', { kind: 'definition', ref }))
+  }
+
+  const closePersonal = () => {
+    setSelectedPersonalRef(undefined)
+    updateRoute({ selectedKey: undefined }, 'push')
+  }
+
+  const promote = async () => {
+    if (!promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()) return
+    setPromotionBusy(true)
+    setPromotionError(undefined)
+    try {
+      await onPromoteDefinitions(promotionRulesetId, promotionRefs, promotionLabel.trim())
+      setPromoting(false)
+      setPromotionRefs([])
+    } catch (reason) {
+      setPromotionError(formatAppError(reason, 'The ruleset revision could not be created.'))
+    } finally {
+      setPromotionBusy(false)
+    }
+  }
+
   return <>
-    <ScreenHeader actions={<Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button>} description="Inspect definitions, source claims, applicability, and unresolved conflicts without changing personal records." eyebrow="Field reference" title="Reference"/>
-    {catalogs.length === 0 ? <EmptyState aside={<>Reference packs are optional. You can track personal items, characters, and progress without one, then link entries after importing a pack.</>} description="No catalog is bundled with the app. Import a permitted reference pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
+    <ScreenHeader actions={<><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); setPromoting(true) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Inspect definitions, source claims, applicability, and unresolved conflicts without changing personal records." eyebrow="Field reference" title="Reference"/>
+    {catalogs.length === 0 && personalOptions.length === 0 ? <EmptyState aside={<>Personal records remain available even if a local reference pack cannot be loaded.</>} description="No reference pack is available in this workspace. Import a permitted pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
       <aside className="panel facet-panel">
-        <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length} confirmed · {partition.possible.length} possible</p></div></div>
+        <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length + personalPartition.confirmed.length} confirmed · {partition.possible.length + personalPartition.possible.length} possible</p></div></div>
         <div className="facet-group"><div className="search-field"><Icon name="search"/><input aria-label="Search reference" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Name, alias, or raw text" type="search" value={route.query}/></div></div>
         <button aria-controls="reference-filter-options" aria-expanded={filtersOpen} className="mobile-filter-toggle" onClick={() => setFiltersOpen((value) => !value)} type="button"><span>{filtersOpen ? 'Hide filters' : 'Filters'}</span><Badge>{route.kinds.length + route.categories.length + route.sources.length + (route.ppMin === undefined ? 0 : 1) + (route.ppMax === undefined ? 0 : 1)} active</Badge></button>
         <div className={`reference-filter-options${filtersOpen ? ' is-open' : ''}`} id="reference-filter-options">
@@ -135,19 +224,28 @@ export function ReferenceView({ profile, catalogs, onOpenData }: { profile: Prof
         {categoryOptions.length > 0 && <div className="facet-group"><h3>Category</h3><BoundedFacetOptions groupLabel="Reference category filters" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryOptions} searchLabel="Search reference categories" selected={route.categories}/></div>}
         <div className="facet-group"><h3>Source</h3><BoundedFacetOptions groupLabel="Reference source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search reference sources" selected={route.sources}/></div>
         <div className="facet-group"><h3>PP cost</h3><div className="grid-2"><label className="field"><span className="field__label">Minimum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMin: numericInput(event.target.value) })} type="number" value={route.ppMin ?? ''}/></label><label className="field"><span className="field__label">Maximum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMax: numericInput(event.target.value) })} type="number" value={route.ppMax ?? ''}/></label></div><small>PP bounds apply only where PP is meaningful. Unknown or conflicting costs remain possible matches.</small></div>
-        <div className="facet-group"><h3>Knowledge in matches</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><Badge tone="positive">{knowledgeCounts.known} known</Badge><Badge tone="warning">{knowledgeCounts.unknown} unknown</Badge><Badge tone="danger">{knowledgeCounts.conflicting} conflicts</Badge></div></div>
-        <div className="facet-group"><h3>Imported packs</h3>{catalogs.map((catalog) => <div className="source-claim" key={JSON.stringify([catalog.id, catalog.revisionId])}><span className="source-claim__line"/><div><strong>{catalog.id}</strong><p>Revision {catalog.revisionId}</p><small>{catalog.schemaVersion} · {Object.keys(catalog.entities).length} definitions</small></div></div>)}</div>
-        {personalDefinitions.length > 0 && <div className="facet-group"><h3>Personal definitions</h3><p className="settings-section__intro">{personalDefinitions.length} unmatched {personalDefinitions.length === 1 ? 'entry' : 'entries'} remain separate from imported packs.</p></div>}
+        <div className="facet-group"><h3>Catalog knowledge in matches</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><Badge tone="positive">{knowledgeCounts.known} known</Badge><Badge tone="warning">{knowledgeCounts.unknown} unknown</Badge><Badge tone="danger">{knowledgeCounts.conflicting} conflicts</Badge></div></div>
+        <div className="facet-group"><h3>Reference packs</h3>{catalogs.map((catalog) => <div className="source-claim" key={JSON.stringify([catalog.id, catalog.revisionId])}><span className="source-claim__line"/><div><strong>{catalog.id}</strong><p>Revision {catalog.revisionId}</p><small>{catalog.schemaVersion} · {Object.keys(catalog.entities).length} definitions</small></div></div>)}</div>
+        {personalOptions.length > 0 && <div className="facet-group"><h3>Personal definitions</h3><p className="settings-section__intro">{preferredPersonalOptions.length} preferred immutable {preferredPersonalOptions.length === 1 ? 'lineage' : 'lineages'} plus {personalOptions.length - preferredPersonalOptions.length} historical revisions. Filters and results keep exact identities visible.</p></div>}
         </div>
       </aside>
       <section className="panel">
-        {selected ? <DetailView item={selected} onBack={() => updateRoute({ selectedKey: undefined }, 'push')}/> : results.length ? <div>
-          {partition.confirmed.length === 0 && partition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
-          {results.slice(0, route.resultLimit).map((item) => { const possible = partition.possible.includes(item); return <button className="reference-card" key={item.key} onClick={() => updateRoute({ selectedKey: item.key }, 'push')} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
-          {results.length > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + REFERENCE_PAGE_SIZE) }, 'replace')} tone="secondary">Show {Math.min(REFERENCE_PAGE_SIZE, results.length - route.resultLimit)} more</Button></div>}
-          {results.length > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Result display limit reached">Refine the name, category, source, type, or PP filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}
+        {selectedPersonal ? <PersonalDetail onBack={closePersonal} onEdit={() => setEditingRef(preferredDefinitionRef(profile, selectedPersonal.ref))} option={selectedPersonal}/> : selected ? <DetailView item={selected} onBack={() => updateRoute({ selectedKey: undefined }, 'push')} onEdit={() => setEditingRef(preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }))}/> : results.length || personalResults.length ? <div>
+          {partition.confirmed.length + personalPartition.confirmed.length === 0 && partition.possible.length + personalPartition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
+          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openPersonal(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
+          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); return <button className="reference-card" key={item.key} onClick={() => updateRoute({ selectedKey: item.key }, 'push')} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
+          {totalResults > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + REFERENCE_PAGE_SIZE) }, 'replace')} tone="secondary">Show {Math.min(REFERENCE_PAGE_SIZE, totalResults - route.resultLimit)} more</Button></div>}
+          {totalResults > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Result display limit reached">Refine the name, category, source, type, or PP filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}
         </div> : <div className="panel__body"><InlineNotice title="No matches">Unknown fields are kept as possible only when they could satisfy every active filter. Try another name, category, source, kind, or PP bound.</InlineNotice></div>}
       </section>
     </div>}
+    {editingRef && <DefinitionEditor allowedKinds={[]} baseRef={editingRef} key={entityDefinitionKey(editingRef)} onClose={() => setEditingRef(undefined)} onSaved={(ref) => { setEditingRef(undefined); openPersonal(ref) }} open/>}
+    <Sheet description="Collect reviewed preferred personal definitions into a new immutable ruleset revision. Existing build checkpoints keep their exact references, and the active ruleset does not change." onClose={() => setPromoting(false)} open={promoting} title="Collect into ruleset revision" width="wide"><div className="stack">
+      <InlineNotice title="Promotion-ready collection">This creates a new ruleset revision from the selected source. It does not publish a catalog, rewrite old records, or activate the new revision.</InlineNotice>
+      <div className="grid-2"><label className="field"><span className="field__label">Source ruleset revision</span><select onChange={(event) => setPromotionRulesetId(event.target.value as RulesetRevisionId)} value={promotionRulesetId}><option value="">Choose ruleset revision</option>{rulesets.map((ruleset) => <option key={ruleset.id} value={ruleset.id}>{ruleset.label} · revision {ruleset.revision}</option>)}</select></label><label className="field"><span className="field__label">New revision label</span><input onChange={(event) => setPromotionLabel(event.target.value)} required value={promotionLabel}/></label></div>
+      <fieldset className="definition-collection"><legend>Preferred personal definitions</legend>{preferredPersonalOptions.map((option) => { const checked = promotionRefs.some((ref) => entityDefinitionKey(ref) === option.key); return <label className="check-row" key={option.key}><input checked={checked} onChange={(event) => setPromotionRefs((current) => event.target.checked ? [...current, option.ref] : current.filter((ref) => entityDefinitionKey(ref) !== option.key))} type="checkbox"/><span><strong>{option.name}</strong><small>{option.kind} · {option.sourceLabel}</small></span></label> })}</fieldset>
+      {promotionError && <InlineNotice title="Ruleset revision not created" tone="danger">{promotionError} Your selected definitions remain checked.</InlineNotice>}
+      <div className="form-actions"><Button disabled={promotionBusy} onClick={() => setPromoting(false)} tone="quiet">Cancel</Button><Button disabled={promotionBusy || !promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()} icon="check" onClick={() => void promote()}>{promotionBusy ? 'Creating revision...' : 'Create ruleset revision'}</Button></div>
+    </div></Sheet>
   </>
 }
