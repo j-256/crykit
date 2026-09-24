@@ -2,11 +2,13 @@ import {
   asTimestamp,
   assertExpectedRevision,
   assertPersonalDefinitionRef,
+  assertTextLength,
   createId,
   DomainError,
   nowTimestamp,
   updateProfile,
 } from './core'
+import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import type {
   Build,
   BuildId,
@@ -40,6 +42,7 @@ export function createBuild(profile: Profile, input: CreateBuildInput): Profile 
   if (!title) {
     throw new DomainError('INVALID_INPUT', 'Build title must not be empty')
   }
+  assertTextLength(title, 'Build title', MAX_SHORT_TEXT_LENGTH)
   if (input.characterId && !profile.characters[input.characterId]) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
@@ -89,6 +92,7 @@ export function updateBuild(profile: Profile, input: UpdateBuildInput): Profile 
   if (!title) {
     throw new DomainError('INVALID_INPUT', 'Build title must not be empty')
   }
+  assertTextLength(title, 'Build title', MAX_SHORT_TEXT_LENGTH)
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const build: Build = {
     ...current,
@@ -104,6 +108,86 @@ export function updateBuild(profile: Profile, input: UpdateBuildInput): Profile 
     { builds: { ...profile.builds, [build.id]: build } },
     'build.update',
     [`builds.${build.id}`],
+    at,
+  )
+}
+
+export interface CloneBuildInput {
+  readonly sourceBuildId: BuildId
+  readonly id?: BuildId
+  readonly revisionId?: BuildRevisionId
+  readonly title?: string
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
+  assertExpectedRevision(profile, input.expectedRevision)
+  const source = profile.builds[input.sourceBuildId]
+  if (!source) {
+    throw new DomainError('MISSING_BUILD', `Build does not exist: ${input.sourceBuildId}`)
+  }
+  const sourceRevision = source.latestRevisionId
+    ? profile.buildRevisions[source.latestRevisionId]
+    : undefined
+  if (!sourceRevision || sourceRevision.buildId !== source.id) {
+    throw new DomainError('MISSING_BUILD_REVISION', 'Build must have a latest revision before it can be cloned')
+  }
+  const title = input.title === undefined ? `${source.title} (copy)` : input.title.trim()
+  if (!title) {
+    throw new DomainError('INVALID_INPUT', 'Build title must not be empty')
+  }
+  assertTextLength(title, 'Build title', MAX_SHORT_TEXT_LENGTH)
+  const id = input.id ?? createId<BuildId>('build')
+  if (profile.builds[id]) {
+    throw new DomainError('DUPLICATE_ID', `Build already exists: ${id}`)
+  }
+  const revisionId = input.revisionId ?? createId<BuildRevisionId>('buildRevision')
+  if (profile.buildRevisions[revisionId]) {
+    throw new DomainError('DUPLICATE_ID', `Build revision already exists: ${revisionId}`)
+  }
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  const content: BuildRevisionContent = {
+    primaryClass: sourceRevision.content.primaryClass,
+    secondaryClass: sourceRevision.content.secondaryClass,
+    selections: Object.fromEntries(Object.entries(sourceRevision.content.selections).map(([slotId, selection]) => [
+      slotId,
+      selection === null ? null : { ...selection },
+    ])),
+    ...(sourceRevision.content.rotationNotes === undefined ? {} : { rotationNotes: sourceRevision.content.rotationNotes }),
+    contextAssumptions: [...sourceRevision.content.contextAssumptions],
+  }
+  const revision: BuildRevision = {
+    id: revisionId,
+    buildId: id,
+    revision: 1,
+    rulesetRevisionId: sourceRevision.rulesetRevisionId,
+    catalogLock: { ...sourceRevision.catalogLock },
+    content,
+    createdAt: at,
+    ...(sourceRevision.note === undefined ? {} : { note: sourceRevision.note }),
+  }
+  const build: Build = {
+    id,
+    revision: 1,
+    title,
+    kind: source.kind,
+    state: 'draft',
+    tags: [...source.tags],
+    favorite: source.favorite,
+    latestRevisionId: revisionId,
+    createdAt: at,
+    updatedAt: at,
+    ...(source.characterId === undefined ? {} : { characterId: source.characterId }),
+  }
+  return updateProfile(
+    profile,
+    {
+      builds: { ...profile.builds, [id]: build },
+      buildRevisions: { ...profile.buildRevisions, [revisionId]: revision },
+    },
+    'build.clone',
+    [`builds.${id}`, `buildRevisions.${revisionId}`],
     at,
   )
 }

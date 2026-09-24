@@ -9,6 +9,7 @@ import {
   createPersonalDefinition,
   entityRefKey,
   linkInventoryPosition,
+  MAX_ID_LENGTH,
   observeInventory,
   recordInventoryEvent,
   upsertLearnedNode,
@@ -226,6 +227,13 @@ describe('profile state separation', () => {
     expect(() => captureCharacter(profile, {
       characterId,
       level: { state: 'known', value: Number.MAX_SAFE_INTEGER + 1 },
+      now: NOW,
+    })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    expect(() => captureCharacter(profile, {
+      characterId,
+      displayedStats: {
+        ['x'.repeat(MAX_ID_LENGTH + 1)]: { value: { state: 'known', value: 1 }, unit: 'displayed' },
+      },
       now: NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
   })

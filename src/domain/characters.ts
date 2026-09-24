@@ -4,12 +4,14 @@ import {
   assertFiniteNumber,
   assertNonnegativeInteger,
   assertPersonalDefinitionRef,
+  assertTextLength,
   createId,
   DomainError,
   entityRefKey,
   nowTimestamp,
   updateProfile,
 } from './core'
+import { MAX_ID_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import type {
   Character,
   CharacterClassProgress,
@@ -145,7 +147,9 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
   }
   for (const [key, stat] of Object.entries(input.displayedStats ?? {})) {
     if (!key.trim()) throw new DomainError('INVALID_INPUT', 'Displayed stat key must not be empty')
+    assertTextLength(key, 'Displayed stat key', MAX_ID_LENGTH)
     if (!stat.unit.trim()) throw new DomainError('INVALID_INPUT', `Displayed stat ${key} unit must not be empty`)
+    assertTextLength(stat.unit, `Displayed stat ${key} unit`, MAX_SHORT_TEXT_LENGTH)
     for (const value of knowledgeValues(stat.value)) assertFiniteNumber(value, `Displayed stat ${key}`)
   }
   for (const ref of Object.values(input.selections ?? {})) {

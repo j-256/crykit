@@ -7,11 +7,15 @@ export {
   loadWorkspace,
   previewImport,
   saveProfile,
+  saveProfileWithStatus,
   selectProfile,
   sourceDigest,
   subscribeWorkspace,
   undoProfile,
+  undoProfileWithStatus,
+  validateProfileForStorage,
 } from './workspace'
+export type { ProfileWriteResult } from './workspace'
 export type {
   CommitImportOptions,
   ImportPreview,

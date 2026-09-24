@@ -1,5 +1,5 @@
 export { AppDataError } from './errors'
-export { previewImport } from './import'
+export { MAX_IMPORT_BYTES, previewImport } from './import'
 export { previewNativeBackup } from './native'
 export { previewXlsx } from './normalize-xlsx'
 export { previewResearchJson } from './research'

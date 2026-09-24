@@ -6,7 +6,7 @@ import { previewResearchJson } from './research'
 import type { ImportPreview } from './types'
 import { inspectZip, safeUnzip } from './zip'
 
-const MAX_PLAIN_INPUT_BYTES = 32 * 1024 * 1024
+export const MAX_IMPORT_BYTES = 32 * 1024 * 1024
 
 function isZip(bytes: Uint8Array): boolean {
   return bytes.byteLength >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04
@@ -29,10 +29,10 @@ function looksLikeResearchJson(bytes: Uint8Array, label: string): boolean {
 }
 
 export async function previewImport(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
-  if (bytes.byteLength === 0 || bytes.byteLength > MAX_PLAIN_INPUT_BYTES) {
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMPORT_BYTES) {
     throw new AppDataError('unsupported-format', 'The selected file is empty or larger than the import limit', {
       recoverable: true,
-      details: { limit: MAX_PLAIN_INPUT_BYTES },
+      details: { limit: MAX_IMPORT_BYTES },
     })
   }
   const leadingByte = firstJsonByte(bytes)

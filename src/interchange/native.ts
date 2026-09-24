@@ -464,8 +464,7 @@ export function validateNativeProfileGraph(
   catalogs: readonly CatalogSnapshot[],
   history?: readonly PersistedHistoryEntry[],
 ): void {
-  const profileResult = NativeProfileSchema.safeParse(profile)
-  if (!profileResult.success) schemaError('The transformed profile has an unsupported shape')
+  validateNativeProfileShape(profile)
   for (const catalog of catalogs) {
     if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   }
@@ -476,6 +475,15 @@ export function validateNativeProfileGraph(
       if (!NativeHistorySchema.safeParse(entry).success) schemaError('A transformed history entry has an unsupported shape')
     }
     validateHistory(history, validatedProfile, validatedCatalogs.keys)
+  }
+}
+
+export function validateNativeProfileShape(profile: Profile): void {
+  const result = NativeProfileSchema.safeParse(profile)
+  if (!result.success) {
+    schemaError('The transformed profile has an unsupported shape', {
+      issues: result.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+    })
   }
 }
 

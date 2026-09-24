@@ -7,6 +7,7 @@ import type {
   Profile,
   Timestamp,
 } from './types'
+import { MAX_ID_LENGTH } from './limits'
 
 export type DomainErrorCode =
   | 'DUPLICATE_ID'
@@ -34,7 +35,6 @@ export class DomainError extends Error {
   }
 }
 
-const MAX_ID_LENGTH = 1_024
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const UTC_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/
@@ -163,6 +163,12 @@ export function assertPositiveInteger(value: number, label: string): void {
 export function assertFiniteNumber(value: number, label: string): void {
   if (!Number.isFinite(value)) {
     throw new DomainError('INVALID_INPUT', `${label} must be finite`, { value })
+  }
+}
+
+export function assertTextLength(value: string, label: string, maximum: number): void {
+  if (value.length > maximum) {
+    throw new DomainError('INVALID_INPUT', `${label} must be at most ${maximum} characters`)
   }
 }
 

@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
-
-const MAX_ID_LENGTH = 1_024
-const MAX_SHORT_TEXT_LENGTH = 65_536
-const MAX_LONG_TEXT_LENGTH = 1_000_000
-const MAX_COLLECTION_LENGTH = 100_000
-const MAX_SOURCE_REFS = 10_000
+import {
+  MAX_COLLECTION_LENGTH,
+  MAX_ID_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+  MAX_SOURCE_REFS,
+} from '../domain/limits'
 
 const id = z.string().min(1).max(MAX_ID_LENGTH).refine(
   (value) => !/[\u0000-\u001f\u007f]/.test(value),

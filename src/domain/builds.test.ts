@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   asId,
   captureCharacter,
+  cloneBuild,
   compareBuildRevisions,
   createBuild,
+  MAX_SHORT_TEXT_LENGTH,
   saveBuildRevision,
 } from './index'
 import {
@@ -29,6 +31,119 @@ import type {
 } from './types'
 
 describe('build revisions and descriptive comparison', () => {
+  it('clones the latest checkpoint without changing the source build or personal state', () => {
+    let profile = createTestProfile()
+    profile = addTestCharacter(profile, 'character')
+    profile = addTestDefinition(profile, 'item')
+    profile = createBuild(profile, {
+      id: asId<BuildId>('source-build'),
+      title: 'Source build',
+      kind: 'character',
+      characterId: asId<CharacterId>('character'),
+      state: 'hypothetical',
+      tags: ['support', 'test'],
+      favorite: true,
+      now: TEST_NOW,
+    })
+    profile = saveBuildRevision(profile, {
+      buildId: asId<BuildId>('source-build'),
+      id: asId<BuildRevisionId>('source-revision'),
+      rulesetRevisionId: TEST_RULESET_REVISION_ID,
+      catalogLock: { catalog: asId<CatalogRevisionId>('catalog-revision') },
+      content: {
+        primaryClass: null,
+        secondaryClass: null,
+        selections: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'copy-one' } },
+        rotationNotes: 'Use after setup',
+        contextAssumptions: ['Known test condition'],
+      },
+      note: 'Named checkpoint',
+      now: TEST_NOW,
+    })
+    const before = profile
+    const sourceBuild = profile.builds['source-build']
+    const sourceRevision = profile.buildRevisions['source-revision']
+
+    profile = cloneBuild(profile, {
+      sourceBuildId: asId<BuildId>('source-build'),
+      id: asId<BuildId>('cloned-build'),
+      revisionId: asId<BuildRevisionId>('cloned-revision'),
+      expectedRevision: profile.revision,
+      now: '2026-01-03T00:00:00.000Z',
+    })
+
+    expect(profile.revision).toBe(before.revision + 1)
+    expect(profile.changes.at(-1)).toMatchObject({
+      command: 'build.clone',
+      previousRevision: before.revision,
+      nextRevision: profile.revision,
+      changedPaths: ['builds.cloned-build', 'buildRevisions.cloned-revision'],
+    })
+    expect(profile.builds['source-build']).toBe(sourceBuild)
+    expect(profile.buildRevisions['source-revision']).toBe(sourceRevision)
+    expect(profile.scenarios).toBe(before.scenarios)
+    expect(profile.inventory).toBe(before.inventory)
+    expect(profile.characters).toBe(before.characters)
+    expect(profile.builds['cloned-build']).toEqual(expect.objectContaining({
+      id: 'cloned-build',
+      revision: 1,
+      latestRevisionId: 'cloned-revision',
+      title: 'Source build (copy)',
+      kind: 'character',
+      characterId: 'character',
+      state: 'draft',
+      tags: ['support', 'test'],
+      favorite: true,
+    }))
+    expect(profile.buildRevisions['cloned-revision']).toEqual(expect.objectContaining({
+      id: 'cloned-revision',
+      buildId: 'cloned-build',
+      revision: 1,
+      rulesetRevisionId: TEST_RULESET_REVISION_ID,
+      catalogLock: { catalog: 'catalog-revision' },
+      content: sourceRevision?.content,
+      note: 'Named checkpoint',
+    }))
+    expect(profile.buildRevisions['cloned-revision']?.parentRevisionId).toBeUndefined()
+    expect(profile.buildRevisions['cloned-revision']?.content).not.toBe(sourceRevision?.content)
+  })
+
+  it('rejects a generated or explicit clone title beyond the native text boundary', () => {
+    let profile = createTestProfile()
+    profile = createBuild(profile, {
+      id: asId<BuildId>('source-build'),
+      title: 'x'.repeat(MAX_SHORT_TEXT_LENGTH),
+      kind: 'template',
+      now: TEST_NOW,
+    })
+    profile = saveBuildRevision(profile, {
+      buildId: asId<BuildId>('source-build'),
+      id: asId<BuildRevisionId>('source-revision'),
+      rulesetRevisionId: TEST_RULESET_REVISION_ID,
+      content: {
+        primaryClass: null,
+        secondaryClass: null,
+        selections: {},
+        contextAssumptions: [],
+      },
+      now: TEST_NOW,
+    })
+
+    expect(() => cloneBuild(profile, {
+      sourceBuildId: asId<BuildId>('source-build'),
+      id: asId<BuildId>('default-title-clone'),
+      revisionId: asId<BuildRevisionId>('default-title-revision'),
+      now: TEST_NOW,
+    })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    expect(() => cloneBuild(profile, {
+      sourceBuildId: asId<BuildId>('source-build'),
+      id: asId<BuildId>('explicit-title-clone'),
+      revisionId: asId<BuildRevisionId>('explicit-title-revision'),
+      title: 'x'.repeat(MAX_SHORT_TEXT_LENGTH + 1),
+      now: TEST_NOW,
+    })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  })
+
   it('keeps observed final stats separate from item-listed contributions', () => {
     let profile = createTestProfile()
     profile = addTestCharacter(profile, 'character')

@@ -1,0 +1,5 @@
+export const MAX_ID_LENGTH = 1_024
+export const MAX_SHORT_TEXT_LENGTH = 65_536
+export const MAX_LONG_TEXT_LENGTH = 1_000_000
+export const MAX_COLLECTION_LENGTH = 100_000
+export const MAX_SOURCE_REFS = 10_000

@@ -1,0 +1,173 @@
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import type { CatalogEntityKind, Knowledge, Profile, SlotId, SlotKind } from '../domain/types'
+import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
+import type { ImportCommitMode, ImportPreview, ProfileSummary } from '../interchange/types'
+import { activateOfflineUpdate, getOfflineStatus, requestOfflineReadiness, requestPersistentStorage, subscribeOfflineStatus, type OfflineStatus } from '../offline'
+import { Badge, Button, DefinitionRow, Field, InlineNotice, Spinner } from './components'
+import { Icon } from './icons'
+import { downloadBytes, formatAppError, formatRelativeDate } from './model'
+import { Sheet } from './Sheet'
+
+type DataSection = 'data' | 'ruleset' | 'history' | 'storage'
+
+const IMPORT_WARNING_PRIMARY_COUNT = 8
+const IMPORT_WARNING_DOM_LIMIT = 100
+
+export interface RulesetDraft {
+  readonly label: string
+  readonly platform: Knowledge<string>
+  readonly gameVersion: Knowledge<string>
+  readonly mode: Knowledge<string>
+  readonly mods: Knowledge<readonly string[]>
+  readonly ppCostsNonNegative: Knowledge<boolean>
+  readonly slots: readonly { readonly id?: SlotId; readonly label: string; readonly kind: SlotKind; readonly acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]> }[]
+}
+
+function ImportWorkspace({ profile, preview, importError, busy, disabled, onPreview, onCommit, onClear }: { profile: Profile; preview?: ImportPreview; importError?: string; busy: boolean; disabled: boolean; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode) => Promise<void>; onClear: () => void }) {
+  const [mode, setMode] = useState<ImportCommitMode>('new-profile')
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false)
+  const [readError, setReadError] = useState<string>()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const choose = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || disabled) return
+    setReadError(undefined)
+    if (file.size === 0 || file.size > MAX_IMPORT_BYTES) {
+      const message = file.size === 0 ? 'The selected file is empty' : `The selected file exceeds the ${MAX_IMPORT_BYTES / (1024 * 1024)} MiB local import limit`
+      setReadError(formatAppError(new AppDataError('unsupported-format', message, { details: { size: file.size, limit: MAX_IMPORT_BYTES } }), 'The selected file could not be read.'))
+      event.target.value = ''
+      return
+    }
+    try { await onPreview(new Uint8Array(await file.arrayBuffer()), file.name) } catch (reason) { setReadError(formatAppError(reason, 'The selected file could not be read.')) } finally { event.target.value = '' }
+  }
+  if (preview) {
+    const displayedWarnings = preview.warnings.slice(0, IMPORT_WARNING_DOM_LIMIT)
+    const primaryWarnings = displayedWarnings.slice(0, IMPORT_WARNING_PRIMARY_COUNT)
+    const additionalWarnings = displayedWarnings.slice(IMPORT_WARNING_PRIMARY_COUNT)
+    const omittedWarnings = preview.warnings.length - displayedWarnings.length
+    return <div className="import-preview">{(importError || readError) && <InlineNotice title="Data operation could not be completed" tone="danger">{importError ?? readError} The preview and current profile remain available.</InlineNotice>}<div className="split"><div><p className="eyebrow">Import preview</p><h3>{preview.filename}</h3></div><Button onClick={() => { setMode('new-profile'); setReplaceConfirmed(false); setReadError(undefined); onClear() }} tone="quiet">Choose another file</Button></div><dl className="definition-list"><DefinitionRow term="Detected format">{preview.detectedFormat}</DefinitionRow><DefinitionRow term="Schema">{preview.detectedSchema}</DefinitionRow><DefinitionRow term="Profile label">{preview.profile.label}</DefinitionRow><DefinitionRow term="Identity">{preview.profile.identity ?? 'No source profile identity'}</DefinitionRow></dl><div className="import-preview__counts"><div className="metric"><span className="metric__label">Reference records</span><span className="metric__value">{preview.counts.reference}</span><span className="metric__detail">Definitions and claims</span></div><div className="metric"><span className="metric__label">Personal records</span><span className="metric__value">{preview.counts.personal}</span><span className="metric__detail">Observations and plans</span></div></div>{preview.errors.map((problem) => <InlineNotice key={`${problem.code}:${problem.locator}`} title={problem.code} tone="danger">{problem.message}</InlineNotice>)}{primaryWarnings.map((problem) => <InlineNotice key={`${problem.code}:${problem.locator}`} title={problem.code} tone="warning">{problem.message}</InlineNotice>)}{additionalWarnings.length > 0 && <details><summary>{additionalWarnings.length} more warnings</summary><div className="stack">{additionalWarnings.map((problem) => <p key={`${problem.code}:${problem.locator}`}>{problem.message}</p>)}</div></details>}{omittedWarnings > 0 && <InlineNotice title="Additional warnings omitted" tone="warning">{omittedWarnings.toLocaleString()} additional warnings are not rendered in this preview.</InlineNotice>}<details><summary>Source and coverage details</summary><dl className="definition-list"><DefinitionRow term="Source digest">{preview.sourceDigest}</DefinitionRow><DefinitionRow term="Catalog snapshots">{preview.proposed.catalogs.length}</DefinitionRow><DefinitionRow term="Evidence records">{preview.proposed.evidence.length}</DefinitionRow><DefinitionRow term="Ignored rows">{preview.counts.ignored}</DefinitionRow></dl></details><Field hint={mode === 'replace' ? 'The current profile is replaced only after a successful transaction.' : 'Safest when identity or ancestry is uncertain.'} label="Import action"><select onChange={(event) => { setMode(event.target.value as ImportCommitMode); setReplaceConfirmed(false) }} value={mode}><option value="new-profile">Create a new profile</option><option value="replace">Replace {profile.label}</option></select></Field>{mode === 'replace' && <label className="check-row"><input checked={replaceConfirmed} onChange={(event) => setReplaceConfirmed(event.target.checked)} type="checkbox"/><span><strong>Replace the current profile after validation</strong><small>The current profile stays unchanged if the transaction fails</small></span></label>}<Button disabled={busy || disabled || preview.errors.length > 0 || (mode === 'replace' && !replaceConfirmed)} icon="check" onClick={() => void onCommit(preview, mode)}>{busy ? 'Importing...' : mode === 'replace' ? 'Replace profile' : 'Create profile'}</Button></div>
+  }
+  return <div className="stack">{(importError || readError) && <InlineNotice title="Data operation could not be completed" tone="danger">{importError ?? readError} Your existing profile has not been replaced.</InlineNotice>}<button className="import-zone" disabled={busy || disabled} onClick={() => inputRef.current?.click()} type="button">{busy ? <Spinner label="Reading import"/> : <><Icon name="upload"/><span><strong>Choose a JSON, ZIP, or workbook</strong><span>The file is validated and previewed before any write.</span></span></>}</button><input accept=".json,.zip,.xlsx,application/json,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Choose import file" className="sr-only" onChange={(event) => void choose(event)} ref={inputRef} type="file"/><InlineNotice title="Private local import">Imported personal records and evidence stay in this browser. No file is uploaded.</InlineNotice></div>
+}
+
+const RULESET_ENTITY_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'recipe', 'location', 'other']
+
+function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmit: (draft: RulesetDraft) => Promise<void>; onDirty: (dirty: boolean) => void }) {
+  const current = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+  const [label, setLabel] = useState(current?.label ?? '')
+  const [platform, setPlatform] = useState(current?.platform.state === 'known' ? current.platform.value : '')
+  const [version, setVersion] = useState(current?.gameVersion.state === 'known' ? current.gameVersion.value : '')
+  const [mode, setMode] = useState(current?.mode.state === 'known' ? current.mode.value : '')
+  const [mods, setMods] = useState(current?.mods.state === 'known' ? current.mods.value.join('\n') : '')
+  const [touched, setTouched] = useState({ platform: false, version: false, mode: false, mods: false })
+  const [ppCostsNonNegative, setPpCostsNonNegative] = useState<Knowledge<boolean>>(current?.ppCostsNonNegative ?? { state: 'unknown' })
+  const [slots, setSlots] = useState<{ id?: SlotId; label: string; kind: SlotKind; acceptedKinds: string; acceptedKindsTouched: boolean; acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]> }[]>(current?.slots.map((slot) => ({ id: slot.id, label: slot.label, kind: slot.kind, acceptedKinds: slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value.join(', ') : '', acceptedKindsTouched: false, acceptedEntityKinds: slot.acceptedEntityKinds })) ?? [])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const stringKnowledge = (value: string): Knowledge<string> => value.trim() ? { state: 'known', value: value.trim() } : { state: 'unknown' }
+  const preservedHint = (value: Knowledge<unknown> | undefined) => value?.state === 'conflicting' ? 'Conflicting imported claims are preserved until you edit this field.' : value?.state === 'notApplicable' ? 'The imported not-applicable state is preserved until you edit this field.' : undefined
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setError(undefined)
+    const modValues = mods.split('\n').map((value) => value.trim()).filter(Boolean)
+    const preparedSlots = slots.map((slot) => {
+      const tokens = slot.acceptedKinds.split(',').map((value) => value.trim()).filter(Boolean)
+      const invalidTokens = slot.acceptedKindsTouched ? tokens.filter((value) => !RULESET_ENTITY_KINDS.includes(value as CatalogEntityKind)) : []
+      const acceptedKinds = tokens.filter((value): value is CatalogEntityKind => RULESET_ENTITY_KINDS.includes(value as CatalogEntityKind))
+      return { slot, invalidTokens, acceptedKinds }
+    })
+    const invalidTokens = [...new Set(preparedSlots.flatMap((entry) => entry.invalidTokens))]
+    if (invalidTokens.length > 0) {
+      setError(`Accepted types contain unsupported values: ${invalidTokens.join(', ')}. Use only ${RULESET_ENTITY_KINDS.join(', ')}.`)
+      return
+    }
+    setBusy(true)
+    try {
+      await onSubmit({
+        label,
+        platform: touched.platform ? stringKnowledge(platform) : current?.platform ?? { state: 'unknown' },
+        gameVersion: touched.version ? stringKnowledge(version) : current?.gameVersion ?? { state: 'unknown' },
+        mode: touched.mode ? stringKnowledge(mode) : current?.mode ?? { state: 'unknown' },
+        mods: touched.mods ? modValues.length ? { state: 'known', value: modValues } : { state: 'unknown' } : current?.mods ?? { state: 'unknown' },
+        ppCostsNonNegative,
+        slots: preparedSlots.filter(({ slot }) => slot.label.trim()).map(({ slot, acceptedKinds }) => ({ id: slot.id, label: slot.label, kind: slot.kind, acceptedEntityKinds: slot.acceptedKindsTouched ? acceptedKinds.length ? { state: 'known', value: acceptedKinds } : { state: 'unknown' } : slot.acceptedEntityKinds })),
+      })
+      onDirty(false)
+    } catch (reason) {
+      setError(formatAppError(reason, 'The ruleset revision could not be saved.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const addSlot = () => setSlots((values) => [...values, { label: '', kind: 'equipment', acceptedKinds: '', acceptedKindsTouched: true }])
+  const ppValue = ppCostsNonNegative.state === 'known' ? String(ppCostsNonNegative.value) : ppCostsNonNegative.state
+  return <form className="stack" onInput={() => onDirty(true)} onSubmit={submit}>
+    <InlineNotice title="Version fields may stay unknown">Missing configuration limits only the checks that depend on it; inventory entry and independent validation remain useful. Imported conflicting claims remain intact unless you edit their field.</InlineNotice>
+    <Field label="Ruleset label" required><input onChange={(event) => setLabel(event.target.value)} placeholder="For example: Switch playthrough" required value={label}/></Field>
+    <div className="grid-3"><Field hint={preservedHint(current?.platform)} label="Platform"><input onChange={(event) => { setPlatform(event.target.value); setTouched((value) => ({ ...value, platform: true })) }} placeholder="Unknown" value={platform}/></Field><Field hint={preservedHint(current?.gameVersion)} label="Game version"><input onChange={(event) => { setVersion(event.target.value); setTouched((value) => ({ ...value, version: true })) }} placeholder="Unknown" value={version}/></Field><Field hint={preservedHint(current?.mode)} label="Mode"><input onChange={(event) => { setMode(event.target.value); setTouched((value) => ({ ...value, mode: true })) }} placeholder="Unknown" value={mode}/></Field></div>
+    <Field hint={preservedHint(current?.mods) ?? 'One enabled mod or pack per line. Keep versions in the name when known.'} label="Mods"><textarea onChange={(event) => { setMods(event.target.value); setTouched((value) => ({ ...value, mods: true })) }} placeholder="Unknown" value={mods}/></Field>
+    <Field hint="This enables only the rule that documented PP costs cannot be negative." label="PP cost rule"><select onChange={(event) => setPpCostsNonNegative(event.target.value === 'true' ? { state: 'known', value: true } : event.target.value === 'false' ? { state: 'known', value: false } : { state: 'unknown' })} value={ppValue}><option value="unknown">Unknown</option><option value="true">Costs are nonnegative</option><option value="false">Negative costs permitted</option>{ppCostsNonNegative.state === 'conflicting' && <option disabled value="conflicting">Conflicting claims</option>}{ppCostsNonNegative.state === 'notApplicable' && <option disabled value="notApplicable">Not applicable</option>}</select></Field>
+    <div className="stack"><div className="split"><div><h3>Ordered slots</h3><p className="settings-section__intro">Slot count, order, accepted definition types, and occupancy come from this ruleset.</p></div><Button icon="plus" onClick={addSlot} tone="secondary" type="button">Add slot</Button></div>{slots.length ? slots.map((slot, index) => <div className="grid-3" key={slot.id ?? index}><Field label={`Slot ${index + 1}`}><input onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, label: event.target.value } : value))} placeholder="Main hand" value={slot.label}/></Field><Field label="Kind"><select onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, kind: event.target.value as SlotKind } : value))} value={slot.kind}><option value="equipment">Equipment</option><option value="passive">Passive</option></select></Field><Field hint={slot.acceptedEntityKinds?.state === 'conflicting' && !slot.acceptedKindsTouched ? 'Conflicting imported claims are preserved until edited.' : 'Comma-separated: item, passive, innate, or another listed definition type.'} label="Accepted types"><input onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, acceptedKinds: event.target.value, acceptedKindsTouched: true } : value))} placeholder={slot.kind === 'passive' ? 'passive, innate' : 'item'} value={slot.acceptedKinds}/></Field></div>) : <InlineNotice title="No slots configured">Add only the ordered slots established for this game configuration.</InlineNotice>}</div>
+    {error && <InlineNotice title="Ruleset not saved" tone="danger">{error} Your configuration remains in this form.</InlineNotice>}
+    <div className="form-actions"><Button disabled={busy || !label.trim()} icon="check" type="submit">{busy ? 'Saving...' : current ? 'Save new ruleset revision' : 'Create ruleset'}</Button></div>
+  </form>
+}
+
+function StorageSection({ profile, dirty, saveError, onExport }: { profile: Profile; dirty: boolean; saveError?: string; onExport: () => Promise<Uint8Array> }) {
+  const [offline, setOffline] = useState<OfflineStatus>({ state: 'checking' })
+  const [busy, setBusy] = useState(false)
+  const [persisted, setPersisted] = useState<boolean>()
+  const [exportError, setExportError] = useState<string>()
+  const [storageError, setStorageError] = useState<string>()
+  useEffect(() => { const unsubscribe = subscribeOfflineStatus(setOffline); void getOfflineStatus().then(setOffline).catch(() => setStorageError('Offline readiness could not be inspected.')); return unsubscribe }, [])
+  const prepareOffline = async () => { setBusy(true); setStorageError(undefined); try { setOffline(await requestOfflineReadiness()) } catch (reason) { setStorageError(formatAppError(reason, 'Offline preparation could not be completed.')) } finally { setBusy(false) } }
+  const requestPersistence = async () => { setBusy(true); setStorageError(undefined); try { setPersisted(await requestPersistentStorage()) } catch (reason) { setStorageError(formatAppError(reason, 'Persistent storage could not be requested.')) } finally { setBusy(false) } }
+  const applyUpdate = async () => { setBusy(true); setStorageError(undefined); try { await activateOfflineUpdate() } catch (reason) { setStorageError(formatAppError(reason, 'The application update could not be activated.')) } finally { setBusy(false) } }
+  const exportNow = async () => { setBusy(true); setExportError(undefined); try { downloadBytes(await onExport(), `crystal-companion-${profile.label.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-') || 'profile'}.zip`, 'application/zip') } catch (error) { setExportError(formatAppError(error, 'The backup could not be prepared.')) } finally { setBusy(false) } }
+  return <div className="stack">{saveError && <InlineNotice title="Local save failed" tone="danger">{saveError} The retained transaction is included in a recovery backup. Fields still only in an unsubmitted form are not included.</InlineNotice>}{dirty && <InlineNotice title="Unsaved changes" tone="warning">Save or submit open form fields before exporting. Backups include retained failed-save transactions, but not fields that still exist only in a form.</InlineNotice>}{storageError && <InlineNotice title="Storage operation failed" tone="danger">{storageError}</InlineNotice>}<section className="settings-section"><div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Create an explicit file for recovery or transfer.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>{exportError && <InlineNotice title="Export failed" tone="danger">{exportError}</InlineNotice>}</section><section className="settings-section"><div className="split"><div><h3>Offline application</h3><p className="settings-section__intro">{offline.detail ?? 'Checking cached application files...'}</p></div><Badge tone={offline.state === 'ready' ? 'positive' : offline.state === 'error' ? 'danger' : 'warning'}>{offline.state === 'ready' ? 'Offline ready' : offline.state === 'checking' ? 'Checking' : offline.state === 'unsupported' ? 'Unsupported' : offline.state === 'error' ? 'Unavailable' : 'Not ready'}</Badge></div>{offline.state !== 'ready' && offline.state !== 'unsupported' && <Button disabled={busy} icon="download" onClick={() => void prepareOffline()} tone="secondary">Prepare for offline use</Button>}{offline.updateAvailable && <Button disabled={dirty} onClick={() => void applyUpdate()} tone="secondary">{dirty ? 'Save or discard changes before updating' : 'Apply app update'}</Button>}</section><section className="settings-section"><div className="split"><div><h3>Browser storage</h3><p className="settings-section__intro">Persistent storage can reduce eviction risk but is not a backup.</p></div>{persisted !== undefined && <Badge tone={persisted ? 'positive' : 'warning'}>{persisted ? 'Persistence granted' : 'Request not granted'}</Badge>}</div><Button disabled={busy} onClick={() => void requestPersistence()} tone="secondary">Request persistent storage</Button></section></div>
+}
+
+export function DataPanel({ open, profile, profiles, preview, importError, busy, canUndo, dirty, saveError, onClose, onPreview, onCommit, onClearPreview, onExport, onSaveRuleset, onCreateProfile, onSelectProfile, onUndo }: { open: boolean; profile: Profile; profiles: readonly ProfileSummary[]; preview?: ImportPreview; importError?: string; busy: boolean; canUndo: boolean; dirty: boolean; saveError?: string; onClose: () => void; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode) => Promise<void>; onClearPreview: () => void; onExport: () => Promise<Uint8Array>; onSaveRuleset: (draft: RulesetDraft) => Promise<void>; onCreateProfile: (label: string) => Promise<void>; onSelectProfile: (profileId: ProfileSummary['id']) => Promise<void>; onUndo: () => Promise<void> }) {
+  const [section, setSection] = useState<DataSection>('data')
+  const [panelError, setPanelError] = useState<string>()
+  const [panelDirty, setPanelDirty] = useState(false)
+  const [profileLabel, setProfileLabel] = useState('')
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [undoConfirmed, setUndoConfirmed] = useState(false)
+  const blocked = dirty || panelDirty
+  const changeSection = (next: DataSection) => {
+    if (panelDirty && next !== section) {
+      setPanelError('Save the ruleset revision or close this panel to discard its edited fields.')
+      return
+    }
+    setPanelError(undefined)
+    setSection(next)
+  }
+  const exportBackupNow = async () => {
+    setPanelError(undefined)
+    try { downloadBytes(await onExport(), 'crystal-companion-backup.zip', 'application/zip') } catch (reason) { setPanelError(formatAppError(reason, 'The backup could not be prepared.')) }
+  }
+  const runProfileAction = async (action: () => Promise<void>) => {
+    setProfileBusy(true)
+    setPanelError(undefined)
+    try { await action() } catch (reason) { setPanelError(formatAppError(reason, 'The profile operation could not be completed.')) } finally { setProfileBusy(false) }
+  }
+  const close = () => {
+    setPanelDirty(false)
+    setPanelError(undefined)
+    setUndoConfirmed(false)
+    onClose()
+  }
+  return <Sheet description="Import, backup, rulesets, history, and browser storage controls." onClose={close} open={open} title="Data & settings" width="wide">
+    <div className="data-nav" role="group" aria-label="Data and settings sections">{([{ id: 'data', label: 'Import & backup' }, { id: 'ruleset', label: 'Ruleset' }, { id: 'history', label: 'History' }, { id: 'storage', label: 'Offline & storage' }] as const).map((item) => <button aria-pressed={section === item.id} key={item.id} onClick={() => changeSection(item.id)} type="button">{item.label}</button>)}</div>
+    {panelError && section !== 'ruleset' && <InlineNotice title="Data operation could not be completed" tone="danger">{panelError}</InlineNotice>}
+    {section === 'data' && <div className="stack">
+      <section className="settings-section"><h3>Local profiles</h3><p className="settings-section__intro">Keep separate playthroughs in this browser and switch without merging their personal records.</p><div className="grid-2"><Field label="Active profile"><select disabled={blocked || busy || profileBusy} onChange={(event) => void runProfileAction(() => onSelectProfile(event.target.value as ProfileSummary['id']))} value={profile.id}>{profiles.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · revision {entry.revision}</option>)}</select></Field><div className="field"><label className="field__label" htmlFor="new-profile-label">New blank profile</label><div className="cluster"><input disabled={blocked || busy || profileBusy} id="new-profile-label" onChange={(event) => setProfileLabel(event.target.value)} placeholder="Playthrough name" value={profileLabel}/><Button disabled={blocked || busy || profileBusy || !profileLabel.trim()} icon="plus" onClick={() => void runProfileAction(async () => { await onCreateProfile(profileLabel); setProfileLabel('') })} tone="secondary">Create</Button></div></div></div>{blocked && <InlineNotice title="Finish unsaved work before switching">Retry or export the current draft. Closing an edited ruleset form discards only those unsaved form fields.</InlineNotice>}</section>
+      <section className="settings-section"><h3>Import or restore</h3><p className="settings-section__intro">Every supported file is parsed in memory and shown as a dry-run preview.</p><ImportWorkspace busy={busy} disabled={blocked || profileBusy} importError={importError} key={JSON.stringify([profile.id, preview?.id ?? null])} onClear={onClearPreview} onCommit={onCommit} onPreview={onPreview} preview={preview} profile={profile}/></section>
+      <section className="settings-section"><div className="split"><div><h3>Complete profile backup</h3><p className="settings-section__intro">Includes saved records and any retained failed-save transaction. Submit open form fields first.</p></div><Button disabled={busy || profileBusy} icon="download" onClick={() => void exportBackupNow()} tone="secondary">Export backup</Button></div></section>
+    </div>}
+    {section === 'ruleset' && <>{panelError && <InlineNotice title="Unsaved ruleset fields" tone="warning">{panelError}</InlineNotice>}<RulesetForm key={profile.activeRulesetRevisionId ?? profile.id} onDirty={setPanelDirty} onSubmit={onSaveRuleset} profile={profile}/></>}
+    {section === 'history' && <div className="stack"><section className="settings-section"><div className="split"><div><h3>Undo latest saved change</h3><p className="settings-section__intro">Undo creates another local revision and keeps the journal auditable.</p></div><Button disabled={blocked || busy || profileBusy || !canUndo || !undoConfirmed} icon="history" onClick={() => void runProfileAction(async () => { await onUndo(); setUndoConfirmed(false) })} tone="secondary">Undo latest</Button></div><label className="check-row"><input checked={undoConfirmed} disabled={blocked || busy || profileBusy || !canUndo} onChange={(event) => setUndoConfirmed(event.target.checked)} type="checkbox"/><span><strong>Restore the previous saved profile state</strong><small>{canUndo ? 'The restored state is recorded as a new revision' : 'No retained local checkpoint is available for this revision'}</small></span></label></section>{profile.changes.length ? <ol className="history-list">{[...profile.changes].reverse().slice(0, 100).map((entry) => <li className="history-entry" key={entry.id}><span className="history-entry__mark"><Icon name="history"/></span><div><strong>{entry.command}</strong><p>{entry.changedPaths.slice(0, 3).join(', ')}{entry.changedPaths.length > 3 ? ` and ${entry.changedPaths.length - 3} more` : ''}</p><time>{formatRelativeDate(entry.recordedAt)} · revision {entry.nextRevision}</time></div></li>)}</ol> : <InlineNotice title="No change history">Commands appear here after the first successful local transaction.</InlineNotice>}{profile.changes.length > 100 && <InlineNotice title="Earlier changes not shown">Export the profile to preserve and inspect the complete bounded journal.</InlineNotice>}</div>}
+    {section === 'storage' && <StorageSection dirty={blocked} onExport={onExport} profile={profile} saveError={saveError}/>}
+  </Sheet>
+}

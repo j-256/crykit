@@ -1,8 +1,10 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createPersonalDefinition } from '../domain/profile'
+import { asId } from '../domain/core'
+import { MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import type { ImportPreview } from '../interchange/types'
-import type { Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
+import type { PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
 import { previewResearchJson } from '../interchange/research'
 import { inspectZip } from '../interchange/zip'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
@@ -14,7 +16,9 @@ import {
   loadWorkspace,
   previewImport,
   saveProfile,
+  saveProfileWithStatus,
   selectProfile,
+  undoProfileWithStatus,
 } from './workspace'
 
 const bytes = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
@@ -59,6 +63,57 @@ describe('workspace persistence', () => {
     const withoutCheckpoint = await loadWorkspace(saved.id)
     expect(withoutCheckpoint.profile.changes.length).toBeGreaterThan(0)
     expect(withoutCheckpoint.canUndo).toBe(false)
+  })
+
+  it('returns retained Undo status from save and undo transactions', async () => {
+    const workspace = await loadWorkspace()
+    const saved = await saveProfileWithStatus({ ...workspace.profile, label: 'Saved fixture' }, workspace.revision)
+    expect(saved.canUndo).toBe(true)
+
+    const undone = await undoProfileWithStatus(saved.profile.id, saved.profile.revision)
+    expect(undone.canUndo).toBe(true)
+    expect(undone.profile.revision).toBe(saved.profile.revision + 1)
+  })
+
+  it('reports no Undo checkpoint when a bounded profile exceeds the history byte budget', async () => {
+    const workspace = await loadWorkspace()
+    const rawDescription = 'x'.repeat(MAX_LONG_TEXT_LENGTH - 1)
+    const personalDefinitions = Object.fromEntries(Array.from({ length: 9 }, (_, index) => {
+      const id = asId<PersonalDefinitionId>(`large-definition-${index}`)
+      return [id, {
+        id,
+        revision: 0,
+        kind: 'item' as const,
+        name: `Large definition ${index}`,
+        aliases: [],
+        rawDescription,
+        fields: {},
+        sources: [],
+        createdAt: workspace.profile.createdAt,
+        updatedAt: workspace.profile.updatedAt,
+      }]
+    }))
+
+    const saved = await saveProfileWithStatus(
+      { ...workspace.profile, personalDefinitions },
+      workspace.revision,
+    )
+    expect(saved.canUndo).toBe(false)
+    expect(await database.history.where('profileId').equals(saved.profile.id).count()).toBe(0)
+    expect((await loadWorkspace(saved.profile.id)).canUndo).toBe(false)
+  })
+
+  it('rejects a native-incompatible profile before changing stored state', async () => {
+    const workspace = await loadWorkspace()
+    const invalid = { ...workspace.profile, label: 'x'.repeat(MAX_SHORT_TEXT_LENGTH + 1) }
+
+    await expect(saveProfileWithStatus(invalid, workspace.revision)).rejects.toMatchObject({
+      code: 'schema-mismatch',
+      recoverable: true,
+    })
+    const unchanged = await loadWorkspace(workspace.profile.id)
+    expect(unchanged.profile.label).toBe(workspace.profile.label)
+    expect(unchanged.revision).toBe(workspace.revision)
   })
 
   it('initializes one blank profile under concurrent loads', async () => {

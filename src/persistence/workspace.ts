@@ -70,6 +70,18 @@ export function subscribeWorkspace(listener: (notification: WorkspaceNotificatio
   }
 }
 
+export interface ProfileWriteResult {
+  readonly profile: Profile
+  readonly canUndo: boolean
+}
+
+export function validateProfileForStorage(
+  profile: Profile,
+  catalogs: readonly CatalogSnapshot[],
+): void {
+  validateNativeProfileGraph(profile, catalogs)
+}
+
 function catalogKey(snapshot: CatalogSnapshot): string {
   return catalogSnapshotKey(snapshot.id, snapshot.revisionId)
 }
@@ -127,6 +139,7 @@ async function initializeBlankRecord(database: CrystalCompanionDatabase): Promis
       return existing
     }
     const profile = createBlankProfile()
+    validateProfileForStorage(profile, [])
     const record: ProfileRecord = {
       id: profile.id,
       revision: profile.revision,
@@ -170,6 +183,7 @@ export async function createProfile(label = 'New playthrough'): Promise<Workspac
   try {
     await database.transaction('rw', database.profiles, database.meta, async () => {
       const profile = createBlankProfile(label.trim() || 'New playthrough')
+      validateProfileForStorage(profile, [])
       profileId = profile.id
       await database.profiles.add({
         id: profile.id,
@@ -374,7 +388,7 @@ function historyEntry(before: Profile, after: Profile, command: string, timestam
   }
 }
 
-async function trimHistory(database: CrystalCompanionDatabase, profileId: ProfileId): Promise<void> {
+async function trimHistory(database: CrystalCompanionDatabase, profileId: ProfileId): Promise<boolean> {
   const entries = await database.history.where('profileId').equals(profileId).sortBy('nextRevision')
   let removeCount = Math.max(0, entries.length - MAX_HISTORY_ENTRIES)
   let retainedBytes = entries.slice(removeCount).reduce((total, entry) => total + textBytes(entry).byteLength, 0)
@@ -383,13 +397,24 @@ async function trimHistory(database: CrystalCompanionDatabase, profileId: Profil
     removeCount += 1
   }
   if (removeCount > 0) await database.history.bulkDelete(entries.slice(0, removeCount).map((entry) => entry.id))
+  return removeCount < entries.length
 }
 
-export async function saveProfile(profile: Profile, expectedRevision: number): Promise<Profile> {
+async function storedCatalogsForProfile(
+  database: CrystalCompanionDatabase,
+  profile: Profile,
+): Promise<readonly CatalogSnapshot[]> {
+  const keys = catalogReferences(profile)
+  return (await database.catalogs.toArray())
+    .filter((record) => keys.has(record.key))
+    .map((record) => record.snapshot)
+}
+
+export async function saveProfileWithStatus(profile: Profile, expectedRevision: number): Promise<ProfileWriteResult> {
   const database = getDatabase()
-  let saved: Profile | undefined
+  let result: ProfileWriteResult | undefined
   try {
-    await database.transaction('rw', database.profiles, database.history, async () => {
+    await database.transaction('rw', database.profiles, database.history, database.catalogs, async () => {
       const record = await database.profiles.get(profile.id)
       if (!record) throw new AppDataError('not-found', 'The profile no longer exists', { recoverable: true })
       if (record.revision !== expectedRevision) {
@@ -400,7 +425,8 @@ export async function saveProfile(profile: Profile, expectedRevision: number): P
       }
       const timestamp = nowTimestamp()
       const prepared = profileForSave(record.profile, profile, expectedRevision, timestamp)
-      saved = prepared.profile
+      const saved = prepared.profile
+      validateProfileForStorage(saved, await storedCatalogsForProfile(database, saved))
       await database.profiles.put({
         ...record,
         revision: saved.revision,
@@ -408,7 +434,7 @@ export async function saveProfile(profile: Profile, expectedRevision: number): P
         profile: saved,
       })
       await database.history.add(historyEntry(record.profile, saved, prepared.command, timestamp))
-      await trimHistory(database, saved.id)
+      result = { profile: saved, canUndo: await trimHistory(database, saved.id) }
     })
   } catch (error) {
     throw asAppDataError(error, {
@@ -417,9 +443,13 @@ export async function saveProfile(profile: Profile, expectedRevision: number): P
       recoverable: true,
     })
   }
-  if (!saved) throw new AppDataError('storage-failure', 'The profile save did not complete', { recoverable: true })
-  notify({ profileId: saved.id, revision: saved.revision, reason: 'save' })
-  return cloneJson(saved)
+  if (!result) throw new AppDataError('storage-failure', 'The profile save did not complete', { recoverable: true })
+  notify({ profileId: result.profile.id, revision: result.profile.revision, reason: 'save' })
+  return cloneJson(result)
+}
+
+export async function saveProfile(profile: Profile, expectedRevision: number): Promise<Profile> {
+  return (await saveProfileWithStatus(profile, expectedRevision)).profile
 }
 
 function forkCandidate(candidate: ImportCandidate, existing: boolean): ImportCandidate {
@@ -628,11 +658,11 @@ export async function commitImport(
   return workspace
 }
 
-export async function undoProfile(profileId: ProfileId, expectedRevision: number): Promise<Profile> {
+export async function undoProfileWithStatus(profileId: ProfileId, expectedRevision: number): Promise<ProfileWriteResult> {
   const database = getDatabase()
-  let restored: Profile | undefined
+  let result: ProfileWriteResult | undefined
   try {
-    await database.transaction('rw', database.profiles, database.history, async () => {
+    await database.transaction('rw', database.profiles, database.history, database.catalogs, async () => {
       const record = await database.profiles.get(profileId)
       if (!record) throw new AppDataError('not-found', 'The profile no longer exists', { recoverable: true })
       if (record.revision !== expectedRevision) {
@@ -646,7 +676,8 @@ export async function undoProfile(profileId: ProfileId, expectedRevision: number
         .last()
       if (!latest) throw new AppDataError('not-found', 'There is no saved change to undo', { recoverable: true })
       const timestamp = nowTimestamp()
-      restored = changedProfile(record.profile, latest.before, `undo:${latest.command}`, timestamp)
+      const restored = changedProfile(record.profile, latest.before, `undo:${latest.command}`, timestamp)
+      validateProfileForStorage(restored, await storedCatalogsForProfile(database, restored))
       await database.profiles.put({
         ...record,
         revision: restored.revision,
@@ -654,7 +685,7 @@ export async function undoProfile(profileId: ProfileId, expectedRevision: number
         profile: restored,
       })
       await database.history.add(historyEntry(record.profile, restored, `undo:${latest.command}`, timestamp))
-      await trimHistory(database, restored.id)
+      result = { profile: restored, canUndo: await trimHistory(database, restored.id) }
     })
   } catch (error) {
     throw asAppDataError(error, {
@@ -663,9 +694,13 @@ export async function undoProfile(profileId: ProfileId, expectedRevision: number
       recoverable: true,
     })
   }
-  if (!restored) throw new AppDataError('storage-failure', 'Undo did not complete', { recoverable: true })
-  notify({ profileId: restored.id, revision: restored.revision, reason: 'undo' })
-  return cloneJson(restored)
+  if (!result) throw new AppDataError('storage-failure', 'Undo did not complete', { recoverable: true })
+  notify({ profileId: result.profile.id, revision: result.profile.revision, reason: 'undo' })
+  return cloneJson(result)
+}
+
+export async function undoProfile(profileId: ProfileId, expectedRevision: number): Promise<Profile> {
+  return (await undoProfileWithStatus(profileId, expectedRevision)).profile
 }
 
 function textBytes(value: unknown): Uint8Array {
