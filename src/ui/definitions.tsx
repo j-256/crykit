@@ -8,7 +8,7 @@ import { formatAppError } from './model'
 import { Sheet } from './Sheet'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
-const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'status', 'recipe', 'location', 'other']
+const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
 
 type DefinitionRecord = CatalogEntity | PersonalDefinition
 export interface DefinitionEditorDraft {
@@ -28,7 +28,7 @@ export interface DefinitionOption {
   readonly name: string
   readonly aliases: readonly string[]
   readonly description?: string
-  readonly category?: Knowledge<string>
+  readonly category?: Knowledge<JsonValue>
   readonly ppCost?: Knowledge<number>
   readonly sourceLabel: string
   readonly stockLabel: string
@@ -46,15 +46,16 @@ interface DefinitionWorkspaceValue {
 
 const DefinitionWorkspaceContext = createContext<DefinitionWorkspaceValue | undefined>(undefined)
 
-function stringCategory(fields: Readonly<Record<string, Knowledge<JsonValue>>>): Knowledge<string> | undefined {
+function categoryKnowledge(fields: Readonly<Record<string, Knowledge<JsonValue>>>): Knowledge<JsonValue> | undefined {
   const value = Object.entries(fields).find(([name]) => name.trim().toLocaleLowerCase() === 'category')?.[1]
-  if (!value) return undefined
-  if (value.state === 'known') return typeof value.value === 'string' ? { ...value, value: value.value } : { state: 'unknown', reason: 'The recorded category is not text' }
-  if (value.state === 'conflicting') {
-    const claims = value.claims.filter((claim) => typeof claim.value === 'string')
-    return claims.length === value.claims.length ? { state: 'conflicting', claims: claims.map((claim) => ({ ...claim, value: claim.value as string })) } : { state: 'unknown', reason: 'The recorded category claims are not all text' }
-  }
   return value
+}
+
+function editableCategoryValue(value: Knowledge<JsonValue> | undefined): string {
+  if (value?.state !== 'known') return ''
+  if (typeof value.value === 'string') return value.value
+  if (Array.isArray(value.value)) return value.value.find((entry): entry is string => typeof entry === 'string') ?? ''
+  return ''
 }
 
 function inventoryLabel(profile: Profile, ref: EntityRef) {
@@ -89,7 +90,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
     return {
       key: entityDefinitionKey(ref), ref, kind: definition.kind, name: definition.name, aliases: definition.aliases,
       ...(definition.rawDescription === undefined ? {} : { description: definition.rawDescription }),
-      ...(stringCategory(definition.fields) === undefined ? {} : { category: stringCategory(definition.fields) }),
+      ...(categoryKnowledge(definition.fields) === undefined ? {} : { category: categoryKnowledge(definition.fields) }),
       ...(definition.ppCost === undefined ? {} : { ppCost: definition.ppCost }),
       sourceLabel: `${preferred ? `Personal revision ${definition.revision} · preferred` : `Personal revision ${definition.revision} · older exact definition`}${provenance ? ` · override of ${provenance}` : ''}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: definition,
@@ -103,7 +104,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
     return {
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
       ...(entity.rawDescription === undefined ? {} : { description: entity.rawDescription }),
-      ...(stringCategory(entity.fields) === undefined ? {} : { category: stringCategory(entity.fields) }),
+      ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
       ...(entity.ppCost === undefined ? {} : { ppCost: entity.ppCost }),
       sourceLabel: `${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: entity,
@@ -143,7 +144,7 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   const [name, setName] = useState(() => base?.name ?? initialName)
   const [aliases, setAliases] = useState(() => base?.aliases.join('\n') ?? '')
   const [description, setDescription] = useState(() => base?.description ?? '')
-  const [category, setCategory] = useState(() => base?.category?.state === 'known' ? base.category.value : '')
+  const [category, setCategory] = useState(() => editableCategoryValue(base?.category))
   const [categoryMode, setCategoryMode] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
   const [ppState, setPpState] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
   const [pp, setPp] = useState(() => base?.ppCost?.state === 'known' ? String(base.ppCost.value) : '')

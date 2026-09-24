@@ -2,7 +2,7 @@
 
 A local-first inventory, character, and party planner for Crystal Project. Personal records live in the browser and move between devices through explicit file backups. The application does not connect to the game or infer unrecorded possessions, mastery, or combat rules.
 
-The application starts with a blank playthrough and a searchable public names catalog for items, classes, abilities, passives, innates, and Monster Magic. Catalog presence never establishes ownership or learning. Coverage is partial, and game mechanics and platform applicability remain unknown; see [catalog sources](docs/catalog-sources.md). Additional reference files and personal records can be imported locally.
+The application starts with a blank playthrough and a searchable, revision-attributed community reference catalog covering items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](docs/catalog-sources.md). Additional reference files and personal records can be imported locally.
 
 Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
 

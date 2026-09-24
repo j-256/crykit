@@ -7,6 +7,7 @@ const FIXED_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   [STARTER_SOURCE_URLS['apworld-monster-magic']]: 'Base Monster Magic names',
   [STARTER_SOURCE_URLS['equipment-expansion-sheet']]: 'Equipment Expansion',
   [STARTER_SOURCE_URLS['nintendo-mod-pack-2']]: 'Mod Pack 2 names',
+  [STARTER_SOURCE_URLS['nintendo-mod-pack-1']]: 'Mod Pack 1 details',
 })
 
 const WIKI_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(
@@ -24,7 +25,16 @@ const STARTER_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
 })
 
 export function starterSourceLabel(sourceId: string): string | undefined {
-  return STARTER_SOURCE_LABELS[sourceId]
+  const fixed = STARTER_SOURCE_LABELS[sourceId]
+  if (fixed) return fixed
+  try {
+    const url = new URL(sourceId)
+    if (url.hostname !== 'crystal-project.fandom.com') return undefined
+    const page = url.pathname.split('/wiki/')[1]
+    return page ? `Community wiki · ${decodeURIComponent(page).replaceAll('_', ' ')}` : 'Community wiki'
+  } catch {
+    return undefined
+  }
 }
 
 export function starterEntitySourceLabel(entity: Pick<CatalogEntity, 'sources'>): string | undefined {

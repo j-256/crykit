@@ -1,4 +1,5 @@
 import type { CatalogEntityKind } from '../domain/types'
+import wikiData from './wiki-data.json'
 
 export const STARTER_SOURCE_URLS = {
   "apworld-classes": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/jobs.py",
@@ -6,6 +7,7 @@ export const STARTER_SOURCE_URLS = {
   "apworld-monster-magic": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/scholar_abilities.py",
   "equipment-expansion-sheet": "https://docs.google.com/spreadsheets/d/1s3kWj2DONAln5hRx7p4JyEfr71wkLIM-KC3LTA3gNks/edit#gid=0",
   "nintendo-mod-pack-2": "https://www.nintendo.com/en-gb/DLC/Mod-Pack-2-New-Challenges-2646897.html",
+  "nintendo-mod-pack-1": "https://www.nintendo.com/us/store/products/mod-pack-1-quality-fun-70050000048696-switch/",
   "wiki-aegis": "https://crystal-project.fandom.com/wiki/Aegis",
   "wiki-assassin": "https://crystal-project.fandom.com/wiki/Assassin",
   "wiki-battle-skill": "https://crystal-project.fandom.com/wiki/Battle_Skill",
@@ -1141,7 +1143,7 @@ export const STARTER_NAME_RECORDS = [
 ] as const satisfies readonly StarterNameRecord[]
 
 export function starterCatalogChecksumInput(): string {
-  return JSON.stringify({ sources: STARTER_SOURCE_URLS, records: STARTER_NAME_RECORDS })
+  return JSON.stringify({ sources: STARTER_SOURCE_URLS, records: STARTER_NAME_RECORDS, wikiContentDigest: wikiData.contentDigest })
 }
 
-export const STARTER_CATALOG_CONTENT_DIGEST = "afd0e7391cf638d719319c8b3c048c838f7e26e4237de794fcacf46dd4bde6e1"
+export const STARTER_CATALOG_CONTENT_DIGEST = "be8721cdf490837d9d44c70278af7e4bddc3cea46d8f0009ac2d079286e127bd"

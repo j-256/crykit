@@ -17,6 +17,8 @@ const KINDS = new Set<CatalogEntityKind>([
   'passive',
   'innate',
   'monsterMagic',
+  'monster',
+  'command',
   'status',
   'recipe',
   'location',

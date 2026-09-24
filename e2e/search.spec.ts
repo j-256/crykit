@@ -188,7 +188,7 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await expect(definition.getByRole('textbox', { name: 'Definition name', exact: true })).toHaveValue('Iron Sword')
   await definition.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic tempered sword')
   await definition.getByLabel('Aliases').fill('Iron Sword\nSynthetic blade')
-  await definition.getByLabel('Description', { exact: true }).fill('Synthetic description for an override preservation check')
+  await definition.getByRole('textbox', { name: 'Description', exact: true }).fill('Synthetic description for an override preservation check')
   await definition.getByLabel('Category knowledge').selectOption('known')
   await definition.getByRole('textbox', { name: 'Category', exact: true }).fill('Synthetic weapons')
   await definition.getByRole('button', { name: 'Save new override', exact: true }).click()

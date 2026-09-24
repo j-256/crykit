@@ -9,7 +9,7 @@ import { Sheet } from './Sheet'
 import type { Destination } from './Shell'
 
 const UNIVERSAL_RESULT_LIMIT = 60
-const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'status', 'recipe', 'location', 'other']
+const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
 
 interface UniversalSearchItem {
   readonly key: string

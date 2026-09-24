@@ -57,7 +57,7 @@ export interface PersonalDefinitionSearchOption {
   readonly name: string
   readonly aliases: readonly string[]
   readonly description?: string
-  readonly category?: Knowledge<string>
+  readonly category?: Knowledge<JsonValue>
   readonly ppCost?: Knowledge<number>
   readonly sourceLabel: string
 }

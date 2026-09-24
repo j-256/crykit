@@ -24,11 +24,31 @@ import {
   type ReferenceRouteState,
 } from './route-state'
 
-function knowledgeValue(value: Knowledge<unknown>): string {
-  if (value.state === 'known') return typeof value.value === 'string' ? value.value : JSON.stringify(value.value)
-  if (value.state === 'conflicting') return `${value.claims.length} conflicting claims`
-  if (value.state === 'notApplicable') return 'Not applicable'
-  return value.reason ?? 'Unknown'
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function StructuredValue({ value }: { value: unknown }) {
+  if (value === null) return <span>Null</span>
+  if (typeof value === 'string') return <span className="structured-value__text">{value}</span>
+  if (typeof value === 'number' || typeof value === 'boolean') return <span>{String(value)}</span>
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span>None</span>
+    if (value.every(isRecord)) {
+      const columns = Array.from(new Set(value.flatMap((row) => Object.keys(row))))
+      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue value={row[column]}/></td>)}</tr>)}</tbody></table></div>
+    }
+    return <ul className="structured-value__list">{value.map((entry, index) => <li key={index}><StructuredValue value={entry}/></li>)}</ul>
+  }
+  if (isRecord(value)) return <dl className="structured-value__record">{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue value={nested}/></dd></div>)}</dl>
+  return <span>{String(value)}</span>
+}
+
+function KnowledgeValue({ value }: { value: Knowledge<unknown> }) {
+  if (value.state === 'known') return <StructuredValue value={value.value}/>
+  if (value.state === 'conflicting') return <span>{value.claims.length} conflicting claims</span>
+  if (value.state === 'notApplicable') return <span>{value.reason ?? 'Not applicable'}</span>
+  return <span>{value.reason ?? 'Unknown'}</span>
 }
 
 function sourceHref(source: SourceRef): string | undefined {
@@ -50,8 +70,8 @@ function SourceSummary({ source }: { source: SourceRef }) {
 }
 
 function ClaimValue({ value }: { value: Knowledge<JsonValue> }) {
-  if (value.state !== 'conflicting') return <p>{knowledgeValue(value)}</p>
-  return <div className="stack">{value.claims.map((claim, index) => <div key={index}><p>{typeof claim.value === 'string' ? claim.value : JSON.stringify(claim.value)}</p><small>{claim.note ?? 'Conflicting source value'}{claim.sources.length ? ` · ${claim.sources.map((source) => source.sourceId).join(' · ')}` : ''}</small></div>)}</div>
+  if (value.state !== 'conflicting') return <div><KnowledgeValue value={value}/></div>
+  return <div className="stack">{value.claims.map((claim, index) => <div key={index}><StructuredValue value={claim.value}/><small>{claim.note ?? 'Conflicting source value'}{claim.sources.length ? ` · ${claim.sources.map((source) => source.sourceId).join(' · ')}` : ''}</small></div>)}</div>
 }
 
 function ClaimTrail({ claim }: { claim: CatalogClaim }) {
@@ -76,13 +96,22 @@ function ppLabel(item: ReferenceSearchItem): string {
 }
 
 function DetailView({ item, onBack, onEdit }: { item: ReferenceSearchItem; onBack: () => void; onEdit: () => void }) {
+  const planningFields: readonly [string, Knowledge<unknown> | undefined][] = [
+    ['Slot kinds', item.entity.slotKinds],
+    ['Occupied slots', item.entity.occupiesSlots],
+    ['PP cost', item.entity.ppCost],
+    ['Requirements', item.entity.requirements],
+    ['Grants', item.entity.grants],
+    ['Listed contributions', item.entity.listedContributions ? { state: 'known', value: item.entity.listedContributions } : undefined],
+  ]
   return <div className="panel__body stack">
     <div className="split"><Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button><Button icon="edit" onClick={onEdit} tone="secondary">Edit as personal override</Button></div>
     <div><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge><Badge tone={knowledgeTone(item.catalog.applicability)}>{item.catalog.applicability.state === 'known' ? item.catalog.applicability.value : 'Applicability unknown'}</Badge>{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">{item.knowledgeCounts.conflicting} conflicts</Badge>}</div><h2>{item.entity.name}</h2><p>{item.entity.rawDescription ?? 'No raw description supplied.'}</p>{item.entity.aliases.length > 0 && <small>Aliases: {item.entity.aliases.join(', ')}</small>}</div>
     <div className="grid-2">
-      <div className="panel"><div className="panel__header"><h3>Normalized fields</h3></div><div className="panel__body">{Object.keys(item.entity.fields).length ? <dl className="definition-list">{Object.entries(item.entity.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd>{knowledgeValue(value)} <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No normalized fields">Identity and source claims may still contain useful source details.</InlineNotice>}</div></div>
+      <div className="panel"><div className="panel__header"><h3>Normalized fields</h3></div><div className="panel__body">{Object.keys(item.entity.fields).length ? <dl className="definition-list">{Object.entries(item.entity.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd><KnowledgeValue value={value}/> <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No normalized fields">Identity and source claims may still contain useful source details.</InlineNotice>}</div></div>
       <div className="panel"><div className="panel__header"><h3>Source trail</h3></div><div className="panel__body">{item.entity.sources.length ? item.entity.sources.map((source, index) => <div className="source-claim" key={`${source.sourceId}:${source.locator ?? ''}:${index}`}><span className="source-claim__line"/><div><SourceSummary source={source}/></div></div>) : <InlineNotice title="No entity sources">Inspect the catalog pack provenance before relying on this definition.</InlineNotice>}</div></div>
     </div>
+    <div className="panel"><div className="panel__header"><div><h3>Planning fields</h3><p>Normalized validation values remain separate from descriptive wiki facts</p></div></div><div className="panel__body"><dl className="definition-list">{planningFields.map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd>{value ? <><KnowledgeValue value={value}/> <Badge tone={knowledgeTone(value)}>{value.state}</Badge></> : 'Not supplied'}</dd></div>)}</dl></div></div>
     <div className="panel"><div className="panel__header"><div><h3>Imported claims</h3><p>Original auxiliary stats, locations, growth data, and unresolved source values</p></div></div><div className="panel__body">{item.claims.length ? item.claims.map((claim, index) => <ClaimTrail claim={claim} key={`${claim.field}:${index}`}/>) : <InlineNotice title="No separate claims">This definition did not include auxiliary or conflicting source claims.</InlineNotice>}</div></div>
   </div>
 }
@@ -93,7 +122,7 @@ function PersonalDetail({ option, onBack, onEdit }: { option: DefinitionOption; 
     <div className="split"><Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button><Button icon="edit" onClick={onEdit} tone="secondary">Edit definition</Button></div>
     <div><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal definition</Badge><Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge></div><h2>{option.name}</h2><p>{option.description ?? 'No description supplied.'}</p>{option.aliases.length > 0 && <small>Aliases: {option.aliases.join(', ')}</small>}</div>
     <InlineNotice title="Immutable definition history">Edits create a new personal revision. Inventory observations, learning records, and build checkpoints keep their exact saved reference.</InlineNotice>
-    <div className="grid-2"><div className="panel"><div className="panel__header"><h3>Recorded fields</h3></div><div className="panel__body">{Object.keys(definition.fields).length ? <dl className="definition-list">{Object.entries(definition.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd>{knowledgeValue(value)} <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No recorded fields">Unrecorded fields remain unknown.</InlineNotice>}</div></div><div className="panel"><div className="panel__header"><h3>Lineage</h3></div><div className="panel__body"><dl className="definition-list"><div className="definition-row"><dt>Exact identity</dt><dd>{option.key}</dd></div><div className="definition-row"><dt>Revision</dt><dd>{'revision' in definition ? definition.revision : 'Catalog base'}</dd></div>{'baseRef' in definition && definition.baseRef && <div className="definition-row"><dt>Based on</dt><dd>{entityDefinitionKey(definition.baseRef)}</dd></div>}{'previousRevision' in definition && definition.previousRevision && <div className="definition-row"><dt>Previous revision</dt><dd>{entityDefinitionKey(definition.previousRevision)}</dd></div>}<div className="definition-row"><dt>Source</dt><dd>{option.sourceLabel}</dd></div></dl></div></div></div>
+    <div className="grid-2"><div className="panel"><div className="panel__header"><h3>Recorded fields</h3></div><div className="panel__body">{Object.keys(definition.fields).length ? <dl className="definition-list">{Object.entries(definition.fields).map(([field, value]) => <div className="definition-row" key={field}><dt>{field}</dt><dd><KnowledgeValue value={value}/> <Badge tone={knowledgeTone(value)}>{value.state}</Badge></dd></div>)}</dl> : <InlineNotice title="No recorded fields">Unrecorded fields remain unknown.</InlineNotice>}</div></div><div className="panel"><div className="panel__header"><h3>Lineage</h3></div><div className="panel__body"><dl className="definition-list"><div className="definition-row"><dt>Exact identity</dt><dd>{option.key}</dd></div><div className="definition-row"><dt>Revision</dt><dd>{'revision' in definition ? definition.revision : 'Catalog base'}</dd></div>{'baseRef' in definition && definition.baseRef && <div className="definition-row"><dt>Based on</dt><dd>{entityDefinitionKey(definition.baseRef)}</dd></div>}{'previousRevision' in definition && definition.previousRevision && <div className="definition-row"><dt>Previous revision</dt><dd>{entityDefinitionKey(definition.previousRevision)}</dd></div>}<div className="definition-row"><dt>Source</dt><dd>{option.sourceLabel}</dd></div></dl></div></div></div>
   </div>
 }
 

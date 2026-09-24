@@ -79,6 +79,8 @@ export type CatalogEntityKind =
   | 'passive'
   | 'innate'
   | 'monsterMagic'
+  | 'monster'
+  | 'command'
   | 'status'
   | 'recipe'
   | 'location'

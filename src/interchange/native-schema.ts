@@ -82,6 +82,8 @@ const catalogEntityKind = z.enum([
   'passive',
   'innate',
   'monsterMagic',
+  'monster',
+  'command',
   'status',
   'recipe',
   'location',

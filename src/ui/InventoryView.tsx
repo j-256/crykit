@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { entityDefinitionKey, partitionQuery } from '../domain'
-import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord } from '../domain/types'
+import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { entityName, formatRelativeDate, knowledgeLabel, quantityLabel } from './model'
@@ -119,9 +119,28 @@ export interface InventoryViewProps {
 }
 
 function categoryFacetValues(option: DefinitionOption | undefined) {
-  if (option?.category?.state === 'known') return [option.category.value]
-  if (option?.category?.state === 'conflicting') return option.category.claims.map((claim) => claim.value)
+  const strings = (value: unknown) => typeof value === 'string'
+    ? [value]
+    : Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === 'string')
+      : []
+  if (option?.category?.state === 'known') return strings(option.category.value)
+  if (option?.category?.state === 'conflicting') return option.category.claims.flatMap((claim) => strings(claim.value))
   return []
+}
+
+function categoryQueryValue(option: DefinitionOption | undefined): QueryValue {
+  const category = option?.category
+  if (!category) return { state: 'unknown', reason: 'No linked definition category' }
+  if (category.state === 'known') {
+    const values = categoryFacetValues(option)
+    return values.length > 0 ? { ...category, value: values } : { state: 'unknown', reason: 'The linked definition category is not text' }
+  }
+  if (category.state === 'conflicting') {
+    const claims = category.claims.map((claim) => ({ ...claim, value: typeof claim.value === 'string' ? [claim.value] : Array.isArray(claim.value) ? claim.value.filter((entry): entry is string => typeof entry === 'string') : [] }))
+    return claims.every((claim) => claim.value.length > 0) ? { state: 'conflicting', claims } : { state: 'unknown', reason: 'The linked definition category claims are not all text' }
+  }
+  return category
 }
 
 export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEvent, onOpenData }: InventoryViewProps) {
@@ -196,7 +215,7 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
         quantityKind: { state: 'known', value: position.quantity.kind },
         wishlist: { state: 'known', value: position.wishlist },
         protectedQuantity: { state: 'known', value: position.protectedQuantity },
-        category: reference?.projection.category ?? personalDefinition?.category ?? { state: 'unknown', reason: 'No linked definition category' },
+        category: reference?.projection.category ?? categoryQueryValue(personalDefinition),
         source: position.ref.kind === 'personal' ? { state: 'known', value: ['Personal entry'] } : reference?.projection.source ?? { state: 'unknown', reason: 'No linked catalog source' },
       }
     })
