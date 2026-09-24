@@ -141,6 +141,182 @@ describe('native backup validation', () => {
     })
   })
 
+  it('retains immutable personal definition lineage while accepting old standalone definitions', async () => {
+    const archive = nativeFixture({
+      mutateProfile: (profile) => {
+        profile.personalDefinitions = {
+          original: {
+            id: 'original',
+            revision: 0,
+            kind: 'item',
+            name: 'Original',
+            aliases: [],
+            fields: {},
+            sources: [],
+            createdAt: '2026-01-02T03:04:05.000Z',
+            updatedAt: '2026-01-02T03:04:05.000Z',
+          },
+          revised: {
+            id: 'revised',
+            revision: 1,
+            baseRef: { kind: 'personal', definitionId: 'original' },
+            previousRevision: { kind: 'personal', definitionId: 'original' },
+            kind: 'item',
+            name: 'Revised',
+            aliases: [],
+            fields: {},
+            sources: [],
+            createdAt: '2026-01-03T03:04:05.000Z',
+            updatedAt: '2026-01-03T03:04:05.000Z',
+          },
+        }
+      },
+    })
+
+    await expect(previewNativeBackup(archive, 'lineage.zip')).resolves.toMatchObject({
+      proposed: {
+        profile: {
+          personalDefinitions: {
+            original: { revision: 0 },
+            revised: {
+              baseRef: { kind: 'personal', definitionId: 'original' },
+              previousRevision: { kind: 'personal', definitionId: 'original' },
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it('rejects branched personal definition lineage', async () => {
+    const archive = nativeFixture({
+      mutateProfile: (profile) => {
+        const definition = (id: string, name: string, previousRevision?: string) => ({
+          id,
+          revision: previousRevision ? 1 : 0,
+          ...(previousRevision ? {
+            baseRef: { kind: 'personal', definitionId: 'original' },
+            previousRevision: { kind: 'personal', definitionId: previousRevision },
+          } : {}),
+          kind: 'item',
+          name,
+          aliases: [],
+          fields: {},
+          sources: [],
+          createdAt: '2026-01-02T03:04:05.000Z',
+          updatedAt: '2026-01-02T03:04:05.000Z',
+        })
+        profile.personalDefinitions = {
+          original: definition('original', 'Original'),
+          first: definition('first', 'First', 'original'),
+          second: definition('second', 'Second', 'original'),
+        }
+      },
+    })
+
+    await expect(previewNativeBackup(archive, 'branched-lineage.zip')).rejects.toMatchObject({ code: 'schema-mismatch' })
+  })
+
+  it.each([
+    ['a personal base without a predecessor', (definitions: Record<string, Record<string, unknown>>) => {
+      definitions.revised = {
+        ...definitions.revised,
+        previousRevision: undefined,
+      }
+    }],
+    ['a changed predecessor kind', (definitions: Record<string, Record<string, unknown>>) => {
+      definitions.revised = {
+        ...definitions.revised,
+        kind: 'class',
+      }
+    }],
+  ])('rejects %s in personal definition lineage', async (_label, mutate) => {
+    const archive = nativeFixture({
+      mutateProfile: (profile) => {
+        const definitions = {
+          original: {
+            id: 'original',
+            revision: 0,
+            kind: 'item',
+            name: 'Original',
+            aliases: [],
+            fields: {},
+            sources: [],
+            createdAt: '2026-01-02T03:04:05.000Z',
+            updatedAt: '2026-01-02T03:04:05.000Z',
+          },
+          revised: {
+            id: 'revised',
+            revision: 1,
+            baseRef: { kind: 'personal', definitionId: 'original' },
+            previousRevision: { kind: 'personal', definitionId: 'original' },
+            kind: 'item',
+            name: 'Revised',
+            aliases: [],
+            fields: {},
+            sources: [],
+            createdAt: '2026-01-03T03:04:05.000Z',
+            updatedAt: '2026-01-03T03:04:05.000Z',
+          },
+        }
+        mutate(definitions)
+        profile.personalDefinitions = definitions
+      },
+    })
+
+    await expect(previewNativeBackup(archive, 'invalid-lineage.zip')).rejects.toMatchObject({ code: 'schema-mismatch' })
+  })
+
+  it('rejects an override whose kind differs from its exact catalog base', async () => {
+    const archive = nativeFixture({
+      mutateProfile: (profile) => {
+        profile.personalDefinitions = {
+          override: {
+            id: 'override',
+            revision: 1,
+            baseRef: {
+              kind: 'catalog',
+              catalogId: 'built-in',
+              catalogRevisionId: 'revision-1',
+              entityId: 'sword',
+            },
+            kind: 'class',
+            name: 'Invalid class override',
+            aliases: [],
+            fields: {},
+            sources: [],
+            createdAt: '2026-01-02T03:04:05.000Z',
+            updatedAt: '2026-01-02T03:04:05.000Z',
+          },
+        }
+      },
+      mutatePayload: (payload) => {
+        payload.catalogs = [{
+          id: 'built-in',
+          revisionId: 'revision-1',
+          schemaVersion: 'test',
+          checksum: 'synthetic',
+          importedAt: '2026-01-02T03:04:05.000Z',
+          applicability: { state: 'known', value: 'synthetic' },
+          rights: { state: 'known', value: 'synthetic fixture' },
+          entities: {
+            sword: {
+              id: 'sword',
+              kind: 'item',
+              name: 'Sword',
+              aliases: [],
+              fields: {},
+              sources: [],
+            },
+          },
+          claims: [],
+        }]
+      },
+    })
+
+    await expect(previewNativeBackup(archive, 'catalog-kind-mismatch.zip')).rejects.toMatchObject({ code: 'schema-mismatch' })
+  })
+
   it.each([
     ['an impossible calendar timestamp', (profile: Record<string, unknown>) => {
       profile.createdAt = '2025-02-30T00:00:00.000Z'

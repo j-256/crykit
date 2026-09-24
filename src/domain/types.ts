@@ -148,6 +148,8 @@ export interface CatalogSnapshot {
 export interface PersonalDefinition {
   readonly id: PersonalDefinitionId
   readonly revision: number
+  readonly baseRef?: EntityRef
+  readonly previousRevision?: PersonalRef
   readonly kind: CatalogEntityKind
   readonly name: string
   readonly aliases: readonly string[]
@@ -189,6 +191,7 @@ export interface RulesetRevision {
   readonly ppCostsNonNegative: Knowledge<boolean>
   readonly slots: readonly SlotDefinition[]
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
+  readonly definitionOverrides?: readonly PersonalRef[]
   readonly createdAt: Timestamp
 }
 

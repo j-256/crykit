@@ -7,10 +7,10 @@ import {
   assertTextLength,
   createId,
   DomainError,
-  entityRefKey,
   nowTimestamp,
   updateProfile,
 } from './core'
+import { logicalEntityKey } from './definitions'
 import { MAX_ID_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import type {
   Character,
@@ -214,7 +214,7 @@ export function upsertCharacterClassProgress(
   }
   assertPersonalDefinitionRef(profile, input.classRef)
   validateNonnegativeKnowledge(input.observedLp, 'Observed LP')
-  const key = entityRefKey(input.classRef)
+  const key = logicalEntityKey(profile, input.classRef)
   const prior = current.classProgress[key]
   const classProgress: CharacterClassProgress = {
     classRef: input.classRef,
@@ -259,7 +259,7 @@ export function upsertLearnedNode(profile: Profile, input: UpsertLearnedNodeInpu
   }
   assertPersonalDefinitionRef(profile, input.ref)
   validateNonnegativeKnowledge(input.actualPaidLp, 'Actual paid LP')
-  const key = entityRefKey(input.ref)
+  const key = logicalEntityKey(profile, input.ref)
   const prior = current.learnedNodes[key]
   const learnedNode: LearnedNode = {
     ref: input.ref,
@@ -306,7 +306,7 @@ export function upsertProgress(profile: Profile, input: UpsertProgressInput): Pr
   assertExpectedRevision(profile, input.expectedRevision)
   assertPersonalDefinitionRef(profile, input.subject)
   const matching = Object.values(profile.progress).find(
-    (record) => entityRefKey(record.subject) === entityRefKey(input.subject),
+    (record) => logicalEntityKey(profile, record.subject) === logicalEntityKey(profile, input.subject),
   )
   const current = input.id === undefined ? matching : profile.progress[input.id]
   if (matching && matching.id !== current?.id) {

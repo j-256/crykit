@@ -1,5 +1,9 @@
-import type { CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
-import { entityRefKey } from '../domain/core'
+import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
+import { entityDefinitionKey } from '../domain/core'
+import {
+  definitionLineageRootRef,
+  logicalEntityKey,
+} from '../domain/definitions'
 import { AppDataError } from './errors'
 import { isJsonObject, parseBoundedJson } from './json'
 import {
@@ -71,6 +75,7 @@ function assertIdMap(value: unknown, label: string): Record<string, Record<strin
 interface ValidatedCatalogs {
   readonly snapshots: readonly CatalogSnapshot[]
   readonly keys: ReadonlyMap<string, ReadonlySet<string>>
+  readonly entityKinds: ReadonlyMap<string, CatalogEntityKind>
 }
 
 function knowledgeValues<Value>(knowledge: Knowledge<Value> | undefined): readonly Value[] {
@@ -114,6 +119,7 @@ function validateDefinitionRequirements(
 function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
   const snapshots: CatalogSnapshot[] = []
   const keys = new Map<string, ReadonlySet<string>>()
+  const entityKinds = new Map<string, CatalogEntityKind>()
   for (const [index, value] of values.entries()) {
     const record = recordValue(value, `catalogs[${index}]`)
     const id = stringValue(record.id, `catalogs[${index}].id`)
@@ -131,23 +137,32 @@ function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
     if (keys.has(key)) schemaError('The backup contains a duplicate catalog revision', { id, revisionId })
     keys.set(key, new Set(Object.keys(entities)))
     snapshots.push(value as CatalogSnapshot)
+    for (const entity of Object.values((value as CatalogSnapshot).entities)) {
+      entityKinds.set(entityDefinitionKey({
+        kind: 'catalog',
+        catalogId: (value as CatalogSnapshot).id,
+        catalogRevisionId: (value as CatalogSnapshot).revisionId,
+        entityId: entity.id,
+      }), entity.kind)
+    }
   }
   for (const [index, snapshot] of snapshots.entries()) {
     for (const [entityId, entity] of Object.entries(snapshot.entities)) {
       validateDefinitionRequirements(entity.requirements, keys, new Set(), `catalogs[${index}].entities.${entityId}.requirements`)
     }
   }
-  return { snapshots, keys }
+  return { snapshots, keys, entityKinds }
 }
 
 function validatePinnedReferences(
+  profile: Profile,
   value: unknown,
   lock: Readonly<Record<string, unknown>>,
   label: string,
 ): void {
   if (!value || typeof value !== 'object') return
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => validatePinnedReferences(entry, lock, `${label}[${index}]`))
+    value.forEach((entry, index) => validatePinnedReferences(profile, entry, lock, `${label}[${index}]`))
     return
   }
   const record = value as Readonly<Record<string, unknown>>
@@ -159,7 +174,78 @@ function validatePinnedReferences(
     }
     return
   }
-  for (const [key, nested] of Object.entries(record)) validatePinnedReferences(nested, lock, `${label}.${key}`)
+  if (record.kind === 'personal' && typeof record.definitionId === 'string') {
+    const rootRef = definitionLineageRootRef(profile, record as unknown as EntityRef)
+    if (rootRef.kind === 'catalog' && lock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
+      schemaError('A personal override base falls outside its pinned catalog lock', {
+        label,
+        catalogId: rootRef.catalogId,
+        revisionId: rootRef.catalogRevisionId,
+      })
+    }
+    return
+  }
+  for (const [key, nested] of Object.entries(record)) validatePinnedReferences(profile, nested, lock, `${label}.${key}`)
+}
+
+function validatePersonalDefinitionLineage(
+  profile: Profile,
+  catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind>,
+): void {
+  const successors = new Set<string>()
+  const initialOverrides = new Set<string>()
+  for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+    const selfRef: EntityRef = { kind: 'personal', definitionId: definition.id }
+    if (definition.baseRef && entityDefinitionKey(definition.baseRef) === entityDefinitionKey(selfRef)) {
+      schemaError('A personal definition cannot use itself as its lineage base', { id })
+    }
+    if (definition.previousRevision && !definition.baseRef) {
+      schemaError('A personal definition revision is missing its lineage base', { id })
+    }
+    if (!definition.previousRevision) {
+      if (definition.baseRef?.kind === 'personal') {
+        schemaError('A personal-base override must identify its predecessor', { id })
+      }
+      if (definition.baseRef && definition.revision !== 1) {
+        schemaError('An initial personal override must start at revision 1', { id })
+      }
+      if (definition.baseRef?.kind === 'catalog') {
+        const baseKind = catalogEntityKinds.get(entityDefinitionKey(definition.baseRef))
+        if (baseKind !== undefined && baseKind !== definition.kind) {
+          schemaError('A personal override changes its catalog base kind', { id })
+        }
+      }
+      if (definition.baseRef) {
+        const rootKey = entityDefinitionKey(definition.baseRef)
+        if (initialOverrides.has(rootKey)) schemaError('A personal definition lineage has multiple initial overrides', { id })
+        initialOverrides.add(rootKey)
+      }
+      continue
+    }
+    const previous = profile.personalDefinitions[definition.previousRevision.definitionId]
+    if (!previous) schemaError('A personal definition revision points to a missing predecessor', { id })
+    if (successors.has(previous.id)) schemaError('A personal definition revision has multiple successors', { id })
+    successors.add(previous.id)
+    if (definition.revision !== previous.revision + 1) {
+      schemaError('A personal definition revision is not consecutive', { id })
+    }
+    if (definition.kind !== previous.kind) {
+      schemaError('A personal definition revision changes its entity kind', { id })
+    }
+    const expectedBase = definitionLineageRootRef(profile, definition.previousRevision)
+    if (!definition.baseRef || entityDefinitionKey(definition.baseRef) !== entityDefinitionKey(expectedBase)) {
+      schemaError('A personal definition revision changes its lineage base', { id })
+    }
+  }
+  for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+    const visited = new Set<string>([id])
+    let previous = definition.previousRevision
+    while (previous) {
+      if (visited.has(previous.definitionId)) schemaError('Personal definition lineage contains a cycle', { id })
+      visited.add(previous.definitionId)
+      previous = profile.personalDefinitions[previous.definitionId]?.previousRevision
+    }
+  }
 }
 
 function validateProfileEntityRefs(
@@ -170,7 +256,14 @@ function validateProfileEntityRefs(
 ): void {
   const check = (ref: EntityRef, path: string): void => validateEntityRef(ref, catalogs, personalDefinitionIds, path)
   for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+    if (definition.baseRef) check(definition.baseRef, `${label}.personalDefinitions.${id}.baseRef`)
+    if (definition.previousRevision) check(definition.previousRevision, `${label}.personalDefinitions.${id}.previousRevision`)
     validateDefinitionRequirements(definition.requirements, catalogs, personalDefinitionIds, `${label}.personalDefinitions.${id}.requirements`)
+  }
+  for (const [id, ruleset] of Object.entries(profile.rulesets)) {
+    for (const [index, ref] of (ruleset.definitionOverrides ?? []).entries()) {
+      check(ref, `${label}.rulesets.${id}.definitionOverrides[${index}]`)
+    }
   }
   for (const [id, position] of Object.entries(profile.inventory)) check(position.ref, `${label}.inventory.${id}.ref`)
   for (const [id, event] of Object.entries(profile.inventoryEvents)) check(event.ref, `${label}.inventoryEvents.${id}.ref`)
@@ -204,7 +297,12 @@ function validateProfileEntityRefs(
   }
 }
 
-function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlySet<string>>, label = 'profile'): Profile {
+function validateProfile(
+  value: unknown,
+  catalogs: ReadonlyMap<string, ReadonlySet<string>>,
+  label = 'profile',
+  catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind> = new Map(),
+): Profile {
   const profile = recordValue(value, label)
   const typedProfile = value as Profile
 
@@ -219,6 +317,7 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
   const scenarios = assertIdMap(profile.scenarios, `${label}.scenarios`)
   assertIdMap(profile.goals, `${label}.goals`)
   assertIdMap(profile.importReceipts, `${label}.importReceipts`)
+  validatePersonalDefinitionLineage(typedProfile, catalogEntityKinds)
 
   if (profile.activeRulesetRevisionId !== undefined && !rulesets[stringValue(profile.activeRulesetRevisionId, `${label}.activeRulesetRevisionId`)]) {
     schemaError(`${label}.activeRulesetRevisionId references a missing ruleset`)
@@ -233,6 +332,16 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
         schemaError('A ruleset references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
+    const overrideKeys = new Set<string>()
+    for (const ref of (ruleset.definitionOverrides ?? []) as readonly EntityRef[]) {
+      const key = logicalEntityKey(typedProfile, ref)
+      if (overrideKeys.has(key)) schemaError('A ruleset pins duplicate logical definition overrides', { id })
+      overrideKeys.add(key)
+      const rootRef = definitionLineageRootRef(typedProfile, ref)
+      if (rootRef.kind === 'catalog' && lock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
+        schemaError('A ruleset definition override falls outside its catalog lock', { id })
+      }
+    }
     const slotIds = new Set<string>()
     for (const slotValue of ruleset.slots as readonly unknown[]) {
       const slot = recordValue(slotValue, `${label}.rulesets.${id}.slots`)
@@ -244,7 +353,7 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
   const inventoryRefKeys = new Set<string>()
   for (const [id, position] of Object.entries(inventory)) {
     const ref = position.ref as EntityRef
-    const refKey = entityRefKey(ref)
+    const refKey = logicalEntityKey(typedProfile, ref)
     if (inventoryRefKeys.has(refKey)) schemaError('Inventory contains duplicate positions for one entity', { id })
     inventoryRefKeys.add(refKey)
     const possession = position.possession
@@ -269,7 +378,7 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
     if (event.positionId !== undefined) {
       const position = inventory[stringValue(event.positionId, `${label}.inventoryEvents.${id}.positionId`)]
       if (!position) schemaError('An inventory event references a missing position', { id })
-      if (entityRefKey(position.ref as EntityRef) !== entityRefKey(event.ref as EntityRef)) {
+      if (logicalEntityKey(typedProfile, position.ref as EntityRef) !== logicalEntityKey(typedProfile, event.ref as EntityRef)) {
         schemaError('An inventory event does not match its linked position', { id })
       }
     }
@@ -285,14 +394,14 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
     const classProgress = recordValue(character.classProgress, `${label}.characters.${id}.classProgress`)
     for (const [key, entryValue] of Object.entries(classProgress)) {
       const entry = recordValue(entryValue, `${label}.characters.${id}.classProgress.${key}`)
-      if (key !== entityRefKey(entry.classRef as EntityRef)) {
+      if (key !== logicalEntityKey(typedProfile, entry.classRef as EntityRef)) {
         schemaError('Character class progress has an unstable reference key', { id, key })
       }
     }
     const learnedNodes = recordValue(character.learnedNodes, `${label}.characters.${id}.learnedNodes`)
     for (const [key, entryValue] of Object.entries(learnedNodes)) {
       const entry = recordValue(entryValue, `${label}.characters.${id}.learnedNodes.${key}`)
-      if (key !== entityRefKey(entry.ref as EntityRef)) {
+      if (key !== logicalEntityKey(typedProfile, entry.ref as EntityRef)) {
         schemaError('Character learning has an unstable reference key', { id, key })
       }
     }
@@ -339,7 +448,7 @@ function validateProfile(value: unknown, catalogs: ReadonlyMap<string, ReadonlyS
     }
     const slotIds = new Set((ruleset.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
-    validatePinnedReferences(content, lock, `${label}.buildRevisions.${id}.content`)
+    validatePinnedReferences(typedProfile, content, lock, `${label}.buildRevisions.${id}.content`)
     const selections = recordValue(content.selections, `${label}.buildRevisions.${id}.content.selections`)
     for (const slotId of Object.keys(selections)) {
       if (!slotIds.has(slotId)) schemaError('A build revision selects an unknown ruleset slot', { id, slotId })
@@ -419,6 +528,7 @@ function validateHistory(
   values: readonly unknown[],
   profile: Profile,
   catalogs: ReadonlyMap<string, ReadonlySet<string>>,
+  catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind>,
 ): readonly PersistedHistoryEntry[] {
   const ids = new Set<string>()
   if (values.length > MAX_NATIVE_HISTORY) schemaError('The backup history exceeds the retention limit')
@@ -430,8 +540,8 @@ function validateHistory(
     if (stringValue(record.profileId, `history[${index}].profileId`) !== profile.id) {
       schemaError('A history entry belongs to a different profile', { id })
     }
-    const before = validateProfile(record.before, catalogs, `history[${index}].before`)
-    const after = validateProfile(record.after, catalogs, `history[${index}].after`)
+    const before = validateProfile(record.before, catalogs, `history[${index}].before`, catalogEntityKinds)
+    const after = validateProfile(record.after, catalogs, `history[${index}].after`, catalogEntityKinds)
     const previousRevision = revisionValue(record.previousRevision, `history[${index}].previousRevision`)
     const nextRevision = revisionValue(record.nextRevision, `history[${index}].nextRevision`)
     if (before.revision !== previousRevision || after.revision !== nextRevision) {
@@ -469,12 +579,12 @@ export function validateNativeProfileGraph(
     if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   }
   const validatedCatalogs = validateCatalogs(catalogs)
-  const validatedProfile = validateProfile(profile, validatedCatalogs.keys)
+  const validatedProfile = validateProfile(profile, validatedCatalogs.keys, 'profile', validatedCatalogs.entityKinds)
   if (history) {
     for (const entry of history) {
       if (!NativeHistorySchema.safeParse(entry).success) schemaError('A transformed history entry has an unsupported shape')
     }
-    validateHistory(history, validatedProfile, validatedCatalogs.keys)
+    validateHistory(history, validatedProfile, validatedCatalogs.keys, validatedCatalogs.entityKinds)
   }
 }
 
@@ -535,10 +645,10 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     })
   }
   const catalogs = validateCatalogs(payloadResult.data.catalogs)
-  const profile = validateProfile(payloadResult.data.profile, catalogs.keys)
+  const profile = validateProfile(payloadResult.data.profile, catalogs.keys, 'profile', catalogs.entityKinds)
   const lineage = validateLineage(payloadResult.data.lineage, profile.id)
   const evidence = validateEvidence(payloadResult.data.evidence)
-  const history = validateHistory(payloadResult.data.history, profile, catalogs.keys)
+  const history = validateHistory(payloadResult.data.history, profile, catalogs.keys, catalogs.entityKinds)
   const sources: SourceArchiveRecord[] = []
   for (const source of manifest.sources) {
     const sourceBytes = files.get(source.path) ?? schemaError('A source file listed by the backup is missing')

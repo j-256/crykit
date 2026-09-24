@@ -5,11 +5,10 @@ import {
   assertPositiveInteger,
   createId,
   DomainError,
-  entityRefKey,
   nowTimestamp,
-  sameEntityRef,
   updateProfile,
 } from './core'
+import { logicalEntityKey, sameLogicalEntity } from './definitions'
 import type {
   EntityRef,
   InventoryEvent,
@@ -124,12 +123,12 @@ export interface ObserveInventoryInput {
 export function observeInventory(profile: Profile, input: ObserveInventoryInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
   assertResolvablePersonalRef(profile, input.ref)
-  const matching = Object.values(profile.inventory).find((position) => sameEntityRef(position.ref, input.ref))
+  const matching = Object.values(profile.inventory).find((position) => sameLogicalEntity(profile, position.ref, input.ref))
   const current = input.positionId === undefined ? matching : profile.inventory[input.positionId]
   if (input.positionId !== undefined && !current && matching) {
-    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${entityRefKey(input.ref)}`)
+    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(profile, input.ref)}`)
   }
-  if (current && !sameEntityRef(current.ref, input.ref)) {
+  if (current && !sameLogicalEntity(profile, current.ref, input.ref)) {
     throw new DomainError('INVALID_INPUT', 'Use linkInventoryPosition to change an inventory reference')
   }
   const id = current?.id ?? input.positionId ?? createId<InventoryPositionId>('inventory')
@@ -182,10 +181,10 @@ export function linkInventoryPosition(profile: Profile, input: LinkInventoryPosi
     throw new DomainError('MISSING_INVENTORY_POSITION', `Inventory position does not exist: ${input.positionId}`)
   }
   const duplicate = Object.values(profile.inventory).find(
-    (position) => position.id !== current.id && sameEntityRef(position.ref, input.ref),
+    (position) => position.id !== current.id && sameLogicalEntity(profile, position.ref, input.ref),
   )
   if (duplicate) {
-    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${entityRefKey(input.ref)}`)
+    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(profile, input.ref)}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const position: InventoryPosition = {
@@ -236,7 +235,7 @@ export function recordInventoryEvent(profile: Profile, input: RecordInventoryEve
     if (!position) {
       throw new DomainError('MISSING_INVENTORY_POSITION', `Inventory position does not exist: ${input.positionId}`)
     }
-    if (!sameEntityRef(position.ref, input.ref)) {
+    if (!sameLogicalEntity(profile, position.ref, input.ref)) {
       throw new DomainError('INVALID_INPUT', 'Inventory event reference does not match its position')
     }
   }

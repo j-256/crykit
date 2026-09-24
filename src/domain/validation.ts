@@ -1,4 +1,5 @@
-import { DomainError, entityDefinitionKey, entityRefKey } from './core'
+import { DomainError, entityDefinitionKey } from './core'
+import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
 import type {
   BuildRevision,
@@ -85,22 +86,26 @@ function catalogLocksEqual(
 }
 
 function refMatchesCatalogLock(
+  profile: Profile,
   ref: EntityRef,
   lock: Readonly<Record<string, string>>,
 ): boolean {
-  return ref.kind === 'personal' || lock[ref.catalogId] === ref.catalogRevisionId
+  const rootRef = definitionLineageRootRef(profile, ref)
+  return rootRef.kind === 'personal' || lock[rootRef.catalogId] === rootRef.catalogRevisionId
 }
 
 function validateCatalogRefLock(
+  profile: Profile,
   ref: EntityRef,
   revision: BuildRevision,
   characterId: CharacterId,
   accumulator: Accumulator,
 ): void {
-  if (ref.kind === 'personal') {
+  const rootRef = definitionLineageRootRef(profile, ref)
+  if (rootRef.kind === 'personal') {
     return
   }
-  const lockedRevision = revision.catalogLock[ref.catalogId]
+  const lockedRevision = revision.catalogLock[rootRef.catalogId]
   if (lockedRevision === undefined) {
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_NOT_LOCKED',
@@ -111,7 +116,7 @@ function validateCatalogRefLock(
       buildRevisionId: revision.id,
       ref,
     })
-  } else if (lockedRevision !== ref.catalogRevisionId) {
+  } else if (lockedRevision !== rootRef.catalogRevisionId) {
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_REVISION_MISMATCH',
       dimension: 'rulesetCertainty',
@@ -120,7 +125,7 @@ function validateCatalogRefLock(
       characterId,
       buildRevisionId: revision.id,
       ref,
-      inputs: { lockedRevision, selectedRevision: ref.catalogRevisionId },
+      inputs: { lockedRevision, selectedRevision: rootRef.catalogRevisionId },
     })
   }
 }
@@ -149,8 +154,8 @@ function effectiveInventoryQuantity(
 }
 
 function findInventory(profile: Profile, ref: EntityRef): InventoryPosition | undefined {
-  const key = entityRefKey(ref)
-  return Object.values(profile.inventory).find((position) => entityRefKey(position.ref) === key)
+  const key = logicalEntityKey(profile, ref)
+  return Object.values(profile.inventory).find((position) => logicalEntityKey(profile, position.ref) === key)
 }
 
 interface SelectedEntry {
@@ -240,7 +245,7 @@ function collectSelections(
       if (!selection) {
         continue
       }
-      validateCatalogRefLock(selection.ref, revision, characterId, accumulator)
+      validateCatalogRefLock(profile, selection.ref, revision, characterId, accumulator)
       const slot = slots.get(slotIdValue)
       if (!slot) {
         issue(accumulator, {
@@ -298,8 +303,8 @@ function validateClassReadiness(
       continue
     }
     touch(accumulator, 'characterReadiness')
-    validateCatalogRefLock(ref, revision, character.id, accumulator)
-    const progress = character.classProgress[entityRefKey(ref)]
+    validateCatalogRefLock(profile, ref, revision, character.id, accumulator)
+    const progress = character.classProgress[logicalEntityKey(profile, ref)]
     const definition = resolveDefinition(profile, catalogs, ref)
     if (!definition) {
       issue(accumulator, {
@@ -346,7 +351,7 @@ function validateClassReadiness(
   }
 }
 
-function validateSlotCompatibility(selected: readonly SelectedEntry[], accumulator: Accumulator): void {
+function validateSlotCompatibility(profile: Profile, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
   for (const entry of selected) {
     const dimension = entry.slot.kind === 'passive' ? 'passives' : 'equipment'
     touch(accumulator, dimension)
@@ -405,10 +410,10 @@ function validateSlotCompatibility(selected: readonly SelectedEntry[], accumulat
       })
     }
   }
-  validateAllocationGroups(selected, accumulator)
+  validateAllocationGroups(profile, selected, accumulator)
 }
 
-function validateAllocationGroups(selected: readonly SelectedEntry[], accumulator: Accumulator): void {
+function validateAllocationGroups(profile: Profile, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
   const groups = new Map<string, SelectedEntry[]>()
   for (const entry of selected) {
     const key = `${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`
@@ -422,7 +427,7 @@ function validateAllocationGroups(selected: readonly SelectedEntry[], accumulato
       continue
     }
     const dimension = first.slot.kind === 'passive' ? 'passives' : 'equipment'
-    const refKeys = new Set(group.map((entry) => entityRefKey(entry.ref)))
+    const refKeys = new Set(group.map((entry) => logicalEntityKey(profile, entry.ref)))
     if (refKeys.size > 1) {
       issue(accumulator, {
         code: 'ALLOCATION_GROUP_MIXED_REFERENCES',
@@ -473,7 +478,7 @@ function validateInventory(
 ): void {
   const demands = new Map<string, { ref: EntityRef; assignments: Set<string> }>()
   for (const entry of selected.filter((value) => value.slot.kind === 'equipment')) {
-    const key = entityRefKey(entry.ref)
+    const key = logicalEntityKey(profile, entry.ref)
     const demand = demands.get(key) ?? { ref: entry.ref, assignments: new Set<string>() }
     demand.assignments.add(`${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`)
     demands.set(key, demand)
@@ -548,7 +553,7 @@ function classPermissionBase(
   }
   const character = profile.characters[characterId]
   for (const ref of [revision.content.primaryClass, revision.content.secondaryClass]) {
-    if (!ref || !refMatchesCatalogLock(ref, revision.catalogLock)) {
+    if (!ref || !refMatchesCatalogLock(profile, ref, revision.catalogLock)) {
       continue
     }
     const definition = resolveDefinition(profile, catalogs, ref)
@@ -559,7 +564,7 @@ function classPermissionBase(
     if (definition.kind !== 'class') {
       continue
     }
-    const unlocked = character?.classProgress[entityRefKey(ref)]?.unlocked
+    const unlocked = character?.classProgress[logicalEntityKey(profile, ref)]?.unlocked
     if (!unlocked || knowledgeUncertain(unlocked)) {
       unresolved = true
       continue
@@ -596,7 +601,7 @@ function validateLearning(
   for (const entry of selected.filter((value) => value.slot.kind === 'passive')) {
     touch(accumulator, 'characterReadiness')
     const character = profile.characters[entry.characterId]
-    const learned = character?.learnedNodes[entityRefKey(entry.ref)]?.learned
+    const learned = character?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
     if (!learned || knowledgeUncertain(learned)) {
       issue(accumulator, {
         code: 'LEARNING_UNKNOWN',
@@ -724,7 +729,7 @@ function baseEligibility(
     entry.buildRevision.rulesetRevisionId !== scenario.rulesetRevisionId ||
     !catalogLocksEqual(entry.buildRevision.catalogLock, scenario.catalogLock) ||
     !catalogLocksEqual(scenario.catalogLock, ruleset.catalogLock) ||
-    !refMatchesCatalogLock(entry.ref, entry.buildRevision.catalogLock)
+    !refMatchesCatalogLock(profile, entry.ref, entry.buildRevision.catalogLock)
   ) {
     return 'invalid'
   }
@@ -748,7 +753,7 @@ function baseEligibility(
       candidate.buildRevision.id === entry.buildRevision.id &&
       candidate.allocationKey === entry.allocationKey,
   )
-  if (allocationGroup.some((candidate) => entityRefKey(candidate.ref) !== entityRefKey(entry.ref))) {
+  if (allocationGroup.some((candidate) => logicalEntityKey(profile, candidate.ref) !== logicalEntityKey(profile, entry.ref))) {
     return 'invalid'
   }
   const occupies = entry.definition.occupiesSlots
@@ -759,7 +764,7 @@ function baseEligibility(
     return 'invalid'
   }
   if (entry.slot.kind === 'passive') {
-    const learned = profile.characters[entry.characterId]?.learnedNodes[entityRefKey(entry.ref)]?.learned
+    const learned = profile.characters[entry.characterId]?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
     if (!learned || knowledgeUncertain(learned)) {
       return 'unknown'
     }
@@ -866,7 +871,7 @@ function validatePermissions(
           }
           return characterEntries.some(
             (candidate) =>
-              entityRefKey(candidate.ref) === entityRefKey(requirement.ref) && eligible.has(candidate),
+              logicalEntityKey(profile, candidate.ref) === logicalEntityKey(profile, requirement.ref) && eligible.has(candidate),
           )
         })
         if (!satisfied) {
@@ -897,7 +902,7 @@ function validatePermissions(
       for (const requirement of requirements.value) {
         if (requirement.kind === 'selected') {
           const candidates = characterEntries.filter(
-            (candidate) => entityRefKey(candidate.ref) === entityRefKey(requirement.ref),
+            (candidate) => logicalEntityKey(profile, candidate.ref) === logicalEntityKey(profile, requirement.ref),
           )
           if (candidates.some((candidate) => eligible.has(candidate))) {
             continue
@@ -1111,7 +1116,7 @@ export function validateScenario(
     })
   }
   const selected = collectSelections(profile, catalogs, scenario, ruleset, accumulator)
-  validateSlotCompatibility(selected, accumulator)
+  validateSlotCompatibility(profile, selected, accumulator)
   if (scenario.inventoryPolicy.enforceStock) {
     validateInventory(profile, scenario, selected, accumulator)
   }

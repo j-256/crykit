@@ -9,6 +9,7 @@ import {
   updateProfile,
 } from './core'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
+import { definitionLineageRootRef } from './definitions'
 import type {
   Build,
   BuildId,
@@ -228,7 +229,8 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
   const slotIds = new Set(ruleset.slots.map((slot) => slot.id as string))
   const assertBuildRef = (ref: import('./types').EntityRef, label: string) => {
     assertPersonalDefinitionRef(profile, ref)
-    if (ref.kind === 'catalog' && catalogLock[ref.catalogId] !== ref.catalogRevisionId) {
+    const rootRef = definitionLineageRootRef(profile, ref)
+    if (rootRef.kind === 'catalog' && catalogLock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
       throw new DomainError('INVALID_INPUT', `${label} falls outside the build catalog lock`)
     }
   }

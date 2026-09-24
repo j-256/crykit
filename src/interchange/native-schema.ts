@@ -141,6 +141,8 @@ export const NativeCatalogSnapshotSchema = z.object({
 const personalDefinition = z.object({
   ...entityShape,
   revision: nonnegativeInteger,
+  baseRef: entityRef.optional(),
+  previousRevision: personalRef.optional(),
   createdAt: timestamp,
   updatedAt: timestamp,
 }).strict()
@@ -168,6 +170,7 @@ const rulesetRevision = z.object({
   ppCostsNonNegative: knowledge(z.boolean()),
   slots: z.array(slotDefinition).max(MAX_COLLECTION_LENGTH),
   catalogLock,
+  definitionOverrides: z.array(personalRef).max(MAX_COLLECTION_LENGTH).optional(),
   createdAt: timestamp,
 }).strict()
 
