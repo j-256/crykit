@@ -114,7 +114,7 @@ test('character, party progress, and historical events remain independent observ
   await expect(progress).not.toBeVisible()
   const before = await exportProfile(page)
   await page.getByRole('button', { name: 'Edit', exact: true }).click()
-  const edit = page.getByRole('dialog', { name: 'Edit class progress' })
+  const edit = page.getByRole('dialog', { name: 'Edit progress record' })
   await edit.getByLabel('Tracking group').selectOption('collected')
   await edit.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(edit).not.toBeVisible()
@@ -232,14 +232,14 @@ test('build drafts resist navigation and recording current preserves known level
     await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
   }
   await page.evaluate(() => { window.location.hash = '/inventory' })
-  await expect(page).toHaveURL(/#\/builds$/)
+  await expect(page).toHaveURL(/#\/builds\/library\/[^/]+\/revisions\/new$/)
   await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
   if (!isMobile) {
     const settings = await openData(page)
-    await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
-    await expect(settings.getByLabel('New blank profile')).toBeDisabled()
-    await expect(settings.getByRole('combobox', { name: 'Active profile', exact: true })).toBeDisabled()
-    await settings.getByRole('button', { name: 'Close panel', exact: true }).click()
+    await expect(settings).not.toBeVisible()
+    await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/#\/builds\/library\/[^/]+\/revisions\/new$/)
+    await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
   }
   await editor.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()

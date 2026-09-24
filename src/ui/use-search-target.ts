@@ -1,21 +1,18 @@
 import { useEffect, useRef } from 'react'
-import { parseUniversalSearchTarget, type UniversalSearchTarget } from './search-navigation'
+import { useNavigation } from './navigation'
+import { searchTargetForRoute, type UniversalSearchTarget } from './search-navigation'
 
 export function useSearchTarget(onTarget: (target: UniversalSearchTarget) => void) {
+  const { route } = useNavigation()
   const onTargetRef = useRef(onTarget)
+  const lastTargetRef = useRef<string | undefined>(undefined)
   onTargetRef.current = onTarget
 
   useEffect(() => {
-    const readTarget = () => {
-      const target = parseUniversalSearchTarget(window.location.hash)
-      if (target) onTargetRef.current(target)
-    }
-    readTarget()
-    window.addEventListener('hashchange', readTarget)
-    window.addEventListener('popstate', readTarget)
-    return () => {
-      window.removeEventListener('hashchange', readTarget)
-      window.removeEventListener('popstate', readTarget)
-    }
-  }, [])
+    const target = searchTargetForRoute(route)
+    const key: string | undefined = target ? JSON.stringify(target) : undefined
+    if (!target || key === lastTargetRef.current) return
+    lastTargetRef.current = key
+    onTargetRef.current(target)
+  }, [route])
 }

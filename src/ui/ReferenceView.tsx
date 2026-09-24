@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef } from '../domain'
 import type { CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { formatAppError, knowledgeTone } from './model'
 import { DefinitionEditor, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
-import { formatSearchDestination, parseUniversalSearchTarget } from './search-navigation'
+import { routeWithOverlay, useNavigation, type ReferencePageRoute } from './navigation'
 import { Sheet } from './Sheet'
 import { sourceDisplay } from './source-display'
 import {
@@ -135,12 +135,10 @@ function mergeFacetOptions(base: readonly { readonly value: string; readonly cou
 }
 
 export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefinitions }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void; onPromoteDefinitions: (sourceRulesetRevisionId: RulesetRevisionId, definitionRefs: readonly EntityRef[], label: string) => Promise<void> }) {
+  const navigation = useNavigation()
   const { options } = useDefinitionWorkspace()
-  const [route, setRoute] = useState<ReferenceRouteState>(() => readReferenceRouteState())
+  const route = readReferenceRouteState()
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [selectedPersonalRef, setSelectedPersonalRef] = useState<EntityRef>()
-  const [editingRef, setEditingRef] = useState<EntityRef>()
-  const [promoting, setPromoting] = useState(false)
   const [promotionRefs, setPromotionRefs] = useState<readonly EntityRef[]>([])
   const [promotionRulesetId, setPromotionRulesetId] = useState<RulesetRevisionId | ''>(profile.activeRulesetRevisionId ?? '')
   const [promotionLabel, setPromotionLabel] = useState('Reviewed personal definitions')
@@ -171,62 +169,29 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const visiblePersonalResults = personalResults.slice(0, route.resultLimit)
   const visibleCatalogResults = results.slice(0, Math.max(0, route.resultLimit - visiblePersonalResults.length))
   const totalResults = personalResults.length + results.length
-  const selected = route.selectedKey ? items.find((item) => item.key === route.selectedKey) : undefined
-  const selectedPersonal = findDefinitionOption(options, selectedPersonalRef)
+  const page = navigation.route.page.page === 'reference' ? navigation.route.page : { page: 'reference', view: 'list' } as const
+  const selectedRef = page.view === 'detail' ? page.ref : undefined
+  const selected = selectedRef?.kind === 'catalog' ? items.find((item) => item.catalog.id === selectedRef.catalogId && item.catalog.revisionId === selectedRef.catalogRevisionId && item.entity.id === selectedRef.entityId) : undefined
+  const selectedPersonal = selectedRef?.kind === 'personal' ? findDefinitionOption(options, selectedRef) : undefined
+  const missingDetail = page.view === 'detail' && !selected && !selectedPersonal
+  const promoting = page.view === 'promote'
+  const editorOverlay = navigation.route.overlays[0]
+  const editingRef = editorOverlay?.kind === 'definition-editor' && editorOverlay.mode === 'override' ? editorOverlay.ref : undefined
+  const editingOption = editingRef ? findDefinitionOption(options, editingRef) : undefined
+  const missingEditingRef = Boolean(editingRef && !editingOption)
   const knowledgeCounts = useMemo(() => aggregateKnowledgeCounts(results), [results])
   const rulesets = Object.values(profile.rulesets).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 
-  useEffect(() => {
-    const restore = () => {
-      const target = parseUniversalSearchTarget(window.location.hash)
-      if (target?.kind === 'definition') {
-        if (target.ref.kind === 'personal') {
-          setSelectedPersonalRef(target.ref)
-          setRoute((current) => ({ ...current, selectedKey: undefined }))
-          return
-        }
-        const ref = target.ref
-        const item = items.find((candidate) => candidate.catalog.id === ref.catalogId && candidate.catalog.revisionId === ref.catalogRevisionId && candidate.entity.id === ref.entityId)
-        setSelectedPersonalRef(undefined)
-        setRoute({ ...readReferenceRouteState(), ...(item ? { selectedKey: item.key } : {}) })
-        return
-      }
-      setSelectedPersonalRef(undefined)
-      setRoute(readReferenceRouteState())
-    }
-    if (parseUniversalSearchTarget(window.location.hash)?.kind === 'definition') restore()
-    else commitReferenceRouteState(route, 'replace')
-    window.addEventListener('popstate', restore)
-    window.addEventListener('hashchange', restore)
-    return () => {
-      window.removeEventListener('popstate', restore)
-      window.removeEventListener('hashchange', restore)
-    }
-  }, [items])
-
   const updateRoute = useCallback((change: Partial<ReferenceRouteState>, mode: 'push' | 'replace' = 'replace') => {
-    setRoute((current) => commitReferenceRouteState({ ...current, ...change }, mode))
-  }, [])
-
-  useEffect(() => {
-    if (route.selectedKey && !selected) updateRoute({ selectedKey: undefined }, 'replace')
-  }, [route.selectedKey, selected, updateRoute])
+    commitReferenceRouteState({ ...route, ...change }, mode)
+  }, [route])
 
   const updateFilter = useCallback((change: Partial<ReferenceRouteState>, mode: 'push' | 'replace' = 'replace') => {
-    setSelectedPersonalRef(undefined)
     updateRoute({ ...change, selectedKey: undefined, resultLimit: REFERENCE_PAGE_SIZE }, mode)
   }, [updateRoute])
 
-  const openPersonal = (ref: EntityRef) => {
-    setSelectedPersonalRef(ref)
-    setRoute((current) => ({ ...current, selectedKey: undefined }))
-    window.history.pushState({}, '', formatSearchDestination('reference', { kind: 'definition', ref }))
-  }
-
-  const closePersonal = () => {
-    setSelectedPersonalRef(undefined)
-    updateRoute({ selectedKey: undefined }, 'push')
-  }
+  const navigate = (next: ReferencePageRoute, replace = false) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }, { replace })
+  const openDetail = (ref: EntityRef) => navigate({ page: 'reference', view: 'detail', ref })
 
   const promote = async () => {
     if (!promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()) return
@@ -234,8 +199,8 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     setPromotionError(undefined)
     try {
       await onPromoteDefinitions(promotionRulesetId, promotionRefs, promotionLabel.trim())
-      setPromoting(false)
       setPromotionRefs([])
+      navigation.close()
     } catch (reason) {
       setPromotionError(formatAppError(reason, 'The ruleset revision could not be created.'))
     } finally {
@@ -244,7 +209,8 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   }
 
   return <>
-    <ScreenHeader actions={<><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); setPromoting(true) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Inspect definitions, source claims, applicability, and unresolved conflicts without changing personal records." eyebrow="Field reference" title="Reference"/>
+    <ScreenHeader actions={<><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Inspect definitions, source claims, applicability, and unresolved conflicts without changing personal records." eyebrow="Field reference" title="Reference"/>
+    {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this workspace. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}
     {catalogs.length === 0 && personalOptions.length === 0 ? <EmptyState aside={<>Personal records remain available even if a local reference pack cannot be loaded.</>} description="No reference pack is available in this workspace. Import a permitted pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
       <aside className="panel facet-panel">
         <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length + personalPartition.confirmed.length} confirmed · {partition.possible.length + personalPartition.possible.length} possible</p></div></div>
@@ -261,22 +227,23 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
         </div>
       </aside>
       <section className="panel">
-        {selectedPersonal ? <PersonalDetail onBack={closePersonal} onEdit={() => setEditingRef(preferredDefinitionRef(profile, selectedPersonal.ref))} option={selectedPersonal}/> : selected ? <DetailView item={selected} onBack={() => updateRoute({ selectedKey: undefined }, 'push')} onEdit={() => setEditingRef(preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }))}/> : results.length || personalResults.length ? <div>
+        {selectedPersonal ? <PersonalDetail onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedPersonal.ref) }))} option={selectedPersonal}/> : selected ? <DetailView item={selected} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }) }))}/> : results.length || personalResults.length ? <div>
           {partition.confirmed.length + personalPartition.confirmed.length === 0 && partition.possible.length + personalPartition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
-          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openPersonal(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
-          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); return <button className="reference-card" key={item.key} onClick={() => updateRoute({ selectedKey: item.key }, 'push')} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
+          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
+          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); const ref: EntityRef = { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }; return <button className="reference-card" key={item.key} onClick={() => openDetail(ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
           {totalResults > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + REFERENCE_PAGE_SIZE) }, 'replace')} tone="secondary">Show {Math.min(REFERENCE_PAGE_SIZE, totalResults - route.resultLimit)} more</Button></div>}
           {totalResults > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Result display limit reached">Refine the name, category, source, type, or PP filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}
         </div> : <div className="panel__body"><InlineNotice title="No matches">Unknown fields are kept as possible only when they could satisfy every active filter. Try another name, category, source, kind, or PP bound.</InlineNotice></div>}
       </section>
     </div>}
-    {editingRef && <DefinitionEditor allowedKinds={[]} baseRef={editingRef} key={entityDefinitionKey(editingRef)} onClose={() => setEditingRef(undefined)} onSaved={(ref) => { setEditingRef(undefined); openPersonal(ref) }} open/>}
-    <Sheet description="Collect reviewed preferred personal definitions into a new immutable ruleset revision. Existing build checkpoints keep their exact references, and the active ruleset does not change." onClose={() => setPromoting(false)} open={promoting} title="Collect into ruleset revision" width="wide"><div className="stack">
+    {missingEditingRef && <InlineNotice title="Definition override unavailable" tone="warning">The exact definition selected for this override is unavailable. Close this editor address and choose an available definition without changing the original reference. <Button onClick={() => navigation.close()} tone="quiet">Close editor</Button></InlineNotice>}
+    {editingRef && editingOption && <DefinitionEditor allowedKinds={[]} baseRef={editingRef} key={entityDefinitionKey(editingRef)} onClose={() => navigation.close()} onSaved={(ref) => navigation.navigate({ ...navigation.route, page: { page: 'reference', view: 'detail', ref }, overlays: [] }, { replace: true })} open routeIndex={0}/>}
+    <Sheet description="Collect reviewed preferred personal definitions into a new immutable ruleset revision. Existing build checkpoints keep their exact references, and the active ruleset does not change." onClose={() => navigation.close()} open={promoting} title="Collect into ruleset revision" width="wide"><div className="stack">
       <InlineNotice title="Promotion-ready collection">This creates a new ruleset revision from the selected source. It does not publish a catalog, rewrite old records, or activate the new revision.</InlineNotice>
       <div className="grid-2"><label className="field"><span className="field__label">Source ruleset revision</span><select onChange={(event) => setPromotionRulesetId(event.target.value as RulesetRevisionId)} value={promotionRulesetId}><option value="">Choose ruleset revision</option>{rulesets.map((ruleset) => <option key={ruleset.id} value={ruleset.id}>{ruleset.label} · revision {ruleset.revision}</option>)}</select></label><label className="field"><span className="field__label">New revision label</span><input onChange={(event) => setPromotionLabel(event.target.value)} required value={promotionLabel}/></label></div>
       <fieldset className="definition-collection"><legend>Preferred personal definitions</legend>{preferredPersonalOptions.map((option) => { const checked = promotionRefs.some((ref) => entityDefinitionKey(ref) === option.key); return <label className="check-row" key={option.key}><input checked={checked} onChange={(event) => setPromotionRefs((current) => event.target.checked ? [...current, option.ref] : current.filter((ref) => entityDefinitionKey(ref) !== option.key))} type="checkbox"/><span><strong>{option.name}</strong><small>{option.kind} · {option.sourceLabel}</small></span></label> })}</fieldset>
       {promotionError && <InlineNotice title="Ruleset revision not created" tone="danger">{promotionError} Your selected definitions remain checked.</InlineNotice>}
-      <div className="form-actions"><Button disabled={promotionBusy} onClick={() => setPromoting(false)} tone="quiet">Cancel</Button><Button disabled={promotionBusy || !promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()} icon="check" onClick={() => void promote()}>{promotionBusy ? 'Creating revision...' : 'Create ruleset revision'}</Button></div>
+      <div className="form-actions"><Button disabled={promotionBusy} onClick={() => navigation.close()} tone="quiet">Cancel</Button><Button disabled={promotionBusy || !promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()} icon="check" onClick={() => void promote()}>{promotionBusy ? 'Creating revision...' : 'Create ruleset revision'}</Button></div>
     </div></Sheet>
   </>
 }

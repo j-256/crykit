@@ -1,10 +1,5 @@
-import { MAX_ID_LENGTH } from '../domain'
-import type { BuildId, CharacterId, EntityRef, InventoryPositionId, PersonalDefinitionId, ProgressRecordId, ScenarioId } from '../domain/types'
-import type { Destination } from './Shell'
-
-const TARGET_QUERY_KEY = 'target'
-const MAX_TARGET_LENGTH = 4_096
-const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/
+import type { BuildId, CharacterId, EntityRef, InventoryPositionId, ProgressRecordId, ScenarioId } from '../domain/types'
+import { formatAppRoute, parseAppRoute, routeDestination, type AppRoute, type Destination } from './navigation'
 
 export type UniversalSearchTarget =
   | { readonly kind: 'definition'; readonly ref: EntityRef }
@@ -22,71 +17,42 @@ export function destinationForSearchTarget(target: UniversalSearchTarget): Desti
   return 'builds'
 }
 
-function boundedId(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_ID_LENGTH && !CONTROL_CHARACTER.test(value) ? value : undefined
+export function routeForSearchTarget(target: UniversalSearchTarget): AppRoute {
+  const page = target.kind === 'definition' ? { page: 'reference' as const, view: 'detail' as const, ref: target.ref }
+    : target.kind === 'inventory' ? { page: 'inventory' as const, view: 'edit' as const, positionId: target.positionId }
+    : target.kind === 'character' ? { page: 'characters' as const, view: 'character' as const, characterId: target.characterId, tab: 'current' as const }
+    : target.kind === 'build' ? { page: 'builds' as const, view: 'build' as const, buildId: target.buildId }
+    : target.kind === 'scenario' ? { page: 'builds' as const, view: 'scenario' as const, scenarioId: target.scenarioId }
+    : { page: 'progress' as const, view: 'edit' as const, recordId: target.recordId }
+  return { page, overlays: [], query: {} }
 }
 
-function entityRef(value: unknown): EntityRef | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const record = value as Record<string, unknown>
-  if (record.kind === 'personal') {
-    const definitionId = boundedId(record.definitionId)
-    return definitionId ? { kind: 'personal', definitionId: definitionId as PersonalDefinitionId } : undefined
-  }
-  if (record.kind !== 'catalog') return undefined
-  const catalogId = boundedId(record.catalogId)
-  const catalogRevisionId = boundedId(record.catalogRevisionId)
-  const entityId = boundedId(record.entityId)
-  return catalogId && catalogRevisionId && entityId ? { kind: 'catalog', catalogId, catalogRevisionId, entityId } as EntityRef : undefined
-}
-
-function targetFromRecord(value: unknown): UniversalSearchTarget | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const record = value as Record<string, unknown>
-  if (record.kind === 'definition') {
-    const ref = entityRef(record.ref)
-    return ref ? { kind: 'definition', ref } : undefined
-  }
-  if (record.kind === 'inventory') {
-    const positionId = boundedId(record.positionId)
-    return positionId ? { kind: 'inventory', positionId: positionId as InventoryPositionId } : undefined
-  }
-  if (record.kind === 'character') {
-    const characterId = boundedId(record.characterId)
-    return characterId ? { kind: 'character', characterId: characterId as CharacterId } : undefined
-  }
-  if (record.kind === 'build') {
-    const buildId = boundedId(record.buildId)
-    return buildId ? { kind: 'build', buildId: buildId as BuildId } : undefined
-  }
-  if (record.kind === 'scenario') {
-    const scenarioId = boundedId(record.scenarioId)
-    return scenarioId ? { kind: 'scenario', scenarioId: scenarioId as ScenarioId } : undefined
-  }
-  if (record.kind === 'progress') {
-    const recordId = boundedId(record.recordId)
-    return recordId ? { kind: 'progress', recordId: recordId as ProgressRecordId } : undefined
-  }
+export function searchTargetForRoute(route: AppRoute): UniversalSearchTarget | undefined {
+  const page = route.page
+  if (page.page === 'reference' && page.view === 'detail') return { kind: 'definition', ref: page.ref }
+  if (page.page === 'inventory' && page.view === 'edit') return { kind: 'inventory', positionId: page.positionId }
+  if (page.page === 'characters' && page.view !== 'list' && page.view !== 'new') return { kind: 'character', characterId: page.characterId }
+  if (page.page === 'builds' && (page.view === 'build' || page.view === 'revision-new' || page.view === 'revision' || page.view === 'revision-edit' || page.view === 'record-current')) return { kind: 'build', buildId: page.buildId }
+  if (page.page === 'builds' && page.view === 'scenario') return { kind: 'scenario', scenarioId: page.scenarioId }
+  if (page.page === 'progress' && page.view === 'edit') return { kind: 'progress', recordId: page.recordId }
   return undefined
 }
 
 export function parseUniversalSearchTarget(hash: string): UniversalSearchTarget | undefined {
-  const [, query = ''] = hash.replace(/^#/, '').split('?', 2)
-  const encoded = new URLSearchParams(query).get(TARGET_QUERY_KEY)
-  if (!encoded || encoded.length > MAX_TARGET_LENGTH) return undefined
-  try {
-    return targetFromRecord(JSON.parse(encoded))
-  } catch {
-    return undefined
-  }
+  return searchTargetForRoute(parseAppRoute(hash))
 }
 
 export function formatSearchDestination(destination: Destination, target?: UniversalSearchTarget): string {
-  if (!target) return `#/${destination}`
-  if (destinationForSearchTarget(target) !== destination) throw new Error('Search target does not belong to the requested destination')
-  if (!targetFromRecord(target)) throw new Error('Search target contains an invalid identifier')
-  const serialized = JSON.stringify(target)
-  if (serialized.length > MAX_TARGET_LENGTH) throw new Error('Search target is too large')
-  const params = new URLSearchParams({ [TARGET_QUERY_KEY]: serialized })
-  return `#/${destination}?${params.toString()}`
+  if (!target) return formatAppRoute({
+    page: destination === 'inventory' ? { page: 'inventory', view: 'list' }
+      : destination === 'characters' ? { page: 'characters', view: 'list' }
+      : destination === 'builds' ? { page: 'builds', view: 'library' }
+      : destination === 'progress' ? { page: 'progress', view: 'list' }
+      : { page: 'reference', view: 'list' },
+    overlays: [],
+    query: {},
+  })
+  const route = routeForSearchTarget(target)
+  if (routeDestination(route) !== destination) throw new Error('Search target does not belong to the requested destination')
+  return formatAppRoute(route)
 }

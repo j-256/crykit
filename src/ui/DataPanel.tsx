@@ -5,10 +5,9 @@ import type { ImportCommitMode, ImportPreview, ProfileSummary } from '../interch
 import { activateOfflineUpdate, getOfflineStatus, requestOfflineReadiness, requestPersistentStorage, subscribeOfflineStatus, type OfflineStatus } from '../offline'
 import { Badge, Button, DefinitionRow, Field, InlineNotice, Spinner } from './components'
 import { Icon } from './icons'
-import { downloadBytes, formatAppError, formatRelativeDate } from './model'
+import { activeRuleset, downloadBytes, formatAppError, formatRelativeDate } from './model'
+import { useNavigation, useNavigationBlocker, type SettingsSection } from './navigation'
 import { Sheet } from './Sheet'
-
-type DataSection = 'data' | 'ruleset' | 'history' | 'storage'
 
 const IMPORT_WARNING_PRIMARY_COUNT = 8
 const IMPORT_WARNING_DOM_LIMIT = 100
@@ -53,7 +52,7 @@ function ImportWorkspace({ profile, preview, importError, busy, disabled, onPrev
 const RULESET_ENTITY_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'recipe', 'location', 'other']
 
 function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmit: (draft: RulesetDraft) => Promise<void>; onDirty: (dirty: boolean) => void }) {
-  const current = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+  const current = activeRuleset(profile)
   const [label, setLabel] = useState(current?.label ?? '')
   const [platform, setPlatform] = useState(current?.platform.state === 'known' ? current.platform.value : '')
   const [version, setVersion] = useState(current?.gameVersion.state === 'known' ? current.gameVersion.value : '')
@@ -129,20 +128,28 @@ function StorageSection({ profile, dirty, saveError, onExport }: { profile: Prof
 }
 
 export function DataPanel({ open, profile, profiles, preview, importError, busy, canUndo, dirty, saveError, onClose, onPreview, onCommit, onClearPreview, onExport, onSaveRuleset, onCreateProfile, onSelectProfile, onUndo }: { open: boolean; profile: Profile; profiles: readonly ProfileSummary[]; preview?: ImportPreview; importError?: string; busy: boolean; canUndo: boolean; dirty: boolean; saveError?: string; onClose: () => void; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode) => Promise<void>; onClearPreview: () => void; onExport: () => Promise<Uint8Array>; onSaveRuleset: (draft: RulesetDraft) => Promise<void>; onCreateProfile: (label: string) => Promise<void>; onSelectProfile: (profileId: ProfileSummary['id']) => Promise<void>; onUndo: () => Promise<void> }) {
-  const [section, setSection] = useState<DataSection>('data')
+  const navigation = useNavigation()
+  const settingsPage = navigation.route.page.page === 'settings' ? navigation.route.page : undefined
+  const section = settingsPage?.section ?? 'data'
+  const requestedPreviewId = settingsPage && 'previewId' in settingsPage ? settingsPage.previewId : undefined
+  const activePreview = requestedPreviewId !== undefined && preview?.id === requestedPreviewId ? preview : undefined
+  const missingPreview = requestedPreviewId !== undefined && !activePreview
   const [panelError, setPanelError] = useState<string>()
   const [panelDirty, setPanelDirty] = useState(false)
+  const panelDirtyRef = useRef(false)
   const [profileLabel, setProfileLabel] = useState('')
   const [profileBusy, setProfileBusy] = useState(false)
   const [undoConfirmed, setUndoConfirmed] = useState(false)
   const blocked = dirty || panelDirty
-  const changeSection = (next: DataSection) => {
+  const setRulesetDirty = (value: boolean) => { panelDirtyRef.current = value; setPanelDirty(value) }
+  useNavigationBlocker({ page: { page: 'settings', section: 'ruleset' }, overlays: [], query: {} }, () => panelDirtyRef.current, () => setPanelError('Save the ruleset revision or close this panel to discard its edited fields.'))
+  const changeSection = (next: SettingsSection) => {
     if (panelDirty && next !== section) {
       setPanelError('Save the ruleset revision or close this panel to discard its edited fields.')
       return
     }
     setPanelError(undefined)
-    setSection(next)
+    navigation.navigate({ page: { page: 'settings', section: next }, overlays: [], query: {} })
   }
   const exportBackupNow = async () => {
     setPanelError(undefined)
@@ -154,20 +161,23 @@ export function DataPanel({ open, profile, profiles, preview, importError, busy,
     try { await action() } catch (reason) { setPanelError(formatAppError(reason, 'The profile operation could not be completed.')) } finally { setProfileBusy(false) }
   }
   const close = () => {
-    setPanelDirty(false)
+    setRulesetDirty(false)
     setPanelError(undefined)
     setUndoConfirmed(false)
     onClose()
+  }
+  const clearPreview = () => {
+    onClearPreview()
   }
   return <Sheet description="Import, backup, rulesets, history, and browser storage controls." onClose={close} open={open} title="Data & settings" width="wide">
     <div className="data-nav" role="group" aria-label="Data and settings sections">{([{ id: 'data', label: 'Import & backup' }, { id: 'ruleset', label: 'Ruleset' }, { id: 'history', label: 'History' }, { id: 'storage', label: 'Offline & storage' }] as const).map((item) => <button aria-pressed={section === item.id} key={item.id} onClick={() => changeSection(item.id)} type="button">{item.label}</button>)}</div>
     {panelError && section !== 'ruleset' && <InlineNotice title="Data operation could not be completed" tone="danger">{panelError}</InlineNotice>}
     {section === 'data' && <div className="stack">
       <section className="settings-section"><h3>Local profiles</h3><p className="settings-section__intro">Keep separate playthroughs in this browser and switch without merging their personal records.</p><div className="grid-2"><Field label="Active profile"><select disabled={blocked || busy || profileBusy} onChange={(event) => void runProfileAction(() => onSelectProfile(event.target.value as ProfileSummary['id']))} value={profile.id}>{profiles.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · revision {entry.revision}</option>)}</select></Field><div className="field"><label className="field__label" htmlFor="new-profile-label">New blank profile</label><div className="cluster"><input disabled={blocked || busy || profileBusy} id="new-profile-label" onChange={(event) => setProfileLabel(event.target.value)} placeholder="Playthrough name" value={profileLabel}/><Button disabled={blocked || busy || profileBusy || !profileLabel.trim()} icon="plus" onClick={() => void runProfileAction(async () => { await onCreateProfile(profileLabel); setProfileLabel('') })} tone="secondary">Create</Button></div></div></div>{blocked && <InlineNotice title="Finish unsaved work before switching">Retry or export the current draft. Closing an edited ruleset form discards only those unsaved form fields.</InlineNotice>}</section>
-      <section className="settings-section"><h3>Import or restore</h3><p className="settings-section__intro">Every supported file is parsed in memory and shown as a dry-run preview.</p><ImportWorkspace busy={busy} disabled={blocked || profileBusy} importError={importError} key={JSON.stringify([profile.id, preview?.id ?? null])} onClear={onClearPreview} onCommit={onCommit} onPreview={onPreview} preview={preview} profile={profile}/></section>
+      <section className="settings-section"><h3>Import or restore</h3><p className="settings-section__intro">Every supported file is parsed in memory and shown as a dry-run preview.</p>{missingPreview && <InlineNotice title="Import preview expired" tone="warning">This address identifies a file preview that is no longer held in memory. Choose the source file again to create a fresh dry-run preview; no profile data was changed.</InlineNotice>}<ImportWorkspace busy={busy} disabled={blocked || profileBusy} importError={importError} key={JSON.stringify([profile.id, activePreview?.id ?? null])} onClear={clearPreview} onCommit={onCommit} onPreview={onPreview} preview={activePreview} profile={profile}/></section>
       <section className="settings-section"><div className="split"><div><h3>Complete profile backup</h3><p className="settings-section__intro">Includes saved records and any retained failed-save transaction. Submit open form fields first.</p></div><Button disabled={busy || profileBusy} icon="download" onClick={() => void exportBackupNow()} tone="secondary">Export backup</Button></div></section>
     </div>}
-    {section === 'ruleset' && <>{panelError && <InlineNotice title="Unsaved ruleset fields" tone="warning">{panelError}</InlineNotice>}<RulesetForm key={profile.activeRulesetRevisionId ?? profile.id} onDirty={setPanelDirty} onSubmit={onSaveRuleset} profile={profile}/></>}
+    {section === 'ruleset' && <>{panelError && <InlineNotice title="Unsaved ruleset fields" tone="warning">{panelError}</InlineNotice>}<RulesetForm key={`${profile.id}:${profile.activeRulesetRevisionId ?? 'new'}`} onDirty={setRulesetDirty} onSubmit={onSaveRuleset} profile={profile}/></>}
     {section === 'history' && <div className="stack"><section className="settings-section"><div className="split"><div><h3>Undo latest saved change</h3><p className="settings-section__intro">Undo creates another local revision and keeps the journal auditable.</p></div><Button disabled={blocked || busy || profileBusy || !canUndo || !undoConfirmed} icon="history" onClick={() => void runProfileAction(async () => { await onUndo(); setUndoConfirmed(false) })} tone="secondary">Undo latest</Button></div><label className="check-row"><input checked={undoConfirmed} disabled={blocked || busy || profileBusy || !canUndo} onChange={(event) => setUndoConfirmed(event.target.checked)} type="checkbox"/><span><strong>Restore the previous saved profile state</strong><small>{canUndo ? 'The restored state is recorded as a new revision' : 'No retained local checkpoint is available for this revision'}</small></span></label></section>{profile.changes.length ? <ol className="history-list">{[...profile.changes].reverse().slice(0, 100).map((entry) => <li className="history-entry" key={entry.id}><span className="history-entry__mark"><Icon name="history"/></span><div><strong>{entry.command}</strong><p>{entry.changedPaths.slice(0, 3).join(', ')}{entry.changedPaths.length > 3 ? ` and ${entry.changedPaths.length - 3} more` : ''}</p><time>{formatRelativeDate(entry.recordedAt)} · revision {entry.nextRevision}</time></div></li>)}</ol> : <InlineNotice title="No change history">Commands appear here after the first successful local transaction.</InlineNotice>}{profile.changes.length > 100 && <InlineNotice title="Earlier changes not shown">Export the profile to preserve and inspect the complete bounded journal.</InlineNotice>}</div>}
     {section === 'storage' && <StorageSection dirty={blocked} onExport={onExport} profile={profile} saveError={saveError}/>}
   </Sheet>

@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { EntityRef } from '../domain/types'
 import { parseDestination } from './Shell'
+import { formatAppRoute, parseAppRoute } from './navigation'
 import { encodeReferenceEntityKey } from './search'
 import {
+  commitInventoryRouteState,
   commitReferenceRouteState,
+  DEFAULT_INVENTORY_ROUTE_STATE,
   DEFAULT_REFERENCE_ROUTE_STATE,
   formatReferenceRoute,
   parseReferenceRoute,
+  parseInventoryRoute,
   readReferenceRouteState,
   REFERENCE_ROUTE_STORAGE_KEY,
   type ReferenceRouteState,
@@ -72,5 +77,39 @@ describe('reference route state', () => {
   it('keeps the app destination readable when the hash carries reference state', () => {
     window.history.replaceState(null, '', '#/reference?v=1&q=ward')
     expect(parseDestination()).toBe('reference')
+  })
+
+  it('preserves the semantic detail and overlay while notifying the controller once', () => {
+    const ref = { kind: 'catalog' as const, catalogId: 'pack', catalogRevisionId: 'r1', entityId: 'item' } as EntityRef
+    window.history.replaceState({ retained: true }, '', formatAppRoute({
+      page: { page: 'reference', view: 'detail', ref },
+      overlays: [{ kind: 'search', query: 'planner' }],
+      query: { kind: ['item'] },
+    }))
+    const notified = vi.fn()
+    window.addEventListener('crystal-companion:navigation', notified)
+    commitReferenceRouteState({ ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'sword', categories: ['Weapon'] }, 'replace')
+    window.removeEventListener('crystal-companion:navigation', notified)
+
+    const route = parseAppRoute(window.location.hash)
+    expect(route.page).toEqual({ page: 'reference', view: 'detail', ref })
+    expect(route.overlays).toEqual([{ kind: 'search', query: 'planner' }])
+    expect(parseReferenceRoute(window.location.hash)).toMatchObject({ query: 'sword', categories: ['Weapon'] })
+    expect(window.history.state).toMatchObject({ retained: true })
+    expect(notified).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates inventory filters without replacing its edit and picker route', () => {
+    window.history.replaceState(null, '', formatAppRoute({
+      page: { page: 'inventory', view: 'edit', positionId: 'position-1' as never },
+      overlays: [{ kind: 'definition-picker', fieldKey: 'item-definition', query: 'blade', resultLimit: 100 }],
+      query: {},
+    }))
+    commitInventoryRouteState({ ...DEFAULT_INVENTORY_ROUTE_STATE, filter: 'Owned', sources: ['starter'] })
+
+    const route = parseAppRoute(window.location.hash)
+    expect(route.page).toEqual({ page: 'inventory', view: 'edit', positionId: 'position-1' })
+    expect(route.overlays).toEqual([{ kind: 'definition-picker', fieldKey: 'item-definition', query: 'blade', resultLimit: 100 }])
+    expect(parseInventoryRoute(window.location.hash)).toMatchObject({ filter: 'Owned', sources: ['starter'] })
   })
 })

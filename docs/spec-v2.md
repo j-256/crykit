@@ -110,6 +110,10 @@ Use Inventory, Characters, Builds, Progress, and Reference as the primary destin
 
 Desktop can use a navigation rail and adjacent selection/detail panels. Mobile uses a compact header, bottom navigation, and full-height picker sheets. All core actions need visible keyboard focus, semantic labels, touch-sized controls, and no hover or dragging dependency. Status uses text as well as color. Empty states offer the next useful action.
 
+Every page, selected record, tab, and modal workflow has a semantic URL. Use readable hash-path segments with bounded exact identifiers so static hosting, subdirectory installs, and offline navigation remain supported. Nested pickers and definition editors retain their parent route. Direct entry, refresh, in-app navigation, and browser Back/Forward use the same navigation state. A rejected draft-losing navigation restores the accepted route without replacing the destination history entry.
+
+URLs do not contain unsaved form fields or imported file bytes. Missing local records, unavailable revisions, malformed routes, and expired import previews show explicit recovery instead of substituting a different record. Source facets remain readable and searchable at narrow widths, use bounded scrolling for long option lists, and preserve full source identities and explicit links.
+
 ## Local verification gates
 
 | Gate | Required evidence |

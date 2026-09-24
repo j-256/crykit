@@ -5,6 +5,7 @@ import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, Ent
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { formatAppError } from './model'
+import { parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type DefinitionPickerOverlay } from './navigation'
 import { Sheet } from './Sheet'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
@@ -135,9 +136,13 @@ export function definitionKindLabel(kind: CatalogEntityKind) {
   return kind === 'monsterMagic' ? 'Monster Magic' : kind.charAt(0).toLocaleUpperCase() + kind.slice(1)
 }
 
-export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
-  const { profile, options, onSaveDefinition } = useDefinitionWorkspace()
-  const [editRef] = useState(() => baseRef ? preferredDefinitionRef(profile, baseRef) : undefined)
+export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', routeIndex, onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; routeIndex?: number; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
+  const navigation = useNavigation()
+  const { options, onSaveDefinition } = useDefinitionWorkspace()
+  const ownedEditorIndex = routeIndex ?? navigation.route.overlays.findLastIndex((overlay) => overlay.kind === 'definition-editor')
+  const routedEditor = ownedEditorIndex >= 0 ? navigation.route.overlays[ownedEditorIndex] : undefined
+  const routedBaseRef = routedEditor?.kind === 'definition-editor' && routedEditor.mode === 'override' ? routedEditor.ref : undefined
+  const [editRef] = useState(() => baseRef ?? routedBaseRef)
   const base = findDefinitionOption(options, editRef)
   const kinds = allowedKinds.length ? allowedKinds : ALL_DEFINITION_KINDS
   const [kind, setKind] = useState<CatalogEntityKind>(() => base?.kind ?? kinds[0] ?? 'other')
@@ -150,6 +155,15 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   const [pp, setPp] = useState(() => base?.ppCost?.state === 'known' ? String(base.ppCost.value) : '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [closeWarning, setCloseWarning] = useState(false)
+  const dirtyRef = useRef(false)
+  const scopeRef = useRef({ ...navigation.route, overlays: navigation.route.overlays.slice(0, Math.max(0, ownedEditorIndex + 1)) })
+  useNavigationBlocker(scopeRef.current, () => dirtyRef.current, () => setCloseWarning(true))
+  const clearDirty = () => { dirtyRef.current = false; setCloseWarning(false) }
+  const close = () => { clearDirty(); onClose() }
+  if (editRef && !base) {
+    return <Sheet description="The exact definition in this address is unavailable in the active profile and reference catalogs." layer={ownedEditorIndex + 1} onClose={close} open={open} title="Definition unavailable" width="wide"><div className="stack"><InlineNotice title="Definition could not be opened" tone="warning">The requested definition may have been removed, or the link may belong to another profile or catalog revision. No substitute definition was selected.</InlineNotice><div className="form-actions"><Button onClick={close} tone="quiet" type="button">Close editor</Button></div></div></Sheet>
+  }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -168,18 +182,20 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
         ...(ppState === 'preserve' ? {} : { ppCost: ppState === 'known' ? { state: 'known' as const, value: numericPp! } : ppState === 'unknown' ? { state: 'unknown' as const } : null }),
       }
       const ref = await onSaveDefinition(draft)
+      clearDirty()
       onSaved(ref)
     } catch (reason) { setError(formatAppError(reason, 'The definition could not be saved.')) } finally { setBusy(false) }
   }
-  return <Sheet description={baseRef ? 'Editing creates a new personal override. Existing observations and build revisions keep their exact earlier reference.' : 'Create a personal definition without inventing unobserved mechanics.'} onClose={onClose} open={open} title={baseRef ? `Edit ${base?.name ?? 'definition'}` : 'Create personal definition'} width="wide"><form className="stack" onSubmit={submit}>
-    {baseRef && <InlineNotice title="Immutable override">The source definition remains available for historical records. This saved revision becomes the preferred choice in ordinary pickers.</InlineNotice>}
+  return <Sheet description={editRef ? 'Editing creates a new personal override. Existing observations and build revisions keep their exact earlier reference.' : 'Create a personal definition without inventing unobserved mechanics.'} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={() => { if (!dirtyRef.current) return true; setCloseWarning(true); return false }} open={open} title={editRef ? `Edit ${base?.name ?? 'definition'}` : 'Create personal definition'} width="wide"><form className="stack" onInput={() => { dirtyRef.current = true; setCloseWarning(false) }} onSubmit={submit}>
+    {closeWarning && <InlineNotice title="Definition draft still open" tone="warning">Save this definition or choose Cancel to discard its entered values before leaving.</InlineNotice>}
+    {editRef && <InlineNotice title="Immutable override">The source definition remains available for historical records. This saved revision becomes the preferred choice in ordinary pickers.</InlineNotice>}
     <div className="grid-2"><Field label="Definition name" required><input autoFocus onChange={(event) => setName(event.target.value)} required value={name}/></Field><Field hint={baseRef ? 'Definition kind is inherited by an override.' : undefined} label="Definition type"><select disabled={Boolean(baseRef)} onChange={(event) => setKind(event.target.value as CatalogEntityKind)} value={kind}>{kinds.map((value) => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></div>
     <Field hint="One alternate name per line." label="Aliases"><textarea onChange={(event) => setAliases(event.target.value)} value={aliases}/></Field>
     <Field label="Description"><textarea onChange={(event) => setDescription(event.target.value)} placeholder="Optional source or personal description" value={description}/></Field>
     <div className="grid-2"><Field label="Category knowledge"><select onChange={(event) => setCategoryMode(event.target.value as typeof categoryMode)} value={categoryMode}>{baseRef && <option value="preserve">Keep current ({base?.category?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known category</option>{baseRef && <option value="clear">Clear category field</option>}</select></Field>{categoryMode === 'known' && <Field label="Category" required><input onChange={(event) => setCategory(event.target.value)} required value={category}/></Field>}</div>
     <div className="grid-2"><Field label="PP knowledge"><select onChange={(event) => setPpState(event.target.value as typeof ppState)} value={ppState}>{baseRef && <option value="preserve">Keep current ({base?.ppCost?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known value</option>{baseRef && <option value="clear">Clear PP field</option>}</select></Field>{ppState === 'known' && <Field label="PP value" required><input inputMode="decimal" onChange={(event) => setPp(event.target.value)} required type="number" value={pp}/></Field>}</div>
     {error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor.</InlineNotice>}
-    <div className="form-actions"><Button disabled={busy} onClick={onClose} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !name.trim()} icon="check" type="submit">{busy ? 'Saving...' : baseRef ? 'Save new override' : 'Create definition'}</Button></div>
+    <div className="form-actions"><Button disabled={busy} onClick={close} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !name.trim()} icon="check" type="submit">{busy ? 'Saving...' : editRef ? 'Save new override' : 'Create definition'}</Button></div>
   </form></Sheet>
 }
 
@@ -203,17 +219,35 @@ export interface DefinitionPickerDialogProps {
 }
 
 export function DefinitionPickerDialog({ open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', description = 'Search exact catalog and personal definitions. Equal names remain separate identities.', query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionPickerDialogProps) {
+  const navigation = useNavigation()
   const { profile, options } = useDefinitionWorkspace()
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
-  const [editingRef, setEditingRef] = useState<EntityRef>()
-  const [creating, setCreating] = useState(false)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
   const resultsRef = useRef<HTMLDivElement>(null)
-  const query = controlledQuery ?? internalQuery
-  const limit = controlledLimit ?? internalLimit
-  const setQuery = (value: string) => { onQueryChange?.(value); if (controlledQuery === undefined) setInternalQuery(value); if (controlledLimit === undefined) setInternalLimit(DEFINITION_RESULT_PAGE_SIZE) }
-  const setLimit = (value: number) => { onResultLimitChange?.(value); if (controlledLimit === undefined) setInternalLimit(value) }
+  const pickerIndex = open ? navigation.route.overlays.findLastIndex((overlay) => overlay.kind === 'definition-picker') : -1
+  const pickerOverlay = pickerIndex >= 0 ? navigation.route.overlays[pickerIndex] : undefined
+  const editorOverlay = pickerIndex >= 0 ? navigation.route.overlays[pickerIndex + 1] : undefined
+  const editingRef = open && editorOverlay?.kind === 'definition-editor' && editorOverlay.mode === 'override' ? editorOverlay.ref : undefined
+  const creating = open && editorOverlay?.kind === 'definition-editor' && editorOverlay.mode === 'new'
+  const query = controlledQuery ?? (pickerOverlay?.kind === 'definition-picker' ? pickerOverlay.query : internalQuery)
+  const limit = controlledLimit ?? (pickerOverlay?.kind === 'definition-picker' ? pickerOverlay.resultLimit : internalLimit)
+  const updatePickerOverlay = (change: Partial<DefinitionPickerOverlay>) => {
+    if (pickerIndex < 0 || pickerOverlay?.kind !== 'definition-picker') return
+    const overlays = navigation.route.overlays.map((overlay, index) => index === pickerIndex ? { ...pickerOverlay, ...change } : overlay)
+    navigation.navigate({ ...navigation.route, overlays }, { replace: true })
+  }
+  const setQuery = (value: string) => {
+    onQueryChange?.(value)
+    updatePickerOverlay({ query: value, resultLimit: DEFINITION_RESULT_PAGE_SIZE })
+    if (controlledQuery === undefined && pickerIndex < 0) setInternalQuery(value)
+    if (controlledLimit === undefined && pickerIndex < 0) setInternalLimit(DEFINITION_RESULT_PAGE_SIZE)
+  }
+  const setLimit = (value: number) => {
+    onResultLimitChange?.(value)
+    updatePickerOverlay({ resultLimit: value })
+    if (controlledLimit === undefined && pickerIndex < 0) setInternalLimit(value)
+  }
   const selectedOption = findDefinitionOption(options, selected)
   const candidates = useMemo(() => {
     const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
@@ -230,15 +264,18 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
     buttons[next]?.focus()
   }
   const choose = (ref: EntityRef | null | undefined) => { onSelect(ref); onClose() }
-  const editorSaved = (ref: EntityRef) => { setCreating(false); setEditingRef(undefined); setPendingSavedRef(ref) }
+  const editorSaved = (ref: EntityRef) => { setPendingSavedRef(ref) }
   useEffect(() => {
-    if (!pendingSavedRef || !findDefinitionOption(options, pendingSavedRef)) return
+    if (!open || !pendingSavedRef || !findDefinitionOption(options, pendingSavedRef)) return
     setPendingSavedRef(undefined)
     onSelect(pendingSavedRef)
-    onClose()
-  }, [onClose, onSelect, options, pendingSavedRef])
+    const pickerRoute = parentRoute(navigation.route)
+    const hostRoute = pickerRoute ? parentRoute(pickerRoute) : undefined
+    if (hostRoute) navigation.navigate(hostRoute, { replace: true })
+    else onClose()
+  }, [navigation, onClose, onSelect, open, options, pendingSavedRef])
   return <>
-    <Sheet description={description} onClose={onClose} open={open} title={title}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" autoFocus onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Name, alias, description, type, or source" type="search" value={query}/></div>
+    <Sheet description={description} layer={pickerIndex + 1} onClose={onClose} open={open} title={title}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" autoFocus onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Name, alias, description, type, or source" type="search" value={query}/></div>
       <div className="picker-results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>
         {allowUnknown && <button className="picker-result" data-definition-result="true" onClick={() => choose(undefined)} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span><Badge>Unknown</Badge></button>}
         {allowEmpty && <button className="picker-result" data-definition-result="true" onClick={() => choose(null)} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span><Badge>Empty</Badge></button>}
@@ -247,17 +284,22 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
       </div>
       {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="secondary">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
       {candidates.length === 0 && <InlineNotice title="No matching definitions">Create a personal definition from this search, or try another name or type.</InlineNotice>}
-      <div className="form-actions">{selectedOption && <Button icon="edit" onClick={() => setEditingRef(preferredDefinitionRef(profile, selectedOption.ref))} tone="secondary">Edit selected definition</Button>}<Button icon="plus" onClick={() => setCreating(true)} tone="secondary">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
+      <div className="form-actions">{selectedOption && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedOption.ref) }))} tone="secondary">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
     </div></Sheet>
-    {editingRef && <DefinitionEditor allowedKinds={allowedKinds} baseRef={editingRef} initialName="" key={entityDefinitionKey(editingRef)} onClose={() => setEditingRef(undefined)} onSaved={editorSaved} open/>}
-    {creating && <DefinitionEditor allowedKinds={allowedKinds} initialName={query.trim()} key={`create:${query.trim()}`} onClose={() => setCreating(false)} onSaved={editorSaved} open/>}
+    {editingRef && <DefinitionEditor allowedKinds={allowedKinds} baseRef={editingRef} initialName="" key={entityDefinitionKey(editingRef)} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
+    {creating && <DefinitionEditor allowedKinds={allowedKinds} initialName={query.trim()} key={`create:${query.trim()}`} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
   </>
 }
 
-export function DefinitionPickerField({ label, hint, allowedKinds, value, disabled = false, allowUnknown = true, allowEmpty = false, autoFocus = false, onChange }: { label: string; hint?: string; allowedKinds: readonly CatalogEntityKind[]; value?: EntityRef | null; disabled?: boolean; allowUnknown?: boolean; allowEmpty?: boolean; autoFocus?: boolean; onChange: (ref: EntityRef | null | undefined) => void }) {
+export function DefinitionPickerField({ label, hint, allowedKinds, value, disabled = false, allowUnknown = true, allowEmpty = false, autoFocus = false, routeKey, onChange }: { label: string; hint?: string; allowedKinds: readonly CatalogEntityKind[]; value?: EntityRef | null; disabled?: boolean; allowUnknown?: boolean; allowEmpty?: boolean; autoFocus?: boolean; routeKey?: string; onChange: (ref: EntityRef | null | undefined) => void }) {
+  const navigation = useNavigation()
   const { options } = useDefinitionWorkspace()
-  const [open, setOpen] = useState(false)
+  const pickerMemoryRef = useRef({ query: '', resultLimit: DEFINITION_RESULT_PAGE_SIZE })
+  const fieldKey = routeKey ?? (label.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'definition')
+  const picker = navigation.route.overlays.findLast((overlay) => overlay.kind === 'definition-picker')
+  const open = picker?.kind === 'definition-picker' && picker.fieldKey === fieldKey
+  if (open) pickerMemoryRef.current = { query: picker.query, resultLimit: picker.resultLimit }
   const selected = findDefinitionOption(options, value)
   const display = value === null ? 'Observed empty' : selected?.name ?? (value ? 'Unresolved exact definition' : 'Unknown or unrecorded')
-  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" disabled={disabled} onClick={() => setOpen(true)} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="search"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionPickerDialog allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => setOpen(false)} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
+  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" disabled={disabled} onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-picker', fieldKey, ...pickerMemoryRef.current }))} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="search"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionPickerDialog allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
 }

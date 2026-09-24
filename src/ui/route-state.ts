@@ -1,5 +1,6 @@
 import type { CatalogEntityKind } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
+import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
 
 export const REFERENCE_ROUTE_STORAGE_KEY = 'crystal-companion:reference-route:v1'
 export const REFERENCE_PAGE_SIZE = 100
@@ -114,11 +115,38 @@ function queryNumber(params: URLSearchParams, key: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function paramsFromRouteQuery(query: RouteQuery): URLSearchParams {
+  const params = new URLSearchParams()
+  for (const [key, values] of Object.entries(query)) for (const value of values) params.append(key, value)
+  return params
+}
+
+function routeQueryFromParams(params: URLSearchParams): RouteQuery {
+  const query = Object.create(null) as Record<string, string[]>
+  for (const [key, value] of params) (query[key] ??= []).push(value)
+  return query
+}
+
+function referenceQuery(state: ReferenceRouteState): RouteQuery {
+  const params = new URLSearchParams({ v: ROUTE_VERSION })
+  if (state.query) params.set('q', state.query)
+  for (const kind of state.kinds) params.append('kind', kind)
+  for (const category of state.categories) params.append('category', category)
+  for (const source of state.sources) params.append('source', source)
+  if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))
+  if (state.ppMax !== undefined) params.set('ppMax', String(state.ppMax))
+  if (state.resultLimit !== REFERENCE_PAGE_SIZE) params.set('limit', String(state.resultLimit))
+  return routeQueryFromParams(params)
+}
+
 export function parseReferenceRoute(hash: string, stored?: string | null): ReferenceRouteState {
-  const [path, query = ''] = hash.replace(/^#/, '').split('?', 2)
-  if (path.replace(/^\/?/, '/') !== '/reference') return DEFAULT_REFERENCE_ROUTE_STATE
-  const params = new URLSearchParams(query)
-  if (params.size === 0) return parseStoredState(stored) ?? DEFAULT_REFERENCE_ROUTE_STATE
+  const route = parseAppRoute(hash)
+  if (route.page.page !== 'reference') return DEFAULT_REFERENCE_ROUTE_STATE
+  const params = paramsFromRouteQuery(route.query)
+  if (params.size === 0 && route.page.view === 'list') return parseStoredState(stored) ?? DEFAULT_REFERENCE_ROUTE_STATE
+  const routeSelected = route.page.view === 'detail' && route.page.ref.kind === 'catalog'
+    ? encodeReferenceEntityKey({ catalogId: route.page.ref.catalogId, catalogRevisionId: route.page.ref.catalogRevisionId, entityId: route.page.ref.entityId })
+    : undefined
   return normalizeReferenceRouteState({
     query: params.get('q') ?? '',
     kinds: params.getAll('kind'),
@@ -126,7 +154,7 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     sources: params.getAll('source'),
     ppMin: queryNumber(params, 'ppMin'),
     ppMax: queryNumber(params, 'ppMax'),
-    selectedKey: params.get('selected') ?? undefined,
+    selectedKey: routeSelected ?? params.get('selected') ?? undefined,
     resultLimit: queryNumber(params, 'limit') ?? REFERENCE_PAGE_SIZE,
   })
 }
@@ -164,12 +192,9 @@ export function commitReferenceRouteState(value: ReferenceRouteState, mode: 'pus
   } catch {
     // Route state remains in browser history when session storage is unavailable
   }
-  const currentHistory = window.history.state
-  const historyState = currentHistory && typeof currentHistory === 'object'
-    ? { ...currentHistory, crystalCompanionReference: state }
-    : { crystalCompanionReference: state }
-  const method = mode === 'push' ? 'pushState' : 'replaceState'
-  window.history[method](historyState, '', formatReferenceRoute(state))
+  const current = parseAppRoute(window.location.hash)
+  const base: AppRoute = current.page.page === 'reference' ? current : { page: { page: 'reference', view: 'list' }, overlays: [], query: {} }
+  writeNavigationRoute({ ...base, query: referenceQuery(state) }, mode)
   return state
 }
 
@@ -210,9 +235,9 @@ export function normalizeInventoryRouteState(value: unknown): InventoryRouteStat
 }
 
 export function parseInventoryRoute(hash: string, stored?: string | null): InventoryRouteState {
-  const [path, query = ''] = hash.replace(/^#/, '').split('?', 2)
-  if (path.replace(/^\/?/, '/') !== '/inventory') return DEFAULT_INVENTORY_ROUTE_STATE
-  const params = new URLSearchParams(query)
+  const route = parseAppRoute(hash)
+  if (route.page.page !== 'inventory') return DEFAULT_INVENTORY_ROUTE_STATE
+  const params = paramsFromRouteQuery(route.query)
   if (params.size === 0) return parseStoredInventoryState(stored) ?? DEFAULT_INVENTORY_ROUTE_STATE
   return normalizeInventoryRouteState({
     query: params.get('q') ?? '',
@@ -262,92 +287,14 @@ export function commitInventoryRouteState(value: InventoryRouteState, mode: 'pus
   } catch {
     // Route state remains in browser history when session storage is unavailable
   }
-  const currentHistory = window.history.state
-  const historyState = currentHistory && typeof currentHistory === 'object'
-    ? { ...currentHistory, crystalCompanionInventory: state }
-    : { crystalCompanionInventory: state }
-  const method = mode === 'push' ? 'pushState' : 'replaceState'
-  window.history[method](historyState, '', formatInventoryRoute(state))
-  return state
-}
-
-export interface BuildPickerRouteState {
-  readonly buildId: string
-  readonly pickerKey: string
-  readonly query: string
-  readonly resultLimit: number
-}
-
-const BUILD_ROUTE = '#/builds'
-const BUILD_PICKER_ROUTE_STORAGE_KEY = 'crystal-companion:build-picker-route:v1'
-
-function normalizeBuildPickerRouteState(value: unknown): BuildPickerRouteState | undefined {
-  const record = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-  const buildId = opaqueString(record.buildId, 4_096)
-  const pickerKey = opaqueString(record.pickerKey, 4_096)
-  if (!buildId || !pickerKey) return undefined
-  return {
-    buildId,
-    pickerKey,
-    query: queryString(record.query, MAX_QUERY_LENGTH) ?? '',
-    resultLimit: resultLimit(record.resultLimit),
-  }
-}
-
-export function readStoredBuildPickerRouteState(buildId: string, pickerKey: string): BuildPickerRouteState | undefined {
-  if (typeof window === 'undefined') return undefined
-  try {
-    const stored = window.sessionStorage.getItem(BUILD_PICKER_ROUTE_STORAGE_KEY)
-    if (!stored || stored.length > 32_768) return undefined
-    const state = normalizeBuildPickerRouteState(JSON.parse(stored))
-    return state?.buildId === buildId && state.pickerKey === pickerKey ? state : undefined
-  } catch {
-    return undefined
-  }
-}
-
-export function readBuildPickerRouteState(): BuildPickerRouteState | undefined {
-  if (typeof window === 'undefined') return undefined
-  const [path, query = ''] = window.location.hash.replace(/^#/, '').split('?', 2)
-  if (path.replace(/^\/?/, '/') !== '/builds') return undefined
-  const params = new URLSearchParams(query)
-  const buildId = opaqueString(params.get('build'), 4_096)
-  const pickerKey = opaqueString(params.get('picker'), 4_096)
-  if (!buildId || !pickerKey) return undefined
-  return {
-    buildId,
-    pickerKey,
-    query: queryString(params.get('q') ?? '', MAX_QUERY_LENGTH) ?? '',
-    resultLimit: resultLimit(queryNumber(params, 'limit')),
-  }
-}
-
-export function commitBuildPickerRouteState(value: BuildPickerRouteState, mode: 'push' | 'replace' = 'replace'): BuildPickerRouteState {
-  const state = normalizeBuildPickerRouteState(value) ?? { buildId: value.buildId, pickerKey: value.pickerKey, query: '', resultLimit: REFERENCE_PAGE_SIZE }
-  if (typeof window === 'undefined') return state
-  try {
-    window.sessionStorage.setItem(BUILD_PICKER_ROUTE_STORAGE_KEY, JSON.stringify(state))
-  } catch {
-    // Browser history still carries the open picker when session storage is unavailable
-  }
-  const params = new URLSearchParams({ v: ROUTE_VERSION, build: state.buildId, picker: state.pickerKey })
+  const params = new URLSearchParams({ v: ROUTE_VERSION })
   if (state.query) params.set('q', state.query)
-  if (state.resultLimit !== REFERENCE_PAGE_SIZE) params.set('limit', String(state.resultLimit))
-  const currentHistory = window.history.state
-  const historyState = currentHistory && typeof currentHistory === 'object'
-    ? { ...currentHistory, crystalCompanionBuildPicker: state }
-    : { crystalCompanionBuildPicker: state }
-  const method = mode === 'push' ? 'pushState' : 'replaceState'
-  window.history[method](historyState, '', `${BUILD_ROUTE}?${params.toString()}`)
+  if (state.filter !== 'All') params.set('filter', state.filter)
+  for (const category of state.categories) params.append('category', category)
+  for (const source of state.sources) params.append('source', source)
+  if (state.resultLimit !== INVENTORY_PAGE_SIZE) params.set('limit', String(state.resultLimit))
+  const current = parseAppRoute(window.location.hash)
+  const base: AppRoute = current.page.page === 'inventory' ? current : { page: { page: 'inventory', view: 'list' }, overlays: [], query: {} }
+  writeNavigationRoute({ ...base, query: routeQueryFromParams(params) }, mode)
   return state
-}
-
-export function closeBuildPickerRoute(): void {
-  if (typeof window === 'undefined') return
-  const state = window.history.state
-  if (state && typeof state === 'object' && 'crystalCompanionBuildPicker' in state) {
-    window.history.back()
-    return
-  }
-  window.history.replaceState(state, '', BUILD_ROUTE)
 }

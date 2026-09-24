@@ -47,6 +47,8 @@ Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to s
 
 Reference search supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+Pages, record details, settings sections, and modal workflows have semantic URLs. Copy the address bar to bookmark the selected view or reopen a dialog. Browser Back and Forward follow the same navigation, including nested definition pickers and editors. See [navigation and local links](docs/navigation.md) for refresh, draft, and missing-data behavior.
+
 ## Verification
 
 Checks run on the local machine:

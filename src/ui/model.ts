@@ -1,6 +1,10 @@
 import type { CatalogSnapshot, EntityRef, Knowledge, Profile, Quantity, RulesetRevision } from '../domain/types'
 import { AppDataError } from '../interchange/errors'
 
+export function ownRecordValue<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined
+}
+
 export function catalogLocksMatch(left: Readonly<Record<string, string>>, right: Readonly<Record<string, string>>) {
   const leftEntries = Object.entries(left).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
   const rightEntries = Object.entries(right).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
@@ -23,9 +27,9 @@ export function formatAppError(reason: unknown, fallback: string) {
 
 export function resolveEntity(profile: Profile, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined) {
   if (!ref) return undefined
-  if (ref.kind === 'personal') return profile.personalDefinitions[ref.definitionId]
+  if (ref.kind === 'personal') return ownRecordValue(profile.personalDefinitions, ref.definitionId)
   const snapshot = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
-  return snapshot?.entities[ref.entityId]
+  return snapshot ? ownRecordValue(snapshot.entities, ref.entityId) : undefined
 }
 
 export function entityName(profile: Profile, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined, fallback = 'Unresolved entry') {
@@ -52,7 +56,7 @@ export function knowledgeTone<T>(knowledge: Knowledge<T>) {
 }
 
 export function activeRuleset(profile: Profile): RulesetRevision | undefined {
-  return profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+  return profile.activeRulesetRevisionId ? ownRecordValue(profile.rulesets, profile.activeRulesetRevisionId) : undefined
 }
 
 export function formatRelativeDate(value: string | undefined) {

@@ -50,11 +50,11 @@ import { DataPanel, type RulesetDraft } from './ui/DataPanel'
 import { InventoryView, type InventoryDraft, type InventoryEventDraft } from './ui/InventoryView'
 import { ProgressView, type ProgressDraft } from './ui/ProgressView'
 import { ReferenceView } from './ui/ReferenceView'
-import { Shell, parseDestination, type Destination } from './ui/Shell'
+import { Shell } from './ui/Shell'
 import { Button, InlineNotice, Spinner } from './ui/components'
 import { catalogLocksMatch, formatAppError } from './ui/model'
 import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions'
-import { formatSearchDestination, parseUniversalSearchTarget, type UniversalSearchTarget } from './ui/search-navigation'
+import { isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController } from './ui/navigation'
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 
@@ -91,10 +91,6 @@ export default function App() {
   const dirtyRef = useRef(false)
   const formDirtyRef = useRef(false)
   const [profiles, setProfiles] = useState<readonly ProfileSummary[]>([])
-  const [destination, setDestination] = useState<Destination>(() => parseDestination())
-  const destinationRef = useRef<Destination>(destination)
-  const acceptedHashRef = useRef(window.location.hash)
-  const [dataOpen, setDataOpen] = useState(false)
   const [loadingError, setLoadingError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [dirty, setDirty] = useState(false)
@@ -105,6 +101,16 @@ export default function App() {
   const [importError, setImportError] = useState<string>()
   const [importBusy, setImportBusy] = useState(false)
   const [externalUpdate, setExternalUpdate] = useState(false)
+  const navigation = useNavigationController({
+    shouldBlock: (from, to) => formDirtyRef.current && !isRouteWithin(to, routeWithoutOverlays(from)),
+    onBlocked: () => setNavigationWarning(true),
+  })
+  const destination = routeDestination(navigation.route)
+  const dataOpen = navigation.route.page.page === 'settings'
+  const openData = useCallback(() => {
+    navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} })
+  }, [navigation])
+  const closeData = useCallback(() => { navigation.close() }, [navigation])
 
   useEffect(() => {
     let live = true
@@ -117,43 +123,13 @@ export default function App() {
     }).then((summaries) => {
       if (live && summaries) setProfiles(summaries)
     }).catch((error: unknown) => { if (live) setLoadingError(formatAppError(error, 'Local records could not be opened.')) })
-    const onHashChange = () => {
-      const next = parseDestination()
-      const nextTarget = parseUniversalSearchTarget(window.location.hash)
-      const previousTarget = parseUniversalSearchTarget(acceptedHashRef.current)
-      const changesTarget = nextTarget !== undefined && JSON.stringify(nextTarget) !== JSON.stringify(previousTarget)
-      if (formDirtyRef.current && (next !== destinationRef.current || changesTarget)) {
-        window.history.replaceState(null, '', acceptedHashRef.current || `#/${destinationRef.current}`)
-        setNavigationWarning(true)
-        return
-      }
-      acceptedHashRef.current = window.location.hash
-      destinationRef.current = next
-      setDestination(next)
-    }
-    window.addEventListener('hashchange', onHashChange)
-    return () => { live = false; window.removeEventListener('hashchange', onHashChange) }
+    return () => { live = false }
   }, [])
 
   const setFormDraftDirty = useCallback((value: boolean) => {
     formDirtyRef.current = value
     setFormDirty(value)
     if (!value) setNavigationWarning(false)
-  }, [])
-
-  const navigate = useCallback((next: Destination, target?: UniversalSearchTarget): boolean => {
-    if (document.querySelector('dialog[open]:not([data-universal-search])')) return false
-    if (formDirtyRef.current && (next !== destinationRef.current || target !== undefined)) {
-      setNavigationWarning(true)
-      return false
-    }
-    destinationRef.current = next
-    const hash = formatSearchDestination(next, target)
-    acceptedHashRef.current = hash
-    if (window.location.hash === hash) window.dispatchEvent(new HashChangeEvent('hashchange'))
-    else window.location.hash = hash
-    setDestination(next)
-    return true
   }, [])
 
   useEffect(() => {
@@ -337,12 +313,16 @@ export default function App() {
     return clonedId
   }, [commitProfile])
 
-  const saveRevision = useCallback(async (buildId: string, draft: RevisionDraft) => commitProfile((profile) => {
+  const saveRevision = useCallback(async (buildId: string, draft: RevisionDraft, parentRevisionId?: string): Promise<BuildRevisionId> => {
+    const revisionId = createId<BuildRevisionId>('buildRevision')
+    await commitProfile((profile) => {
     const rulesetId = profile.activeRulesetRevisionId
     if (!rulesetId) throw new Error('Configure an active ruleset before saving a build revision.')
     const build = profile.builds[buildId]
-    return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), parentRevisionId: build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions }, note: draft.note, expectedRevision: profile.revision })
-  }), [commitProfile])
+    return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions }, note: draft.note, expectedRevision: profile.revision })
+    })
+    return revisionId
+  }, [commitProfile])
 
   const addScenario = useCallback(async (draft: ScenarioDraft) => commitProfile((profile) => {
     if (!profile.activeRulesetRevisionId) throw new Error('Configure an active ruleset before creating a team scenario.')
@@ -360,11 +340,11 @@ export default function App() {
 
   const assignScenario = useCallback(async (scenarioId: string, characterId: string, revisionId: string) => commitProfile((profile) => replaceScenarioBuild(profile, { scenarioId: asId<ScenarioId>(scenarioId), characterId: asId<CharacterId>(characterId), buildRevisionId: revisionId ? asId<BuildRevisionId>(revisionId) : null, expectedRevision: profile.revision })), [commitProfile])
 
-  const recordBuildCurrent = useCallback(async (buildId: string) => commitProfile((profile) => {
+  const recordBuildCurrent = useCallback(async (buildId: string, revisionId: string) => commitProfile((profile) => {
     const build = profile.builds[buildId]
-    if (!build?.latestRevisionId || !build.characterId) throw new Error('Only a pinned character build can be recorded as current.')
-    const revision = profile.buildRevisions[build.latestRevisionId]
-    if (!revision) throw new Error('The selected build revision is unavailable.')
+    if (!build?.characterId) throw new Error('Only a pinned character build can be recorded as current.')
+    const revision = profile.buildRevisions[revisionId]
+    if (!revision || revision.buildId !== build.id) throw new Error('The selected build revision is unavailable for this build.')
     let next = profile
     for (const other of Object.values(next.builds)) {
       if (other.id !== build.id && other.characterId === build.characterId && other.state === 'recordedCurrent') next = updateBuild(next, { buildId: other.id, state: 'draft', expectedRevision: next.revision })
@@ -437,8 +417,12 @@ export default function App() {
 
   const handlePreview = useCallback(async (bytes: Uint8Array, filename: string) => {
     setImportBusy(true); setImportError(undefined)
-    try { setImportPreview(await previewImport(bytes, filename)) } catch (error) { setImportError(formatAppError(error, 'The selected file could not be previewed.')) } finally { setImportBusy(false) }
-  }, [])
+    try {
+      const preview = await previewImport(bytes, filename)
+      setImportPreview(preview)
+      navigation.navigate({ page: { page: 'settings', section: 'data', previewId: preview.id }, overlays: [], query: {} }, { replace: true })
+    } catch (error) { setImportError(formatAppError(error, 'The selected file could not be previewed.')) } finally { setImportBusy(false) }
+  }, [navigation])
 
   const handleImport = useCallback(async (preview: ImportPreview, mode: ImportCommitMode) => {
     setImportBusy(true); setImportError(undefined)
@@ -447,9 +431,9 @@ export default function App() {
       const current = workspaceRef.current
       if (!current) throw new Error('The local workspace is not ready.')
       const loaded = await commitImport(preview, { mode, ...(mode === 'new-profile' ? {} : { targetProfileId: current.profile.id, expectedRevision: persistedRevisionRef.current }) })
-      installWorkspace(loaded); setImportPreview(undefined); setDataOpen(false); await refreshProfiles()
+      installWorkspace(loaded); setImportPreview(undefined); closeData(); await refreshProfiles()
     } catch (error) { setImportError(formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
-  }, [installWorkspace, refreshProfiles, waitForSafeTransition])
+  }, [closeData, installWorkspace, refreshProfiles, waitForSafeTransition])
 
   const validations = useMemo(() => {
     if (!workspace) return {}
@@ -479,7 +463,10 @@ export default function App() {
   if (!workspace) return <LoadingView/>
 
   const profile = workspace.profile
-  const content = destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={() => setDataOpen(true)} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? <BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setFormDraftDirty} onOpenSettings={() => setDataOpen(true)} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/> : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={workspace.catalogs} onOpenData={() => setDataOpen(true)} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
+  const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
+  const content = unresolvedPage
+    ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
+    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? <BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setFormDraftDirty} onOpenSettings={openData} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/> : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={workspace.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
 
-  return <DefinitionProvider catalogs={workspace.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} destination={destination} onNavigate={navigate} onOpenData={() => setDataOpen(true)} profile={profile} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">Save or discard the current build revision before leaving this screen.</InlineNotice></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined) }} onClose={() => setDataOpen(false)} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/></DefinitionProvider>
+  return <NavigationProvider controller={navigation}><DefinitionProvider catalogs={workspace.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} destination={destination} onOpenData={openData} profile={profile} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">Save or discard the current build revision before leaving this screen.</InlineNotice></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/></DefinitionProvider></NavigationProvider>
 }
