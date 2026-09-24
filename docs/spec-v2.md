@@ -14,7 +14,7 @@ The first complete release comprises data-preserving storage, useful tracking, a
 
 | Topic | Decision |
 | --- | --- |
-| Available research format | Support the supplied tabular XLSX structure directly. A research JSON adapter is separately versioned; supporting its schema is not proof that an unavailable exact package was tested. ZIP support is bounded and accepts only an unambiguous supported payload. |
+| Available research format | Support the supplied tabular XLSX structure directly. A research JSON adapter is separately versioned; supporting its schema is not proof that an unavailable exact package was tested. Native backups use a ZIP container with a versioned JSON manifest/payload and original local source files. ZIP support is bounded and accepts only an unambiguous supported payload. |
 | Personal baseline | Local imports only. Original specifications, trackers, workbooks, exports, screenshots, and private fixtures are excluded from source control and static assets. |
 | First-release comparison | Basic descriptive comparison and immutable build checkpoints are required. Rich revision graphs and automated ranking are separate enhancements. |
 | Cross-device transfer | Export and restore complete native backups. Default to a new profile when identity or ancestry is uncertain; preserve divergent copies. Do not guess a merge or sum snapshot counts. |
@@ -88,7 +88,7 @@ Detect formats from content as well as filename. Parse, bound, normalize, and va
 
 The XLSX adapter reads OOXML tables through package relationships, excludes empty template rows, preserves cell locators/raw values, and treats formulas as inert text with separately identified cached values. Reject external relationships, DTD/entity declarations, path traversal, duplicate archive names, oversized entries, excessive expansion, unsupported encryption, and malformed/truncated archives. No import follows a URL or executes formulas/HTML.
 
-The native JSON backup uses its own format name and schema version. It includes profile identity/revision, implemented personal sections, referenced immutable catalogs, source metadata, history when supported, and evidence when selected. Export a failed-save draft as well as persisted state. Unsupported future schemas reject without writes. Default restore creates a separate profile; replacing a profile requires a visible preview and explicit confirmation.
+The native backup uses a ZIP container with its own JSON format name and schema version. It includes profile identity/revision, implemented personal sections, referenced immutable catalogs, source metadata, history when supported, and evidence/source bytes when selected. Export a failed-save draft as well as persisted state. Unsupported future schemas reject without writes. Default restore creates a separate profile; replacing a profile requires a visible preview and explicit confirmation.
 
 Show saved status only after the transaction commits. Preserve drafts on quota, availability, migration, or revision errors and offer retry/export/reload choices. Request persistent storage where supported, but never describe browser storage as a backup. Record export time and revision, without pretending to verify the file after download.
 
