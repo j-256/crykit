@@ -1,0 +1,41 @@
+{
+  "name": "crystal-companion",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:privacy": "node scripts/privacy-check.mjs",
+    "check": "npm run typecheck && npm test && npm run check:privacy && npm run build",
+    "verify": "npm run check && npm run test:e2e",
+    "hooks:install": "git config core.hooksPath .githooks"
+  },
+  "dependencies": {
+    "dexie": "4.4.6",
+    "fflate": "0.8.3",
+    "lucide-react": "^0.577.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "^6.2.0",
+    "jsdom": "^28.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}

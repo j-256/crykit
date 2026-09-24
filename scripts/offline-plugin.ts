@@ -1,0 +1,68 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { Plugin } from 'vite'
+
+export function offlinePlugin(): Plugin {
+  let publicDirectory = 'public'
+  const publicAssets = ['icon.svg', 'manifest.webmanifest']
+  return {
+    name: 'crystal-companion-offline',
+    apply: 'build',
+    configResolved(config) { publicDirectory = config.publicDir },
+    generateBundle(_, bundle) {
+      const assets = [...Object.keys(bundle), ...publicAssets].sort()
+      const digest = createHash('sha256')
+      for (const filename of publicAssets) {
+        digest.update(filename)
+        digest.update(readFileSync(join(publicDirectory, filename)))
+      }
+      for (const filename of Object.keys(bundle).sort()) {
+        const entry = bundle[filename]
+        digest.update(filename)
+        digest.update(entry.type === 'chunk' ? entry.code : entry.source)
+      }
+      const version = digest.digest('hex').slice(0, 16)
+      const source = `const CACHE_PREFIX = 'crystal-companion-shell-';
+const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(version)};
+const FILES = ${JSON.stringify(assets)};
+const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
+const indexUrl = new URL('index.html', self.registration.scope).href;
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assetUrls)));
+});
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: 'window' });
+    for (const client of clients) client.postMessage({ type: 'OFFLINE_ACTIVATED' });
+  })());
+});
+self.addEventListener('message', event => {
+  if (event.data?.type === 'ACTIVATE_UPDATE') self.skipWaiting();
+  if (event.data?.type === 'CHECK_READINESS') {
+    event.waitUntil((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const matches = await Promise.all(assetUrls.map(url => cache.match(url)));
+      event.ports[0]?.postMessage({ ready: matches.every(Boolean), version: ${JSON.stringify(version)} });
+    })());
+  }
+});
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  const isNavigation = request.mode === 'navigate' && url.href.startsWith(self.registration.scope);
+  if (!isNavigation && !assetUrls.includes(url.href)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(isNavigation ? indexUrl : request);
+    return cached || fetch(request);
+  })());
+});
+`
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source })
+    },
+  }
+}

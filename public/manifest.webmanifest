@@ -1,0 +1,12 @@
+{
+  "id": "./",
+  "name": "Crystal Companion",
+  "short_name": "Companion",
+  "description": "Local inventory and party planning for Crystal Project",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#102d2b",
+  "theme_color": "#102d2b",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -8,6 +8,7 @@ test-results/
 .env.*
 !.env.example
 *.local
+*.local.*
 /crystal_project_*
 /private/
 /imports/
@@ -16,4 +17,3 @@ test-results/
 *.zip
 *.sqlite*
 *.log
-
