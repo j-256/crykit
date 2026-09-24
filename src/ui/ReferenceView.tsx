@@ -7,6 +7,7 @@ import { formatAppError, knowledgeTone } from './model'
 import { DefinitionEditor, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
 import { formatSearchDestination, parseUniversalSearchTarget } from './search-navigation'
 import { Sheet } from './Sheet'
+import { sourceDisplay } from './source-display'
 import {
   aggregateKnowledgeCounts,
   buildFacetOptions,
@@ -66,7 +67,8 @@ function sourceHref(source: SourceRef): string | undefined {
 
 function SourceSummary({ source }: { source: SourceRef }) {
   const href = sourceHref(source)
-  return <><strong>{source.sourceId}</strong><p>{source.locator ?? 'No source locator supplied'}</p><small>{source.applicability ?? 'Applicability not stated'}{href ? <> · <a href={href} rel="noreferrer noopener" target="_blank">Open source</a></> : null}</small></>
+  const display = sourceDisplay(source.sourceId)
+  return <><strong>{display.label}</strong><p>{source.locator ?? source.sourceId}</p><small>{display.detail ? `${display.detail} · ` : ''}{source.applicability ?? 'Applicability not stated'}{href ? <> · <a href={href} rel="noreferrer noopener" target="_blank">Open source</a></> : null}</small></>
 }
 
 function ClaimValue({ value }: { value: Knowledge<JsonValue> }) {
@@ -75,7 +77,7 @@ function ClaimValue({ value }: { value: Knowledge<JsonValue> }) {
 }
 
 function ClaimTrail({ claim }: { claim: CatalogClaim }) {
-  return <div className="source-claim"><span className="source-claim__line"/><div><strong>{claim.field}</strong><ClaimValue value={claim.value}/><small>{claim.sources.length ? claim.sources.map((source) => { const href = sourceHref(source); return href ? <span key={`${source.sourceId}:${source.locator ?? ''}`}><a href={href} rel="noreferrer noopener" target="_blank">{source.sourceId}</a>{source.locator && source.locator !== href ? `: ${source.locator}` : ''} </span> : <span key={`${source.sourceId}:${source.locator ?? ''}`}>{source.sourceId}{source.locator ? `: ${source.locator}` : ''} </span> }) : 'No source locator supplied'}</small></div></div>
+  return <div className="source-claim"><span className="source-claim__line"/><div><strong>{claim.field}</strong><ClaimValue value={claim.value}/><small>{claim.sources.length ? claim.sources.map((source) => { const href = sourceHref(source); const display = sourceDisplay(source.sourceId); return href ? <span className="source-reference" key={`${source.sourceId}:${source.locator ?? ''}`} title={source.sourceId}><a href={href} rel="noreferrer noopener" target="_blank">{display.label}</a>{source.locator && source.locator !== href ? `: ${source.locator}` : ''} </span> : <span className="source-reference" key={`${source.sourceId}:${source.locator ?? ''}`}>{display.label}{source.locator ? `: ${source.locator}` : ''} </span> }) : 'No source locator supplied'}</small></div></div>
 }
 
 function toggleValue(values: readonly string[], value: string): readonly string[] {
@@ -251,7 +253,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
         <div className={`reference-filter-options${filtersOpen ? ' is-open' : ''}`} id="reference-filter-options">
         <div className="facet-group"><h3>Definition type</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><button aria-pressed={route.kinds.length === 0} className="filter-chip" onClick={() => updateFilter({ kinds: [] }, 'push')} type="button">All</button>{kindOptions.map((option) => <button aria-pressed={route.kinds.includes(option.value as typeof route.kinds[number])} className="filter-chip" key={option.value} onClick={() => updateFilter({ kinds: toggleValue(route.kinds, option.value) as typeof route.kinds }, 'push')} type="button">{option.value === 'monsterMagic' ? 'Monster Magic' : option.value} ({option.count})</button>)}</div></div>
         {categoryOptions.length > 0 && <div className="facet-group"><h3>Category</h3><BoundedFacetOptions groupLabel="Reference category filters" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryOptions} searchLabel="Search reference categories" selected={route.categories}/></div>}
-        <div className="facet-group"><h3>Source</h3><BoundedFacetOptions groupLabel="Reference source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search reference sources" selected={route.sources}/></div>
+        <div className="facet-group"><h3>Source</h3><BoundedFacetOptions formatOption={sourceDisplay} groupLabel="Reference source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search reference sources" selected={route.sources}/></div>
         <div className="facet-group"><h3>PP cost</h3><div className="grid-2"><label className="field"><span className="field__label">Minimum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMin: numericInput(event.target.value) })} type="number" value={route.ppMin ?? ''}/></label><label className="field"><span className="field__label">Maximum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMax: numericInput(event.target.value) })} type="number" value={route.ppMax ?? ''}/></label></div><small>PP bounds apply only where PP is meaningful. Unknown or conflicting costs remain possible matches.</small></div>
         <div className="facet-group"><h3>Catalog knowledge in matches</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><Badge tone="positive">{knowledgeCounts.known} known</Badge><Badge tone="warning">{knowledgeCounts.unknown} unknown</Badge><Badge tone="danger">{knowledgeCounts.conflicting} conflicts</Badge></div></div>
         <div className="facet-group"><h3>Reference packs</h3>{catalogs.map((catalog) => <div className="source-claim" key={JSON.stringify([catalog.id, catalog.revisionId])}><span className="source-claim__line"/><div><strong>{catalog.id}</strong><p>Revision {catalog.revisionId}</p><small>{catalog.schemaVersion} · {Object.keys(catalog.entities).length} definitions</small></div></div>)}</div>

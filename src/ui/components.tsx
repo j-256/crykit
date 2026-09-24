@@ -36,18 +36,30 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
 
 const FACET_OPTION_DOM_LIMIT = 40
 
-export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void }) {
+export interface FacetOptionDisplay {
+  readonly label: string
+  readonly detail?: string
+}
+
+export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay }) {
   const [query, setQuery] = useState('')
   const searchable = options.length > FACET_OPTION_DOM_LIMIT
   const filtered = useMemo(() => {
     const normalized = searchable ? query.trim().toLocaleLowerCase() : ''
-    return normalized ? options.filter((option) => option.value.toLocaleLowerCase().includes(normalized)) : options
-  }, [options, query, searchable])
+    return normalized ? options.filter((option) => {
+      const display = formatOption?.(option.value)
+      return [option.value, display?.label, display?.detail].some((value) => value?.toLocaleLowerCase().includes(normalized))
+    }) : options
+  }, [formatOption, options, query, searchable])
   const visible = filtered.slice(0, FACET_OPTION_DOM_LIMIT)
   const omitted = filtered.length - visible.length
   return <div className="bounded-facet-options">
     {searchable && <div className="search-field bounded-facet-options__search"><Icon name="search"/><input aria-label={searchLabel} onChange={(event) => setQuery(event.target.value)} placeholder="Search this facet" type="search" value={query}/></div>}
-    <div aria-label={groupLabel} className="filter-chips" role="group"><button aria-pressed={selected.length === 0} className="filter-chip" onClick={onClear} type="button">All</button>{visible.map((option) => <button aria-pressed={selected.includes(option.value)} className="filter-chip" key={option.value} onClick={() => onToggle(option.value)} type="button">{option.value} ({option.count})</button>)}</div>
+    <div aria-label={groupLabel} className="filter-chips" role="group"><button aria-pressed={selected.length === 0} className="filter-chip" onClick={onClear} type="button"><span className="filter-chip__label">All</span></button>{visible.map((option) => {
+      const display = formatOption?.(option.value) ?? { label: option.value }
+      const accessibleLabel = formatOption ? `${display.label}. Full source: ${option.value}. ${option.count} matches` : `${option.value} (${option.count})`
+      return <button aria-label={accessibleLabel} aria-pressed={selected.includes(option.value)} className="filter-chip" key={option.value} onClick={() => onToggle(option.value)} title={formatOption ? option.value : undefined} type="button"><span className="filter-chip__copy"><span className="filter-chip__label">{display.label}</span>{display.detail && <span className="filter-chip__detail">{display.detail}</span>}</span><span aria-hidden="true" className="filter-chip__count">{option.count}</span></button>
+    })}</div>
     {omitted > 0 && <small className="bounded-facet-options__summary" role="status">Showing the first {visible.length} of {filtered.length} options. Search this facet to reach the remaining {omitted}.</small>}
     {searchable && filtered.length === 0 && <small className="bounded-facet-options__summary" role="status">No facet options match this search.</small>}
   </div>
