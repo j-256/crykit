@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { offlinePlugin } from './scripts/offline-plugin'
+import { offlinePlugin } from './scripts/offline-plugin.ts'
 
 export default defineConfig({
   base: './',

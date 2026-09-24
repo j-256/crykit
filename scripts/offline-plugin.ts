@@ -10,7 +10,7 @@ export function offlinePlugin(): Plugin {
     name: 'crystal-companion-offline',
     apply: 'build',
     configResolved(config) { publicDirectory = config.publicDir },
-    generateBundle(_, bundle) {
+    generateBundle: { order: 'post', handler(_, bundle) {
       const assets = [...Object.keys(bundle), ...publicAssets].sort()
       const digest = createHash('sha256')
       for (const filename of publicAssets) {
@@ -28,8 +28,9 @@ const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(version)};
 const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
 const indexUrl = new URL('index.html', self.registration.scope).href;
+const prepareCache = () => caches.open(CACHE_NAME).then(cache => cache.addAll(assetUrls.map(url => new Request(url, { cache: 'reload' }))));
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assetUrls)));
+  event.waitUntil(prepareCache());
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
@@ -40,10 +41,13 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('message', event => {
   if (event.data?.type === 'ACTIVATE_UPDATE') self.skipWaiting();
-  if (event.data?.type === 'CHECK_READINESS') {
+  if (event.data?.type === 'CHECK_READINESS' || event.data?.type === 'PREPARE_CACHE') {
     event.waitUntil((async () => {
+      if (event.data.type === 'PREPARE_CACHE') {
+        try { await prepareCache(); } catch { event.ports[0]?.postMessage({ ready: false }); return; }
+      }
       const cache = await caches.open(CACHE_NAME);
-      const matches = await Promise.all(assetUrls.map(url => cache.match(url)));
+      const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
       event.ports[0]?.postMessage({ ready: matches.every(Boolean), version: ${JSON.stringify(version)} });
     })());
   }
@@ -57,12 +61,13 @@ self.addEventListener('fetch', event => {
   if (!isNavigation && !assetUrls.includes(url.href)) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(isNavigation ? indexUrl : request);
+    // Only immutable build assets and the static shell use this URL-only cache
+    const cached = await cache.match(isNavigation ? indexUrl : url.href, { ignoreVary: true });
     return cached || fetch(request);
   })());
 });
 `
       this.emitFile({ type: 'asset', fileName: 'sw.js', source })
-    },
+    } },
   }
 }

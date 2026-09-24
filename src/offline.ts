@@ -22,7 +22,7 @@ export function subscribeOfflineStatus(listener: (value: OfflineStatus) => void)
   return () => { listeners.delete(listener) }
 }
 
-async function inspectCache(): Promise<OfflineStatus> {
+async function inspectCache(prepare = false): Promise<OfflineStatus> {
   const worker = registration?.active
   if (!worker) return publish({ state: 'not-ready', detail: 'The offline download has not finished.' })
   const ready = await new Promise<boolean>((resolve) => {
@@ -33,7 +33,7 @@ async function inspectCache(): Promise<OfflineStatus> {
       channel.port1.close()
       resolve(event.data.ready === true)
     }
-    worker.postMessage({ type: 'CHECK_READINESS' }, [channel.port2])
+    worker.postMessage({ type: prepare ? 'PREPARE_CACHE' : 'CHECK_READINESS' }, [channel.port2])
   })
   return publish({
     state: ready ? 'ready' : 'not-ready',
@@ -91,7 +91,8 @@ async function prepareOffline(): Promise<OfflineStatus> {
         void navigator.serviceWorker.ready.then(() => { clearTimeout(timer); resolve() })
       })
     }
-    return await inspectCache()
+    const inspected = await inspectCache()
+    return inspected.state === 'ready' ? inspected : await inspectCache(true)
   } catch (error) {
     return publish({ state: 'error', detail: error instanceof Error ? error.message : 'Unable to cache the application.' })
   }
