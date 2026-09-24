@@ -62,4 +62,4 @@ if (findings.length) {
   console.error(findings.join('\n'))
   process.exit(1)
 }
-console.log('Privacy check passed. Only application source and synthetic fixtures are eligible for publication.')
+console.log('Privacy check passed: no prohibited artifacts or content patterns found.')

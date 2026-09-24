@@ -1,4 +1,5 @@
 import { zipSync, type Zippable } from 'fflate'
+import { STARTER_CATALOG } from '../catalog'
 import type {
   CatalogSnapshot,
   ChangeEntry,
@@ -126,6 +127,29 @@ async function assertCatalogsImmutable(
       })
     }
   }
+}
+
+function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): void {
+  for (const catalog of catalogs) {
+    if (catalogKey(catalog) !== catalogKey(STARTER_CATALOG)) continue
+    if (jsonEqual(catalog, STARTER_CATALOG)) continue
+    throw new AppDataError('import-conflict', 'A catalog revision conflicts with the built-in starter catalog', {
+      recoverable: true,
+      details: { catalogId: catalog.id, revisionId: catalog.revisionId },
+    })
+  }
+}
+
+async function ensureStarterCatalog(database: CrystalCompanionDatabase): Promise<void> {
+  await database.transaction('rw', database.catalogs, async () => {
+    const key = catalogKey(STARTER_CATALOG)
+    const existing = await database.catalogs.get(key)
+    if (existing) {
+      await assertCatalogsImmutable(database, [STARTER_CATALOG])
+      return
+    }
+    await database.catalogs.add(toCatalogRecord(STARTER_CATALOG))
+  })
 }
 
 async function initializeBlankRecord(database: CrystalCompanionDatabase): Promise<ProfileRecord> {
@@ -285,7 +309,7 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
   const keys = catalogReferences(record.profile)
   const digests = profileImportDigests(record.profile)
   const catalogRecords = (await database.catalogs.toArray()).filter(
-    (candidate) => keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? ''),
+    (candidate) => candidate.key === catalogKey(STARTER_CATALOG) || keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? ''),
   )
   for (const catalog of catalogRecords) {
     const digest = /^sha256:(.+)$/.exec(catalog.checksum)?.[1]
@@ -311,6 +335,7 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
 export async function loadWorkspace(profileId?: ProfileId): Promise<Workspace> {
   const database = getDatabase()
   try {
+    await ensureStarterCatalog(database)
     const record = await resolveProfileRecord(database, profileId)
     return await workspaceForRecord(database, record)
   } catch (error) {
@@ -560,6 +585,7 @@ export async function commitImport(
         database.meta,
       ],
       async () => {
+        assertStarterCatalogIdentity(preview.proposed.catalogs)
         if (mode === 'new-profile') {
           const repeatedImport = await database.imports.where('sourceDigest').equals(preview.sourceDigest).first()
           if (repeatedImport) {

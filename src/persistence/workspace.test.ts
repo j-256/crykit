@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createPersonalDefinition } from '../domain/profile'
+import { STARTER_CATALOG } from '../catalog'
+import { createBlankProfile, createPersonalDefinition } from '../domain/profile'
 import { asId } from '../domain/core'
+import { observeInventory } from '../domain/inventory'
 import { MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import type { ImportPreview } from '../interchange/types'
 import type { PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
@@ -120,6 +122,85 @@ describe('workspace persistence', () => {
     const workspaces = await Promise.all(Array.from({ length: 4 }, () => loadWorkspace()))
     expect(new Set(workspaces.map((workspace) => workspace.profile.id)).size).toBe(1)
     expect(await database.profiles.count()).toBe(1)
+    expect(await database.catalogs.count()).toBe(1)
+  })
+
+  it('makes starter names available to every profile without inventing personal observations', async () => {
+    const first = await loadWorkspace()
+    const second = await createProfile('Another empty playthrough')
+    for (const workspace of [first, second]) {
+      expect(workspace.catalogs).toContainEqual(STARTER_CATALOG)
+      expect(workspace.profile.inventory).toEqual({})
+      expect(workspace.profile.characters).toEqual({})
+      expect(workspace.profile.progress).toEqual({})
+      expect(workspace.profile.importReceipts).toEqual({})
+      expect(workspace.revision).toBe(0)
+      expect(workspace.canUndo).toBe(false)
+    }
+    expect(await database.catalogs.count()).toBe(1)
+    expect((await loadWorkspace(first.profile.id)).profile).toEqual(first.profile)
+  })
+
+  it('restores a missing starter catalog without replacing an existing playthrough', async () => {
+    const workspace = await loadWorkspace()
+    const saved = await saveProfile({ ...workspace.profile, label: 'Existing playthrough' }, workspace.revision)
+    await database.catalogs.clear()
+    const reopened = await loadWorkspace(saved.id)
+    expect(reopened.profile).toEqual(saved)
+    expect(reopened.catalogs).toContainEqual(STARTER_CATALOG)
+    expect(reopened.canUndo).toBe(true)
+  })
+
+  it('backs up selected starter definitions without requiring an imported source archive', async () => {
+    const workspace = await loadWorkspace()
+    const item = Object.values(STARTER_CATALOG.entities).find((entity) => entity.kind === 'item')!
+    const observed = observeInventory(workspace.profile, {
+      ref: { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: item.id },
+      possession: 'owned',
+      quantity: { kind: 'exact', value: 1 },
+    })
+    const saved = await saveProfile(observed, workspace.revision)
+    const backup = await exportBackup(saved.id)
+    const preview = await previewImport(backup, 'starter-selection.zip')
+    expect(preview.proposed.catalogs).toContainEqual(STARTER_CATALOG)
+    expect(preview.proposed.profile.inventory).toEqual(saved.inventory)
+    expect(preview.proposed.sources).toEqual([])
+  })
+
+  it('rejects a conflicting reserved starter revision before writing import data', async () => {
+    const original = Object.values(STARTER_CATALOG.entities)[0]!
+    const conflictingCatalog = {
+      ...STARTER_CATALOG,
+      entities: {
+        ...STARTER_CATALOG.entities,
+        [original.id]: { ...original, name: `${original.name} altered` },
+      },
+    }
+    const profile = createBlankProfile({ label: 'Conflicting import' })
+    const preview = {
+      id: 'preview:starter-conflict',
+      filename: 'starter-conflict.zip',
+      detectedFormat: 'native-backup-1.0.0',
+      detectedSchema: '1.0.0',
+      sourceDigest: 'f'.repeat(64),
+      counts: { reference: 1, personal: 1, mixed: 0, ignored: 0 },
+      warnings: [],
+      errors: [],
+      profile: { label: profile.label, identity: profile.id },
+      proposed: {
+        profile,
+        lineage: { rootProfileId: profile.id },
+        catalogs: [conflictingCatalog],
+        evidence: [],
+        sources: [],
+        history: [],
+      },
+    } satisfies ImportPreview
+
+    await expect(commitImport(preview)).rejects.toMatchObject({ code: 'import-conflict', recoverable: true })
+    expect(await database.profiles.count()).toBe(0)
+    expect(await database.catalogs.count()).toBe(0)
+    expect(await database.imports.count()).toBe(0)
   })
 
   it('lists, creates, and selects profiles without replacing existing records', async () => {
@@ -344,11 +425,12 @@ describe('workspace persistence', () => {
       base_equipment: [{ item_id: 'fixture:reference-only', name: 'Reference-only fixture' }],
     }), 'reference-only.json')
     const imported = await commitImport(preview)
-    expect(imported.catalogs[0]?.entities['fixture:reference-only']?.name).toBe('Reference-only fixture')
     const loaded = await loadWorkspace(imported.profile.id)
-    expect(loaded.catalogs[0]?.entities['fixture:reference-only']?.name).toBe('Reference-only fixture')
     const restored = await previewImport(await exportBackup(imported.profile.id), 'reference-only-backup.zip')
-    expect(restored.proposed.catalogs[0]?.entities['fixture:reference-only']?.name).toBe('Reference-only fixture')
+    for (const catalogs of [imported.catalogs, loaded.catalogs, restored.proposed.catalogs]) {
+      const reference = catalogs.find((catalog) => catalog.id === preview.proposed.catalogs[0]?.id)
+      expect(reference?.entities['fixture:reference-only']?.name).toBe('Reference-only fixture')
+    }
   })
 
   it('keeps historical acquisition separate from stock and retains source bytes through a fork', async () => {
