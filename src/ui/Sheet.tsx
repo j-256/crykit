@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { IconButton } from './components'
 
@@ -69,7 +69,7 @@ function focusableElements(dialog: HTMLDialogElement) {
   })
 }
 
-export function Sheet({ open, title, description, onClose, onRequestClose, footer, children, width = 'standard', universalSearch = false, layer = 0 }: PropsWithChildren<{ open: boolean; title: string; description?: string; onClose: () => void; onRequestClose?: () => boolean; footer?: ReactNode; width?: 'standard' | 'wide' | 'command'; universalSearch?: boolean; layer?: number }>) {
+export function Sheet({ open, title, description, onClose, onRequestClose, footer, children, width = 'standard', universalSearch = false, layer = 0, initialFocusRef }: PropsWithChildren<{ open: boolean; title: string; description?: string; onClose: () => void; onRequestClose?: () => boolean; footer?: ReactNode; width?: 'standard' | 'wide' | 'command'; universalSearch?: boolean; layer?: number; initialFocusRef?: RefObject<HTMLElement | null> }>) {
   const titleId = useId()
   const descriptionId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -92,7 +92,27 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
   useEffect(() => {
     const dialog = dialogRef.current
     if (!open || !dialog) return
+    // Native autofocus runs when showModal opens the dialog, after React mounts it
+    if (initialFocusRef?.current) initialFocusRef.current.autofocus = true
     closeNotifiedRef.current = false
+    let backdropPointerDown = false
+    const isBackdrop = (event: MouseEvent) => {
+      if (event.target !== dialog || openSheetStack.at(-1)?.dialog !== dialog) return false
+      const bounds = dialog.getBoundingClientRect()
+      return event.clientX < bounds.left || event.clientX >= bounds.right || event.clientY < bounds.top || event.clientY >= bounds.bottom
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      backdropPointerDown = event.isPrimary && event.button === 0 && isBackdrop(event)
+    }
+    const handlePointerCancel = () => { backdropPointerDown = false }
+    const handleClick = (event: MouseEvent) => {
+      const dismiss = backdropPointerDown && isBackdrop(event)
+      backdropPointerDown = false
+      if (!dismiss) return
+      event.preventDefault()
+      event.stopPropagation()
+      requestClose()
+    }
     const handleClose = () => {
       if (reorderingSheets.delete(dialog)) return
       if (dialog.open) return
@@ -136,18 +156,24 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
     dialog.addEventListener('close', handleClose)
     dialog.addEventListener('cancel', handleCancel)
     dialog.addEventListener('keydown', handleKeyDown)
+    dialog.addEventListener('pointerdown', handlePointerDown)
+    dialog.addEventListener('pointercancel', handlePointerCancel)
+    dialog.addEventListener('click', handleClick)
     document.body.classList.add('has-sheet')
     return () => {
       dialog.removeEventListener('close', handleClose)
       dialog.removeEventListener('cancel', handleCancel)
       dialog.removeEventListener('keydown', handleKeyDown)
+      dialog.removeEventListener('pointerdown', handlePointerDown)
+      dialog.removeEventListener('pointercancel', handlePointerCancel)
+      dialog.removeEventListener('click', handleClick)
       const stackIndex = openSheetStack.findIndex((entry) => entry.dialog === dialog)
       if (stackIndex >= 0) openSheetStack.splice(stackIndex, 1)
       forgetShownSheet(dialog)
       if (dialog.open) dialog.close()
       if (!document.querySelector('dialog.sheet-dialog[open]')) document.body.classList.remove('has-sheet')
     }
-  }, [layer, open])
+  }, [initialFocusRef, layer, open])
 
   if (!open) return null
   return createPortal(<dialog aria-describedby={description ? descriptionId : undefined} aria-labelledby={titleId} className={`sheet-dialog sheet-dialog--${width}`} data-sheet-layer={layer} data-universal-search={universalSearch ? 'true' : undefined} ref={dialogRef}><section className="sheet"><header className="sheet__header"><div><p className="eyebrow">Crystal Companion</p><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><IconButton icon="close" label="Close panel" onClick={requestClose}/></header><div className="sheet__body">{children}</div>{footer && <footer className="sheet__footer">{footer}</footer>}</section></dialog>, document.body)

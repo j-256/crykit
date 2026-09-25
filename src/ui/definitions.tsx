@@ -224,6 +224,7 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
+  const searchRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
   const pickerIndex = open ? navigation.route.overlays.findLastIndex((overlay) => overlay.kind === 'definition-picker') : -1
   const pickerOverlay = pickerIndex >= 0 ? navigation.route.overlays[pickerIndex] : undefined
@@ -275,7 +276,7 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
     else onClose()
   }, [navigation, onClose, onSelect, open, options, pendingSavedRef])
   return <>
-    <Sheet description={description} layer={pickerIndex + 1} onClose={onClose} open={open} title={title}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" autoFocus onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Name, alias, description, type, or source" type="search" value={query}/></div>
+    <Sheet description={description} initialFocusRef={searchRef} layer={pickerIndex + 1} onClose={onClose} open={open} title={title}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Name, alias, description, type, or source" ref={searchRef} type="search" value={query}/></div>
       <div className="picker-results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>
         {allowUnknown && <button className="picker-result" data-definition-result="true" onClick={() => choose(undefined)} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span><Badge>Unknown</Badge></button>}
         {allowEmpty && <button className="picker-result" data-definition-result="true" onClick={() => choose(null)} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span><Badge>Empty</Badge></button>}
