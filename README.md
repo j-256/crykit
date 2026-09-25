@@ -45,6 +45,8 @@ Assign checkpoints to a team scenario to check simultaneous stock, learning, PP,
 
 Definition fields open searchable pickers with inline creation and editing. The search field receives focus when a picker opens. Click outside a panel or press Escape to close its top layer; unsaved-draft checks still apply. An edit saves a separate personal override and preserves its source and earlier revisions. Ownership and learning follow the underlying identity; saved builds retain their exact definitions. Reference can collect reviewed personal definitions into a new ruleset revision without changing the active ruleset or existing selections.
 
+The inventory form starts with focus on the item picker and uses the selected item's name. Choose "Enter an unlisted item" to record something outside the list, or "Customize display name" to give a selected item a different inventory label. Clearing the optional display name or choosing "Use item name" restores the selected item's name without changing its definition.
+
 Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to search definitions, inventory, characters, builds, teams, and progress. Arrow keys move through results, Enter opens one, and Escape closes the search. Open forms and unsaved build edits must be finished before navigating to another record.
 
 Reference search supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.

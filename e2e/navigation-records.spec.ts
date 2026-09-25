@@ -43,6 +43,7 @@ async function expectActiveDialog(page: Page, title: string) {
 async function addInventoryItem(page: Page, name: string) {
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
+  await form.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await form.getByRole('textbox', { name: 'Item name', exact: true }).fill(name)
   await form.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(form).not.toBeVisible()
@@ -71,12 +72,17 @@ test('inventory edit routes hydrate exact records and reject missing identities'
 
   await setHash(page, `#/inventory/items/${encodeURIComponent(alpha.id)}/edit`)
   const editor = page.getByRole('dialog', { name: 'Edit inventory observation', exact: true })
-  await expect(editor.getByRole('textbox', { name: 'Item name', exact: true })).toHaveValue('Synthetic inventory alpha')
-  await editor.getByRole('textbox', { name: 'Item name', exact: true }).fill('Unsaved alpha draft')
+  await expect(editor.getByRole('button', { name: 'Choose Item definition', exact: true })).toContainText('Synthetic inventory alpha')
+  await editor.getByRole('button', { name: 'Customize display name', exact: true }).click()
+  await expect(editor.getByRole('textbox', { name: 'Display name', exact: true })).toHaveValue('Synthetic inventory alpha')
+  await editor.getByRole('textbox', { name: 'Display name', exact: true }).fill('Unsaved alpha draft')
 
   await setHash(page, `#/inventory/items/${encodeURIComponent(beta.id)}/edit`)
-  await expect(editor.getByRole('textbox', { name: 'Item name', exact: true })).toHaveValue('Synthetic inventory beta')
-  await editor.getByRole('textbox', { name: 'Item name', exact: true }).fill('Synthetic inventory beta updated')
+  await expect(editor.getByRole('button', { name: 'Choose Item definition', exact: true })).toContainText('Synthetic inventory beta')
+  await expect(editor.getByRole('textbox', { name: 'Display name', exact: true })).not.toBeVisible()
+  await editor.getByRole('button', { name: 'Customize display name', exact: true }).click()
+  await expect(editor.getByRole('textbox', { name: 'Display name', exact: true })).toHaveValue('Synthetic inventory beta')
+  await editor.getByRole('textbox', { name: 'Display name', exact: true }).fill('Synthetic inventory beta updated')
   await editor.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(editor).not.toBeVisible()
 

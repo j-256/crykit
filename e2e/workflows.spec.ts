@@ -29,6 +29,7 @@ async function closeData(page: Page) {
 async function addItem(page: Page, name: string, count?: number) {
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Add inventory item' })
+  await dialog.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await dialog.getByLabel('Item name').fill(name)
   if (count !== undefined) {
     await dialog.getByLabel('Current possession').selectOption('owned')
@@ -362,6 +363,7 @@ test('stale tabs cannot overwrite a saved profile and can export their recovery 
   await expect(stale.getByText('Another tab changed this profile', { exact: true })).toBeVisible()
   await stale.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = stale.getByRole('dialog', { name: 'Add inventory item' })
+  await dialog.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await dialog.getByLabel('Item name').fill('Unsaved in stale tab')
   await dialog.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(stale.getByText('Local save failed', { exact: true }).first()).toBeAttached()
@@ -385,6 +387,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   })
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Add inventory item' })
+  await dialog.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await dialog.getByLabel('Item name').fill('Recovery-only observation')
   await dialog.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(page.getByText('Local save failed', { exact: true }).first()).toBeAttached()
@@ -411,6 +414,7 @@ test('retry persists one retained observation after a transient storage failure'
   })
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Add inventory item' })
+  await form.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await form.getByLabel('Item name').fill('Retry once keepsake')
   await form.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(page.getByText('Local save failed', { exact: true }).first()).toBeAttached()
@@ -458,6 +462,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await closeData(page)
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
     const entry = page.getByRole('dialog', { name: 'Add inventory item' })
+    await entry.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
     await entry.getByLabel('Item name').fill('Keep this unsaved form')
     generation = 2
     await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update() })

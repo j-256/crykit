@@ -52,6 +52,7 @@ async function addStock(page: Page) {
   await navigate(page, 'Inventory')
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Add inventory item' })
+  await form.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
   await form.getByLabel('Item name').fill('Synthetic shared staff')
   await form.getByLabel('Current possession').selectOption('owned')
   await form.getByLabel('Quantity certainty').selectOption('exact')

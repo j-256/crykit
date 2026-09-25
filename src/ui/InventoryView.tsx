@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { entityDefinitionKey, partitionQuery } from '../domain'
 import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
@@ -44,10 +44,21 @@ function blankDraft(): InventoryDraft {
 function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?: InventoryDraft; onCancel: () => void; onSubmit: (draft: InventoryDraft) => Promise<void> | void; submitLabel: string }) {
   const { options } = useDefinitionWorkspace()
   const [draft, setDraft] = useState(initial ?? blankDraft())
+  const selected = findDefinitionOption(options, draft.ref)
+  const [editingName, setEditingName] = useState(Boolean(initial && initial.name !== selected?.name))
+  const focusNameOnMount = useRef(false)
+  const nameHintId = useId()
+  const name = draft.name.trim() || selected?.name || ''
   const [quantityKind, setQuantityKind] = useState<Quantity['kind']>(draft.quantity.kind)
   const [quantityValue, setQuantityValue] = useState(draft.quantity.kind === 'unknown' ? 1 : draft.quantity.value)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const selectItem = (ref: EntityRef | null | undefined) => {
+    if (ref && draft.ref && entityDefinitionKey(ref) === entityDefinitionKey(draft.ref)) return
+    const option = findDefinitionOption(options, ref)
+    setDraft({ ...draft, ref: ref ?? undefined, name: option?.name ?? name })
+    setEditingName(!option)
+  }
   const selectPossession = (possession: PossessionState) => {
     setDraft({ ...draft, possession })
     if (possession === 'notOwned') { setQuantityKind('exact'); setQuantityValue(0) }
@@ -59,7 +70,7 @@ function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?:
     setBusy(true)
     setError(undefined)
     try {
-      await onSubmit({ ...draft, quantity: quantityKind === 'unknown' ? { kind: 'unknown' } : { kind: quantityKind, value: Math.max(0, quantityValue) } })
+      await onSubmit({ ...draft, name, quantity: quantityKind === 'unknown' ? { kind: 'unknown' } : { kind: quantityKind, value: Math.max(0, quantityValue) } })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The inventory observation could not be saved.')
     } finally {
@@ -67,15 +78,40 @@ function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?:
     }
   }
   return <form className="stack" id="inventory-entry" onSubmit={submit}>
-    <DefinitionPickerField allowedKinds={['item']} hint="Search an exact definition, create a personal item, or keep the reference unknown." label="Item definition" onChange={(ref) => { const selected = findDefinitionOption(options, ref); setDraft({ ...draft, ref: ref ?? undefined, name: selected?.name ?? draft.name }) }} routeKey="item-definition" value={draft.ref}/>
-    <Field label="Item name" required><input autoComplete="off" autoFocus name="name" onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Enter the name shown in game" required value={draft.name}/></Field>
+    <DefinitionPickerField allowedKinds={['item']} autoFocus hint="Search for an item or create one in the picker." label="Item definition" onChange={selectItem} routeKey="item-definition" value={draft.ref}/>
+    <div className="stack">
+      {(selected || !editingName) && <Button onClick={() => {
+        if (selected && editingName) {
+          setDraft({ ...draft, name: selected.name })
+          setEditingName(false)
+        } else {
+          focusNameOnMount.current = true
+          setEditingName(true)
+        }
+      }} tone="quiet" type="button">{selected ? editingName ? 'Use item name' : 'Customize display name' : 'Enter an unlisted item'}</Button>}
+      {editingName && <div className="field">
+        <Field label={selected ? 'Display name' : 'Item name'} required={!selected}>
+          <input
+            aria-describedby={nameHintId}
+            autoComplete="off"
+            name="name"
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            placeholder={selected?.name ?? 'Enter the name shown in game'}
+            ref={(input) => { if (input && focusNameOnMount.current) { focusNameOnMount.current = false; input.focus() } }}
+            required={!selected}
+            value={draft.name}
+          />
+        </Field>
+        <small className="field__hint" id={nameHintId}>{selected ? 'Optional. Leave blank to use the item name. This changes only its name in your inventory.' : 'Use the name shown in game.'}</small>
+      </div>}
+    </div>
     <div className="grid-2"><Field label="Current possession"><select onChange={(event) => selectPossession(event.target.value as PossessionState)} value={draft.possession}><option value="unknown">Current possession unknown</option><option value="owned">Owned now</option><option value="notOwned">Not currently owned</option></select></Field><Field label="Quantity certainty"><select disabled={draft.possession === 'notOwned'} onChange={(event) => setQuantityKind(event.target.value as Quantity['kind'])} value={quantityKind}><option value="unknown">Unknown count</option><option value="atLeast">At least</option><option value="exact">Exact count</option></select></Field></div>
     {quantityKind !== 'unknown' && <Field hint="Total stock includes equipped copies." label={quantityKind === 'exact' ? 'Current count' : 'Known minimum'}><input inputMode="numeric" min="0" onChange={(event) => setQuantityValue(event.target.valueAsNumber || 0)} type="number" value={quantityValue}/></Field>}
     <div className="grid-2"><Field label="Protected copies"><input inputMode="numeric" min="0" onChange={(event) => setDraft({ ...draft, protectedQuantity: event.target.valueAsNumber || 0 })} type="number" value={draft.protectedQuantity}/></Field><Field hint={initial?.observedAt ? 'Clear this field to explicitly remove the saved observation date.' : undefined} label="Observed on"><input onChange={(event) => setDraft({ ...draft, observedAt: event.target.value || (initial?.observedAt ? null : undefined) })} type="date" value={draft.observedAt?.slice(0, 10) ?? ''}/></Field></div>
     <div className="grid-2"><label className="check-row"><input checked={draft.favorite} onChange={(event) => setDraft({ ...draft, favorite: event.target.checked })} type="checkbox"/><span><strong>Favorite</strong><small>Keep this item easy to find</small></span></label><label className="check-row"><input checked={draft.wishlist} onChange={(event) => setDraft({ ...draft, wishlist: event.target.checked })} type="checkbox"/><span><strong>Wishlist</strong><small>A desired item, separate from possession</small></span></label></div>
     <Field label="Note"><textarea onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} placeholder="Optional observation or reminder" value={draft.note ?? ''}/></Field>
-    <InlineNotice title={draft.ref?.kind === 'catalog' ? 'Catalog-linked observation' : 'Manual observation'}>{draft.ref?.kind === 'catalog' ? 'This records current inventory against the selected exact catalog definition.' : 'This creates a personal item definition and a separate inventory observation. You can link it to an imported reference later.'}</InlineNotice>{error && <InlineNotice title="Observation not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
-    <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="check" type="submit">{busy ? 'Saving...' : submitLabel}</Button></div>
+    {draft.ref ? <InlineNotice title={draft.ref.kind === 'catalog' ? 'Catalog-linked observation' : 'Personal item observation'}>This records current inventory for the selected item.</InlineNotice> : editingName && <InlineNotice title="Unlisted item">Saving creates a personal item and records its current inventory. You can link it to a reference later.</InlineNotice>}{error && <InlineNotice title="Observation not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
+    <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !name} icon="check" type="submit">{busy ? 'Saving...' : submitLabel}</Button></div>
   </form>
 }
 
