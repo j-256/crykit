@@ -50,6 +50,8 @@ Restore defaults to an independent profile when the same profile identity exists
 
 ## Native backup structure
 
+Character snapshots can carry `rulesetRevisionId`, pinning their recorded slot labels and order independently of the active ruleset. A supplied pin must reference a retained ruleset. Legacy snapshots without this field remain importable; their stored slot IDs are displayed without borrowing active labels. New captures pin the capture ruleset, and recording a build as current pins that build revision's ruleset. Capturing under a changed or previously unrecorded slot context requires selections to be recorded again. Backups retain these pins and all earlier snapshots.
+
 The manifest uses `format: "crystal-companion-backup"` and `formatVersion: "1.0.0"`. It names `bundle.json` and lists each retained source file's identity, filename, format, size, and SHA-256 digest. `bundle.json` contains the profile, lineage, immutable catalog snapshots, evidence, and retained history. Source files occupy declared `sources/*.bin` entries.
 
 The manifest reports how many undo checkpoints were available to the export and how many fit. If complete history would exceed the bounded payload, export keeps the newest checkpoints and marks history as truncated; preview reports that limitation. If no checkpoint fits, the exported command journal is cleared so a restored profile does not offer an unavailable Undo action. The complete current facts, required catalogs and evidence, and every referenced source file remain in the backup. Raw rows are retained in evidence alongside the original source bytes, while catalog legacy data contains only unnormalized package metadata so backups do not duplicate every row several times.

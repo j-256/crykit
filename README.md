@@ -39,7 +39,9 @@ Original workbooks, trackers, personal exports, and private screenshots do not b
 
 ## Plan a party
 
-Record current inventory and character observations, then configure the playthrough's ruleset and ordered slots in Data & settings. Create character builds or reusable templates, choose exact reference definitions, and save named checkpoints. Cloning makes a separate draft; editing a checkpoint creates a new immutable revision. When one equipped item occupies several slots, mark those selections as the same copy.
+Configure the playthrough's ruleset and ordered slots in Data & settings, then record current inventory and character observations. Create character builds or reusable templates, choose exact reference definitions, and save named checkpoints. Cloning makes a separate draft; editing a checkpoint creates a new immutable revision. When one equipped item occupies several slots, mark those selections as the same copy.
+
+Characters shows the latest recorded sheet with displayed stats beside equipment on desktop and compact rows on mobile. Slot actions open a new snapshot at that selection's picker; saving appends an observation. History can inspect a saved snapshot or compare two exact snapshots, showing changed fields first. Numeric differences require two known values with matching stat names and units and do not imply a cause. Character-bound draft and hypothetical builds link back to Builds & teams, where proposal revision history remains separate.
 
 Assign checkpoints to a team scenario to check simultaneous stock, learning, PP, equipment permissions, and source applicability. Alternative library builds do not reserve stock. Each dimension reports proved issues separately from facts that still need confirmation. Recording a build as current requires an explicit in-game confirmation and preserves the previous character snapshots.
 

@@ -1,5 +1,6 @@
 export * from './builds'
 export * from './characters'
+export * from './character-snapshots'
 export * from './comparison'
 export * from './core'
 export * from './definitions'

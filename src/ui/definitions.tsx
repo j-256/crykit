@@ -299,9 +299,18 @@ export function DefinitionPickerField({ label, hint, allowedKinds, value, disabl
   const fieldKey = routeKey ?? (label.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'definition')
   const picker = navigation.route.overlays.findLast((overlay) => overlay.kind === 'definition-picker')
   const open = picker?.kind === 'definition-picker' && picker.fieldKey === fieldKey
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(open)
+  useEffect(() => {
+    const restore = wasOpen.current && !open
+    wasOpen.current = open
+    if (!restore) return
+    const frame = window.requestAnimationFrame(() => triggerRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [open])
   if (open) pickerMemoryRef.current = { query: picker.query, resultLimit: picker.resultLimit }
   const selected = findDefinitionOption(options, value)
   const display = value === null ? 'Observed empty' : selected?.name ?? (value ? 'Unresolved exact definition' : 'Unknown or unrecorded')
   // Keep native autofocus available when the containing dialog opens
-  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" disabled={disabled} onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-picker', fieldKey, ...pickerMemoryRef.current }))} ref={(trigger) => { if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="search"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionPickerDialog allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
+  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" disabled={disabled} onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-picker', fieldKey, ...pickerMemoryRef.current }))} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="search"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionPickerDialog allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
 }

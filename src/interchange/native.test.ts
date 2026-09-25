@@ -1,6 +1,7 @@
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { createBlankProfile } from '../domain/profile'
+import { addTestCharacter, createTestProfile } from '../domain/test-helpers'
 import { previewNativeBackup } from './native'
 import { catalogSnapshotKey } from './identity'
 
@@ -58,6 +59,20 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
+  it('accepts legacy snapshot context and retains pinned context while rejecting dangling rulesets', async () => {
+    const pinned = addTestCharacter(createTestProfile(), 'synthetic')
+    const character = Object.values(pinned.characters)[0]!
+    const snapshot = character.snapshots[character.currentSnapshotId!]!
+    const fixture = (rulesetRevisionId: string | undefined) => nativeFixture({ mutateProfile: (profile) => {
+      Object.assign(profile, { ...pinned, changes: [], characters: { [character.id]: { ...character, snapshots: { [snapshot.id]: { ...snapshot, rulesetRevisionId } } } } })
+    } })
+    const imported = await previewNativeBackup(fixture(snapshot.rulesetRevisionId), 'pinned.zip')
+    expect(imported.proposed.profile.characters[character.id]?.snapshots[snapshot.id]?.rulesetRevisionId).toBe(snapshot.rulesetRevisionId)
+    const legacy = await previewNativeBackup(fixture(undefined), 'legacy.zip')
+    expect(legacy.proposed.profile.characters[character.id]?.snapshots[snapshot.id]).not.toHaveProperty('rulesetRevisionId')
+    await expect(previewNativeBackup(fixture('missing'), 'missing.zip')).rejects.toMatchObject({ code: 'schema-mismatch' })
+  })
+
   it('uses collision-safe catalog revision tuple keys', () => {
     expect(catalogSnapshotKey('a\u0000b', 'c')).not.toBe(catalogSnapshotKey('a', 'b\u0000c'))
   })

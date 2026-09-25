@@ -25,6 +25,9 @@ describe('semantic navigation routes', () => {
       { page: 'characters', view: 'new' },
       { page: 'characters', view: 'character', characterId: 'character / one', tab: 'magic' },
       { page: 'characters', view: 'snapshot-new', characterId: 'character / one' },
+      { page: 'characters', view: 'snapshot', characterId: 'character / one', snapshotId: 'snapshot / one' },
+      { page: 'characters', view: 'snapshot-compare', characterId: 'character / one' },
+      { page: 'characters', view: 'snapshot-pair', characterId: 'character / one', leftSnapshotId: 'snapshot / one', rightSnapshotId: 'snapshot / two' },
       { page: 'characters', view: 'class-new', characterId: 'character / one' },
       { page: 'characters', view: 'class-edit', characterId: 'character / one', ref: catalogRef },
       { page: 'characters', view: 'learning-new', characterId: 'character / one', learningKind: 'knowledge' },
@@ -66,6 +69,7 @@ describe('semantic navigation routes', () => {
         { page: 'progress', view: 'edit', recordId: id },
       ]),
       { page: 'builds', view: 'revision', buildId: 'build', revisionId: 'new' },
+      ...['search', 'pick', 'definitions'].map((id) => ({ page: 'characters', view: 'snapshot-pair', characterId: 'character', leftSnapshotId: id, rightSnapshotId: 'right' })),
       ...['search', 'pick', 'definitions'].map((id) => ({ page: 'builds', view: 'compare-pair', leftRevisionId: id, rightRevisionId: 'right' })),
     ] as unknown as PageRoute[]
 
@@ -81,6 +85,10 @@ describe('semantic navigation routes', () => {
     expect(parseAppRoute('#/reference/search?q=sword')).toMatchObject({ page: { page: 'reference', view: 'list' }, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parseAppRoute('#/characters/character-example/current/search')).toMatchObject({ page: { page: 'characters', view: 'character', characterId: 'character-example', tab: 'current' }, overlays: [{ kind: 'search' }] })
     expect(parseAppRoute('#/inventory/unknown/search').page.page).toBe('unresolved')
+    expect(parseAppRoute('#/characters/character/history/compare/search?q=staff')).toMatchObject({ page: { page: 'characters', view: 'snapshot-compare' }, overlays: [{ kind: 'search', query: 'staff' }] })
+    for (const hash of ['#/characters/c/history/snapshots/%E0%A4%A', '#/characters/c/history/compare/a', '#/characters/c/history/compare/a/b/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+    expect(parentRoute(parseAppRoute('#/characters/c/history/snapshots/s'))?.page).toEqual({ page: 'characters', view: 'character', characterId: 'c', tab: 'history' })
+    expect(parentRoute(parseAppRoute('#/characters/c/history/compare/a/b'))?.page).toEqual({ page: 'characters', view: 'character', characterId: 'c', tab: 'history' })
   })
 
   it('round-trips picker and editor descendants with every parent query intact', () => {

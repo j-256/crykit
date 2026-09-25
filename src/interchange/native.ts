@@ -385,6 +385,11 @@ function validateProfile(
   }
   for (const [id, character] of Object.entries(characters)) {
     const snapshots = assertIdMap(character.snapshots, `${label}.characters.${id}.snapshots`)
+    for (const [snapshotId, snapshot] of Object.entries(snapshots)) {
+      if (snapshot.rulesetRevisionId !== undefined && !Object.hasOwn(rulesets, stringValue(snapshot.rulesetRevisionId, `${label}.characters.${id}.snapshots.${snapshotId}.rulesetRevisionId`))) {
+        schemaError('A character snapshot references a missing ruleset revision', { id, snapshotId })
+      }
+    }
     if (
       character.currentSnapshotId !== undefined &&
       !snapshots[stringValue(character.currentSnapshotId, `${label}.characters.${id}.currentSnapshotId`)]

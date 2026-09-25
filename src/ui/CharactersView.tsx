@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { entityDefinitionKey } from '../domain'
 import type {
   CatalogEntityKind,
@@ -12,13 +12,16 @@ import type {
   LearnedNodeKind,
   ObservedStat,
   Profile,
+  RulesetRevisionId,
   SlotDefinition,
 } from '../domain/types'
-import { Badge, Button, DefinitionRow, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
-import { activeRuleset, entityName, formatRelativeDate, initials, knowledgeLabel, ownRecordValue } from './model'
+import { Badge, Button, EmptyState, Field, IconButton, InlineNotice } from './components'
+import { activeRuleset, entityName, knowledgeLabel, ownRecordValue } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField } from './definitions'
-import { useNavigation, type CharactersPageRoute, type CharacterTab } from './navigation'
+import { routeWithoutOverlays, useNavigation, useNavigationBlocker, type CharactersPageRoute, type CharacterTab } from './navigation'
+import { CharacterSheet } from './CharacterSheet'
+import { CharacterHistory } from './CharacterHistory'
 
 const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
@@ -30,6 +33,7 @@ export interface CharacterDraft {
 }
 
 export interface SnapshotDraft {
+  readonly rulesetRevisionId?: RulesetRevisionId
   readonly level: Knowledge<number>
   readonly primaryClass: Knowledge<EntityRef>
   readonly secondaryClass: Knowledge<EntityRef>
@@ -130,14 +134,15 @@ function AddCharacterForm({ onCancel, onSubmit }: { readonly onCancel: () => voi
   return <form className="stack" onSubmit={submit}><Field label="Character name" required><input autoFocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Name used in your playthrough" required value={draft.name}/></Field><Field hint="Optional visual shorthand, kept separate from identity." label="Appearance label"><input onChange={(event) => setDraft({ ...draft, appearanceLabel: event.target.value || undefined })} placeholder="For example: blue cloak" value={draft.appearanceLabel ?? ''}/></Field><InlineNotice title="Blank character record">Creating a character does not infer classes, equipment, mastery, or learned abilities.</InlineNotice>{error && <InlineNotice title="Character not added" tone="danger">{error}</InlineNotice>}<div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="plus" type="submit">{busy ? 'Adding...' : 'Add character'}</Button></div></form>
 }
 
-function snapshotDraft(initial?: CharacterSnapshot): SnapshotDraft {
+function snapshotDraft(rulesetRevisionId: RulesetRevisionId | undefined, initial?: CharacterSnapshot): SnapshotDraft {
   return {
+    rulesetRevisionId,
     level: initial?.level ?? UNKNOWN_NUMBER,
     primaryClass: initial?.primaryClass ?? UNKNOWN_REF,
     secondaryClass: initial?.secondaryClass ?? UNKNOWN_REF,
     displayedStats: initial?.displayedStats ?? {},
     ppCapacity: initial?.ppCapacity ?? UNKNOWN_NUMBER,
-    selections: initial?.selections ?? {},
+    selections: initial?.rulesetRevisionId === rulesetRevisionId ? initial?.selections ?? {} : {},
   }
 }
 
@@ -152,19 +157,38 @@ function slotEntityKinds(slot: SlotDefinition): readonly CatalogEntityKind[] {
   return slot.kind === 'passive' ? ['passive', 'innate'] : ['item']
 }
 
-function SnapshotForm({ profile, initial, onCancel, onSubmit }: {
+function SnapshotForm({ profile, initial, onSubmit }: {
   readonly profile: Profile
   readonly initial?: CharacterSnapshot
-  readonly onCancel: () => void
   readonly onSubmit: (draft: SnapshotDraft) => Promise<void>
 }) {
   const navigation = useNavigation()
   const ruleset = activeRuleset(profile)
-  const [draft, setDraft] = useState<SnapshotDraft>(() => snapshotDraft(initial))
+  const [draft, setDraft] = useState<SnapshotDraft>(() => snapshotDraft(ruleset?.id, initial))
   const [stats, setStats] = useState<StatRow[]>(() => snapshotStatRows(initial))
   const [nextStatId, setNextStatId] = useState(stats.length)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [closeWarning, setCloseWarning] = useState(false)
+  const scope = useRef(routeWithoutOverlays(navigation.route))
+  const initialSignature = useRef(JSON.stringify({ draft, stats }))
+  const dirty = JSON.stringify({ draft, stats }) !== initialSignature.current
+  const exitAllowed = useRef(false)
+  const blocked = useRef(false)
+  blocked.current = !exitAllowed.current && (dirty || busy)
+  useNavigationBlocker(scope.current, () => blocked.current, () => setCloseWarning(true))
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (blocked.current) { event.preventDefault(); event.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => window.removeEventListener('beforeunload', beforeUnload)
+  }, [])
+  const finish = () => { exitAllowed.current = true; blocked.current = false; navigation.close() }
+  const requestClose = () => {
+    if (blocked.current) { setCloseWarning(true); return false }
+    return true
+  }
   const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
   const missingPicker = Boolean(pickerOverlay?.fieldKey.startsWith('slot:') && !ruleset?.slots.some((slot) => slot.id === pickerOverlay.fieldKey.slice(5)))
   const submit = async (event: FormEvent) => {
@@ -183,10 +207,12 @@ function SnapshotForm({ profile, initial, onCancel, onSubmit }: {
     }
     setBusy(true)
     const displayedStats = Object.fromEntries(namedStats.map((stat) => [stat.key, { value: stat.value, unit: stat.unit.trim() || 'displayed' }]))
-    try { await onSubmit({ ...draft, displayedStats }) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The snapshot could not be saved.') } finally { setBusy(false) }
+    try { await onSubmit({ ...draft, displayedStats }); finish() } catch (reason) { setError(reason instanceof Error ? reason.message : 'The snapshot could not be saved.') } finally { setBusy(false) }
   }
   const updateStat = (id: number, patch: Partial<StatRow>) => setStats((current) => current.map((stat) => stat.id === id ? { ...stat, ...patch } : stat))
-  return <form className="stack" onSubmit={submit}>
+  return <Sheet description="Record a new observation. Earlier snapshots stay unchanged." onClose={() => navigation.close()} onRequestClose={requestClose} open title="Capture character snapshot" width="wide"><form className="stack" onSubmit={submit}>
+    {closeWarning && <InlineNotice title="Unsaved snapshot" tone="warning">Save this snapshot or choose {error ? 'Close form' : 'Cancel and discard'} before leaving.</InlineNotice>}
+    {initial && initial.rulesetRevisionId !== ruleset?.id && <InlineNotice title="Record selections again" tone="warning">The previous snapshot has different or unrecorded slot context. Its selections have not been copied into this ruleset.</InlineNotice>}
     {initial && <InlineNotice title="Starting from the latest snapshot">Review the carried-forward values before saving this new observation. The observation date and note start blank.</InlineNotice>}
     <div className="grid-2"><NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/><NumberKnowledgeField hint="Displayed capacity, not inferred from selections." label="PP capacity" min={0} onChange={(ppCapacity) => setDraft({ ...draft, ppCapacity })} value={draft.ppCapacity}/></div>
     <div className="grid-2"><DefinitionPickerField allowedKinds={['class']} label="Primary class" onChange={(ref) => setDraft({ ...draft, primaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="primary-class" value={selectedRef(draft.primaryClass)}/><DefinitionPickerField allowedKinds={['class']} label="Secondary class" onChange={(ref) => setDraft({ ...draft, secondaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="secondary-class" value={selectedRef(draft.secondaryClass)}/></div>
@@ -207,8 +233,8 @@ function SnapshotForm({ profile, initial, onCancel, onSubmit }: {
     {missingPicker && <InlineNotice title="Character field unavailable" tone="warning">The requested slot is not part of the active ruleset. No other slot was opened. <Button onClick={() => navigation.close()} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     <InlineNotice title="Observed totals stay observed">Displayed values are not recalculated or treated as base stats. Personal definitions are saved separately from this observation.</InlineNotice>
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
-    <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>
-  </form>
+    <div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">{error ? 'Close form' : dirty ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>
+  </form></Sheet>
 }
 
 function ClassProgressForm({ initial, onCancel, onSubmit }: {
@@ -280,14 +306,10 @@ export function CharactersView({ profile, catalogs, onAdd, onCapture, onUpsertCl
   const selectedId = 'characterId' in page ? page.characterId : undefined
   const selected = selectedId ? ownRecordValue(profile.characters, selectedId) : undefined
   const missingCharacter = Boolean(selectedId && !selected)
-  const tab: CharacterTab = page.view === 'character' ? page.tab : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current'
+  const tab: CharacterTab = page.view === 'character' ? page.tab : page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'history' : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current'
   const adding = page.view === 'new'
   const capturing = page.view === 'snapshot-new' && Boolean(selected)
   const snapshot = selected?.currentSnapshotId ? ownRecordValue(selected.snapshots, selected.currentSnapshotId) : undefined
-  const orderedSlots = useMemo(() => {
-    const ruleset = activeRuleset(profile)
-    return [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order)
-  }, [profile])
 
   const classRows = selected ? Object.values(selected.classProgress) : []
   const knowledgeRows = selected ? Object.values(selected.learnedNodes).filter((node) => node.kind !== 'monsterMagic') : []
@@ -309,22 +331,24 @@ export function CharactersView({ profile, catalogs, onAdd, onCapture, onUpsertCl
   }, [characters, navigation.route.overlays.length, page.view])
 
   const add = async (draft: CharacterDraft) => { await onAdd(draft); navigation.close() }
-  const capture = async (draft: SnapshotDraft) => { if (!selected) return; await onCapture(selected.id, draft); navigation.close() }
+  const capture = async (draft: SnapshotDraft) => { if (!selected) return; await onCapture(selected.id, draft) }
   const saveClass = async (draft: ClassProgressDraft) => { if (!selected) return; await onUpsertClass(selected.id, draft); navigation.close() }
   const saveLearned = async (draft: LearnedNodeDraft) => { if (!selected) return; await onUpsertLearned(selected.id, draft); navigation.close() }
 
   return <>
-    <ScreenHeader actions={<Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add character</Button>} description="Record each party member's class, equipment, and learned abilities." eyebrow="Party members" title="Characters"/>
+    <header className="character-toolbar"><h1>Characters</h1><div className="character-toolbar__actions">{characters.length > 0 && <Field label="Character"><select onChange={(event) => navigate({ page: 'characters', view: 'character', characterId: event.target.value as CharacterId, tab })} value={selected?.id ?? ''}>{!selected && <option value="">Choose a character</option>}{characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}</select></Field>}<Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })} tone="secondary">Add character</Button></div></header>
     {(missingCharacter || editorRequestMissing) && <InlineNotice title={missingCharacter ? 'Character unavailable' : 'Character editor unavailable'} tone="warning">The requested character record or linked observation is not part of the active playthrough. It may have been removed or the link may belong to another profile. <Button onClick={() => navigate({ page: 'characters', view: 'list' })} tone="quiet">Return to characters</Button></InlineNotice>}
-    {characters.length === 0 ? <EmptyState aside={<>Character records are personal observations. Party progress, catalog entries, and imported class lists never create roster members.</>} description="Add a character when you are ready to capture a real in-game sheet. Every field can remain unknown until you observe it." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : <div className="character-layout"><aside className="panel"><div className="panel__header"><div><h2>Roster</h2><p>{characters.length} recorded</p></div><IconButton icon="plus" label="Add character" onClick={() => navigate({ page: 'characters', view: 'new' })}/></div><div className="character-list">{characters.map((character) => <button aria-current={selected?.id === character.id ? 'true' : undefined} className="character-list__item" key={character.id} onClick={() => navigate({ page: 'characters', view: 'character', characterId: character.id, tab: 'current' })} type="button"><span className="avatar">{initials(character.name)}</span><span><strong>{character.name}</strong><small>{character.currentSnapshotId ? 'Snapshot recorded' : 'Needs first snapshot'}</small></span></button>)}</div></aside>{selected ? <section className="panel"><div className="panel__header"><div><h2>{selected.name}</h2><p>{selected.appearanceLabel ?? 'No appearance label'}</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id })} tone="secondary">Capture snapshot</Button></div><div className="panel__body"><div aria-label="Character sections" className="tabs" role="tablist">{tabs.map((item) => <button aria-selected={tab === item.id} className="tab" key={item.id} onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: item.id })} role="tab" type="button">{item.label}</button>)}</div>
-          {tab === 'current' && <div className="stack">{snapshot ? <><div className="metric-grid"><div className="metric"><span className="metric__label">Level</span><span className="metric__value">{knowledgeLabel(snapshot.level)}</span><span className="metric__detail">Observed value</span></div><div className="metric"><span className="metric__label">Primary class</span><span className="metric__value">{snapshot.primaryClass.state === 'known' ? entityName(profile, catalogs, snapshot.primaryClass.value) : knowledgeLabel(snapshot.primaryClass)}</span><span className="metric__detail">Last observed</span></div><div className="metric"><span className="metric__label">Secondary</span><span className="metric__value">{snapshot.secondaryClass.state === 'known' ? entityName(profile, catalogs, snapshot.secondaryClass.value) : knowledgeLabel(snapshot.secondaryClass)}</span><span className="metric__detail">Last observed</span></div><div className="metric"><span className="metric__label">PP capacity</span><span className="metric__value">{knowledgeLabel(snapshot.ppCapacity)}</span><span className="metric__detail">Not calculated</span></div></div>{Object.keys(snapshot.displayedStats).length > 0 && <div><h3>Displayed final stats</h3><dl className="definition-list">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <DefinitionRow key={key} term={key}>{knowledgeLabel(stat.value)} {stat.unit}</DefinitionRow>)}</dl></div>}<div><div className="split"><div><h3>Equipment & passives</h3><p className="settings-section__intro">Ordered by the active ruleset</p></div><Badge tone="info">{formatRelativeDate(snapshot.observedAt)}</Badge></div><div className="slot-grid">{orderedSlots.length ? orderedSlots.map((slot) => { const observed = Object.prototype.hasOwnProperty.call(snapshot.selections, slot.id); const selection = snapshot.selections[slot.id]; return <div className="slot" key={slot.id}><span><span className="slot__label">{slot.label}</span><span className="slot__value">{!observed ? 'Unknown or unrecorded' : selection ? entityName(profile, catalogs, selection) : 'Observed empty'}</span></span><IconButton icon="edit" label={`Edit ${slot.label}`} onClick={() => navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id })}/></div> }) : <InlineNotice title="No ruleset slots">Add slots under Data & settings to capture ordered selections.</InlineNotice>}</div></div></> : <EmptyState description="Capture only what the game screen shows. Unfilled fields remain explicitly unknown." icon="spark" title="No snapshot recorded"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id })}>Capture current sheet</Button></EmptyState>}</div>}
+    {characters.length === 0 ? <EmptyState aside={<>Character records are personal observations. Party progress, catalog entries, and imported class lists never create roster members.</>} description="Add a character when you are ready to capture a real in-game sheet. Every field can remain unknown until you observe it." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : <div className="character-layout">{selected ? <section className="panel"><div className="panel__header"><div><h2>{selected.name}</h2><p>{selected.appearanceLabel || 'Recorded character state'}</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id })} tone="secondary">Capture snapshot</Button></div><div className="panel__body"><div aria-label="Character sections" className="tabs character-tabs" role="tablist">{tabs.map((item) => <button aria-selected={tab === item.id} className="tab" key={item.id} onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: item.id })} role="tab" type="button">{item.label}</button>)}</div>
+          {tab === 'current' && <div className="stack">{snapshot ? <CharacterSheet catalogs={catalogs} onEditSlot={(slotId) => navigation.navigate({ page: { page: 'characters', view: 'snapshot-new', characterId: selected.id }, query: {}, overlays: [{ kind: 'definition-picker', fieldKey: `slot:${slotId}`, query: '', resultLimit: 100 }] })} profile={profile} snapshot={snapshot}/> : <EmptyState description="Capture only what the game screen shows. Unfilled fields remain explicitly unknown." icon="spark" title="No snapshot recorded"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id })}>Capture current sheet</Button></EmptyState>}
+            <section className="character-proposals"><h3>Proposed builds</h3><p className="settings-section__intro">Plans for {selected.name}. Editing a build does not change this recorded sheet.</p>{Object.values(profile.builds).filter((build) => build.characterId === selected.id && (build.state === 'draft' || build.state === 'hypothetical')).map((build) => <div className="list-row" key={build.id}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{build.state === 'draft' ? 'Draft' : 'Hypothetical'}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds & teams</Button></section>
+          </div>}
           {tab === 'classes' && <div className="stack"><div className="split"><div><h3>Character class progress</h3><p className="settings-section__intro">Unlock, core-tree, mastery, and LP observations stay independent.</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'class-new', characterId: selected.id })} tone="secondary">Add class</Button></div>{classRows.length ? classRows.map((progress) => <div className="list-row" key={entityDefinitionKey(progress.classRef)}><div className="list-row__primary"><strong>{entityName(profile, catalogs, progress.classRef)}</strong><small>{knowledgeLabel(progress.unlocked, (value) => value ? 'Unlocked' : 'Not unlocked')} · {knowledgeLabel(progress.coreTreeComplete, (value) => value ? 'Core tree complete' : 'Core tree incomplete')}</small></div><Badge tone={progress.mastered.state === 'known' && progress.mastered.value ? 'positive' : 'warning'}>{knowledgeLabel(progress.mastered, (value) => value ? 'Mastered' : 'Not mastered')}</Badge><div className="list-row__fact">LP: {knowledgeLabel(progress.observedLp)}</div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${entityName(profile, catalogs, progress.classRef)}`} onClick={() => navigate({ page: 'characters', view: 'class-edit', characterId: selected.id, ref: progress.classRef })}/></div></div>) : <InlineNotice title="No class learning recorded">Party-wide progress does not populate character mastery. Add observations when you confirm them in game.</InlineNotice>}</div>}
           {tab === 'knowledge' && <div className="stack"><div className="split"><div><h3>Abilities and passives</h3><p className="settings-section__intro">Track each character's explicit learning state and observed LP spend.</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'learning-new', characterId: selected.id, learningKind: 'knowledge' })} tone="secondary">Add learning</Button></div>{knowledgeRows.length ? knowledgeRows.map((node) => <div className="list-row" key={entityDefinitionKey(node.ref)}><div className="list-row__primary"><strong>{entityName(profile, catalogs, node.ref)}</strong><small>{kindLabel(node.kind)}</small></div><Badge tone={node.learned.state === 'known' && node.learned.value ? 'positive' : 'warning'}>{knowledgeLabel(node.learned, (value) => value ? 'Learned' : 'Not learned')}</Badge><div className="list-row__fact">Paid LP: {knowledgeLabel(node.actualPaidLp)}</div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${entityName(profile, catalogs, node.ref)}`} onClick={() => navigate({ page: 'characters', view: 'learning-edit', characterId: selected.id, learningKind: 'knowledge', ref: node.ref })}/></div></div>) : <InlineNotice title="No learning observations">Learned nodes and currently equipped selections are recorded separately.</InlineNotice>}</div>}
           {tab === 'magic' && <div className="stack"><div className="split"><div><h3>Monster Magic</h3><p className="settings-section__intro">Record spell knowledge for this character only.</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'learning-new', characterId: selected.id, learningKind: 'magic' })} tone="secondary">Add spell</Button></div>{magicRows.length ? magicRows.map((node) => <div className="list-row" key={entityDefinitionKey(node.ref)}><div className="list-row__primary"><strong>{entityName(profile, catalogs, node.ref)}</strong><small>Character-specific spell knowledge</small></div><Badge tone={node.learned.state === 'known' && node.learned.value ? 'positive' : 'warning'}>{knowledgeLabel(node.learned, (value) => value ? 'Learned' : 'Not learned')}</Badge><div className="list-row__fact">Paid LP: {knowledgeLabel(node.actualPaidLp)}</div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${entityName(profile, catalogs, node.ref)}`} onClick={() => navigate({ page: 'characters', view: 'learning-edit', characterId: selected.id, learningKind: 'magic', ref: node.ref })}/></div></div>) : <InlineNotice title="No Monster Magic observations">A party-wide note or class mastery does not identify which spells this character knows.</InlineNotice>}</div>}
-          {tab === 'history' && <div className="stack">{Object.values(selected.snapshots).length ? Object.values(selected.snapshots).sort((left, right) => right.recordedAt.localeCompare(left.recordedAt)).map((entry) => <article className="panel snapshot-card" key={entry.id}><div className="split"><div><h3>{formatRelativeDate(entry.observedAt)}</h3><p className="settings-section__intro">Recorded {formatRelativeDate(entry.recordedAt)}</p></div>{entry.id === selected.currentSnapshotId && <Badge tone="positive">Current snapshot</Badge>}</div>{entry.note && <p>{entry.note}</p>}</article>) : <InlineNotice title="No snapshot history">Capture the first observed sheet to begin a revision history.</InlineNotice>}</div>}
+          {tab === 'history' && <CharacterHistory catalogs={catalogs} character={selected} key={selected.id} page={page} profile={profile}/>}
         </div></section> : <section className="panel"><div className="panel__body"><InlineNotice title="Character unavailable" tone="warning">The requested character is not part of the active playthrough. Choose another roster member or return to the character list.</InlineNotice></div></section>}</div>}
     <Sheet onClose={() => navigation.close()} open={adding} title="Add character"><AddCharacterForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
-    <Sheet description={selected ? `Record a new observed state for ${selected.name}.` : undefined} onClose={() => navigation.close()} open={capturing} title="Capture character snapshot" width="wide">{selected && <SnapshotForm initial={snapshot} key={`${selected.id}:${snapshot?.id ?? 'new'}`} onCancel={() => navigation.close()} onSubmit={capture} profile={profile}/>}</Sheet>
+    {capturing && selected && <SnapshotForm initial={snapshot} key={selected.id} onSubmit={capture} profile={profile}/>}
     <Sheet description="Record only this character's observed class state." onClose={() => navigation.close()} open={Boolean(selected && classEditor !== undefined)} title={classEditor ? 'Edit class progress' : 'Add class progress'}>{selected && classEditor !== undefined && <ClassProgressForm initial={classEditor ?? undefined} key={`${selected.id}:${classEditor ? entityDefinitionKey(classEditor.classRef) : 'new'}`} onCancel={() => navigation.close()} onSubmit={saveClass}/>}</Sheet>
     <Sheet description="Record explicit learning without inferring it from equipment or party progress." onClose={() => navigation.close()} open={Boolean(selected && learnedEditor)} title={learnedEditor?.kind === 'monsterMagic' ? 'Record Monster Magic' : 'Record learned node'}>{selected && learnedEditor && <LearnedNodeForm defaultKind={learnedEditor.kind} initial={'node' in learnedEditor ? learnedEditor.node : undefined} key={`${selected.id}:${'node' in learnedEditor && learnedEditor.node ? entityDefinitionKey(learnedEditor.node.ref) : `new:${learnedEditor.kind}`}`} lockedKind={learnedEditor.kind === 'monsterMagic' ? 'monsterMagic' : undefined} onCancel={() => navigation.close()} onSubmit={saveLearned}/>}</Sheet>
   </>

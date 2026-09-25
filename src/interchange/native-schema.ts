@@ -214,6 +214,7 @@ const inventoryEvent = z.object({
 const observedStat = z.object({ value: knowledge(finiteNumber), unit: nonemptyText }).strict()
 const characterSnapshot = z.object({
   id,
+  rulesetRevisionId: id.optional(),
   observedAt: dateOrTimestamp.optional(),
   recordedAt: timestamp,
   level: knowledge(nonnegativeInteger),

@@ -27,6 +27,7 @@ import type {
   Profile,
   ProgressRecordId,
   ProgressStage,
+  RulesetRevisionId,
   SourceRef,
   Timestamp,
 } from './types'
@@ -118,6 +119,7 @@ export function updateCharacter(profile: Profile, input: UpdateCharacterInput): 
 export interface CaptureCharacterInput {
   readonly characterId: CharacterId
   readonly snapshotId?: CharacterSnapshotId
+  readonly rulesetRevisionId?: RulesetRevisionId
   readonly observedAt?: Timestamp | string
   readonly level?: Knowledge<number>
   readonly primaryClass?: Knowledge<EntityRef>
@@ -141,6 +143,10 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
   validateNonnegativeKnowledge(input.level, 'Character level')
+  const rulesetRevisionId = input.rulesetRevisionId ?? profile.activeRulesetRevisionId
+  if (rulesetRevisionId && !Object.hasOwn(profile.rulesets, rulesetRevisionId)) {
+    throw new DomainError('MISSING_RULESET', 'The snapshot ruleset revision is unavailable')
+  }
   validateNonnegativeKnowledge(input.ppCapacity, 'PP capacity')
   for (const ref of [...knowledgeValues(input.primaryClass), ...knowledgeValues(input.secondaryClass)]) {
     assertPersonalDefinitionRef(profile, ref)
@@ -162,6 +168,7 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const snapshot: CharacterSnapshot = {
     id: snapshotId,
+    ...(rulesetRevisionId === undefined ? {} : { rulesetRevisionId }),
     recordedAt: at,
     level: input.level ?? UNKNOWN_NUMBER,
     primaryClass: input.primaryClass ?? UNKNOWN_REF,

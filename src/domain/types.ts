@@ -235,6 +235,7 @@ export interface ObservedStat {
 
 export interface CharacterSnapshot {
   readonly id: CharacterSnapshotId
+  readonly rulesetRevisionId?: RulesetRevisionId
   readonly observedAt?: Timestamp
   readonly recordedAt: Timestamp
   readonly level: Knowledge<number>

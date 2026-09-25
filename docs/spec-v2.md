@@ -54,6 +54,8 @@ Scenario allocations evaluate simultaneous use. Alternative saved builds do not 
 
 Capture identity, observed level/classes, displayed final stats, PP capacity, ordered gear/passives, observation time, and source note. Track character class mastery, learned abilities/passives, and Monster Magic independently. Party progress, catalog presence, and seal collection never populate those records.
 
+Current presents one dated observation, its note, displayed stats, and equipment/passive selections. History inspects immutable snapshots and compares recorded fields, keeping unknown, unrecorded, conflicting, not applicable, and observed empty values explicit. Numeric deltas require matching fields and units with known values on both sides; no causal or calculated-stat claim follows. Class learning and Monster Magic records are not part of these snapshots and do not gain invented historical changes. Snapshot slot labels come from their pinned ruleset, with missing context shown explicitly for legacy records.
+
 A build can be recorded as a current observation after a visible diff and explicit in-game confirmation. The action must not manufacture gear or learning. A real observation may conflict with catalog claims; preserve both and expose the discrepancy.
 
 ### Builds and teams
