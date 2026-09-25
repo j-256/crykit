@@ -59,7 +59,7 @@ async function exportProfile(page: Page): Promise<Profile> {
   if (!path) throw new Error('Backup download failed')
   const archive = unzipSync(await readFile(path))
   const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }
-  await panel.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return payload.profile
 }
 
@@ -115,7 +115,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expect(storage.getByText('Offline ready', { exact: true })).toBeVisible()
-  await storage.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)

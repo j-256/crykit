@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { compareBuildRevisions, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, sameLogicalEntity } from '../domain'
 import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, ScenarioKind, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { activeRuleset, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
-import { DefinitionPickerDialog } from './definitions'
+import { DefinitionDropdown } from './definitions'
 import { routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
 
 export interface BuildDraft { readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
@@ -65,6 +65,8 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const dirtyRef = useRef(false)
+  const pickerAnchorRef = useRef<HTMLButtonElement>(null)
+  const dropdownId = useId()
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
   const slots = [...(ruleset?.slots ?? [])].sort((a, b) => a.order - b.order)
   const equipmentSlots = slots.filter((slot) => slot.kind === 'equipment')
@@ -91,8 +93,9 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'))
   const updateDirty = (value: boolean) => { dirtyRef.current = value; onDirtyChange(value) }
   const openPicker = (target: PickerTarget) => {
+    if (picker?.fieldKey === target.fieldKey) { navigation.close(); return }
     const stored = pickerMemoryRef.current[target.fieldKey]
-    navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-picker', fieldKey: target.fieldKey, query: stored?.query ?? '', resultLimit: stored?.resultLimit ?? 100 }))
+    navigation.navigate(routeWithOverlay(editorScope, { kind: 'definition-picker', fieldKey: target.fieldKey, query: stored?.query ?? '', resultLimit: stored?.resultLimit ?? 100 }), { replace: Boolean(pickerOverlay) })
   }
   const closePicker = () => navigation.close()
   const updatePicker = (change: { readonly query?: string; readonly resultLimit?: number }) => {
@@ -130,7 +133,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draft, contextAssumptions: assumptions.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.') } finally { setBusy(false) } }
   const discard = () => { const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
   if (!ruleset) return <InlineNotice title="Configure a ruleset" tone="warning">A pinned ruleset is required before this build can receive a reproducible revision.</InlineNotice>
-  const classPicker = (key: 'primaryClass' | 'secondaryClass', label: string, value: EntityRef | null) => <button className="slot" onClick={() => openPicker({ fieldKey: key === 'primaryClass' ? 'primary-class' : 'secondary-class', key, label, kinds: ['class'] })} type="button"><span><span className="slot__label">{label}</span><span className="slot__value">{value ? entityName(profile, catalogs, value) : 'Unselected'}</span></span><Icon name="search"/></button>
+  const classPicker = (key: 'primaryClass' | 'secondaryClass', label: string, value: EntityRef | null) => <button aria-controls={picker?.key === key ? dropdownId : undefined} aria-expanded={picker?.key === key} aria-haspopup="dialog" className="slot" data-definition-trigger="true" ref={(element) => { if (picker?.key === key) pickerAnchorRef.current = element }} onClick={() => openPicker({ fieldKey: key === 'primaryClass' ? 'primary-class' : 'secondary-class', key, label, kinds: ['class'] })} type="button"><span><span className="slot__label">{label}</span><span className="slot__value">{value ? entityName(profile, catalogs, value) : 'Unselected'}</span></span><Icon name="chevron-down"/></button>
   return <>
     <form className="stack" onInput={() => updateDirty(true)} onSubmit={submit}>
       <div className="grid-2">{classPicker('primaryClass', 'Primary class', draft.primaryClass)}{classPicker('secondaryClass', 'Secondary class', draft.secondaryClass)}</div>
@@ -145,7 +148,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
           }) : []
           const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.selections[candidate.id]?.allocationId === selected.allocationId) : undefined
           return <div className="slot-entry" key={slot.id}>
-            <button className="slot" onClick={() => openPicker({ fieldKey: `slot:${slot.id}`, key: slot.id, label: slot.label, kinds: accepted })} type="button"><span><span className="slot__label">{slot.label}</span><span className="slot__value">{selected ? entityName(profile, catalogs, selected.ref, selected.observedName) : 'Empty slot'}</span></span><Icon name="search"/></button>
+            <button aria-controls={picker?.key === slot.id ? dropdownId : undefined} aria-expanded={picker?.key === slot.id} aria-haspopup="dialog" className="slot" data-definition-trigger="true" ref={(element) => { if (picker?.key === slot.id) pickerAnchorRef.current = element }} onClick={() => openPicker({ fieldKey: `slot:${slot.id}`, key: slot.id, label: slot.label, kinds: accepted })} type="button"><span><span className="slot__label">{slot.label}</span><span className="slot__value">{selected ? entityName(profile, catalogs, selected.ref, selected.observedName) : 'Empty slot'}</span></span><Icon name="chevron-down"/></button>
             {peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}
           </div>
         })}</div>
@@ -157,7 +160,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
       <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save new revision'}</Button></div>
     </form>
-    <DefinitionPickerDialog allowEmpty allowUnknown={false} allowedKinds={picker?.kinds ?? []} emptyDescription="Remove the current selection from this draft" emptyLabel="Leave empty" description={`${build.characterId ? ownRecordValue(profile.characters, build.characterId)?.name ?? 'Character' : 'Template'} · ${ruleset.label}. Candidate type and slot metadata do not assert legality; scenario validation checks learning, PP, and stock after assignment.`} onClose={closePicker} onQueryChange={(nextQuery) => updatePicker({ query: nextQuery, resultLimit: 100 })} onResultLimitChange={(nextLimit) => updatePicker({ resultLimit: nextLimit })} onSelect={(ref) => choose(ref ?? null)} open={Boolean(picker)} query={query} resultLimit={candidateLimit} selected={selectedRef} title={picker ? `Choose ${picker.label}` : 'Choose definition'}/>
+    <DefinitionDropdown key={picker?.fieldKey} anchorRef={pickerAnchorRef} id={dropdownId} allowEmpty allowUnknown={false} allowedKinds={picker?.kinds ?? []} emptyDescription="Remove the current selection from this draft" emptyLabel="Leave empty" onClose={closePicker} onQueryChange={(nextQuery) => updatePicker({ query: nextQuery, resultLimit: 100 })} onResultLimitChange={(nextLimit) => updatePicker({ resultLimit: nextLimit })} onSelect={(ref) => choose(ref ?? null)} open={Boolean(picker)} query={query} resultLimit={candidateLimit} selected={selectedRef} title={picker ? `Choose ${picker.label}` : 'Choose definition'}/>
   </>
 }
 

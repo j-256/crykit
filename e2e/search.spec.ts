@@ -18,7 +18,7 @@ async function exportProfile(page: Page) {
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
   const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile; catalogs: readonly CatalogSnapshot[] }
-  await panel.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return { ...bundle, bytes }
 }
 
@@ -205,7 +205,7 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await settings.getByRole('button', { name: 'Add slot', exact: true }).click()
   await settings.getByLabel('Slot 1', { exact: true }).fill('Main hand')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
-  await settings.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const stock = page.getByRole('dialog', { name: 'Add inventory item', exact: true })

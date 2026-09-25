@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren } from 'react'
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { entityDefinitionKey, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions } from '../domain'
 import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, JsonValue, Knowledge, PersonalDefinition, Profile } from '../domain/types'
@@ -7,6 +7,7 @@ import { Icon } from './icons'
 import { formatAppError } from './model'
 import { parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type DefinitionPickerOverlay } from './navigation'
 import { Sheet } from './Sheet'
+import { Dropdown } from './Dropdown'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
@@ -199,7 +200,9 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   </form></Sheet>
 }
 
-export interface DefinitionPickerDialogProps {
+export interface DefinitionDropdownProps {
+  readonly id: string
+  readonly anchorRef: RefObject<HTMLButtonElement | null>
   readonly open: boolean
   readonly title: string
   readonly allowedKinds: readonly CatalogEntityKind[]
@@ -209,7 +212,6 @@ export interface DefinitionPickerDialogProps {
   readonly emptyLabel?: string
   readonly emptyDescription?: string
   readonly createLabel?: string
-  readonly description?: string
   readonly query?: string
   readonly resultLimit?: number
   readonly onQueryChange?: (query: string) => void
@@ -218,7 +220,7 @@ export interface DefinitionPickerDialogProps {
   readonly onSelect: (ref: EntityRef | null | undefined) => void
 }
 
-export function DefinitionPickerDialog({ open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', description = 'Search exact catalog and personal definitions. Equal names remain separate identities.', query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionPickerDialogProps) {
+export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
   const { profile, options } = useDefinitionWorkspace()
   const [internalQuery, setInternalQuery] = useState('')
@@ -256,13 +258,14 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
   }, [allowedKinds, options, query])
   const visible = candidates.slice(0, limit)
   const selectedVisible = selectedOption && allowedKinds.includes(selectedOption.kind) && visible.some((option) => option.key === selectedOption.key)
-  const focusResult = (direction: 1 | -1, event: KeyboardEvent<HTMLElement>) => {
+  const focusResult = (direction: 1 | -1 | 'first' | 'last', event: KeyboardEvent<HTMLElement>) => {
     const buttons = [...(resultsRef.current?.querySelectorAll<HTMLButtonElement>('button[data-definition-result="true"]') ?? [])]
     if (!buttons.length) return
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
-    const next = current < 0 ? direction > 0 ? 0 : buttons.length - 1 : (current + direction + buttons.length) % buttons.length
+    const next = direction === 'first' ? 0 : direction === 'last' ? buttons.length - 1 : current < 0 ? direction > 0 ? 0 : buttons.length - 1 : (current + direction + buttons.length) % buttons.length
     event.preventDefault()
-    buttons[next]?.focus()
+    buttons[next]?.focus({ preventScroll: true })
+    buttons[next]?.scrollIntoView({ block: 'nearest' })
   }
   const choose = (ref: EntityRef | null | undefined) => { onSelect(ref); onClose() }
   const editorSaved = (ref: EntityRef) => { setPendingSavedRef(ref) }
@@ -276,17 +279,18 @@ export function DefinitionPickerDialog({ open, title, allowedKinds, selected, al
     else onClose()
   }, [navigation, onClose, onSelect, open, options, pendingSavedRef])
   return <>
-    <Sheet description={description} initialFocusRef={searchRef} layer={pickerIndex + 1} onClose={onClose} open={open} title={title}><div className="stack"><div className="search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Name, alias, description, type, or source" ref={searchRef} type="search" value={query}/></div>
-      <div className="picker-results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>
-        {allowUnknown && <button className="picker-result" data-definition-result="true" onClick={() => choose(undefined)} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span><Badge>Unknown</Badge></button>}
-        {allowEmpty && <button className="picker-result" data-definition-result="true" onClick={() => choose(null)} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span><Badge>Empty</Badge></button>}
-        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} type="button"><span><strong>{selectedOption.name}</strong><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small></span><Badge tone="info">Current exact selection</Badge></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} type="button"><span><strong>{option.name}</strong><small>{definitionKindLabel(option.kind)} · {option.sourceLabel}<br/>{option.description ?? 'No description supplied'} · {option.stockLabel}</small></span><span className="picker-result__status">{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{option.rulesetStatus && <Badge tone="warning">{option.rulesetStatus}</Badge>}{!option.preferred && <Badge>Historical or base</Badge>}</span></button>)}
+    <Dropdown anchorRef={anchorRef} id={id} initialFocusRef={searchRef} onClose={onClose} onDismiss={() => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }} open={open && !editorOverlay} title={title}>
+      <div className="definition-dropdown__search search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Enter') event.preventDefault() }} placeholder="Search name, description, or source" ref={searchRef} type="search" value={query}/></div>
+      <div aria-label="Available definitions" className="picker-results" role="group" tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Home') focusResult('first', event); if (event.key === 'End') focusResult('last', event) }} ref={resultsRef}>
+        {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span></button>}
+        {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
+        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span><strong>{selectedOption.name}</strong><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{option.name}</strong>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{option.description && <small className="picker-result__description" title={option.description}>{option.description}</small>}<small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small><span className="picker-result__status">{option.kind === 'item' && <small>{option.stockLabel}</small>}{option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
+        {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>
-      {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="secondary">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
-      {candidates.length === 0 && <InlineNotice title="No matching definitions">Create a personal definition from this search, or try another name or type.</InlineNotice>}
-      <div className="form-actions">{selectedOption && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedOption.ref) }))} tone="secondary">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
-    </div></Sheet>
+      <div className="definition-dropdown__actions">{selectedOption && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedOption.ref) }))} tone="quiet" type="button">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet" type="button">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
+    </Dropdown>
     {editingRef && <DefinitionEditor allowedKinds={allowedKinds} baseRef={editingRef} initialName="" key={entityDefinitionKey(editingRef)} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
     {creating && <DefinitionEditor allowedKinds={allowedKinds} initialName={query.trim()} key={`create:${query.trim()}`} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
   </>
@@ -300,17 +304,11 @@ export function DefinitionPickerField({ label, hint, allowedKinds, value, disabl
   const picker = navigation.route.overlays.findLast((overlay) => overlay.kind === 'definition-picker')
   const open = picker?.kind === 'definition-picker' && picker.fieldKey === fieldKey
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const wasOpen = useRef(open)
-  useEffect(() => {
-    const restore = wasOpen.current && !open
-    wasOpen.current = open
-    if (!restore) return
-    const frame = window.requestAnimationFrame(() => triggerRef.current?.focus())
-    return () => window.cancelAnimationFrame(frame)
-  }, [open])
+  const dropdownId = useId()
+  const openPicker = () => navigation.navigate(routeWithOverlay({ ...navigation.route, overlays: [] }, { kind: 'definition-picker', fieldKey, ...pickerMemoryRef.current }), { replace: Boolean(picker) })
   if (open) pickerMemoryRef.current = { query: picker.query, resultLimit: picker.resultLimit }
   const selected = findDefinitionOption(options, value)
   const display = value === null ? 'Observed empty' : selected?.name ?? (value ? 'Unresolved exact definition' : 'Unknown or unrecorded')
   // Keep native autofocus available when the containing dialog opens
-  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" disabled={disabled} onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-picker', fieldKey, ...pickerMemoryRef.current }))} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="search"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionPickerDialog allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
+  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" data-definition-trigger="true" disabled={disabled} onClick={() => open ? navigation.close() : openPicker()} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (!open) openPicker() } }} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="chevron-down"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionDropdown anchorRef={triggerRef} id={dropdownId} allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
 }

@@ -23,7 +23,7 @@ async function openData(page: Page) {
 }
 
 async function closeData(page: Page) {
-  await page.getByRole('dialog', { name: 'Data & settings', exact: true }).getByRole('button', { name: 'Close panel', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Data & settings', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
 async function addItem(page: Page, name: string, count?: number) {

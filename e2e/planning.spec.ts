@@ -22,7 +22,7 @@ async function exportProfile(page: Page): Promise<Profile> {
   if (!file) throw new Error('The backup download did not complete')
   const archive = unzipSync(await readFile(file))
   const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }
-  await panel.getByRole('button', { name: 'Close panel' }).click()
+  await panel.getByRole('button', { name: 'Close dialog' }).click()
   return payload.profile
 }
 
@@ -36,7 +36,7 @@ async function configureRuleset(page: Page, slotLabels = ['Main hand']) {
   }
   await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close panel' }).click()
+  await panel.getByRole('button', { name: 'Close dialog' }).click()
 }
 
 async function addCharacter(page: Page, name: string) {
@@ -227,7 +227,7 @@ test('build drafts resist navigation and recording current preserves known level
   if (isMobile) {
     await page.keyboard.press('Escape')
     await expect(editor).toBeVisible()
-    const close = editor.getByRole('button', { name: 'Close panel', exact: true })
+    const close = editor.getByRole('button', { name: 'Close dialog', exact: true })
     if (await close.isEnabled()) await close.click()
     await expect(editor).toBeVisible()
     await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
@@ -383,7 +383,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await settings.getByLabel('Accepted types').fill('item')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await settings.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await addCharacter(page, 'Synthetic Ash')
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })

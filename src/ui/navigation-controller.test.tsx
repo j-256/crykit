@@ -94,7 +94,7 @@ describe('navigation controller history', () => {
     expect(window.location.hash).toContain('/pick/item-definition')
 
     await act(async () => {
-      document.querySelector<HTMLButtonElement>('button[aria-label="Close panel"]')!.click()
+      document.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')!.click()
       await tick()
     })
     expect(window.location.hash).toBe('#/inventory/new')

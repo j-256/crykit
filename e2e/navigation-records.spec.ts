@@ -21,7 +21,7 @@ async function exportProfile(page: Page): Promise<Profile> {
   if (!path) throw new Error('Expected a completed backup download')
   const entries = unzipSync(await readFile(path))
   const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile }
-  await panel.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return bundle.profile
 }
 
@@ -32,7 +32,7 @@ async function setHash(page: Page, hash: string) {
 
 async function expectActiveDialog(page: Page, title: string) {
   await expect.poll(() => page.evaluate(() => {
-    const dialog = document.activeElement?.closest('dialog[open]')
+    const dialog = document.activeElement?.closest('dialog[open], [role="dialog"][popover]')
     if (!dialog) return null
     const labelledBy = dialog.getAttribute('aria-labelledby')
     if (labelledBy) return document.getElementById(labelledBy)?.textContent?.trim() ?? null

@@ -23,7 +23,7 @@ async function configureRuleset(page: Page) {
   await panel.getByLabel('Slot 1', { exact: true }).fill('Main hand')
   await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
 async function addCharacter(page: Page, name: string) {
@@ -97,7 +97,7 @@ test('settings routes retain dirty forms and expired previews recover explicitly
   await page.goBack()
   await expect(page).toHaveURL(/#\/settings\/ruleset$/)
   await expect(panel.getByLabel('Ruleset label')).toHaveValue('Unsaved semantic route ruleset')
-  await panel.getByRole('button', { name: 'Close panel', exact: true }).click()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   const reopened = await openData(page)
   await reopened.locator('input[type="file"]').setInputFiles({
