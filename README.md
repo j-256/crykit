@@ -6,6 +6,8 @@ The application starts with a blank playthrough and a searchable, revision-attri
 
 Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
 
+The interface takes its visual cues from Crystal Project's menus: charcoal windows, silver borders, cyan dividers, blue selections, and pixel headings. [Pixel Operator](https://www.dafont.com/pixel-operator.font) by Jayvee Enaguas is a readable substitute for the game's lettering, not a verified match to its original typeface. It ships locally under [CC0](public/pixel-operator-CC0.txt), with regular weight, disabled ligatures, and fixed type sizes. Body text and compact section headings use system fonts for readable descriptions and forms. The original crystal artwork and menu icons ship with the app; decorative artwork does not represent recorded inventory or game progress.
+
 ## Run locally
 
 Use Node.js 22.12 or later and npm. Install from the lockfile:

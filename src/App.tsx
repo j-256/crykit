@@ -80,7 +80,7 @@ function catalogIndex(catalogs: readonly CatalogSnapshot[]): CatalogIndex {
 }
 
 function LoadingView() {
-  return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening your field journal</h1><p>Loading local records from this browser...</p></div></main>
+  return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening your playthrough</h1><p>Loading local records from this browser...</p></div></main>
 }
 
 export default function App() {

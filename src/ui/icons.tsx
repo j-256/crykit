@@ -6,11 +6,14 @@ export type IconName =
   | 'book'
   | 'box'
   | 'check'
+  | 'character'
+  | 'chest'
   | 'chevron-down'
   | 'clock'
   | 'close'
   | 'compare'
   | 'compass'
+  | 'crystal'
   | 'download'
   | 'edit'
   | 'history'
@@ -23,12 +26,19 @@ export type IconName =
   | 'settings'
   | 'shield'
   | 'spark'
+  | 'sword'
   | 'team'
+  | 'tome'
   | 'upload'
   | 'user'
   | 'warning'
 
 const paths: Record<IconName, React.ReactNode> = {
+  character: <g shapeRendering="crispEdges" stroke="none"><path d="M8 2h8v2h2v8h-2v2h4v7H4v-7h4v-2H6V4h2z" fill="#171e24"/><path d="M8 3h8v3H8zM6 6h3v5H6zM15 6h3v5h-3z" fill="#cf9b68"/><path d="M9 6h6v7H9z" fill="#f3d4a0"/><path d="M10 8h1v2h-1zM14 8h1v2h-1z" fill="#26343d"/><path d="M7 14h10v3h3v4H4v-4h3z" fill="#8284ba"/><path d="M10 14h4v7h-4z" fill="#d4c7e9"/></g>,
+  chest: <g shapeRendering="crispEdges" stroke="none"><path d="M5 4h14v2h2v14H3V6h2z" fill="#191e24"/><path d="M5 6h14v5H5zM5 13h14v5H5z" fill="#b18148"/><path d="M5 6h2v12H5zM17 6h2v12h-2zM5 10h14v2H5z" fill="#e3bd71"/><path d="M10 10h4v5h-4z" fill="#f6d88d"/><path d="M11 11h2v2h-2zM7 16h10v2H7z" fill="#765334"/></g>,
+  crystal: <g shapeRendering="crispEdges" stroke="none"><path d="M11 1h2v2h2v2h2v3h2v8h-2v3h-2v2h-2v2h-2v-2H9v-2H7v-3H5V8h2V5h2V3h2z" fill="#24567c"/><path d="M11 3h2v2h2v3h2v7h-2v3h-2v3h-2v-3H9v-3H7V8h2V5h2z" fill="#59c7ed"/><path d="M11 4h2v4h-2v8H9V8h2z" fill="#e1fcff"/><path d="M13 8h4v7h-2v3h-2z" fill="#3892c5"/><path d="M11 16h2v5h-2z" fill="#8cecff"/></g>,
+  sword: <g shapeRendering="crispEdges" stroke="none"><path d="M16 2h6v6L11 19l-2-2-5 5-3-3 5-5-2-2z" fill="#16212b"/><path d="M17 3h4v4L10 18l-4-4z" fill="#afcfde"/><path d="M17 3h4L8 16l-2-2z" fill="#f0f5e9"/><path d="m6 11 7 7-2 2-7-7zM4 17l3 3-2 2-3-3z" fill="#dcb56d"/><path d="m7 15 2 2-3 3-2-2z" fill="#977052"/></g>,
+  tome: <g shapeRendering="crispEdges" stroke="none"><path d="M5 3h15v18H5v-2H3V5h2z" fill="#17232b"/><path d="M5 4h13v13H5z" fill="#ba8360"/><path d="M7 4h2v13H7zM11 7h5v2h-5zM11 11h5v1h-5z" fill="#e9bf7b"/><path d="M5 17h13v3H5z" fill="#ece2c5"/><path d="M5 18h11v1H5z" fill="#b3a997"/></g>,
   archive: <><path d="M4 7h16v13H4z"/><path d="M3 3h18v4H3z"/><path d="M9 11h6"/></>,
   'arrow-left': <><path d="m15 18-6-6 6-6"/><path d="M9 12h10"/></>,
   book: <><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></>,

@@ -132,7 +132,7 @@ test('import previews before writing and native restore keeps original source by
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
   await expect(panel).not.toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Pack your first item' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Record your first item' })).toBeVisible()
   await page.getByRole('button', { name: 'Reference', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await page.getByLabel('Search reference', { exact: true }).fill('synthetic staff')

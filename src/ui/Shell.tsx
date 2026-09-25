@@ -9,15 +9,15 @@ import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay,
 export type { Destination } from './navigation'
 
 const destinations: readonly { id: Destination; label: string; icon: IconName }[] = [
-  { id: 'inventory', label: 'Inventory', icon: 'box' },
-  { id: 'characters', label: 'Characters', icon: 'user' },
-  { id: 'builds', label: 'Builds & teams', icon: 'layers' },
-  { id: 'progress', label: 'Progress', icon: 'compass' },
-  { id: 'reference', label: 'Reference', icon: 'book' },
+  { id: 'inventory', label: 'Inventory', icon: 'chest' },
+  { id: 'characters', label: 'Characters', icon: 'character' },
+  { id: 'builds', label: 'Builds & teams', icon: 'sword' },
+  { id: 'progress', label: 'Progress', icon: 'crystal' },
+  { id: 'reference', label: 'Reference', icon: 'tome' },
 ]
 
-function Brand({ compact = false }: { compact?: boolean }) {
-  return <div className="brand"><span className="brand__mark"><Icon name="compass" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">{compact ? 'Local expedition record' : 'Inventory & party planner'}</span></span></div>
+function Brand() {
+  return <div className="brand"><span className="brand__mark"><Icon name="crystal" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">A Crystal Project planner</span></span></div>
 }
 
 export function Shell({ profile, catalogs, destination, saveState, onOpenData, children }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; onOpenData: () => void; children: ReactNode }) {
@@ -46,16 +46,15 @@ export function Shell({ profile, catalogs, destination, saveState, onOpenData, c
   return <div className="app-shell">
     <aside className="rail">
       <Brand />
-      <div className="rail__rule" />
-      <nav aria-label="Primary navigation"><ul className="nav-list">{destinations.map((item) => <li key={item.id}><button aria-current={destination === item.id ? 'page' : undefined} className="nav-link" onClick={() => navigate(item.id)} type="button"><Icon name={item.icon}/><span>{item.label}</span></button></li>)}</ul></nav>
+      <nav aria-label="Primary navigation" className="menu-window"><p className="menu-window__label">Menu</p><ul className="nav-list">{destinations.map((item) => <li key={item.id}><button aria-current={destination === item.id ? 'page' : undefined} className="nav-link" onClick={() => navigate(item.id)} type="button"><Icon name={item.icon}/><span>{item.label}</span></button></li>)}</ul></nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
         <button className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
-        <div className="local-note"><strong>Private by default</strong>Your records stay in this browser until you export them.</div>
+        <div className="local-note"><strong>Your playthrough, your records</strong>Saved in this browser. Export a backup to keep a separate copy.</div>
       </div>
     </aside>
     <main className="main-shell">
-      <header className="mobile-header"><Brand compact/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
+      <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
         <div className="context-bar__group">
           <div className="context-item context-item--profile"><Icon name="archive"/><span><span className="context-item__label">Playthrough</span><span className="context-item__value">{profile.label}</span></span></div>

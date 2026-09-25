@@ -17,8 +17,8 @@ export function ScreenHeader({ eyebrow, title, description, actions }: { eyebrow
   return <header className="screen-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="screen-header__description">{description}</p></div>{actions && <div className="screen-header__actions">{actions}</div>}</header>
 }
 
-export function EmptyState({ icon, title, description, children, aside }: PropsWithChildren<{ icon: IconName; title: string; description: string; aside?: ReactNode }>) {
-  return <section className="empty-state"><div className="empty-state__mark"><Icon name={icon} /></div><div className="empty-state__copy"><h2>{title}</h2><p>{description}</p><div className="empty-state__actions">{children}</div></div>{aside && <div className="empty-state__aside">{aside}</div>}</section>
+export function EmptyState({ icon, title, description, children, aside, className = '' }: PropsWithChildren<{ icon: IconName; title: string; description: string; aside?: ReactNode; className?: string }>) {
+  return <section className={`empty-state ${className}`}><div className="empty-state__mark"><Icon name={icon} /></div><div className="empty-state__copy"><h2>{title}</h2><p>{description}</p><div className="empty-state__actions">{children}</div></div>{aside && <div className="empty-state__aside">{aside}</div>}</section>
 }
 
 export function Field({ label, hint, required, children, className = '' }: PropsWithChildren<{ label: string; hint?: string; required?: boolean; className?: string }>) {
