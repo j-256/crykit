@@ -2,7 +2,16 @@ import { expect, test, type Page } from '@playwright/test'
 
 const card = (page: Page, name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
 
-test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', async ({ page, context }) => {
+async function expectWeapon(page: Page, isMobile: boolean, weapon: string) {
+  if (isMobile) {
+    const toggle = page.getByRole('button', { name: /^(Filters|Hide filters)/ })
+    await expect(toggle).toBeVisible()
+    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
+  }
+  await expect(page.getByRole('combobox', { name: 'Weapon skills usable with', exact: true })).toHaveValue(weapon)
+}
+
+test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', async ({ page, context, isMobile }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await page.keyboard.press('Meta+k')
@@ -17,7 +26,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await expect(palette).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Skills usable with Dagger', exact: true })).toBeVisible()
   const selector = page.getByRole('combobox', { name: 'Weapon skills usable with', exact: true })
-  await expect(selector).toHaveValue('Dagger')
+  await expectWeapon(page, isMobile, 'Dagger')
   await expect(card(page, 'Backstab')).toContainText('Rogue')
   await expect(card(page, 'Backstab')).toContainText('Dagger / Rapier')
   await expect(card(page, 'Backstab')).toContainText('10 AP')
@@ -32,21 +41,21 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await card(page, 'Backstab').click()
   await expect(page.getByRole('heading', { name: 'Backstab', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to results', exact: true }).click()
-  await expect(selector).toHaveValue('Dagger')
+  await expectWeapon(page, isMobile, 'Dagger')
   await selector.selectOption('Bow')
   await expect(page.getByRole('heading', { name: 'Skills usable with Bow', exact: true })).toBeVisible()
   await expect(card(page, 'Backstab')).toHaveCount(0)
   await page.goBack()
-  await expect(selector).toHaveValue('Dagger')
+  await expectWeapon(page, isMobile, 'Dagger')
   await page.reload()
-  await expect(selector).toHaveValue('Dagger')
+  await expectWeapon(page, isMobile, 'Dagger')
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await expect(selector).toHaveValue('Dagger')
+  await expectWeapon(page, isMobile, 'Dagger')
   await context.setOffline(true)
   await page.reload()
   await expect(card(page, 'Backstab')).toBeVisible()

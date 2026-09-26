@@ -2,6 +2,7 @@ import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponT
 import type { ModState } from '../domain/mods'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
+import { combineFacetKnowledge, facetStringValues, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -47,7 +48,7 @@ export interface NumericBound {
   readonly unit: string
 }
 
-export interface ReferenceFilters {
+export interface ReferenceFilters extends ReferenceFacetFilters {
   readonly query: string
   readonly kinds: readonly CatalogEntityKind[]
   readonly categories: readonly string[]
@@ -58,7 +59,8 @@ export interface ReferenceFilters {
 }
 
 export interface PersonalDefinitionSearchOption {
-  readonly record?: Pick<CatalogEntity, 'kind' | 'fields'>
+  readonly record?: FacetRecord
+  readonly modAvailability?: { readonly requiredMod?: string }
   readonly kind: CatalogEntityKind
   readonly name: string
   readonly aliases: readonly string[]
@@ -80,7 +82,6 @@ export interface FacetOption {
   readonly count: number
 }
 
-const CATEGORY_FIELDS = new Set(['category', 'class category', 'equipment type', 'item type', 'type'])
 const PP_FIELDS = new Set(['pp', 'pp cost'])
 
 function compareText(left: string, right: string): number {
@@ -89,34 +90,6 @@ function compareText(left: string, right: string): number {
   if (normalizedLeft < normalizedRight) return -1
   if (normalizedLeft > normalizedRight) return 1
   return left < right ? -1 : left > right ? 1 : 0
-}
-
-function jsonStrings(value: JsonValue): readonly string[] {
-  if (typeof value === 'string' && value.trim()) return [value.trim()]
-  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string' && Boolean(entry.trim())).map((entry) => entry.trim())
-  return []
-}
-
-function knowledgeStringValues(value: Knowledge<JsonValue>): readonly string[] {
-  if (value.state === 'known') return jsonStrings(value.value)
-  if (value.state === 'conflicting') return value.claims.flatMap((claim) => jsonStrings(claim.value))
-  return []
-}
-
-function stringKnowledge(values: readonly Knowledge<JsonValue>[]): QueryValue {
-  const known = values.flatMap((value) => value.state === 'known' ? jsonStrings(value.value) : [])
-  const conflicts = values.filter((value) => value.state === 'conflicting')
-  if (conflicts.length > 0) {
-    return {
-      state: 'conflicting',
-      claims: conflicts.flatMap((value) => value.state === 'conflicting'
-        ? value.claims.map((claim) => ({ value: jsonStrings(claim.value), sources: claim.sources, ...(claim.note === undefined ? {} : { note: claim.note }) }))
-        : []),
-    }
-  }
-  if (known.length > 0) return { state: 'known', value: Array.from(new Set(known)) }
-  if (values.length > 0 && values.every((value) => value.state === 'notApplicable')) return { state: 'notApplicable' }
-  return { state: 'unknown', reason: 'The source does not establish this facet' }
 }
 
 function numberKnowledge(value: Knowledge<JsonValue> | undefined): Knowledge<number> | undefined {
@@ -197,11 +170,8 @@ export function projectReferenceEntity(
   suppliedClaims?: readonly CatalogClaim[],
 ): ReferenceSearchItem {
   const claims = suppliedClaims ?? catalog.claims.filter((claim) => claim.entityId === entity.id)
-  const categoryKnowledge = [
-    ...Object.entries(entity.fields),
-    ...claims.map((claim) => [claim.field, claim.value] as const),
-  ].filter(([field]) => CATEGORY_FIELDS.has(normalizeImportedFieldName(field))).map(([, value]) => value)
-  const categories = Array.from(new Set(categoryKnowledge.flatMap(knowledgeStringValues))).sort(compareText)
+  const categoryKnowledge = referenceCategoryKnowledge(entity, claims)
+  const categories = Array.from(new Set(categoryKnowledge.flatMap(facetStringValues))).sort(compareText)
   const sources = Array.from(new Set([
     catalog.id,
     ...entity.sources.map((source) => source.sourceId),
@@ -223,7 +193,8 @@ export function projectReferenceEntity(
     projection: {
       text: { state: 'known', value: [entity.name, ...entity.aliases, entity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: entity.kind },
-      category: stringKnowledge(categoryKnowledge),
+      category: combineFacetKnowledge(categoryKnowledge),
+      ...referenceFieldFacets(entity, claims),
       source: { state: 'known', value: sources },
       ppCost,
       ppCostUnit: ppUnitKnowledge(ppCost),
@@ -274,6 +245,7 @@ export function buildReferenceQuery(filters: ReferenceFilters): QueryNode {
     facetNode('kind', filters.kinds),
     facetNode('category', filters.categories),
     facetNode('source', filters.sources),
+    ...REFERENCE_FACETS.map(facet => facetNode(facet.key, filters[facet.key] ?? [])),
   ]) {
     if (node) children.push(node)
   }
@@ -293,9 +265,15 @@ export function partitionReferenceItems(
 }
 
 export function personalDefinitionCategoryValues(option: PersonalDefinitionSearchOption): readonly string[] {
-  return option.category
-    ? Array.from(new Set(knowledgeStringValues(option.category))).sort(compareText)
-    : []
+  return Array.from(new Set(personalCategoryKnowledge(option).flatMap(facetStringValues))).sort(compareText)
+}
+
+function personalCategoryKnowledge(option: PersonalDefinitionSearchOption): readonly Knowledge<JsonValue>[] {
+  return [...(option.record ? referenceCategoryKnowledge(option.record) : []), ...(option.category ? [option.category] : [])]
+}
+
+export function personalDefinitionFacetValues(option: PersonalDefinitionSearchOption, field: ReferenceFacetKey): readonly string[] {
+  return [...new Set(facetStringValues(referenceFieldFacets(option.record ?? { kind: option.kind, name: option.name, fields: {} }, [], option.modAvailability?.requiredMod)[field]))]
 }
 
 export function partitionPersonalDefinitionOptions<Option extends PersonalDefinitionSearchOption>(
@@ -309,7 +287,8 @@ export function partitionPersonalDefinitionOptions<Option extends PersonalDefini
       return {
         text: { state: 'known', value: [option.name, ...option.aliases, option.description ?? '', option.kind, option.sourceLabel].join('\n').normalize('NFKC') },
         kind: { state: 'known', value: option.kind },
-        category: stringKnowledge(option.category ? [option.category] : []),
+        category: combineFacetKnowledge(personalCategoryKnowledge(option)),
+        ...referenceFieldFacets(option.record ?? { kind: option.kind, name: option.name, fields: {} }, [], option.modAvailability?.requiredMod),
         source: { state: 'known', value: ['Personal definitions'] },
         ppCost,
         ppCostUnit: ppUnitKnowledge(ppCost),
@@ -320,10 +299,10 @@ export function partitionPersonalDefinitionOptions<Option extends PersonalDefini
   }
 }
 
-export function buildFacetOptions(items: readonly ReferenceSearchItem[], field: 'kind' | 'category' | 'source'): readonly FacetOption[] {
+export function buildFacetOptions(items: readonly ReferenceSearchItem[], field: 'kind' | 'category' | 'source' | ReferenceFacetKey): readonly FacetOption[] {
   const counts = new Map<string, number>()
   for (const item of items) {
-    const values = field === 'kind' ? [item.entity.kind] : field === 'category' ? item.categories : item.sources
+    const values = field === 'kind' ? [item.entity.kind] : field === 'category' ? item.categories : field === 'source' ? item.sources : facetStringValues(item.projection[field] ?? { state: 'unknown' })
     for (const value of new Set(values)) counts.set(value, (counts.get(value) ?? 0) + 1)
   }
   return Array.from(counts, ([value, count]) => ({ value, count })).sort((left, right) => compareText(left.value, right.value))

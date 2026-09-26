@@ -3,7 +3,7 @@ import { normalizeWeaponType, skillWeaponLabel, skillWeaponRule, UNRESTRICTED_WE
 import { modAvailabilityLabel } from '../catalog/mods'
 import { useCallback, useMemo, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef } from '../domain'
-import type { CatalogEntity, CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { formatAppError, knowledgeTone } from './model'
@@ -11,6 +11,8 @@ import { DefinitionEditor, findDefinitionOption, useDefinitionWorkspace, type De
 import { routeWithOverlay, useNavigation, type ReferencePageRoute } from './navigation'
 import { Sheet } from './Sheet'
 import { sourceDisplay } from './source-display'
+import { ReferenceCategoryFilters, ReferenceFacetSection } from './ReferenceFacets'
+import { DEFINITION_KIND_GROUPS, DEFINITION_KIND_LABELS, referenceCategoryGroup, referenceFieldFacets, REFERENCE_FACETS, type ReferenceFacetKey } from './reference-facets'
 import {
   aggregateKnowledgeCounts,
   buildFacetOptions,
@@ -18,10 +20,13 @@ import {
   partitionPersonalDefinitionOptions,
   partitionReferenceItems,
   personalDefinitionCategoryValues,
+  personalDefinitionFacetValues,
+  type FacetOption,
   type ReferenceSearchItem,
 } from './search'
 import {
   commitReferenceRouteState,
+  DEFAULT_REFERENCE_ROUTE_STATE,
   readReferenceRouteState,
   REFERENCE_PAGE_SIZE,
   ROUTE_MAX_RESULT_LIMIT,
@@ -160,12 +165,33 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const items = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
   const optionsByKey = useMemo(() => new Map(options.map(option => [option.key, option])), [options])
   const availableKeys = useMemo(() => new Set(availableOptions.map(option => option.key)), [availableOptions])
-  const searchableItems = useMemo(() => items.filter(item => availableKeys.has(referenceDefinitionKey(item))), [availableKeys, items])
+  const searchableItems = useMemo(() => items.filter(item => availableKeys.has(referenceDefinitionKey(item))).map(item => {
+    const requiredMod = optionsByKey.get(referenceDefinitionKey(item))?.modAvailability?.requiredMod
+    return requiredMod ? { ...item, projection: { ...item.projection, ...referenceFieldFacets(item.entity, item.claims, requiredMod) } } : item
+  }), [availableKeys, items, optionsByKey])
   const availablePersonalOptions = useMemo(() => availableOptions.filter(option => option.ref.kind === 'personal'), [availableOptions])
   const personalOptions = useMemo(() => options.filter((option) => option.ref.kind === 'personal'), [options])
   const preferredPersonalOptions = useMemo(() => personalOptions.filter((option) => option.preferred), [personalOptions])
+  const facetItems = useMemo(() => searchableItems.filter(item => !route.kinds.length || route.kinds.includes(item.entity.kind)), [searchableItems, route.kinds])
+  const facetPersonalOptions = useMemo(() => availablePersonalOptions.filter(option => !route.kinds.length || route.kinds.includes(option.kind)), [availablePersonalOptions, route.kinds])
   const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'kind'), availablePersonalOptions.map((option) => option.kind)), [searchableItems, availablePersonalOptions])
-  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'category'), availablePersonalOptions.flatMap(personalDefinitionCategoryValues)), [searchableItems, availablePersonalOptions])
+  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(facetItems, 'category'), facetPersonalOptions.flatMap(personalDefinitionCategoryValues)), [facetItems, facetPersonalOptions])
+  const categoryGroups = useMemo(() => {
+    const kindsByCategory = new Map<string, Set<CatalogEntityKind>>()
+    for (const entry of [...facetItems.map(item => ({ kind: item.entity.kind, categories: item.categories })), ...facetPersonalOptions.map(option => ({ kind: option.kind, categories: personalDefinitionCategoryValues(option) }))]) {
+      for (const category of entry.categories) {
+        const kinds = kindsByCategory.get(category) ?? new Set()
+        kinds.add(entry.kind)
+        kindsByCategory.set(category, kinds)
+      }
+    }
+    return new Map(categoryOptions.map(option => [option.value, referenceCategoryGroup(option.value, [...(kindsByCategory.get(option.value) ?? [])])]))
+  }, [categoryOptions, facetItems, facetPersonalOptions])
+  const fieldFacetOptions = useMemo(() => {
+    const facets: Record<ReferenceFacetKey, readonly FacetOption[]> = { classes: [], slots: [], elements: [], mods: [] }
+    for (const facet of REFERENCE_FACETS) facets[facet.key] = mergeFacetOptions(buildFacetOptions(facetItems, facet.key), facetPersonalOptions.flatMap(option => personalDefinitionFacetValues(option, facet.key)))
+    return facets
+  }, [facetItems, facetPersonalOptions])
   const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'source'), availablePersonalOptions.map(() => 'Personal definitions')), [searchableItems, availablePersonalOptions])
   const unrestrictedWeaponSkills = modState(profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined, UNRESTRICTED_WEAPON_SKILLS_MOD)
   const partition = useMemo(() => partitionReferenceItems(searchableItems, {
@@ -175,8 +201,12 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
+    classes: route.classes,
+    slots: route.slots,
+    elements: route.elements,
+    mods: route.mods,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [searchableItems, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, unrestrictedWeaponSkills])
+  }), [searchableItems, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, route.classes, route.slots, route.elements, route.mods, unrestrictedWeaponSkills])
   const results = useMemo(() => [...partition.confirmed, ...(!route.weapon || route.includeUncertainSkills ? partition.possible : [])], [partition.confirmed, partition.possible, route.weapon, route.includeUncertainSkills])
   const personalPartition = useMemo(() => partitionPersonalDefinitionOptions(availablePersonalOptions, {
     query: route.query,
@@ -185,8 +215,12 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
+    classes: route.classes,
+    slots: route.slots,
+    elements: route.elements,
+    mods: route.mods,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [availablePersonalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, unrestrictedWeaponSkills])
+  }), [availablePersonalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, route.classes, route.slots, route.elements, route.mods, unrestrictedWeaponSkills])
   const personalResults = useMemo(() => [...personalPartition.confirmed, ...(!route.weapon || route.includeUncertainSkills ? personalPartition.possible : [])], [personalPartition.confirmed, personalPartition.possible, route.weapon, route.includeUncertainSkills])
   const visiblePersonalResults = personalResults.slice(0, route.resultLimit)
   const visibleCatalogResults = results.slice(0, Math.max(0, route.resultLimit - visiblePersonalResults.length))
@@ -213,6 +247,20 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     updateRoute({ ...change, selectedKey: undefined, resultLimit: REFERENCE_PAGE_SIZE }, mode)
   }, [updateRoute])
 
+  const activeFilters: { key: string; label: string; clear: Partial<ReferenceRouteState> }[] = [
+    ...(route.query ? [{ key: 'query', label: `Search: ${route.query}`, clear: { query: '' } }] : []),
+    ...route.kinds.map(kind => ({ key: `kind:${kind}`, label: DEFINITION_KIND_LABELS[kind], clear: { kinds: route.kinds.filter(value => value !== kind) } })),
+    ...route.categories.map(category => ({ key: `category:${category}`, label: category, clear: { categories: route.categories.filter(value => value !== category) } })),
+    ...REFERENCE_FACETS.flatMap(facet => (route[facet.key] ?? []).map(value => ({ key: `${facet.key}:${value}`, label: `${facet.label}: ${value}`, clear: { [facet.key]: route[facet.key]?.filter(entry => entry !== value) } }))),
+    ...route.sources.map(source => ({ key: `source:${source}`, label: `Source: ${sourceDisplay(source).label}`, clear: { sources: route.sources.filter(value => value !== source) } })),
+    ...(route.weapon ? [{ key: 'weapon', label: `Weapon skills: ${route.weapon}`, clear: { weapon: undefined, includeUncertainSkills: undefined } }] : []),
+    ...(route.includeUncertainSkills ? [{ key: 'uncertainSkills', label: 'Uncertain weapon skills', clear: { includeUncertainSkills: undefined } }] : []),
+    ...(route.ppMin === undefined ? [] : [{ key: 'ppMin', label: `PP minimum: ${route.ppMin}`, clear: { ppMin: undefined } }]),
+    ...(route.ppMax === undefined ? [] : [{ key: 'ppMax', label: `PP maximum: ${route.ppMax}`, clear: { ppMax: undefined } }]),
+  ]
+
+  const clearFilters = () => updateFilter({ ...DEFAULT_REFERENCE_ROUTE_STATE, ...Object.fromEntries(REFERENCE_FACETS.map(facet => [facet.key, []])), weapon: undefined, includeUncertainSkills: undefined, ppMin: undefined, ppMax: undefined }, 'push')
+
   const navigate = (next: ReferencePageRoute, replace = false) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }, { replace })
   const openDetail = (ref: EntityRef) => navigate({ page: 'reference', view: 'detail', ref })
 
@@ -233,6 +281,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
 
   return <>
     <ScreenHeader actions={<><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Look up equipment, classes, abilities, and monsters. Check sources and unknown details before planning." eyebrow="Game reference" title="Reference"/>
+    {activeFilters.length > 0 && <div aria-label="Active reference filters" className="reference-active-filters" role="group">{activeFilters.map(filter => <button aria-label={`Remove ${filter.label} filter`} className="filter-chip" key={filter.key} onClick={() => updateFilter(filter.clear, 'push')} title={filter.label} type="button"><span>{filter.label}</span><Icon name="close"/></button>)}<Button onClick={clearFilters} tone="quiet">Clear all filters</Button></div>}
     {!selectedRef && availableOptions.length < options.length && <p className="settings-section__intro">Definitions from explicitly disabled mods are hidden. Unclassified entries and uncertain mod settings remain visible.</p>}
     {selectedAvailability?.requiredMod && <p className="settings-section__intro">{modAvailabilityLabel(selectedAvailability)}</p>}
     {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this workspace. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}
@@ -240,16 +289,27 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
       <aside className="panel facet-panel">
         <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length + personalPartition.confirmed.length} confirmed · {partition.possible.length + personalPartition.possible.length} possible</p></div></div>
         <div className="facet-group"><div className="search-field"><Icon name="search"/><input aria-label="Search reference" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Name, alias, or raw text" type="search" value={route.query}/></div></div>
-        {!selectedRef && <div className="facet-group"><label className="field"><span className="field__label">Weapon skills usable with</span><select onChange={(event) => updateFilter({ weapon: normalizeWeaponType(event.target.value), kinds: [], categories: [], ppMin: undefined, ppMax: undefined }, 'push')} value={route.weapon ?? ''}><option value="">Any skill or definition</option>{WEAPON_TYPES.map(weapon => <option key={weapon} value={weapon}>{weapon}</option>)}</select></label></div>}
-        <button aria-controls="reference-filter-options" aria-expanded={filtersOpen} className="mobile-filter-toggle" onClick={() => setFiltersOpen((value) => !value)} type="button"><span>{filtersOpen ? 'Hide filters' : 'Filters'}</span><Badge>{route.kinds.length + route.categories.length + route.sources.length + (route.ppMin === undefined ? 0 : 1) + (route.ppMax === undefined ? 0 : 1)} active</Badge></button>
+        <button aria-controls="reference-filter-options" aria-expanded={filtersOpen} className="mobile-filter-toggle" onClick={() => setFiltersOpen((value) => !value)} type="button"><span>{filtersOpen ? 'Hide filters' : 'Filters'}</span><Badge>{activeFilters.length} active</Badge></button>
         <div className={`reference-filter-options${filtersOpen ? ' is-open' : ''}`} id="reference-filter-options">
-        <div className="facet-group"><h3>Definition type</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><button aria-pressed={route.kinds.length === 0} className="filter-chip" onClick={() => updateFilter({ kinds: [] }, 'push')} type="button">All</button>{kindOptions.map((option) => <button aria-pressed={route.kinds.includes(option.value as typeof route.kinds[number])} className="filter-chip" key={option.value} onClick={() => updateFilter({ kinds: toggleValue(route.kinds, option.value) as typeof route.kinds }, 'push')} type="button">{option.value === 'monsterMagic' ? 'Monster Magic' : option.value} ({option.count})</button>)}</div></div>
-        {categoryOptions.length > 0 && <div className="facet-group"><h3>Category</h3><BoundedFacetOptions groupLabel="Reference category filters" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryOptions} searchLabel="Search reference categories" selected={route.categories}/></div>}
-        <div className="facet-group"><h3>Source</h3><BoundedFacetOptions formatOption={sourceDisplay} groupLabel="Reference source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search reference sources" selected={route.sources}/></div>
-        <div className="facet-group"><h3>PP cost</h3><div className="grid-2"><label className="field"><span className="field__label">Minimum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMin: numericInput(event.target.value) })} type="number" value={route.ppMin ?? ''}/></label><label className="field"><span className="field__label">Maximum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMax: numericInput(event.target.value) })} type="number" value={route.ppMax ?? ''}/></label></div><small>PP bounds apply only where PP is meaningful. Unknown or conflicting costs remain possible matches.</small></div>
-        <div className="facet-group"><h3>Catalog knowledge in matches</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><Badge tone="positive">{knowledgeCounts.known} known</Badge><Badge tone="warning">{knowledgeCounts.unknown} unknown</Badge><Badge tone="danger">{knowledgeCounts.conflicting} conflicts</Badge></div></div>
-        <div className="facet-group"><h3>Reference packs</h3>{catalogs.map((catalog) => <div className="source-claim" key={JSON.stringify([catalog.id, catalog.revisionId])}><span className="source-claim__line"/><div><strong>{catalog.id}</strong><p>Revision {catalog.revisionId}</p><small>{catalog.schemaVersion} · {Object.keys(catalog.entities).length} definitions</small></div></div>)}</div>
-        {personalOptions.length > 0 && <div className="facet-group"><h3>Personal definitions</h3><p className="settings-section__intro">{preferredPersonalOptions.length} preferred immutable {preferredPersonalOptions.length === 1 ? 'lineage' : 'lineages'} plus {personalOptions.length - preferredPersonalOptions.length} historical revisions. Filters and results keep exact identities visible.</p></div>}
+          <ReferenceFacetSection active={route.kinds.length} summary="All definitions" title="Definition type">
+            <div aria-label="Reference definition type filters" className="reference-kind-groups" role="group">
+              <button aria-pressed={route.kinds.length === 0} className="filter-chip" onClick={() => updateFilter({ kinds: [] }, 'push')} type="button">All types</button>
+              {DEFINITION_KIND_GROUPS.map(group => <div key={group.label}><h4>{group.label}</h4><div className="reference-kind-options">{group.kinds.flatMap(kind => {
+                const option = kindOptions.find(entry => entry.value === kind)
+                return option ? [<button aria-pressed={route.kinds.includes(kind)} className="filter-chip" key={kind} onClick={() => updateFilter({ kinds: toggleValue(route.kinds, kind) as typeof route.kinds }, 'push')} type="button">{DEFINITION_KIND_LABELS[kind]} <span className="filter-chip__count">{option.count}</span></button>] : []
+              })}</div></div>)}
+            </div>
+          </ReferenceFacetSection>
+          {categoryOptions.length > 0 && <div className="facet-group"><h3>Category</h3><ReferenceCategoryFilters groups={categoryGroups} onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={value => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryOptions} selected={route.categories}/><small className="bounded-facet-options__summary">Choose alternatives within a filter. Different filters narrow the results together.</small></div>}
+          {REFERENCE_FACETS.map(facet => fieldFacetOptions[facet.key].length || route[facet.key]?.length ? <ReferenceFacetSection active={route[facet.key]?.length ?? 0} key={facet.key} title={facet.label}><BoundedFacetOptions alwaysSearch groupLabel={`Reference ${facet.key} filters`} onClear={() => updateFilter({ [facet.key]: [] }, 'push')} onToggle={value => updateFilter({ [facet.key]: toggleValue(route[facet.key] ?? [], value) }, 'push')} options={fieldFacetOptions[facet.key]} searchLabel={`Search reference ${facet.key}`} selected={route[facet.key] ?? []}/></ReferenceFacetSection> : null)}
+          {!selectedRef && <ReferenceFacetSection active={route.weapon ? 1 : 0} title="Weapon skills"><label className="field"><span className="field__label">Weapon skills usable with</span><select onChange={event => updateFilter({ weapon: normalizeWeaponType(event.target.value), kinds: [], categories: [], slots: [], ppMin: undefined, ppMax: undefined }, 'push')} value={route.weapon ?? ''}><option value="">Any skill or definition</option>{WEAPON_TYPES.map(weapon => <option key={weapon} value={weapon}>{weapon}</option>)}</select></label></ReferenceFacetSection>}
+          <ReferenceFacetSection active={(route.ppMin === undefined ? 0 : 1) + (route.ppMax === undefined ? 0 : 1)} title="PP cost"><div className="grid-2"><label className="field"><span className="field__label">Minimum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMin: numericInput(event.target.value) })} type="number" value={route.ppMin ?? ''}/></label><label className="field"><span className="field__label">Maximum</span><input inputMode="numeric" onChange={(event) => updateFilter({ ppMax: numericInput(event.target.value) })} type="number" value={route.ppMax ?? ''}/></label></div><small>PP bounds apply only where PP is meaningful. Unknown or conflicting costs remain possible matches.</small></ReferenceFacetSection>
+          <ReferenceFacetSection active={route.sources.length} title="Source"><BoundedFacetOptions formatOption={sourceDisplay} groupLabel="Reference source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search reference sources" selected={route.sources}/></ReferenceFacetSection>
+          <ReferenceFacetSection summary="Knowledge & reference packs" title="Library details">
+            <h4>Catalog knowledge in matches</h4><div className="reference-knowledge"><Badge tone="positive">{knowledgeCounts.known} known</Badge><Badge tone="warning">{knowledgeCounts.unknown} unknown</Badge><Badge tone="danger">{knowledgeCounts.conflicting} conflicts</Badge></div>
+            <h4>Reference packs</h4>{catalogs.map(catalog => <div className="source-claim" key={JSON.stringify([catalog.id, catalog.revisionId])}><span className="source-claim__line"/><div><strong>{catalog.id}</strong><p>Revision {catalog.revisionId}</p><small>{catalog.schemaVersion} · {Object.keys(catalog.entities).length} definitions</small></div></div>)}
+            {personalOptions.length > 0 && <><h4>Personal definitions</h4><p className="settings-section__intro">{preferredPersonalOptions.length} preferred immutable {preferredPersonalOptions.length === 1 ? 'lineage' : 'lineages'} plus {personalOptions.length - preferredPersonalOptions.length} historical revisions. Filters and results keep exact identities visible.</p></>}
+          </ReferenceFacetSection>
         </div>
       </aside>
       <section className="panel">

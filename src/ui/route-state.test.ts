@@ -31,6 +31,10 @@ describe('reference route state', () => {
       kinds: ['item', 'passive'],
       categories: ['Two handed'],
       sources: ['pack:alpha'],
+      classes: ['Scribe', 'Mage'],
+      elements: ['Wind'],
+      slots: ['mainHand', 'offHand'],
+      mods: ['Test pack'],
       ppMin: -2,
       ppMax: 8,
       selectedKey,
@@ -47,6 +51,10 @@ describe('reference route state', () => {
       ...DEFAULT_REFERENCE_ROUTE_STATE,
       categories: [' Type：A '],
       sources: [' source：id '],
+      classes: [' Class：A '],
+      slots: [' slot:id '],
+      elements: [' element:value '],
+      mods: [' Mod & Pack '],
       selectedKey,
     }
     expect(parseReferenceRoute(formatReferenceRoute(state))).toEqual(state)
@@ -66,6 +74,7 @@ describe('reference route state', () => {
     expect(parsed.resultLimit).toBe(2_000)
     expect(parsed.ppMin).toBeUndefined()
     expect(parsed.selectedKey).toBeUndefined()
+    expect(parseReferenceRoute('#/reference?class=&class=Scribe&class=Scribe&slot=offHand&element=Wind&mod=Pack')).toMatchObject({ classes: ['Scribe'], slots: ['offHand'], elements: ['Wind'], mods: ['Pack'] })
   })
 
   it('persists locally and lets browser history restore prior reference states', () => {

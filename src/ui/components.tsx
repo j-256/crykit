@@ -34,16 +34,16 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
   return <div aria-label={label} className="segmented" role="group">{options.map((option) => <button aria-pressed={value === option.value} key={option.value} onClick={() => onChange(option.value)} type="button">{option.label}</button>)}</div>
 }
 
-const FACET_OPTION_DOM_LIMIT = 40
+export const FACET_OPTION_DOM_LIMIT = 40
 
 export interface FacetOptionDisplay {
   readonly label: string
   readonly detail?: string
 }
 
-export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay }) {
+export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption, alwaysSearch = false }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay; alwaysSearch?: boolean }) {
   const [query, setQuery] = useState('')
-  const searchable = options.length > FACET_OPTION_DOM_LIMIT
+  const searchable = alwaysSearch || options.length > FACET_OPTION_DOM_LIMIT
   const filtered = useMemo(() => {
     const normalized = searchable ? query.trim().toLocaleLowerCase() : ''
     return normalized ? options.filter((option) => {

@@ -1,6 +1,7 @@
 import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { CatalogEntityKind } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
+import { REFERENCE_FACETS, type ReferenceFacetFilters } from './reference-facets'
 import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
 
 export const REFERENCE_ROUTE_STORAGE_KEY = 'crystal-companion:reference-route:v1'
@@ -27,7 +28,7 @@ const KINDS = new Set<CatalogEntityKind>([
   'other',
 ])
 
-export interface ReferenceRouteState {
+export interface ReferenceRouteState extends ReferenceFacetFilters {
   readonly query: string
   readonly kinds: readonly CatalogEntityKind[]
   readonly categories: readonly string[]
@@ -95,6 +96,10 @@ export function normalizeReferenceRouteState(value: unknown): ReferenceRouteStat
     kinds: kindValues(record.kinds),
     categories: facetValues(record.categories),
     sources: facetValues(record.sources),
+    ...Object.fromEntries(REFERENCE_FACETS.flatMap(facet => {
+      const values = facetValues(record[facet.key])
+      return values.length ? [[facet.key, values]] : []
+    })),
     ...(normalizeWeaponType(record.weapon) && record.includeUncertainSkills === true ? { includeUncertainSkills: true } : {}),
     ...(normalizeWeaponType(record.weapon) ? { weapon: normalizeWeaponType(record.weapon) } : {}),
     ...(finiteNumber(record.ppMin) === undefined ? {} : { ppMin: finiteNumber(record.ppMin) }),
@@ -138,6 +143,7 @@ function referenceQuery(state: ReferenceRouteState): RouteQuery {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  for (const facet of REFERENCE_FACETS) for (const value of state[facet.key] ?? []) params.append(facet.parameter, value)
   if (state.weapon) params.set('weapon', state.weapon)
   if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
   if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))
@@ -159,6 +165,7 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     kinds: params.getAll('kind'),
     categories: params.getAll('category'),
     sources: params.getAll('source'),
+    ...Object.fromEntries(REFERENCE_FACETS.map(facet => [facet.key, params.getAll(facet.parameter)])),
     weapon: params.get('weapon'),
     includeUncertainSkills: params.get('uncertainSkills') === '1',
     ppMin: queryNumber(params, 'ppMin'),
@@ -175,6 +182,7 @@ export function formatReferenceRoute(value: ReferenceRouteState): string {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  for (const facet of REFERENCE_FACETS) for (const entry of state[facet.key] ?? []) params.append(facet.parameter, entry)
   if (state.weapon) params.set('weapon', state.weapon)
   if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
   if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))

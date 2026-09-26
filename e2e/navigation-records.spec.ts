@@ -158,6 +158,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
 test('reference source options remain readable, bounded, and exact', async ({ page, isMobile }) => {
   await navigate(page, 'Reference')
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
+  await page.getByRole('button', { name: 'Source', exact: true }).click()
   const sourceSearch = page.getByRole('searchbox', { name: 'Search reference sources', exact: true })
   const sources = page.getByRole('group', { name: 'Reference source filters', exact: true })
   const aegisSource = sources.getByRole('button', { name: /^Community wiki · Aegis\. Full source: https:\/\/crystal-project\.fandom\.com\/wiki\/Aegis\. \d+ matches$/ })
