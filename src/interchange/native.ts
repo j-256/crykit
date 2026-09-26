@@ -1,5 +1,6 @@
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
+import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
 import {
   definitionLineageRootRef,
   logicalEntityKey,
@@ -265,6 +266,14 @@ function validateProfileEntityRefs(
       check(ref, `${label}.rulesets.${id}.definitionOverrides[${index}]`)
     }
   }
+  for (const layout of Object.values(profile.skillTreeLayouts ?? {})) {
+    check(layout.classRef, `${label}.skillTreeLayouts.${layout.id}.classRef`)
+    for (const mapping of layout.mappings) check(mapping.ref, `${label}.skillTreeLayouts.${layout.id}.mappings`)
+  }
+  for (const capture of Object.values(profile.skillTreeCaptures ?? {})) {
+    check(capture.classRef, `${label}.skillTreeCaptures.${capture.id}.classRef`)
+    for (const mapping of capture.mappings) check(mapping.ref, `${label}.skillTreeCaptures.${capture.id}.mappings`)
+  }
   for (const [id, position] of Object.entries(profile.inventory)) check(position.ref, `${label}.inventory.${id}.ref`)
   for (const [id, event] of Object.entries(profile.inventoryEvents)) check(event.ref, `${label}.inventoryEvents.${id}.ref`)
   for (const [characterId, character] of Object.entries(profile.characters)) {
@@ -318,6 +327,34 @@ function validateProfile(
   assertIdMap(profile.goals, `${label}.goals`)
   assertIdMap(profile.importReceipts, `${label}.importReceipts`)
   validatePersonalDefinitionLineage(typedProfile, catalogEntityKinds)
+
+  if (profile.skillTreeLayouts) assertIdMap(profile.skillTreeLayouts, `${label}.skillTreeLayouts`)
+  if (profile.skillTreeCaptures) assertIdMap(profile.skillTreeCaptures, `${label}.skillTreeCaptures`)
+  const definitionKind = (ref: EntityRef) => ref.kind === 'personal' ? typedProfile.personalDefinitions[ref.definitionId]?.kind : catalogEntityKinds.get(entityDefinitionKey(ref))
+  for (const entry of [...Object.values(typedProfile.skillTreeLayouts ?? {}), ...Object.values(typedProfile.skillTreeCaptures ?? {})]) {
+    if (definitionKind(entry.classRef) !== 'class') schemaError('A skill tree references an unavailable class')
+    if (entry.rulesetRevisionId && !rulesets[entry.rulesetRevisionId]) schemaError('A skill tree references a missing ruleset')
+    let shape: string
+    if ('squares' in entry) {
+      if (!characters[entry.characterId]) schemaError('A skill tree references a missing character')
+      try { assertSkillTreeGeometry(entry.squares) } catch { schemaError('A skill tree has invalid square positions') }
+      shape = skillTreeShape(entry.squares)
+    } else {
+      const positions = entry.shape.split(',').map(key => { const [row, column] = key.split(':').map(Number); return { row, column } })
+      try { assertSkillTreeGeometry(positions) } catch { schemaError('A skill layout has invalid square positions') }
+      shape = skillTreeShape(positions)
+      if (shape !== entry.shape) schemaError('A skill layout has an invalid shape')
+    }
+    const mapped = new Set<string>()
+    const refs = new Set<string>()
+    for (const mapping of entry.mappings) {
+      const position = squareKey(mapping)
+      const key = logicalEntityKey(typedProfile, mapping.ref)
+      if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || definitionKind(mapping.ref) !== mapping.kind) schemaError('A skill tree contains an invalid or duplicate mapping')
+      mapped.add(position)
+      refs.add(key)
+    }
+  }
 
   if (profile.activeRulesetRevisionId !== undefined && !rulesets[stringValue(profile.activeRulesetRevisionId, `${label}.activeRulesetRevisionId`)]) {
     schemaError(`${label}.activeRulesetRevisionId references a missing ruleset`)

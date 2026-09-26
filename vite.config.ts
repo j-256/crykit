@@ -1,11 +1,13 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { offlinePlugin } from './scripts/offline-plugin.ts'
+import { ocrAssets } from './scripts/ocr-assets.ts'
 
 export default defineConfig({
   base: './',
   plugins: [
     react(),
+    ocrAssets(),
     offlinePlugin(),
     {
       name: 'development-csp',

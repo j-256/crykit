@@ -20,11 +20,13 @@
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
     "dexie": "4.4.6",
     "fflate": "0.8.3",
     "lucide-react": "^0.577.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "tesseract.js": "7.0.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

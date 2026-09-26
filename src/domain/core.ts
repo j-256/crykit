@@ -120,6 +120,8 @@ type ProfileUpdate = Partial<
     | 'scenarios'
     | 'goals'
     | 'importReceipts'
+    | 'skillTreeLayouts'
+    | 'skillTreeCaptures'
   >
 >
 

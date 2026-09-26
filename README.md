@@ -53,6 +53,8 @@ Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to s
 
 Reference search supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+Characters also offers **Import skill screenshots** for full Learn-menu captures. It reads the character and selected class locally, skips identical decoded images, and separates gold learned squares from blue available and dim locked squares. Review each screenshot before saving. Ability names require a reviewed position mapping for each class and ruleset; the screenshots do not display those names, and the app does not guess them from catalog order. Mappings can be reused across characters. Unmapped squares remain saved observations, and conflicting learning remains explicit. See [screenshot learning imports](docs/screenshot-learning.md) for supported images, mapping reuse, recovery, and offline behavior.
+
 Pages, record details, settings sections, and modal workflows have semantic URLs. Copy the address bar to bookmark the selected view or reopen a dialog. Browser Back and Forward follow the same navigation, including nested definition pickers and editors. See [navigation and local links](docs/navigation.md) for refresh, draft, and missing-data behavior.
 
 ## Verification

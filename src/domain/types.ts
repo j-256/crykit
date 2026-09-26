@@ -267,6 +267,41 @@ export interface LearnedNode {
   readonly sources: readonly SourceRef[]
 }
 
+export type SkillSquareState = 'learned' | 'available' | 'locked' | 'unknown'
+
+export interface SkillSquare {
+  readonly row: number
+  readonly column: number
+  readonly state: SkillSquareState
+}
+
+export interface SkillTreeMapping {
+  readonly row: number
+  readonly column: number
+  readonly ref: EntityRef
+  readonly kind: LearnedNodeKind
+}
+
+export interface SkillTreeLayout {
+  readonly id: string
+  readonly classRef: EntityRef
+  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly shape: string
+  readonly mappings: readonly SkillTreeMapping[]
+}
+
+export interface SkillTreeCapture {
+  readonly id: string
+  readonly characterId: CharacterId
+  readonly classRef: EntityRef
+  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly sourceDigest: string
+  readonly filename: string
+  readonly recordedAt: Timestamp
+  readonly squares: readonly SkillSquare[]
+  readonly mappings: readonly SkillTreeMapping[]
+}
+
 export interface Character {
   readonly id: CharacterId
   readonly revision: number
@@ -430,6 +465,8 @@ export interface Profile {
   readonly goals: Readonly<Record<string, Goal>>
   readonly importReceipts: Readonly<Record<string, ImportReceipt>>
   readonly changes: readonly ChangeEntry[]
+  readonly skillTreeLayouts?: Readonly<Record<string, SkillTreeLayout>>
+  readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>
 }
 
 export type TruthValue = 'true' | 'false' | 'unknown'

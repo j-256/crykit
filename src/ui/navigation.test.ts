@@ -28,6 +28,7 @@ describe('semantic navigation routes', () => {
       { page: 'characters', view: 'snapshot', characterId: 'character / one', snapshotId: 'snapshot / one' },
       { page: 'characters', view: 'snapshot-compare', characterId: 'character / one' },
       { page: 'characters', view: 'snapshot-pair', characterId: 'character / one', leftSnapshotId: 'snapshot / one', rightSnapshotId: 'snapshot / two' },
+      { page: 'characters', view: 'skill-screenshots', characterId: 'character / one' },
       { page: 'characters', view: 'class-new', characterId: 'character / one' },
       { page: 'characters', view: 'class-edit', characterId: 'character / one', ref: catalogRef },
       { page: 'characters', view: 'learning-new', characterId: 'character / one', learningKind: 'knowledge' },

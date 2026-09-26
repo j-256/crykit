@@ -367,6 +367,12 @@ const changeEntry = z.object({
   recordedAt: timestamp,
 }).strict()
 
+const skillPosition = { row: z.number().int().min(0).max(5), column: z.number().int().min(0).max(3) }
+const skillMapping = z.object({ ...skillPosition, ref: entityRef, kind: z.enum(['ability', 'passive', 'innate', 'monsterMagic']) }).strict()
+const skillSquare = z.object({ ...skillPosition, state: z.enum(['learned', 'available', 'locked', 'unknown']) }).strict()
+const skillLayout = z.object({ id, classRef: entityRef, rulesetRevisionId: id.optional(), shape: shortText, mappings: z.array(skillMapping).max(24) }).strict()
+const skillCapture = z.object({ id, characterId: id, classRef: entityRef, rulesetRevisionId: id.optional(), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), filename: shortText.regex(/^[^/\\]+$/), recordedAt: timestamp, squares: z.array(skillSquare).min(1).max(24), mappings: z.array(skillMapping).max(24) }).strict()
+
 export const NativeProfileSchema = z.object({
   schemaVersion: z.literal('1.0.0'),
   id,
@@ -388,6 +394,8 @@ export const NativeProfileSchema = z.object({
   goals: z.record(id, goal),
   importReceipts: z.record(id, importReceipt),
   changes: z.array(changeEntry).max(500),
+  skillTreeLayouts: z.record(id, skillLayout).optional(),
+  skillTreeCaptures: z.record(id, skillCapture).optional(),
 }).strict()
 
 export const NativeLineageSchema = z.object({

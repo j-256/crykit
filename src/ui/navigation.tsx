@@ -33,6 +33,7 @@ export type CharactersPageRoute =
   | { readonly page: 'characters'; readonly view: 'snapshot'; readonly characterId: CharacterId; readonly snapshotId: CharacterSnapshotId }
   | { readonly page: 'characters'; readonly view: 'snapshot-compare'; readonly characterId: CharacterId }
   | { readonly page: 'characters'; readonly view: 'snapshot-pair'; readonly characterId: CharacterId; readonly leftSnapshotId: CharacterSnapshotId; readonly rightSnapshotId: CharacterSnapshotId }
+  | { readonly page: 'characters'; readonly view: 'skill-screenshots'; readonly characterId: CharacterId }
   | { readonly page: 'characters'; readonly view: 'class-new'; readonly characterId: CharacterId }
   | { readonly page: 'characters'; readonly view: 'class-edit'; readonly characterId: CharacterId; readonly ref: EntityRef }
   | { readonly page: 'characters'; readonly view: 'learning-new'; readonly characterId: CharacterId; readonly learningKind: 'knowledge' | 'magic' }
@@ -212,6 +213,7 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
         const rightSnapshotId = decodeSegment(segments[5] ?? '')
         return leftSnapshotId && rightSnapshotId ? { page: { page: 'characters', view: 'snapshot-pair', characterId: characterId as CharacterId, leftSnapshotId: leftSnapshotId as CharacterSnapshotId, rightSnapshotId: rightSnapshotId as CharacterSnapshotId }, consumed: 6 } : bad('characters', 'malformed-identifier')
       }
+      if (tab === 'knowledge' && segments[3] === 'screenshots') return { page: { page: 'characters', view: 'skill-screenshots', characterId: characterId as CharacterId }, consumed: 4 }
       if (tab === 'classes' && segments[3] === 'new') return { page: { page: 'characters', view: 'class-new', characterId: characterId as CharacterId }, consumed: 4 }
       if (tab === 'classes') {
         const parsed = parseEntityRefPath(segments, 3)
@@ -483,6 +485,7 @@ function formatPage(page: PageRoute): string {
     if (page.view === 'snapshot') return `${root}/history/snapshots/${encodeSegment(page.snapshotId)}`
     if (page.view === 'snapshot-compare') return `${root}/history/compare`
     if (page.view === 'snapshot-pair') return `${root}/history/compare/${encodeIdentitySegment(page.leftSnapshotId, COMPARE_LEFT_ID_RESERVED_SEGMENTS)}/${encodeSegment(page.rightSnapshotId)}`
+    if (page.view === 'skill-screenshots') return `${root}/knowledge/screenshots`
     if (page.view === 'class-new') return `${root}/classes/new`
     if (page.view === 'class-edit') return `${root}/classes/${formatEntityRefPath(page.ref)}/edit`
     if (page.view === 'learning-new') return `${root}/${page.learningKind}/new`
@@ -562,7 +565,7 @@ export function routeTitle(route: AppRoute): string {
   if (page.page === 'unresolved') return 'Page unavailable | Crystal Companion'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | Crystal Companion`
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | Crystal Companion`
-  if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | Crystal Companion`
+  if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | Crystal Companion`
   if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create build' : page.view === 'revision-new' ? 'New build revision' : page.view === 'revision-edit' ? 'Edit build revision' : page.view === 'record-current' ? 'Record current build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | Crystal Companion`
   if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : 'Progress'} | Crystal Companion`
   return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | Crystal Companion`
@@ -587,7 +590,7 @@ export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (page.page === 'characters') {
     if (page.view === 'new') return { ...route, page: { page: 'characters', view: 'list' } }
     if (page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: 'history' } }
-    if (page.view !== 'list' && page.view !== 'character') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current' } }
+    if (page.view !== 'list' && page.view !== 'character') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: page.view === 'skill-screenshots' ? 'knowledge' : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current' } }
     if (page.view === 'character') return { ...route, page: { page: 'characters', view: 'list' } }
   }
   if (page.page === 'builds') {

@@ -1,0 +1,33 @@
+# Screenshot learning imports
+
+Open Characters, select a roster member, and choose **Import skill screenshots**. Add the roster members first so the review can link every screenshot to an exact character. Choose local PNG or JPEG files from the game's Learn menu, including the character header, highlighted class row, and complete skill tree. The selected class row identifies the tree; the equipped class in the header can be different.
+
+The reader supports uncropped 16:9 screenshots at least 960 pixels wide, with the four-column Learn-menu layout. It normalizes the screenshot to the observed 1280 by 720 layout for analysis. File, batch, and pixel limits are enforced before recognition; oversized or unsupported images produce an error in the review. The file picker accepts up to 64 images, at most 8 MiB per image and 64 MiB in total, with at most 16 megapixels per image. Other layouts, photographs, UI themes, crops, and localization are not verified. An equipment screen is rejected rather than imported as learning.
+
+Identical decoded pixels are skipped within the selected batch even when filenames or image metadata differ. Similar-looking images are not automatically discarded. Selecting files never moves or deletes originals. Reimporting the same image for the same character, class, and ruleset does not duplicate existing observations. The same image can be linked to another character only through explicit review.
+
+## Review the squares and names
+
+Gold borders indicate learned squares, blue borders indicate available but unlearned squares, and dim borders indicate locked squares. A mixed or uncertain border remains unknown. Select a numbered square to inspect or correct its state. The full screenshot is available below the enlarged tree. Recognition of a character name or class name is a suggestion; choose exact records and confirm each image before saving. Ambiguous names remain unselected.
+
+The captured menu does not print an ability name on each square, and the bundled catalog does not contain a verified position map. Assign known names to their positions once for each class and ruleset. Filtered choices use the reference's documented class; **Show definitions from all classes** includes definitions whose class association is absent. If a required class or ability is absent, create a personal definition through the existing reference editor before starting the review. Do not map names from a different game version or enabled-mod configuration merely because the tree looks similar.
+
+Layouts are separate from character observations and are reused only for the same logical class identity, ruleset revision, and exact set of occupied grid positions. Confirm the mapping on each new screenshot; matching geometry alone does not prove compatibility. An existing mapping can be extended to resolve previously unnamed positions. Reimporting an image with those additional mappings records the new named observations without duplicating its existing ones. Reassigning an already saved position is rejected; undo the import that established it or use a separate ruleset for a different tree.
+
+Unmapped squares remain explicitly unresolved in the saved screenshot observation. They do not create placeholder abilities or establish named learning. The compiled list shows their states and unresolved names before saving. Unknown states do not overwrite existing knowledge. Gold, blue, and locked states update named learning only when their positions are mapped. Neither class mastery nor another party member's progress establishes character learning, including Monster Magic. Displayed LP prices never become actual paid LP.
+
+## Saving, recovery, and privacy
+
+The reviewed batch saves in one local transaction and has one Undo checkpoint. It changes only screenshot observations, reusable layouts, and explicitly mapped character learning. Inventory, class progress, mastery, character snapshots, party progress, and planned builds stay separate. A disagreement with an existing learning record or another image remains a conflicting claim; resolve it through the character's learning editor after checking the game.
+
+If the playthrough changes while the review is open, reopen the review against the new revision. Invalid mappings reject the whole batch. A storage failure preserves the previous saved database revision and retains the proposed state for the application's **Retry save** or recovery-backup flow. The review remains available until explicitly closed. Escape, Back, and outside clicks protect unfinished reviews; **Cancel and discard** closes a review that has not been submitted.
+
+Images are temporary browser inputs. Saved observations retain the original filename, a fingerprint of the decoded image, square states, mapped references, and recording time. They do not retain image bytes or local folder paths. Keep original screenshots separately if you need to inspect them later. Native backups include the observations, mappings, and referenced definitions. Backups without screenshot fields remain readable; builds without this feature cannot restore backups containing the new optional fields. Personal images and real recognition results must not be committed to the repository.
+
+## Local recognition and offline use
+
+[Tesseract.js](https://github.com/naptha/tesseract.js) performs English text recognition in a browser worker. The pinned worker, LSTM cores, and [English model](https://github.com/naptha/tessdata) are served with the application using its [local asset configuration](https://github.com/naptha/tesseract.js/blob/master/docs/local-installation.md). OCR loads only when a supported screenshot is selected. No image, character name, or game state is sent to an OCR service. Application code classifies the square borders locally.
+
+Production offline preparation caches those assets with the application shell. Prepare offline use and wait for **Offline ready** before disconnecting. Development mode does not install a service worker. A failed cache preparation does not establish offline readiness. The production content security policy permits WebAssembly compilation while keeping script and worker loading on the application's origin.
+
+Local checks use synthetic screenshots and profile data to exercise classification, duplicates, unresolved names, mapping reuse, conflicts, atomic failures, retry, undo, backup restore, and offline import on desktop and mobile emulation. These checks do not establish physical-device file-picker behavior or support for untested game layouts.

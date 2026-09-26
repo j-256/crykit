@@ -569,3 +569,24 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 @media (prefers-contrast: more) {
   :root { --line: rgba(222, 236, 242, .5); --line-strong: rgba(222, 236, 242, .8); --text-dim: #e0eaef; --text-faint: #c2d3df; }
 }
+
+.skill-review-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
+.skill-review-fields select { min-width: 0; max-width: 100%; }
+.skill-review-fields .check-row input { flex: 0 0 18px; }
+.skill-filename { overflow-wrap: anywhere; font-size: 0.8rem; color: var(--text-dim); }
+.skill-review-layout { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.skill-tree-preview { position: relative; width: 100%; aspect-ratio: 275 / 425; overflow: hidden; border: 1px solid #59696e; background: #202626; }
+.skill-tree-preview > img { position: absolute; width: 465.455%; max-width: none; height: auto; left: -236.364%; top: -41.176%; }
+.skill-square { position: absolute; padding: 0; border: 2px solid transparent; background: transparent; color: white; cursor: pointer; min-height: 0; }
+.skill-square span { position: absolute; top: -0.4rem; left: -0.4rem; background: #162126; border: 1px solid #adbdc2; font: 600 0.7rem system-ui; line-height: 1.3; min-width: 1.1rem; border-radius: 3px; }
+.skill-square[aria-pressed="true"] { outline: 3px solid #fff; outline-offset: 3px; }
+.skill-square:focus-visible { outline: 3px solid #58d7ef; outline-offset: 5px; }
+.skill-full-image { width: 100%; height: auto; margin-top: 0.5rem; }
+.skill-compiled-list { display: grid; gap: 0.35rem; }
+.skill-compiled-row { display: flex; justify-content: space-between; align-items: start; gap: 0.75rem; text-align: left; font: inherit; color: inherit; background: #202a30; border: 1px solid #495b64; padding: 0.5rem 0.75rem; cursor: pointer; }
+.skill-compiled-row span:last-child { font-size: 0.8rem; text-align: right; }
+@media (max-width: 650px) {
+  .skill-review-layout { grid-template-columns: 1fr; }
+  .skill-tree-preview { max-width: 340px; margin-inline: auto; }
+  .skill-compiled-row { flex-wrap: wrap; }
+}
