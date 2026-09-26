@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { screenshotTestProfile, CHARACTER } from '../src/domain/skill-trees.test-helpers'
-import { TEST_NOW } from '../src/domain/test-helpers'
+import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { Profile } from '../src/domain/types'
 
 async function dataPanel(page: Page) {
@@ -14,9 +14,8 @@ async function dataPanel(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function loadFixture(page: Page) {
+async function loadFixture(page: Page, profile: Profile = { ...screenshotTestProfile(), changes: [] }) {
   await page.goto('/')
-  const profile = { ...screenshotTestProfile(), changes: [] }
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ profile, lineage: { rootProfileId: profile.id }, catalogs: [], evidence: [], history: [] }) })
   const panel = await dataPanel(page)
@@ -28,15 +27,15 @@ async function loadFixture(page: Page) {
   return profile
 }
 
-async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice'): Promise<Buffer> {
+async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice', classText?: string): Promise<Buffer> {
   const fixture = ADDITIONAL_CLASS_MAP_FIXTURES.find(fixture => fixture.className.toLowerCase() === layout)
-  const url = await page.evaluate(({ menu, name, layout, fixture }) => {
+  const url = await page.evaluate(({ menu, name, layout, fixture, classText }) => {
     const image = document.createElement('canvas')
     image.width = 1280; image.height = 720
     const ctx = image.getContext('2d')!
     ctx.fillStyle = '#1f252b'; ctx.fillRect(0, 0, 1280, 720)
     ctx.fillStyle = '#fafafa'; ctx.font = '20px Arial'
-    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(fixture?.className ?? (layout === 'warrior' ? 'Warrior' : layout === 'monk' ? 'Monk' : 'Practice class'), 305, 229)
+    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(classText ?? fixture?.className ?? (layout === 'warrior' ? 'Warrior' : layout === 'monk' ? 'Monk' : 'Practice class'), 305, 229)
     ctx.fillRect(624, 211, 1, 18)
     const positions = fixture ? fixture.squares.map(([row, column]) => [row, column]) : layout === 'warrior'
       ? [[0, 1], [0, 3], [1, 0], [1, 2], [2, 1], [2, 3], [3, 0], [3, 2], [4, 0], [4, 1], [4, 2], [4, 3], [5, 1], [5, 3]]
@@ -52,7 +51,7 @@ async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', l
     }
     if (layout === 'practice') { ctx.fillStyle = '#2096d4'; ctx.fillRect(734, 293, 1, 24) }
     return image.toDataURL('image/png')
-  }, { menu, name, layout, fixture })
+  }, { menu, name, layout, fixture, classText })
   return Buffer.from(url.split(',')[1], 'base64')
 }
 
@@ -100,6 +99,58 @@ async function exportProfile(page: Page): Promise<Profile> {
   const payload = JSON.parse(strFromU8(unzipSync(await readFile(path!))['bundle.json'])) as { profile: Profile }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return payload.profile
+}
+
+async function useConfirmedSwitchSetup(page: Page) {
+  const panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
+  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+}
+
+for (const ambiguous of [false, true]) {
+  test(`class recognition ${ambiguous ? 'leaves equally close classes unselected' : 'suggests a unique OCR match'} and requires review`, async ({ page }) => {
+    const profile = ambiguous ? addTestDefinition(screenshotTestProfile(), 'Minka', { kind: 'class' }) : screenshotTestProfile()
+    await loadFixture(page, { ...profile, changes: [] })
+    await useConfirmedSwitchSetup(page)
+    const pixels = await syntheticScreenshot(page, 'Learn', 'Rowen', 'ninja', 'Min ja')
+    const dialog = await openImport(page, [{ name: 'synthetic-ocr-noise.png', mimeType: 'image/png', buffer: pixels }])
+    const classChoice = dialog.getByRole('combobox', { name: 'Screenshot class', exact: true })
+    if (ambiguous) {
+      await expect(classChoice).toHaveValue('')
+      await expect(dialog.getByText(/More than one class matches/)).toBeVisible()
+      await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
+      await classChoice.selectOption({ label: 'Ninja' })
+    } else {
+      await expect(classChoice).toHaveValue(/base:class:ninja/)
+      await expect(dialog.getByText(/Suggested Ninja; check it against the screenshot/)).toBeVisible()
+    }
+    await expect(dialog.getByText('Ninja names filled', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Screenshot reads: Rowen', { exact: true })).toBeVisible()
+    await expect(dialog.getByRole('combobox', { name: 'Screenshot character', exact: true })).toHaveValue('')
+    const review = dialog.getByLabel('I reviewed this character, class, square states, and assigned names', { exact: true })
+    await expect(review).toBeDisabled()
+    await dialog.getByRole('combobox', { name: 'Screenshot character', exact: true }).selectOption({ label: 'Rowan' })
+    await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
+    await review.check()
+    await classChoice.selectOption({ label: 'Monk' })
+    await expect(review).not.toBeChecked()
+    await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
+    await classChoice.selectOption({ label: 'Ninja' })
+    await expect(dialog.getByText(/Suggested Ninja;/)).not.toBeVisible()
+    await review.check()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true }).click()
+    await expect(dialog).not.toBeVisible()
+    await page.reload()
+    const saved = await exportProfile(page)
+    const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
+    expect(learned.map(node => resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name)).toEqual(['Utsusemi', 'Dual Wield'])
+  })
 }
 
 test('screenshots compile reviewed names offline, skip duplicates, and preserve unknowns', async ({ page, context }) => {
@@ -183,14 +234,7 @@ for (const fixture of [
 ] as const) {
   test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, async ({ page }) => {
     await loadFixture(page)
-    const panel = await dataPanel(page)
-    await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
-    await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
-    for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
-    for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
-    await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
-    await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-    await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await useConfirmedSwitchSetup(page)
     await page.goto(`/#/characters/${CHARACTER}/knowledge`)
     const characterBounds = await page.getByRole('combobox', { name: 'Character', exact: true }).boundingBox()
     for (const name of ['Import skill screenshots', 'Add character']) {

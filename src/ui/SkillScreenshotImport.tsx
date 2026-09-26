@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef, resolveDefinition, sameLogicalEntity, skillTreeShape, squareKey, type ReviewedSkillTree } from '../domain'
 import type { CatalogEntityKind, CatalogSnapshot, CharacterId, EntityRef, LearnedNodeKind, Profile, SkillSquareState, SkillTreeMapping } from '../domain/types'
 import { previewSkillScreenshots, releaseScreenshotPreviews, type ScreenshotPreview } from '../interchange/skill-screenshots'
+import { matchScreenshotClassName, type ScreenshotClassNameMatch } from '../interchange/skill-class-names'
 import { GRID_STEP, GRID_X, GRID_Y, SQUARE_SIZE } from '../interchange/skill-grid'
 import { Button, Field, InlineNotice } from './components'
 import { Sheet } from './Sheet'
@@ -10,7 +11,7 @@ import { routeWithoutOverlays, useNavigation, useNavigationBlocker } from './nav
 import { CONFIRMED_SKILL_MAP_SETS, skillMapSetForRuleset, suggestSkillTreeMap } from '../catalog/skill-maps'
 
 interface Choice { readonly ref: EntityRef; readonly name: string; readonly kind: CatalogEntityKind; readonly className?: string }
-interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: CharacterId; readonly classRef?: EntityRef; readonly mappings: readonly SkillTreeMapping[]; readonly reviewed: boolean; readonly included: boolean }
+interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: CharacterId; readonly classRef?: EntityRef; readonly classMatch?: ScreenshotClassNameMatch<Choice>; readonly mappings: readonly SkillTreeMapping[]; readonly reviewed: boolean; readonly included: boolean }
 const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
 
 function choices(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly Choice[] {
@@ -67,6 +68,8 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   const classes = options.filter(option => option.kind === 'class')
   const active = drafts.find(draft => draft.preview.id === activeId)
   const activeClass = active?.classRef ? resolveDefinition(profile, catalogs, active.classRef)?.name : undefined
+  const classMatch = active?.classMatch
+  const classHint = [`Selected row reads: ${active?.preview.className || 'Unrecognized'}`, classMatch?.kind === 'normalized' || classMatch?.kind === 'approximate' ? `Suggested ${classMatch.choice.name}; check it against the screenshot` : classMatch?.kind === 'ambiguous' ? 'More than one class matches; choose the class shown in the screenshot' : ''].filter(Boolean).join('. ')
   const suggestedMap = active?.classRef ? suggestSkillTreeMap(profile, catalogs, active.classRef, active.preview.squares, mapSetId, ruleset.current, active.mappings).confirmedMap : undefined
   const activeMap = suggestedMap && suggestedMap.mappings.every(mapping => active?.mappings.some(assigned => squareKey(assigned) === squareKey(mapping))) ? suggestedMap : undefined
   const mapSet = CONFIRMED_SKILL_MAP_SETS.find(set => set.id === mapSetId)
@@ -82,7 +85,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   const setClass = (ref?: EntityRef) => {
     if (!active) return
     const inBatch = ref ? drafts.find(draft => draft.classRef && sameLogicalEntity(profile, ref, draft.classRef) && skillTreeShape(draft.preview.squares) === skillTreeShape(active.preview.squares)) : undefined
-    update({ classRef: ref, mappings: ref ? suggestSkillTreeMap(profile, catalogs, ref, active.preview.squares, mapSetId, ruleset.current, inBatch?.mappings).mappings : [], reviewed: false })
+    update({ classRef: ref, classMatch: undefined, mappings: ref ? suggestSkillTreeMap(profile, catalogs, ref, active.preview.squares, mapSetId, ruleset.current, inBatch?.mappings).mappings : [], reviewed: false })
     setAllClasses(false)
     setSearch('')
   }
@@ -102,9 +105,10 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
       releaseScreenshotPreviews(retained.current)
       retained.current = previews
       const next = previews.map(preview => {
-        const classRef = uniqueName(classes, preview.className)?.ref
+        const classMatch = matchScreenshotClassName(classes, preview.className)
+        const classRef = 'choice' in classMatch ? classMatch.choice.ref : undefined
         const characterId = uniqueName(Object.values(profile.characters), preview.characterName)?.id
-        return { preview, characterId, classRef, mappings: classRef ? suggestSkillTreeMap(profile, catalogs, classRef, preview.squares, mapSetId, ruleset.current).mappings : [], reviewed: false, included: !preview.error && !preview.duplicateOf }
+        return { preview, characterId, classRef, classMatch, mappings: classRef ? suggestSkillTreeMap(profile, catalogs, classRef, preview.squares, mapSetId, ruleset.current).mappings : [], reviewed: false, included: !preview.error && !preview.duplicateOf }
       })
       setDrafts(next); setActiveId(next.find(draft => draft.included)?.preview.id ?? next[0]?.preview.id ?? ''); setSelectedPosition('')
     } catch (reason) { if (!controller.current.signal.aborted) setError(reason instanceof Error ? reason.message : 'The screenshots could not be read') }
@@ -138,7 +142,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
             <label className="check-row"><input checked={active.included} onChange={event => update({ included: event.target.checked })} type="checkbox"/>Include this screenshot</label>
             <div className="grid-2">
               <Field hint={`Screenshot reads: ${active.preview.characterName || 'Unrecognized'}`} label="Screenshot character"><select aria-label="Screenshot character" onChange={event => update({ characterId: event.target.value as CharacterId || undefined, reviewed: false })} value={active.characterId ?? ''}><option value="">Choose a character</option>{Object.values(profile.characters).map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select></Field>
-              <Field hint={`Selected row reads: ${active.preview.className || 'Unrecognized'}`} label="Screenshot class"><select aria-label="Screenshot class" onChange={event => setClass(classes.find(choice => entityDefinitionKey(choice.ref) === event.target.value)?.ref)} value={active.classRef ? entityDefinitionKey(active.classRef) : ''}><option value="">Choose a class</option>{classes.map(choice => <option key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choice.name}</option>)}</select></Field>
+              <Field hint={classHint} label="Screenshot class"><select aria-label="Screenshot class" onChange={event => setClass(classes.find(choice => entityDefinitionKey(choice.ref) === event.target.value)?.ref)} value={active.classRef ? entityDefinitionKey(active.classRef) : ''}><option value="">Choose a class</option>{classes.map(choice => <option key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choice.name}</option>)}</select></Field>
             </div>
             <div className="skill-review-layout">
               <div>
