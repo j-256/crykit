@@ -25,6 +25,32 @@ describe('confirmed class square maps', () => {
     expect(suggestion.mappings.every(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind === mapping.kind)).toBe(true)
   })
 
+  it('maps Monk positions with Aversive and Brawler as learnable innates', () => {
+    const profile = createBlankProfile()
+    const monk = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:monk')!
+    const observed: readonly SkillSquare[] = [[0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [4, 0], [5, 1], [5, 2]].map(([row, column]) => ({ row, column, state: 'unknown' }))
+    const suggestion = suggestSkillTreeMap(profile, catalogs, monk.classRef, observed, SWITCH_MOD_PACKS_MAP_SET)
+    expect(suggestion.mappings.map(mapping => [mapping.row, mapping.column, resolveDefinition(profile, catalogs, mapping.ref)?.name, mapping.kind])).toEqual([
+      [0, 1, 'Meditate', 'ability'],
+      [0, 2, 'Beat Down', 'ability'],
+      [0, 3, 'Aversive', 'innate'],
+      [1, 1, 'First-Aid', 'ability'],
+      [1, 2, 'Earth Split', 'ability'],
+      [2, 0, 'Brawler', 'innate'],
+      [2, 1, 'Chakra', 'ability'],
+      [2, 2, 'Thunder Chop', 'ability'],
+      [2, 3, 'Counter', 'passive'],
+      [3, 1, 'Focus Energy', 'ability'],
+      [3, 2, 'Wind Punch', 'ability'],
+      [4, 0, 'HP Boost', 'passive'],
+      [5, 1, 'Revive', 'ability'],
+      [5, 2, 'Chi Burst', 'ability'],
+    ])
+    expect(suggestion.mappings.every(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind === mapping.kind)).toBe(true)
+    expect(suggestSkillTreeMap(profile, catalogs, warrior.classRef, observed, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
+    expect(suggestSkillTreeMap(profile, catalogs, monk.classRef, squares, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
+  })
+
   it('requires the selected map set, exact catalog identity, full shape, and available definitions', () => {
     const profile = createBlankProfile()
     expect(suggestSkillTreeMap(profile, catalogs, warrior.classRef, squares, '').mappings).toEqual([])

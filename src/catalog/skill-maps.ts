@@ -20,34 +20,50 @@ function starterRef(id: string): CatalogRef {
   return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(id) }
 }
 
-function warriorSquare(row: number, column: number, kind: LearnedNodeKind, name: string): SkillTreeMapping {
-  return Object.freeze({ row, column, kind, ref: Object.freeze(starterRef(`base:warrior:${kind}:${name}`)) })
+function baseClassMap(className: string, squares: readonly (readonly [number, number, LearnedNodeKind, string])[]): ConfirmedSkillMap {
+  return Object.freeze({
+    id: `switch-mod-packs-${className}-v1`,
+    mapSetId: SWITCH_MOD_PACKS_MAP_SET,
+    classRef: Object.freeze(starterRef(`base:class:${className}`)),
+    mappings: Object.freeze(squares.map(([row, column, kind, name]) => Object.freeze({ row, column, kind, ref: Object.freeze(starterRef(`base:${className}:${kind}:${name}`)) }))),
+  })
 }
 
 // Position names checked in game on Nintendo Switch with both mod packs on 2026-09-26
 // The map set records enabled and disabled mods; the game version was not reported
 export const CONFIRMED_SKILL_MAPS: readonly ConfirmedSkillMap[] = Object.freeze([
-  Object.freeze({
-    id: 'switch-mod-packs-warrior-v1',
-    mapSetId: SWITCH_MOD_PACKS_MAP_SET,
-    classRef: Object.freeze(starterRef('base:class:warrior')),
-    mappings: Object.freeze([
-      warriorSquare(0, 1, 'ability', 'taunt'),
-      warriorSquare(0, 3, 'innate', 'fighter'),
-      warriorSquare(1, 0, 'ability', 'defender'),
-      warriorSquare(1, 2, 'ability', 'berserker'),
-      warriorSquare(2, 1, 'passive', 'equip-sword'),
-      warriorSquare(2, 3, 'passive', 'equip-axe'),
-      warriorSquare(3, 0, 'ability', 'power-break'),
-      warriorSquare(3, 2, 'ability', 'armor-break'),
-      warriorSquare(4, 0, 'ability', 'bruiser-crush'),
-      warriorSquare(4, 1, 'ability', 'paragon-crush'),
-      warriorSquare(4, 2, 'ability', 'blitz-crush'),
-      warriorSquare(4, 3, 'ability', 'battle-crush'),
-      warriorSquare(5, 1, 'passive', 'grudge'),
-      warriorSquare(5, 3, 'passive', 'adrenaline'),
-    ]),
-  }),
+  baseClassMap('warrior', [
+    [0, 1, 'ability', 'taunt'],
+    [0, 3, 'innate', 'fighter'],
+    [1, 0, 'ability', 'defender'],
+    [1, 2, 'ability', 'berserker'],
+    [2, 1, 'passive', 'equip-sword'],
+    [2, 3, 'passive', 'equip-axe'],
+    [3, 0, 'ability', 'power-break'],
+    [3, 2, 'ability', 'armor-break'],
+    [4, 0, 'ability', 'bruiser-crush'],
+    [4, 1, 'ability', 'paragon-crush'],
+    [4, 2, 'ability', 'blitz-crush'],
+    [4, 3, 'ability', 'battle-crush'],
+    [5, 1, 'passive', 'grudge'],
+    [5, 3, 'passive', 'adrenaline'],
+  ]),
+  baseClassMap('monk', [
+    [0, 1, 'ability', 'meditate'],
+    [0, 2, 'ability', 'beat-down'],
+    [0, 3, 'innate', 'aversive'],
+    [1, 1, 'ability', 'first-aid'],
+    [1, 2, 'ability', 'earth-split'],
+    [2, 0, 'innate', 'brawler'],
+    [2, 1, 'ability', 'chakra'],
+    [2, 2, 'ability', 'thunder-chop'],
+    [2, 3, 'passive', 'counter'],
+    [3, 1, 'ability', 'focus-energy'],
+    [3, 2, 'ability', 'wind-punch'],
+    [4, 0, 'passive', 'hp-boost'],
+    [5, 1, 'ability', 'revive'],
+    [5, 2, 'ability', 'chi-burst'],
+  ]),
 ])
 
 export function skillMapSetForRuleset(ruleset?: RulesetRevision): string {
