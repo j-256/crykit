@@ -312,4 +312,23 @@ export const ADDITIONAL_CLASS_MAP_FIXTURES: readonly { readonly className: strin
       [5, 3, 'Crippling Coat', 'passive'],
     ],
   },
+  {
+    className: 'Valkyrie',
+    squares: [
+      [0, 2, 'Warcry', 'ability'],
+      [0, 3, 'Immortal', 'innate'],
+      [1, 3, 'Healing Breeze', 'ability'],
+      [2, 0, 'Bracing Strike', 'ability'],
+      [2, 2, 'Steel Heart', 'ability'],
+      [2, 3, 'Auto-Revival', 'passive'],
+      [3, 0, 'Steeling Strike', 'ability'],
+      [3, 1, 'Equip Spear', 'passive'],
+      [3, 2, 'Thawed Heart', 'ability'],
+      [3, 3, 'Steeling Wind', 'ability'],
+      [4, 1, 'Commander', 'passive'],
+      [4, 2, 'AP Transfer', 'ability'],
+      [4, 3, 'Re-Raise', 'ability'],
+      [5, 2, 'Call to Arms', 'ability'],
+    ],
+  },
 ]

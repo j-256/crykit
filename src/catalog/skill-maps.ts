@@ -333,6 +333,22 @@ export const CONFIRMED_SKILL_MAPS: readonly ConfirmedSkillMap[] = Object.freeze(
     [5, 1, 'ability', 'base:assassin:ability:coup-de-grace'],
     [5, 3, 'passive', 'base:assassin:passive:crippling-coat'],
   ]),
+  confirmedClassMap('valkyrie', [
+    [0, 2, 'ability', 'base:valkyrie:ability:warcry'],
+    [0, 3, 'innate', 'base:valkyrie:innate:immortal'],
+    [1, 3, 'ability', 'wiki:ability:healing-breeze'],
+    [2, 0, 'ability', 'base:valkyrie:ability:bracing-strike'],
+    [2, 2, 'ability', 'wiki:ability:steel-heart'],
+    [2, 3, 'passive', 'wiki:passive:auto-revival'],
+    [3, 0, 'ability', 'wiki:ability:steeling-strike'],
+    [3, 1, 'passive', 'wiki:passive:equip-spear'],
+    [3, 2, 'ability', 'wiki:ability:thawed-heart'],
+    [3, 3, 'ability', 'wiki:ability:steeling-wind'],
+    [4, 1, 'passive', 'wiki:passive:commander'],
+    [4, 2, 'ability', 'wiki:ability:ap-transfer'],
+    [4, 3, 'ability', 'wiki:ability:re-raise'],
+    [5, 2, 'ability', 'wiki:ability:call-to-arms'],
+  ]),
 ])
 
 export function skillMapSetForRuleset(ruleset?: RulesetRevision): string {
