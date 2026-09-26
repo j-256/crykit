@@ -2,7 +2,7 @@
 
 Open **Data & settings > Ruleset** to record individual **Enabled mods** and **Disabled mods**, one name per line. Saving creates an immutable ruleset revision for the active playthrough. Case and extra whitespace do not change a mod's identity. A mod listed in both fields rejects the save; entered values remain available to correct. Names not recorded in either field stay unknown. Installing a mod pack does not establish which included mods are enabled in a save.
 
-**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled Warrior and Monk square maps. Review the fields before saving. It does not establish the game version, PP rules, slots, or any character's learning. The application starts with a blank playthrough and does not apply this setup automatically.
+**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled class square maps. Review the fields before saving. It does not establish the game version, PP rules, slots, or any character's learning. The application starts with a blank playthrough and does not apply this setup automatically.
 
 ## Definition visibility
 

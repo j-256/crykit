@@ -1,3 +1,4 @@
+import { ADDITIONAL_CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
 import { STARTER_CATALOG } from '../src/catalog/starter'
 import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
@@ -27,19 +28,20 @@ async function loadFixture(page: Page) {
   return profile
 }
 
-async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout: 'practice' | 'warrior' | 'monk' = 'practice'): Promise<Buffer> {
-  const url = await page.evaluate(({ menu, name, layout }) => {
+async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice'): Promise<Buffer> {
+  const fixture = ADDITIONAL_CLASS_MAP_FIXTURES.find(fixture => fixture.className.toLowerCase() === layout)
+  const url = await page.evaluate(({ menu, name, layout, fixture }) => {
     const image = document.createElement('canvas')
     image.width = 1280; image.height = 720
     const ctx = image.getContext('2d')!
     ctx.fillStyle = '#1f252b'; ctx.fillRect(0, 0, 1280, 720)
     ctx.fillStyle = '#fafafa'; ctx.font = '20px Arial'
-    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(layout === 'warrior' ? 'Warrior' : layout === 'monk' ? 'Monk' : 'Practice class', 305, 229)
+    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(fixture?.className ?? (layout === 'warrior' ? 'Warrior' : layout === 'monk' ? 'Monk' : 'Practice class'), 305, 229)
     ctx.fillRect(624, 211, 1, 18)
-    const positions = layout === 'warrior'
+    const positions = fixture ? fixture.squares.map(([row, column]) => [row, column]) : layout === 'warrior'
       ? [[0, 1], [0, 3], [1, 0], [1, 2], [2, 1], [2, 3], [3, 0], [3, 2], [4, 0], [4, 1], [4, 2], [4, 3], [5, 1], [5, 3]]
       : [[0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [4, 0], [5, 1], [5, 2]]
-    const learnedPositions = layout === 'warrior' ? [1, 4] : [2, 5]
+    const learnedPositions = fixture ? [0, 2, fixture.squares.findIndex(square => square[2] === null)] : layout === 'warrior' ? [1, 4] : [2, 5]
     const squares: readonly (readonly [number, number, string])[] = layout === 'practice'
       ? [[0, 0, '#c0bb28'], [0, 1, '#2096d4'], [1, 0, '#425059'], [1, 1, '#c0bb28']]
       : positions.map(([row, column], index) => [row, column, learnedPositions.includes(index) ? '#c0bb28' : '#425059'] as const)
@@ -50,7 +52,7 @@ async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', l
     }
     if (layout === 'practice') { ctx.fillStyle = '#2096d4'; ctx.fillRect(734, 293, 1, 24) }
     return image.toDataURL('image/png')
-  }, { menu, name, layout })
+  }, { menu, name, layout, fixture })
   return Buffer.from(url.split(',')[1], 'base64')
 }
 
@@ -168,8 +170,16 @@ test('failed screenshot writes retain review and recover through Retry save', as
 })
 
 for (const fixture of [
-  { className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']] },
-  { className: 'Monk', layout: 'monk', labels: ['3. Aversive Learned', '6. Brawler Learned'], learned: [['Aversive', 'innate'], ['Brawler', 'innate']] },
+  { squareCount: 14, mappedCount: 14, className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']] },
+  { squareCount: 14, mappedCount: 14, className: 'Monk', layout: 'monk', labels: ['3. Aversive Learned', '6. Brawler Learned'], learned: [['Aversive', 'innate'], ['Brawler', 'innate']] },
+  ...ADDITIONAL_CLASS_MAP_FIXTURES.map(fixture => ({
+    className: fixture.className,
+    layout: fixture.className.toLowerCase(),
+    squareCount: fixture.squares.length,
+    mappedCount: fixture.squares.filter(square => square[2] !== null).length,
+    labels: fixture.squares.flatMap((square, index) => [0, 2].includes(index) && square[2] ? [`${index + 1}. ${square[2]} Learned`] : []),
+    learned: fixture.squares.filter((square, index) => [0, 2].includes(index) && square[2] !== null).map(square => [square[2], square[3]]),
+  })),
 ] as const) {
   test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, async ({ page }) => {
     await loadFixture(page)
@@ -192,10 +202,11 @@ for (const fixture of [
     const dialog = page.getByRole('dialog', { name: 'Import skill screenshots', exact: true })
     await expect(dialog.getByLabel('Class maps', { exact: true })).toHaveValue(CONFIRMED_SWITCH_MOD_SETUP.id)
     await dialog.getByLabel('Skill screenshots', { exact: true }).setInputFiles({ name: `synthetic-${fixture.layout}.png`, mimeType: 'image/png', buffer: pixels })
-    await expect(dialog.getByText(`${fixture.className} names filled`, { exact: true })).toBeVisible()
+    await expect(dialog.getByText(`${fixture.className} ${fixture.squareCount === fixture.mappedCount ? 'names filled' : 'known names filled'}`, { exact: true })).toBeVisible()
     const compiled = dialog.getByRole('group', { name: 'Compiled learning observations', exact: true })
-    await expect(compiled.getByRole('button')).toHaveCount(14)
-    await expect(compiled).not.toContainText('Unresolved ability')
+    await expect(compiled.getByRole('button')).toHaveCount(fixture.squareCount)
+    if (fixture.squareCount === fixture.mappedCount) await expect(compiled).not.toContainText('Unresolved ability')
+    else await expect(compiled.getByRole('button').filter({ hasText: 'Unresolved ability' })).toHaveCount(fixture.squareCount - fixture.mappedCount)
     for (const label of fixture.labels) await expect(compiled.getByRole('button', { name: label, exact: true })).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
     await dialog.getByLabel('I reviewed this character, class, square states, and assigned names', { exact: true }).check()
@@ -205,7 +216,7 @@ for (const fixture of [
     const saved = await exportProfile(page)
     const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
     expect(learned.map(node => [resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
-    expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(14)
+    expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(fixture.mappedCount)
     expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })
     expect(saved.characters[CHARACTER].classProgress).toEqual({})
   })

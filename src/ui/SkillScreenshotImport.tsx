@@ -68,7 +68,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   const active = drafts.find(draft => draft.preview.id === activeId)
   const activeClass = active?.classRef ? resolveDefinition(profile, catalogs, active.classRef)?.name : undefined
   const suggestedMap = active?.classRef ? suggestSkillTreeMap(profile, catalogs, active.classRef, active.preview.squares, mapSetId, ruleset.current, active.mappings).confirmedMap : undefined
-  const activeMap = active?.mappings.length === suggestedMap?.mappings.length ? suggestedMap : undefined
+  const activeMap = suggestedMap && suggestedMap.mappings.every(mapping => active?.mappings.some(assigned => squareKey(assigned) === squareKey(mapping))) ? suggestedMap : undefined
   const mapSet = CONFIRMED_SKILL_MAP_SETS.find(set => set.id === mapSetId)
   const square = active?.preview.squares.find(entry => squareKey(entry) === selectedPosition) ?? active?.preview.squares[0]
   const mapping = square ? active?.mappings.find(entry => squareKey(entry) === squareKey(square)) : undefined
@@ -149,7 +149,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
                 <details><summary>Show full screenshot</summary><img alt="Full screenshot with character header and selected class" className="skill-full-image" src={active.preview.imageUrl}/></details>
               </div>
               <div className="stack">
-                {activeMap ? <InlineNotice title={`${activeClass} names filled`}>{mapSet?.label}. This class map was checked in game. Review the assigned names against your screenshot before saving.</InlineNotice> : <InlineNotice title="Review square names">Assign any missing names to their positions. This playthrough reuses reviewed mappings for the same class, ruleset, and grid. Unmapped squares stay unresolved.</InlineNotice>}
+                {activeMap ? <InlineNotice title={`${activeClass} ${activeMap.mappings.length === activeMap.squares.length ? 'names filled' : 'known names filled'}`}>{mapSet?.label}. The bundled names were checked in game.{activeMap.mappings.length < activeMap.squares.length && <> Assign any remaining unconfirmed positions when their names are established.</>} Review the assigned names against your screenshot before saving.</InlineNotice> : <InlineNotice title="Review square names">Assign any missing names to their positions. This playthrough reuses reviewed mappings for the same class, ruleset, and grid. Unmapped squares stay unresolved.</InlineNotice>}
                 {square && <>
                   <h3>Row {square.row + 1}, column {square.column + 1}</h3>
                   <Field label="Square state"><select aria-label="Square state" onChange={event => update({ preview: { ...active.preview, squares: active.preview.squares.map(entry => squareKey(entry) === squareKey(square) ? { ...entry, state: event.target.value as SkillSquareState } : entry) }, reviewed: false })} value={square.state}>{Object.entries(SQUARE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
