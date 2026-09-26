@@ -1,15 +1,17 @@
+import { definitionModAvailability } from '../catalog/mods'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { entityDefinitionKey, findSkillTreeLayout, preferredDefinitionRef, resolveDefinition, sameLogicalEntity, skillTreeShape, squareKey, type ReviewedSkillTree } from '../domain'
+import { entityDefinitionKey, preferredDefinitionRef, resolveDefinition, sameLogicalEntity, skillTreeShape, squareKey, type ReviewedSkillTree } from '../domain'
 import type { CatalogEntityKind, CatalogSnapshot, CharacterId, EntityRef, LearnedNodeKind, Profile, SkillSquareState, SkillTreeMapping } from '../domain/types'
 import { previewSkillScreenshots, releaseScreenshotPreviews, type ScreenshotPreview } from '../interchange/skill-screenshots'
 import { GRID_STEP, GRID_X, GRID_Y, SQUARE_SIZE } from '../interchange/skill-grid'
 import { Button, Field, InlineNotice } from './components'
 import { Sheet } from './Sheet'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker } from './navigation'
+import { CONFIRMED_SKILL_MAP_SETS, skillMapSetForRuleset, suggestSkillTreeMap } from '../catalog/skill-maps'
 
 interface Choice { readonly ref: EntityRef; readonly name: string; readonly kind: CatalogEntityKind; readonly className?: string }
 interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: CharacterId; readonly classRef?: EntityRef; readonly mappings: readonly SkillTreeMapping[]; readonly reviewed: boolean; readonly included: boolean }
-export const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
+const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
 
 function choices(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly Choice[] {
   const refs: EntityRef[] = [
@@ -21,6 +23,8 @@ function choices(profile: Profile, catalogs: readonly CatalogSnapshot[]): readon
     const ref = preferredDefinitionRef(profile, initial)
     const entity = resolveDefinition(profile, catalogs, ref)
     if (!entity || !['class', 'ability', 'passive', 'innate', 'monsterMagic'].includes(entity.kind)) continue
+    const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+    if (definitionModAvailability(profile, ref, ruleset).state === 'disabled') continue
     const field = entity.fields.Class
     result.set(entityDefinitionKey(ref), { ref, name: entity.name, kind: entity.kind, ...(field?.state === 'known' && typeof field.value === 'string' ? { className: field.value } : {}) })
   }
@@ -37,6 +41,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   const revision = useRef(profile.revision)
   const profileId = useRef(profile.id)
   const ruleset = useRef(profile.activeRulesetRevisionId)
+  const [mapSetId, setMapSetId] = useState(() => skillMapSetForRuleset(profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined))
   const scope = useRef(routeWithoutOverlays(navigation.route))
   const [drafts, setDrafts] = useState<readonly Draft[]>([])
   const [activeId, setActiveId] = useState('')
@@ -58,10 +63,13 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
     window.addEventListener('beforeunload', beforeUnload)
     return () => { controller.current?.abort(); releaseScreenshotPreviews(retained.current); window.removeEventListener('beforeunload', beforeUnload) }
   }, [])
-  const options = useMemo(() => choices(profile, catalogs), [profile.personalDefinitions, catalogs])
+  const options = useMemo(() => choices(profile, catalogs), [profile, catalogs])
   const classes = options.filter(option => option.kind === 'class')
   const active = drafts.find(draft => draft.preview.id === activeId)
   const activeClass = active?.classRef ? resolveDefinition(profile, catalogs, active.classRef)?.name : undefined
+  const suggestedMap = active?.classRef ? suggestSkillTreeMap(profile, catalogs, active.classRef, active.preview.squares, mapSetId, ruleset.current, active.mappings).confirmedMap : undefined
+  const activeMap = active?.mappings.length === suggestedMap?.mappings.length ? suggestedMap : undefined
+  const mapSet = CONFIRMED_SKILL_MAP_SETS.find(set => set.id === mapSetId)
   const square = active?.preview.squares.find(entry => squareKey(entry) === selectedPosition) ?? active?.preview.squares[0]
   const mapping = square ? active?.mappings.find(entry => squareKey(entry) === squareKey(square)) : undefined
   const candidates = options.filter(option => option.kind !== 'class' && (allClasses || !activeClass || option.className === activeClass || mapping && sameLogicalEntity(profile, option.ref, mapping.ref)) && option.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
@@ -73,9 +81,8 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   const update = (patch: Partial<Draft>) => { if (active) setDrafts(current => current.map(draft => draft.preview.id === active.preview.id ? { ...draft, ...patch } : draft)) }
   const setClass = (ref?: EntityRef) => {
     if (!active) return
-    const saved = ref ? findSkillTreeLayout(profile, ref, active.preview.squares, ruleset.current) : undefined
     const inBatch = ref ? drafts.find(draft => draft.classRef && sameLogicalEntity(profile, ref, draft.classRef) && skillTreeShape(draft.preview.squares) === skillTreeShape(active.preview.squares)) : undefined
-    update({ classRef: ref, mappings: inBatch?.mappings ?? saved?.mappings ?? [], reviewed: false })
+    update({ classRef: ref, mappings: ref ? suggestSkillTreeMap(profile, catalogs, ref, active.preview.squares, mapSetId, ruleset.current, inBatch?.mappings).mappings : [], reviewed: false })
     setAllClasses(false)
     setSearch('')
   }
@@ -97,7 +104,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
       const next = previews.map(preview => {
         const classRef = uniqueName(classes, preview.className)?.ref
         const characterId = uniqueName(Object.values(profile.characters), preview.characterName)?.id
-        return { preview, characterId, classRef, mappings: classRef ? findSkillTreeLayout(profile, classRef, preview.squares, ruleset.current)?.mappings ?? [] : [], reviewed: false, included: !preview.error && !preview.duplicateOf }
+        return { preview, characterId, classRef, mappings: classRef ? suggestSkillTreeMap(profile, catalogs, classRef, preview.squares, mapSetId, ruleset.current).mappings : [], reviewed: false, included: !preview.error && !preview.duplicateOf }
       })
       setDrafts(next); setActiveId(next.find(draft => draft.included)?.preview.id ?? next[0]?.preview.id ?? ''); setSelectedPosition('')
     } catch (reason) { if (!controller.current.signal.aborted) setError(reason instanceof Error ? reason.message : 'The screenshots could not be read') }
@@ -115,6 +122,8 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
   return <Sheet description="Read local Learn-menu screenshots, review the character and class, then save observations." onClose={finish} onRequestClose={requestClose} open title="Import skill screenshots" width="wide">
     <div className="stack">
       {drafts.length === 0 && <p>Gold squares are learned. Blue squares are available but not learned; dim squares are locked. Screenshots stay on this device.</p>}
+      {drafts.length === 0 && <Field hint="Choose the game's configuration to fill names from confirmed class maps. Saved playthrough maps are preserved." label="Class maps"><select aria-label="Class maps" disabled={busy} onChange={event => setMapSetId(event.target.value)} value={mapSetId}><option value="">Saved playthrough maps only</option>{CONFIRMED_SKILL_MAP_SETS.map(set => <option key={set.id} value={set.id}>{set.label}</option>)}</select></Field>}
+      {mapSet && <details><summary>View map configuration</summary><p>{mapSet.platform}. Game version: {mapSet.gameVersion ?? 'unreported'}.</p><p><strong>Enabled:</strong> {mapSet.enabledMods.join(', ')}</p><p><strong>Disabled:</strong> {mapSet.disabledMods.join(', ')}</p></details>}
       {drafts.length === 0 && <Field hint="Full 16:9 PNG or JPEG captures. Duplicates are skipped; source files are unchanged." label="Skill screenshots"><input aria-label="Skill screenshots" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled={busy || drafts.length > 0} multiple onChange={event => { const files = [...(event.target.files ?? [])]; if (files.length) void selectFiles(files); event.target.value = '' }} type="file"/></Field>}
       {busy && <p role="status">{progress || 'Saving reviewed observations...'}</p>}
       {closeWarning && <InlineNotice title="Unsaved screenshot review" tone="warning">Finish the review or use Cancel and discard to close it.</InlineNotice>}
@@ -140,7 +149,7 @@ export function SkillScreenshotImport({ profile, catalogs, onImport }: { readonl
                 <details><summary>Show full screenshot</summary><img alt="Full screenshot with character header and selected class" className="skill-full-image" src={active.preview.imageUrl}/></details>
               </div>
               <div className="stack">
-                <InlineNotice title="Map each class once">The squares do not display ability names. Assign known names to their positions; this playthrough reuses the mapping for the same class, ruleset, and grid. Unmapped squares stay unresolved.</InlineNotice>
+                {activeMap ? <InlineNotice title={`${activeClass} names filled`}>{mapSet?.label}. This class map was checked in game. Review the assigned names against your screenshot before saving.</InlineNotice> : <InlineNotice title="Review square names">Assign any missing names to their positions. This playthrough reuses reviewed mappings for the same class, ruleset, and grid. Unmapped squares stay unresolved.</InlineNotice>}
                 {square && <>
                   <h3>Row {square.row + 1}, column {square.column + 1}</h3>
                   <Field label="Square state"><select aria-label="Square state" onChange={event => update({ preview: { ...active.preview, squares: active.preview.squares.map(entry => squareKey(entry) === squareKey(square) ? { ...entry, state: event.target.value as SkillSquareState } : entry) }, reviewed: false })} value={square.state}>{Object.entries(SQUARE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>

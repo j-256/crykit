@@ -1,3 +1,6 @@
+import { resolveDefinition } from '../src/domain/definitions'
+import { STARTER_CATALOG } from '../src/catalog/starter'
+import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -24,23 +27,26 @@ async function loadFixture(page: Page) {
   return profile
 }
 
-async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan'): Promise<Buffer> {
-  const url = await page.evaluate(({ menu, name }) => {
+async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice'): Promise<Buffer> {
+  const url = await page.evaluate(({ menu, name, layout }) => {
     const image = document.createElement('canvas')
     image.width = 1280; image.height = 720
     const ctx = image.getContext('2d')!
     ctx.fillStyle = '#1f252b'; ctx.fillRect(0, 0, 1280, 720)
     ctx.fillStyle = '#fafafa'; ctx.font = '20px Arial'
-    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText('Practice class', 305, 229)
+    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(layout === 'warrior' ? 'Warrior' : 'Practice class', 305, 229)
     ctx.fillRect(624, 211, 1, 18)
-    for (const [row, column, color] of [[0, 0, '#c0bb28'], [0, 1, '#2096d4'], [1, 0, '#425059'], [1, 1, '#c0bb28']] as const) {
+    const squares: readonly (readonly [number, number, string])[] = layout === 'warrior'
+      ? [[0, 1], [0, 3], [1, 0], [1, 2], [2, 1], [2, 3], [3, 0], [3, 2], [4, 0], [4, 1], [4, 2], [4, 3], [5, 1], [5, 3]].map(([row, column], index) => [row, column, index === 1 || index === 4 ? '#c0bb28' : '#425059'] as const)
+      : [[0, 0, '#c0bb28'], [0, 1, '#2096d4'], [1, 0, '#425059'], [1, 1, '#c0bb28']]
+    for (const [row, column, color] of squares) {
       const x = 670 + column * 64; const y = 222 + row * 64
       ctx.fillStyle = color
       ctx.fillRect(x, y, 40, 1); ctx.fillRect(x, y, 1, 40); ctx.fillRect(x + 39, y, 1, 40); ctx.fillRect(x, y + 39, 40, 1)
     }
-    ctx.fillStyle = '#2096d4'; ctx.fillRect(734, 293, 1, 24)
+    if (layout === 'practice') { ctx.fillStyle = '#2096d4'; ctx.fillRect(734, 293, 1, 24) }
     return image.toDataURL('image/png')
-  }, { menu, name })
+  }, { menu, name, layout })
   return Buffer.from(url.split(',')[1], 'base64')
 }
 
@@ -155,4 +161,44 @@ test('failed screenshot writes retain review and recover through Retry save', as
   const saved = await exportProfile(page)
   expect(Object.values(saved.characters[CHARACTER].learnedNodes)).toHaveLength(3)
   expect(Object.values(saved.skillTreeCaptures!)).toHaveLength(1)
+})
+
+test('confirmed Warrior positions fill names from the saved Switch mod configuration', async ({ page }) => {
+  await loadFixture(page)
+  const panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
+  await expect(panel.getByLabel('Enabled mods', { exact: true })).toHaveValue(CONFIRMED_SWITCH_MOD_SETUP.enabledMods.join('\n'))
+  await expect(panel.getByLabel('Disabled mods', { exact: true })).toHaveValue(CONFIRMED_SWITCH_MOD_SETUP.disabledMods.join('\n'))
+  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.goto(`/#/characters/${CHARACTER}/knowledge`)
+  const characterBounds = await page.getByRole('combobox', { name: 'Character', exact: true }).boundingBox()
+  for (const name of ['Import skill screenshots', 'Add character']) {
+    const buttonBounds = await page.getByRole('button', { name, exact: true }).boundingBox()
+    expect(characterBounds && buttonBounds && (characterBounds.x + characterBounds.width <= buttonBounds.x || buttonBounds.x + buttonBounds.width <= characterBounds.x || characterBounds.y + characterBounds.height <= buttonBounds.y || buttonBounds.y + buttonBounds.height <= characterBounds.y)).toBe(true)
+  }
+  const pixels = await syntheticScreenshot(page, 'Learn', 'Rowan', 'warrior')
+  await page.getByRole('button', { name: 'Import skill screenshots', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Import skill screenshots', exact: true })
+  await expect(dialog.getByLabel('Class maps', { exact: true })).toHaveValue(CONFIRMED_SWITCH_MOD_SETUP.id)
+  await dialog.getByLabel('Skill screenshots', { exact: true }).setInputFiles({ name: 'synthetic-warrior.png', mimeType: 'image/png', buffer: pixels })
+  await expect(dialog.getByText('Warrior names filled', { exact: true })).toBeVisible()
+  const compiled = dialog.getByRole('group', { name: 'Compiled learning observations', exact: true })
+  await expect(compiled.getByRole('button')).toHaveCount(14)
+  await expect(compiled).not.toContainText('Unresolved ability')
+  await expect(compiled.getByRole('button', { name: '2. Fighter Learned', exact: true })).toBeVisible()
+  await expect(compiled.getByRole('button', { name: '5. Equip Sword Learned', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
+  await dialog.getByLabel('I reviewed this character, class, square states, and assigned names', { exact: true }).check()
+  await dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await page.reload()
+  const saved = await exportProfile(page)
+  const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
+  expect(learned.map(node => [resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name, node.kind])).toEqual([['Fighter', 'innate'], ['Equip Sword', 'passive']])
+  expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(14)
+  expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })
+  expect(saved.characters[CHARACTER].classProgress).toEqual({})
 })
