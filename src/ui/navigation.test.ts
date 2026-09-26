@@ -94,7 +94,7 @@ describe('semantic navigation routes', () => {
 
   it('round-trips picker and editor descendants with every parent query intact', () => {
     const value: AppRoute = {
-      page: { page: 'builds', view: 'revision-new', buildId: 'build one' } as unknown as PageRoute,
+      page: { page: 'characters', view: 'snapshot-new', characterId: 'character one' } as unknown as PageRoute,
       overlays: [
         { kind: 'definition-picker', fieldKey: 'slot:accessory / one', query: 'ward', resultLimit: 300 },
         { kind: 'definition-editor', mode: 'new' },
@@ -103,7 +103,7 @@ describe('semantic navigation routes', () => {
       query: { category: ['Accessory'], source: ['source / one'] },
     }
     expectRoundTrip(value)
-    expect(formatAppRoute(value)).toContain('/revisions/new/pick/slot/')
+    expect(formatAppRoute(value)).toContain('/snapshots/new/pick/slot/')
   })
 
   it('allows an exact Reference override and rejects picker identities the page cannot render', () => {
@@ -127,6 +127,8 @@ describe('semantic navigation routes', () => {
       '#/inventory/new/pick/item-definition/pick/item-definition',
       '#/inventory/search/definitions/override/personal/definition',
       '#/inventory/definitions/new',
+      '#/builds/library/new/pick/primary-class/definitions/new',
+      '#/builds/library/build/revisions/new/pick/primary-class/definitions/new',
     ]
     for (const hash of rejected) expect(parseAppRoute(hash).page.page).toBe('unresolved')
 
@@ -146,7 +148,7 @@ describe('semantic navigation routes', () => {
   it('returns one semantic parent at a time', () => {
     const nested: AppRoute = {
       page: { page: 'builds', view: 'revision-new', buildId: 'build-1' } as unknown as PageRoute,
-      overlays: [{ kind: 'definition-picker', fieldKey: 'primary-class', query: '', resultLimit: 100 }, { kind: 'definition-editor', mode: 'new' }],
+      overlays: [{ kind: 'definition-picker', fieldKey: 'primary-class', query: '', resultLimit: 100 }, { kind: 'search', query: 'Warrior' }],
       query: {},
     }
     const picker = parentRoute(nested)!

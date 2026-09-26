@@ -366,7 +366,7 @@ function supportsDefinitionPicker(page: PageRoute, fieldKey: string): boolean {
     if (page.view === 'learning-new') return fieldKey === 'node-reference'
     return false
   }
-  if (page.page === 'builds' && (page.view === 'revision-new' || page.view === 'revision-edit')) {
+  if (page.page === 'builds' && (page.view === 'build-new' || page.view === 'revision-new' || page.view === 'revision-edit')) {
     return fieldKey === 'primary-class' || fieldKey === 'secondary-class' || fieldKey === 'primaryClass' || fieldKey === 'secondaryClass' || fieldKey.startsWith('slot:')
   }
   return page.page === 'progress' && page.view === 'new' && fieldKey === 'class-reference'
@@ -378,7 +378,10 @@ function overlaysSupported(page: PageRoute, overlays: readonly RouteOverlay[]): 
   if (first?.kind === 'definition-picker') {
     if (!supportsDefinitionPicker(page, first.fieldKey)) return false
     cursor += 1
-    if (overlays[cursor]?.kind === 'definition-editor') cursor += 1
+    if (overlays[cursor]?.kind === 'definition-editor') {
+      if (page.page === 'builds') return false
+      cursor += 1
+    }
   } else if (first?.kind === 'definition-editor') {
     if (page.page !== 'reference' || page.view !== 'detail' || first.mode !== 'override') return false
     cursor += 1

@@ -6,7 +6,7 @@ const MIN_WIDTH = 360
 const MAX_WIDTH = 480
 const MAX_HEIGHT = 440
 
-export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLButtonElement | null>; initialFocusRef: RefObject<HTMLInputElement | null>; onClose: () => void; onDismiss: () => void }>) {
+export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, role = 'dialog', children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLElement | null>; initialFocusRef: RefObject<HTMLInputElement | null>; onClose: () => void; onDismiss: () => void; role?: 'dialog' | 'listbox' }>) {
   const popupRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
   const dismissRef = useRef(onDismiss)
@@ -95,5 +95,5 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
     }
   }, [anchorRef, initialFocusRef, open])
 
-  return open ? <div aria-label={title} aria-modal="false" className="definition-dropdown" id={id} popover="manual" ref={popupRef} role="dialog">{children}</div> : null
+  return open ? <div aria-label={title} aria-modal={role === 'dialog' ? false : undefined} className="definition-dropdown" id={id} popover="manual" ref={popupRef} role={role}>{children}</div> : null
 }

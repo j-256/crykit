@@ -6,7 +6,6 @@ import {
   type ReviewedSkillTree,
   cloneBuild,
   coalesceDefinitionOverrides,
-  createBuild,
   createCharacter,
   createDefinitionOverride,
   createId,
@@ -44,6 +43,7 @@ import {
   type ValidationReport,
 } from './domain'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog'
+import { createBuildPlan, ensureBuildPlanningRuleset } from './domain/build-planning'
 import { commitImport, createProfile, exportBackup, listProfiles, loadWorkspace, previewImport, saveProfileWithStatus, selectProfile, subscribeWorkspace, undoProfileWithStatus, validateProfileForStorage } from './persistence'
 import type { ImportCommitMode, ImportPreview, ProfileSummary, Workspace } from './interchange/types'
 import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } from './ui/BuildsView'
@@ -309,7 +309,13 @@ export default function App() {
     return upsertProgress(profile, { id: current.id, subject: current.subject, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: profile.revision })
   }), [commitProfile])
 
-  const addBuild = useCallback(async (draft: BuildDraft) => commitProfile((profile) => createBuild(profile, { title: draft.title, kind: draft.kind, characterId: draft.characterId ? asId<CharacterId>(draft.characterId) : undefined, state: draft.state, tags: draft.tags, expectedRevision: profile.revision })), [commitProfile])
+  const addBuild = useCallback(async (draft: BuildDraft, revision: RevisionDraft) => {
+    const buildId = draft.id
+    const revisionId = draft.revisionId
+    const { note, ...content } = revision
+    await commitProfile((profile) => profile.buildRevisions[revisionId]?.buildId === buildId ? profile : createBuildPlan(profile, { id: buildId, revisionId, title: draft.title, kind: draft.kind, characterId: draft.characterId ? asId<CharacterId>(draft.characterId) : undefined, state: draft.state, tags: draft.tags, content, note, catalogLock: { [STARTER_CATALOG_ID]: STARTER_CATALOG_REVISION_ID }, expectedRevision: profile.revision }))
+    return { buildId, revisionId }
+  }, [commitProfile])
 
   const cloneExistingBuild = useCallback(async (buildId: string) => {
     const clonedId = createId<BuildId>('build')
@@ -320,11 +326,12 @@ export default function App() {
 
   const saveRevision = useCallback(async (buildId: string, draft: RevisionDraft, parentRevisionId?: string): Promise<BuildRevisionId> => {
     const revisionId = createId<BuildRevisionId>('buildRevision')
-    await commitProfile((profile) => {
-    const rulesetId = profile.activeRulesetRevisionId
-    if (!rulesetId) throw new Error('Configure an active ruleset before saving a build revision.')
-    const build = profile.builds[buildId]
-    return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions }, note: draft.note, expectedRevision: profile.revision })
+    await commitProfile((current) => {
+      const profile = ensureBuildPlanningRuleset(current, { [STARTER_CATALOG_ID]: STARTER_CATALOG_REVISION_ID })
+      const rulesetId = profile.activeRulesetRevisionId
+      if (!rulesetId) throw new Error('Configure an active ruleset before saving a build revision.')
+      const build = profile.builds[buildId]
+      return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions }, note: draft.note, expectedRevision: profile.revision })
     })
     return revisionId
   }, [commitProfile])
@@ -471,7 +478,7 @@ export default function App() {
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const content = unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? <BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setFormDraftDirty} onOpenSettings={openData} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/> : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={workspace.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
+    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? <BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setFormDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/> : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={workspace.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
 
   return <NavigationProvider controller={navigation}><DefinitionProvider catalogs={workspace.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} destination={destination} onOpenData={openData} profile={profile} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">Save or discard the current build revision before leaving this screen.</InlineNotice></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/></DefinitionProvider></NavigationProvider>
 }
