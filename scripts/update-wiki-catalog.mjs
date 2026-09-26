@@ -16,6 +16,7 @@ const PROJECT_DIR = dirname(SCRIPT_DIR)
 const CACHE_PATH = join(PROJECT_DIR, '.wiki-cache', 'pages.json')
 const OUTPUT_PATH = join(PROJECT_DIR, 'src', 'catalog', 'wiki-data.json')
 const STARTER_DATA_PATH = join(PROJECT_DIR, 'src', 'catalog', 'data.ts')
+const SWITCH_DATA_PATH = join(PROJECT_DIR, 'src', 'catalog', 'switch-data.json')
 
 const ITEM_CATEGORY_ROOTS = new Set([
   'Accessories',
@@ -1064,7 +1065,8 @@ async function updateStarterDigest(wikiContentDigest) {
   if (!sourceBlock) throw new Error('The starter source map could not be parsed')
   const sources = Object.fromEntries([...sourceBlock.matchAll(/^  "([^"]+)": "([^"]+)",$/gm)].map((match) => [match[1], match[2]]))
   const records = [...source.matchAll(/^  \["([^"]+)", "([^"]+)", "([^"]+)", "([^"]+)"\],$/gm)].map((match) => match.slice(1))
-  const digest = createHash('sha256').update(JSON.stringify({ sources, records, wikiContentDigest })).digest('hex')
+  const switchData = JSON.parse(await readFile(SWITCH_DATA_PATH, 'utf8'))
+  const digest = createHash('sha256').update(JSON.stringify({ sources, records, wikiContentDigest, switchData })).digest('hex')
   const updated = source.replace(/export const STARTER_CATALOG_CONTENT_DIGEST = "[0-9a-f]{64}"/, `export const STARTER_CATALOG_CONTENT_DIGEST = "${digest}"`)
   if (updated === source && !source.includes(`STARTER_CATALOG_CONTENT_DIGEST = "${digest}"`)) throw new Error('The starter content digest could not be updated')
   await writeFile(STARTER_DATA_PATH, updated)

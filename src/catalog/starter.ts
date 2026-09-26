@@ -17,6 +17,7 @@ import {
   STARTER_SOURCE_URLS,
 } from './data'
 import wikiDataJson from './wiki-data.json' with { type: 'json' }
+import { confirmedSwitchDefinitions, SWITCH_CLASS_SOURCE } from './switch'
 
 export const STARTER_CATALOG_ID = 'crystal-project-public-starter' as CatalogId
 export const STARTER_CATALOG_REVISION_ID = 'wiki-v1' as CatalogRevisionId
@@ -238,6 +239,13 @@ for (const wikiEntity of WIKI_DATA.entities) {
   mergedEntities.push(applyPlanningKnowledge({ ...wikiEntity, id: wikiEntity.id as EntityId }))
 }
 
+// Keep confirmed Switch identities separate from same-name wiki definitions
+for (const entity of confirmedSwitchDefinitions(mergedEntities)) {
+  const index = mergedEntities.findIndex(existing => existing.id === entity.id)
+  if (index < 0) mergedEntities.push(applyPlanningKnowledge(entity))
+  else mergedEntities[index] = applyPlanningKnowledge(entity)
+}
+
 const unmatchedStarterRecords = STARTER_NAME_RECORDS.filter((record) => !matchedWikiIdentities.has(entityIdentity(record[1], record[2])))
 
 export const STARTER_CATALOG_GAPS = deepFreeze({
@@ -246,7 +254,8 @@ export const STARTER_CATALOG_GAPS = deepFreeze({
   extractionIssues: [...WIKI_DATA.coverage.issues],
   pagesWithoutStandaloneDefinitions: [...WIKI_DATA.coverage.unimportedPages],
   knownMissingFamilies: [
-    { subject: 'Bloodmage, Tempest, Forcemage, and Barbarian', missing: 'Class commands, abilities, passives, growth, equipment permissions, unlocks, and master locations' },
+    { subject: 'Bloodmage and Forcemage', missing: 'Class commands, abilities, passives, growth, equipment permissions, unlocks, and master locations' },
+    { subject: 'Barbarian, Tempest, Brawler, and Freelancer', missing: 'Skill mechanics and costs, class growth, equipment permissions, unlocks, and master locations; Brawler and Freelancer mod ownership' },
     { subject: 'Equipment Expansion', missing: 'Wiki detail for unmatched equipment names and verification against the Switch-bundled revision' },
     { subject: 'Passive Trainer', missing: 'NPC identities, locations, taught passives, and costs' },
     { subject: 'Doge Shield', missing: 'Stats, exact counter behavior, location, and acquisition details' },
@@ -273,7 +282,7 @@ const coverageEntity = applyPlanningKnowledge({
     'Referenced pages that do not exist': known(STARTER_CATALOG_GAPS.wikiRedlinks, [coverageSource]),
     'Extraction issues': known(STARTER_CATALOG_GAPS.extractionIssues, [coverageSource]),
     'Pages without standalone definitions': known(STARTER_CATALOG_GAPS.pagesWithoutStandaloneDefinitions, [coverageSource]),
-    'Known catalog families without full details': known(STARTER_CATALOG_GAPS.knownMissingFamilies, [MOD_PACK_2_SOURCE]),
+    'Known catalog families without full details': known(STARTER_CATALOG_GAPS.knownMissingFamilies, [MOD_PACK_2_SOURCE, SWITCH_CLASS_SOURCE]),
     'Nintendo Switch and mod-pack parity': unknown('The community wiki does not establish complete Nintendo Switch or official mod-pack parity', [coverageSource]),
   },
   sources: [coverageSource],
@@ -401,7 +410,7 @@ export const STARTER_CATALOG: CatalogSnapshot = deepFreeze({
   claims: [],
   legacy: {
     coverage: 'community-wiki-with-explicit-gaps',
-    provenance: 'revision-pinned-public-static-sources',
+    provenance: 'revision-pinned-public-sources-and-in-game-confirmations',
     wikiContentDigest: WIKI_DATA.contentDigest,
   },
 })

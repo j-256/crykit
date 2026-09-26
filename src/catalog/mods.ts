@@ -2,6 +2,7 @@ import { definitionLineageRootRef } from '../domain/definitions'
 import { modState, type ModState } from '../domain/mods'
 import type { EntityRef, Profile, RulesetRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
+import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
 export const SWITCH_MOD_PACKS = Object.freeze([
@@ -74,14 +75,16 @@ export const CONFIRMED_SWITCH_MOD_SETUP = Object.freeze({
   ]),
 })
 
-// Associations come from the bundled Equipment Expansion sheet and publisher DLC descriptions
+// Associations come from the Equipment Expansion sheet, publisher descriptions, and in-game confirmation
 // Exact identities keep unrelated imports and same-name personal definitions unclassified
 const REQUIRED_MOD_BY_ENTITY: ReadonlyMap<string, string> = new Map([
   ...STARTER_NAME_RECORDS.filter(record => record[3] === 'equipment-expansion-sheet').map(record => [record[0], 'Equipment Expansion'] as const),
+  ...SWITCH_CLASS_RECORDS.flatMap(record => {
+    const mod = record.requiredMod
+    return mod ? [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])].map(id => [id, mod] as const) : []
+  }),
   ['mod-pack-2:class:bloodmage', 'Bloodmage'],
-  ['mod-pack-2:class:tempest', 'Tempest'],
   ['mod-pack-2:class:forcemage', 'Forcemage'],
-  ['mod-pack-2:class:barbarian', 'Barbarian'],
   ['mod-pack-2:item:doge-shield', 'Doge Shield'],
   ['mod-pack-2:monster:yasha-tar', 'Additional Boss: Yasha Tar'],
   ['mod-pack-2:monster:pinga', 'Additional Boss: Pinga'],

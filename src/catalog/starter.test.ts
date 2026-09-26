@@ -9,13 +9,14 @@ import {
 } from './data'
 import { starterEntitySourceLabel, starterSourceLabel } from './provenance'
 import { STARTER_CATALOG, STARTER_CATALOG_COUNTS, STARTER_CATALOG_GAPS } from './starter'
+import { SWITCH_CLASS_SOURCE } from './switch'
 
 const EXPECTED_COUNTS = {
   item: 959,
-  class: 28,
-  ability: 253,
-  passive: 58,
-  innate: 28,
+  class: 30,
+  ability: 305,
+  passive: 69,
+  innate: 30,
   monsterMagic: 20,
   monster: 269,
   command: 24,
@@ -37,7 +38,7 @@ const RANDOMIZER_ONLY_LABELS = [
 describe('built-in starter catalog', () => {
   it('contains the revision-pinned community reference coverage', () => {
     expect(STARTER_CATALOG_COUNTS).toEqual(EXPECTED_COUNTS)
-    expect(Object.keys(STARTER_CATALOG.entities)).toHaveLength(1_895)
+    expect(Object.keys(STARTER_CATALOG.entities)).toHaveLength(1_962)
     expect(STARTER_CATALOG.applicability.state).toBe('unknown')
     expect(STARTER_CATALOG.rights.state).toBe('unknown')
   })
@@ -109,13 +110,18 @@ describe('built-in starter catalog', () => {
     expect([...names].filter((name) => name.startsWith('Progressive '))).toEqual([])
   })
 
-  it('uses public source URLs and revision locators without archive identities', () => {
+  it('uses public sources or explicit in-game confirmations without archive identities', () => {
     const allowed = new Set<string>(Object.values(STARTER_SOURCE_URLS))
     expect(allowed.size).toBeGreaterThan(4)
 
     for (const entity of Object.values(STARTER_CATALOG.entities)) {
       expect(entity.sources.length).toBeGreaterThan(0)
       for (const source of entity.sources) {
+        if (source.sourceId === SWITCH_CLASS_SOURCE.sourceId) {
+          expect(source.snapshot).toBe(SWITCH_CLASS_SOURCE.snapshot)
+          expect(source.locator).toMatch(/class and skill identities$/)
+          continue
+        }
         expect(source.sourceId).toMatch(/^https:\/\//)
         expect(source.sourceId).not.toMatch(/^(?:source:)?sha256:/)
         expect(allowed.has(source.sourceId) || source.sourceId.startsWith('https://crystal-project.fandom.com/')).toBe(true)

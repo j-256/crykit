@@ -1,7 +1,9 @@
 import type { CatalogEntity } from '../domain/types'
 import { STARTER_SOURCE_URLS } from './data'
+import { SWITCH_CLASS_SOURCE } from './switch'
 
 const FIXED_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  [SWITCH_CLASS_SOURCE.sourceId]: 'Switch in-game confirmation',
   [STARTER_SOURCE_URLS['apworld-items']]: 'Base game names',
   [STARTER_SOURCE_URLS['apworld-classes']]: 'Base class names',
   [STARTER_SOURCE_URLS['apworld-monster-magic']]: 'Base Monster Magic names',

@@ -30,4 +30,10 @@ Run `npm run catalog:update` to fetch main-namespace pages, expanded categories,
 
 Review the generated entity and gap changes, preserve stable starter IDs where identity is unchanged, and bump the built-in catalog revision before publishing a changed snapshot. Run the complete local verification suite. GitHub Actions must remain disabled.
 
-The snapshot checksum uses a `builtin:sha256:` namespace over the supporting source map, stable name records, and generated wiki content digest. It is catalog identity metadata, not an imported private-file digest.
+The snapshot checksum uses a `builtin:sha256:` namespace over the supporting source map, stable name records, generated wiki content digest, and confirmed Switch supplement. It is catalog identity metadata, not an imported private-file digest.
+
+## Confirmed Switch skill names
+
+The bundled Switch supplement records in-game class and skill identities separately from community wiki identity matching. Barbarian, Tempest, Brawler, and Freelancer entries retain confirmed names and node kinds, while mechanics, costs, and weapon requirements remain unknown. A same-name skill from another class does not supply those missing details. The supplement participates in the catalog content checksum and carries explicit in-game provenance without personal screenshots or character records.
+
+Barbarian and Tempest entries follow their corresponding mod settings. Brawler and Freelancer have unconfirmed mod ownership, so their visibility is not assigned to a guessed toggle. Preparation is a Tempest passive distinct from the Squall innate. Neither Squall nor Barbarian's Toughness is learned from the confirmed trees. Shapeshifter represents appearance-passive unlocks and is not included as a combat class.

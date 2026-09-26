@@ -56,7 +56,7 @@ describe('confirmed class square maps', () => {
     it(`maps confirmed ${fixture.className} names and imports only their observed learning`, () => {
       const characterId = asId<CharacterId>('synthetic-mapped-character')
       const profile = createCharacter(createBlankProfile(), { id: characterId, name: 'Rowan' })
-      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === `base:class:${fixture.className.toLowerCase()}`)!
+      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === (fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`))!
       const observed: readonly SkillSquare[] = fixture.squares.map(([row, column], index) => ({ row, column, state: index % 3 === 0 ? 'learned' : 'locked' }))
       const suggestion = suggestSkillTreeMap(profile, catalogs, map.classRef, observed, SWITCH_MOD_PACKS_MAP_SET)
       expect(suggestion.confirmedMap).toBe(map)

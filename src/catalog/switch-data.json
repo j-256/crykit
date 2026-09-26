@@ -1,0 +1,364 @@
+{
+  "source": {
+    "sourceId": "in-game:switch-class-mappings",
+    "snapshot": "Nintendo Switch in-game confirmation 2026-09-26",
+    "applicability": "Confirmed names, node kinds, and class associations; game version, skill mechanics, and costs unverified"
+  },
+  "classes": [
+    {
+      "id": "mod-pack-2:class:barbarian",
+      "name": "Barbarian",
+      "requiredMod": "Barbarian",
+      "innate": {
+        "id": "mod-pack-2:barbarian:innate:toughness",
+        "name": "Toughness",
+        "learnableFromTree": false
+      },
+      "skills": [
+        [
+          "mod-pack-2:barbarian:ability:shout",
+          "ability",
+          "Shout"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:thick-skin",
+          "ability",
+          "Thick Skin"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:enrage",
+          "ability",
+          "Enrage"
+        ],
+        [
+          "mod-pack-2:barbarian:passive:hardy",
+          "passive",
+          "Hardy"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:battlecry",
+          "ability",
+          "Battlecry"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:second-wind",
+          "ability",
+          "Second Wind"
+        ],
+        [
+          "mod-pack-2:barbarian:passive:ferocious",
+          "passive",
+          "Ferocious"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:rally",
+          "ability",
+          "Rally"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:grapple",
+          "ability",
+          "Grapple"
+        ],
+        [
+          "mod-pack-2:barbarian:passive:endurance",
+          "passive",
+          "Endurance"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:overpower",
+          "ability",
+          "Overpower"
+        ],
+        [
+          "mod-pack-2:barbarian:ability:momentum",
+          "ability",
+          "Momentum"
+        ]
+      ]
+    },
+    {
+      "id": "mod-pack-2:class:tempest",
+      "name": "Tempest",
+      "requiredMod": "Tempest",
+      "innate": {
+        "id": "mod-pack-2:tempest:innate:squall",
+        "name": "Squall",
+        "learnableFromTree": false
+      },
+      "skills": [
+        [
+          "mod-pack-2:tempest:ability:flurry",
+          "ability",
+          "Flurry"
+        ],
+        [
+          "mod-pack-2:tempest:passive:preparation",
+          "passive",
+          "Preparation"
+        ],
+        [
+          "mod-pack-2:tempest:ability:thunder-stance",
+          "ability",
+          "Thunder Stance"
+        ],
+        [
+          "mod-pack-2:tempest:ability:chain-lightning",
+          "ability",
+          "Chain Lightning"
+        ],
+        [
+          "mod-pack-2:tempest:ability:wind-stance",
+          "ability",
+          "Wind Stance"
+        ],
+        [
+          "mod-pack-2:tempest:ability:charge",
+          "ability",
+          "Charge"
+        ],
+        [
+          "mod-pack-2:tempest:ability:gale",
+          "ability",
+          "Gale"
+        ],
+        [
+          "mod-pack-2:tempest:ability:swipe",
+          "ability",
+          "Swipe"
+        ],
+        [
+          "mod-pack-2:tempest:ability:jolt",
+          "ability",
+          "Jolt"
+        ],
+        [
+          "mod-pack-2:tempest:ability:lightning-strike",
+          "ability",
+          "Lightning Strike"
+        ],
+        [
+          "mod-pack-2:tempest:ability:hurricane",
+          "ability",
+          "Hurricane"
+        ],
+        [
+          "mod-pack-2:tempest:passive:fast-hands",
+          "passive",
+          "Fast Hands"
+        ]
+      ]
+    },
+    {
+      "id": "switch:class:brawler",
+      "name": "Brawler",
+      "requiredMod": null,
+      "innate": null,
+      "skills": [
+        [
+          "switch:brawler:ability:brawler-stance",
+          "ability",
+          "Brawler Stance"
+        ],
+        [
+          "switch:brawler:ability:jab-combo",
+          "ability",
+          "Jab Combo"
+        ],
+        [
+          "switch:brawler:ability:rush-stance",
+          "ability",
+          "Rush Stance"
+        ],
+        [
+          "switch:brawler:ability:leg-sweep",
+          "ability",
+          "Leg Sweep"
+        ],
+        [
+          "switch:brawler:ability:arm-break",
+          "ability",
+          "Arm Break"
+        ],
+        [
+          "switch:brawler:ability:body-slam",
+          "ability",
+          "Body Slam"
+        ],
+        [
+          "switch:brawler:ability:beast-stance",
+          "ability",
+          "Beast Stance"
+        ],
+        [
+          "switch:brawler:ability:head-smash",
+          "ability",
+          "Head Smash"
+        ],
+        [
+          "switch:brawler:ability:shatter",
+          "ability",
+          "Shatter"
+        ],
+        [
+          "switch:brawler:ability:flying-press",
+          "ability",
+          "Flying Press"
+        ],
+        [
+          "switch:brawler:passive:fists-of-steel",
+          "passive",
+          "Fists of Steel"
+        ],
+        [
+          "switch:brawler:ability:grapple",
+          "ability",
+          "Grapple"
+        ],
+        [
+          "switch:brawler:passive:brawlers-resolve",
+          "passive",
+          "Brawler's Resolve"
+        ],
+        [
+          "switch:brawler:ability:drain-punch",
+          "ability",
+          "Drain Punch"
+        ],
+        [
+          "switch:brawler:ability:bulk-up",
+          "ability",
+          "Bulk Up"
+        ],
+        [
+          "switch:brawler:ability:rage-fist",
+          "ability",
+          "Rage Fist"
+        ],
+        [
+          "switch:brawler:passive:close-combat",
+          "passive",
+          "Close Combat"
+        ],
+        [
+          "switch:brawler:ability:soul-crush",
+          "ability",
+          "Soul Crush"
+        ],
+        [
+          "switch:brawler:ability:meditate",
+          "ability",
+          "Meditate"
+        ],
+        [
+          "switch:brawler:ability:battlecry",
+          "ability",
+          "Battlecry"
+        ]
+      ]
+    },
+    {
+      "id": "switch:class:freelancer",
+      "name": "Freelancer",
+      "requiredMod": null,
+      "innate": null,
+      "skills": [
+        [
+          "switch:freelancer:ability:check-out",
+          "ability",
+          "Check Out"
+        ],
+        [
+          "switch:freelancer:ability:secret-stash",
+          "ability",
+          "Secret Stash"
+        ],
+        [
+          "switch:freelancer:ability:patch-up",
+          "ability",
+          "Patch Up"
+        ],
+        [
+          "switch:freelancer:ability:swipe",
+          "ability",
+          "Swipe"
+        ],
+        [
+          "switch:freelancer:ability:hp-candy",
+          "ability",
+          "HP Candy"
+        ],
+        [
+          "switch:freelancer:ability:mockery",
+          "ability",
+          "Mockery"
+        ],
+        [
+          "switch:freelancer:passive:quick-thinking",
+          "passive",
+          "Quick Thinking"
+        ],
+        [
+          "switch:freelancer:ability:see-ya",
+          "ability",
+          "See Ya"
+        ],
+        [
+          "switch:freelancer:ability:mp-candy",
+          "ability",
+          "MP Candy"
+        ],
+        [
+          "switch:freelancer:ability:scapegoat",
+          "ability",
+          "Scapegoat"
+        ],
+        [
+          "switch:freelancer:ability:staring-contest",
+          "ability",
+          "Staring Contest"
+        ],
+        [
+          "switch:freelancer:ability:revival-candy",
+          "ability",
+          "Revival Candy"
+        ],
+        [
+          "switch:freelancer:ability:pep-talk",
+          "ability",
+          "Pep Talk"
+        ],
+        [
+          "switch:freelancer:passive:scavenger",
+          "passive",
+          "Scavenger"
+        ],
+        [
+          "switch:freelancer:ability:baton-pass",
+          "ability",
+          "Baton Pass"
+        ],
+        [
+          "switch:freelancer:ability:candy-mix",
+          "ability",
+          "Candy Mix"
+        ],
+        [
+          "switch:freelancer:ability:trash-talk",
+          "ability",
+          "Trash Talk"
+        ],
+        [
+          "switch:freelancer:ability:100-pun-storm",
+          "ability",
+          "100-Pun Storm"
+        ],
+        [
+          "switch:freelancer:passive:aptitude",
+          "passive",
+          "Aptitude"
+        ]
+      ]
+    }
+  ]
+}

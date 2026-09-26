@@ -1,5 +1,6 @@
 import type { CatalogEntityKind } from '../domain/types'
 import wikiData from './wiki-data.json' with { type: 'json' }
+import switchData from './switch-data.json' with { type: 'json' }
 
 export const STARTER_SOURCE_URLS = {
   "apworld-classes": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/jobs.py",
@@ -1143,7 +1144,7 @@ export const STARTER_NAME_RECORDS = [
 ] as const satisfies readonly StarterNameRecord[]
 
 export function starterCatalogChecksumInput(): string {
-  return JSON.stringify({ sources: STARTER_SOURCE_URLS, records: STARTER_NAME_RECORDS, wikiContentDigest: wikiData.contentDigest })
+  return JSON.stringify({ sources: STARTER_SOURCE_URLS, records: STARTER_NAME_RECORDS, wikiContentDigest: wikiData.contentDigest, switchData })
 }
 
-export const STARTER_CATALOG_CONTENT_DIGEST = "be8721cdf490837d9d44c70278af7e4bddc3cea46d8f0009ac2d079286e127bd"
+export const STARTER_CATALOG_CONTENT_DIGEST = "18f4b659efb3091482f2300cee31257c9ec14a41eee59cd4e49ec97bb79a82fa"
