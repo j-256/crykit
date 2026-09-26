@@ -1,3 +1,5 @@
+import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponType } from '../domain/skill-weapons'
+import type { ModState } from '../domain/mods'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import type {
@@ -35,6 +37,7 @@ export interface ReferenceSearchItem {
   readonly categories: readonly string[]
   readonly sources: readonly string[]
   readonly ppCost: Knowledge<number>
+  readonly weaponRule: Knowledge<SkillWeaponRule>
   readonly knowledgeCounts: KnowledgeCounts
 }
 
@@ -50,9 +53,12 @@ export interface ReferenceFilters {
   readonly categories: readonly string[]
   readonly sources: readonly string[]
   readonly pp?: NumericBound
+  readonly weapon?: WeaponType
+  readonly unrestrictedWeaponSkills?: ModState
 }
 
 export interface PersonalDefinitionSearchOption {
+  readonly record?: Pick<CatalogEntity, 'kind' | 'fields'>
   readonly kind: CatalogEntityKind
   readonly name: string
   readonly aliases: readonly string[]
@@ -212,6 +218,7 @@ export function projectReferenceEntity(
     categories,
     sources,
     ppCost,
+    weaponRule: skillWeaponRule(entity),
     knowledgeCounts: countKnowledge(entityKnowledge(entity, claims)),
     projection: {
       text: { state: 'known', value: [entity.name, ...entity.aliases, entity.rawDescription ?? ''].join('\n').normalize('NFKC') },
@@ -273,6 +280,7 @@ export function buildReferenceQuery(filters: ReferenceFilters): QueryNode {
   if (filters.pp && (filters.pp.min !== undefined || filters.pp.max !== undefined)) {
     children.push(...buildNumericBoundNodes('ppCost', filters.pp, 'PP'))
   }
+  if (filters.weapon) children.push({ kind: 'predicate', field: 'weaponCompatible', operator: 'eq', value: true })
   return { kind: 'and', children }
 }
 
@@ -281,7 +289,7 @@ export function partitionReferenceItems(
   filters: ReferenceFilters,
 ): ReferenceSearchPartition {
   const query = buildReferenceQuery(filters)
-  return { ...partitionQuery(items, query, (item) => item.projection), query }
+  return { ...partitionQuery(items, query, (item) => filters.weapon ? { ...item.projection, weaponCompatible: skillAcceptsWeapon(item.weaponRule, filters.weapon, filters.unrestrictedWeaponSkills) } : item.projection), query }
 }
 
 export function personalDefinitionCategoryValues(option: PersonalDefinitionSearchOption): readonly string[] {
@@ -305,6 +313,7 @@ export function partitionPersonalDefinitionOptions<Option extends PersonalDefini
         source: { state: 'known', value: ['Personal definitions'] },
         ppCost,
         ppCostUnit: ppUnitKnowledge(ppCost),
+        ...(filters.weapon ? { weaponCompatible: skillAcceptsWeapon(skillWeaponRule(option.record ?? { kind: option.kind, fields: {} }), filters.weapon, filters.unrestrictedWeaponSkills) } : {}),
       }
     }),
     query,

@@ -1,3 +1,4 @@
+import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { CatalogEntityKind } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
 import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
@@ -31,6 +32,8 @@ export interface ReferenceRouteState {
   readonly kinds: readonly CatalogEntityKind[]
   readonly categories: readonly string[]
   readonly sources: readonly string[]
+  readonly weapon?: WeaponType
+  readonly includeUncertainSkills?: boolean
   readonly ppMin?: number
   readonly ppMax?: number
   readonly selectedKey?: string
@@ -92,6 +95,8 @@ export function normalizeReferenceRouteState(value: unknown): ReferenceRouteStat
     kinds: kindValues(record.kinds),
     categories: facetValues(record.categories),
     sources: facetValues(record.sources),
+    ...(normalizeWeaponType(record.weapon) && record.includeUncertainSkills === true ? { includeUncertainSkills: true } : {}),
+    ...(normalizeWeaponType(record.weapon) ? { weapon: normalizeWeaponType(record.weapon) } : {}),
     ...(finiteNumber(record.ppMin) === undefined ? {} : { ppMin: finiteNumber(record.ppMin) }),
     ...(finiteNumber(record.ppMax) === undefined ? {} : { ppMax: finiteNumber(record.ppMax) }),
     ...(selectedKey(record.selectedKey) === undefined ? {} : { selectedKey: selectedKey(record.selectedKey) }),
@@ -133,6 +138,8 @@ function referenceQuery(state: ReferenceRouteState): RouteQuery {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  if (state.weapon) params.set('weapon', state.weapon)
+  if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
   if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))
   if (state.ppMax !== undefined) params.set('ppMax', String(state.ppMax))
   if (state.resultLimit !== REFERENCE_PAGE_SIZE) params.set('limit', String(state.resultLimit))
@@ -152,6 +159,8 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     kinds: params.getAll('kind'),
     categories: params.getAll('category'),
     sources: params.getAll('source'),
+    weapon: params.get('weapon'),
+    includeUncertainSkills: params.get('uncertainSkills') === '1',
     ppMin: queryNumber(params, 'ppMin'),
     ppMax: queryNumber(params, 'ppMax'),
     selectedKey: routeSelected ?? params.get('selected') ?? undefined,
@@ -166,6 +175,8 @@ export function formatReferenceRoute(value: ReferenceRouteState): string {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  if (state.weapon) params.set('weapon', state.weapon)
+  if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
   if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))
   if (state.ppMax !== undefined) params.set('ppMax', String(state.ppMax))
   if (state.selectedKey) params.set('selected', state.selectedKey)

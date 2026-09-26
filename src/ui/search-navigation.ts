@@ -1,7 +1,9 @@
+import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { BuildId, CharacterId, EntityRef, InventoryPositionId, ProgressRecordId, ScenarioId } from '../domain/types'
 import { formatAppRoute, parseAppRoute, routeDestination, type AppRoute, type Destination } from './navigation'
 
 export type UniversalSearchTarget =
+  | { readonly kind: 'weaponSkills'; readonly weapon: WeaponType }
   | { readonly kind: 'definition'; readonly ref: EntityRef }
   | { readonly kind: 'inventory'; readonly positionId: InventoryPositionId }
   | { readonly kind: 'character'; readonly characterId: CharacterId }
@@ -10,7 +12,7 @@ export type UniversalSearchTarget =
   | { readonly kind: 'progress'; readonly recordId: ProgressRecordId }
 
 export function destinationForSearchTarget(target: UniversalSearchTarget): Destination {
-  if (target.kind === 'definition') return 'reference'
+  if (target.kind === 'definition' || target.kind === 'weaponSkills') return 'reference'
   if (target.kind === 'inventory') return 'inventory'
   if (target.kind === 'character') return 'characters'
   if (target.kind === 'progress') return 'progress'
@@ -18,6 +20,7 @@ export function destinationForSearchTarget(target: UniversalSearchTarget): Desti
 }
 
 export function routeForSearchTarget(target: UniversalSearchTarget): AppRoute {
+  if (target.kind === 'weaponSkills') return { page: { page: 'reference', view: 'list' }, overlays: [], query: { v: ['1'], weapon: [target.weapon] } }
   const page = target.kind === 'definition' ? { page: 'reference' as const, view: 'detail' as const, ref: target.ref }
     : target.kind === 'inventory' ? { page: 'inventory' as const, view: 'edit' as const, positionId: target.positionId }
     : target.kind === 'character' ? { page: 'characters' as const, view: 'character' as const, characterId: target.characterId, tab: 'current' as const }
@@ -29,6 +32,8 @@ export function routeForSearchTarget(target: UniversalSearchTarget): AppRoute {
 
 export function searchTargetForRoute(route: AppRoute): UniversalSearchTarget | undefined {
   const page = route.page
+  const weapon = normalizeWeaponType(route.query.weapon?.[0])
+  if (page.page === 'reference' && page.view === 'list' && weapon) return { kind: 'weaponSkills', weapon }
   if (page.page === 'reference' && page.view === 'detail') return { kind: 'definition', ref: page.ref }
   if (page.page === 'inventory' && page.view === 'edit') return { kind: 'inventory', positionId: page.positionId }
   if (page.page === 'characters' && page.view !== 'list' && page.view !== 'new') return { kind: 'character', characterId: page.characterId }

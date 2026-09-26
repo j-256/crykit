@@ -11,6 +11,11 @@ describe('universal search navigation', () => {
     expect(parseUniversalSearchTarget(hash)).toEqual(target)
   })
 
+  it('round-trips a weapon skill list target', () => {
+    const target: UniversalSearchTarget = { kind: 'weaponSkills', weapon: 'Dagger' }
+    expect(parseUniversalSearchTarget(formatSearchDestination('reference', target))).toEqual(target)
+  })
+
   it('round-trips planner record targets', () => {
     const target = { kind: 'scenario', scenarioId: 'scenario-1' } as UniversalSearchTarget
     expect(parseUniversalSearchTarget(formatSearchDestination('builds', target))).toEqual(target)

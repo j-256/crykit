@@ -51,7 +51,9 @@ The inventory form starts with focus on the item picker and uses the selected it
 
 Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to search definitions, inventory, characters, builds, teams, and progress. Arrow keys move through results, Enter opens one, and Escape closes the search. Open forms and unsaved build edits must be finished before navigating to another record.
 
-Reference search supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.
+To browse weapon skills, choose **Reference > Weapon skills usable with > Dagger**, or press Cmd+K / Ctrl+K, type **dagger**, and open **Skills usable with Dagger**. Results include multi-weapon and any-weapon skills, with class, listed weapon requirements, and cost visible. Spells and ordinary abilities are excluded. Unknown or conflicting requirements are available through an explicit checkbox. Filters survive details, reloads, and browser navigation. An explicitly enabled **Unrestricted Weapon Skills** mod broadens the list while retaining the original requirements. Other mod visibility follows the active ruleset.
+
+Reference search also supports type, category, source, and PP filters. Unknown values remain possible matches where appropriate. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
 Track individual **Enabled mods** and **Disabled mods** in **Data & settings > Ruleset**. Known mod associations control definition searches and choices; unclassified entries stay visible. Character sheets retain their recorded ruleset context, including mod settings. See [playthrough mods](docs/mods.md) for supported filtering and catalog gaps.
 

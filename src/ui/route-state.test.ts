@@ -26,6 +26,8 @@ describe('reference route state', () => {
     const selectedKey = encodeReferenceEntityKey({ catalogId: 'pack:alpha', catalogRevisionId: 'r/1', entityId: 'item?2' })
     const state: ReferenceRouteState = {
       query: 'spear & shield',
+      weapon: 'Dagger',
+      includeUncertainSkills: true,
       kinds: ['item', 'passive'],
       categories: ['Two handed'],
       sources: ['pack:alpha'],
@@ -59,14 +61,16 @@ describe('reference route state', () => {
   it('bounds malformed route values and rejects invalid selected identities', () => {
     const parsed = parseReferenceRoute('#/reference?v=1&kind=not-a-kind&kind=item&limit=999999&ppMin=NaN&selected=bad')
     expect(parsed.kinds).toEqual(['item'])
+    expect(parseReferenceRoute('#/reference?weapon=unknown').weapon).toBeUndefined()
+    expect(parseReferenceRoute('#/reference?weapon=daggers').weapon).toBe('Dagger')
     expect(parsed.resultLimit).toBe(2_000)
     expect(parsed.ppMin).toBeUndefined()
     expect(parsed.selectedKey).toBeUndefined()
   })
 
   it('persists locally and lets browser history restore prior reference states', () => {
-    const first = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'first' }
-    const second = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'second' }
+    const first = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'first', weapon: 'Dagger' as const }
+    const second = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'second', weapon: 'Bow' as const }
     commitReferenceRouteState(first, 'replace')
     commitReferenceRouteState(second, 'push')
     expect(readReferenceRouteState()).toEqual(second)

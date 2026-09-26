@@ -1,7 +1,9 @@
+import { modState } from '../domain/mods'
+import { normalizeWeaponType, skillWeaponLabel, skillWeaponRule, UNRESTRICTED_WEAPON_SKILLS_MOD, WEAPON_TYPES } from '../domain/skill-weapons'
 import { modAvailabilityLabel } from '../catalog/mods'
 import { useCallback, useMemo, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef } from '../domain'
-import type { CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
+import type { CatalogEntity, CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { formatAppError, knowledgeTone } from './model'
@@ -55,6 +57,12 @@ function KnowledgeValue({ value }: { value: Knowledge<unknown> }) {
   if (value.state === 'conflicting') return <span>{value.claims.length} conflicting claims</span>
   if (value.state === 'notApplicable') return <span>{value.reason ?? 'Not applicable'}</span>
   return <span>{value.reason ?? 'Unknown'}</span>
+}
+
+function SkillSummary({ entity }: { entity: Pick<CatalogEntity, 'kind' | 'fields'> }) {
+  const className = entity.fields.Class ?? { state: 'unknown' as const }
+  const cost = entity.fields.Cost ?? { state: 'unknown' as const }
+  return <div className="skill-summary"><span><strong>Class:</strong> <KnowledgeValue value={className}/></span><span><strong>Weapons:</strong> {skillWeaponLabel(skillWeaponRule(entity))}</span><span><strong>Cost:</strong> <KnowledgeValue value={cost}/></span></div>
 }
 
 function sourceHref(source: SourceRef): string | undefined {
@@ -159,22 +167,27 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'kind'), availablePersonalOptions.map((option) => option.kind)), [searchableItems, availablePersonalOptions])
   const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'category'), availablePersonalOptions.flatMap(personalDefinitionCategoryValues)), [searchableItems, availablePersonalOptions])
   const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'source'), availablePersonalOptions.map(() => 'Personal definitions')), [searchableItems, availablePersonalOptions])
+  const unrestrictedWeaponSkills = modState(profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined, UNRESTRICTED_WEAPON_SKILLS_MOD)
   const partition = useMemo(() => partitionReferenceItems(searchableItems, {
     query: route.query,
+    weapon: route.weapon,
+    unrestrictedWeaponSkills,
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [searchableItems, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
-  const results = useMemo(() => [...partition.confirmed, ...partition.possible], [partition.confirmed, partition.possible])
+  }), [searchableItems, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, unrestrictedWeaponSkills])
+  const results = useMemo(() => [...partition.confirmed, ...(!route.weapon || route.includeUncertainSkills ? partition.possible : [])], [partition.confirmed, partition.possible, route.weapon, route.includeUncertainSkills])
   const personalPartition = useMemo(() => partitionPersonalDefinitionOptions(availablePersonalOptions, {
     query: route.query,
+    weapon: route.weapon,
+    unrestrictedWeaponSkills,
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [availablePersonalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
-  const personalResults = useMemo(() => [...personalPartition.confirmed, ...personalPartition.possible], [personalPartition.confirmed, personalPartition.possible])
+  }), [availablePersonalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources, route.weapon, unrestrictedWeaponSkills])
+  const personalResults = useMemo(() => [...personalPartition.confirmed, ...(!route.weapon || route.includeUncertainSkills ? personalPartition.possible : [])], [personalPartition.confirmed, personalPartition.possible, route.weapon, route.includeUncertainSkills])
   const visiblePersonalResults = personalResults.slice(0, route.resultLimit)
   const visibleCatalogResults = results.slice(0, Math.max(0, route.resultLimit - visiblePersonalResults.length))
   const totalResults = personalResults.length + results.length
@@ -227,6 +240,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
       <aside className="panel facet-panel">
         <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length + personalPartition.confirmed.length} confirmed · {partition.possible.length + personalPartition.possible.length} possible</p></div></div>
         <div className="facet-group"><div className="search-field"><Icon name="search"/><input aria-label="Search reference" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Name, alias, or raw text" type="search" value={route.query}/></div></div>
+        {!selectedRef && <div className="facet-group"><label className="field"><span className="field__label">Weapon skills usable with</span><select onChange={(event) => updateFilter({ weapon: normalizeWeaponType(event.target.value), kinds: [], categories: [], ppMin: undefined, ppMax: undefined }, 'push')} value={route.weapon ?? ''}><option value="">Any skill or definition</option>{WEAPON_TYPES.map(weapon => <option key={weapon} value={weapon}>{weapon}</option>)}</select></label></div>}
         <button aria-controls="reference-filter-options" aria-expanded={filtersOpen} className="mobile-filter-toggle" onClick={() => setFiltersOpen((value) => !value)} type="button"><span>{filtersOpen ? 'Hide filters' : 'Filters'}</span><Badge>{route.kinds.length + route.categories.length + route.sources.length + (route.ppMin === undefined ? 0 : 1) + (route.ppMax === undefined ? 0 : 1)} active</Badge></button>
         <div className={`reference-filter-options${filtersOpen ? ' is-open' : ''}`} id="reference-filter-options">
         <div className="facet-group"><h3>Definition type</h3><div className="filter-chips" style={{ flexWrap: 'wrap' }}><button aria-pressed={route.kinds.length === 0} className="filter-chip" onClick={() => updateFilter({ kinds: [] }, 'push')} type="button">All</button>{kindOptions.map((option) => <button aria-pressed={route.kinds.includes(option.value as typeof route.kinds[number])} className="filter-chip" key={option.value} onClick={() => updateFilter({ kinds: toggleValue(route.kinds, option.value) as typeof route.kinds }, 'push')} type="button">{option.value === 'monsterMagic' ? 'Monster Magic' : option.value} ({option.count})</button>)}</div></div>
@@ -239,10 +253,11 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
         </div>
       </aside>
       <section className="panel">
+        {!selectedRef && route.weapon && <div className="panel__header"><div><h2>Skills usable with {route.weapon}</h2><p>Weapon skills only, including multi-weapon and any-weapon skills.</p>{partition.possible.length + personalPartition.possible.length > 0 && <label className="check-row"><input checked={route.includeUncertainSkills ?? false} onChange={event => updateFilter({ includeUncertainSkills: event.target.checked }, 'push')} type="checkbox"/><span>Include skills with unknown or conflicting requirements ({partition.possible.length + personalPartition.possible.length})</span></label>}{unrestrictedWeaponSkills === 'enabled' && <p>Unrestricted Weapon Skills is enabled. All documented weapon skills match; their original weapon requirements are shown below.</p>}</div></div>}
         {selectedPersonal ? <PersonalDetail onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedPersonal.ref) }))} option={selectedPersonal}/> : selected ? <DetailView item={selected} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }) }))}/> : results.length || personalResults.length ? <div>
           {partition.confirmed.length + personalPartition.confirmed.length === 0 && partition.possible.length + personalPartition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
-          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{option.modAvailability?.requiredMod && <Badge>{modAvailabilityLabel(option.modAvailability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
-          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); const availability = optionsByKey.get(referenceDefinitionKey(item))?.modAvailability; const ref: EntityRef = { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }; return <button className="reference-card" key={item.key} onClick={() => openDetail(ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{availability?.requiredMod && <Badge>{modAvailabilityLabel(availability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
+          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{option.modAvailability?.requiredMod && <Badge>{modAvailabilityLabel(option.modAvailability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3>{route.weapon && <SkillSummary entity={option.record}/>}<p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
+          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); const availability = optionsByKey.get(referenceDefinitionKey(item))?.modAvailability; const ref: EntityRef = { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }; return <button className="reference-card" key={item.key} onClick={() => openDetail(ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{availability?.requiredMod && <Badge>{modAvailabilityLabel(availability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3>{route.weapon && <SkillSummary entity={item.entity}/>}<p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
           {totalResults > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + REFERENCE_PAGE_SIZE) }, 'replace')} tone="secondary">Show {Math.min(REFERENCE_PAGE_SIZE, totalResults - route.resultLimit)} more</Button></div>}
           {totalResults > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Result display limit reached">Refine the name, category, source, type, or PP filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}
         </div> : <div className="panel__body"><InlineNotice title="No matches">Unknown fields are kept as possible only when they could satisfy every active filter. Try another name, category, source, kind, or PP bound.</InlineNotice></div>}
