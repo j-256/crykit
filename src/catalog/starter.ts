@@ -16,7 +16,7 @@ import {
   STARTER_NAME_RECORDS,
   STARTER_SOURCE_URLS,
 } from './data'
-import wikiDataJson from './wiki-data.json'
+import wikiDataJson from './wiki-data.json' with { type: 'json' }
 
 export const STARTER_CATALOG_ID = 'crystal-project-public-starter' as CatalogId
 export const STARTER_CATALOG_REVISION_ID = 'wiki-v1' as CatalogRevisionId

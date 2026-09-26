@@ -169,6 +169,7 @@ const rulesetRevision = z.object({
   gameVersion: knowledge(shortText),
   mode: knowledge(shortText),
   mods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)),
+  disabledMods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)).optional(),
   ppCostsNonNegative: knowledge(z.boolean()),
   slots: z.array(slotDefinition).max(MAX_COLLECTION_LENGTH),
   catalogLock,

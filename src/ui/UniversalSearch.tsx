@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { entityDefinitionKey } from '../domain'
+import { modAvailabilityLabel } from '../catalog/mods'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, Profile } from '../domain/types'
 import { Badge, Button, InlineNotice } from './components'
 import { DefinitionEditor, definitionKindLabel, useDefinitionWorkspace } from './definitions'
@@ -41,7 +42,7 @@ function itemScore(item: UniversalSearchItem, query: string) {
 
 export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
-  const { profile, options } = useDefinitionWorkspace()
+  const { profile, options, availableOptions } = useDefinitionWorkspace()
   const [error, setError] = useState<string>()
   const [createdName, setCreatedName] = useState<string>()
   const resultsRef = useRef<HTMLDivElement>(null)
@@ -57,14 +58,14 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
   }
   const items = useMemo(() => {
     const names = new Map(options.map((option) => [option.key, option.name]))
-    const definitions: UniversalSearchItem[] = options.map((option) => ({ key: `definition:${option.key}`, title: option.name, subtitle: `${definitionKindLabel(option.kind)} · ${option.sourceLabel}`, keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred }))
+    const definitions: UniversalSearchItem[] = availableOptions.map((option) => ({ key: `definition:${option.key}`, title: option.name, subtitle: [definitionKindLabel(option.kind), option.sourceLabel, option.modAvailability && modAvailabilityLabel(option.modAvailability)].filter(Boolean).join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred }))
     const inventory: UniversalSearchItem[] = Object.values(profile.inventory).map((position) => ({ key: `inventory:${position.id}`, title: position.observedName ?? definitionName(profile, names, position.ref), subtitle: 'Inventory observation', keywords: `${position.note ?? ''} ${position.possession}`, section: 'Inventory', target: { kind: 'inventory', positionId: position.id } }))
     const characters: UniversalSearchItem[] = Object.values(profile.characters).map((character) => ({ key: `character:${character.id}`, title: character.name, subtitle: 'Character', keywords: character.appearanceLabel ?? '', section: 'Characters', target: { kind: 'character', characterId: character.id } }))
     const builds: UniversalSearchItem[] = Object.values(profile.builds).map((build) => ({ key: `build:${build.id}`, title: build.title, subtitle: 'Build', keywords: `${build.tags.join(' ')} ${build.state}`, section: 'Builds & teams', target: { kind: 'build', buildId: build.id } }))
     const scenarios: UniversalSearchItem[] = Object.values(profile.scenarios).map((scenario) => ({ key: `scenario:${scenario.id}`, title: scenario.label, subtitle: 'Team scenario', keywords: scenario.kind, section: 'Builds & teams', target: { kind: 'scenario', scenarioId: scenario.id } }))
     const progress: UniversalSearchItem[] = Object.values(profile.progress).map((record) => ({ key: `progress:${record.id}`, title: record.displayName, subtitle: 'Party progress', keywords: `${record.stage.state === 'known' ? record.stage.value : ''} ${definitionName(profile, names, record.subject)}`, section: 'Progress', target: { kind: 'progress', recordId: record.id } }))
     return [...definitions, ...inventory, ...characters, ...builds, ...scenarios, ...progress]
-  }, [options, profile])
+  }, [availableOptions, options, profile])
   const results = useMemo(() => {
     const normalizedQuery = normalize(query.trim())
     if (!normalizedQuery) return []

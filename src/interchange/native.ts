@@ -1,5 +1,6 @@
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
+import { assertModConfiguration } from '../domain/mods'
 import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
 import {
   definitionLineageRootRef,
@@ -317,6 +318,9 @@ function validateProfile(
 
   const personalDefinitions = assertIdMap(profile.personalDefinitions, `${label}.personalDefinitions`)
   const rulesets = assertIdMap(profile.rulesets, `${label}.rulesets`)
+  for (const ruleset of Object.values(typedProfile.rulesets)) {
+    try { assertModConfiguration(ruleset) } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid mod configuration') }
+  }
   const inventory = assertIdMap(profile.inventory, `${label}.inventory`)
   const events = assertIdMap(profile.inventoryEvents, `${label}.inventoryEvents`)
   const characters = assertIdMap(profile.characters, `${label}.characters`)

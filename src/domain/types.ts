@@ -190,6 +190,7 @@ export interface RulesetRevision {
   readonly gameVersion: Knowledge<string>
   readonly mode: Knowledge<string>
   readonly mods: Knowledge<readonly string[]>
+  readonly disabledMods?: Knowledge<readonly string[]>
   readonly ppCostsNonNegative: Knowledge<boolean>
   readonly slots: readonly SlotDefinition[]
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>

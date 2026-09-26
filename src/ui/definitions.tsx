@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
+import { definitionModAvailability, modAvailabilityLabel, type DefinitionModAvailability } from '../catalog/mods'
 import { entityDefinitionKey, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions } from '../domain'
 import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, JsonValue, Knowledge, PersonalDefinition, Profile } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
@@ -35,6 +36,7 @@ export interface DefinitionOption {
   readonly sourceLabel: string
   readonly stockLabel: string
   readonly rulesetStatus?: string
+  readonly modAvailability?: DefinitionModAvailability
   readonly preferred: boolean
   readonly record: DefinitionRecord
 }
@@ -43,6 +45,7 @@ interface DefinitionWorkspaceValue {
   readonly profile: Profile
   readonly catalogs: readonly CatalogSnapshot[]
   readonly options: readonly DefinitionOption[]
+  readonly availableOptions: readonly DefinitionOption[]
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
 }
 
@@ -96,6 +99,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       ...(definition.ppCost === undefined ? {} : { ppCost: definition.ppCost }),
       sourceLabel: `${preferred ? `Personal revision ${definition.revision} · preferred` : `Personal revision ${definition.revision} · older exact definition`}${provenance ? ` · override of ${provenance}` : ''}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: definition,
+      modAvailability: definitionModAvailability(profile, ref, activeRuleset),
       ...(activeRuleset?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { rulesetStatus: activeRuleset ? 'Outside the active ruleset definition collection' : 'No active ruleset definition collection' }),
     }
   })
@@ -110,6 +114,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       ...(entity.ppCost === undefined ? {} : { ppCost: entity.ppCost }),
       sourceLabel: `${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: entity,
+      modAvailability: definitionModAvailability(profile, ref, activeRuleset),
       ...(activeRuleset?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { rulesetStatus: activeRuleset ? 'Outside the active ruleset catalog pin' : 'No active ruleset catalog pin' }),
     }
   }))
@@ -118,7 +123,8 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
 
 export function DefinitionProvider({ profile, catalogs, onSaveDefinition, children }: PropsWithChildren<{ profile: Profile; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
   const options = useMemo(() => buildDefinitionOptions(profile, catalogs), [catalogs, profile])
-  const value = useMemo(() => ({ profile, catalogs, options, onSaveDefinition }), [catalogs, onSaveDefinition, options, profile])
+  const availableOptions = useMemo(() => options.filter(option => option.modAvailability?.state !== 'disabled'), [options])
+  const value = useMemo(() => ({ profile, catalogs, options, availableOptions, onSaveDefinition }), [availableOptions, catalogs, onSaveDefinition, options, profile])
   return <DefinitionWorkspaceContext.Provider value={value}>{children}</DefinitionWorkspaceContext.Provider>
 }
 
@@ -222,7 +228,7 @@ export interface DefinitionDropdownProps {
 
 export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
-  const { profile, options } = useDefinitionWorkspace()
+  const { profile, options, availableOptions } = useDefinitionWorkspace()
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
@@ -254,8 +260,8 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
   const selectedOption = findDefinitionOption(options, selected)
   const candidates = useMemo(() => {
     const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-    return options.filter((option) => allowedKinds.includes(option.kind) && (!tokens.length || tokens.every((token) => `${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
-  }, [allowedKinds, options, query])
+    return availableOptions.filter((option) => allowedKinds.includes(option.kind) && (!tokens.length || tokens.every((token) => `${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
+  }, [allowedKinds, availableOptions, query])
   const visible = candidates.slice(0, limit)
   const selectedVisible = selectedOption && allowedKinds.includes(selectedOption.kind) && visible.some((option) => option.key === selectedOption.key)
   const focusResult = (direction: 1 | -1 | 'first' | 'last', event: KeyboardEvent<HTMLElement>) => {
@@ -284,8 +290,8 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
       <div aria-label="Available definitions" className="picker-results" role="group" tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Home') focusResult('first', event); if (event.key === 'End') focusResult('last', event) }} ref={resultsRef}>
         {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span></button>}
         {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
-        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span><strong>{selectedOption.name}</strong><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{option.name}</strong>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{option.description && <small className="picker-result__description" title={option.description}>{option.description}</small>}<small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small><span className="picker-result__status">{option.kind === 'item' && <small>{option.stockLabel}</small>}{option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span><strong>{selectedOption.name}</strong><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small>{selectedOption.modAvailability?.requiredMod && <small className="picker-result__warning">{modAvailabilityLabel(selectedOption.modAvailability)}</small>}</span><Icon name="check"/></button>}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{option.name}</strong>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{option.description && <small className="picker-result__description" title={option.description}>{option.description}</small>}<small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small><span className="picker-result__status">{option.kind === 'item' && <small>{option.stockLabel}</small>}{option.modAvailability?.requiredMod && <small>{modAvailabilityLabel(option.modAvailability)}</small>}{option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
         {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>
@@ -310,5 +316,5 @@ export function DefinitionPickerField({ label, hint, allowedKinds, value, disabl
   const selected = findDefinitionOption(options, value)
   const display = value === null ? 'Observed empty' : selected?.name ?? (value ? 'Unresolved exact definition' : 'Unknown or unrecorded')
   // Keep native autofocus available when the containing dialog opens
-  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" data-definition-trigger="true" disabled={disabled} onClick={() => open ? navigation.close() : openPicker()} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (!open) openPicker() } }} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="chevron-down"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionDropdown anchorRef={triggerRef} id={dropdownId} allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
+  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" data-definition-trigger="true" disabled={disabled} onClick={() => open ? navigation.close() : openPicker()} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (!open) openPicker() } }} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><span><strong>{display}</strong><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="chevron-down"/></button>{hint && selected && <span className="field__hint">{hint}</span>}{selected?.modAvailability?.requiredMod && <span className="field__hint">{modAvailabilityLabel(selected.modAvailability)}</span>}<DefinitionDropdown anchorRef={triggerRef} id={dropdownId} allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
 }

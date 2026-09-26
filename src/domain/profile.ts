@@ -20,6 +20,7 @@ import {
   resolveDefinition,
 } from './definitions'
 import { MAX_ID_LENGTH, MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
+import { assertModConfiguration } from './mods'
 import type {
   CatalogSnapshot,
   CatalogEntityKind,
@@ -259,6 +260,7 @@ export interface AddRulesetRevisionInput {
   readonly gameVersion?: Knowledge<string>
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
+  readonly disabledMods?: Knowledge<readonly string[]>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: RulesetRevision['catalogLock']
@@ -273,6 +275,7 @@ const UNKNOWN_STRINGS: Knowledge<readonly string[]> = { state: 'unknown' }
 
 export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
+  assertModConfiguration({ mods: input.mods ?? UNKNOWN_STRINGS, disabledMods: input.disabledMods })
   const id = input.id ?? createId<RulesetRevisionId>('rulesetRevision')
   if (profile.rulesets[id]) {
     throw new DomainError('DUPLICATE_ID', `Ruleset revision already exists: ${id}`)
@@ -311,6 +314,7 @@ export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionIn
     gameVersion: input.gameVersion ?? UNKNOWN_STRING,
     mode: input.mode ?? UNKNOWN_STRING,
     mods: input.mods ?? UNKNOWN_STRINGS,
+    ...(input.disabledMods === undefined ? {} : { disabledMods: input.disabledMods }),
     ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'unknown' },
     slots: [...slots].sort((left, right) => left.order - right.order),
     catalogLock: input.catalogLock ?? {},
@@ -340,6 +344,7 @@ export interface UpdateRulesetRevisionInput {
   readonly gameVersion?: Knowledge<string>
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
+  readonly disabledMods?: Knowledge<readonly string[]>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: RulesetRevision['catalogLock']
@@ -363,6 +368,7 @@ export function updateRulesetRevision(profile: Profile, input: UpdateRulesetRevi
     gameVersion: input.gameVersion ?? source.gameVersion,
     mode: input.mode ?? source.mode,
     mods: input.mods ?? source.mods,
+    disabledMods: input.disabledMods ?? source.disabledMods,
     ppCostsNonNegative: input.ppCostsNonNegative ?? source.ppCostsNonNegative,
     slots: input.slots ?? source.slots,
     catalogLock: input.catalogLock ?? source.catalogLock,

@@ -1,3 +1,4 @@
+import { modAvailabilityLabel } from '../catalog/mods'
 import { useCallback, useMemo, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef } from '../domain'
 import type { CatalogClaim, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, RulesetRevisionId, SourceRef } from '../domain/types'
@@ -24,6 +25,10 @@ import {
   ROUTE_MAX_RESULT_LIMIT,
   type ReferenceRouteState,
 } from './route-state'
+
+function referenceDefinitionKey(item: ReferenceSearchItem): string {
+  return entityDefinitionKey({ kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id })
+}
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -136,7 +141,7 @@ function mergeFacetOptions(base: readonly { readonly value: string; readonly cou
 
 export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefinitions }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void; onPromoteDefinitions: (sourceRulesetRevisionId: RulesetRevisionId, definitionRefs: readonly EntityRef[], label: string) => Promise<void> }) {
   const navigation = useNavigation()
-  const { options } = useDefinitionWorkspace()
+  const { options, availableOptions } = useDefinitionWorkspace()
   const route = readReferenceRouteState()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [promotionRefs, setPromotionRefs] = useState<readonly EntityRef[]>([])
@@ -145,26 +150,30 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const [promotionBusy, setPromotionBusy] = useState(false)
   const [promotionError, setPromotionError] = useState<string>()
   const items = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
+  const optionsByKey = useMemo(() => new Map(options.map(option => [option.key, option])), [options])
+  const availableKeys = useMemo(() => new Set(availableOptions.map(option => option.key)), [availableOptions])
+  const searchableItems = useMemo(() => items.filter(item => availableKeys.has(referenceDefinitionKey(item))), [availableKeys, items])
+  const availablePersonalOptions = useMemo(() => availableOptions.filter(option => option.ref.kind === 'personal'), [availableOptions])
   const personalOptions = useMemo(() => options.filter((option) => option.ref.kind === 'personal'), [options])
   const preferredPersonalOptions = useMemo(() => personalOptions.filter((option) => option.preferred), [personalOptions])
-  const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'kind'), personalOptions.map((option) => option.kind)), [items, personalOptions])
-  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'category'), personalOptions.flatMap(personalDefinitionCategoryValues)), [items, personalOptions])
-  const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(items, 'source'), personalOptions.map(() => 'Personal definitions')), [items, personalOptions])
-  const partition = useMemo(() => partitionReferenceItems(items, {
+  const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'kind'), availablePersonalOptions.map((option) => option.kind)), [searchableItems, availablePersonalOptions])
+  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'category'), availablePersonalOptions.flatMap(personalDefinitionCategoryValues)), [searchableItems, availablePersonalOptions])
+  const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'source'), availablePersonalOptions.map(() => 'Personal definitions')), [searchableItems, availablePersonalOptions])
+  const partition = useMemo(() => partitionReferenceItems(searchableItems, {
     query: route.query,
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [items, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
+  }), [searchableItems, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
   const results = useMemo(() => [...partition.confirmed, ...partition.possible], [partition.confirmed, partition.possible])
-  const personalPartition = useMemo(() => partitionPersonalDefinitionOptions(personalOptions, {
+  const personalPartition = useMemo(() => partitionPersonalDefinitionOptions(availablePersonalOptions, {
     query: route.query,
     kinds: route.kinds,
     categories: route.categories,
     sources: route.sources,
     ...(route.ppMin === undefined && route.ppMax === undefined ? {} : { pp: { min: route.ppMin, max: route.ppMax, unit: 'PP' } }),
-  }), [personalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
+  }), [availablePersonalOptions, route.categories, route.kinds, route.ppMax, route.ppMin, route.query, route.sources])
   const personalResults = useMemo(() => [...personalPartition.confirmed, ...personalPartition.possible], [personalPartition.confirmed, personalPartition.possible])
   const visiblePersonalResults = personalResults.slice(0, route.resultLimit)
   const visibleCatalogResults = results.slice(0, Math.max(0, route.resultLimit - visiblePersonalResults.length))
@@ -173,6 +182,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const selectedRef = page.view === 'detail' ? page.ref : undefined
   const selected = selectedRef?.kind === 'catalog' ? items.find((item) => item.catalog.id === selectedRef.catalogId && item.catalog.revisionId === selectedRef.catalogRevisionId && item.entity.id === selectedRef.entityId) : undefined
   const selectedPersonal = selectedRef?.kind === 'personal' ? findDefinitionOption(options, selectedRef) : undefined
+  const selectedAvailability = selectedRef ? optionsByKey.get(entityDefinitionKey(selectedRef))?.modAvailability : undefined
   const missingDetail = page.view === 'detail' && !selected && !selectedPersonal
   const promoting = page.view === 'promote'
   const editorOverlay = navigation.route.overlays[0]
@@ -210,6 +220,8 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
 
   return <>
     <ScreenHeader actions={<><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Look up equipment, classes, abilities, and monsters. Check sources and unknown details before planning." eyebrow="Game reference" title="Reference"/>
+    {!selectedRef && availableOptions.length < options.length && <p className="settings-section__intro">Definitions from explicitly disabled mods are hidden. Unclassified entries and uncertain mod settings remain visible.</p>}
+    {selectedAvailability?.requiredMod && <p className="settings-section__intro">{modAvailabilityLabel(selectedAvailability)}</p>}
     {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this workspace. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}
     {catalogs.length === 0 && personalOptions.length === 0 ? <EmptyState aside={<>Personal records remain available even if a local reference pack cannot be loaded.</>} description="No reference pack is available in this workspace. Import a permitted pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
       <aside className="panel facet-panel">
@@ -229,8 +241,8 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
       <section className="panel">
         {selectedPersonal ? <PersonalDetail onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedPersonal.ref) }))} option={selectedPersonal}/> : selected ? <DetailView item={selected} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }) }))}/> : results.length || personalResults.length ? <div>
           {partition.confirmed.length + personalPartition.confirmed.length === 0 && partition.possible.length + personalPartition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
-          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
-          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); const ref: EntityRef = { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }; return <button className="reference-card" key={item.key} onClick={() => openDetail(ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
+          {visiblePersonalResults.map((option) => { const possible = personalPartition.possible.includes(option); return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{option.modAvailability?.requiredMod && <Badge>{modAvailabilityLabel(option.modAvailability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><h3>{option.name}</h3><p>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</p></button> })}
+          {visibleCatalogResults.map((item) => { const possible = partition.possible.includes(item); const availability = optionsByKey.get(referenceDefinitionKey(item))?.modAvailability; const ref: EntityRef = { kind: 'catalog', catalogId: item.catalog.id, catalogRevisionId: item.catalog.revisionId, entityId: item.entity.id }; return <button className="reference-card" key={item.key} onClick={() => openDetail(ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{item.entity.kind}</Badge><Badge>{item.catalog.id}</Badge>{availability?.requiredMod && <Badge>{modAvailabilityLabel(availability)}</Badge>}{possible && <Badge tone="warning">Possible match</Badge>}{item.knowledgeCounts.conflicting > 0 && <Badge tone="danger">Source conflict</Badge>}{(item.entity.kind === 'passive' || item.entity.kind === 'innate') && <Badge tone={item.ppCost.state === 'known' ? 'info' : item.ppCost.state === 'conflicting' ? 'danger' : 'warning'}>{ppLabel(item)}</Badge>}</div><h3>{item.entity.name}</h3><p>{item.entity.rawDescription ?? `${Object.keys(item.entity.fields).length} normalized fields · ${item.claims.length} source claims`}</p></button> })}
           {totalResults > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + REFERENCE_PAGE_SIZE) }, 'replace')} tone="secondary">Show {Math.min(REFERENCE_PAGE_SIZE, totalResults - route.resultLimit)} more</Button></div>}
           {totalResults > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Result display limit reached">Refine the name, category, source, type, or PP filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}
         </div> : <div className="panel__body"><InlineNotice title="No matches">Unknown fields are kept as possible only when they could satisfy every active filter. Try another name, category, source, kind, or PP bound.</InlineNotice></div>}

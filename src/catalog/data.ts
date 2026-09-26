@@ -1,5 +1,5 @@
 import type { CatalogEntityKind } from '../domain/types'
-import wikiData from './wiki-data.json'
+import wikiData from './wiki-data.json' with { type: 'json' }
 
 export const STARTER_SOURCE_URLS = {
   "apworld-classes": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/jobs.py",

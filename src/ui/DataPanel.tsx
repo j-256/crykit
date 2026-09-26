@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import type { CatalogEntityKind, Knowledge, Profile, SlotId, SlotKind } from '../domain/types'
+import { parseModNames } from '../domain/mods'
+import { CONFIRMED_SWITCH_MOD_SETUP } from '../catalog/mods'
 import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
 import type { ImportCommitMode, ImportPreview, ProfileSummary } from '../interchange/types'
 import { activateOfflineUpdate, getOfflineStatus, requestOfflineReadiness, requestPersistentStorage, subscribeOfflineStatus, type OfflineStatus } from '../offline'
@@ -18,6 +20,7 @@ export interface RulesetDraft {
   readonly gameVersion: Knowledge<string>
   readonly mode: Knowledge<string>
   readonly mods: Knowledge<readonly string[]>
+  readonly disabledMods?: Knowledge<readonly string[]>
   readonly ppCostsNonNegative: Knowledge<boolean>
   readonly slots: readonly { readonly id?: SlotId; readonly label: string; readonly kind: SlotKind; readonly acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]> }[]
 }
@@ -58,7 +61,8 @@ function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmi
   const [version, setVersion] = useState(current?.gameVersion.state === 'known' ? current.gameVersion.value : '')
   const [mode, setMode] = useState(current?.mode.state === 'known' ? current.mode.value : '')
   const [mods, setMods] = useState(current?.mods.state === 'known' ? current.mods.value.join('\n') : '')
-  const [touched, setTouched] = useState({ platform: false, version: false, mode: false, mods: false })
+  const [disabledMods, setDisabledMods] = useState(current?.disabledMods?.state === 'known' ? current.disabledMods.value.join('\n') : '')
+  const [touched, setTouched] = useState({ platform: false, version: false, mode: false, mods: false, disabledMods: false })
   const [ppCostsNonNegative, setPpCostsNonNegative] = useState<Knowledge<boolean>>(current?.ppCostsNonNegative ?? { state: 'unknown' })
   const [slots, setSlots] = useState<{ id?: SlotId; label: string; kind: SlotKind; acceptedKinds: string; acceptedKindsTouched: boolean; acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]> }[]>(current?.slots.map((slot) => ({ id: slot.id, label: slot.label, kind: slot.kind, acceptedKinds: slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value.join(', ') : '', acceptedKindsTouched: false, acceptedEntityKinds: slot.acceptedEntityKinds })) ?? [])
   const [busy, setBusy] = useState(false)
@@ -68,7 +72,8 @@ function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmi
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setError(undefined)
-    const modValues = mods.split('\n').map((value) => value.trim()).filter(Boolean)
+    const modValues = parseModNames(mods)
+    const disabledModValues = parseModNames(disabledMods)
     const preparedSlots = slots.map((slot) => {
       const tokens = slot.acceptedKinds.split(',').map((value) => value.trim()).filter(Boolean)
       const invalidTokens = slot.acceptedKindsTouched ? tokens.filter((value) => !RULESET_ENTITY_KINDS.includes(value as CatalogEntityKind)) : []
@@ -88,6 +93,7 @@ function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmi
         gameVersion: touched.version ? stringKnowledge(version) : current?.gameVersion ?? { state: 'unknown' },
         mode: touched.mode ? stringKnowledge(mode) : current?.mode ?? { state: 'unknown' },
         mods: touched.mods ? modValues.length ? { state: 'known', value: modValues } : { state: 'unknown' } : current?.mods ?? { state: 'unknown' },
+        disabledMods: touched.disabledMods ? disabledModValues.length ? { state: 'known', value: disabledModValues } : { state: 'unknown' } : current?.disabledMods,
         ppCostsNonNegative,
         slots: preparedSlots.filter(({ slot }) => slot.label.trim()).map(({ slot, acceptedKinds }) => ({ id: slot.id, label: slot.label, kind: slot.kind, acceptedEntityKinds: slot.acceptedKindsTouched ? acceptedKinds.length ? { state: 'known', value: acceptedKinds } : { state: 'unknown' } : slot.acceptedEntityKinds })),
       })
@@ -99,13 +105,21 @@ function RulesetForm({ profile, onSubmit, onDirty }: { profile: Profile; onSubmi
     }
   }
   const addSlot = () => setSlots((values) => [...values, { label: '', kind: 'equipment', acceptedKinds: '', acceptedKindsTouched: true }])
+  const useConfirmedModSetup = () => {
+    setPlatform(CONFIRMED_SWITCH_MOD_SETUP.platform)
+    setMods(CONFIRMED_SWITCH_MOD_SETUP.enabledMods.join('\n'))
+    setDisabledMods(CONFIRMED_SWITCH_MOD_SETUP.disabledMods.join('\n'))
+    setTouched(value => ({ ...value, platform: true, mods: true, disabledMods: true }))
+    onDirty(true)
+  }
   const ppValue = ppCostsNonNegative.state === 'known' ? String(ppCostsNonNegative.value) : ppCostsNonNegative.state
   return <form className="stack" onInput={() => onDirty(true)} onSubmit={submit}>
     <InlineNotice title="Version fields may stay unknown">Missing configuration limits only the checks that depend on it; inventory entry and independent validation remain useful. Imported conflicting claims remain intact unless you edit their field.</InlineNotice>
     <p className="settings-section__intro">Saving creates a new revision with the built-in names catalog available for selection. Existing catalog pins and saved build revisions are preserved.</p>
     <Field label="Ruleset label" required><input onChange={(event) => setLabel(event.target.value)} placeholder="For example: Switch playthrough" required value={label}/></Field>
     <div className="grid-3"><Field hint={preservedHint(current?.platform)} label="Platform"><input onChange={(event) => { setPlatform(event.target.value); setTouched((value) => ({ ...value, platform: true })) }} placeholder="Unknown" value={platform}/></Field><Field hint={preservedHint(current?.gameVersion)} label="Game version"><input onChange={(event) => { setVersion(event.target.value); setTouched((value) => ({ ...value, version: true })) }} placeholder="Unknown" value={version}/></Field><Field hint={preservedHint(current?.mode)} label="Mode"><input onChange={(event) => { setMode(event.target.value); setTouched((value) => ({ ...value, mode: true })) }} placeholder="Unknown" value={mode}/></Field></div>
-    <Field hint={preservedHint(current?.mods) ?? 'One enabled mod or pack per line. Keep versions in the name when known.'} label="Mods"><textarea onChange={(event) => { setMods(event.target.value); setTouched((value) => ({ ...value, mods: true })) }} placeholder="Unknown" value={mods}/></Field>
+    <div className="split ruleset-mod-heading"><div><h3>Mods for this playthrough</h3><p className="settings-section__intro">List each mod separately. Unlisted mods stay unknown. Search uses confirmed mod associations; other entries remain visible.</p></div><Button onClick={useConfirmedModSetup} tone="secondary" type="button">Use confirmed Switch setup</Button></div>
+    <div className="grid-2"><Field hint={preservedHint(current?.mods) ?? 'One enabled mod per line. Pack names alone do not establish individual settings.'} label="Enabled mods"><textarea aria-label="Enabled mods" onChange={(event) => { setMods(event.target.value); setTouched((value) => ({ ...value, mods: true })) }} placeholder="Unknown" rows={6} value={mods}/></Field><Field hint={preservedHint(current?.disabledMods) ?? 'One explicitly disabled mod per line. Blank means unrecorded.'} label="Disabled mods"><textarea aria-label="Disabled mods" onChange={(event) => { setDisabledMods(event.target.value); setTouched((value) => ({ ...value, disabledMods: true })) }} placeholder="Unknown" rows={6} value={disabledMods}/></Field></div>
     <Field hint="This enables only the rule that documented PP costs cannot be negative." label="PP cost rule"><select onChange={(event) => setPpCostsNonNegative(event.target.value === 'true' ? { state: 'known', value: true } : event.target.value === 'false' ? { state: 'known', value: false } : { state: 'unknown' })} value={ppValue}><option value="unknown">Unknown</option><option value="true">Costs are nonnegative</option><option value="false">Negative costs permitted</option>{ppCostsNonNegative.state === 'conflicting' && <option disabled value="conflicting">Conflicting claims</option>}{ppCostsNonNegative.state === 'notApplicable' && <option disabled value="notApplicable">Not applicable</option>}</select></Field>
     <div className="stack"><div className="split"><div><h3>Ordered slots</h3><p className="settings-section__intro">Slot count, order, accepted definition types, and occupancy come from this ruleset.</p></div><Button icon="plus" onClick={addSlot} tone="secondary" type="button">Add slot</Button></div>{slots.length ? slots.map((slot, index) => <div className="grid-3" key={slot.id ?? index}><Field label={`Slot ${index + 1}`}><input onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, label: event.target.value } : value))} placeholder="Main hand" value={slot.label}/></Field><Field label="Kind"><select onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, kind: event.target.value as SlotKind } : value))} value={slot.kind}><option value="equipment">Equipment</option><option value="passive">Passive</option></select></Field><Field hint={slot.acceptedEntityKinds?.state === 'conflicting' && !slot.acceptedKindsTouched ? 'Conflicting imported claims are preserved until edited.' : 'Comma-separated: item, passive, innate, or another listed definition type.'} label="Accepted types"><input onChange={(event) => setSlots((values) => values.map((value, itemIndex) => itemIndex === index ? { ...value, acceptedKinds: event.target.value, acceptedKindsTouched: true } : value))} placeholder={slot.kind === 'passive' ? 'passive, innate' : 'item'} value={slot.acceptedKinds}/></Field></div>) : <InlineNotice title="No slots configured">Add only the ordered slots established for this game configuration.</InlineNotice>}</div>
     {error && <InlineNotice title="Ruleset not saved" tone="danger">{error} Your configuration remains in this form.</InlineNotice>}
