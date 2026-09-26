@@ -61,7 +61,7 @@ test('the weapon list respects the active unrestricted-skills mod setting', asyn
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await settings.getByRole('textbox', { name: 'Ruleset label', exact: true }).fill('Weapon filter check')
-  await settings.getByLabel('Enabled mods', { exact: true }).fill('Unrestricted Weapon Skills')
+  await settings.getByRole('combobox', { name: 'Unrestricted Weapon Skills', exact: true }).selectOption('enabled')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()

@@ -143,6 +143,14 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .ruleset-mod-heading { flex-wrap: wrap; }
 .ruleset-mod-heading > div { flex: 1 1 22rem; }
 .ruleset-mod-heading > button { flex-shrink: 0; }
+.ruleset-mod-packs { align-items: start; }
+.ruleset-mod-pack { min-width: 0; margin: 0; padding: 4px 12px 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+.ruleset-mod-pack legend { max-width: 100%; padding: 0 6px; color: var(--text); font-size: .8rem; font-weight: 700; }
+.ruleset-mod-choice { display: grid; grid-template-columns: minmax(0, 1fr) 8rem; align-items: center; gap: 10px; min-height: 54px; padding: 6px 0; color: var(--text-dim); font-size: .78rem; }
+.ruleset-mod-choice + .ruleset-mod-choice { border-top: 1px solid var(--line); }
+.ruleset-mod-choice > span { overflow-wrap: anywhere; }
+.ruleset-mod-choice select { min-height: 44px; }
+.ruleset-mod-choice select[data-mod-state="unknown"] { color: var(--text-faint); }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }

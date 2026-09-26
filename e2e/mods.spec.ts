@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { STARTER_CATALOG } from '../src/catalog/starter'
+import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
 import { asId, captureCharacter, createCharacter, updateRulesetRevision } from '../src/domain'
 import { createTestProfile, HAND_SLOT, known, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
 import type { CatalogRef, CharacterId, EntityId, Profile } from '../src/domain/types'
@@ -9,9 +10,24 @@ import type { CatalogRef, CharacterId, EntityId, Profile } from '../src/domain/t
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const SHIELD: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('mod-pack-2:item:doge-shield') }
 
+function backup(profile: Profile): Uint8Array {
+  const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
+  return zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ profile: { ...profile, changes: [] }, lineage: { rootProfileId: profile.id }, catalogs: [STARTER_CATALOG], evidence: [], history: [] }) })
+}
+
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+}
+
+async function exportProfile(page: Page): Promise<Profile> {
+  const panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  const downloaded = page.waitForEvent('download')
+  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  const bytes = await readFile((await (await downloaded).path())!)
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  return (JSON.parse(strFromU8(unzipSync(bytes)['bundle.json'])) as { profile: Profile }).profile
 }
 
 async function importBackup(page: Page, bytes: Uint8Array) {
@@ -36,10 +52,8 @@ test('mod settings control search and choices while sheets retain recorded conte
   profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: SHIELD }, note: 'Synthetic mod observation', now: TEST_NOW })
   profile = captureCharacter(profile, { characterId: CHARACTER, level: known(14), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: SHIELD }, note: 'Synthetic later mod observation', now: '2026-01-03T00:00:00.000Z' })
   profile = { ...profile, changes: [] }
-  const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ profile, lineage: { rootProfileId: profile.id }, catalogs: [STARTER_CATALOG], evidence: [], history: [] }) })
   await page.goto('/')
-  await importBackup(page, archive)
+  await importBackup(page, backup(profile))
   let palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -48,11 +62,10 @@ test('mod settings control search and choices while sheets retain recorded conte
   await page.keyboard.press('Escape')
   const settings = await dataPanel(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await settings.getByLabel('Disabled mods', { exact: true }).fill('Doge Shield')
-  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
-  await expect(settings.getByText('Ruleset not saved', { exact: true })).toBeVisible()
-  await expect(settings).toContainText('both enabled and disabled: Doge Shield')
-  await settings.getByLabel('Enabled mods', { exact: true }).fill('Bloodmage')
+  await expect(settings.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('enabled')
+  await settings.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
+  await settings.getByRole('combobox', { name: 'Bloodmage', exact: true }).selectOption('enabled')
+  await settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true }).selectOption('unknown')
   await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -112,4 +125,94 @@ test('mod settings control search and choices while sheets retain recorded conte
   await page.keyboard.press('Escape')
   await page.goto(`/#/characters/${CHARACTER}/current`)
   await expect(page.getByText('Doge Shield: enabled', { exact: true })).toBeVisible()
+})
+
+test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', async ({ page, context }) => {
+  const externalRequests: string[] = []
+  const appOrigin = new URL(test.info().project.use.baseURL!).origin
+  page.on('request', request => { if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url()) })
+  await page.goto('/')
+  let panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
+  if (await prepare.isVisible()) await prepare.click()
+  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await expect(panel.locator('textarea')).toHaveCount(0)
+  for (const pack of SWITCH_MOD_PACKS) {
+    const group = panel.getByRole('group', { name: pack.name, exact: true })
+    await expect(group.getByRole('combobox')).toHaveCount(pack.mods.length)
+    for (const name of pack.mods) await expect(group.getByRole('combobox', { name, exact: true })).toHaveValue('unknown')
+  }
+  await panel.getByLabel('Ruleset label', { exact: false }).fill('Synthetic Switch choices')
+  await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
+  await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
+  await expect(panel.getByLabel('Game version', { exact: true })).toHaveValue('')
+  const shield = panel.getByRole('combobox', { name: 'Doge Shield', exact: true })
+  await shield.focus()
+  await shield.press('d')
+  await shield.press('Tab')
+  await expect(shield).toHaveValue('disabled')
+  await panel.getByRole('combobox', { name: 'Pointier Hat', exact: true }).selectOption('unknown')
+  await expect(panel.getByRole('combobox', { name: 'Bloodmage', exact: true })).toHaveValue('enabled')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await panel.locator('.ruleset-mod-choice select').evaluateAll(controls => controls.every(control => {
+    const bounds = control.getBoundingClientRect()
+    return bounds.height >= 44 && bounds.x >= 0 && bounds.right <= innerWidth
+  }))).toBe(true)
+  await context.setOffline(true)
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'profiles') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      return original.apply(this, args)
+    }
+  })
+  await panel.getByRole('button', { name: /^(Create ruleset|Save new ruleset revision)$/ }).click()
+  await expect(panel.getByText('Ruleset not saved', { exact: true })).toBeVisible()
+  await expect(shield).toHaveValue('disabled')
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('button', { name: 'Retry save', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await page.reload()
+  panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('disabled')
+  await expect(panel.getByRole('combobox', { name: 'Pointier Hat', exact: true })).toHaveValue('unknown')
+  await expect(panel.getByRole('combobox', { name: 'Bloodmage', exact: true })).toHaveValue('enabled')
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  const saved = await exportProfile(page)
+  expect(saved.rulesets[saved.activeRulesetRevisionId!].mods).toEqual(known(CONFIRMED_SWITCH_MOD_SETUP.enabledMods.filter(name => name !== 'Doge Shield' && name !== 'Pointier Hat')))
+  expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual(known([...CONFIRMED_SWITCH_MOD_SETUP.disabledMods, 'Doge Shield']))
+  expect(externalRequests).toEqual([])
+  await context.setOffline(false)
+})
+
+test('Switch selections retain other imported names and unrelated conflicting claims', async ({ page }) => {
+  const profile = updateRulesetRevision(createTestProfile(), {
+    sourceRevisionId: TEST_RULESET_REVISION_ID,
+    mods: { state: 'conflicting', claims: [{ value: ['Doge Shield', 'Synthetic imported mod'], sources: [] }, { value: ['Tempest'], sources: [] }] },
+    disabledMods: known(['Synthetic disabled mod']),
+  })
+  await page.goto('/')
+  await importBackup(page, backup(profile))
+  const panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('conflicting')
+  await panel.getByText('Other imported mod names (preserved)', { exact: true }).click()
+  await expect(panel).toContainText('Synthetic imported mod')
+  await expect(panel).toContainText('Synthetic disabled mod')
+  await panel.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
+  await panel.getByRole('combobox', { name: 'Bloodmage', exact: true }).selectOption('enabled')
+  await expect(panel.getByRole('combobox', { name: 'Tempest', exact: true })).toHaveValue('conflicting')
+  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.reload()
+  const saved = await exportProfile(page)
+  expect(saved.rulesets[saved.activeRulesetRevisionId!].mods).toEqual({ state: 'conflicting', claims: [{ value: ['Synthetic imported mod', 'Bloodmage'], sources: [] }, { value: ['Tempest', 'Bloodmage'], sources: [] }] })
+  expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual(known(['Synthetic disabled mod', 'Doge Shield']))
+  expect(saved.rulesets[profile.activeRulesetRevisionId!]).toEqual(profile.rulesets[profile.activeRulesetRevisionId!])
 })

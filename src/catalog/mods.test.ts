@@ -4,7 +4,8 @@ import { createDefinitionOverride, createPersonalDefinition } from '../domain/pr
 import { createTestProfile, known, TEST_RULESET_REVISION_ID } from '../domain/test-helpers'
 import type { CatalogRef, EntityId } from '../domain/types'
 import { buildDefinitionOptions } from '../ui/definitions'
-import { definitionModAvailability } from './mods'
+import { modState, normalizeModName, updateModSelections } from '../domain/mods'
+import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, SWITCH_MOD_PACKS } from './mods'
 import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
 function ref(entityId: string): CatalogRef {
@@ -12,6 +13,23 @@ function ref(entityId: string): CatalogRef {
 }
 
 describe('confirmed catalog mod associations', () => {
+  it('offers each supplied Switch mod once across the official packs and applies the confirmed choices', () => {
+    const names = SWITCH_MOD_PACKS.flatMap(pack => pack.mods)
+    const confirmedNames = [...CONFIRMED_SWITCH_MOD_SETUP.enabledMods, ...CONFIRMED_SWITCH_MOD_SETUP.disabledMods]
+    expect(new Set(names.map(normalizeModName)).size).toBe(names.length)
+    expect([...names].sort()).toEqual(confirmedNames.sort())
+    expect(SWITCH_MOD_PACKS.map(pack => pack.name)).toEqual(['Mod Pack 1: Quality Fun', 'Mod Pack 2: New Challenges'])
+    expect(SWITCH_MOD_PACKS[0].mods).toContain('Learnable Innate Skill')
+    expect(SWITCH_MOD_PACKS[1].mods).toContain('Moonlight Project Custom Bosses')
+    const configured = updateModSelections({ mods: known(['Synthetic imported mod']) }, [
+      ...CONFIRMED_SWITCH_MOD_SETUP.enabledMods.map(name => ({ name, state: 'enabled' as const })),
+      ...CONFIRMED_SWITCH_MOD_SETUP.disabledMods.map(name => ({ name, state: 'disabled' as const })),
+    ])
+    for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) expect(modState(configured, name)).toBe('enabled')
+    for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) expect(modState(configured, name)).toBe('disabled')
+    expect(modState(configured, 'Synthetic imported mod')).toBe('enabled')
+  })
+
   it('uses exact source-backed identities for mod classes, items, and bosses', () => {
     const profile = createTestProfile()
     const cases = [

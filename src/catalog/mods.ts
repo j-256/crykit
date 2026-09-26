@@ -4,6 +4,43 @@ import type { EntityRef, Profile, RulesetRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
+export const SWITCH_MOD_PACKS = Object.freeze([
+  {
+    id: 'switch-mod-pack-1',
+    name: 'Mod Pack 1: Quality Fun',
+    mods: Object.freeze([
+      'Appearance Passives',
+      'Pointier Hat',
+      'Golden Quintar High Jump',
+      'Cheap Maps',
+      "Cheap Teleport Shards n' Stones",
+      'Learnable Innate Skill',
+      '1 PP Passives',
+      'Unrestricted Weapon Skills',
+      'Free Maps',
+      'Modern Kids',
+    ]),
+  },
+  {
+    id: 'switch-mod-pack-2',
+    name: 'Mod Pack 2: New Challenges',
+    mods: Object.freeze([
+      'Passive Trainer',
+      'Doge Shield',
+      'Equipment Expansion',
+      'Moonlight Project Custom Bosses',
+      'Bloodmage',
+      'Additional Boss: Yasha Tar',
+      'Additional Boss: Pinga',
+      'Tempest',
+      'Forcemage',
+      'Barbarian',
+      'Additional Boss: Quintar Husk',
+      'Additional Boss: Elder Entities',
+    ]),
+  },
+])
+
 export const CONFIRMED_SWITCH_MOD_SETUP = Object.freeze({
   id: 'switch-confirmed-mod-setup',
   label: 'Switch: confirmed mod setup',

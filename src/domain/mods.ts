@@ -4,16 +4,22 @@ import type { Knowledge, RulesetRevision } from './types'
 
 export type ModState = 'enabled' | 'disabled' | 'unknown' | 'conflicting'
 export type ModConfiguration = Pick<RulesetRevision, 'mods' | 'disabledMods'>
+export interface ModSelection {
+  readonly name: string
+  readonly state: Exclude<ModState, 'conflicting'>
+}
 
 export function normalizeModName(name: string): string {
   return name.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-export function parseModNames(text: string): readonly string[] {
+export function recordedModNames(configuration: ModConfiguration): readonly string[] {
   const unique = new Map<string, string>()
-  for (const line of text.split('\n')) {
-    const name = line.trim()
-    if (name && !unique.has(normalizeModName(name))) unique.set(normalizeModName(name), name)
+  for (const list of [configuration.mods, configuration.disabledMods]) {
+    const names = list?.state === 'known' ? list.value : list?.state === 'conflicting' ? list.claims.flatMap(claim => claim.value) : []
+    for (const name of names) {
+      if (!unique.has(normalizeModName(name))) unique.set(normalizeModName(name), name)
+    }
   }
   return [...unique.values()]
 }
@@ -21,13 +27,43 @@ export function parseModNames(text: string): readonly string[] {
 export function modState(configuration: ModConfiguration | undefined, name: string): ModState {
   const key = normalizeModName(name)
   const includes = (names: readonly string[]) => names.some(value => normalizeModName(value) === key)
-  const enabled = configuration?.mods
-  const disabled = configuration?.disabledMods
-  if ([enabled, disabled].some(value => value?.state === 'conflicting' && value.claims.some(claim => includes(claim.value)))) return 'conflicting'
-  const isEnabled = enabled?.state === 'known' && includes(enabled.value)
-  const isDisabled = disabled?.state === 'known' && includes(disabled.value)
+  const membership = (list: Knowledge<readonly string[]> | undefined) => {
+    if (list?.state === 'known') return includes(list.value)
+    if (list?.state !== 'conflicting') return false
+    const claims = list.claims.map(claim => includes(claim.value))
+    return claims.length > 0 && claims.every(Boolean) ? true : claims.some(Boolean) ? 'conflicting' : false
+  }
+  const isEnabled = membership(configuration?.mods)
+  const isDisabled = membership(configuration?.disabledMods)
+  if (isEnabled === 'conflicting' || isDisabled === 'conflicting') return 'conflicting'
   if (isEnabled && isDisabled) return 'conflicting'
   return isEnabled ? 'enabled' : isDisabled ? 'disabled' : 'unknown'
+}
+
+export function updateModSelections(configuration: ModConfiguration, selections: readonly ModSelection[]): ModConfiguration {
+  const changes = new Map(selections.map(selection => [normalizeModName(selection.name), selection]))
+  const reviseNames = (names: readonly string[], state: ModSelection['state']) => {
+    const values = [...names.filter(name => !changes.has(normalizeModName(name))), ...[...changes.values()].filter(selection => selection.state === state).map(selection => selection.name)]
+    return values.length === names.length && values.every((name, index) => name === names[index]) ? names : values
+  }
+  const reviseList = (list: Knowledge<readonly string[]> | undefined, state: ModSelection['state']): Knowledge<readonly string[]> | undefined => {
+    if (list?.state === 'conflicting') {
+      const claims = list.claims.map(claim => {
+        const value = reviseNames(claim.value, state)
+        return value === claim.value ? claim : { ...claim, value, sources: [] }
+      })
+      if (claims.every((claim, index) => claim === list.claims[index])) return list
+      const identity = (names: readonly string[]) => JSON.stringify([...new Set(names.map(normalizeModName))].sort())
+      if (claims.every(claim => identity(claim.value) === identity(claims[0].value))) return { state: 'known', value: claims[0].value }
+      return { state: 'conflicting', claims }
+    }
+    const previous = list?.state === 'known' ? list.value : []
+    const value = reviseNames(previous, state)
+    return value === previous ? list : { state: 'known', value }
+  }
+  const next = { mods: reviseList(configuration.mods, 'enabled') ?? { state: 'unknown' as const }, disabledMods: reviseList(configuration.disabledMods, 'disabled') }
+  assertModConfiguration(next)
+  return next
 }
 
 export function assertModConfiguration(configuration: ModConfiguration): void {

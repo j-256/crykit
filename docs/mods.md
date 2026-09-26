@@ -1,8 +1,12 @@
 # Playthrough mods
 
-Open **Data & settings > Ruleset** to record individual **Enabled mods** and **Disabled mods**, one name per line. Saving creates an immutable ruleset revision for the active playthrough. Case and extra whitespace do not change a mod's identity. A mod listed in both fields rejects the save; entered values remain available to correct. Names not recorded in either field stay unknown. Installing a mod pack does not establish which included mods are enabled in a save.
+Open **Data & settings > Ruleset** to choose **Enabled**, **Disabled**, or **Unknown** for each mod in the fixed Nintendo Switch list. Mods are grouped under **Mod Pack 1: Quality Fun** and **Mod Pack 2: New Challenges**. A single choice moves the mod between enabled and disabled without allowing both states; **Unknown** clears only that mod's setting. Installing a pack does not establish which included mods are enabled in a save. Saving creates an immutable ruleset revision for the active playthrough.
 
-**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled class square maps. Review the fields before saving. It does not establish the game version, PP rules, slots, or any character's learning. The application starts with a blank playthrough and does not apply this setup automatically.
+The list retains the supplied Switch menu names, including **Learnable Innate Skill** and **Moonlight Project Custom Bosses**. Nintendo's publisher listings for [Mod Pack 1](https://www.nintendo.com/us/store/products/mod-pack-1-quality-fun-70050000048696-switch/) and [Mod Pack 2](https://www.nintendo.com/us/store/products/mod-pack-2-new-challenges-70050000051088-switch/) use **Learnable Innate Skills** and **Moonlight Project Custom Classes** respectively. The picker preserves the supplied names without inferring additional mechanics or definitions from those wording differences.
+
+Case and extra whitespace do not change a recorded name's identity. Imported names outside the Switch list are shown separately and retained, including when applying the confirmed setup. Unedited knowledge stays intact. A choice resolves only that mod across imported alternatives; other disagreements remain conflicting. Revised claims are manual choices, while their original source attribution remains in the previous ruleset revision.
+
+**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled class square maps. Review the choices before saving. It does not establish the game version, PP rules, slots, or any character's learning. The application starts with a blank playthrough and does not apply this setup automatically.
 
 ## Definition visibility
 
