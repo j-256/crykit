@@ -174,6 +174,7 @@ export interface CreateDefinitionOverrideInput {
   readonly rawDescription?: string | null
   readonly category?: Knowledge<string> | null
   readonly ppCost?: Knowledge<number> | null
+  readonly fieldClaimSelections?: Readonly<Record<string, number>>
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
@@ -205,11 +206,23 @@ export function createDefinitionOverride(
     throw new DomainError('DUPLICATE_ID', `Personal definition already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  const selectedFields = { ...source.fields }
+  for (const [field, index] of Object.entries(input.fieldClaimSelections ?? {})) {
+    const value = Object.hasOwn(source.fields, field) ? source.fields[field] : undefined
+    if (value?.state !== 'conflicting' || !Number.isInteger(index) || index < 0 || index >= value.claims.length) {
+      throw new DomainError('INVALID_INPUT', `Choose an available source claim for ${field}`)
+    }
+    if (field.trim().toLocaleLowerCase() === 'category' && input.category !== undefined) {
+      throw new DomainError('INVALID_INPUT', 'Choose a category claim or edit the category, not both')
+    }
+    const claim = value.claims[index]
+    selectedFields[field] = { state: 'known', value: claim.value, sources: claim.sources }
+  }
   const fieldsWithoutCategory = Object.fromEntries(
-    Object.entries(source.fields).filter(([key]) => key.trim().toLocaleLowerCase() !== 'category'),
+    Object.entries(selectedFields).filter(([key]) => key.trim().toLocaleLowerCase() !== 'category'),
   )
   const fields: Readonly<Record<string, Knowledge<JsonValue>>> = input.category === undefined
-    ? source.fields
+    ? selectedFields
     : input.category === null
       ? fieldsWithoutCategory
       : { ...fieldsWithoutCategory, category: input.category }

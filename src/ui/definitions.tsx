@@ -9,6 +9,7 @@ import { formatAppError } from './model'
 import { parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type DefinitionPickerOverlay } from './navigation'
 import { Sheet } from './Sheet'
 import { Dropdown } from './Dropdown'
+import { ClaimList } from './KnowledgeValue'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
@@ -22,6 +23,7 @@ export interface DefinitionEditorDraft {
   readonly rawDescription?: string | null
   readonly category?: Knowledge<string> | null
   readonly ppCost?: Knowledge<number> | null
+  readonly fieldClaimSelections?: Readonly<Record<string, number>>
 }
 
 export interface DefinitionOption {
@@ -160,6 +162,9 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   const [categoryMode, setCategoryMode] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
   const [ppState, setPpState] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
   const [pp, setPp] = useState(() => base?.ppCost?.state === 'known' ? String(base.ppCost.value) : '')
+  const [fieldClaimSelections, setFieldClaimSelections] = useState<Readonly<Record<string, number>>>({})
+  const claimGroupId = useId()
+  const conflictingFields = Object.entries(base?.record.fields ?? {}).flatMap(([field, value]) => value.state === 'conflicting' ? [{ field, claims: value.claims }] : [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [closeWarning, setCloseWarning] = useState(false)
@@ -168,6 +173,17 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   useNavigationBlocker(scopeRef.current, () => dirtyRef.current, () => setCloseWarning(true))
   const clearDirty = () => { dirtyRef.current = false; setCloseWarning(false) }
   const close = () => { clearDirty(); onClose() }
+  const selectedClaimIndex = (field: string) => Object.hasOwn(fieldClaimSelections, field) ? fieldClaimSelections[field] : undefined
+  const selectClaim = (field: string, index?: number) => {
+    dirtyRef.current = true
+    setCloseWarning(false)
+    setFieldClaimSelections((current) => index === undefined ? Object.fromEntries(Object.entries(current).filter(([key]) => key !== field)) : { ...current, [field]: index })
+    if (field.trim().toLocaleLowerCase() === 'category') setCategoryMode('preserve')
+  }
+  const changeCategoryMode = (mode: typeof categoryMode) => {
+    setCategoryMode(mode)
+    setFieldClaimSelections((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key.trim().toLocaleLowerCase() !== 'category')))
+  }
   if (editRef && !base) {
     return <Sheet description="The exact definition in this address is unavailable in the active profile and reference catalogs." layer={ownedEditorIndex + 1} onClose={close} open={open} title="Definition unavailable" width="wide"><div className="stack"><InlineNotice title="Definition could not be opened" tone="warning">The requested definition may have been removed, or the link may belong to another profile or catalog revision. No substitute definition was selected.</InlineNotice><div className="form-actions"><Button onClick={close} tone="quiet" type="button">Close editor</Button></div></div></Sheet>
   }
@@ -187,6 +203,7 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
         rawDescription: description.trim() || (editRef ? null : undefined),
         ...(categoryMode === 'preserve' ? {} : { category: categoryMode === 'known' ? { state: 'known' as const, value: category.trim() } : categoryMode === 'unknown' ? { state: 'unknown' as const } : null }),
         ...(ppState === 'preserve' ? {} : { ppCost: ppState === 'known' ? { state: 'known' as const, value: numericPp! } : ppState === 'unknown' ? { state: 'unknown' as const } : null }),
+        fieldClaimSelections,
       }
       const ref = await onSaveDefinition(draft)
       clearDirty()
@@ -196,10 +213,11 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   return <Sheet description={editRef ? 'Editing creates a new personal override. Existing observations and build revisions keep their exact earlier reference.' : 'Create a personal definition without inventing unobserved mechanics.'} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={() => { if (!dirtyRef.current) return true; setCloseWarning(true); return false }} open={open} title={editRef ? `Edit ${base?.name ?? 'definition'}` : 'Create personal definition'} width="wide"><form className="stack" onInput={() => { dirtyRef.current = true; setCloseWarning(false) }} onSubmit={submit}>
     {closeWarning && <InlineNotice title="Definition draft still open" tone="warning">Save this definition or choose Cancel to discard its entered values before leaving.</InlineNotice>}
     {editRef && <InlineNotice title="Immutable override">The source definition remains available for historical records. This saved revision becomes the preferred choice in ordinary pickers.</InlineNotice>}
+    {conflictingFields.length > 0 && <section className="stack" aria-label="Review conflicting fields"><div><h3>Review conflicting fields</h3><p>Different source values may describe the same fact. Check the values and sources below, then choose a claim only if it applies to your game. Saving uses that value and its source in your personal override; the original catalog keeps all claims.</p></div>{conflictingFields.map(({ field, claims }, fieldIndex) => <fieldset className="claim-review" key={field}><legend>{field} claims</legend><label className="check-row"><input checked={selectedClaimIndex(field) === undefined} name={`${claimGroupId}-${fieldIndex}`} onChange={() => selectClaim(field)} type="radio" value="preserve"/><span>Keep unresolved<small>Preserve every claim until you have enough evidence.</small></span></label><ClaimList claims={claims} selection={{ name: `${claimGroupId}-${fieldIndex}`, index: selectedClaimIndex(field), onChange: (index) => selectClaim(field, index) }}/></fieldset>)}</section>}
     <div className="grid-2"><Field label="Definition name" required><input autoFocus onChange={(event) => setName(event.target.value)} required value={name}/></Field><Field hint={baseRef ? 'Definition kind is inherited by an override.' : undefined} label="Definition type"><select disabled={Boolean(baseRef)} onChange={(event) => setKind(event.target.value as CatalogEntityKind)} value={kind}>{kinds.map((value) => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></div>
     <Field hint="One alternate name per line." label="Aliases"><textarea onChange={(event) => setAliases(event.target.value)} value={aliases}/></Field>
     <Field label="Description"><textarea onChange={(event) => setDescription(event.target.value)} placeholder="Optional source or personal description" value={description}/></Field>
-    <div className="grid-2"><Field label="Category knowledge"><select onChange={(event) => setCategoryMode(event.target.value as typeof categoryMode)} value={categoryMode}>{baseRef && <option value="preserve">Keep current ({base?.category?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known category</option>{baseRef && <option value="clear">Clear category field</option>}</select></Field>{categoryMode === 'known' && <Field label="Category" required><input onChange={(event) => setCategory(event.target.value)} required value={category}/></Field>}</div>
+    <div className="grid-2"><Field label="Category knowledge"><select onChange={(event) => changeCategoryMode(event.target.value as typeof categoryMode)} value={categoryMode}>{baseRef && <option value="preserve">Keep current ({base?.category?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known category</option>{baseRef && <option value="clear">Clear category field</option>}</select></Field>{categoryMode === 'known' && <Field label="Category" required><input onChange={(event) => setCategory(event.target.value)} required value={category}/></Field>}</div>
     <div className="grid-2"><Field label="PP knowledge"><select onChange={(event) => setPpState(event.target.value as typeof ppState)} value={ppState}>{baseRef && <option value="preserve">Keep current ({base?.ppCost?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known value</option>{baseRef && <option value="clear">Clear PP field</option>}</select></Field>{ppState === 'known' && <Field label="PP value" required><input inputMode="decimal" onChange={(event) => setPp(event.target.value)} required type="number" value={pp}/></Field>}</div>
     {error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor.</InlineNotice>}
     <div className="form-actions"><Button disabled={busy} onClick={close} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !name.trim()} icon="check" type="submit">{busy ? 'Saving...' : editRef ? 'Save new override' : 'Create definition'}</Button></div>

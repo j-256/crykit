@@ -40,6 +40,8 @@ import type {
   CatalogSnapshot,
   EntityId,
   InventoryPositionId,
+  JsonValue,
+  Knowledge,
   PersonalDefinitionId,
   RulesetRevisionId,
   ScenarioId,
@@ -83,7 +85,65 @@ const CATALOG: CatalogSnapshot = {
   claims: [],
 }
 
+const LOCATION_CLAIMS: Knowledge<JsonValue> = {
+  state: 'conflicting',
+  claims: [
+    { value: 'Synthetic market', sources: [{ sourceId: 'https://example.com/item', locator: 'Item page', snapshot: 'revision 1' }] },
+    { value: { shop: 'Synthetic weapon shop', floor: 0, open: false }, sources: [{ sourceId: 'https://example.com/table', locator: 'Weapons > Sword', snapshot: 'revision 2', applicability: 'Synthetic ruleset' }], note: 'A more specific description' },
+  ],
+}
+
+const CLAIM_CATALOG: CatalogSnapshot = {
+  ...CATALOG,
+  entities: { sword: { ...CATALOG.entities.sword!, fields: { ...CATALOG.entities.sword!.fields, Location: LOCATION_CLAIMS, Other: LOCATION_CLAIMS } } },
+}
+
 describe('immutable personal definition overrides', () => {
+  it('preserves unresolved claims and saves an explicit choice with exact structured data and attribution', () => {
+    const originalCatalog = structuredClone(CLAIM_CATALOG)
+    const originalProfile = observeInventory(createTestProfile(), { ref: BASE_REF, possession: 'owned', quantity: { kind: 'unknown' }, now: TEST_NOW })
+    const unresolved = createDefinitionOverride(originalProfile, [CLAIM_CATALOG], { sourceRef: BASE_REF, now: TEST_NOW })
+    expect(unresolved.definition.fields.Location).toEqual(LOCATION_CLAIMS)
+    const resolved = createDefinitionOverride(unresolved.profile, [CLAIM_CATALOG], {
+      sourceRef: unresolved.ref,
+      fieldClaimSelections: { Location: 1 },
+      now: TEST_NOW,
+    })
+    const selected = LOCATION_CLAIMS.claims[1]
+    expect(resolved.definition.fields.Location).toEqual({ state: 'known', value: selected.value, sources: selected.sources })
+    expect(resolved.definition.fields.Other).toEqual(LOCATION_CLAIMS)
+    expect(resolved.definition.fields.unsupported).toEqual(CATALOG.entities.sword!.fields.unsupported)
+    expect(resolved.definition.baseRef).toEqual(BASE_REF)
+    expect(resolved.definition.previousRevision).toEqual(unresolved.ref)
+    expect(resolved.profile.personalDefinitions[unresolved.definition.id]?.fields.Location).toEqual(LOCATION_CLAIMS)
+    expect(resolved.profile.inventory).toEqual(originalProfile.inventory)
+    expect(resolved.profile.inventoryEvents).toEqual(originalProfile.inventoryEvents)
+    expect(CLAIM_CATALOG).toEqual(originalCatalog)
+    expect(() => validateNativeProfileGraph(resolved.profile, [CLAIM_CATALOG])).not.toThrow()
+  })
+
+  it.each<Readonly<Record<string, number>>>([
+    { Location: -1 },
+    { Location: 2 },
+    { Location: 0.5 },
+    { Location: Number.NaN },
+    { Missing: 0 },
+    { unsupported: 0 },
+    { toString: 0 },
+  ])('rejects invalid claim selections without changing the profile: %j', (fieldClaimSelections) => {
+    const profile = createTestProfile()
+    const original = structuredClone(profile)
+    expect(() => createDefinitionOverride(profile, [CLAIM_CATALOG], { sourceRef: BASE_REF, fieldClaimSelections, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    expect(profile).toEqual(original)
+  })
+
+  it('requires one explicit category edit when a category claim is selected', () => {
+    const categoryCatalog: CatalogSnapshot = { ...CATALOG, entities: { sword: { ...CATALOG.entities.sword!, fields: { Category: LOCATION_CLAIMS } } } }
+    expect(() => createDefinitionOverride(createTestProfile(), [categoryCatalog], { sourceRef: BASE_REF, fieldClaimSelections: { Category: 0 }, category: known('edited'), now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    const resolved = createDefinitionOverride(createTestProfile(), [categoryCatalog], { sourceRef: BASE_REF, fieldClaimSelections: { Category: 0 }, now: TEST_NOW })
+    expect(resolved.definition.fields.Category).toMatchObject({ state: 'known', value: 'Synthetic market' })
+  })
+
   it('keeps exact revisions while resolving a preferred immutable leaf', () => {
     const initial = createDefinitionOverride(createTestProfile(), [CATALOG], {
       sourceRef: BASE_REF,

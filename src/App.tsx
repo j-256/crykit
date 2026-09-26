@@ -269,6 +269,7 @@ export default function App() {
           rawDescription: draft.rawDescription,
           category: draft.category,
           ppCost: draft.ppCost,
+          fieldClaimSelections: draft.fieldClaimSelections,
           expectedRevision: profile.revision,
         }).profile
       }
