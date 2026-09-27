@@ -49,7 +49,7 @@ function learnedSummary(nodes: readonly LearnedNode[]): string {
 function RecordedSlots({ slots, profile, catalogs }: { readonly slots: readonly SnapshotSlot[]; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[] }) {
   return <dl className="roster-slots">{slots.map(slot => <div key={slot.id}>
     <dt>{slot.label}</dt>
-    <dd data-state={slot.selection === undefined ? 'unknown' : 'known'}><MemberArtwork catalogs={catalogs} profile={profile} value={slot.selection}/><span>{slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Observed empty' : entityName(profile, catalogs, slot.selection)}</span></dd>
+    <dd data-state={slot.selection === undefined ? 'unknown' : 'known'}><MemberArtwork catalogs={catalogs} profile={profile} value={slot.selection}/><span>{slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Empty' : entityName(profile, catalogs, slot.selection)}</span></dd>
   </div>)}</dl>
 }
 
@@ -66,7 +66,7 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
   const otherPassives = passives.filter(slot => slot.selection == null)
   const emptyPassives = otherPassives.filter(slot => slot.selection === null).length
   const unknownPassives = otherPassives.length - emptyPassives
-  const passiveSummary = [emptyPassives && `${emptyPassives} observed empty`, unknownPassives && `${unknownPassives} unknown`].filter(Boolean).join(' · ')
+  const passiveSummary = [emptyPassives && `${emptyPassives} empty`, unknownPassives && `${unknownPassives} unknown`].filter(Boolean).join(' · ')
   const stats = Object.entries(snapshot?.displayedStats ?? {})
   const otherStats = stats.filter(([label]) => !vitalKind(label))
   const className = (value: Knowledge<EntityRef> | undefined) => knowledgeLabel(value ?? UNKNOWN, ref => entityName(profile, catalogs, ref))
@@ -93,7 +93,7 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
         </dl></section>
       </div>
       {passives.length > 0 && <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3><div>{equippedPassives.length > 0 && <RecordedSlots catalogs={catalogs} profile={profile} slots={equippedPassives}/>}<details className="roster-passive-details" hidden={!otherPassives.length}><summary>{passiveSummary}</summary><RecordedSlots catalogs={catalogs} profile={profile} slots={otherPassives}/></details></div></section>}
-    </> : <div className="roster-card__blank"><Icon name="character"/><div><strong>{character.currentSnapshotId ? 'Current snapshot unavailable' : 'No snapshot recorded'}</strong><p>{character.currentSnapshotId ? 'The referenced observation is missing. Earlier snapshots remain in History.' : 'Capture a character sheet to add stats, equipment, and passives.'}</p>{Object.keys(character.learnedNodes).length > 0 && <p>Learned skills: {learnedSummary(Object.values(character.learnedNodes))}</p>}</div><OverviewLink className="button button--secondary" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture snapshot</OverviewLink></div>}
+    </> : <div className="roster-card__blank"><Icon name="character"/><div><strong>{character.currentSnapshotId ? 'Current snapshot unavailable' : 'No snapshot recorded'}</strong><p>{character.currentSnapshotId ? 'The referenced snapshot is missing. Earlier snapshots remain in History.' : 'Capture a character sheet to add stats, equipment, and passives.'}</p>{Object.keys(character.learnedNodes).length > 0 && <p>Learned skills: {learnedSummary(Object.values(character.learnedNodes))}</p>}</div><OverviewLink className="button button--secondary" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture snapshot</OverviewLink></div>}
     <footer className="roster-card__footer"><div className="roster-observation">{snapshot ? <><span>{snapshot.observedAt ? `Observed ${formatRelativeDate(snapshot.observedAt)}` : 'Observation date unknown'}</span><small>Recorded {formatRelativeDate(snapshot.recordedAt)}</small></> : <span>Stats and equipment unknown</span>}</div><nav aria-label={`${character.name} views`}><OverviewLink className="roster-member-link" page={memberPage}>Member <Icon name="arrow-left"/></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'knowledge' }}>Learn</OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }}>History</OverviewLink></nav></footer>
   </article>
 }

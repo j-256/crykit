@@ -51,7 +51,7 @@ export function SnapshotValueView({ profile, catalogs, ruleset: recordedRuleset,
   if (value.kind === 'unrecorded') return <>Unrecorded</>
   if (value.kind === 'sources') return value.value.length ? <>{value.value.map((source, index) => <small key={index}>{sourceLabel(source)}</small>)}</> : <>Unrecorded</>
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
-  if (value.kind === 'selection') return value.value === undefined ? <>Unknown or unrecorded</> : value.value === null ? <>Observed empty</> : definition(value.value)
+  if (value.kind === 'selection') return value.value === undefined ? <>Unknown</> : value.value === null ? <>Empty</> : definition(value.value)
   if (value.kind === 'reference') return <RecordedKnowledge format={definition} value={value.value}/>
   if (value.kind === 'number') return <RecordedKnowledge format={(number) => <>{number}{value.unit && value.unit !== 'displayed' ? ` ${value.unit}` : ''}</>} value={value.value}/>
   const ruleset = value.value ? ownRecordValue(profile.rulesets, value.value) : undefined
@@ -73,12 +73,12 @@ export function CharacterSheet({ profile, catalogs, snapshot, onEditSlot }: Reco
     <dl className="recorded-summary">{summary.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd><SnapshotValueView {...context} value={value}/></dd></div>)}</dl>
     <details className="recorded-sources"><summary>Recorded mods</summary><p>{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Ruleset context unrecorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><RecordedKnowledge value={ruleset?.mods ?? { state: 'unknown' }} format={names => names.join(', ') || 'None'}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><RecordedKnowledge value={ruleset?.disabledMods ?? { state: 'unknown' }} format={names => names.join(', ') || 'None'}/></dd></div></dl></details>
     <div className="recorded-sheet__columns">
-      <section aria-label="Displayed final stats"><h3>Displayed final stats</h3><p className="settings-section__intro">Observed totals</p>{Object.keys(snapshot.displayedStats).length ? <dl className="recorded-stats">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView {...context} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl> : <p className="recorded-empty">No displayed stats recorded. Unlisted values remain unrecorded.</p>}</section>
+      <section aria-label="Displayed final stats"><h3>Displayed final stats</h3><p className="settings-section__intro">Saved in-game totals</p>{Object.keys(snapshot.displayedStats).length ? <dl className="recorded-stats">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView {...context} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl> : <p className="recorded-empty">No displayed stats recorded. Unlisted values remain unrecorded.</p>}</section>
       <section aria-label="Equipment and equipped passives"><h3>Equipment & passives</h3><p className="settings-section__intro">{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Slot context was not recorded'}</p>
         {!ruleset && <p className="recorded-context-warning">Stored slot IDs are shown without labels from another ruleset.</p>}
         {slots.length ? <div className="recorded-slots">{slots.map((slot) => <div className="recorded-slot" key={slot.id}><div><span className="slot__label">{slot.label}{slot.kind === 'passive' && <small>Equipped passive</small>}{slot.kind === 'unmapped' && ruleset && <small>Outside recorded slot context</small>}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: slot.selection }}/></div></div>{onEditSlot && ruleset?.id === profile.activeRulesetRevisionId && slot.kind !== 'unmapped' && <IconButton icon="edit" label={`Edit ${slot.label}`} onClick={() => onEditSlot(slot.id)}/>}</div>)}</div> : <p className="recorded-empty">No selections recorded.</p>}
       </section>
     </div>
-    {onEditSlot && snapshot.rulesetRevisionId !== profile.activeRulesetRevisionId && <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the active ruleset. The earlier selections remain in this observation.</InlineNotice>}
+    {onEditSlot && snapshot.rulesetRevisionId !== profile.activeRulesetRevisionId && <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the active ruleset. The earlier selections remain in this snapshot.</InlineNotice>}
   </div>
 }

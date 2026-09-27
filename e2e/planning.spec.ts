@@ -52,6 +52,7 @@ async function addCharacter(page: Page, name: string) {
   await form.getByLabel('Character name').fill(name)
   await form.getByRole('button', { name: 'Add character', exact: true }).click()
   await expect(form).not.toBeVisible()
+  await page.getByRole('article', { name, exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
 }
 
 async function addStock(page: Page) {
@@ -379,7 +380,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
   await form.getByRole('button', { name: 'Choose Main hand', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Observed empty/ }).click()
+  await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Empty/ }).click()
   for (const name of ['Max HP', ' Max HP ']) {
     await form.getByRole('button', { name: 'Add stat', exact: true }).click()
     await form.getByRole('textbox', { name: 'Stat name', exact: true }).last().fill(name)
@@ -398,7 +399,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   expect(emptySnapshot.selections[slotId]).toBeNull()
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   await form.getByRole('button', { name: 'Choose Main hand', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Unknown or unrecorded/ }).click()
+  await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Unknown/ }).click()
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(form).not.toBeVisible()
   await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Unknown')

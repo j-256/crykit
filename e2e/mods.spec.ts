@@ -133,7 +133,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
   await form.getByRole('button', { name: 'Choose Hand', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Hand', exact: true })
-  await picker.getByRole('button', { name: /^Unknown or unrecorded/ }).click()
+  await picker.getByRole('button', { name: /^Unknown/ }).click()
   await form.getByRole('button', { name: 'Choose Hand', exact: true }).click()
   await picker.getByRole('searchbox').fill('Doge Shield')
   await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Doge Shield' })).toHaveCount(0)
