@@ -6,13 +6,33 @@ Crystal Companion ships a static, revisioned reference catalog so a blank local 
 
 The broad reference layer is generated from the public [Crystal Project community wiki](https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki) through its MediaWiki API. It includes class infoboxes and stat growth, class skill and passive tables, resource and learning costs, prerequisites, targeting and effect text, documented Vanilla-mode differences, equipment and item tables, item pages, monster templates, statuses, areas, commands, crafting recipes, and other substantive game-reference pages. Every extracted entity keeps its exact page revision, section or row locator, source applicability note, and page link.
 
-The committed catalog contains normalized factual fields and plain text. It does not retain images, advertisements, scripts, interactive maps, or executable wiki markup. Structured lists, records, and tables render as data in the reference view. The application never fetches the wiki at runtime.
+The committed catalog contains normalized factual fields and plain text. Artwork is bundled separately as described below. The catalog does not retain advertisements, scripts, interactive maps, or executable wiki markup. Structured lists, records, and tables render as data in the reference view. The application never fetches the wiki at runtime.
 
 The wiki identifies its content terms as [CC-BY-SA](https://www.fandom.com/licensing). Wiki-derived content remains under those terms and retains page-level attribution; the application's AGPL-3.0-only license does not replace source-content rights. Refreshing the snapshot requires reviewing both the generated changes and the upstream licensing declaration.
 
 Community documentation can be incomplete, stale, internally inconsistent, or based on a different game release. The catalog therefore does not claim complete Nintendo Switch coverage, parity with a particular official mod-pack snapshot, or verified calculation order. Source disagreements remain conflicting claims. Missing kind-specific fields remain explicit unknowns.
 
 Reference details show every competing field value with its source, locator, revision, applicability, and any claim note. Different values can reflect wording or scope differences; the importer does not decide whether they describe the same fact. Choose **Review conflicting fields** or **Edit as personal override** to review normalized field claims. **Keep unresolved** preserves all evidence by default. Selecting a claim and saving creates a preferred personal revision with that exact value and source attribution. Original catalog claims, saved inventory observations, and build references retain their earlier definitions. The catalog detail links to an existing preferred personal override without removing its source conflicts.
+
+### Sprite and icon snapshot
+
+Reference results and details use local artwork where the wiki establishes an explicit association. Class images come from the class infobox at the catalog's recorded page revision. Equipment and status icons come from literal cases in the wiki's link templates. Monster images use pages with `MonsterBox2` and its verified `File:PAGENAME.png` rule. The manifest records both page and template revisions. Same-name skills, personal definitions, foreign catalogs, and unsupported mappings do not inherit guessed artwork. Missing mappings and missing wiki files remain recorded in manifest coverage; detail pages without a match say **No wiki artwork linked**.
+
+`src/catalog/wiki-sprites.json` records each file's source URL, upload timestamp, file-description revision, dimensions, MIME type, original SHA-1, local SHA-256, license label, and catalog bindings. The PNG, GIF, and WebP files in `src/assets/wiki-sprites/` retain the downloaded bytes. The downloader accounts for CDN format conversion and requires a byte-for-byte checksum match with the wiki upload. Individual images and the total snapshot have bounded sizes. Download, format, and checksum failures stop the refresh before the manifest is replaced. Cached verified downloads can be reused on a subsequent refresh.
+
+Artwork has separate rights from wiki text. For example, the [Warrior sprite file](https://crystal-project.fandom.com/wiki/File:Warrior-world-sprites.webp) and [Short Sword icon file](https://crystal-project.fandom.com/wiki/File:Short-sword-icon.gif) use the wiki's `Fairuse` declaration. That is the wiki's label for copyrighted artwork, not a CC-BY-SA or AGPL grant. Files without a reviewed declaration remain explicitly unspecified. Follow **Artwork source** on a reference detail to inspect the pinned file page, declared rights, and mapping evidence. Bundling does not establish redistribution permission or Nintendo Switch/mod-pack appearance parity.
+
+Refresh artwork independently from the factual catalog:
+
+```sh
+npm run sprites:update
+npm run sprites:update -- --cache
+npm run sprites:check
+```
+
+The first command fetches the required source revisions, template mappings, file metadata, and images. `--cache` performs an offline replay from `.wiki-cache/sprites/` and requires its input catalog digest to match. `sprites:check` validates the manifest and local image bytes without network requests or writes; it also runs as part of `npm run check`. Review generated bindings, gaps, source/rights changes, and asset additions or removals before committing. Superseded asset files are left for explicit review and removal, and the privacy check rejects sprite files absent from the manifest.
+
+Vite emits the images with the static application assets, so offline preparation caches them together with the shell. No wiki or CDN URL is used as an image source at runtime. Sprite metadata remains separate from immutable catalog facts and personal backups; refreshing artwork does not alter catalog checksums or recorded playthrough data.
 
 ## Supporting identity sources
 

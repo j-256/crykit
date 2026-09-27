@@ -430,6 +430,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .reference-card:last-child { border-bottom: 0; }
 .reference-card__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
 .reference-card p { margin-bottom: 0; color: var(--text-dim); font-size: .78rem; }
+.reference-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.reference-title h2, .reference-title h3 { margin: 0; overflow-wrap: anywhere; }
+.reference-title > :last-child { min-width: 0; }
+.wiki-sprite { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 56px; min-height: 48px; }
+.wiki-sprite--detail { width: auto; min-width: 48px; margin-block: 8px; }
+.wiki-sprite img { display: block; image-rendering: pixelated; object-fit: contain; }
+.wiki-sprite-source, .wiki-sprite-missing { color: var(--text-dim); font-size: .75rem; }
+.wiki-sprite-source summary { width: fit-content; cursor: pointer; }
+.wiki-sprite-source p, .wiki-sprite-source ul { margin-block: 8px; }
 .source-claim { min-width: 0; display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 10px; padding: 11px 0; }
 .source-claim__line { width: 2px; margin: 3px auto; background: var(--cyan-700); }
 .source-claim > div { min-width: 0; }

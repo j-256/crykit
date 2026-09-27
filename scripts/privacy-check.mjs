@@ -52,14 +52,24 @@ const findings = []
 const reviewedBinaryAssets = new Map([
   ['src/assets/fonts/pixel-operator.woff2', 'fc5d6a2ee3d73d978200269354e681862e1436c3edd42235f28b87e9ca0b8afe'],
 ])
+const spriteDirectory = 'src/assets/wiki-sprites/'
+const spriteManifestPath = 'src/catalog/wiki-sprites.json'
+try {
+  const manifest = JSON.parse((options.staged ? git(['show', `:${spriteManifestPath}`]) : readFileSync(spriteManifestPath)).toString('utf8'))
+  for (const asset of Object.values(manifest.assets)) {
+    if (!/^[a-f0-9]{64}\.(?:png|gif|webp)$/.test(asset.file) || !/^[a-f0-9]{64}$/.test(asset.sha256)) throw new Error('Invalid sprite manifest entry')
+    reviewedBinaryAssets.set(`${spriteDirectory}${asset.file}`, asset.sha256)
+  }
+} catch { findings.push('Wiki sprite manifest: unable to read reviewed asset hashes') }
 for (const file of new Set(files)) {
   if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact or enabled CI workflow`)
-  if (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico')) continue
+  if (file.startsWith(spriteDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
+  if (!file.startsWith(spriteDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }
   catch { findings.push(`${file}: unable to inspect contents`); continue }
   if (reviewedBinaryAssets.has(file)) {
-    if (reviewedBinaryAssets.get(file) !== createHash('sha256').update(bytes).digest('hex')) findings.push(`${file}: public font changed; review bytes and digest`)
+    if (reviewedBinaryAssets.get(file) !== createHash('sha256').update(bytes).digest('hex')) findings.push(`${file}: public asset changed; review bytes and digest`)
     continue
   }
   if (bytes.includes(0)) { findings.push(`${file}: unreviewed binary content`); continue }
