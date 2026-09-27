@@ -42,7 +42,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   onChange: (value: EntityRef | null) => void
   onInspect: (option: DefinitionOption | undefined) => void
 }) {
-  const { options, availableOptions } = useDefinitionWorkspace()
+  const { planningOptions: options, availablePlanningOptions: availableOptions } = useDefinitionWorkspace()
   const selected = findDefinitionOption(options, value)
   const optionName = (option: DefinitionOption) => label === 'Sub-command' ? commandName(option) ?? option.name : option.name
   const inputRef = useRef<HTMLInputElement>(null)

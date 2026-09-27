@@ -33,6 +33,8 @@ Use Data & settings to preview a local reference workbook, supported research JS
 
 See [local data and interchange](docs/data-formats.md) for supported inputs, backup structure, profile restore behavior, and recovery boundaries.
 
+Use **Edit reference** to correct facts directly on the page, then collect and export a delta from **Corrections**. Evidence and game context can be added incrementally. See [corrections and baseline review](docs/corrections.md) for local persistence, submission, and immutable catalog promotion.
+
 The application makes no automatic requests for game data and has no login, telemetry, remote fonts, or cloud synchronization. Personal files stay in browser storage unless explicitly exported. Native backups can contain private notes and source records; handle them as personal files. A restored copy can remain a separate playthrough instead of overwriting another device's work.
 
 Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.

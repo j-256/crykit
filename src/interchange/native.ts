@@ -1,3 +1,4 @@
+import { parseCorrectionCollection } from './corrections'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { assertModConfiguration } from '../domain/mods'
@@ -690,6 +691,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
       details: { issues: payloadResult.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`) },
     })
   }
+  const corrections = payloadResult.data.corrections === undefined ? undefined : parseCorrectionCollection(JSON.stringify(payloadResult.data.corrections))
   const catalogs = validateCatalogs(payloadResult.data.catalogs)
   const profile = validateProfile(payloadResult.data.profile, catalogs.keys, 'profile', catalogs.entityKinds)
   const lineage = validateLineage(payloadResult.data.lineage, profile.id)
@@ -758,6 +760,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     errors: [],
     profile: { label: profile.label, identity: profile.id, ancestry: lineage },
     proposed: {
+      ...(corrections ? { corrections } : {}),
       profile,
       lineage,
       catalogs: catalogs.snapshots,

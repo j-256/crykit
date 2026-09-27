@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { EntityRef } from '../domain/types'
+import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
 import { formatAppRoute, parentRoute, parseAppRoute } from './navigation'
 
@@ -63,7 +63,7 @@ describe('semantic navigation routes', () => {
 
   it('round-trips record identities that equal reserved route words', () => {
     const pages = [
-      ...['new', 'search', 'pick', 'definitions'].flatMap((id) => [
+      ...['new', 'search', 'pick', 'definitions', 'corrections', 'correct'].flatMap((id) => [
         { page: 'characters', view: 'character', characterId: id, tab: 'current' },
         { page: 'builds', view: 'build', buildId: id },
         { page: 'builds', view: 'scenario', scenarioId: id },
@@ -115,6 +115,20 @@ describe('semantic navigation routes', () => {
     expectRoundTrip(referenceOverride)
     expect(parseAppRoute('#/inventory/pick/nope').page.page).toBe('unresolved')
     expect(parseAppRoute('#/inventory/new/pick/item-definition').page.page).toBe('inventory')
+  })
+
+  it('restores correction review routes and their semantic parents', () => {
+    const value: AppRoute = {
+      page: { page: 'reference', view: 'detail', ref: catalogRef },
+      overlays: [{ kind: 'corrections' }, { kind: 'correction-editor', ref: catalogRef as CatalogRef, field: 'Location / source' }],
+      query: { q: ['Artisan Rapier'] },
+    }
+    expectRoundTrip(value)
+    expectRoundTrip(parentRoute(value)!)
+    expectRoundTrip(parentRoute(parentRoute(value)!)!)
+    expectRoundTrip({ ...value, page: { page: 'settings', section: 'data' } })
+    expectRoundTrip({ ...value, overlays: [value.overlays[1]!] })
+    for (const hash of ['#/reference/corrections/corrections', '#/reference/correct/personal/example', '#/reference/correct/catalog/a/revisions/b/entities/c/field']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
   })
 
   it('rejects overlay shapes and disabled picker actions that no view can render', () => {

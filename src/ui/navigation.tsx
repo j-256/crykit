@@ -5,6 +5,7 @@ import type {
   BuildRevisionId,
   CatalogId,
   CatalogRevisionId,
+  CatalogRef,
   CharacterId,
   CharacterSnapshotId,
   EntityId,
@@ -93,6 +94,8 @@ export type DefinitionEditorOverlay =
   | { readonly kind: 'definition-editor'; readonly mode: 'override'; readonly ref: EntityRef }
 
 export type RouteOverlay = SearchOverlay | DefinitionPickerOverlay | DefinitionEditorOverlay
+  | { readonly kind: 'corrections' }
+  | { readonly kind: 'correction-editor'; readonly ref: CatalogRef; readonly field?: string }
 export type RouteQuery = Readonly<Record<string, readonly string[]>>
 
 export interface AppRoute {
@@ -113,9 +116,9 @@ const DEFAULT_PICKER_LIMIT = 100
 const MAX_PICKER_LIMIT = 2_000
 const NAVIGATION_EVENT = 'crystal-companion:navigation'
 const NAVIGATION_STATE_KEY = 'crystalCompanionNavigation'
-const COLLECTION_ID_RESERVED_SEGMENTS = new Set(['new', 'search', 'pick', 'definitions'])
+const COLLECTION_ID_RESERVED_SEGMENTS = new Set(['new', 'search', 'pick', 'definitions', 'corrections', 'correct'])
 const REVISION_ID_RESERVED_SEGMENTS = new Set(['new'])
-const COMPARE_LEFT_ID_RESERVED_SEGMENTS = new Set(['search', 'pick', 'definitions'])
+const COMPARE_LEFT_ID_RESERVED_SEGMENTS = new Set(['search', 'pick', 'definitions', 'corrections', 'correct'])
 
 interface NavigationHistoryState {
   readonly index: number
@@ -179,7 +182,7 @@ function recoveryFor(segments: readonly string[]): Destination {
 
 function overlayStartsAt(segments: readonly string[], index: number): boolean {
   const segment = segments[index]
-  return segment === undefined || segment === 'search' || segment === 'pick' || segment === 'definitions'
+  return segment === undefined || segment === 'search' || segment === 'pick' || segment === 'definitions' || segment === 'corrections' || segment === 'correct'
 }
 
 function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number } {
@@ -309,6 +312,24 @@ function parseOverlays(segments: readonly string[], offset: number, params: URLS
   let cursor = offset
   while (cursor < segments.length) {
     if (overlays.length >= MAX_OVERLAYS) return undefined
+    if (segments[cursor] === 'corrections') {
+      overlays.push({ kind: 'corrections' })
+      cursor += 1
+      continue
+    }
+    if (segments[cursor] === 'correct') {
+      const parsed = parseEntityRefPath(segments, cursor + 1)
+      if (parsed?.ref.kind !== 'catalog') return undefined
+      cursor += 1 + parsed.consumed
+      let field: string | undefined
+      if (segments[cursor] === 'field') {
+        field = decodeSegment(segments[cursor + 1] ?? '')
+        if (!field) return undefined
+        cursor += 2
+      }
+      overlays.push({ kind: 'correction-editor', ref: parsed.ref, ...(field ? { field } : {}) })
+      continue
+    }
     if (segments[cursor] === 'search') {
       overlays.push({ kind: 'search', query: '' })
       cursor += 1
@@ -375,7 +396,12 @@ function supportsDefinitionPicker(page: PageRoute, fieldKey: string): boolean {
 function overlaysSupported(page: PageRoute, overlays: readonly RouteOverlay[]): boolean {
   let cursor = 0
   const first = overlays[cursor]
-  if (first?.kind === 'definition-picker') {
+  if (first?.kind === 'corrections') {
+    cursor += 1
+    if (overlays[cursor]?.kind === 'correction-editor') cursor += 1
+  } else if (first?.kind === 'correction-editor') {
+    cursor += 1
+  } else if (first?.kind === 'definition-picker') {
     if (!supportsDefinitionPicker(page, first.fieldKey)) return false
     cursor += 1
     if (overlays[cursor]?.kind === 'definition-editor') {
@@ -525,6 +551,8 @@ function formatPage(page: PageRoute): string {
 
 function formatOverlayPath(overlays: readonly RouteOverlay[]): string {
   return overlays.map((overlay) => {
+    if (overlay.kind === 'corrections') return '/corrections'
+    if (overlay.kind === 'correction-editor') return `/correct/${formatEntityRefPath(overlay.ref)}${overlay.field ? `/field/${encodeSegment(overlay.field)}` : ''}`
     if (overlay.kind === 'search') return '/search'
     if (overlay.kind === 'definition-picker') return overlay.fieldKey.startsWith('slot:') ? `/pick/slot/${encodeSegment(overlay.fieldKey.slice(5))}` : `/pick/${encodeSegment(overlay.fieldKey)}`
     return overlay.mode === 'new' ? '/definitions/new' : `/definitions/override/${formatEntityRefPath(overlay.ref)}`
@@ -561,6 +589,8 @@ export function routeDestination(route: AppRoute): Destination {
 
 export function routeTitle(route: AppRoute): string {
   const top = route.overlays.at(-1)
+  if (top?.kind === 'corrections') return 'Corrections | Crystal Companion'
+  if (top?.kind === 'correction-editor') return 'Correction details | Crystal Companion'
   if (top?.kind === 'search') return 'Search | Crystal Companion'
   if (top?.kind === 'definition-picker') return 'Choose definition | Crystal Companion'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | Crystal Companion`

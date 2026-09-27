@@ -1,5 +1,7 @@
+import { mergeCorrections } from '../domain/corrections'
+import { loadCorrections, saveCorrections } from './corrections'
+import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { zipSync, type Zippable } from 'fflate'
-import { STARTER_CATALOG } from '../catalog'
 import type {
   CatalogSnapshot,
   ChangeEntry,
@@ -131,8 +133,9 @@ async function assertCatalogsImmutable(
 
 function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): void {
   for (const catalog of catalogs) {
-    if (catalogKey(catalog) !== catalogKey(STARTER_CATALOG)) continue
-    if (jsonEqual(catalog, STARTER_CATALOG)) continue
+    const bundled = BUNDLED_CATALOGS.find(entry => catalogKey(entry) === catalogKey(catalog))
+    if (!bundled) continue
+    if (jsonEqual(catalog, bundled)) continue
     throw new AppDataError('import-conflict', 'A catalog revision conflicts with the built-in starter catalog', {
       recoverable: true,
       details: { catalogId: catalog.id, revisionId: catalog.revisionId },
@@ -142,13 +145,11 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
 
 async function ensureStarterCatalog(database: CrystalCompanionDatabase): Promise<void> {
   await database.transaction('rw', database.catalogs, async () => {
-    const key = catalogKey(STARTER_CATALOG)
-    const existing = await database.catalogs.get(key)
-    if (existing) {
-      await assertCatalogsImmutable(database, [STARTER_CATALOG])
-      return
+    for (const catalog of BUNDLED_CATALOGS) {
+      const existing = await database.catalogs.get(catalogKey(catalog))
+      if (existing) await assertCatalogsImmutable(database, [catalog])
+      else await database.catalogs.add(toCatalogRecord(catalog))
     }
-    await database.catalogs.add(toCatalogRecord(STARTER_CATALOG))
   })
 }
 
@@ -309,7 +310,7 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
   const keys = catalogReferences(record.profile)
   const digests = profileImportDigests(record.profile)
   const catalogRecords = (await database.catalogs.toArray()).filter(
-    (candidate) => candidate.key === catalogKey(STARTER_CATALOG) || keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? ''),
+    (candidate) => BUNDLED_CATALOGS.some(catalog => candidate.key === catalogKey(catalog)) || keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? ''),
   )
   for (const catalog of catalogRecords) {
     const digest = /^sha256:(.+)$/.exec(catalog.checksum)?.[1]
@@ -586,6 +587,10 @@ export async function commitImport(
       ],
       async () => {
         assertStarterCatalogIdentity(preview.proposed.catalogs)
+        if (options.restoreCorrections && preview.proposed.corrections) {
+          const local = await loadCorrections()
+          await saveCorrections(mergeCorrections(local.entries, preview.proposed.corrections.entries), local.revision)
+        }
         if (mode === 'new-profile') {
           const repeatedImport = await database.imports.where('sourceDigest').equals(preview.sourceDigest).first()
           if (repeatedImport) {
@@ -775,11 +780,7 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
   try {
     const captured = await database.transaction(
       'r',
-      database.profiles,
-      database.catalogs,
-      database.evidence,
-      database.sources,
-      database.history,
+      [database.profiles, database.catalogs, database.evidence, database.sources, database.history, database.meta],
       async () => {
         const record = await database.profiles.get(profileId)
         if (!record) throw new AppDataError('not-found', 'The profile no longer exists', { recoverable: true })
@@ -801,6 +802,7 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
         }
         return {
           profile,
+          corrections: await loadCorrections(),
           lineage: cloneJson(record.lineage),
           history,
           catalogRecords: await database.catalogs.toArray(),
@@ -814,6 +816,10 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
         ? { ...captured.profile, changes: [] }
         : captured.profile
       const catalogKeys = catalogReferences(profile)
+      for (const entry of captured.corrections.entries) {
+        const key = catalogSnapshotKey(entry.target.catalogId, entry.target.catalogRevisionId)
+        if (captured.catalogRecords.some(record => record.key === key)) catalogKeys.add(key)
+      }
       const importDigests = profileImportDigests(profile)
       for (const entry of history) {
         for (const key of catalogReferences(entry.before)) catalogKeys.add(key)
@@ -854,6 +860,7 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
       }
       return {
         payload: {
+          ...(captured.corrections.entries.length ? { corrections: captured.corrections } : {}),
           profile,
           lineage: captured.lineage,
           catalogs,

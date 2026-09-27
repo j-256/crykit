@@ -9,6 +9,8 @@ import { formatAppError } from './model'
 import { parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type DefinitionPickerOverlay } from './navigation'
 import { Sheet } from './Sheet'
 import { Dropdown } from './Dropdown'
+import { useOptionalCorrections } from './corrections-context'
+import { activeCorrections, bundledHiddenEntityKeys, historicalCatalogKeys, correctionKey, correctionStatus } from '../domain/corrections'
 import { ClaimList } from './KnowledgeValue'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
@@ -48,6 +50,8 @@ interface DefinitionWorkspaceValue {
   readonly catalogs: readonly CatalogSnapshot[]
   readonly options: readonly DefinitionOption[]
   readonly availableOptions: readonly DefinitionOption[]
+  readonly planningOptions: readonly DefinitionOption[]
+  readonly availablePlanningOptions: readonly DefinitionOption[]
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
 }
 
@@ -105,9 +109,10 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       ...(activeRuleset?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { rulesetStatus: activeRuleset ? 'Outside the active ruleset definition collection' : 'No active ruleset definition collection' }),
     }
   })
+  const historical = historicalCatalogKeys(catalogs)
   const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
-    const preferred = entityDefinitionKey(preferredDefinitionRef(profile, ref)) === entityDefinitionKey(ref)
+    const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(profile, ref)) === entityDefinitionKey(ref)
     const provenance = starterEntitySourceLabel(entity)
     return {
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
@@ -123,10 +128,36 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
   return [...personal, ...catalog].sort((left, right) => Number(right.preferred) - Number(left.preferred) || left.name.localeCompare(right.name) || left.sourceLabel.localeCompare(right.sourceLabel) || left.key.localeCompare(right.key))
 }
 
+export function definitionOptionsForRevisions(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], catalogLock: Readonly<Record<string, string>> = {}): readonly DefinitionOption[] {
+  const historical = historicalCatalogKeys(catalogs)
+  return options.filter(option => {
+    if (option.ref.kind !== 'catalog') return true
+    const pinned = catalogLock[option.ref.catalogId]
+    return pinned ? option.ref.catalogRevisionId === pinned : !historical.has(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId]))
+  })
+}
+
 export function DefinitionProvider({ profile, catalogs, onSaveDefinition, children }: PropsWithChildren<{ profile: Profile; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
-  const options = useMemo(() => buildDefinitionOptions(profile, catalogs), [catalogs, profile])
-  const availableOptions = useMemo(() => options.filter(option => option.modAvailability?.state !== 'disabled'), [options])
-  const value = useMemo(() => ({ profile, catalogs, options, availableOptions, onSaveDefinition }), [availableOptions, catalogs, onSaveDefinition, options, profile])
+  const corrections = useOptionalCorrections()
+  const options = useMemo(() => {
+    const local = new Map(activeCorrections(corrections?.collection.entries ?? []).filter(entry => correctionStatus(entry, corrections?.baseline ?? [], corrections?.collection.entries) === 'applied').map(entry => [correctionKey(entry), entry]))
+    return buildDefinitionOptions(profile, catalogs).map(option => {
+      const correction = local.get(option.key)
+      return correction ? { ...option, sourceLabel: `${correction.confidence === 'tentative' ? 'Tentative correction' : 'User-confirmed correction'} · ${option.sourceLabel}` } : option
+    })
+  }, [catalogs, profile, corrections?.baseline, corrections?.collection.entries])
+  const availableOptions = useMemo(() => {
+    const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(catalogs)
+    return definitionOptionsForRevisions(options, catalogs).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+  }, [catalogs, options, corrections?.hiddenKeys])
+  const baseline = corrections?.baseline ?? catalogs
+  const planningOptions = useMemo(() => buildDefinitionOptions(profile, baseline), [baseline, profile])
+  const availablePlanningOptions = useMemo(() => {
+    const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+    const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
+    return definitionOptionsForRevisions(planningOptions, baseline, ruleset?.catalogLock).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+  }, [baseline, corrections?.hiddenKeys, planningOptions, profile])
+  const value = useMemo(() => ({ profile, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, profile])
   return <DefinitionWorkspaceContext.Provider value={value}>{children}</DefinitionWorkspaceContext.Provider>
 }
 
@@ -213,7 +244,7 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   return <Sheet description={editRef ? 'Editing creates a new personal override. Existing observations and build revisions keep their exact earlier reference.' : 'Create a personal definition without inventing unobserved mechanics.'} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={() => { if (!dirtyRef.current) return true; setCloseWarning(true); return false }} open={open} title={editRef ? `Edit ${base?.name ?? 'definition'}` : 'Create personal definition'} width="wide"><form className="stack" onInput={() => { dirtyRef.current = true; setCloseWarning(false) }} onSubmit={submit}>
     {closeWarning && <InlineNotice title="Definition draft still open" tone="warning">Save this definition or choose Cancel to discard its entered values before leaving.</InlineNotice>}
     {editRef && <InlineNotice title="Immutable override">The source definition remains available for historical records. This saved revision becomes the preferred choice in ordinary pickers.</InlineNotice>}
-    {conflictingFields.length > 0 && <section className="stack" aria-label="Review conflicting fields"><div><h3>Review conflicting fields</h3><p>Different source values may describe the same fact. Check the values and sources below, then choose a claim only if it applies to your game. Saving uses that value and its source in your personal override; the original catalog keeps all claims.</p></div>{conflictingFields.map(({ field, claims }, fieldIndex) => <fieldset className="claim-review" key={field}><legend>{field} claims</legend><label className="check-row"><input checked={selectedClaimIndex(field) === undefined} name={`${claimGroupId}-${fieldIndex}`} onChange={() => selectClaim(field)} type="radio" value="preserve"/><span>Keep unresolved<small>Preserve every claim until you have enough evidence.</small></span></label><ClaimList claims={claims} selection={{ name: `${claimGroupId}-${fieldIndex}`, index: selectedClaimIndex(field), onChange: (index) => selectClaim(field, index) }}/></fieldset>)}</section>}
+    {conflictingFields.length > 0 && <section className="stack" aria-label="Review source differences"><div><h3>Review source differences</h3><p>Different source values may describe the same fact. Check the values and sources below, then choose a claim only if it applies to your game. Saving uses that value and its source in your personal override; the original catalog keeps all claims.</p></div>{conflictingFields.map(({ field, claims }, fieldIndex) => <fieldset className="claim-review" key={field}><legend>{field} claims</legend><label className="check-row"><input checked={selectedClaimIndex(field) === undefined} name={`${claimGroupId}-${fieldIndex}`} onChange={() => selectClaim(field)} type="radio" value="preserve"/><span>Keep unresolved<small>Preserve every claim until you have enough evidence.</small></span></label><ClaimList claims={claims} selection={{ name: `${claimGroupId}-${fieldIndex}`, index: selectedClaimIndex(field), onChange: (index) => selectClaim(field, index) }}/></fieldset>)}</section>}
     <div className="grid-2"><Field label="Definition name" required><input autoFocus onChange={(event) => setName(event.target.value)} required value={name}/></Field><Field hint={baseRef ? 'Definition kind is inherited by an override.' : undefined} label="Definition type"><select disabled={Boolean(baseRef)} onChange={(event) => setKind(event.target.value as CatalogEntityKind)} value={kind}>{kinds.map((value) => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></div>
     <Field hint="One alternate name per line." label="Aliases"><textarea onChange={(event) => setAliases(event.target.value)} value={aliases}/></Field>
     <Field label="Description"><textarea onChange={(event) => setDescription(event.target.value)} placeholder="Optional source or personal description" value={description}/></Field>

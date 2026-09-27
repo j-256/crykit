@@ -61,7 +61,7 @@ export function ClaimList({ claims, selection }: { claims: readonly KnowledgeCla
 
 export function KnowledgeValue({ value, compact = false, showSources = false }: { value: Knowledge<unknown>; compact?: boolean; showSources?: boolean }) {
   if (value.state === 'known') return <><StructuredValue value={value.value}/>{showSources && value.sources?.length ? <SourceReferences sources={value.sources}/> : null}</>
-  if (value.state === 'conflicting') return <><span>{value.claims.length} conflicting claims</span>{!compact && <ClaimList claims={value.claims}/>}</>
+  if (value.state === 'conflicting') return <><span>{value.claims.length} differing source values</span>{!compact && <ClaimList claims={value.claims}/>}</>
   if (value.state === 'notApplicable') return <span>{value.reason ?? 'Not applicable'}</span>
   return <span>{value.reason ?? 'Unknown'}</span>
 }

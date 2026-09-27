@@ -1,3 +1,4 @@
+import type { CorrectionCollection } from '../domain/corrections'
 import type {
   CatalogSnapshot,
   JsonValue,
@@ -65,6 +66,7 @@ export interface PersistedHistoryEntry {
 }
 
 export interface ImportCandidate {
+  readonly corrections?: CorrectionCollection
   readonly profile: Profile
   readonly lineage: ProfileLineage
   readonly catalogs: readonly CatalogSnapshot[]
@@ -93,6 +95,7 @@ export interface ImportPreview {
 export type ImportCommitMode = 'new-profile' | 'merge' | 'replace'
 
 export interface CommitImportOptions {
+  readonly restoreCorrections?: boolean
   readonly mode?: ImportCommitMode
   readonly targetProfileId?: ProfileId
   readonly expectedRevision?: number
@@ -147,6 +150,7 @@ export interface NativeBackupManifest {
 }
 
 export interface NativeBackupPayload {
+  readonly corrections?: CorrectionCollection
   readonly profile: Profile
   readonly lineage: ProfileLineage
   readonly catalogs: readonly CatalogSnapshot[]

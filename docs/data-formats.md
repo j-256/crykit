@@ -68,3 +68,7 @@ IndexedDB is scoped to the application's origin, including scheme, hostname, and
 Every profile write supplies the revision it was based on. The comparison and write occur in one transaction. A stale tab cannot overwrite a newer saved profile. A failed write keeps the open draft available for a recovery export; that draft is distinct from the last committed database revision.
 
 The service worker stores only the static application shell. Its cache does not contain imported source files or personal records, and changing the shell does not migrate or erase profile data. Offline readiness is checked against the complete built asset list.
+
+## Reference correction deltas
+
+The versioned `crystal-companion-corrections` JSON format transfers immutable correction decisions independently of personal records. Full native backups can also include the global correction registry; its restoration is an explicit import option and commits atomically with the profile. See [correction editing, provenance, and baseline promotion](corrections.md) for the contribution workflow and source-review boundaries.

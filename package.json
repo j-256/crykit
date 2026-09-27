@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "corrections:review": "node scripts/review-corrections.mjs",
     "catalog:update": "node scripts/update-wiki-catalog.mjs",
     "check:privacy": "node scripts/privacy-check.mjs",
     "check": "npm run typecheck && npm test && npm run check:privacy && npm run build",
