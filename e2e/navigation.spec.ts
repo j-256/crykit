@@ -34,6 +34,7 @@ async function addCharacter(page: Page, name: string) {
   await form.getByLabel('Character name').fill(name)
   await form.getByRole('button', { name: 'Add character', exact: true }).click()
   await expect(form).not.toBeVisible()
+  await page.getByRole('article', { name, exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
 }
 
 test.beforeEach(async ({ page }) => {

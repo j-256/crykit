@@ -312,6 +312,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
 
 test('the member menu stays compact and learning shares a single workspace', async ({ page, isMobile }) => {
   await page.goto('/#/characters')
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(0)
   const mainHand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
@@ -340,6 +341,7 @@ test('the member menu stays compact and learning shares a single workspace', asy
 
 test('member edits block context switches until saved or discarded', async ({ page }) => {
   await page.goto('/#/characters')
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
   const hand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
   await hand.click()
   await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Observed empty/ }).click()

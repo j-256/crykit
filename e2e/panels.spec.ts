@@ -169,7 +169,7 @@ test('class dropdowns switch fields directly and a lower field opens upward', as
   const creation = page.getByRole('dialog', { name: 'Add character', exact: true })
   await creation.getByLabel('Character name').fill('Synthetic dropdown character')
   await creation.getByRole('button', { name: 'Add character', exact: true }).click()
-  await page.getByRole('button', { name: 'Capture current sheet', exact: true }).click()
+  await page.getByRole('article', { name: 'Synthetic dropdown character', exact: true }).getByRole('link', { name: 'Capture snapshot', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
   const primary = form.getByRole('button', { name: 'Choose Primary class', exact: true })
   const secondary = form.getByRole('button', { name: 'Choose Secondary class', exact: true })

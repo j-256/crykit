@@ -35,6 +35,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   expect(Object.keys(team.assignments)).toHaveLength(2)
 
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
   const characterPicker = page.getByRole('combobox', { name: 'Character', exact: true })
   for (const [name, className, weapon] of [['Rowan', 'Warrior', 'Short Sword'], ['Mira', 'Cleric', 'Short Staff']]) {
     await characterPicker.selectOption({ label: name })

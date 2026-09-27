@@ -26,6 +26,7 @@ import './member.css'
 import { SkillScreenshotImport } from './SkillScreenshotImport'
 import type { ReviewedSkillTree } from '../domain/skill-trees'
 import { CharacterHistory } from './CharacterHistory'
+import { CharacterOverview } from './CharacterOverview'
 
 const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
@@ -316,6 +317,7 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
   const missingCharacter = Boolean(selectedId && !selected)
   const tab: CharacterTab = page.view === 'skill-screenshots' ? 'knowledge' : page.view === 'character' ? page.tab : page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'history' : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current'
   const adding = page.view === 'new'
+  const overview = page.view === 'list' || adding
   const capturing = page.view === 'snapshot-new' && Boolean(selected)
   const snapshot = selected?.currentSnapshotId ? ownRecordValue(selected.snapshots, selected.currentSnapshotId) : undefined
 
@@ -332,11 +334,7 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
         })()
       : undefined
   const editorRequestMissing = (page.view === 'skill-screenshots' || page.view === 'snapshot-new' || page.view === 'class-new' || page.view === 'class-edit' || page.view === 'learning-new' || page.view === 'learning-edit') && (!selected || page.view === 'class-edit' && !classEditor || page.view === 'learning-edit' && !learnedEditor)
-  const navigate = (next: CharactersPageRoute, replace = false) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }, { replace })
-  useEffect(() => {
-    if (page.view !== 'list' || navigation.route.overlays.length || !characters[0]) return
-    navigate({ page: 'characters', view: 'character', characterId: characters[0].id, tab: 'current' }, true)
-  }, [characters, navigation.route.overlays.length, page.view])
+  const navigate = (next: CharactersPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] })
 
   const add = async (draft: CharacterDraft) => { await onAdd(draft); navigation.close() }
   const capture = async (draft: SnapshotDraft) => { if (!selected) return; await onCapture(selected.id, draft) }
@@ -351,9 +349,9 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
   }
   const record = () => { if (selected) navigate({ page: 'characters', view: 'snapshot-new', characterId: selected.id }) }
   return <>
-    <header className="member-toolbar"><h1>Member</h1><div className="member-switcher">{characters.length > 0 && <><IconButton disabled={characters.length < 2} icon="arrow-left" label="Previous member" onClick={() => selectNeighbor(-1)}/><label className="sr-only" htmlFor="member-select">Character</label><select id="member-select" onChange={event => navigate({ page: 'characters', view: 'character', characterId: event.target.value as CharacterId, tab })} value={selected?.id ?? ''}>{!selected && <option value="">Choose a character</option>}{characters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select><IconButton className="member-next" disabled={characters.length < 2} icon="arrow-left" label="Next member" onClick={() => selectNeighbor(1)}/></>}<IconButton icon="plus" label="Add character" onClick={() => navigate({ page: 'characters', view: 'new' })}/></div></header>
+    {overview ? <header className="roster-heading"><div><p className="eyebrow">Character overview</p><h1>Characters</h1><p>Your roster at a glance. Stats and equipment follow each character's current snapshot.</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add character</Button></header> : <header className="member-toolbar"><div className="member-toolbar__heading"><Button icon="arrow-left" onClick={() => navigate({ page: 'characters', view: 'list' })} tone="quiet">Overview</Button><h1>Member</h1></div><div className="member-switcher">{characters.length > 0 && <><IconButton disabled={characters.length < 2} icon="arrow-left" label="Previous member" onClick={() => selectNeighbor(-1)}/><label className="sr-only" htmlFor="member-select">Character</label><select id="member-select" onChange={event => navigate({ page: 'characters', view: 'character', characterId: event.target.value as CharacterId, tab })} value={selected?.id ?? ''}>{!selected && <option value="">Choose a character</option>}{characters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select><IconButton className="member-next" disabled={characters.length < 2} icon="arrow-left" label="Next member" onClick={() => selectNeighbor(1)}/></>}<IconButton icon="plus" label="Add character" onClick={() => navigate({ page: 'characters', view: 'new' })}/></div></header>}
     {(missingCharacter || editorRequestMissing) && <InlineNotice title={missingCharacter ? 'Character unavailable' : 'Character editor unavailable'} tone="warning">This character or observation is unavailable in the active playthrough. <Button onClick={() => navigate({ page: 'characters', view: 'list' })} tone="quiet">Return to characters</Button></InlineNotice>}
-    {characters.length === 0 ? <EmptyState description="Add a character to record your in-game sheet. Unchecked values stay unknown." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : selected && <section className="member-window">
+    {characters.length === 0 ? <EmptyState description="Add a character to record your in-game sheet. Unchecked values stay unknown." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : overview ? <CharacterOverview catalogs={catalogs} profile={profile}/> : selected && <section className="member-window">
       <MemberSummary catalogs={catalogs} character={selected} profile={profile} snapshot={page.view === 'snapshot' ? ownRecordValue(selected.snapshots, page.snapshotId) : snapshot}/>
       <nav aria-label="Character views" className="member-navigation"><div><button aria-current={tab === 'current' ? 'page' : undefined} onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'current' })} type="button">Member</button><button aria-current={learning ? 'page' : undefined} onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'knowledge' })} type="button">Learn</button></div><div><Button aria-current={tab === 'history' ? 'page' : undefined} icon="history" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'history' })} tone="quiet">History</Button><Button disabled={memberDirty} icon="edit" onClick={record} tone="quiet">Capture snapshot</Button></div></nav>
       <div className="member-window__body">

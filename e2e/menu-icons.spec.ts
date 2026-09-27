@@ -9,7 +9,7 @@ async function loadedIcons(container: Locator, count: number) {
 
 async function characterDetails(page: Page) {
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
-  await page.getByRole('combobox', { name: 'Character', exact: true }).selectOption({ label: 'Rowan' })
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
   const desktop = page.locator('.member-detail').filter({ visible: true })
   if (await desktop.count() === 0) {
     await page.getByText('About Warrior', { exact: true }).click()
