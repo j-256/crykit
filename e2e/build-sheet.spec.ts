@@ -117,8 +117,8 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await expect(head).toHaveValue('Red Hat')
   if (isMobile) {
     await page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Red Hat$/ }) }).tap()
-    await expect(page.locator('.build-sheet__preview')).toBeVisible()
-    await expect(page.locator('.build-sheet__preview').getByRole('heading', { name: 'Red Hat', exact: true })).toBeVisible()
+    await expect(page.locator('.build-sheet__preview')).not.toBeVisible()
+    await expect(page.getByText('Details for Red Hat', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Clear Head', exact: true }).tap()
   } else await head.press('Escape')
   await expect(head).toHaveValue('')

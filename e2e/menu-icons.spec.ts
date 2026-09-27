@@ -17,7 +17,7 @@ async function characterDetails(page: Page) {
   return page.locator('.member-detail').filter({ visible: true }).first()
 }
 
-test('game icons accompany character equipment, inventory, and both pickers without external requests', async ({ page, context }) => {
+test('game icons accompany character equipment, inventory, and both pickers without external requests', async ({ page, context, isMobile }) => {
   const external: string[] = []
   page.on('request', request => { if (!['127.0.0.1', 'localhost'].includes(new URL(request.url()).hostname)) external.push(request.url()) })
   await page.goto('/')
@@ -44,7 +44,8 @@ test('game icons accompany character equipment, inventory, and both pickers with
   const warrior = page.getByRole('option').filter({ has: page.getByText('Warrior', { exact: true }) })
   await loadedIcons(warrior, 1)
   await warrior.click()
-  await loadedIcons(page.getByRole('complementary', { name: 'Selection details', exact: true }), 1)
+  const selectedDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Class', exact: true }) }).locator('.build-field__evidence > details > summary') : page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Warrior', exact: true })
+  await loadedIcons(selectedDetails, 1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
 

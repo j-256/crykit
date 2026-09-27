@@ -36,7 +36,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
     }
     // Wait for the containing modal to enter the top layer before its dropdown
     const frame = window.requestAnimationFrame(() => {
-      anchor.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      anchor.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
       popup.showPopover({ source: anchor })
       position()
       initialFocusRef.current?.focus({ preventScroll: true })

@@ -693,6 +693,11 @@ export interface NavigationBlocker {
   readonly scope: AppRoute
   readonly blocked: () => boolean
   readonly onBlocked?: () => void
+  readonly allows?: (to: AppRoute) => boolean
+}
+
+export function isReferenceResearchRoute(route: AppRoute): boolean {
+  return route.page.page === 'reference' && (route.page.view === 'list' || route.page.view === 'detail') && route.overlays.length === 0
 }
 
 export interface NavigationController {
@@ -721,7 +726,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
   const blocked = useCallback((from: AppRoute, to: AppRoute) => {
     if (optionsRef.current.shouldBlock?.(from, to)) { optionsRef.current.onBlocked?.(); return true }
     for (const blocker of blockersRef.current) {
-      if (!blocker.blocked() || isRouteWithin(to, blocker.scope)) continue
+      if (!blocker.blocked() || isRouteWithin(to, blocker.scope) || blocker.allows?.(to)) continue
       blocker.onBlocked?.()
       return true
     }
@@ -829,14 +834,16 @@ export function useNavigation(): NavigationController {
   return value
 }
 
-export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: () => void): void {
+export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: () => void, allows?: (to: AppRoute) => boolean): void {
   const { registerBlocker } = useNavigation()
   const dirtyRef = useRef(dirty)
   const blockedRef = useRef(onBlocked)
+  const allowsRef = useRef(allows)
   dirtyRef.current = dirty
   blockedRef.current = onBlocked
+  allowsRef.current = allows
   const scopeHash = formatAppRoute(scope)
-  useEffect(() => registerBlocker({ scope, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: () => blockedRef.current?.() }), [registerBlocker, scopeHash])
+  useEffect(() => registerBlocker({ scope, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: () => blockedRef.current?.(), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash])
 }
 
 export function routeWithOverlay(route: AppRoute, overlay: RouteOverlay): AppRoute {

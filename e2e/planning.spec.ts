@@ -9,6 +9,11 @@ async function navigate(page: Page, destination: string) {
   await page.getByRole('button', { name }).filter({ visible: true }).click()
 }
 
+async function openBuildLibrary(page: Page) {
+  const library = page.locator('.build-library')
+  if (await library.getAttribute('open') === null) await library.locator(':scope > summary').click()
+}
+
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -215,6 +220,8 @@ test('build drafts resist navigation and recording current preserves known level
   await build.getByText('Build details & notes', { exact: true }).click()
   await build.getByLabel('Build title').fill('Observed Rowan build')
   await build.getByLabel('Character', { exact: true }).selectOption({ label: 'Synthetic Rowan' })
+  await expect(page.getByRole('status', { name: 'Passive PP summary' })).toContainText("Synthetic Rowan's recorded PP capacity: 8")
+  await expect(page.getByRole('status', { name: 'Passive PP summary' })).toContainText('may describe another configuration')
   const editor = page.locator('.build-sheet')
   await editor.getByLabel('Rotation or use notes').fill('Retain this unsaved draft')
   await page.evaluate(() => { window.location.hash = '/inventory' })
@@ -300,6 +307,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   expect(originalRevision.note).toBe('One physical staff')
 
   await page.getByRole('button', { name: 'Clone build', exact: true }).click()
+  await openBuildLibrary(page)
   await expect(page.getByRole('button', { name: /Two-slot template \(copy\)/ })).toHaveAttribute('aria-current', 'true')
   const after = await exportProfile(page)
   const copy = Object.values(after.builds).find((build) => build.id !== originalBuild.id)!
@@ -338,6 +346,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await stock.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(stock).not.toBeVisible()
   await navigate(page, 'Builds')
+  await openBuildLibrary(page)
   await page.getByRole('button', { name: /^Two-slot template Draft/ }).click()
   await editor.getByRole('combobox', { name: 'Off hand: Same copy as', exact: true }).selectOption('')
   await editor.getByText('Build details & notes', { exact: true }).click()

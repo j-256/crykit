@@ -68,10 +68,11 @@ test('universal search focuses the input on shortcuts, reopening, and the search
   await expect(trigger).toBeFocused()
 })
 
-test('starter picklists and universal search work without importing or inventing personal state', async ({ page, isMobile }) => {
+test('starter picklists and universal search work without importing or inventing personal state', async ({ page, isMobile, baseURL }) => {
   const externalRequests: string[] = []
+  const appOrigin = new URL(baseURL!).origin
   page.on('request', (request) => {
-    if (!request.url().startsWith('http://127.0.0.1:4173/')) externalRequests.push(request.url())
+    if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url())
   })
   const blank = await exportProfile(page)
   expect(blank.profile.inventory).toEqual({})
@@ -254,8 +255,9 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await buildEditor.getByLabel('Checkpoint name').fill('Before personal correction')
   const palette = await search(page, 'Taunt')
   await palette.locator('[data-universal-result="true"]').first().click()
-  await expect(palette.getByText('Navigation blocked', { exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
+  await expect(palette).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Return to build draft', exact: true }).click()
   await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Before personal correction')
   await buildEditor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
