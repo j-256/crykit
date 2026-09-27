@@ -91,8 +91,16 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .context-bar { position: sticky; top: 0; z-index: 15; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 clamp(22px, 3vw, 40px); border-bottom: 1px solid var(--line-strong); background: var(--ink-900); box-shadow: 0 2px 0 #111b22; }
 .context-bar__group, .context-item, .context-status { display: flex; align-items: center; }
 .context-bar__group { min-width: 0; gap: 8px; }
-.context-item { min-width: 0; gap: 9px; padding-right: 16px; }
-.context-item + .context-item { padding-left: 16px; border-left: 1px solid var(--line); }
+.context-picker { min-width: 0; }
+.context-picker + .context-picker { border-left: 1px solid var(--line); padding-left: 8px; }
+.context-item { min-width: 0; width: 100%; min-height: 44px; gap: 9px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; text-align: left; }
+.context-item:hover, .context-item[aria-expanded="true"] { border-color: var(--line-strong); background: var(--selection); }
+.context-item:hover .context-item__label, .context-item[aria-expanded="true"] .context-item__label { color: var(--text); }
+.context-item__text { min-width: 0; flex: 1; }
+.context-item > svg { flex-shrink: 0; }
+.context-item > svg:last-child { width: 14px; height: 14px; }
+.context-picker__hint { margin: 4px 12px 10px; color: var(--text-dim); font-size: .76rem; }
+.context-picker__error { padding: 0 8px 8px; overflow-y: auto; }
 .context-item svg { color: var(--cyan-300); }
 .context-item__label { display: block; margin-bottom: 1px; color: var(--text-faint); font-size: .64rem; letter-spacing: .09em; text-transform: uppercase; }
 .context-item__value { max-width: 210px; display: block; overflow: hidden; color: var(--text); font-size: .82rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
@@ -583,15 +591,14 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .mobile-header .brand__mark svg { width: 28px; height: 36px; }
   .mobile-header .brand__name { max-width: none; margin-bottom: 3px; font-size: var(--menu-size-compact); line-height: 1; }
   .mobile-header .brand__tagline { max-width: 190px; font-size: .58rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .context-bar { top: 64px; z-index: 19; height: 38px; gap: 10px; padding: 0 14px; background: rgba(23, 29, 34, .94); }
-  .context-bar__group { flex: 1 1 auto; overflow: hidden; }
-  .context-item { display: none; padding: 0; }
-  .context-item--profile, .context-item--scenario { display: flex; }
-  .context-item + .context-item { padding-left: 9px; }
-  .context-item svg { width: 14px; height: 14px; }
-  .context-item__label { display: none; }
-  .context-item__value { max-width: min(32vw, 150px); font-size: .68rem; }
-  .context-status { font-size: .67rem; }
+  .context-bar { top: 64px; z-index: 19; height: auto; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--ink-900); }
+  .context-bar__group { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .context-picker + .context-picker { padding-left: 4px; }
+  .context-item { gap: 2px; padding: 4px; }
+  .context-item > svg:first-child { display: none; }
+  .context-item__label { font-size: .58rem; }
+  .context-item__value { max-width: none; font-size: .72rem; }
+  .context-status { margin-left: auto; font-size: .67rem; }
   .context-status__dot { width: 6px; height: 6px; }
   .bottom-nav { position: fixed; inset: auto 0 0; z-index: 30; height: calc(66px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px 3px env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: rgba(23, 29, 34, .95); backdrop-filter: blur(18px); }
   .bottom-nav button { min-width: 0; min-height: 55px; display: grid; place-items: center; align-content: center; gap: 3px; padding: 2px; color: var(--text-faint); border: 0; background: transparent; font-size: .61rem; font-weight: 650; }

@@ -63,6 +63,22 @@ afterEach(() => {
 })
 
 describe('navigation controller history', () => {
+  it('reports drafts for context changes even when navigation stays inside their scope', async () => {
+    const root = createRoot(container)
+    await act(async () => { root.render(<Harness/>); await tick() })
+    let dirty = true
+    const unregister = controller.registerBlocker({ scope: controller.route, blocked: () => dirty })
+    expect(controller.hasOpenDraft()).toBe(true)
+    await act(async () => { expect(controller.navigate(controller.route)).toBe(true) })
+    expect(controller.hasOpenDraft()).toBe(true)
+    dirty = false
+    expect(controller.hasOpenDraft()).toBe(false)
+    dirty = true
+    unregister()
+    expect(controller.hasOpenDraft()).toBe(false)
+    await act(async () => root.unmount())
+  })
+
   it('opens direct-linked sheets in semantic parent-to-child order regardless of render order', async () => {
     const root = createRoot(container)
     let childClosed = 0

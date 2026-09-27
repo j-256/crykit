@@ -702,6 +702,7 @@ export interface NavigationController {
   readonly close: () => boolean
   readonly href: (route: AppRoute) => string
   readonly registerBlocker: (blocker: NavigationBlocker) => () => void
+  readonly hasOpenDraft: () => boolean
 }
 
 export function useNavigationController(options: { readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: () => void } = {}): NavigationController {
@@ -811,7 +812,9 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
     return () => blockersRef.current.delete(blocker)
   }, [])
 
-  return useMemo(() => ({ route, destination: routeDestination(route), navigate, close, href: formatAppRoute, registerBlocker }), [close, navigate, registerBlocker, route])
+  const hasOpenDraft = useCallback(() => [...blockersRef.current].some((blocker) => blocker.blocked()), [])
+
+  return useMemo(() => ({ route, destination: routeDestination(route), navigate, close, href: formatAppRoute, registerBlocker, hasOpenDraft }), [close, navigate, registerBlocker, hasOpenDraft, route])
 }
 
 const NavigationContext = createContext<NavigationController | undefined>(undefined)

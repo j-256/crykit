@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
-import type { CatalogSnapshot, Profile } from '../domain/types'
-import { activeRuleset } from './model'
+import type { CatalogSnapshot, Profile, ProfileId, RulesetRevisionId, ScenarioId } from '../domain/types'
+import type { ProfileSummary } from '../interchange/types'
+import { ContextSelectors } from './ContextSelectors'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
@@ -20,10 +21,8 @@ function Brand() {
   return <div className="brand"><span className="brand__mark"><Icon name="crystal" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">A Crystal Project planner</span></span></div>
 }
 
-export function Shell({ profile, catalogs, destination, saveState, onOpenData, children }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ profile, profiles, catalogs, destination, saveState, contextBusy, onSelectProfile, onSelectRuleset, onSelectScenario, onOpenData, children }: { profile: Profile; profiles: readonly ProfileSummary[]; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectProfile: (id: ProfileId) => Promise<void>; onSelectRuleset: (id: RulesetRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
-  const ruleset = activeRuleset(profile)
-  const scenario = profile.activeScenarioId ? profile.scenarios[profile.activeScenarioId] : undefined
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
   const navigate = (next: Destination) => {
@@ -56,11 +55,7 @@ export function Shell({ profile, catalogs, destination, saveState, onOpenData, c
     <main className="main-shell">
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
-        <div className="context-bar__group">
-          <div className="context-item context-item--profile"><Icon name="archive"/><span><span className="context-item__label">Playthrough</span><span className="context-item__value">{profile.label}</span></span></div>
-          <div className="context-item context-item--ruleset"><Icon name="shield"/><span><span className="context-item__label">Ruleset</span><span className="context-item__value">{ruleset?.label ?? 'Not configured'}</span></span></div>
-          {(destination === 'builds' || scenario) && <div className="context-item context-item--scenario"><Icon name="team"/><span><span className="context-item__label">Scenario</span><span className="context-item__value">{scenario?.label ?? 'None selected'}</span></span></div>}
-        </div>
+        <ContextSelectors busy={contextBusy} onSelectProfile={onSelectProfile} onSelectRuleset={onSelectRuleset} onSelectScenario={onSelectScenario} profile={profile} profiles={profiles}/>
         <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>
       </header>
       <div className="content">{children}</div>

@@ -14,6 +14,8 @@ URLs describe navigation, not a backup of unsaved form fields. Refresh can reope
 
 Personal record links depend on the active playthrough and browser storage at the same origin. A copied link does not transfer the referenced data to another browser or device. Import a native backup and select the relevant playthrough before opening its record links. A missing record or unavailable catalog revision produces a recovery message instead of silently opening a different record.
 
+The top context dropdowns persist active playthrough, ruleset, and scenario choices in browser storage. Their search and open state are temporary and do not add URL history entries. A playthrough switch returns to the current destination's list, avoiding reuse of another profile's record address. Selecting a scenario while viewing teams opens that team's address. Context changes check open drafts even when they leave the route unchanged. Scenario selection and ruleset selection are independent; a scenario's dropdown entry shows its pinned ruleset and identifies differences from the active ruleset.
+
 Import previews depend on the file selected in that browser session. Their URLs cannot restore the file bytes after refresh; reopen the local file to review the preview again. Visiting any route does not approve an import or perform a saved-data mutation.
 
 Reference and inventory filter parameters remain in the address where needed. Source filters display readable labels while retaining the exact source values for filtering and provenance. The older encoded search-target and reference-selection links are accepted and converted to semantic paths.

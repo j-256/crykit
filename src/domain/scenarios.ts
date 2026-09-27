@@ -110,6 +110,23 @@ export interface ReplaceScenarioBuildInput {
   readonly expectedRevision?: number
 }
 
+export interface ActivateScenarioInput {
+  readonly scenarioId: ScenarioId | null
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+export function activateScenario(profile: Profile, input: ActivateScenarioInput): Profile {
+  assertExpectedRevision(profile, input.expectedRevision)
+  if (input.scenarioId !== null && !Object.hasOwn(profile.scenarios, input.scenarioId)) {
+    throw new DomainError('MISSING_SCENARIO', `Scenario does not exist: ${input.scenarioId}`)
+  }
+  const activeScenarioId = input.scenarioId ?? undefined
+  if (profile.activeScenarioId === activeScenarioId) return profile
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  return updateProfile(profile, { activeScenarioId }, 'scenario.activate', ['activeScenarioId'], at)
+}
+
 export function replaceScenarioBuild(profile: Profile, input: ReplaceScenarioBuildInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
   const current = profile.scenarios[input.scenarioId]
