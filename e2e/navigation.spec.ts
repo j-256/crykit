@@ -42,16 +42,17 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('character tabs and nested definition routes restore exact UI state', async ({ page }) => {
+test('character learning and nested definition routes restore exact UI state', async ({ page }) => {
   await addCharacter(page, 'Synthetic route keeper')
   await expect(page).toHaveURL(/#\/characters\/[^/]+\/current$/)
 
-  await page.getByRole('tab', { name: 'Monster Magic', exact: true }).click()
-  await expect(page).toHaveURL(/#\/characters\/[^/]+\/magic$/)
+  const currentUrl = page.url()
+  await page.goto(currentUrl.replace(/current$/, 'magic'))
+  await expect(page.getByRole('combobox', { name: 'Skill type', exact: true })).toHaveValue('monsterMagic')
   await page.reload()
-  await expect(page.getByRole('tab', { name: 'Monster Magic', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveAttribute('aria-current', 'page')
 
-  await page.getByRole('tab', { name: 'Current', exact: true }).click()
+  await page.getByRole('button', { name: 'Member', exact: true }).click()
   await page.getByRole('button', { name: 'Capture current sheet', exact: true }).click()
   const capture = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
   await expect(page).toHaveURL(/#\/characters\/[^/]+\/current\/snapshots\/new$/)

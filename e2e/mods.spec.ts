@@ -70,8 +70,8 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  await expect(page.getByText('Doge Shield: enabled', { exact: true })).toBeVisible()
-  await page.getByText('Recorded mods', { exact: true }).click()
+  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield: enabled' })).toBeVisible()
+  await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.locator('.recorded-sheet')).toContainText('Equipment Expansion')
   await page.getByRole('link', { name: 'Doge Shield', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toBeVisible()
@@ -103,7 +103,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Heavy Edge' })).toHaveCount(1)
   await page.keyboard.press('Escape')
   await form.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.getByRole('tab', { name: 'History', exact: true }).click()
+  await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
   await page.getByLabel('Show unchanged fields', { exact: true }).check()
   await expect(page.getByRole('region', { name: 'Hand', exact: true }).getByText('Doge Shield: enabled', { exact: true })).toHaveCount(2)
@@ -124,7 +124,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(palette.locator('.universal-search__result')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  await expect(page.getByText('Doge Shield: enabled', { exact: true })).toBeVisible()
+  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield: enabled' })).toBeVisible()
 })
 
 test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', async ({ page, context }) => {

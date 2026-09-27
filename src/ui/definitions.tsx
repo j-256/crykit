@@ -14,6 +14,7 @@ import { activeCorrections, bundledHiddenEntityKeys, historicalCatalogKeys, corr
 import { ClaimList } from './KnowledgeValue'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
+const defaultOptionLabel = (option: DefinitionOption) => option.name
 const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
 
 type DefinitionRecord = CatalogEntity | PersonalDefinition
@@ -267,6 +268,10 @@ export interface DefinitionDropdownProps {
   readonly emptyLabel?: string
   readonly emptyDescription?: string
   readonly createLabel?: string
+  readonly compact?: boolean
+  readonly filterOption?: (option: DefinitionOption) => boolean
+  readonly optionLabel?: (option: DefinitionOption) => string
+  readonly onInspect?: (option: DefinitionOption) => void
   readonly query?: string
   readonly resultLimit?: number
   readonly onQueryChange?: (query: string) => void
@@ -275,7 +280,7 @@ export interface DefinitionDropdownProps {
   readonly onSelect: (ref: EntityRef | null | undefined) => void
 }
 
-export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
+export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Observed empty', emptyDescription = 'Record that this slot was checked and empty', createLabel = 'Create personal definition', compact = false, filterOption, optionLabel = defaultOptionLabel, onInspect, query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
   const { profile, options, availableOptions } = useDefinitionWorkspace()
   const [internalQuery, setInternalQuery] = useState('')
@@ -308,9 +313,10 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
   }
   const selectedOption = findDefinitionOption(options, selected)
   const candidates = useMemo(() => {
+    if (!open) return []
     const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-    return availableOptions.filter((option) => allowedKinds.includes(option.kind) && (!tokens.length || tokens.every((token) => `${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
-  }, [allowedKinds, availableOptions, query])
+    return availableOptions.filter((option) => allowedKinds.includes(option.kind) && (!filterOption || filterOption(option)) && (!tokens.length || tokens.every((token) => `${optionLabel(option)} ${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
+  }, [allowedKinds, availableOptions, filterOption, open, optionLabel, query])
   const visible = candidates.slice(0, limit)
   const selectedVisible = selectedOption && allowedKinds.includes(selectedOption.kind) && visible.some((option) => option.key === selectedOption.key)
   const focusResult = (direction: 1 | -1 | 'first' | 'last', event: KeyboardEvent<HTMLElement>) => {
@@ -340,7 +346,7 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
         {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span><strong>Unknown or unrecorded</strong><small>Keep this field explicitly unknown</small></span></button>}
         {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
         {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span><strong>{selectedOption.name}</strong><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small>{selectedOption.modAvailability?.requiredMod && <small className="picker-result__warning">{modAvailabilityLabel(selectedOption.modAvailability)}</small>}</span><Icon name="check"/></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{option.name}</strong>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{option.description && <small className="picker-result__description" title={option.description}>{option.description}</small>}<small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small><span className="picker-result__status">{option.kind === 'item' && <small>{option.stockLabel}</small>}{option.modAvailability?.requiredMod && <small>{modAvailabilityLabel(option.modAvailability)}</small>}{option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} onPointerMove={() => onInspect?.(option)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionLabel(option)}</strong>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={option.description}>{option.description}</small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{option.modAvailability?.requiredMod && <small>{modAvailabilityLabel(option.modAvailability)}</small>}{!compact && option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
         {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>

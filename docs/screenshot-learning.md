@@ -1,6 +1,6 @@
 # Screenshot learning imports
 
-Open Characters, select a roster member, and choose **Import skill screenshots**. Add the roster members first so the review can link every screenshot to an exact character. Choose local PNG or JPEG files from the game's Learn menu, including the character header, highlighted class row, and complete skill tree. The selected class row identifies the tree; the equipped class in the header can be different.
+Open Characters, select a roster member, and choose **Learn > Import skill screenshots**. Add the roster members first so the review can link every screenshot to an exact character. Choose local PNG or JPEG files from the game's Learn menu, including the character header, highlighted class row, and complete skill tree. The selected class row identifies the tree; the equipped class in the header can be different.
 
 The reader supports uncropped 16:9 screenshots at least 960 pixels wide, with the four-column Learn-menu layout. It normalizes the screenshot to the observed 1280 by 720 layout for analysis. File, batch, and pixel limits are enforced before recognition; oversized or unsupported images produce an error in the review. The file picker accepts up to 64 images, at most 8 MiB per image and 64 MiB in total, with at most 16 megapixels per image. Other layouts, photographs, UI themes, crops, and localization are not verified. An equipment screen is rejected rather than imported as learning.
 

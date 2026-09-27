@@ -85,7 +85,8 @@ test('character, party progress, and historical events remain independent observ
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
 
-  await page.getByRole('tab', { name: 'Monster Magic', exact: true }).click()
+  await page.getByRole('button', { name: 'Learn', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Skill type', exact: true }).selectOption('monsterMagic')
   await page.getByRole('button', { name: 'Add spell', exact: true }).click()
   const learning = page.getByRole('dialog', { name: 'Record Monster Magic' })
   await learning.getByRole('button', { name: 'Choose Monster Magic', exact: true }).click()
@@ -222,7 +223,7 @@ test('build drafts resist navigation and recording current preserves known level
   if (!isMobile) {
     const settings = await openData(page)
     await expect(settings).not.toBeVisible()
-    await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
+    await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
     await expect(page).toHaveURL(/#\/builds\/library\/new$/)
     await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
   }
@@ -380,7 +381,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await form.getByRole('button', { name: 'Remove stat', exact: true }).last().click()
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(form).not.toBeVisible()
-  await expect(page.getByText('Observed empty', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Empty')
   const empty = await exportProfile(page)
   const character = Object.values(empty.characters)[0]!
   const emptySnapshot = character.snapshots[character.currentSnapshotId!]!
@@ -391,7 +392,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Unknown or unrecorded/ }).click()
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(form).not.toBeVisible()
-  await expect(page.getByText('Unknown or unrecorded', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Unknown')
   const unrecorded = await exportProfile(page)
   const updated = unrecorded.characters[character.id]!
   expect(updated.snapshots[updated.currentSnapshotId!]!.selections).not.toHaveProperty(slotId)

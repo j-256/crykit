@@ -382,7 +382,7 @@ function supportsDefinitionPicker(page: PageRoute, fieldKey: string): boolean {
     return page.view === 'event-new' && fieldKey === 'event-item-reference'
   }
   if (page.page === 'characters') {
-    if (page.view === 'snapshot-new') return fieldKey === 'primary-class' || fieldKey === 'secondary-class' || fieldKey.startsWith('slot:')
+    if (page.view === 'snapshot-new' || page.view === 'character' && page.tab === 'current') return fieldKey === 'primary-class' || fieldKey === 'secondary-class' || fieldKey.startsWith('slot:')
     if (page.view === 'class-new') return fieldKey === 'class-reference'
     if (page.view === 'learning-new') return fieldKey === 'node-reference'
     return false

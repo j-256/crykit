@@ -39,9 +39,10 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   for (const [name, className, weapon] of [['Rowan', 'Warrior', 'Short Sword'], ['Mira', 'Cleric', 'Short Staff']]) {
     await characterPicker.selectOption({ label: name })
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: className, exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: weapon, exact: true })).toBeVisible()
-    await expect(page.getByText('Sample data for exploring the planner. Replace it with your own observations.', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Choose Class', exact: true })).toContainText(className)
+    await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText(weapon)
+    await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
+    await expect(page.locator('.member-record > p').filter({ hasText: /^Sample data for exploring the planner/ })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.screenshot({ path: testInfo.outputPath('sample-character.png'), fullPage: true })

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { addRulesetRevision, asId, captureCharacter, createCharacter } from '../src/domain'
-import { addTestBuild, addTestDefinition, createTestProfile, HAND_SLOT, known, personalRef, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
+import { addRulesetRevision, asId, captureCharacter, createCharacter, upsertCharacterClassProgress } from '../src/domain'
+import { addTestBuild, addTestDefinition, createTestProfile, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
 import type { CharacterId, CharacterSnapshotId, Profile, RulesetRevisionId } from '../src/domain/types'
 
 const CHARACTER_ID = asId<CharacterId>('synthetic-rowan')
@@ -13,10 +13,12 @@ const BEFORE_DATE = '2026-01-01T10:00:00.000Z'
 function syntheticProfile(changedContext = false): Profile {
   let profile = createTestProfile()
   profile = addTestDefinition(profile, 'Synthetic blade')
+  profile = addTestDefinition(profile, 'Synthetic warrior', { kind: 'class' })
   profile = createCharacter(profile, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
   profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, level: known(24), ppCapacity: known(8), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, level: known(26), ppCapacity: { state: 'unknown' }, displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade') }, observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
+  profile = upsertCharacterClassProgress(profile, { characterId: CHARACTER_ID, classRef: personalRef('Synthetic warrior'), observedLp: known(12), now: TEST_NOW })
+  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), ppCapacity: known(8), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
+  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), ppCapacity: { state: 'unknown' }, displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade') }, observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
   profile = addTestBuild(profile, 'Synthetic Rowan proposal', CHARACTER_ID, {})
   profile = addTestBuild(profile, 'Synthetic Mira proposal', 'synthetic-mira', {})
   if (changedContext) {
@@ -63,10 +65,15 @@ async function exportProfile(page: Page): Promise<Profile> {
   return payload.profile
 }
 
-test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', async ({ page, isMobile }) => {
+test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', async ({ page }) => {
   const original = await loadFixture(page)
+  const lp = page.locator('.member-vital').filter({ has: page.locator('dt', { hasText: /^LP$/ }) })
+  await expect(lp).toContainText('12')
   const stats = page.getByRole('region', { name: 'Displayed final stats', exact: true })
   const equipment = page.getByRole('region', { name: 'Equipment and equipped passives', exact: true })
+  await page.getByRole('button', { name: 'Status Recorded stats', exact: true }).click()
+  await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
+  await page.getByText('Planned builds', { exact: true }).click()
   await expect(stats.getByText('620', { exact: false })).toBeVisible()
   await expect(page.getByText('Synthetic later observation', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true })).toBeVisible()
@@ -75,12 +82,14 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   const equipmentBounds = await equipment.boundingBox()
   expect(statBounds).not.toBeNull()
   expect(equipmentBounds).not.toBeNull()
-  if (!isMobile) expect(Math.abs(statBounds!.y - equipmentBounds!.y)).toBeLessThan(2)
+  expect(equipmentBounds!.y).toBeLessThan(statBounds!.y)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await page.getByRole('tab', { name: 'History', exact: true }).click()
+  await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Inspect snapshot', exact: true }).last().click()
   await expect(page).toHaveURL(new RegExp(`/history/snapshots/${BEFORE_ID}$`))
   await expect(page.getByText('Synthetic earlier observation', { exact: true })).toBeVisible()
+  await expect(lp).toContainText('Unknown')
+  await expect(page.locator('.member-state')).toHaveText('Historical')
   await expect(page.getByRole('button', { name: 'Edit Hand', exact: true })).toHaveCount(0)
   await page.reload()
   await expect(stats.getByText('540 points', { exact: true })).toBeVisible()
@@ -109,7 +118,7 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   expect(exported.inventory).toEqual({})
 })
 
-test('direct slot editing protects a draft and saves a new observation offline', async ({ page, isMobile, context }) => {
+test('direct slot editing protects a draft and saves a new observation offline', async ({ page, context }) => {
   const original = await loadFixture(page)
   const storage = await dataPanel(page)
   await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -120,28 +129,21 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await page.reload()
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)
   expect(await page.evaluate(() => fetch('/synthetic-uncached-offline-probe').then(() => false, () => true))).toBe(true)
-  await page.getByRole('button', { name: 'Edit Hand', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose Hand', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Hand', exact: true })
-  const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
+  await expect(page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })).toHaveCount(0)
   await expect(picker.getByRole('searchbox')).toBeFocused()
   await picker.getByRole('button', { name: /^Observed empty/ }).click()
-  await expect(form.getByRole('button', { name: 'Choose Hand', exact: true })).toBeFocused()
-  await page.keyboard.press('Escape')
-  await expect(form.getByText('Unsaved snapshot', { exact: true })).toBeAttached()
-  await expect(form).toBeVisible()
-  if (!isMobile) {
-    const bounds = await form.boundingBox()
-    expect(bounds!.x).toBeGreaterThan(0)
-    await page.mouse.click(bounds!.x - 8, bounds!.y + 20)
-    await expect(form).toBeVisible()
-  }
-  await page.goBack()
-  await expect(form).toBeVisible()
-  await expect(page).toHaveURL(/\/current\/snapshots\/new$/)
-  await form.getByLabel('Snapshot note', { exact: true }).fill('Synthetic changed hand')
-  await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
-  await expect(form).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Empty')
+  await page.getByRole('button', { name: 'Next member', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Synthetic Rowan', exact: true })).toBeVisible()
+  await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
+  await page.getByLabel('Snapshot note', { exact: true }).fill('Synthetic changed hand')
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
   await page.reload()
+  await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.getByText('Synthetic changed hand', { exact: true })).toBeVisible()
   const saved = await exportProfile(page)
   const character = saved.characters[CHARACTER_ID]!
@@ -151,7 +153,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   expect(character.snapshots[character.currentSnapshotId!]!.rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
   expect(character.learnedNodes).toEqual({})
   expect(saved.inventory).toEqual({})
-  await page.getByRole('tab', { name: 'History', exact: true }).click()
+  await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Hand', exact: true })).toContainText('Observed empty')
   await page.reload()
@@ -220,6 +222,7 @@ test('snapshot save failure retains entered fields and retries a single observat
 
 test('recording a proposal retains its ruleset and requires in-game confirmation', async ({ page }) => {
   const original = await loadFixture(page, true)
+  await page.getByText('Planned builds', { exact: true }).click()
   await page.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true }).click()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
   const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
@@ -237,4 +240,121 @@ test('recording a proposal retains its ruleset and requires in-game confirmation
   expect(character.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
   expect(character.learnedNodes).toEqual({})
   expect(saved.inventory).toEqual({})
+})
+
+test('member picker links preserve unknown and empty selections and guard the inline draft', async ({ page }) => {
+  const original = await loadFixture(page)
+  await page.goto(`/#/characters/${CHARACTER_ID}/current/pick/slot/${PASSIVE_SLOT}`)
+  const passivePicker = page.getByRole('dialog', { name: 'Choose Passive 1', exact: true })
+  await expect(passivePicker.getByRole('searchbox')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Choose Passive 1', exact: true })).toBeFocused()
+  await page.goto(`/#/characters/${CHARACTER_ID}/current/pick/slot/${HAND_SLOT}`)
+  const picker = page.getByRole('dialog', { name: 'Choose Hand', exact: true })
+  await expect(picker.getByRole('searchbox')).toBeFocused()
+  await page.reload()
+  await expect(picker.getByRole('searchbox')).toBeFocused()
+  await picker.getByRole('button', { name: /^Unknown or unrecorded/ }).click()
+  await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Unknown')
+  await page.getByRole('button', { name: 'Choose Second hand', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Choose Second hand', exact: true }).getByRole('button', { name: /^Observed empty/ }).click()
+  await page.getByRole('button', { name: 'History', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/characters/${CHARACTER_ID}/current$`))
+  await expect(page.getByRole('button', { name: 'Capture snapshot', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  const saved = await exportProfile(page)
+  const member = saved.characters[CHARACTER_ID]!
+  const recorded = member.snapshots[member.currentSnapshotId!]!
+  expect(recorded.selections).not.toHaveProperty(HAND_SLOT)
+  expect(recorded.selections['second-hand']).toBeNull()
+  expect(recorded.displayedStats).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID]!.displayedStats)
+  expect(saved.inventory).toEqual(original.inventory)
+  expect(saved.buildRevisions).toEqual(original.buildRevisions)
+  await page.getByRole('button', { name: 'Next member', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Synthetic Mira', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Previous member', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Unknown')
+})
+
+for (const retryAction of ['Retry member save', 'Retry save']) {
+  test(`inline save failure retains the member draft and ${retryAction} persists the same snapshot`, async ({ page }) => {
+    const original = await loadFixture(page)
+    await page.getByRole('button', { name: 'Choose Hand', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Choose Hand', exact: true }).getByRole('button', { name: /^Observed empty/ }).click()
+    await page.getByLabel('Snapshot note', { exact: true }).fill('Synthetic inline recovery')
+    await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put
+      let failOnce = true
+      IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+        if (this.name === 'profiles' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+        return put.apply(this, args)
+      }
+    })
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    await expect(page.getByText('Snapshot not saved', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Snapshot note', { exact: true })).toHaveValue('Synthetic inline recovery')
+    await expect(page.getByLabel('Snapshot note', { exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: retryAction, exact: true }).click()
+    await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Retry member save', exact: true })).toHaveCount(0)
+    await expect(page.getByText('Snapshot not saved', { exact: true })).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Empty')
+    const saved = await exportProfile(page)
+    const member = saved.characters[CHARACTER_ID]!
+    expect(Object.values(member.snapshots)).toHaveLength(Object.keys(original.characters[CHARACTER_ID]!.snapshots).length + 1)
+    expect(Object.values(member.snapshots).filter(snapshot => snapshot.note === 'Synthetic inline recovery')).toHaveLength(1)
+    expect(member.snapshots[BEFORE_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
+    expect(member.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
+  })
+}
+
+test('the member menu stays compact and learning shares a single workspace', async ({ page, isMobile }) => {
+  await page.goto('/#/characters')
+  await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab')).toHaveCount(0)
+  const mainHand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
+  const bounds = await mainHand.boundingBox()
+  expect(bounds!.y).toBeLessThan(isMobile ? 600 : 500)
+  await expect(page.getByRole('button', { name: 'Choose Passive 1', exact: true })).toHaveCount(0)
+  await mainHand.click()
+  const picker = page.getByRole('dialog', { name: 'Choose Main hand', exact: true })
+  await picker.getByRole('searchbox').fill('Ancient Labyrinth Map')
+  await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Ancient Labyrinth Map' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(mainHand).toBeFocused()
+  await page.getByRole('button', { name: 'Learn', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Class progress', exact: true })).toContainText('Warrior')
+  await expect(page.getByRole('region', { name: 'Learned skills', exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Skill type', exact: true }).selectOption('monsterMagic')
+  await expect(page.getByRole('button', { name: 'Add spell', exact: true })).toBeVisible()
+  const url = page.url()
+  for (const section of ['classes', 'knowledge', 'magic']) {
+    await page.goto(url.replace(/knowledge$/, section))
+    await expect(page.getByRole('region', { name: 'Character learning', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveAttribute('aria-current', 'page')
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('member edits block context switches until saved or discarded', async ({ page }) => {
+  await page.goto('/#/characters')
+  const hand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
+  await hand.click()
+  await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Observed empty/ }).click()
+  const scenario = page.getByRole('button', { name: /^Scenario:/ })
+  await scenario.click()
+  const picker = page.getByRole('dialog', { name: 'Choose scenario', exact: true })
+  await picker.getByRole('button', { name: /^None selected/ }).click()
+  await expect(picker.getByText('Scenario switch failed', { exact: true })).toBeVisible()
+  await expect(picker).toContainText('Save or discard open form edits')
+  await page.keyboard.press('Escape')
+  await expect(hand).toContainText('Empty')
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+  await expect(hand).toContainText('Short Sword')
+  await scenario.click()
+  await picker.getByRole('button', { name: /^None selected/ }).click()
+  await expect(picker).not.toBeVisible()
+  await expect(scenario).toHaveAccessibleName('Scenario: None selected')
 })
