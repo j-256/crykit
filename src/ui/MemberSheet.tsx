@@ -11,6 +11,7 @@ import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { entityName, formatAppError, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
 import { routeWithOverlay, routeWithoutOverlays, useNavigation, useNavigationBlocker, type AppRoute } from './navigation'
 import { WikiSprite, WikiSpriteSource } from './WikiSprite'
+import { DefinitionArtwork, FieldIconSources } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
 
@@ -33,6 +34,7 @@ function currentMemberPicker(route: AppRoute) {
 export function MemberArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
   const ref = value?.kind === 'personal' ? profile.personalDefinitions[value.definitionId]?.baseRef : value
   const entity = resolveEntity(profile, catalogs, ref)
+  if (entity && ['ability', 'passive', 'monsterMagic', 'command'].includes(entity.kind)) return <DefinitionArtwork catalogs={catalogs} profile={profile} value={ref}/>
   return ref?.kind === 'catalog' && entity ? <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/> : null
 }
 
@@ -61,10 +63,10 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
     <div className="member-detail__title">{ref.kind === 'catalog' && <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<h3>{option.name}</h3></div>
     <span className="member-detail__kind">{option.kind === 'class' ? 'Class reference' : 'Definition reference'}</span>
     {option.description && <p>{option.description}</p>}
-    <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue value={value}/></dd></div>)}</dl>
+    <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} value={value}/></dd></div>)}</dl>
     {option.ppCost && option.ppCost.state !== 'notApplicable' && <p>PP: <KnowledgeValue value={option.ppCost}/></p>}
     {option.modAvailability?.requiredMod && <p className="member-detail__availability">{modAvailabilityLabel(option.modAvailability)}</p>}
-    <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
+    <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
   </div>
 }
 
@@ -192,7 +194,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
     {!ruleset || ruleset.id !== profile.activeRulesetRevisionId ? <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the active ruleset. This observation keeps its original slot labels. <Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record under active ruleset</Button></InlineNotice> : null}
     <div className="member-sheet__layout">
       <section aria-label="Equipment and equipped passives" className="member-menu">
-        <div className="member-menu__group">{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</div>
+        <div className="member-menu__group">{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</div>
         <div className="member-menu__group">{slots.filter(slot => slot.kind !== 'passive').map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</div>
         <div className="member-menu__group"><button aria-expanded={passivesOpen || requestedPassive} className="member-row" onClick={() => setPassivesOpen(value => !value)} type="button"><span className="member-row__label">Passives</span><span className="member-row__value member-passives">{passives.map(slot => <span className="member-passive" data-state={slot.selection === undefined ? 'unknown' : slot.selection === null ? 'empty' : 'equipped'} key={slot.id} title={`${slot.label}: ${display(slot.selection)}`}><Icon name="crystal"/></span>)}<span className="sr-only">{passives.map(slot => `${slot.label}: ${display(slot.selection)}`).join('; ')}</span><Icon name="chevron-down"/></span></button>{(passivesOpen || requestedPassive) && <div className="member-passive-list"><p>PP capacity: {knowledgeLabel(snapshot.ppCapacity)}</p>{passives.map(slotField)}</div>}
           <button className="member-row" onClick={onLearn} type="button"><span className="member-row__label">Learn</span><span className="member-row__value">Classes & skills<Icon name="tome"/></span></button>

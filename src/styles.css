@@ -447,9 +447,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .wiki-sprite { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 56px; min-height: 48px; }
 .wiki-sprite--detail { width: auto; min-width: 48px; margin-block: 8px; }
 .wiki-sprite img { display: block; image-rendering: pixelated; object-fit: contain; }
-.wiki-sprite-source, .wiki-sprite-missing { color: var(--text-dim); font-size: .75rem; }
-.wiki-sprite-source summary { width: fit-content; cursor: pointer; }
-.wiki-sprite-source p, .wiki-sprite-source ul { margin-block: 8px; }
+.wiki-sprite.wiki-sprite--compact { width: 30px; min-height: 28px; flex: 0 0 30px; }
+.game-icon { display: inline-flex; width: 24px; height: 24px; flex: 0 0 24px; align-items: center; justify-content: center; vertical-align: middle; }
+.game-icon__crop { position: relative; display: block; overflow: hidden; flex: none; }
+.game-icon img { position: absolute; display: block; max-width: none; image-rendering: pixelated; }
+.icon-label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
+.icon-values { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 2px; max-width: 100%; }
+.icon-values .icon-label { gap: 5px; }
+.definition-picker-trigger > .wiki-sprite, .definition-picker-trigger > .game-icon { margin-right: 8px; }
+.wiki-sprite-source, .menu-icon-sources, .wiki-sprite-missing { color: var(--text-dim); font-size: .75rem; }
+.wiki-sprite-source summary, .menu-icon-sources summary { width: fit-content; cursor: pointer; }
+.wiki-sprite-source p, .wiki-sprite-source ul, .menu-icon-sources ul { margin-block: 8px; }
 .source-claim { min-width: 0; display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 10px; padding: 11px 0; }
 .source-claim__line { width: 2px; margin: 3px auto; background: var(--cyan-700); }
 .source-claim > div { min-width: 0; }

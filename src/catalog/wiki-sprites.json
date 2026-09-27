@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "wikiContentDigest": "2743209747e2e27b7fac9abe9486491b89d617522cebaaadc6eb053f37f469fa",
   "assets": {
     "file:aegis-world-sprites.webp": {
@@ -12271,6 +12271,993 @@
       "height": 16,
       "size": 132,
       "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:swordabilityicon.png": {
+      "file": "e9f8580deaaeefa1592904ca8d5edb8461802f32628bcfa4a99acd1db4368d19.png",
+      "sha256": "e9f8580deaaeefa1592904ca8d5edb8461802f32628bcfa4a99acd1db4368d19",
+      "title": "File:SwordAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/3f/SwordAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASwordAbilityIcon.png?oldid=2786",
+      "descriptionRevisionId": 2786,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "df8a9c49f74c07df42c3f7203cd85f47add3665d",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 472,
+      "representation": "cdn-png",
+      "originalSha1": "ac0daa944b18e219239400ebb625701f9cc3e794",
+      "originalSize": 2069,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:axeabilityicon.png": {
+      "file": "5c8076760fc6ca9612c7e5b90ac88c972ec056c80e73ebc6383f07c36a32404e.png",
+      "sha256": "5c8076760fc6ca9612c7e5b90ac88c972ec056c80e73ebc6383f07c36a32404e",
+      "title": "File:AxeAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/2e/AxeAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AAxeAbilityIcon.png?oldid=2773",
+      "descriptionRevisionId": 2773,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "3a889387fd2420dba3203200060f6621231d8970",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 480,
+      "representation": "cdn-png",
+      "originalSha1": "49939770d5fade4f7dd4a1e0781cddcfdeb99880",
+      "originalSize": 2077,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:daggerabilityicon.png": {
+      "file": "6a04b90061a1416dc64f9d85104585c387af9c02f8e2ea69264c33c565a19495.png",
+      "sha256": "6a04b90061a1416dc64f9d85104585c387af9c02f8e2ea69264c33c565a19495",
+      "title": "File:DaggerAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/f/f9/DaggerAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ADaggerAbilityIcon.png?oldid=2777",
+      "descriptionRevisionId": 2777,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "781946f25c57316aa20590550c7bb53f34ee9166",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 358,
+      "representation": "cdn-png",
+      "originalSha1": "194ad1b97609db01177c4f8139ae51e3f2f6f924",
+      "originalSize": 1955,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:spearabilityicon.png": {
+      "file": "aad339aa8d8fbf0991ed5390eb8b2d14b7fd7905503aadd350fc022bbd327562.png",
+      "sha256": "aad339aa8d8fbf0991ed5390eb8b2d14b7fd7905503aadd350fc022bbd327562",
+      "title": "File:SpearAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/30/SpearAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASpearAbilityIcon.png?oldid=2779",
+      "descriptionRevisionId": 2779,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "98e9b4d84da25739533719925822f447d07b2c54",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 503,
+      "representation": "cdn-png",
+      "originalSha1": "f88f261dbcdd7518bb96f2ff9d8dc2aefecfac22",
+      "originalSize": 2100,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:bowabilityicon.png": {
+      "file": "407331c4944254182089dc4ce076c1987b2f9acd598bda0c5e2eb26eb0928b78.png",
+      "sha256": "407331c4944254182089dc4ce076c1987b2f9acd598bda0c5e2eb26eb0928b78",
+      "title": "File:BowAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/22/BowAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABowAbilityIcon.png?oldid=2769",
+      "descriptionRevisionId": 2769,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "88b083374d0e339ed2f502f4e604a9f9cf00a674",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 638,
+      "representation": "cdn-png",
+      "originalSha1": "a1803d89b16eda300e90d2cebf1687bae9092862",
+      "originalSize": 2235,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:rapierabilityicon.png": {
+      "file": "6b5b839ee36800882b940f65f2f4aa31293767a6dda16b37ea5ca500ce616de5.png",
+      "sha256": "6b5b839ee36800882b940f65f2f4aa31293767a6dda16b37ea5ca500ce616de5",
+      "title": "File:RapierAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/76/RapierAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ARapierAbilityIcon.png?oldid=2778",
+      "descriptionRevisionId": 2778,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "10c4ee3a8ef8f50dc9c515698ce15355ec6350f6",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 420,
+      "representation": "cdn-png",
+      "originalSha1": "cacfd1e8c8bbdee09bc26760206b20992499697e",
+      "originalSize": 2017,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:scytheabilityicon.png": {
+      "file": "9ea7a119b1ffff2f167c1e3ef489c55d8f6dcb61027f1d12d5a48c0f24005593.png",
+      "sha256": "9ea7a119b1ffff2f167c1e3ef489c55d8f6dcb61027f1d12d5a48c0f24005593",
+      "title": "File:ScytheAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/29/ScytheAbilityIcon.png/revision/latest?cb=20220503151625&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AScytheAbilityIcon.png?oldid=2793",
+      "descriptionRevisionId": 2793,
+      "uploadedAt": "2022-05-03T15:16:25Z",
+      "sha1": "205d1284187025bf90e951dffe98e044a181c0fc",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 504,
+      "representation": "cdn-png",
+      "originalSha1": "c2600c904b197386efdf3b47efc3dfb366e4e0bc",
+      "originalSize": 2101,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:staffabilityicon.png": {
+      "file": "f5af36d4ae02736c2fd7a2ff89a29d41b9ebd3c8529e2958876392a311fd23ca.png",
+      "sha256": "f5af36d4ae02736c2fd7a2ff89a29d41b9ebd3c8529e2958876392a311fd23ca",
+      "title": "File:StaffAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/b/bd/StaffAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AStaffAbilityIcon.png?oldid=2789",
+      "descriptionRevisionId": 2789,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "96e08947786753bbfd42d9b1adc6423e61dc0070",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 421,
+      "representation": "cdn-png",
+      "originalSha1": "9bbd853e0d3edfbf3331e7443978d6f3b0872105",
+      "originalSize": 2018,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:wandabilityicon.png": {
+      "file": "fa32b4fded4352a92d7b7764db00d34ac20d9fef8f5c1b03bf3fe77d1e1a4e83.png",
+      "sha256": "fa32b4fded4352a92d7b7764db00d34ac20d9fef8f5c1b03bf3fe77d1e1a4e83",
+      "title": "File:WandAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/c/cb/WandAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWandAbilityIcon.png?oldid=2784",
+      "descriptionRevisionId": 2784,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "dc9d5bb368903df2b080b5cdb1040be958d5793a",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 395,
+      "representation": "cdn-png",
+      "originalSha1": "561199c4e629e1a76e57fe41bae1e37097b9e603",
+      "originalSize": 1992,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:bookabilityicon.png": {
+      "file": "1bcc9d23979a50be76146b23d14c3e08d7f064c7cd188746f1331258efcce145.png",
+      "sha256": "1bcc9d23979a50be76146b23d14c3e08d7f064c7cd188746f1331258efcce145",
+      "title": "File:BookAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/2d/BookAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABookAbilityIcon.png?oldid=10336",
+      "descriptionRevisionId": 10336,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "fd5fb321961a788bc9eaa5385104c312f3c37d9e",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 437,
+      "representation": "cdn-png",
+      "originalSha1": "4e1202033439e70127e0f638b52b1084f86d87fa",
+      "originalSize": 2034,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:katana-skill-icon.gif": {
+      "file": "5460f4ba683c8fa6abe7a198caa6f3a08f12a34749712a9d2dbb689e750b2ef8.gif",
+      "sha256": "5460f4ba683c8fa6abe7a198caa6f3a08f12a34749712a9d2dbb689e750b2ef8",
+      "title": "File:Katana-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/8/87/Katana-skill-icon.gif/revision/latest?cb=20240710003147&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AKatana-skill-icon.gif?oldid=6710",
+      "descriptionRevisionId": 6710,
+      "uploadedAt": "2024-07-10T00:31:47Z",
+      "sha1": "17dcf12b4c373e5d5eaa32448c1dce4da218b6ce",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 141,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:unarmedabilityicon.png": {
+      "file": "15f0f89cbd73ece15f88335a33c298d629be927ad31b7fc86524c021cbbee03e.png",
+      "sha256": "15f0f89cbd73ece15f88335a33c298d629be927ad31b7fc86524c021cbbee03e",
+      "title": "File:UnarmedAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/75/UnarmedAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AUnarmedAbilityIcon.png?oldid=2783",
+      "descriptionRevisionId": 2783,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "2a5fe7354cbbec4cc6aa14322c3a5527c54691bf",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 470,
+      "representation": "cdn-png",
+      "originalSha1": "5481e68dfcc3068566a77a922a63c4ee128c1abc",
+      "originalSize": 2067,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:warrior equipment.png": {
+      "file": "abd55833a754c4425ca1df2c05b52a957f40d97634ffb4ee428877c599a5638f.png",
+      "sha256": "abd55833a754c4425ca1df2c05b52a957f40d97634ffb4ee428877c599a5638f",
+      "title": "File:Warrior Equipment.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/7d/Warrior_Equipment.png/revision/latest?cb=20220405043410&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
+      "descriptionRevisionId": 215,
+      "uploadedAt": "2022-04-05T04:34:10Z",
+      "sha1": "b753dc59cdca2f17cb76a97675cba7e9706bca08",
+      "mime": "image/png",
+      "width": 322,
+      "height": 89,
+      "size": 4695,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:monk equipment.png": {
+      "file": "5427b3b0b3ee962f3e991ae749d5e5ff7d44dc4c337b3aa24c19757581046757.png",
+      "sha256": "5427b3b0b3ee962f3e991ae749d5e5ff7d44dc4c337b3aa24c19757581046757",
+      "title": "File:Monk Equipment.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/ab/Monk_Equipment.png/revision/latest?cb=20220405054001&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
+      "descriptionRevisionId": 223,
+      "uploadedAt": "2022-04-05T05:40:01Z",
+      "sha1": "2a8021859d7264acd5549225a141ec8bf9d27133",
+      "mime": "image/png",
+      "width": 251,
+      "height": 87,
+      "size": 2886,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:ability-icon.gif": {
+      "file": "d0162714edf54c419738ff2b8a6cb0438a15539db17242f93623b170be9826b6.gif",
+      "sha256": "d0162714edf54c419738ff2b8a6cb0438a15539db17242f93623b170be9826b6",
+      "title": "File:Ability-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/e/e2/Ability-icon.gif/revision/latest?cb=20240710001839&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AAbility-icon.gif?oldid=6702",
+      "descriptionRevisionId": 6702,
+      "uploadedAt": "2024-07-10T00:18:39Z",
+      "sha1": "d7ef6d9a6e860d30412772239b8948e5c963000e",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 126,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:black-magic-icon.gif": {
+      "file": "e63e4e8f878560b29e70c057fcc7a898b11dd990ebbc9a5507c7b4e8196695b0.gif",
+      "sha256": "e63e4e8f878560b29e70c057fcc7a898b11dd990ebbc9a5507c7b4e8196695b0",
+      "title": "File:Black-magic-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/4/43/Black-magic-icon.gif/revision/latest?cb=20240710001323&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABlack-magic-icon.gif?oldid=6699",
+      "descriptionRevisionId": 6699,
+      "uploadedAt": "2024-07-10T00:13:23Z",
+      "sha1": "c534f5642c9fe2741948883083c2e0c8a774c4ff",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 116,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:green-magic-icon.gif": {
+      "file": "2965d480aff4600a9c0b8dfaf323a8e00488e8713b47dd7b1cebeeeaca60726a.gif",
+      "sha256": "2965d480aff4600a9c0b8dfaf323a8e00488e8713b47dd7b1cebeeeaca60726a",
+      "title": "File:Green-magic-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/1/1b/Green-magic-icon.gif/revision/latest?cb=20240710000539&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AGreen-magic-icon.gif?oldid=6694",
+      "descriptionRevisionId": 6694,
+      "uploadedAt": "2024-07-10T00:05:39Z",
+      "sha1": "6d2996ade70af969b9ffde7c0fbe983b83f0ec20",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 116,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:monster-magic-icon.gif": {
+      "file": "e032176989247487347d212ff9b3479158d29ba90fd2dbe7d331f1712c15808f.gif",
+      "sha256": "e032176989247487347d212ff9b3479158d29ba90fd2dbe7d331f1712c15808f",
+      "title": "File:Monster-magic-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/21/Monster-magic-icon.gif/revision/latest?cb=20240710014337&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMonster-magic-icon.gif?oldid=6750",
+      "descriptionRevisionId": 6750,
+      "uploadedAt": "2024-07-10T01:43:37Z",
+      "sha1": "499340db48649d9d9f048290df5f795aa8ecdf7f",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 236,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:white-magic-icon.gif": {
+      "file": "7adc026266981b4a5c1ab8a40c4fbbca412d5aa3b0f894efa1af269ce9b2b2a4.gif",
+      "sha256": "7adc026266981b4a5c1ab8a40c4fbbca412d5aa3b0f894efa1af269ce9b2b2a4",
+      "title": "File:White-magic-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/a4/White-magic-icon.gif/revision/latest?cb=20240710001217&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWhite-magic-icon.gif?oldid=6698",
+      "descriptionRevisionId": 6698,
+      "uploadedAt": "2024-07-10T00:12:17Z",
+      "sha1": "07af93b090c87281acf13aee69d5bb20ba3d9e88",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 112,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:dagger-axe-skill-icon.gif": {
+      "file": "eb1671bcb125dc7795c5d27c538d4e3bacdc50e304d9da84dcdbd46eff8ae0a1.gif",
+      "sha256": "eb1671bcb125dc7795c5d27c538d4e3bacdc50e304d9da84dcdbd46eff8ae0a1",
+      "title": "File:Dagger-axe-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/4/4a/Dagger-axe-skill-icon.gif/revision/latest?cb=20240726013538&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ADagger-axe-skill-icon.gif?oldid=7127",
+      "descriptionRevisionId": 7127,
+      "uploadedAt": "2024-07-26T01:35:38Z",
+      "sha1": "7f51478f4d15d896e58507bb1d865ddec8f6ecdb",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 164,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:axe-unarmed-skill-icon.gif": {
+      "file": "073aee706692604679c221c6738723ccd333ea65d8a5085449a77730396acf3d.gif",
+      "sha256": "073aee706692604679c221c6738723ccd333ea65d8a5085449a77730396acf3d",
+      "title": "File:Axe-unarmed-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/1/10/Axe-unarmed-skill-icon.gif/revision/latest?cb=20240902190417&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AAxe-unarmed-skill-icon.gif?oldid=8911",
+      "descriptionRevisionId": 8911,
+      "uploadedAt": "2024-09-02T19:04:17Z",
+      "sha1": "956eeee823add51dc964f46d9c6d57d908c043b9",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 175,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:bow-skill-icon.gif": {
+      "file": "1332cd4b272d4c2c6eba65511b606e042434a6d462bef6b45c2afdf8adcec7b1.gif",
+      "sha256": "1332cd4b272d4c2c6eba65511b606e042434a6d462bef6b45c2afdf8adcec7b1",
+      "title": "File:Bow-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/d/d3/Bow-skill-icon.gif/revision/latest?cb=20240710002810&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABow-skill-icon.gif?oldid=6708",
+      "descriptionRevisionId": 6708,
+      "uploadedAt": "2024-07-10T00:28:10Z",
+      "sha1": "daa47ff8b0e486f13b201afd53af04f59d8e0556",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 179,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:dagger-skill-icon.gif": {
+      "file": "98c80a1556bdf0582f0c1804654653abfc77990a09e27a07b93aff97b2032119.gif",
+      "sha256": "98c80a1556bdf0582f0c1804654653abfc77990a09e27a07b93aff97b2032119",
+      "title": "File:Dagger-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/9/95/Dagger-skill-icon.gif/revision/latest?cb=20240710022954&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ADagger-skill-icon.gif?oldid=6761",
+      "descriptionRevisionId": 6761,
+      "uploadedAt": "2024-07-10T02:29:54Z",
+      "sha1": "ce51df7e5c9649d8566657e39a0a5908e2ce9827",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 120,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:dagger-rapier-skill-icon.gif": {
+      "file": "8775b6f28eda11ca2f64b523dfceda01fe5d0c777883b2073922758207101b75.gif",
+      "sha256": "8775b6f28eda11ca2f64b523dfceda01fe5d0c777883b2073922758207101b75",
+      "title": "File:Dagger-rapier-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/4/45/Dagger-rapier-skill-icon.gif/revision/latest?cb=20240710022848&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ADagger-rapier-skill-icon.gif?oldid=6760",
+      "descriptionRevisionId": 6760,
+      "uploadedAt": "2024-07-10T02:28:48Z",
+      "sha1": "2721f0076dd8efd8b7d841a9b2ddd43e58534862",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 152,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:rapier-sword-skill-icon.gif": {
+      "file": "a6401b03aea3acacd7ab3cb9ccbf20ae70a349de0a5188f6aeb167ec9154e864.gif",
+      "sha256": "a6401b03aea3acacd7ab3cb9ccbf20ae70a349de0a5188f6aeb167ec9154e864",
+      "title": "File:Rapier-sword-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/c/c4/Rapier-sword-skill-icon.gif/revision/latest?cb=20240710002149&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ARapier-sword-skill-icon.gif?oldid=6704",
+      "descriptionRevisionId": 6704,
+      "uploadedAt": "2024-07-10T00:21:49Z",
+      "sha1": "3a66904303a5ebed02f7aac9f25b510833dd401b",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 172,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:scythe-skill-icon.gif": {
+      "file": "8f2eea5499e8ea0c3b84936e892a0bed548b326cca581f785399457fc05ae488.gif",
+      "sha256": "8f2eea5499e8ea0c3b84936e892a0bed548b326cca581f785399457fc05ae488",
+      "title": "File:Scythe-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/e/e0/Scythe-skill-icon.gif/revision/latest?cb=20240710003303&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AScythe-skill-icon.gif?oldid=6711",
+      "descriptionRevisionId": 6711,
+      "uploadedAt": "2024-07-10T00:33:03Z",
+      "sha1": "60c4bfb2353924208f95e5fbb258b8e22cdfe59a",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 156,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:spear-sword-skill-icon.gif": {
+      "file": "84bfb4de9304454b26e4ec1cee6770602d1302c65b2eb3deaced932d82e0b233.gif",
+      "sha256": "84bfb4de9304454b26e4ec1cee6770602d1302c65b2eb3deaced932d82e0b233",
+      "title": "File:Spear-sword-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/52/Spear-sword-skill-icon.gif/revision/latest?cb=20240809181009&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASpear-sword-skill-icon.gif?oldid=7725",
+      "descriptionRevisionId": 7725,
+      "uploadedAt": "2024-08-09T18:10:09Z",
+      "sha1": "308a22c1595526f5003b37e742eec58156e324d8",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 181,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:staff-spear-skill-icon.gif": {
+      "file": "efe8918a70b603a797495a93eee31d89837d8145e3fe5371868d2028516037ac.gif",
+      "sha256": "efe8918a70b603a797495a93eee31d89837d8145e3fe5371868d2028516037ac",
+      "title": "File:Staff-spear-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/50/Staff-spear-skill-icon.gif/revision/latest?cb=20240809033921&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AStaff-spear-skill-icon.gif?oldid=7713",
+      "descriptionRevisionId": 7713,
+      "uploadedAt": "2024-08-09T03:39:21Z",
+      "sha1": "9fe51ad2ce76a4ab8683a87ab48c253a1b339fe3",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 175,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:unarmed-staff-skill-icon.gif": {
+      "file": "f3bf626e1e872204b08ff1d45edc69707cc55957db9cb023b16c2656cbf1f84a.gif",
+      "sha256": "f3bf626e1e872204b08ff1d45edc69707cc55957db9cb023b16c2656cbf1f84a",
+      "title": "File:Unarmed-staff-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/6/63/Unarmed-staff-skill-icon.gif/revision/latest?cb=20240710020119&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AUnarmed-staff-skill-icon.gif?oldid=6755",
+      "descriptionRevisionId": 6755,
+      "uploadedAt": "2024-07-10T02:01:19Z",
+      "sha1": "a2de84238f1ee74d5b9aa33c5ded23a7b058324d",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 166,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:weapon-skill-icon.gif": {
+      "file": "5b4adc2af762b9ee6c166028c2485d5d930874a3069a41c9a722de1224c837af.gif",
+      "sha256": "5b4adc2af762b9ee6c166028c2485d5d930874a3069a41c9a722de1224c837af",
+      "title": "File:Weapon-skill-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/e/e6/Weapon-skill-icon.gif/revision/latest?cb=20240709235706&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWeapon-skill-icon.gif?oldid=6691",
+      "descriptionRevisionId": 6691,
+      "uploadedAt": "2024-07-09T23:57:06Z",
+      "sha1": "1d07507f42ab5f9568c350f3ab3f3404130cb7d4",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 133,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:magic-stance-icon.gif": {
+      "file": "0a934956d32271080e2e690eb5aa700e6ce847843cd414e98c6ab3d5548d5cbc.gif",
+      "sha256": "0a934956d32271080e2e690eb5aa700e6ce847843cd414e98c6ab3d5548d5cbc",
+      "title": "File:Magic-stance-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/b/b3/Magic-stance-icon.gif/revision/latest?cb=20240710002504&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMagic-stance-icon.gif?oldid=6706",
+      "descriptionRevisionId": 6706,
+      "uploadedAt": "2024-07-10T00:25:04Z",
+      "sha1": "25a7d54e19620c46e928d5a7db86190c4d4962e7",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 109,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:stance-icon.gif": {
+      "file": "1d150fcf75ba3f0a902f1a1d6cfbf442bafae9bdbff2e6046c01adea21557ec9.gif",
+      "sha256": "1d150fcf75ba3f0a902f1a1d6cfbf442bafae9bdbff2e6046c01adea21557ec9",
+      "title": "File:Stance-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/d/d4/Stance-icon.gif/revision/latest?cb=20240710000334&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AStance-icon.gif?oldid=6692",
+      "descriptionRevisionId": 6692,
+      "uploadedAt": "2024-07-10T00:03:34Z",
+      "sha1": "3492657a573cc99c384e6347b127c04d57c6cea3",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 111,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:passive-icon.gif": {
+      "file": "57bebc7c9cdde41667f3aac5780c923776142b67abeb1c4d4a0f56fb79b4d709.gif",
+      "sha256": "57bebc7c9cdde41667f3aac5780c923776142b67abeb1c4d4a0f56fb79b4d709",
+      "title": "File:Passive-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/5d/Passive-icon.gif/revision/latest?cb=20240710001011&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3APassive-icon.gif?oldid=6696",
+      "descriptionRevisionId": 6696,
+      "uploadedAt": "2024-07-10T00:10:11Z",
+      "sha1": "7098b79ba729e89e234d762ef1c898f9c1dfea3e",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 127,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:earth-icon.gif": {
+      "file": "2f11edbf69c78a14b99cdf3a9c121c91c66d4947f332b784dff2acc57b746485.gif",
+      "sha256": "2f11edbf69c78a14b99cdf3a9c121c91c66d4947f332b784dff2acc57b746485",
+      "title": "File:Earth-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/78/Earth-icon.gif/revision/latest?cb=20240710003803&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AEarth-icon.gif?oldid=6714",
+      "descriptionRevisionId": 6714,
+      "uploadedAt": "2024-07-10T00:38:03Z",
+      "sha1": "89109f8cf9e85c4f098ef09c69aea61f82e85159",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 126,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:fire-icon.gif": {
+      "file": "c3ea224a8abc443fe64e1f0958ed64dc0c9b32b535f00850f29238f2c33e16f0.gif",
+      "sha256": "c3ea224a8abc443fe64e1f0958ed64dc0c9b32b535f00850f29238f2c33e16f0",
+      "title": "File:Fire-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/3c/Fire-icon.gif/revision/latest?cb=20240710004350&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AFire-icon.gif?oldid=6718",
+      "descriptionRevisionId": 6718,
+      "uploadedAt": "2024-07-10T00:43:50Z",
+      "sha1": "2fb4e1243fb03e9c988878314ea85521e845252a",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 120,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:ice-icon.gif": {
+      "file": "b6639f7d35a9d3f599b00605bf5ffe736e235d5d52de99b5971cf98b0b5e5183.gif",
+      "sha256": "b6639f7d35a9d3f599b00605bf5ffe736e235d5d52de99b5971cf98b0b5e5183",
+      "title": "File:Ice-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/78/Ice-icon.gif/revision/latest?cb=20240710004342&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AIce-icon.gif?oldid=6717",
+      "descriptionRevisionId": 6717,
+      "uploadedAt": "2024-07-10T00:43:42Z",
+      "sha1": "0738f11eef92b470876264a8b960d15cda730504",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 122,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:thunder-icon.gif": {
+      "file": "a0322a191d055aba922d1ce24a341713d7156cb94dcceedd0351e8a7978f1bca.gif",
+      "sha256": "a0322a191d055aba922d1ce24a341713d7156cb94dcceedd0351e8a7978f1bca",
+      "title": "File:Thunder-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/7d/Thunder-icon.gif/revision/latest?cb=20240710004054&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AThunder-icon.gif?oldid=6716",
+      "descriptionRevisionId": 6716,
+      "uploadedAt": "2024-07-10T00:40:54Z",
+      "sha1": "9f3a483a86aeae32ef8b99a500e7c53b84c6b1d4",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 104,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:water-icon.gif": {
+      "file": "3fef016a031608d5ef8ed5f0b53a9e88a624c59f436fe643351f1d1dbed20c21.gif",
+      "sha256": "3fef016a031608d5ef8ed5f0b53a9e88a624c59f436fe643351f1d1dbed20c21",
+      "title": "File:Water-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/4/4b/Water-icon.gif/revision/latest?cb=20240710003636&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWater-icon.gif?oldid=6713",
+      "descriptionRevisionId": 6713,
+      "uploadedAt": "2024-07-10T00:36:36Z",
+      "sha1": "0eb328ffecc8b84e60d84796daf1e170fa78514f",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 111,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:wind-icon.gif": {
+      "file": "229830e1bb9f5826dd1e35f1acbeff4518c1aee67f9c8617179bea1496dcb3a6.gif",
+      "sha256": "229830e1bb9f5826dd1e35f1acbeff4518c1aee67f9c8617179bea1496dcb3a6",
+      "title": "File:Wind-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/34/Wind-icon.gif/revision/latest?cb=20240710003906&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWind-icon.gif?oldid=6715",
+      "descriptionRevisionId": 6715,
+      "uploadedAt": "2024-07-10T00:39:06Z",
+      "sha1": "797b5172ff42f6098287c04753dc264ea336b1ec",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 119,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:scroll-item-icon.gif": {
+      "file": "b26c819593edf95b944975bf24107e506a3e1c3308a8b51c03d26c944edadc78.gif",
+      "sha256": "b26c819593edf95b944975bf24107e506a3e1c3308a8b51c03d26c944edadc78",
+      "title": "File:Scroll-item-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/f/ff/Scroll-item-icon.gif/revision/latest?cb=20240726014005&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AScroll-item-icon.gif?oldid=7128",
+      "descriptionRevisionId": 7128,
+      "uploadedAt": "2024-07-26T01:40:05Z",
+      "sha1": "ca70c8a298406c5da04c80e02fce7dc39b731cbe",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 119,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:chivalry-command-icon.gif": {
+      "file": "8631758e3a591074c59ef33569650b29d0b94bb1a9784b2eaca385ac6eae380a.gif",
+      "sha256": "8631758e3a591074c59ef33569650b29d0b94bb1a9784b2eaca385ac6eae380a",
+      "title": "File:Chivalry-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/9/9f/Chivalry-command-icon.gif/revision/latest?cb=20240711215726&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AChivalry-command-icon.gif?oldid=6903",
+      "descriptionRevisionId": 6903,
+      "uploadedAt": "2024-07-11T21:57:26Z",
+      "sha1": "4f79bc0550bcfe3a2538cee6268b412f827173ac",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 164,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:execute-command-icon.gif": {
+      "file": "29e58ad8d746da22100138ec74bd7e903a798284f7a958a5603df4fda745723b.gif",
+      "sha256": "29e58ad8d746da22100138ec74bd7e903a798284f7a958a5603df4fda745723b",
+      "title": "File:Execute-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/5c/Execute-command-icon.gif/revision/latest?cb=20240711223416&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AExecute-command-icon.gif?oldid=6909",
+      "descriptionRevisionId": 6909,
+      "uploadedAt": "2024-07-11T22:34:16Z",
+      "sha1": "9e5d37dc06eaeefce3806e3f421d92ec70ab4e52",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 117,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:wild-arts-command-icon.gif": {
+      "file": "9b74b129967308c74587e2a68b261b04dea0f7f749af2bfdd03250d98095a23e.gif",
+      "sha256": "9b74b129967308c74587e2a68b261b04dea0f7f749af2bfdd03250d98095a23e",
+      "title": "File:Wild-Arts-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/56/Wild-Arts-command-icon.gif/revision/latest?cb=20240711225629&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWild-Arts-command-icon.gif?oldid=6919",
+      "descriptionRevisionId": 6919,
+      "uploadedAt": "2024-07-11T22:56:29Z",
+      "sha1": "3eb45e25444c617c52571be906d91a0eea143265",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 133,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:beatmaker-command-icon.webp": {
+      "file": "5a39e374fdf840bc7e467badb6e15c0ce67be8b55e20f776a05ec7125f3a8749.webp",
+      "sha256": "5a39e374fdf840bc7e467badb6e15c0ce67be8b55e20f776a05ec7125f3a8749",
+      "title": "File:Beatmaker-command-icon.webp",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/0/00/Beatmaker-command-icon.webp/revision/latest?cb=20240711223904",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABeatmaker-command-icon.webp?oldid=6911",
+      "descriptionRevisionId": 6911,
+      "uploadedAt": "2024-07-11T22:39:04Z",
+      "sha1": "81f0613a614f3ec1073a6f0d02f57d8d932d091c",
+      "mime": "image/webp",
+      "width": 16,
+      "height": 16,
+      "size": 110,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:item-command-icon.gif": {
+      "file": "21bb1c50429a23ce2aaf566918c1cbdf4c7aecedad920294b2679ce6133e77d6.gif",
+      "sha256": "21bb1c50429a23ce2aaf566918c1cbdf4c7aecedad920294b2679ce6133e77d6",
+      "title": "File:Item-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/e/ed/Item-command-icon.gif/revision/latest?cb=20240711224253&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AItem-command-icon.gif?oldid=6913",
+      "descriptionRevisionId": 6913,
+      "uploadedAt": "2024-07-11T22:42:53Z",
+      "sha1": "30636eb3bcb43c74f617117502f05f07ca43635f",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 169,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:prayer-magic-command-icon.gif": {
+      "file": "5b9afec917abc876de3768ba51849bcb31e03b5e2a9d250e4ce09571f952459c.gif",
+      "sha256": "5b9afec917abc876de3768ba51849bcb31e03b5e2a9d250e4ce09571f952459c",
+      "title": "File:Prayer-Magic-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/9/9a/Prayer-Magic-command-icon.gif/revision/latest?cb=20240711224913&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3APrayer-Magic-command-icon.gif?oldid=6916",
+      "descriptionRevisionId": 6916,
+      "uploadedAt": "2024-07-11T22:49:13Z",
+      "sha1": "247321424c1419b4f71f3c6fa1288b59498be4f6",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 169,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:swordplay-command-icon.gif": {
+      "file": "d1fcfa52020cc423d958a4c0372cb8769abf8dfcbeb0597f2585dd9c6d10cdbb.gif",
+      "sha256": "d1fcfa52020cc423d958a4c0372cb8769abf8dfcbeb0597f2585dd9c6d10cdbb",
+      "title": "File:Swordplay-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/75/Swordplay-command-icon.gif/revision/latest?cb=20240711201222&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASwordplay-command-icon.gif?oldid=6897",
+      "descriptionRevisionId": 6897,
+      "uploadedAt": "2024-07-11T20:12:22Z",
+      "sha1": "fa0ae070346d171fdcb7e99a80bff6b7e7e8de21",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 164,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:hunt-command-icon.gif": {
+      "file": "0e39e6f6badecbd820ded399c5fc11923ab5fc64b6ded3111fedba07229cbd3f.gif",
+      "sha256": "0e39e6f6badecbd820ded399c5fc11923ab5fc64b6ded3111fedba07229cbd3f",
+      "title": "File:Hunt-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/b/b7/Hunt-command-icon.gif/revision/latest?cb=20240711224109&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AHunt-command-icon.gif?oldid=6912",
+      "descriptionRevisionId": 6912,
+      "uploadedAt": "2024-07-11T22:41:09Z",
+      "sha1": "5ab4732e4500f875b12d0fb05801ac4d62241f28",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 117,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:copycat-command-icon.gif": {
+      "file": "384c33062df08622407a179a6c9d84bf44efe98757c7b9d41970fbba2df05fd3.gif",
+      "sha256": "384c33062df08622407a179a6c9d84bf44efe98757c7b9d41970fbba2df05fd3",
+      "title": "File:Copycat-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/e/e9/Copycat-command-icon.gif/revision/latest?cb=20240711225804&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ACopycat-command-icon.gif?oldid=6920",
+      "descriptionRevisionId": 6920,
+      "uploadedAt": "2024-07-11T22:58:04Z",
+      "sha1": "b1cd36f6172e42f602ba0a142f8c98d0c269ec06",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 137,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:martial-arts-command-icon.gif": {
+      "file": "b0413fb041db2c245813696a6fa1e993155aeaf64730214bb39983f6c1783be1.gif",
+      "sha256": "b0413fb041db2c245813696a6fa1e993155aeaf64730214bb39983f6c1783be1",
+      "title": "File:Martial-Arts-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/f/f7/Martial-Arts-command-icon.gif/revision/latest?cb=20240711204404&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMartial-Arts-command-icon.gif?oldid=6900",
+      "descriptionRevisionId": 6900,
+      "uploadedAt": "2024-07-11T20:44:04Z",
+      "sha1": "a6a33ba5c381f04e0cfac364bc85e54fb2b19a93",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 170,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:ninjutsu-command-icon.gif": {
+      "file": "0c11f6691b05ea44327fe6697e8dee8712abf4bc47df3ed424883685a377e403.gif",
+      "sha256": "0c11f6691b05ea44327fe6697e8dee8712abf4bc47df3ed424883685a377e403",
+      "title": "File:Ninjutsu-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/9/9b/Ninjutsu-command-icon.gif/revision/latest?cb=20240711225150&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ANinjutsu-command-icon.gif?oldid=6917",
+      "descriptionRevisionId": 6917,
+      "uploadedAt": "2024-07-11T22:51:50Z",
+      "sha1": "5e20eec07c4b6cae483cad8ac5ad174bbaa8d28c",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 117,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:waterbend-command-icon.gif": {
+      "file": "82542f143d6353556351c186123f83c6f3c88374e93fd352a90cbb16610bcb6f.gif",
+      "sha256": "82542f143d6353556351c186123f83c6f3c88374e93fd352a90cbb16610bcb6f",
+      "title": "File:Waterbend-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/a0/Waterbend-command-icon.gif/revision/latest?cb=20240711224706&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWaterbend-command-icon.gif?oldid=6915",
+      "descriptionRevisionId": 6915,
+      "uploadedAt": "2024-07-11T22:47:06Z",
+      "sha1": "a691707547146acc45069516f562ad79337d6712",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 133,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:reaping-command-icon.gif": {
+      "file": "7832c238ba3cf890dcc6e127d857a9b56bcf90c0deb65a8ce69903822ac809d6.gif",
+      "sha256": "7832c238ba3cf890dcc6e127d857a9b56bcf90c0deb65a8ce69903822ac809d6",
+      "title": "File:Reaping-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/b/b4/Reaping-command-icon.gif/revision/latest?cb=20240711224437&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AReaping-command-icon.gif?oldid=6914",
+      "descriptionRevisionId": 6914,
+      "uploadedAt": "2024-07-11T22:44:37Z",
+      "sha1": "6110e3ec47178ca2d6cc141c20b60812710a15e7",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 180,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:trickeryicon.png": {
+      "file": "8edbc345b124892be4650720340365143c49ab817ea4739f6aaa396266732bd2.png",
+      "sha256": "8edbc345b124892be4650720340365143c49ab817ea4739f6aaa396266732bd2",
+      "title": "File:TrickeryIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/aa/TrickeryIcon.png/revision/latest?cb=20220501232852&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ATrickeryIcon.png?oldid=2611",
+      "descriptionRevisionId": 2611,
+      "uploadedAt": "2022-05-01T23:28:52Z",
+      "sha1": "d06cfc2ef67e1b2b2c0ef23e63798deab8b505da",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 438,
+      "representation": "cdn-png",
+      "originalSha1": "9cec7d646180996f351a13537c51c66c86b92fb5",
+      "originalSize": 2035,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:jikiden-command-icon.gif": {
+      "file": "e35c11668c51a6540d38c9fc37a2f4b7bb70f764c88a96b468eb991ab190d01f.gif",
+      "sha256": "e35c11668c51a6540d38c9fc37a2f4b7bb70f764c88a96b468eb991ab190d01f",
+      "title": "File:Jikiden-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/0/02/Jikiden-command-icon.gif/revision/latest?cb=20240711225400&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AJikiden-command-icon.gif?oldid=6918",
+      "descriptionRevisionId": 6918,
+      "uploadedAt": "2024-07-11T22:54:00Z",
+      "sha1": "02a22e029fdfdc129e6ce18e55c70f301e90c51d",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 178,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:monster-magic-command-icon.gif": {
+      "file": "9b034439a47f5c5af33f550be0654de24e80aaad08c914508fff0cb4e2ce0cec.gif",
+      "sha256": "9b034439a47f5c5af33f550be0654de24e80aaad08c914508fff0cb4e2ce0cec",
+      "title": "File:Monster-Magic-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/f/ff/Monster-Magic-command-icon.gif/revision/latest?cb=20240711212503&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMonster-Magic-command-icon.gif?oldid=6902",
+      "descriptionRevisionId": 6902,
+      "uploadedAt": "2024-07-11T21:25:03Z",
+      "sha1": "e40c97c7f2a4c01e5e8d02ce3942939e5605cd19",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 167,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:hex-magic-command-icon.gif": {
+      "file": "cb4af0e3d57a6d59a9d5b4caff585e18ad2e8f02ac1cb37930f321787949d9b0.gif",
+      "sha256": "cb4af0e3d57a6d59a9d5b4caff585e18ad2e8f02ac1cb37930f321787949d9b0",
+      "title": "File:Hex-Magic-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/9/93/Hex-Magic-command-icon.gif/revision/latest?cb=20240711205128&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AHex-Magic-command-icon.gif?oldid=6901",
+      "descriptionRevisionId": 6901,
+      "uploadedAt": "2024-07-11T20:51:28Z",
+      "sha1": "fc2e1c5aba318dac79e12bd7d670d53984d39df5",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 146,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:summon-command-icon.gif": {
+      "file": "4c9f923c162e5f13f78301c9c139d6a977dd92ee5f78c47d613babfc615995db.gif",
+      "sha256": "4c9f923c162e5f13f78301c9c139d6a977dd92ee5f78c47d613babfc615995db",
+      "title": "File:Summon-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/6/6b/Summon-command-icon.gif/revision/latest?cb=20240711230109&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASummon-command-icon.gif?oldid=6921",
+      "descriptionRevisionId": 6921,
+      "uploadedAt": "2024-07-11T23:01:09Z",
+      "sha1": "cf91fe0415e0adb09da506457f56f95ff5400c3c",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 115,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:valhalla-command-icon.webp": {
+      "file": "caa5d5890ebd6e8a383a9a87fd6a847323f4d7ca03ad41aa2c47ede42a46005b.webp",
+      "sha256": "caa5d5890ebd6e8a383a9a87fd6a847323f4d7ca03ad41aa2c47ede42a46005b",
+      "title": "File:Valhalla-command-icon.webp",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/8/88/Valhalla-command-icon.webp/revision/latest?cb=20240711222942",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AValhalla-command-icon.webp?oldid=6908",
+      "descriptionRevisionId": 6908,
+      "uploadedAt": "2024-07-11T22:29:42Z",
+      "sha1": "ed0d7d70abe5648a44ca164ea6ffef60b026c9ed",
+      "mime": "image/webp",
+      "width": 16,
+      "height": 16,
+      "size": 182,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:mixed-magic-command-icon.gif": {
+      "file": "bc972e119fc9070ed335cc3ccf02756ca60fc8e7ba7aa066fef6aa749b20a537.gif",
+      "sha256": "bc972e119fc9070ed335cc3ccf02756ca60fc8e7ba7aa066fef6aa749b20a537",
+      "title": "File:Mixed-Magic-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/27/Mixed-Magic-command-icon.gif/revision/latest?cb=20240711195325&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMixed-Magic-command-icon.gif?oldid=6893",
+      "descriptionRevisionId": 6893,
+      "uploadedAt": "2024-07-11T19:53:25Z",
+      "sha1": "4ccba38db67299f9645d5286250e5cdb128c7f9d",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 116,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:battleskillicon.png": {
+      "file": "a765c908c91a8f2f5fe557dae41ca7bc87a1d027ecd7e199401265125cc39d06.png",
+      "sha256": "a765c908c91a8f2f5fe557dae41ca7bc87a1d027ecd7e199401265125cc39d06",
+      "title": "File:BattleSkillIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/27/BattleSkillIcon.png/revision/latest?cb=20220501232851&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABattleSkillIcon.png?oldid=2590",
+      "descriptionRevisionId": 2590,
+      "uploadedAt": "2022-05-01T23:28:51Z",
+      "sha1": "2fe23500a0d8fbfdfcae16b7ad18bbba7f04f94e",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 556,
+      "representation": "cdn-png",
+      "originalSha1": "02155d0460293a3f104f9c70efa5570f12d48aa0",
+      "originalSize": 2153,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:time-magic-command-icon.gif": {
+      "file": "47ded1376f14d14c40145925bd037f32fe9fa623054a7eb8df9ca2aadbc1269e.gif",
+      "sha256": "47ded1376f14d14c40145925bd037f32fe9fa623054a7eb8df9ca2aadbc1269e",
+      "title": "File:Time-Magic-command-icon.gif",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/1/14/Time-Magic-command-icon.gif/revision/latest?cb=20240711223633&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ATime-Magic-command-icon.gif?oldid=6910",
+      "descriptionRevisionId": 6910,
+      "uploadedAt": "2024-07-11T22:36:33Z",
+      "sha1": "1888005f521ce68eb85517062d0487aa1d572d28",
+      "mime": "image/gif",
+      "width": 16,
+      "height": 16,
+      "size": 155,
+      "license": "Copyrighted; wiki file marked Fairuse"
+    },
+    "file:blackmagicicon.png": {
+      "file": "60d1e77a202b0e75c601eef13b5df6def100d33024162bfa57ddce858375a185.png",
+      "sha256": "60d1e77a202b0e75c601eef13b5df6def100d33024162bfa57ddce858375a185",
+      "title": "File:BlackMagicIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/5b/BlackMagicIcon.png/revision/latest?cb=20220501232852&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABlackMagicIcon.png?oldid=2591",
+      "descriptionRevisionId": 2591,
+      "uploadedAt": "2022-05-01T23:28:52Z",
+      "sha1": "9d73dc27a1ebbb4926fe9142be46336fa65d5c5a",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 381,
+      "representation": "cdn-png",
+      "originalSha1": "5f040fd85afaa577f5e7b65037dc67257478981b",
+      "originalSize": 1978,
+      "license": "No reviewed license declaration on the wiki file page"
     }
   },
   "entities": {
@@ -24637,6 +25624,866 @@
           "revisionId": 11282,
           "url": "https://crystal-project.fandom.com/wiki/Template%3ADebuff_link?oldid=11282",
           "locator": "wind seal"
+        }
+      ]
+    }
+  },
+  "icons": {
+    "equipment:swords": {
+      "name": "swords",
+      "asset": "file:swordabilityicon.png",
+      "sources": [
+        {
+          "title": "File:SwordAbilityIcon.png",
+          "revisionId": 2786,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ASwordAbilityIcon.png?oldid=2786",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:axes": {
+      "name": "axes",
+      "asset": "file:axeabilityicon.png",
+      "sources": [
+        {
+          "title": "File:AxeAbilityIcon.png",
+          "revisionId": 2773,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AAxeAbilityIcon.png?oldid=2773",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:daggers": {
+      "name": "daggers",
+      "asset": "file:daggerabilityicon.png",
+      "sources": [
+        {
+          "title": "File:DaggerAbilityIcon.png",
+          "revisionId": 2777,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ADaggerAbilityIcon.png?oldid=2777",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:spears": {
+      "name": "spears",
+      "asset": "file:spearabilityicon.png",
+      "sources": [
+        {
+          "title": "File:SpearAbilityIcon.png",
+          "revisionId": 2779,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ASpearAbilityIcon.png?oldid=2779",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:bows": {
+      "name": "bows",
+      "asset": "file:bowabilityicon.png",
+      "sources": [
+        {
+          "title": "File:BowAbilityIcon.png",
+          "revisionId": 2769,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ABowAbilityIcon.png?oldid=2769",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:rapiers": {
+      "name": "rapiers",
+      "asset": "file:rapierabilityicon.png",
+      "sources": [
+        {
+          "title": "File:RapierAbilityIcon.png",
+          "revisionId": 2778,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ARapierAbilityIcon.png?oldid=2778",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:scythes": {
+      "name": "scythes",
+      "asset": "file:scytheabilityicon.png",
+      "sources": [
+        {
+          "title": "File:ScytheAbilityIcon.png",
+          "revisionId": 2793,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AScytheAbilityIcon.png?oldid=2793",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:staves": {
+      "name": "staves",
+      "asset": "file:staffabilityicon.png",
+      "sources": [
+        {
+          "title": "File:StaffAbilityIcon.png",
+          "revisionId": 2789,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AStaffAbilityIcon.png?oldid=2789",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:wands": {
+      "name": "wands",
+      "asset": "file:wandabilityicon.png",
+      "sources": [
+        {
+          "title": "File:WandAbilityIcon.png",
+          "revisionId": 2784,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AWandAbilityIcon.png?oldid=2784",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:books": {
+      "name": "books",
+      "asset": "file:bookabilityicon.png",
+      "sources": [
+        {
+          "title": "File:BookAbilityIcon.png",
+          "revisionId": 10336,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ABookAbilityIcon.png?oldid=10336",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:katanas": {
+      "name": "katanas",
+      "asset": "file:katana-skill-icon.gif",
+      "sources": [
+        {
+          "title": "File:Katana-skill-icon.gif",
+          "revisionId": 6710,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AKatana-skill-icon.gif?oldid=6710",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:unarmed": {
+      "name": "unarmed",
+      "asset": "file:unarmedabilityicon.png",
+      "sources": [
+        {
+          "title": "File:UnarmedAbilityIcon.png",
+          "revisionId": 2783,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AUnarmedAbilityIcon.png?oldid=2783",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:shields": {
+      "name": "shields",
+      "asset": "file:warrior equipment.png",
+      "sources": [
+        {
+          "title": "File:Warrior Equipment.png",
+          "revisionId": 215,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
+          "locator": "Equipment menu glyph region"
+        }
+      ],
+      "region": {
+        "x": 164,
+        "y": 52,
+        "width": 32,
+        "height": 34
+      }
+    },
+    "equipment:heavy helmets": {
+      "name": "heavy helmets",
+      "asset": "file:warrior equipment.png",
+      "sources": [
+        {
+          "title": "File:Warrior Equipment.png",
+          "revisionId": 215,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
+          "locator": "Equipment menu glyph region"
+        }
+      ],
+      "region": {
+        "x": 204,
+        "y": 52,
+        "width": 32,
+        "height": 34
+      }
+    },
+    "equipment:heavy armor": {
+      "name": "heavy armor",
+      "asset": "file:warrior equipment.png",
+      "sources": [
+        {
+          "title": "File:Warrior Equipment.png",
+          "revisionId": 215,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
+          "locator": "Equipment menu glyph region"
+        }
+      ],
+      "region": {
+        "x": 244,
+        "y": 52,
+        "width": 32,
+        "height": 34
+      }
+    },
+    "equipment:light hats": {
+      "name": "light hats",
+      "asset": "file:monk equipment.png",
+      "sources": [
+        {
+          "title": "File:Monk Equipment.png",
+          "revisionId": 223,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
+          "locator": "Equipment menu glyph region"
+        }
+      ],
+      "region": {
+        "x": 168,
+        "y": 48,
+        "width": 34,
+        "height": 34
+      }
+    },
+    "equipment:light armor": {
+      "name": "light armor",
+      "asset": "file:monk equipment.png",
+      "sources": [
+        {
+          "title": "File:Monk Equipment.png",
+          "revisionId": 223,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
+          "locator": "Equipment menu glyph region"
+        }
+      ],
+      "region": {
+        "x": 208,
+        "y": 48,
+        "width": 34,
+        "height": 34
+      }
+    },
+    "skill:ability": {
+      "name": "ability",
+      "asset": "file:ability-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "ability"
+        }
+      ]
+    },
+    "skill:black magic": {
+      "name": "black magic",
+      "asset": "file:black-magic-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "black magic"
+        }
+      ]
+    },
+    "skill:green magic": {
+      "name": "green magic",
+      "asset": "file:green-magic-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "green magic"
+        }
+      ]
+    },
+    "skill:monster magic": {
+      "name": "monster magic",
+      "asset": "file:monster-magic-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "monster magic"
+        }
+      ]
+    },
+    "skill:white magic": {
+      "name": "white magic",
+      "asset": "file:white-magic-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "white magic"
+        }
+      ]
+    },
+    "skill:axe/dagger skill": {
+      "name": "axe/dagger skill",
+      "asset": "file:dagger-axe-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "axe/dagger skill"
+        }
+      ]
+    },
+    "skill:dagger/axe skill": {
+      "name": "dagger/axe skill",
+      "asset": "file:dagger-axe-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "dagger/axe skill"
+        }
+      ]
+    },
+    "skill:axe/unarmed skill": {
+      "name": "axe/unarmed skill",
+      "asset": "file:axe-unarmed-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "axe/unarmed skill"
+        }
+      ]
+    },
+    "skill:bow skill": {
+      "name": "bow skill",
+      "asset": "file:bow-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "bow skill"
+        }
+      ]
+    },
+    "skill:dagger skill": {
+      "name": "dagger skill",
+      "asset": "file:dagger-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "dagger skill"
+        }
+      ]
+    },
+    "skill:dagger/rapier skill": {
+      "name": "dagger/rapier skill",
+      "asset": "file:dagger-rapier-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "dagger/rapier skill"
+        }
+      ]
+    },
+    "skill:katana skill": {
+      "name": "katana skill",
+      "asset": "file:katana-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "katana skill"
+        }
+      ]
+    },
+    "skill:rapier/sword skill": {
+      "name": "rapier/sword skill",
+      "asset": "file:rapier-sword-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "rapier/sword skill"
+        }
+      ]
+    },
+    "skill:scythe skill": {
+      "name": "scythe skill",
+      "asset": "file:scythe-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "scythe skill"
+        }
+      ]
+    },
+    "skill:spear/sword skill": {
+      "name": "spear/sword skill",
+      "asset": "file:spear-sword-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "spear/sword skill"
+        }
+      ]
+    },
+    "skill:staff/spear skill": {
+      "name": "staff/spear skill",
+      "asset": "file:staff-spear-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "staff/spear skill"
+        }
+      ]
+    },
+    "skill:unarmed/staff skill": {
+      "name": "unarmed/staff skill",
+      "asset": "file:unarmed-staff-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "unarmed/staff skill"
+        }
+      ]
+    },
+    "skill:weapon skill": {
+      "name": "weapon skill",
+      "asset": "file:weapon-skill-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "weapon skill"
+        }
+      ]
+    },
+    "skill:magic stance": {
+      "name": "magic stance",
+      "asset": "file:magic-stance-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "magic stance"
+        }
+      ]
+    },
+    "skill:stance": {
+      "name": "stance",
+      "asset": "file:stance-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "stance"
+        }
+      ]
+    },
+    "skill:passive": {
+      "name": "passive",
+      "asset": "file:passive-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "passive"
+        }
+      ]
+    },
+    "element:earth": {
+      "name": "earth",
+      "asset": "file:earth-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "earth"
+        }
+      ]
+    },
+    "element:fire": {
+      "name": "fire",
+      "asset": "file:fire-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "fire"
+        }
+      ]
+    },
+    "element:ice": {
+      "name": "ice",
+      "asset": "file:ice-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "ice"
+        }
+      ]
+    },
+    "element:thunder": {
+      "name": "thunder",
+      "asset": "file:thunder-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "thunder"
+        }
+      ]
+    },
+    "element:water": {
+      "name": "water",
+      "asset": "file:water-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "water"
+        }
+      ]
+    },
+    "element:wind": {
+      "name": "wind",
+      "asset": "file:wind-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "wind"
+        }
+      ]
+    },
+    "skill:scroll": {
+      "name": "scroll",
+      "asset": "file:scroll-item-icon.gif",
+      "sources": [
+        {
+          "title": "Template:Icon",
+          "revisionId": 9293,
+          "url": "https://crystal-project.fandom.com/wiki/Template%3AIcon?oldid=9293",
+          "locator": "scroll"
+        }
+      ]
+    },
+    "command:chivalry": {
+      "name": "Chivalry",
+      "asset": "file:chivalry-command-icon.gif",
+      "sources": [
+        {
+          "title": "Aegis",
+          "revisionId": 13290,
+          "url": "https://crystal-project.fandom.com/wiki/Aegis?oldid=13290",
+          "locator": "Chivalry section heading"
+        }
+      ]
+    },
+    "command:execute": {
+      "name": "Execute",
+      "asset": "file:execute-command-icon.gif",
+      "sources": [
+        {
+          "title": "Assassin",
+          "revisionId": 13302,
+          "url": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302",
+          "locator": "Execute section heading"
+        }
+      ]
+    },
+    "command:wild arts": {
+      "name": "Wild Arts",
+      "asset": "file:wild-arts-command-icon.gif",
+      "sources": [
+        {
+          "title": "Beastmaster",
+          "revisionId": 13307,
+          "url": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307",
+          "locator": "Wild Arts section heading"
+        }
+      ]
+    },
+    "command:beatmaker": {
+      "name": "Beatmaker",
+      "asset": "file:beatmaker-command-icon.webp",
+      "sources": [
+        {
+          "title": "Beatsmith",
+          "revisionId": 13298,
+          "url": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298",
+          "locator": "Beatmaker section heading"
+        }
+      ]
+    },
+    "command:item": {
+      "name": "Item",
+      "asset": "file:item-command-icon.gif",
+      "sources": [
+        {
+          "title": "Chemist",
+          "revisionId": 13292,
+          "url": "https://crystal-project.fandom.com/wiki/Chemist?oldid=13292",
+          "locator": "Item section heading"
+        }
+      ]
+    },
+    "command:white magic": {
+      "name": "White Magic",
+      "asset": "file:white-magic-icon.gif",
+      "sources": [
+        {
+          "title": "Cleric",
+          "revisionId": 13282,
+          "url": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282",
+          "locator": "White Magic section heading"
+        }
+      ]
+    },
+    "command:prayer magic": {
+      "name": "Prayer Magic",
+      "asset": "file:prayer-magic-command-icon.gif",
+      "sources": [
+        {
+          "title": "Dervish",
+          "revisionId": 13297,
+          "url": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297",
+          "locator": "Prayer Magic section heading"
+        }
+      ]
+    },
+    "command:swordplay": {
+      "name": "Swordplay",
+      "asset": "file:swordplay-command-icon.gif",
+      "sources": [
+        {
+          "title": "Fencer",
+          "revisionId": 13286,
+          "url": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286",
+          "locator": "Swordplay section heading"
+        }
+      ]
+    },
+    "command:hunt": {
+      "name": "Hunt",
+      "asset": "file:hunt-command-icon.gif",
+      "sources": [
+        {
+          "title": "Hunter",
+          "revisionId": 13325,
+          "url": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325",
+          "locator": "Hunt section heading"
+        }
+      ]
+    },
+    "command:copycat": {
+      "name": "Copycat",
+      "asset": "file:copycat-command-icon.gif",
+      "sources": [
+        {
+          "title": "Mimic",
+          "revisionId": 13310,
+          "url": "https://crystal-project.fandom.com/wiki/Mimic?oldid=13310",
+          "locator": "Copycat section heading"
+        }
+      ]
+    },
+    "command:martial arts": {
+      "name": "Martial Arts",
+      "asset": "file:martial-arts-command-icon.gif",
+      "sources": [
+        {
+          "title": "Monk",
+          "revisionId": 13278,
+          "url": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278",
+          "locator": "Martial Arts section heading"
+        }
+      ]
+    },
+    "command:ninjutsu": {
+      "name": "Ninjutsu",
+      "asset": "file:ninjutsu-command-icon.gif",
+      "sources": [
+        {
+          "title": "Ninja",
+          "revisionId": 13306,
+          "url": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306",
+          "locator": "Ninjutsu section heading"
+        }
+      ]
+    },
+    "command:waterbend": {
+      "name": "Waterbend",
+      "asset": "file:waterbend-command-icon.gif",
+      "sources": [
+        {
+          "title": "Nomad",
+          "revisionId": 13296,
+          "url": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296",
+          "locator": "Waterbend section heading"
+        }
+      ]
+    },
+    "command:reaping": {
+      "name": "Reaping",
+      "asset": "file:reaping-command-icon.gif",
+      "sources": [
+        {
+          "title": "Reaper",
+          "revisionId": 13294,
+          "url": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294",
+          "locator": "Reaping section heading"
+        }
+      ]
+    },
+    "command:trickery": {
+      "name": "Trickery",
+      "asset": "file:trickeryicon.png",
+      "sources": [
+        {
+          "title": "Rogue",
+          "revisionId": 13280,
+          "url": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280",
+          "locator": "Class infobox command image"
+        }
+      ]
+    },
+    "command:jikiden": {
+      "name": "Jikiden",
+      "asset": "file:jikiden-command-icon.gif",
+      "sources": [
+        {
+          "title": "Samurai",
+          "revisionId": 13299,
+          "url": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299",
+          "locator": "Jikiden section heading"
+        }
+      ]
+    },
+    "command:monster magic": {
+      "name": "Monster Magic",
+      "asset": "file:monster-magic-command-icon.gif",
+      "sources": [
+        {
+          "title": "Scholar",
+          "revisionId": 13288,
+          "url": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288",
+          "locator": "Monster Magic section heading"
+        }
+      ]
+    },
+    "command:hex magic": {
+      "name": "Hex Magic",
+      "asset": "file:hex-magic-command-icon.gif",
+      "sources": [
+        {
+          "title": "Shaman",
+          "revisionId": 13287,
+          "url": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287",
+          "locator": "Hex Magic section heading"
+        }
+      ]
+    },
+    "command:summon": {
+      "name": "Summon",
+      "asset": "file:summon-command-icon.gif",
+      "sources": [
+        {
+          "title": "Summoner",
+          "revisionId": 13305,
+          "url": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305",
+          "locator": "Summon section heading"
+        }
+      ]
+    },
+    "command:valhalla": {
+      "name": "Valhalla",
+      "asset": "file:valhalla-command-icon.webp",
+      "sources": [
+        {
+          "title": "Valkyrie",
+          "revisionId": 13303,
+          "url": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303",
+          "locator": "Valhalla section heading"
+        }
+      ]
+    },
+    "command:mixed magic": {
+      "name": "Mixed Magic",
+      "asset": "file:mixed-magic-command-icon.gif",
+      "sources": [
+        {
+          "title": "Warlock",
+          "revisionId": 13284,
+          "url": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284",
+          "locator": "Mixed Magic section heading"
+        }
+      ]
+    },
+    "command:battle skill": {
+      "name": "Battle Skill",
+      "asset": "file:battleskillicon.png",
+      "sources": [
+        {
+          "title": "Warrior",
+          "revisionId": 13324,
+          "url": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324",
+          "locator": "Class infobox command image"
+        }
+      ]
+    },
+    "command:time magic": {
+      "name": "Time Magic",
+      "asset": "file:time-magic-command-icon.gif",
+      "sources": [
+        {
+          "title": "Weaver",
+          "revisionId": 13308,
+          "url": "https://crystal-project.fandom.com/wiki/Weaver?oldid=13308",
+          "locator": "Time Magic section heading"
+        }
+      ]
+    },
+    "command:black magic": {
+      "name": "Black Magic",
+      "asset": "file:blackmagicicon.png",
+      "sources": [
+        {
+          "title": "Wizard",
+          "revisionId": 13283,
+          "url": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283",
+          "locator": "Class infobox command image"
         }
       ]
     }

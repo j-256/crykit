@@ -127,6 +127,16 @@ export function validateImage(bytes, info) {
   return { file: `${hash(bytes)}.${extension}`, sha256: hash(bytes) }
 }
 
+export function downloadedImage(bytes, info, allowPngReencoding = false) {
+  try { return { ...validateImage(bytes, info), metadata: info } } catch (error) {
+    if (!allowPngReencoding || info.mime !== 'image/png' || !/byte length|SHA-1/.test(error.message)) throw error
+    // Older PNG uploads are recompressed by the CDN even with format=original
+    if (bytes.length < 24 || bytes.subarray(12, 16).toString('ascii') !== 'IHDR' || bytes.readUInt32BE(16) !== info.width || bytes.readUInt32BE(20) !== info.height) throw new Error('Reencoded PNG dimensions do not match the wiki upload')
+    const metadata = { ...info, size: bytes.length, sha1: hash(bytes, 'sha1'), originalSize: info.size, originalSha1: info.sha1, representation: 'cdn-png' }
+    return { ...validateImage(bytes, metadata), metadata }
+  }
+}
+
 export function licenseDeclaration(content) {
   return /\{\{\s*Fairuse\s*(?:\||\}\})/i.test(content)
     ? 'Copyrighted; wiki file marked Fairuse'

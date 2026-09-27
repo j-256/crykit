@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { canonicalEntityIds, hash, licenseDeclaration, originalImageUrl, spriteCandidates, switchMappings, validateImage } from './wiki-sprites.mjs'
+import { canonicalEntityIds, downloadedImage, hash, licenseDeclaration, originalImageUrl, spriteCandidates, switchMappings, validateImage } from './wiki-sprites.mjs'
+import { iconCandidates, validateIconRegion } from './wiki-icons.mjs'
 
 const template = (title, cases) => ({ title, revisionId: 11, content: `[[File:{{#switch:{{lc:{{{1}}}}}\n${cases}\n|#default=\n}}|link=]]` })
 const entity = (kind, name, pages = []) => ({ id: `${kind}:${name}`, kind, name, legacy: { wiki: { pages } } })
@@ -65,6 +66,34 @@ test('artwork rights remain independent of the wiki text license', () => {
   assert.equal(licenseDeclaration('{{Fairuse}}'), 'Copyrighted; wiki file marked Fairuse')
   assert.equal(licenseDeclaration(''), 'No reviewed license declaration on the wiki file page')
   assert.doesNotMatch(licenseDeclaration('[[Category:Images]]'), /CC-BY-SA/)
+})
+
+test('semantic icons keep equipment, elements, and class command evidence separate', () => {
+  const page = { title: 'Synthetic Knight', revisionId: 21, content: '{{Class\n|command=[[File:knight-command.png]]Knight Arts\n}}' }
+  const definition = { ...entity('class', page.title, [page]), fields: { Command: { state: 'known', value: 'Knight Arts' } } }
+  const result = iconCandidates([definition], [page], [template('Template:Icon', '|fire=fire.gif\n|passive=passive.gif')])
+  assert.equal(result.find(icon => icon.id === 'element:fire').title, 'File:fire.gif')
+  assert.equal(result.find(icon => icon.id === 'skill:passive').title, 'File:passive.gif')
+  assert.equal(result.find(icon => icon.id === 'command:knight arts').sources[0].revisionId, 21)
+  assert.equal(result.find(icon => icon.id === 'equipment:swords').title, 'File:SwordAbilityIcon.png')
+  assert.throws(() => iconCandidates([], [], []), /Missing semantic/)
+})
+
+test('menu image regions cannot escape their source dimensions', () => {
+  const asset = { width: 50, height: 40 }
+  validateIconRegion({ x: 10, y: 5, width: 34, height: 34 }, asset)
+  for (const region of [{ x: -1, y: 0, width: 10, height: 10 }, { x: 30, y: 5, width: 34, height: 34 }, { x: 0, y: 0, width: 0, height: 4 }]) assert.throws(() => validateIconRegion(region, asset), /outside/)
+})
+
+test('explicit PNG reencoding records upload hashes separately and rejects changed dimensions', () => {
+  const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jK9sAAAAASUVORK5CYII=', 'base64')
+  const upload = { mime: 'image/png', width: 1, height: 1, size: bytes.length + 12, sha1: 'a'.repeat(40) }
+  assert.throws(() => downloadedImage(bytes, upload), /byte length/)
+  const accepted = downloadedImage(bytes, upload, true)
+  assert.equal(accepted.metadata.originalSha1, upload.sha1)
+  assert.equal(accepted.metadata.sha1, hash(bytes, 'sha1'))
+  assert.equal(accepted.metadata.representation, 'cdn-png')
+  assert.throws(() => downloadedImage(bytes, { ...upload, width: 2 }, true), /dimensions/)
 })
 
 test('starter identities are matched by exact kind and normalized name', () => {

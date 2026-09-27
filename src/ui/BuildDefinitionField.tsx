@@ -4,6 +4,7 @@ import type { CatalogEntityKind, EntityRef } from '../domain/types'
 import { Dropdown } from './Dropdown'
 import { findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
 import { Icon } from './icons'
+import { DefinitionArtwork } from './GameIcon'
 import { commandName, matchesSlot } from './definition-fields'
 
 export const BUILD_DEFINITION_PAGE_SIZE = 100
@@ -22,7 +23,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   onChange: (value: EntityRef | null) => void
   onInspect: (option: DefinitionOption | undefined) => void
 }) {
-  const { planningOptions: options, availablePlanningOptions: availableOptions } = useDefinitionWorkspace()
+  const { profile, catalogs, planningOptions: options, availablePlanningOptions: availableOptions } = useDefinitionWorkspace()
   const selected = findDefinitionOption(options, value)
   const optionName = (option: DefinitionOption) => label === 'Sub-command' ? commandName(option) ?? option.name : option.name
   const inputRef = useRef<HTMLInputElement>(null)
@@ -66,7 +67,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
     <Dropdown anchorRef={inputRef} id={`${id}-list`} initialFocusRef={inputRef} onClose={onClose} onDismiss={onDismiss} open={open} role="listbox" title={`Choose ${label}`}>
       <div className="picker-results">
         <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span><strong>Leave empty</strong></span></button>
-        {visible.map((option, index) => <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerMove={() => { setActiveIndex(index); onInspect(option) }} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.ppCost?.state === 'known' && <small>{option.ppCost.value} PP</small>}</span>{label === 'Sub-command' && <small>{option.name} class</small>}{option.description && <small className="picker-result__description">{option.description}</small>}<small className="picker-result__source">{option.sourceLabel}</small></span></button>)}
+        {visible.map((option, index) => <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerMove={() => { setActiveIndex(index); onInspect(option) }} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} profile={profile} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.ppCost?.state === 'known' && <small>{option.ppCost.value} PP</small>}</span>{label === 'Sub-command' && <small>{option.name} class</small>}{option.description && <small className="picker-result__description">{option.description}</small>}<small className="picker-result__source">{option.sourceLabel}</small></span></button>)}
         {!candidates.length && <div className="definition-dropdown__empty" role="presentation">No matching definitions. Try another search. Only listed selections are saved.</div>}
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
