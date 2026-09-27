@@ -258,12 +258,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .recorded-slots { display: grid; }
 .recorded-slot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .recorded-slot > div { min-width: 0; }
+.recorded-slot > .icon-button { flex-shrink: 0; align-self: flex-start; }
 .recorded-slot .slot__label { margin-bottom: 4px; }
 .recorded-slot .slot__value { overflow-wrap: anywhere; }
 .recorded-definition a { text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .recorded-definition small, .recorded-slot small, .recorded-summary small, .recorded-stats small, .snapshot-difference small { display: block; margin-top: 4px; color: var(--text-faint); font-size: .75rem; font-weight: 400; overflow-wrap: anywhere; }
 .recorded-sources { margin-top: 6px; font-size: .78rem; font-weight: 400; }
 .recorded-sources summary { cursor: pointer; }
+.recorded-mod summary { min-height: 44px; padding-block: 10px; color: var(--text-dim); line-height: 1.5; }
+.recorded-mod p { margin: 8px 0; color: var(--text-dim); font-size: .82rem; line-height: 1.6; }
 .recorded-claims { margin: 6px 0; padding-left: 16px; text-align: left; }
 .recorded-claims li + li { margin-top: 8px; }
 .character-proposals { padding-top: 18px; border-top: 1px solid var(--line); }

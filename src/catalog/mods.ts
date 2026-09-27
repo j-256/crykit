@@ -105,6 +105,6 @@ export function definitionModAvailability(profile: Profile, ref: EntityRef, rule
 
 export function modAvailabilityLabel(availability: DefinitionModAvailability): string | undefined {
   if (!availability.requiredMod) return undefined
-  const state = availability.state === 'unknown' ? 'setting unknown' : availability.state === 'conflicting' ? 'setting conflicts' : availability.state
-  return `${availability.requiredMod}: ${state}`
+  const state = availability.state === 'unknown' ? 'enabled status not recorded' : availability.state === 'conflicting' ? 'enabled status has conflicting records' : availability.state
+  return `${availability.requiredMod} mod: ${state}`
 }

@@ -45,6 +45,7 @@
 .member-row--static .member-row__label { background: transparent; border-color: transparent; }
 .member-row--static .member-row__value { color: var(--cyan-300); }
 .member-slot-warning { display: block; padding: 4px 8px; color: var(--amber); font-size: .7rem; }
+.member-slot-warning.recorded-mod > summary { color: var(--amber); }
 .member-passives { gap: 1px; flex-wrap: wrap; }
 .member-passive { display: inline-flex; }
 .member-passive > svg { width: 16px; height: 23px; }

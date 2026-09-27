@@ -11,7 +11,7 @@ import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { entityName, formatAppError, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
 import { routeWithOverlay, routeWithoutOverlays, useNavigation, useNavigationBlocker, type AppRoute } from './navigation'
 import { WikiSprite, WikiSpriteSource } from './WikiSprite'
-import { SnapshotValueView } from './CharacterSheet'
+import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
 
 const PRIMARY_CLASS = 'primary-class'
@@ -172,7 +172,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
       if (value === undefined) delete selections[slot.id]
       else selections[slot.id] = value
       return { ...current, selections }
-    })} onInspect={option => inspect(key, option)} selected={active === key} value={slot.selection}>{availability?.requiredMod && <small className="member-slot-warning">{modAvailabilityLabel(availability)}</small>}</MemberChoice>
+    })} onInspect={option => inspect(key, option)} selected={active === key} value={slot.selection}>{availability?.requiredMod && <RecordedModStatus availability={availability} className="member-slot-warning"/>}</MemberChoice>
   }
   const save = async () => {
     setBusy(true)

@@ -1,10 +1,18 @@
 import type { ReactNode } from 'react'
-import { definitionModAvailability, modAvailabilityLabel } from '../catalog/mods'
+import { definitionModAvailability, modAvailabilityLabel, type DefinitionModAvailability } from '../catalog/mods'
 import { snapshotSlots, type SnapshotValue } from '../domain/character-snapshots'
 import type { CatalogSnapshot, CharacterSnapshot, EntityRef, Knowledge, Profile, RulesetRevision, SourceRef } from '../domain/types'
 import { IconButton, InlineNotice } from './components'
 import { entityName, formatRelativeDate, ownRecordValue } from './model'
-import { useNavigation } from './navigation'
+import { useNavigation, type AppRoute } from './navigation'
+
+const RULESET_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: {} }
+const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
+  unknown: 'This snapshot does not record whether that mod was enabled in your game.',
+  conflicting: 'This snapshot contains conflicting records about whether that mod was enabled in your game.',
+  enabled: 'This snapshot records that mod as enabled in your game.',
+  disabled: 'This snapshot records that mod as disabled in your game. Your recorded selection is still kept.',
+}
 
 interface RecordedContext {
   readonly profile: Profile
@@ -16,11 +24,21 @@ function sourceLabel(source: SourceRef): string {
   return [source.sourceId, source.locator, source.snapshot, source.applicability, source.checkedAt].filter(Boolean).join(' · ')
 }
 
+export function RecordedModStatus({ availability, className = '' }: { readonly availability: DefinitionModAvailability; readonly className?: string }) {
+  const navigation = useNavigation()
+  if (!availability.requiredMod) return null
+  return <details className={`recorded-sources recorded-mod ${className}`}>
+    <summary>{modAvailabilityLabel(availability)}</summary>
+    <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
+    <p>Update the mod setting in <a href={navigation.href(RULESET_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(RULESET_SETTINGS_ROUTE) } }}>Data &amp; settings &gt; Ruleset</a>, then capture a new character snapshot. Existing snapshots keep their recorded mod settings.</p>
+  </details>
+}
+
 function DefinitionLink({ profile, catalogs, ruleset, value, showIdentity }: RecordedContext & { readonly value: EntityRef; readonly showIdentity?: boolean }) {
   const navigation = useNavigation()
   const route = { page: { page: 'reference', view: 'detail', ref: value } as const, overlays: [], query: {} }
   const availability = definitionModAvailability(profile, value, ruleset)
-  return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(profile, catalogs, value)}</a>{availability.requiredMod && <small>{modAvailabilityLabel(availability)}</small>}{showIdentity && <details className="recorded-sources"><summary>Definition identity</summary><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></details>}</div>
+  return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(profile, catalogs, value)}</a><RecordedModStatus availability={availability}/>{showIdentity && <details className="recorded-sources"><summary>Definition identity</summary><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></details>}</div>
 }
 
 function RecordedKnowledge<T>({ value, format }: { readonly value: Knowledge<T>; readonly format: (value: T) => ReactNode }) {

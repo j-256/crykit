@@ -9,6 +9,7 @@ import type { CatalogRef, CharacterId, EntityId, Profile } from '../src/domain/t
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const SHIELD: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('mod-pack-2:item:doge-shield') }
+const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('equipment-expansion:item:backbreaker') }
 
 function backup(profile: Profile): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
@@ -46,6 +47,43 @@ async function search(page: Page, query: string) {
   return palette
 }
 
+test('recorded mod help opens settings and preserves the snapshot after a mod choice changes', async ({ page, isMobile }) => {
+  const original = createTestProfile()
+  let profile = updateRulesetRevision(original, { sourceRevisionId: TEST_RULESET_REVISION_ID, catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }, slots: original.rulesets[TEST_RULESET_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
+  profile = createCharacter(profile, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
+  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
+  profile = { ...profile, changes: [] }
+  await page.goto('/')
+  await importBackup(page, backup(profile))
+  await page.goto(`/#/characters/${CHARACTER}/current`)
+  const help = page.locator('.member-menu .recorded-mod')
+  const summary = help.locator('summary')
+  await expect(summary).toHaveText('Equipment Expansion mod: enabled status not recorded')
+  if (isMobile) await summary.tap()
+  else {
+    await summary.focus()
+    await page.keyboard.press('Enter')
+  }
+  await expect(help).toHaveAttribute('open', '')
+  await expect(help).toContainText('This entry comes from the Equipment Expansion mod.')
+  await expect(help).toContainText('This snapshot does not record whether that mod was enabled in your game.')
+  await expect(help).toContainText('This label does not check whether a selection fits its slot.')
+  await expect(help).toContainText('then capture a new character snapshot')
+  expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await help.getByRole('link', { name: 'Data & settings > Ruleset', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await expect(settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true })).toHaveValue('unknown')
+  await settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true }).selectOption('enabled')
+  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/characters/${CHARACTER}/current$`))
+  await expect(summary).toHaveText('Equipment Expansion mod: enabled status not recorded')
+  await expect(page.getByText('Slot context has changed', { exact: true })).toBeVisible()
+  expect((await exportProfile(page)).characters).toEqual(profile.characters)
+})
+
 test('mod settings control search and choices while sheets retain recorded context across backup restore', async ({ page }) => {
   let profile = updateRulesetRevision(createTestProfile(), { sourceRevisionId: TEST_RULESET_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId } })
   profile = createCharacter(profile, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
@@ -70,12 +108,12 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield: enabled' })).toBeVisible()
+  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield mod: enabled' })).toBeVisible()
   await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.locator('.recorded-sheet')).toContainText('Equipment Expansion')
   await page.getByRole('link', { name: 'Doge Shield', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toBeVisible()
-  await expect(page.getByText('Doge Shield: disabled', { exact: true })).toBeVisible()
+  await expect(page.getByText('Doge Shield mod: disabled', { exact: true })).toBeVisible()
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
   if (!await referenceSearch.isVisible()) await page.getByRole('button', { name: /Refine|Filters/ }).click()
@@ -83,12 +121,12 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(page.locator('button.reference-card')).toHaveCount(0)
   await referenceSearch.fill('Heavy Edge')
   await expect(page.locator('button.reference-card')).toHaveCount(1)
-  await expect(page.locator('button.reference-card')).toContainText('Equipment Expansion: setting unknown')
+  await expect(page.locator('button.reference-card')).toContainText('Equipment Expansion mod: enabled status not recorded')
   palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(0)
   await page.keyboard.press('Escape')
   palette = await search(page, 'Bloodmage')
-  await expect(palette.locator('.universal-search__result').filter({ hasText: 'Bloodmage: enabled' })).toHaveCount(1)
+  await expect(palette.locator('.universal-search__result').filter({ hasText: 'Bloodmage mod: enabled' })).toHaveCount(1)
   await page.keyboard.press('Escape')
   await page.goto(`/#/characters/${CHARACTER}/current`)
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
@@ -106,7 +144,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
   await page.getByLabel('Show unchanged fields', { exact: true }).check()
-  await expect(page.getByRole('region', { name: 'Hand', exact: true }).getByText('Doge Shield: enabled', { exact: true })).toHaveCount(2)
+  await expect(page.getByRole('region', { name: 'Hand', exact: true }).getByText('Doge Shield mod: enabled', { exact: true })).toHaveCount(2)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
@@ -124,7 +162,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(palette.locator('.universal-search__result')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield: enabled' })).toBeVisible()
+  await expect(page.locator('.member-slot-warning').filter({ hasText: 'Doge Shield mod: enabled' })).toBeVisible()
 })
 
 test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', async ({ page, context }) => {

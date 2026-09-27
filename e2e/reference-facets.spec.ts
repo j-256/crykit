@@ -103,7 +103,7 @@ test('source mod facets include established catalog associations and agree with 
   await page.getByRole('group', { name: 'Reference mods filters', exact: true }).getByRole('button', { name: /^Equipment Expansion \(\d+\)$/ }).click()
   const result = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Backbreaker', exact: true }) })
   await expect(result).toBeVisible()
-  await expect(result).toContainText('Equipment Expansion: setting unknown')
+  await expect(result).toContainText('Equipment Expansion mod: enabled status not recorded')
   await expect(result).not.toContainText('Possible match')
   await expect(page).toHaveURL(/mod=Equipment\+Expansion/)
 })
