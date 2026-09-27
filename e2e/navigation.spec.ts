@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function navigate(page: Page, destination: string) {
@@ -38,6 +39,7 @@ async function addCharacter(page: Page, name: string) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await createBlankPlaythrough(page)
 })
 
 test('character tabs and nested definition routes restore exact UI state', async ({ page }) => {

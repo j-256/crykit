@@ -6,7 +6,7 @@ Date: 2026-09-24. This is the implementation contract for a local inventory, cha
 
 The core journey is record, search, select, compare, check, and plan. Reference definitions describe documented game content; observations describe what a player explicitly recorded; builds and teams describe alternatives. Editing one layer must never silently mutate another. The application does not connect to a console, change a game save, buy equipment, learn abilities, or infer events from plans.
 
-A new installation starts with blank personal state and a partial public names catalog. A player can search references immediately, import local research, create unmatched entries, or record a character without completing a catalog. Missing data restricts conclusions while preserving the ability to record facts. Built-in names do not establish platform applicability or game mechanics.
+A new installation starts with a labeled synthetic sample team and a partial public names catalog. Explicitly created profiles start blank, and imports do not acquire sample records. A player can explore the sample, search references immediately, import local research, create unmatched entries, or record a character without completing a catalog. Missing data restricts conclusions while preserving the ability to record facts. Built-in names and sample observations do not establish platform applicability or game mechanics.
 
 The first complete release comprises data-preserving storage, useful tracking, and descriptive build/party planning. It does not require damage simulation, displayed-stat prediction, optimization, OCR, hosted synchronization, or a complete game database. There is no universal build score. Item-listed values and observed final character stats remain separate.
 
@@ -15,7 +15,7 @@ The first complete release comprises data-preserving storage, useful tracking, a
 | Topic | Decision |
 | --- | --- |
 | Available research format | Support the supplied tabular XLSX structure directly. A research JSON adapter is separately versioned; supporting its schema is not proof that an unavailable exact package was tested. Native backups use a ZIP container with a versioned JSON manifest/payload and original local source files. ZIP support is bounded and accepts only an unambiguous supported payload. |
-| Personal baseline | Local imports only. Original specifications, trackers, workbooks, exports, screenshots, and private fixtures are excluded from source control and static assets. |
+| Personal baseline | Labeled synthetic sample records on first use; real observations come from local entry or explicit imports. Original specifications, trackers, workbooks, exports, screenshots, and private fixtures are excluded from source control and static assets. |
 | First-release comparison | Basic descriptive comparison and immutable build checkpoints are required. Rich revision graphs and automated ranking are separate enhancements. |
 | Cross-device transfer | Export and restore complete native backups. Default to a new profile when identity or ancestry is uncertain; preserve divergent copies. Do not guess a merge or sum snapshot counts. |
 | Catalog upgrades | Retain immutable snapshots and build locks. A new catalog must not rewrite a saved revision. Explicit build rebasing creates a new checkpoint. |

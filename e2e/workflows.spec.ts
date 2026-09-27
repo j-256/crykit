@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -60,6 +61,7 @@ async function exportPayload(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await createBlankPlaythrough(page)
 })
 
 test('settings keeps keyboard focus within its sheet and returns focus on escape', async ({ page }) => {

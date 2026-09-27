@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
 import { createBlankProfile, createPersonalDefinition } from '../domain/profile'
 import { asId } from '../domain/core'
@@ -34,14 +34,15 @@ describe('workspace persistence', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     setDatabaseForTests(undefined)
     await database.delete()
   })
 
-  it('starts blank and saves an advanced domain revision with optimistic locking', async () => {
+  it('starts with a sample team and saves an advanced domain revision with optimistic locking', async () => {
     const workspace = await loadWorkspace()
-    expect(Object.keys(workspace.profile.inventory)).toHaveLength(0)
-    expect(Object.keys(workspace.profile.characters)).toHaveLength(0)
+    expect(Object.keys(workspace.profile.inventory)).not.toHaveLength(0)
+    expect(Object.keys(workspace.profile.characters)).toHaveLength(2)
 
     const advanced = createPersonalDefinition(workspace.profile, {
       kind: 'item',
@@ -118,27 +119,55 @@ describe('workspace persistence', () => {
     expect(unchanged.revision).toBe(workspace.revision)
   })
 
-  it('initializes one blank profile under concurrent loads', async () => {
+  it('initializes one sample profile under concurrent loads and does not reseed on reload', async () => {
     const workspaces = await Promise.all(Array.from({ length: 4 }, () => loadWorkspace()))
     expect(new Set(workspaces.map((workspace) => workspace.profile.id)).size).toBe(1)
     expect(await database.profiles.count()).toBe(1)
     expect(await database.catalogs.count()).toBe(1)
+    for (const workspace of workspaces) expect(workspace.profile).toEqual(workspaces[0]!.profile)
+    expect(Object.keys(workspaces[0]!.profile.characters)).toHaveLength(2)
+    expect((await loadWorkspace()).profile).toEqual(workspaces[0]!.profile)
+    expect(await database.history.count()).toBe(0)
   })
 
-  it('makes starter names available to every profile without inventing personal observations', async () => {
+  it('keeps explicitly created profiles blank and makes the catalog available to both profile types', async () => {
     const first = await loadWorkspace()
     const second = await createProfile('Another empty playthrough')
     for (const workspace of [first, second]) {
       expect(workspace.catalogs).toContainEqual(STARTER_CATALOG)
-      expect(workspace.profile.inventory).toEqual({})
-      expect(workspace.profile.characters).toEqual({})
       expect(workspace.profile.progress).toEqual({})
       expect(workspace.profile.importReceipts).toEqual({})
       expect(workspace.revision).toBe(0)
       expect(workspace.canUndo).toBe(false)
     }
+    expect(second.profile.inventory).toEqual({})
+    expect(second.profile.characters).toEqual({})
+    expect(second.profile.builds).toEqual({})
+    expect(second.profile.scenarios).toEqual({})
+    expect((await loadWorkspace()).profile).toEqual(second.profile)
     expect(await database.catalogs.count()).toBe(1)
     expect((await loadWorkspace(first.profile.id)).profile).toEqual(first.profile)
+  })
+
+  it('rolls back failed first-run initialization and retries without a partial team', async () => {
+    vi.spyOn(database.meta, 'put').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
+    await expect(loadWorkspace()).rejects.toMatchObject({ code: 'storage-failure', recoverable: true })
+    expect(await database.profiles.count()).toBe(0)
+    expect(await database.meta.count()).toBe(0)
+    const retried = await loadWorkspace()
+    expect(Object.keys(retried.profile.characters)).toHaveLength(2)
+    expect(await database.profiles.count()).toBe(1)
+  })
+
+  it('round-trips the sample team without adding another starter to the restored profile', async () => {
+    const original = await loadWorkspace()
+    const preview = await previewImport(await exportBackup(original.profile.id), 'sample-team.zip')
+    const restored = await commitImport(preview, { mode: 'new-profile' })
+    expect(restored.profile.id).not.toBe(original.profile.id)
+    for (const key of ['characters', 'inventory', 'rulesets', 'builds', 'buildRevisions', 'scenarios'] as const) {
+      expect(restored.profile[key]).toEqual(original.profile[key])
+    }
+    expect((await loadWorkspace()).profile).toEqual(restored.profile)
   })
 
   it('restores a missing starter catalog without replacing an existing playthrough', async () => {
@@ -232,7 +261,7 @@ describe('workspace persistence', () => {
   })
 
   it('applies the history count limit before its byte budget', async () => {
-    const workspace = await loadWorkspace()
+    const workspace = await createProfile('Small history fixture')
     const oversizedOldestCommand = 'x'.repeat(8 * 1024 * 1024 + 1024)
     await database.history.bulkAdd(Array.from({ length: 501 }, (_, index) => ({
       id: `history:${index.toString().padStart(4, '0')}`,
@@ -293,7 +322,7 @@ describe('workspace persistence', () => {
   })
 
   it('stores over-compressible backup entries when deflate would violate import bounds', async () => {
-    const workspace = await loadWorkspace()
+    const workspace = await createProfile('Compressible fixture')
     const repetitiveDraft = { ...workspace.profile, label: 'x'.repeat(60_000) }
     const backup = await exportBackup(workspace.profile.id, repetitiveDraft)
     const bundle = inspectZip(backup).entries.find((entry) => entry.name === 'bundle.json')
@@ -304,7 +333,7 @@ describe('workspace persistence', () => {
   })
 
   it('rebases a recorded-party baseline when replacing a lower-revision profile', async () => {
-    const target = await loadWorkspace()
+    const target = await createProfile('Blank replacement target')
     const timestamp = '2026-01-02T03:04:05.000Z' as Timestamp
     const rulesetId = 'ruleset-revision:source' as RulesetRevisionId
     const scenarioId = 'scenario:source' as ScenarioId

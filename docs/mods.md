@@ -6,7 +6,7 @@ The list retains the supplied Switch menu names, including **Learnable Innate Sk
 
 Case and extra whitespace do not change a recorded name's identity. Imported names outside the Switch list are shown separately and retained, including when applying the confirmed setup. Unedited knowledge stays intact. A choice resolves only that mod across imported alternatives; other disagreements remain conflicting. Revised claims are manual choices, while their original source attribution remains in the previous ruleset revision.
 
-**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled class square maps. Review the choices before saving. It does not establish the game version, PP rules, slots, or any character's learning. The application starts with a blank playthrough and does not apply this setup automatically.
+**Use confirmed Switch setup** fills the platform and individual mod choices for the configuration used to verify the bundled class square maps. Review the choices before saving. It does not establish the game version, PP rules, slots, or any character's learning. The sample playthrough leaves mod settings unknown and does not apply this setup automatically.
 
 ## Definition visibility
 

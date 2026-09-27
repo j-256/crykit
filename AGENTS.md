@@ -2,7 +2,7 @@
 
 Build a local-first planner with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
 
-Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. The application starts blank and makes no runtime requests for game data.
+Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser profiles start with labeled synthetic sample records; explicitly created profiles start blank. The application makes no runtime requests for game data.
 
 GitHub Actions must remain disabled. Do not add executable workflows, enable CI, or invoke hosted runners. Run checks locally.
 

@@ -2,7 +2,9 @@
 
 A local-first inventory, character, and party planner for Crystal Project. Personal records live in the browser and move between devices through explicit file backups. The application does not connect to the game or infer unrecorded possessions, mastery, or combat rules.
 
-The application starts with a blank playthrough and a searchable, revision-attributed community reference catalog covering items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](docs/catalog-sources.md). Additional reference files and personal records can be imported locally.
+The first visit starts with a labeled sample playthrough: Rowan the Warrior and Mira the Cleric, their starting equipment, character sheets, editable builds, and an active sample team. These synthetic records are for exploring the planner. Replace them with your observations, create a blank profile in Data & settings, or import a playthrough. Reloading retains saved edits; clearing the browser's application data starts the sample again.
+
+A searchable, revision-attributed community reference catalog covers items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](docs/catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules, PP capacity, and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
 
 Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
 

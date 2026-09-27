@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { createBlankPlaythrough } from './profile-helpers'
 
 const BACKDROP_VIEWPORT = { width: 1280, height: 900 }
 
@@ -162,6 +163,8 @@ test('dropdown scrolling and Tab preserve keyboard access and dialogs are center
 })
 
 test('class dropdowns switch fields directly and a lower field opens upward', async ({ page }) => {
+  await page.goto('/')
+  await createBlankPlaythrough(page)
   await page.goto('/#/characters/new')
   const creation = page.getByRole('dialog', { name: 'Add character', exact: true })
   await creation.getByLabel('Character name').fill('Synthetic dropdown character')

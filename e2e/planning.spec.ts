@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -64,6 +65,7 @@ async function addStock(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await createBlankPlaythrough(page)
 })
 
 test('character, party progress, and historical events remain independent observations', async ({ page }) => {

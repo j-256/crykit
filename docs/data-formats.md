@@ -4,6 +4,8 @@ Crystal Companion separates reference definitions, personal observations, and hy
 
 ## Starter catalog and personal overrides
 
+When browser storage contains no profiles, initialization creates a labeled sample playthrough with character observations, stocked equipment, build checkpoints, and an active team. Sample records carry synthetic provenance and use the bundled catalog's exact references. They are written atomically and are not recreated on reload. Explicitly created blank profiles and imported profiles are not seeded. Native backups preserve sample records like other local records, without an imported source archive or an initial undo checkpoint.
+
 The built-in [public names catalog](catalog-sources.md) is installed locally for every profile without creating personal records or undo entries. No runtime request is needed. Reference imports add separate immutable catalogs; equal names across sources do not automatically merge. A backup includes the starter revision when personal records or retained history reference it, without inventing an imported source file.
 
 Creating or saving a ruleset in Data & settings includes the built-in catalog in the new revision's lock when it is not already pinned. Existing catalog pins remain unchanged. For an older ruleset that lacks this catalog, save a new ruleset revision before selecting its definitions in a build.

@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -19,6 +20,11 @@ async function exportProfile(page: Page): Promise<Profile> {
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }).profile
 }
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/')
+  await createBlankPlaythrough(page)
+})
 
 test('a blank playthrough can plan unowned gear directly and reopen it offline', async ({ page, context }, testInfo) => {
   await page.goto('/#/builds/library')

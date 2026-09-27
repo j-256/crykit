@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 const card = (page: Page, name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
@@ -10,6 +11,11 @@ async function expectWeapon(page: Page, isMobile: boolean, weapon: string) {
   }
   await expect(page.getByRole('combobox', { name: 'Weapon skills usable with', exact: true })).toHaveValue(weapon)
 }
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/')
+  await createBlankPlaythrough(page)
+})
 
 test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', async ({ page, context, isMobile }) => {
   await page.goto('/')

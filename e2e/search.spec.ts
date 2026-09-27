@@ -1,3 +1,4 @@
+import { createBlankPlaythrough } from './profile-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -42,6 +43,7 @@ async function chooseDefinition(page: Page, form: Locator, label: string, query:
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await createBlankPlaythrough(page)
 })
 
 test('universal search focuses the input on shortcuts, reopening, and the search button', async ({ page, isMobile }) => {

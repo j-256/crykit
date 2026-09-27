@@ -1,6 +1,7 @@
 import { mergeCorrections } from '../domain/corrections'
 import { loadCorrections, saveCorrections } from './corrections'
-import { BUNDLED_CATALOGS } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { createSampleProfile } from '../domain/sample-profile'
 import { zipSync, type Zippable } from 'fflate'
 import type {
   CatalogSnapshot,
@@ -153,7 +154,7 @@ async function ensureStarterCatalog(database: CrystalCompanionDatabase): Promise
   })
 }
 
-async function initializeBlankRecord(database: CrystalCompanionDatabase): Promise<ProfileRecord> {
+async function initializeStarterRecord(database: CrystalCompanionDatabase): Promise<ProfileRecord> {
   return database.transaction('rw', database.profiles, database.meta, async () => {
     const activeId = (await database.meta.get(ACTIVE_PROFILE_KEY))?.value
     const active = activeId ? await database.profiles.get(activeId) : undefined
@@ -163,8 +164,8 @@ async function initializeBlankRecord(database: CrystalCompanionDatabase): Promis
       await database.meta.put({ key: ACTIVE_PROFILE_KEY, value: existing.id })
       return existing
     }
-    const profile = createBlankProfile()
-    validateProfileForStorage(profile, [])
+    const profile = createSampleProfile(DEFAULT_CATALOG)
+    validateProfileForStorage(profile, BUNDLED_CATALOGS)
     const record: ProfileRecord = {
       id: profile.id,
       revision: profile.revision,
@@ -268,7 +269,7 @@ async function resolveProfileRecord(
     }
   }
   const first = await database.profiles.orderBy('updatedAt').last()
-  return first ?? initializeBlankRecord(database)
+  return first ?? initializeStarterRecord(database)
 }
 
 function catalogReferences(profile: Profile): Set<string> {
