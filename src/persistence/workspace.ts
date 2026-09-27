@@ -588,6 +588,39 @@ export async function commitImport(
       ],
       async () => {
         assertStarterCatalogIdentity(preview.proposed.catalogs)
+        if (mode === 'add-reference') {
+          if (preview.detectedFormat !== 'crystal-edit-json-1' || preview.counts.personal || preview.counts.mixed) {
+            throw new AppDataError('import-conflict', 'Only a reference-only Crystal Edit preview can be added to a profile', { recoverable: true })
+          }
+          const targetId = options.targetProfileId
+          const target = targetId ? await database.profiles.get(targetId) : undefined
+          if (!target || options.expectedRevision !== target.revision) {
+            throw new AppDataError('revision-conflict', 'The target profile changed. Reload before adding references', { recoverable: true })
+          }
+          if (Object.values(target.profile.importReceipts).some(receipt => receipt.sourceIdentity === `sha256:${preview.sourceDigest}`)) {
+            committedId = target.profile.id
+            return
+          }
+          const catalogs = await Promise.all(preview.proposed.catalogs.map(async catalog => {
+            const existing = await database.catalogs.get(catalogKey(catalog))
+            return existing ? { ...catalog, importedAt: existing.snapshot.importedAt } : catalog
+          }))
+          const sources = await Promise.all(preview.proposed.sources.map(async source => {
+            const existing = await database.sources.get(source.id)
+            return existing ? { ...source, importedAt: existing.importedAt, filename: existing.filename } : source
+          }))
+          await putCandidateData(database, { ...preview.proposed, catalogs, sources })
+          const timestamp = nowTimestamp()
+          const receipts = Object.fromEntries(Object.entries(preview.proposed.profile.importReceipts).map(([id, receipt]) => [id, { ...receipt, importedAt: timestamp, profileRevision: target.revision + 1 }]))
+          const updated = changedProfile(target.profile, { ...target.profile, importReceipts: { ...target.profile.importReceipts, ...receipts } }, 'add-reference-catalog', timestamp)
+          const storedCatalogs = (await database.catalogs.toArray()).map(record => record.snapshot)
+          validateNativeProfileGraph(updated, storedCatalogs)
+          await database.profiles.put({ ...target, revision: updated.revision, updatedAt: timestamp, profile: updated })
+          await database.history.add(historyEntry(target.profile, updated, 'add-reference-catalog', timestamp))
+          await database.imports.put({ id: preview.id, sourceDigest: preview.sourceDigest, profileId: target.profile.id, importedAt: timestamp })
+          committedId = target.profile.id
+          return
+        }
         if (options.restoreCorrections && preview.proposed.corrections) {
           const local = await loadCorrections()
           await saveCorrections(mergeCorrections(local.entries, preview.proposed.corrections.entries), local.revision)

@@ -1,4 +1,5 @@
 import { definitionModAvailability } from '../catalog/mods'
+import { historicalCatalogKeys } from '../domain/corrections'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef, resolveDefinition, sameLogicalEntity, skillTreeShape, squareKey, type ReviewedSkillTree } from '../domain'
 import type { CatalogEntityKind, CatalogSnapshot, CharacterId, EntityRef, LearnedNodeKind, Profile, SkillSquareState, SkillTreeMapping } from '../domain/types'
@@ -15,8 +16,14 @@ interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: Ch
 const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
 
 function choices(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly Choice[] {
+  const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+  const historical = historicalCatalogKeys(catalogs)
+  const availableCatalogs = catalogs.filter(catalog => {
+    const pinned = ruleset?.catalogLock[catalog.id]
+    return pinned ? catalog.revisionId === pinned : !historical.has(JSON.stringify([catalog.id, catalog.revisionId]))
+  })
   const refs: EntityRef[] = [
-    ...catalogs.flatMap(catalog => Object.values(catalog.entities).map(entity => ({ kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }))),
+    ...availableCatalogs.flatMap(catalog => Object.values(catalog.entities).map(entity => ({ kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }))),
     ...Object.values(profile.personalDefinitions).map(definition => ({ kind: 'personal' as const, definitionId: definition.id })),
   ]
   const result = new Map<string, Choice>()
@@ -24,7 +31,6 @@ function choices(profile: Profile, catalogs: readonly CatalogSnapshot[]): readon
     const ref = preferredDefinitionRef(profile, initial)
     const entity = resolveDefinition(profile, catalogs, ref)
     if (!entity || !['class', 'ability', 'passive', 'innate', 'monsterMagic'].includes(entity.kind)) continue
-    const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
     if (definitionModAvailability(profile, ref, ruleset).state === 'disabled') continue
     const field = entity.fields.Class
     result.set(entityDefinitionKey(ref), { ref, name: entity.name, kind: entity.kind, ...(field?.state === 'known' && typeof field.value === 'string' ? { className: field.value } : {}) })

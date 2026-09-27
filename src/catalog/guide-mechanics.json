@@ -1,0 +1,1815 @@
+{
+  "source": {
+    "sourceId": "community:geef-modding-guide",
+    "snapshot": "Supplied guide text, reviewed 2026-09-27",
+    "applicability": "Community research; individual mechanics may depend on game version and modifier context"
+  },
+  "entries": [
+    {
+      "name": "Flat {STAT} [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Increases X stat by Y\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
+      "locator": "Stat modifiers > Flat {STAT} [X] [Y]; line 1108"
+    },
+    {
+      "name": "Addi {STAT} [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Increases X stat by Y%; multiple sources are additive\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
+      "locator": "Stat modifiers > Addi {STAT} [X] [Y]; line 1116"
+    },
+    {
+      "name": "Mult BasicAttack 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the damage/healing of abilities flagged as Basic by X%",
+      "locator": "Stat modifiers > Mult BasicAttack 100 [X]; line 1124"
+    },
+    {
+      "name": "Mult PHitChance Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the chance to hit with abilities Physical abilities by X%",
+      "locator": "Stat modifiers > Mult PHitChance Given 100 [X]; line 1126"
+    },
+    {
+      "name": "Mult PHitChance Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the chance to be hit with Physical abilities by X%",
+      "locator": "Stat modifiers > Mult PHitChance Taken 100 [X]; line 1128"
+    },
+    {
+      "name": "Flat TTAtBattleStart [X]",
+      "category": "Stat modifiers",
+      "description": "Adds X amount of TT at combat start",
+      "locator": "Stat modifiers > Flat TTAtBattleStart [X]; line 1130"
+    },
+    {
+      "name": "Flat CritResist [X]",
+      "category": "Stat modifiers",
+      "description": "Increases Crit. Resist by X%.\n- Note: Crit. Resist explicitly reduces the extra damage granted by Critical Hits by its percentage; it does not affect the non-Critical portion of damage",
+      "locator": "Stat modifiers > Flat CritResist [X]; line 1132"
+    },
+    {
+      "name": "Addi PHitChance Given [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increases the chance to hit with Physical abilities by X%",
+      "locator": "Stat modifiers > Addi PHitChance Given [X]; line 1136"
+    },
+    {
+      "name": "Addi PHitChance Taken [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increase the chance to be hit with Physical abilities by X%",
+      "locator": "Stat modifiers > Addi PHitChance Taken [X]; line 1138"
+    },
+    {
+      "name": "Addi MHitChance Given [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increases the chance to hit with Magical abilities by X%",
+      "locator": "Stat modifiers > Addi MHitChance Given [X]; line 1140"
+    },
+    {
+      "name": "Addi MHitChance Taken [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increase the chance to be hit with Magical abilities by X%",
+      "locator": "Stat modifiers > Addi MHitChance Taken [X]; line 1142"
+    },
+    {
+      "name": "Addi PVariance [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increases the Variance of Physical abilities by X%",
+      "locator": "Stat modifiers > Addi PVariance [X]; line 1144"
+    },
+    {
+      "name": "PElement [X]",
+      "category": "Stat modifiers",
+      "description": "Asserts X element to Physical abilities",
+      "locator": "Stat modifiers > PElement [X]; line 1146"
+    },
+    {
+      "name": "PStatusApply [X] [Y] [Z]",
+      "category": "Stat modifiers",
+      "description": "Physical abilities carry an X% chance to apply Y status for Z turns",
+      "locator": "Stat modifiers > PStatusApply [X] [Y] [Z]; line 1148"
+    },
+    {
+      "name": "Mult MVariance [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies Variance for Magical abilities by X%",
+      "locator": "Stat modifiers > Mult MVariance [X]; line 1150"
+    },
+    {
+      "name": "Addi MVariance [X]",
+      "category": "Stat modifiers",
+      "description": "Additively increases the Variance of Magical abilities by X%",
+      "locator": "Stat modifiers > Addi MVariance [X]; line 1152"
+    },
+    {
+      "name": "Flat {STAT} Per Level [X] [Y] [Z]",
+      "category": "Stat modifiers",
+      "description": "Increases X stat by Y every Z Level(s).\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased\n* Note: The name of this is not a literal - rather than getting a fixed increase of Y every Z Level(s), the total increase is interpolated and evenly distributed across each individual Level. As an example, adding 15 PAtk per 3 Levels would give you 5 PAtk every Level up to 20 times (presuming your max level per-character is 60), for a total of 300.",
+      "locator": "Stat modifiers > Flat {STAT} Per Level [X] [Y] [Z]; line 1154"
+    },
+    {
+      "name": "Flat / Addi {STAT} Per Turn [X] [Y] [Z]",
+      "category": "Stat modifiers",
+      "description": "Increases X stat by Y / Y% per-turn for Z turns\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
+      "locator": "Stat modifiers > Flat / Addi {STAT} Per Turn [X] [Y] [Z]; line 1164"
+    },
+    {
+      "name": "Mult PDmg Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical damage dealt by X%",
+      "locator": "Stat modifiers > Mult PDmg Given 100 [X]; line 1172"
+    },
+    {
+      "name": "Mult PDmg Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical damage taken by X%",
+      "locator": "Stat modifiers > Mult PDmg Taken 100 [X]; line 1174"
+    },
+    {
+      "name": "Mult MDmg Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Magical damage dealt by X%",
+      "locator": "Stat modifiers > Mult MDmg Given 100 [X]; line 1176"
+    },
+    {
+      "name": "Mult MDmg Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Magical damage taken by X%",
+      "locator": "Stat modifiers > Mult MDmg Taken 100 [X]; line 1178"
+    },
+    {
+      "name": "PHit Always",
+      "category": "Stat modifiers",
+      "description": "Physical abilities always hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > PHit Always; line 1180"
+    },
+    {
+      "name": "PHit Never",
+      "category": "Stat modifiers",
+      "description": "Physical abilities never hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > PHit Never; line 1186"
+    },
+    {
+      "name": "PEva Always",
+      "category": "Stat modifiers",
+      "description": "Physical abilities are always evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > PEva Always; line 1192"
+    },
+    {
+      "name": "PEva Never",
+      "category": "Stat modifiers",
+      "description": "Physical abilities are never evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > PEva Never; line 1198"
+    },
+    {
+      "name": "Mute",
+      "category": "Stat modifiers",
+      "description": "Abilities flagged as Magical cannot be casted",
+      "locator": "Stat modifiers > Mute; line 1204"
+    },
+    {
+      "name": "Mult PCritDmg Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical Critical Hit Damage dealt by X%\n- Note: This affects the entire damage total, not just the Critical portion",
+      "locator": "Stat modifiers > Mult PCritDmg Given 100 [X]; line 1206"
+    },
+    {
+      "name": "Mult PCritDmg Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical Critical Hit Damage taken by X%\n- Note: This affects the entire damage total, not just the Critical portion",
+      "locator": "Stat modifiers > Mult PCritDmg Taken 100 [X]; line 1210"
+    },
+    {
+      "name": "Mult PCritChance Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the odds of dealing a Critical Hit by X%",
+      "locator": "Stat modifiers > Mult PCritChance Given 100 [X]; line 1214"
+    },
+    {
+      "name": "Mult PCritChance Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the odds of receiving a Critical Hit by X%",
+      "locator": "Stat modifiers > Mult PCritChance Taken 100 [X]; line 1216"
+    },
+    {
+      "name": "Flat PCritDmg Given [X]",
+      "category": "Stat modifiers",
+      "description": "Increases Physical Critical Hit Damage dealt by X",
+      "locator": "Stat modifiers > Flat PCritDmg Given [X]; line 1218"
+    },
+    {
+      "name": "Flat PCritDmg Taken [X]",
+      "category": "Stat modifiers",
+      "description": "Increases Physical Critical Hit Damage taken by X",
+      "locator": "Stat modifiers > Flat PCritDmg Taken [X]; line 1220"
+    },
+    {
+      "name": "Mult Healing Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply healing given by X%",
+      "locator": "Stat modifiers > Mult Healing Given 100 [X]; line 1222"
+    },
+    {
+      "name": "Mult Healing Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply healing received by X%\n- Note: Does not affect sources of \"lifesteal\" (negative DmgReturn modifiers)",
+      "locator": "Stat modifiers > Mult Healing Taken 100 [X]; line 1224"
+    },
+    {
+      "name": "Mult MPCosts [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply the MP cost of abilities by X%",
+      "locator": "Stat modifiers > Mult MPCosts [X]; line 1228"
+    },
+    {
+      "name": "MEva Always",
+      "category": "Stat modifiers",
+      "description": "Magical abilities are always evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > MEva Always; line 1230"
+    },
+    {
+      "name": "MEva Never",
+      "category": "Stat modifiers",
+      "description": "Magical abilities are never evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > MEva Never; line 1236"
+    },
+    {
+      "name": "Mult RepeatActionDmg [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Multiplies damage dealt when an ability is repeatedly used by X% for each subsequent cast after the first, up to Y times; stacks additively",
+      "locator": "Stat modifiers > Mult RepeatActionDmg [X] [Y]; line 1242"
+    },
+    {
+      "name": "Flat MPCosts [X]",
+      "category": "Stat modifiers",
+      "description": "Increases MP cost of abilities by X\n- Note: This can give MP costs to abilities that did not originally have one",
+      "locator": "Stat modifiers > Flat MPCosts [X]; line 1244"
+    },
+    {
+      "name": "NoPhysical",
+      "category": "Stat modifiers",
+      "description": "Abilities flagged as Physical cannot be casted",
+      "locator": "Stat modifiers > NoPhysical; line 1248"
+    },
+    {
+      "name": "CantAttack",
+      "category": "Stat modifiers",
+      "description": "Damaging abilities flagged as Physical cannot be casted\n- Note: Abilities flagged as Physical that deal no damage are not restricted by this effect",
+      "locator": "Stat modifiers > CantAttack; line 1250"
+    },
+    {
+      "name": "MHit Always",
+      "category": "Stat modifiers",
+      "description": "Magical abilities always hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > MHit Always; line 1254"
+    },
+    {
+      "name": "MHit Never",
+      "category": "Stat modifiers",
+      "description": "Magical abilities never hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Stat modifiers > MHit Never; line 1260"
+    },
+    {
+      "name": "Mult PercentDmg Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies 'percentual' damage taken (such as fractional-damage abilities or effects like Poison) by X%\n- Note: Most bosses use this to mitigate being cheapened by DOTs\n- Note: This has a knock-on effect of reducing HP costs for abilities that have them",
+      "locator": "Stat modifiers > Mult PercentDmg Taken 100 [X]; line 1266"
+    },
+    {
+      "name": "MagicOnly",
+      "category": "Stat modifiers",
+      "description": "Only abilities flagged as Magical can be casted",
+      "locator": "Stat modifiers > MagicOnly; line 1272"
+    },
+    {
+      "name": "Mult PNonCritDmg Given 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical non-Critical damage dealt by X%",
+      "locator": "Stat modifiers > Mult PNonCritDmg Given 100 [X]; line 1274"
+    },
+    {
+      "name": "Mult PNonCritDmg Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical non-Critical damage taken by X%",
+      "locator": "Stat modifiers > Mult PNonCritDmg Taken 100 [X]; line 1276"
+    },
+    {
+      "name": "Mult APCosts [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply the AP cost of skills by X%",
+      "locator": "Stat modifiers > Mult APCosts [X]; line 1278"
+    },
+    {
+      "name": "Flat APCosts [X]",
+      "category": "Stat modifiers",
+      "description": "Increase AP cost of abilities by X\n- Note: This can give AP costs to abilities that did not originally have one",
+      "locator": "Stat modifiers > Flat APCosts [X]; line 1280"
+    },
+    {
+      "name": "Flat DamagePerTurnHP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X damage at the start of the turn",
+      "locator": "Stat modifiers > Flat DamagePerTurnHP [X]; line 1284"
+    },
+    {
+      "name": "Addi DamagePerTurnHP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X% damage at the start of the turn",
+      "locator": "Stat modifiers > Addi DamagePerTurnHP [X]; line 1286"
+    },
+    {
+      "name": "Flat DamagePerTurnMP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X MP damage at the start of the turn",
+      "locator": "Stat modifiers > Flat DamagePerTurnMP [X]; line 1288"
+    },
+    {
+      "name": "Addi DamagePerTurnMP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X% MP damage at the start of the turn",
+      "locator": "Stat modifiers > Addi DamagePerTurnMP [X]; line 1290"
+    },
+    {
+      "name": "Flat DamagePerTurnAP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X AP damage at the start of the turn",
+      "locator": "Stat modifiers > Flat DamagePerTurnAP [X]; line 1292"
+    },
+    {
+      "name": "Addi DamagePerTurnAP [X]",
+      "category": "Stat modifiers",
+      "description": "Take X% AP damage at the start of the turn",
+      "locator": "Stat modifiers > Addi DamagePerTurnAP [X]; line 1294"
+    },
+    {
+      "name": "Mult DamagePerTurn Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply damage dealt by DOTs by X%",
+      "locator": "Stat modifiers > Mult DamagePerTurn Taken 100 [X]; line 1296"
+    },
+    {
+      "name": "Mult HealingPerTurn Taken 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply healing given by HOTs by X%",
+      "locator": "Stat modifiers > Mult HealingPerTurn Taken 100 [X]; line 1298"
+    },
+    {
+      "name": "APBonus OnBattleStart [X]",
+      "category": "Stat modifiers",
+      "description": "Start combat with X AP",
+      "locator": "Stat modifiers > APBonus OnBattleStart [X]; line 1300"
+    },
+    {
+      "name": "APBonus OnTurn [X]",
+      "category": "Stat modifiers",
+      "description": "Get an additional X AP on the start of the turn (base 6 per turn + X)",
+      "locator": "Stat modifiers > APBonus OnTurn [X]; line 1302"
+    },
+    {
+      "name": "APBonus OnAttack [X]",
+      "category": "Stat modifiers",
+      "description": "Get X AP when casting a Physical ability\n- Note: The ability does not need to be flagged as Basic",
+      "locator": "Stat modifiers > APBonus OnAttack [X]; line 1304"
+    },
+    {
+      "name": "APBonus OnDamaged [X]",
+      "category": "Stat modifiers",
+      "description": "Get X AP when taking damage",
+      "locator": "Stat modifiers > APBonus OnDamaged [X]; line 1308"
+    },
+    {
+      "name": "APBonus OnMagic [X]",
+      "category": "Stat modifiers",
+      "description": "Get X AP when casting a Magical ability",
+      "locator": "Stat modifiers > APBonus OnMagic [X]; line 1310"
+    },
+    {
+      "name": "Mult ThreatGain [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Threat gained by X%",
+      "locator": "Stat modifiers > Mult ThreatGain [X]; line 1312"
+    },
+    {
+      "name": "Mult ThreatDecay [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Threat lost per-turn by X%",
+      "locator": "Stat modifiers > Mult ThreatDecay [X]; line 1314"
+    },
+    {
+      "name": "Mult CT 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply ability CT by X%",
+      "locator": "Stat modifiers > Mult CT 100 [X]; line 1316"
+    },
+    {
+      "name": "Mult TT NextTurn 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply TT by X%",
+      "locator": "Stat modifiers > Mult TT NextTurn 100 [X]; line 1318"
+    },
+    {
+      "name": "Addi PDmgReturn [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'lifesteal'",
+      "locator": "Stat modifiers > Addi PDmgReturn [X] [Y]; line 1320"
+    },
+    {
+      "name": "Addi PDmgReturn OnKill [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP) when dealing a lethal blow\n- Note: Negative values allow for 'lifesteal'",
+      "locator": "Stat modifiers > Addi PDmgReturn OnKill [X] [Y]; line 1324"
+    },
+    {
+      "name": "Addi MDmgReturn [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y% of Magical damage dealt is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'lifesteal'",
+      "locator": "Stat modifiers > Addi MDmgReturn [X] [Y]; line 1328"
+    },
+    {
+      "name": "Addi MDmgReturn OnKill [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP) when dealing a lethal blow\n- Note: Negative values allow for 'lifesteal'",
+      "locator": "Stat modifiers > Addi MDmgReturn OnKill [X] [Y]; line 1332"
+    },
+    {
+      "name": "Flat PDmgReturn [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y recoil is returned to X resource stat (HP, MP, AP) when dealing Physical damage\n- Note: Negative values allow for 'lifesteal'",
+      "locator": "Stat modifiers > Flat PDmgReturn [X] [Y]; line 1336"
+    },
+    {
+      "name": "Addi HealingReturn [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Y% of healing given is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'heal steal'..?",
+      "locator": "Stat modifiers > Addi HealingReturn [X] [Y]; line 1340"
+    },
+    {
+      "name": "Mult HP [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply HP (max) by X%",
+      "locator": "Stat modifiers > Mult HP [X]; line 1344"
+    },
+    {
+      "name": "MaxDamageTaken [X]",
+      "category": "Stat modifiers",
+      "description": "All damage received cannot exceed X",
+      "locator": "Stat modifiers > MaxDamageTaken [X]; line 1346"
+    },
+    {
+      "name": "MaxDamageGiven [X]",
+      "category": "Stat modifiers",
+      "description": "All damage given cannot exceed X",
+      "locator": "Stat modifiers > MaxDamageGiven [X]; line 1348"
+    },
+    {
+      "name": "ExpBoost [X]",
+      "category": "Stat modifiers",
+      "description": "Boost EXP gain by X%",
+      "locator": "Stat modifiers > ExpBoost [X]; line 1350"
+    },
+    {
+      "name": "JPBoostAll [X]",
+      "category": "Stat modifiers",
+      "description": "Boost JP gain by X% for all Jobs",
+      "locator": "Stat modifiers > JPBoostAll [X]; line 1352"
+    },
+    {
+      "name": "Mult ElementDmg Taken [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Multiply damage taken from X element by Y%",
+      "locator": "Stat modifiers > Mult ElementDmg Taken [X] [Y]; line 1354"
+    },
+    {
+      "name": "StatusImmunity [X]",
+      "category": "Stat modifiers",
+      "description": "Cannot receive X status effect\n- Note: Does not retroactively remove X status effect; only prevents new instances",
+      "locator": "Stat modifiers > StatusImmunity [X]; line 1356"
+    },
+    {
+      "name": "StatusAuto [X] [Y] [Z]",
+      "category": "Stat modifiers",
+      "description": "The character starts combat with a X status effect Y% of the time for Z turns",
+      "locator": "Stat modifiers > StatusAuto [X] [Y] [Z]; line 1360"
+    },
+    {
+      "name": "Reaction [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "When specific trigger X has been met, perform Y ability immediately after the resolution of the triggering ability\n- Note: The trigger types are as follows:\n* On PDamage Taken - Triggers when taking Physical damage\n* On MDamage Taken - Triggers when taking Magical damage\n* On Near Death - Triggers when dropping to/below 25% of max HP\n* On PHit Dodged - Triggers when evading a Physical ability\n* On PCrit Taken - Triggers when taking a Critical Hit from a Physical ability\n* On Each Turn - Triggers at the combatant's start-of-turn\n* On Killed - Triggers when the combatant is reduced to 0 HP\n* On Damage Taken - Triggers when taking any ability damage\n* On Skip Turn - Triggers when choosing the Skip Turn command\n* On Healing Taken - Triggers when receiving healing from an ability\n* On PAbility Used - Triggers after the resolution of any Physical ability used by the combatant\n* On MAbility Used - Triggers after the resolution of any Magical ability used by the combatant\n* On Healing Used - Triggers after the resolution of any ability that resulted in healing used by the combatant\n* On PCritGiven - Triggers when dealing a Critical hit with a Physical ability\n* On Basic Ability Used - Triggers after the resolution of any ability flagged as Basic used by the combatant\n- Note: Reactions that happen simultaneously form a queue per-combatant per-trigger; the order in which queues execute is the same as the order of the triggers they follow (generally, this order is informed by turn \\> hit effect \\> ability resolution).\nOn Killed is special in this regard in that it skips the line - it gets shoved to the front of the queues for processing before other queues are evaluated. The intended use case is for combatants revived with Re-Raise to use reactions that would require them to be alive.\nFor simultaneous Reactions with the same trigger (in one queue), the order is first determined by the ID of the model in which those Reactions originate, then the order in which they appear in that model.\nWhen multiple queues from different combatants are asserted in response to any particular action, the priority layer looks like this:\n* The player party always gets first priority for queue processing, even if the triggering ability originated from a player. This means that for each trigger, all player combatants process their queues first - then enemies process theirs.\n* Within each party, the index order of its combatants determine who processes their reactions first; for the player party, member 1 goes first, then member 2, etc. For the enemy party, enemy 1 goes first, then enemy 2, etc.\n- Note: The following Reactions (the abilities they respond with) do not trigger other Reactions:\n* OnPDamageTaken\n* OnMDamageTaken\n* OnPHitDodged\n* OnPCritTaken\n* OnDamageTaken\n* OnAbilityUsed\n* OnHealingTaken\n* OnPAbilityUsed\n* OnMAbilityUsed\n* OnHealingUsed",
+      "locator": "Stat modifiers > Reaction [X] [Y]; line 1362"
+    },
+    {
+      "name": "JPBoost [X] [Y] ",
+      "category": "Stat modifiers",
+      "description": "Boost JP gain for X Job by Y%",
+      "locator": "Stat modifiers > JPBoost [X] [Y] ; line 1430"
+    },
+    {
+      "name": "Mult ElementDmg Given [X] [Y] ",
+      "category": "Stat modifiers",
+      "description": "Multiply damage dealt with X element by Y%",
+      "locator": "Stat modifiers > Mult ElementDmg Given [X] [Y] ; line 1432"
+    },
+    {
+      "name": "EnableEquipType [X]",
+      "category": "Stat modifiers",
+      "description": "Enables X equipment type to be slotted",
+      "locator": "Stat modifiers > EnableEquipType [X]; line 1434"
+    },
+    {
+      "name": "Addi BuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Received buffs last X% longer",
+      "locator": "Stat modifiers > Addi BuffDuration [X]; line 1436"
+    },
+    {
+      "name": "Addi DebuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Received debuffs last X% longer",
+      "locator": "Stat modifiers > Addi DebuffDuration [X]; line 1438"
+    },
+    {
+      "name": "Addi ApplyBuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Applied buffs last X% longer",
+      "locator": "Stat modifiers > Addi ApplyBuffDuration [X]; line 1440"
+    },
+    {
+      "name": "Addi ApplyDebuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Applied debuffs last X% longer",
+      "locator": "Stat modifiers > Addi ApplyDebuffDuration [X]; line 1442"
+    },
+    {
+      "name": "Flat BuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Received buffs last X turns longer",
+      "locator": "Stat modifiers > Flat BuffDuration [X]; line 1444"
+    },
+    {
+      "name": "Flat DebuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Received debuffs last X turns longer",
+      "locator": "Stat modifiers > Flat DebuffDuration [X]; line 1446"
+    },
+    {
+      "name": "Flat ApplyBuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Applied buffs last X turns longer",
+      "locator": "Stat modifiers > Flat ApplyBuffDuration [X]; line 1448"
+    },
+    {
+      "name": "Flat ApplyDebuffDuration [X]",
+      "category": "Stat modifiers",
+      "description": "Applied debuffs last X turns longer",
+      "locator": "Stat modifiers > Flat ApplyDebuffDuration [X]; line 1450"
+    },
+    {
+      "name": "AppliedBuffsArePerma",
+      "category": "Stat modifiers",
+      "description": "Applied buffs are permanent",
+      "locator": "Stat modifiers > AppliedBuffsArePerma; line 1452"
+    },
+    {
+      "name": "AppliedDebuffsArePerma",
+      "category": "Stat modifiers",
+      "description": "Applied debuffs are permanent",
+      "locator": "Stat modifiers > AppliedDebuffsArePerma; line 1454"
+    },
+    {
+      "name": "MaxBuffCount [X]",
+      "category": "Stat modifiers",
+      "description": "Cannot have more than X statuses of the Buff category\n- Note: Does not retroactively remove status effects; only prevents new instances",
+      "locator": "Stat modifiers > MaxBuffCount [X]; line 1456"
+    },
+    {
+      "name": "MaxDebuffCount [X]",
+      "category": "Stat modifiers",
+      "description": "Cannot have more than X statuses of the Debuff category\n- Note: Does not retroactively remove status effects; only prevents new instances",
+      "locator": "Stat modifiers > MaxDebuffCount [X]; line 1460"
+    },
+    {
+      "name": "ImmuneToStatusCategory [X]",
+      "category": "Stat modifiers",
+      "description": "The character cannot gain statuses of the X category\n- Note: Does not retroactively remove status effects; only prevents new instances",
+      "locator": "Stat modifiers > ImmuneToStatusCategory [X]; line 1464"
+    },
+    {
+      "name": "NoInput",
+      "category": "Stat modifiers",
+      "description": "The character cannot input a command, but can still perform Reactions",
+      "locator": "Stat modifiers > NoInput; line 1468"
+    },
+    {
+      "name": "OnStanceChange GetMPRate [X]",
+      "category": "Stat modifiers",
+      "description": "Upon entering a Stance, recover X% max MP",
+      "locator": "Stat modifiers > OnStanceChange GetMPRate [X]; line 1470"
+    },
+    {
+      "name": "DamageOnApply [X]",
+      "category": "Stat modifiers",
+      "description": "X damage (HP, MP, or AP) damage is dealt upon status application",
+      "locator": "Stat modifiers > DamageOnApply [X]; line 1472"
+    },
+    {
+      "name": "DamageRateOnApply [X]",
+      "category": "Stat modifiers",
+      "description": "X% damage (HP, MP, or AP) damage is dealt upon status application\n- Note: This is the only percentual damage source that ignores MultPercentDamageTaken",
+      "locator": "Stat modifiers > DamageRateOnApply [X]; line 1474"
+    },
+    {
+      "name": "Flat AbilityAPCost [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Increases the AP cost of ability Y by X\n- Note: This can give AP costs to abilities that did not originally have one",
+      "locator": "Stat modifiers > Flat AbilityAPCost [X] [Y]; line 1478"
+    },
+    {
+      "name": "InstantTurnOnApplication",
+      "category": "Stat modifiers",
+      "description": "The combatant immediately gets a turn after the resolution of the ability that applied this effect",
+      "locator": "Stat modifiers > InstantTurnOnApplication; line 1482"
+    },
+    {
+      "name": "RemoveStatusOnApply [X]",
+      "category": "Stat modifiers",
+      "description": "Removes X status effect on application",
+      "locator": "Stat modifiers > RemoveStatusOnApply [X]; line 1484"
+    },
+    {
+      "name": "MDmgCannotKill",
+      "category": "Stat modifiers",
+      "description": "Magical damage dealt by the user leaves targets at 1 HP",
+      "locator": "Stat modifiers > MDmgCannotKill; line 1486"
+    },
+    {
+      "name": "SetStatusAfterRemoval [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "When the status effect that applied this is prematurely removed, the combatant gains X status effect for Y turns",
+      "locator": "Stat modifiers > SetStatusAfterRemoval [X] [Y]; line 1488"
+    },
+    {
+      "name": "LootConsumableChanceUp [X]",
+      "category": "Stat modifiers",
+      "description": "The chance for consumables to drop on battle victory is increased by X%\n- Note: Only affects enemies that have at least one consumable in their drop table with a non-zero drop rate",
+      "locator": "Stat modifiers > LootConsumableChanceUp [X]; line 1490"
+    },
+    {
+      "name": "AbilityItemConsumptionDown",
+      "category": "Stat modifiers",
+      "description": "Abilities that consume items in order to be casted consume half the normal amount, rounded up",
+      "locator": "Stat modifiers > AbilityItemConsumptionDown; line 1494"
+    },
+    {
+      "name": "StrBonusWhileUnarmed",
+      "category": "Stat modifiers",
+      "description": "Receive flat PAtk while unarmed\n- Note: Amount received = the Str While Unarmed Bonus Flat setting in your Project Model (default: 30)",
+      "locator": "Stat modifiers > StrBonusWhileUnarmed; line 1496"
+    },
+    {
+      "name": "DisableLifestealAndRegen",
+      "category": "Stat modifiers",
+      "description": "Healing granted by negative PDmgReturn / MDmgReturn and/or negative DamagePerTurnHP modifiers is negated",
+      "locator": "Stat modifiers > DisableLifestealAndRegen; line 1500"
+    },
+    {
+      "name": "Mult AbilityDmg [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Multiply the damage dealt by X ability by Y%\n- Note: Does not affect abilities that heal",
+      "locator": "Stat modifiers > Mult AbilityDmg [X] [Y]; line 1502"
+    },
+    {
+      "name": "RevealStatsAuto",
+      "category": "Stat modifiers",
+      "description": "Enemy metrics are automatically revealed rather than requiring defeating that enemy prior",
+      "locator": "Stat modifiers > RevealStatsAuto; line 1506"
+    },
+    {
+      "name": "MinAggro",
+      "category": "Stat modifiers",
+      "description": "When applied by a player character to an enemy via status effect, forces the applier to become the target's bottom Threat while the status remains",
+      "locator": "Stat modifiers > MinAggro; line 1508"
+    },
+    {
+      "name": "Frostbite",
+      "category": "Stat modifiers",
+      "description": "The next instance of Ice elemental damage against the combatant inflicts Instant Kill",
+      "locator": "Stat modifiers > Frostbite; line 1510"
+    },
+    {
+      "name": "InstantBuff",
+      "category": "Stat modifiers",
+      "description": "Abilities that grant at least one buff and deal no damage do not consume the turn when casted",
+      "locator": "Stat modifiers > InstantBuff; line 1512"
+    },
+    {
+      "name": "InstantDebuff",
+      "category": "Stat modifiers",
+      "description": "Abilities that inflict at least one debuff and deal no damage do not consume the turn when casted",
+      "locator": "Stat modifiers > InstantDebuff; line 1514"
+    },
+    {
+      "name": "Flat Cooldowns [X]",
+      "category": "Stat modifiers",
+      "description": "Increase all ability Cooldowns by X",
+      "locator": "Stat modifiers > Flat Cooldowns [X]; line 1516"
+    },
+    {
+      "name": "Flat AbilityMPCost [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Increases X ability's MP cost by Y\n- Note: This can give MP costs to abilities that did not originally have one",
+      "locator": "Stat modifiers > Flat AbilityMPCost [X] [Y]; line 1518"
+    },
+    {
+      "name": "SetAppearanceToJob",
+      "category": "Stat modifiers",
+      "description": "Set the appearance of a character to a specific Job",
+      "locator": "Stat modifiers > SetAppearanceToJob; line 1522"
+    },
+    {
+      "name": "OnStanceChange GetHPRate [X]",
+      "category": "Stat modifiers",
+      "description": "Upon entering a stance, recover X% max HP",
+      "locator": "Stat modifiers > OnStanceChange GetHPRate [X]; line 1524"
+    },
+    {
+      "name": "OnStanceChange GetAPFlat [X]",
+      "category": "Stat modifiers",
+      "description": "Upon entering a stance, gain X AP",
+      "locator": "Stat modifiers > OnStanceChange GetAPFlat [X]; line 1526"
+    },
+    {
+      "name": "ReplaceAttackWith [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "Replace the default Attack command with ability X at priority Y\n- Note: Multiple instances of this effect decide by priority which replacement is adhered to; ties go to latest application",
+      "locator": "Stat modifiers > ReplaceAttackWith [X] [Y]; line 1528"
+    },
+    {
+      "name": "CooldownsTo1",
+      "category": "Stat modifiers",
+      "description": "All ability Cooldowns are set to 1",
+      "locator": "Stat modifiers > CooldownsTo1; line 1532"
+    },
+    {
+      "name": "PDmgDoesntWakeTarget",
+      "category": "Stat modifiers",
+      "description": "Physical damage the combatant deals does not remove status effects with 'Cleared By Any Dmg' toggled",
+      "locator": "Stat modifiers > PDmgDoesntWakeTarget; line 1534"
+    },
+    {
+      "name": "HealSingleToMulti",
+      "category": "Stat modifiers",
+      "description": "Single-target healing abilities instead heal multiple targets, but their total healing given is reduced by X%, where X is the Heal Multi With Penalty Rate setting in your Project Model (default: 35%)",
+      "locator": "Stat modifiers > HealSingleToMulti; line 1536"
+    },
+    {
+      "name": "MaxAggro",
+      "category": "Stat modifiers",
+      "description": "When applied by a player character to an enemy via status effect, forces the applier to become the target's top Threat while the status remains",
+      "locator": "Stat modifiers > MaxAggro; line 1538"
+    },
+    {
+      "name": "Possessed",
+      "category": "Stat modifiers",
+      "description": "When applied via a status effect, it prevents the status from being removed until the applicant is KO'd and causes the status to remain until such occurs; additionally, it prevents the applicant from applying the status a separate time to any target",
+      "locator": "Stat modifiers > Possessed; line 1540"
+    },
+    {
+      "name": "EscapeCostDown",
+      "category": "Stat modifiers",
+      "description": "The ability \"Run Away\" costs nothing to use\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 45, which is Rogue's 'Run Away' in Vanilla",
+      "locator": "Stat modifiers > EscapeCostDown; line 1542"
+    },
+    {
+      "name": "LuckyDiceRandomMultitarget",
+      "category": "Stat modifiers",
+      "description": "The ability \"Lucky Dice\" randomly targets enemies, and can sometimes hit multiple enemies\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 70, which is Scholar's 'Lucky Dice' in Vanilla",
+      "locator": "Stat modifiers > LuckyDiceRandomMultitarget; line 1546"
+    },
+    {
+      "name": "APGainsRecoverMP",
+      "category": "Stat modifiers",
+      "description": "Gaining AP recovers the same amount of MP",
+      "locator": "Stat modifiers > APGainsRecoverMP; line 1550"
+    },
+    {
+      "name": "PerfectRunAway",
+      "category": "Stat modifiers",
+      "description": "Attempting to escape a battle is always successful",
+      "locator": "Stat modifiers > PerfectRunAway; line 1552"
+    },
+    {
+      "name": "GoldGainUp [X]",
+      "category": "Stat modifiers",
+      "description": "Increase gold gain by X%",
+      "locator": "Stat modifiers > GoldGainUp [X]; line 1554"
+    },
+    {
+      "name": "PerfectHit",
+      "category": "Stat modifiers",
+      "description": "Damaging abilities with at least X% Accuracy are guaranteed to hit, where X = the Perfect Hit At Chance Or Higher setting in your Project Model",
+      "locator": "Stat modifiers > PerfectHit; line 1556"
+    },
+    {
+      "name": "GetNextTurnWhenCritical",
+      "category": "Stat modifiers",
+      "description": "The combatant immediately receives a turn when reduced to 25% or less of max HP, after the responsible ability resolves",
+      "locator": "Stat modifiers > GetNextTurnWhenCritical; line 1558"
+    },
+    {
+      "name": "Cover",
+      "category": "Stat modifiers",
+      "description": "When applied via a status effect, direct single-target damage the combatant would receive is instead taken by the applier, provided the applier is not currently KO'd",
+      "locator": "Stat modifiers > Cover; line 1560"
+    },
+    {
+      "name": "PdmgIncreasesMaxHP",
+      "category": "Stat modifiers",
+      "description": "Physical damage increases max hp by X% of damage dealt, which decays Y% every turn for 3 turns; X = the PDmg Increases Max HP Absorb Rate setting in your Project Model, Y = PDmg Increases Max HP Decay Rate setting in your Project Model (default: 40% / 50%)",
+      "locator": "Stat modifiers > PdmgIncreasesMaxHP; line 1562"
+    },
+    {
+      "name": "Mult PPmgWithBottomThreat [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Physical damage dealt by X% if the combatant is the target's bottom Threat",
+      "locator": "Stat modifiers > Mult PPmgWithBottomThreat [X]; line 1564"
+    },
+    {
+      "name": "DodgeIndirectPAoe",
+      "category": "Stat modifiers",
+      "description": "Always dodge multi-target Physical abilities if the combatant is not the attacker's Top threat",
+      "locator": "Stat modifiers > DodgeIndirectPAoe; line 1566"
+    },
+    {
+      "name": "CritImmunity",
+      "category": "Stat modifiers",
+      "description": "Cannot receive Critical Hits",
+      "locator": "Stat modifiers > CritImmunity; line 1568"
+    },
+    {
+      "name": "UnarmedPAtk",
+      "category": "Stat modifiers",
+      "description": "Gain PAtk when unarmed equal to the combatant's STR * 2",
+      "locator": "Stat modifiers > UnarmedPAtk; line 1570"
+    },
+    {
+      "name": "IgnoreReaction",
+      "category": "Stat modifiers",
+      "description": "The combatant's abilities do not trigger enemy Reactions\n- Note: This differs from the NoReaction ability mod in that a combatant affected by this stat mod will not trigger targets' OnKilled reactions if the ability the target responds with has a Target value of Enemy",
+      "locator": "Stat modifiers > IgnoreReaction; line 1572"
+    },
+    {
+      "name": "PDefAsMDef",
+      "category": "Stat modifiers",
+      "description": "Resistance is used in place of Defense when mitigating Physical damage taken",
+      "locator": "Stat modifiers > PDefAsMDef; line 1576"
+    },
+    {
+      "name": "MPShield",
+      "category": "Stat modifiers",
+      "description": "Reduces direct damage taken by 25%, and restores the combatant's MP by the amount mitigated",
+      "locator": "Stat modifiers > MPShield; line 1578"
+    },
+    {
+      "name": "APGainsRecoverHP",
+      "category": "Stat modifiers",
+      "description": "AP gains recover X% HP, where X is the amount of AP gained",
+      "locator": "Stat modifiers > APGainsRecoverHP; line 1580"
+    },
+    {
+      "name": "TwoHanded",
+      "category": "Stat modifiers",
+      "description": "One-handed weapons can be equipped as though two-handed weapons, and gain a flat bonus to PAtk equal to the Two-Handed PAtk Flat setting in your Project Model.",
+      "locator": "Stat modifiers > TwoHanded; line 1582"
+    },
+    {
+      "name": "DualWield",
+      "category": "Stat modifiers",
+      "description": "Two one-handed weapons can be equipped simultaneously, but the combatant's total PAtk is lowered by X%, where X = the Dual-Wield PAtk Rate setting in your Project Model (default: 65%)",
+      "locator": "Stat modifiers > DualWield; line 1584"
+    },
+    {
+      "name": "Mult SelflessCure [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply healing given by X% when the recipient's HP percentage is higher than the combatant's",
+      "locator": "Stat modifiers > Mult SelflessCure [X]; line 1586"
+    },
+    {
+      "name": "MPLock",
+      "category": "Stat modifiers",
+      "description": "The combatant's MP value cannot change",
+      "locator": "Stat modifiers > MPLock; line 1588"
+    },
+    {
+      "name": "Learning",
+      "category": "Stat modifiers",
+      "description": "Abilities with 'Sight Learned' toggled can be unlocked / learned by the combatant if the ability is used by an enemy, the combatant is not currently KO'd, the combatant survives the ability's execution, and the battle ends in escape / victory",
+      "locator": "Stat modifiers > Learning; line 1590"
+    },
+    {
+      "name": "Mult PDefAtFullHP [X]",
+      "category": "Stat modifiers",
+      "description": "Multiply Defense by X% when the combatant's HP is full",
+      "locator": "Stat modifiers > Mult PDefAtFullHP [X]; line 1592"
+    },
+    {
+      "name": "ImmuneToInterrupt",
+      "category": "Stat modifiers",
+      "description": "The combatant cannot have their TT or CT reset / interrupted",
+      "locator": "Stat modifiers > ImmuneToInterrupt; line 1594"
+    },
+    {
+      "name": "ImmuneToMPDmg",
+      "category": "Stat modifiers",
+      "description": "The combatant's MP cannot be damaged",
+      "locator": "Stat modifiers > ImmuneToMPDmg; line 1596"
+    },
+    {
+      "name": "InstantKill",
+      "category": "Stat modifiers",
+      "description": "The combatant is immediately KO'd\n- Note: Most bosses have contractual immunity to the Instant Kill status, which is the only player-accessible source of this stat mod in Vanilla",
+      "locator": "Stat modifiers > InstantKill; line 1598"
+    },
+    {
+      "name": "ResetTurnOnApplication",
+      "category": "Stat modifiers",
+      "description": "The combatant's TT is reset on application, functionally delaying their next turn",
+      "locator": "Stat modifiers > ResetTurnOnApplication; line 1602"
+    },
+    {
+      "name": "InitialThreat [X]",
+      "category": "Stat modifiers",
+      "description": "The combatant has X Threat generated for all enemies at combat start",
+      "locator": "Stat modifiers > InitialThreat [X]; line 1604"
+    },
+    {
+      "name": "PDefMax",
+      "category": "Stat modifiers",
+      "description": "The combatant's Defense is set to 9999",
+      "locator": "Stat modifiers > PDefMax; line 1606"
+    },
+    {
+      "name": "MDefMax",
+      "category": "Stat modifiers",
+      "description": "The combatant's Resistance is set to 9999",
+      "locator": "Stat modifiers > MDefMax; line 1608"
+    },
+    {
+      "name": "NoMP",
+      "category": "Stat modifiers",
+      "description": "The combatant's Max MP is locked to 0",
+      "locator": "Stat modifiers > NoMP; line 1610"
+    },
+    {
+      "name": "SetActorTexture [X]",
+      "category": "Stat modifiers",
+      "description": "The combatant's overworld texture becomes a penguin if set to 1, a quintar if set to 2, and otherwise it overrides party member 1's texture with the texture of whoever has the status",
+      "locator": "Stat modifiers > SetActorTexture [X]; line 1612"
+    },
+    {
+      "name": "LootChanceUp [X]",
+      "category": "Stat modifiers",
+      "description": "Increase enemy loot-drop chance by X%",
+      "locator": "Stat modifiers > LootChanceUp [X]; line 1614"
+    },
+    {
+      "name": "StealChanceUp [X]",
+      "category": "Stat modifiers",
+      "description": "Increase steal success chance by X%",
+      "locator": "Stat modifiers > StealChanceUp [X]; line 1616"
+    },
+    {
+      "name": "Mult PDmgOnKill [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies Physical damage dealt by X% if doing so would result in the target being KO'd",
+      "locator": "Stat modifiers > Mult PDmgOnKill [X]; line 1618"
+    },
+    {
+      "name": "CritAlways",
+      "category": "Stat modifiers",
+      "description": "The combatant always deals Critical Hits on crit-capable abilities",
+      "locator": "Stat modifiers > CritAlways; line 1620"
+    },
+    {
+      "name": "RandomizeTarget",
+      "category": "Stat modifiers",
+      "description": "The combatant's casted single-target abilities choose targets at random within their Scope",
+      "locator": "Stat modifiers > RandomizeTarget; line 1622"
+    },
+    {
+      "name": "SkipTurn",
+      "category": "Stat modifiers",
+      "description": "The combatant's turn is skipped, and their Reactions cannot be triggered",
+      "locator": "Stat modifiers > SkipTurn; line 1624"
+    },
+    {
+      "name": "Float",
+      "category": "Stat modifiers",
+      "description": "The combatant is immune to Earth damage\n- Note: A small misnomer / exception case exists - this immunity only triggers for abilities that deal Earth-elemental damage by default; elements asserted by Stat Mods bypass this immunity",
+      "locator": "Stat modifiers > Float; line 1626"
+    },
+    {
+      "name": "InstantTT",
+      "category": "Stat modifiers",
+      "description": "The combatant's TT is functionally 0",
+      "locator": "Stat modifiers > InstantTT; line 1630"
+    },
+    {
+      "name": "InstantCT",
+      "category": "Stat modifiers",
+      "description": "The combatant's ability CT is functionally 0",
+      "locator": "Stat modifiers > InstantCT; line 1632"
+    },
+    {
+      "name": "RestrictCommandTo [X]",
+      "category": "Stat modifiers",
+      "description": "Restrict the combatant's commands to X Job\n- Note: This effect cannot grant the combatant commands from a Job they do not currently have equipped / do not have access to\n- Note: This effect can stack; if the combatant is restricted to two or more command sets, both / all can be used",
+      "locator": "Stat modifiers > RestrictCommandTo [X]; line 1634"
+    },
+    {
+      "name": "HideStats",
+      "category": "Stat modifiers",
+      "description": "When applied to an enemy, their stats cannot be viewed in the combat info panels",
+      "locator": "Stat modifiers > HideStats; line 1640"
+    },
+    {
+      "name": "InvertDamage",
+      "category": "Stat modifiers",
+      "description": "Applies damage / healing given by -1",
+      "locator": "Stat modifiers > InvertDamage; line 1642"
+    },
+    {
+      "name": "ChainCast",
+      "category": "Stat modifiers",
+      "description": "The ability \"Doublecast\" can be used multiple times in the same turn\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 233, which is Warlock's 'Doublecast' in Vanilla",
+      "locator": "Stat modifiers > ChainCast; line 1644"
+    },
+    {
+      "name": "AutoCover",
+      "category": "Stat modifiers",
+      "description": "The combatant will automatically intercept single-target direct damage being dealt to allies with 25% HP or less, as if they had applied Cover",
+      "locator": "Stat modifiers > AutoCover; line 1648"
+    },
+    {
+      "name": "TargetMulti",
+      "category": "Stat modifiers",
+      "description": "Single-target abilities the combatant casts become multi-target abilities",
+      "locator": "Stat modifiers > TargetMulti; line 1650"
+    },
+    {
+      "name": "DamageHitsMDef",
+      "category": "Stat modifiers",
+      "description": "Damage the combatant deals that would be mitigated by targets' Defense is instead mitigated by targets' Resistance",
+      "locator": "Stat modifiers > DamageHitsMDef; line 1652"
+    },
+    {
+      "name": "PDmgBonusVsSleep [X]",
+      "category": "Stat modifiers",
+      "description": "The combatant deals X% more Physical damage to targets affected by the Sleep status\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Status ID 11, which is 'Sleep' in Vanilla",
+      "locator": "Stat modifiers > PDmgBonusVsSleep [X]; line 1654"
+    },
+    {
+      "name": "BlockAPGains [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the combatant's AP gains by (100 + X)%\n- Note: The name of this one seems to imply that it negates X% of AP gains, but this isn't actually how it works; it defaults to 0, but values greater than 0 increase AP gained",
+      "locator": "Stat modifiers > BlockAPGains [X]; line 1658"
+    },
+    {
+      "name": "PDmgCannotKill",
+      "category": "Stat modifiers",
+      "description": "Physical damage the combatant deals leaves targets with 1 HP",
+      "locator": "Stat modifiers > PDmgCannotKill; line 1662"
+    },
+    {
+      "name": "ZeroTTAtBattleStart",
+      "category": "Stat modifiers",
+      "description": "The combatant's TT is set to 0 at combat start",
+      "locator": "Stat modifiers > ZeroTTAtBattleStart; line 1664"
+    },
+    {
+      "name": "SetStatusAfterExpiry [X] [Y]",
+      "category": "Stat modifiers",
+      "description": "When the status effect that applied this expires naturally, the combatant gains X status for Y turns",
+      "locator": "Stat modifiers > SetStatusAfterExpiry [X] [Y]; line 1666"
+    },
+    {
+      "name": "CritNever",
+      "category": "Stat modifiers",
+      "description": "The combatant's crit-capable abilities will never Critically Hit",
+      "locator": "Stat modifiers > CritNever; line 1668"
+    },
+    {
+      "name": "InstantStance",
+      "category": "Stat modifiers",
+      "description": "Entering a Stance does not consume a turn\n- Note: This is likely a relic of old design, as this is currently base behavior for Stances",
+      "locator": "Stat modifiers > InstantStance; line 1670"
+    },
+    {
+      "name": "NoCooldowns",
+      "category": "Stat modifiers",
+      "description": "Character has no cooldowns",
+      "locator": "Stat modifiers > NoCooldowns; line 1674"
+    },
+    {
+      "name": "FreeTurn",
+      "category": "Stat modifiers",
+      "description": "The combatant instantly receives a turn following the resolution of the ability that applied this effect. Unlike InstantTT, the combatant's start-of-turn effects do not trigger - AP upkeep, start-of-turn Reactions, turn-based status ticks, DOTs, HOTs, and ability Cooldown timers are not processed",
+      "locator": "Stat modifiers > FreeTurn; line 1676"
+    },
+    {
+      "name": "PerfectDodge",
+      "category": "Stat modifiers",
+      "description": "The combatant evades all abilities that have X% or less chance to hit, where X = the Perfect Dodge At Chance Or Lower setting in your Project Model (default: 30%)",
+      "locator": "Stat modifiers > PerfectDodge; line 1678"
+    },
+    {
+      "name": "HalfCooldowns",
+      "category": "Stat modifiers",
+      "description": "The combatant's ability Cooldowns are halved (not retroactively)",
+      "locator": "Stat modifiers > HalfCooldowns; line 1680"
+    },
+    {
+      "name": "CantBeOneHitKOd",
+      "category": "Stat modifiers",
+      "description": "The character will survive lethal damage at full HP with 1 HP",
+      "locator": "Stat modifiers > CantBeOneHitKOd; line 1682"
+    },
+    {
+      "name": "Encore",
+      "category": "Stat modifiers",
+      "description": "The combatant forcibly repeats its previous ability, provided it meets all costs / casting requirements\n- Note: Does not reliably work on enemies",
+      "locator": "Stat modifiers > Encore; line 1684"
+    },
+    {
+      "name": "SubJobInnatePassives",
+      "category": "Stat modifiers",
+      "description": "Ordinarily, player-controlled combatants do not receive the Innate Passives of their currently equipped Sub-Job; while under this effect, they do",
+      "locator": "Stat modifiers > SubJobInnatePassives; line 1688"
+    },
+    {
+      "name": "DamageBonusFromAPCost",
+      "category": "Stat modifiers",
+      "description": "Damaging abilities that require AP deal X% more damage per AP spent to cast the ability, where X = [the Damage Bonus From AP Cost Rate setting in your Project Model] / 100 (default: 150%)",
+      "locator": "Stat modifiers > DamageBonusFromAPCost; line 1690"
+    },
+    {
+      "name": "TargetSingleWithBonus",
+      "category": "Stat modifiers",
+      "description": "Multi-target abilities are converted to single-target abilities but deal X% more damage/healing, where X = the Target Single With Bonus Rate setting in your Project Model (default: 35%)",
+      "locator": "Stat modifiers > TargetSingleWithBonus; line 1692"
+    },
+    {
+      "name": "Reflect",
+      "category": "Stat modifiers",
+      "description": "Single-target Magical abilities casted on the combatant are reflected back towards the caster\n- Note: Scope-Locked abilities bypass this modifier",
+      "locator": "Stat modifiers > Reflect; line 1694"
+    },
+    {
+      "name": "BonusDoubledWhenPaired",
+      "category": "Stat modifiers",
+      "description": "Stat increases granted by the equipment are doubled when two are equipped at once on the combatant\n- Note: Only works for Accessories",
+      "locator": "Stat modifiers > BonusDoubledWhenPaired; line 1698"
+    },
+    {
+      "name": "Mult CriticalCure [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies healing given by X% to targets with 25% or less of max HP",
+      "locator": "Stat modifiers > Mult CriticalCure [X]; line 1702"
+    },
+    {
+      "name": "Mult PDmg GivenWhenCritical 100 [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies Physical damage dealt by X% when the combatant has 25% or less of max HP",
+      "locator": "Stat modifiers > Mult PDmg GivenWhenCritical 100 [X]; line 1704"
+    },
+    {
+      "name": "Mult MDefAtFullHP [X]",
+      "category": "Stat modifiers",
+      "description": "Multiplies the combatant's Resistance by X% while at full HP",
+      "locator": "Stat modifiers > Mult MDefAtFullHP [X]; line 1706"
+    },
+    {
+      "name": "LearnAll",
+      "category": "Stat modifiers",
+      "description": "All abilities, locked or otherwise, on the combatant's Job / Sub-Job are considered unlocked / learned for the purpose of access while in combat",
+      "locator": "Stat modifiers > LearnAll; line 1708"
+    },
+    {
+      "name": "DmgTakenWhileCharging [X]",
+      "category": "Stat modifiers",
+      "description": "Increases damage the combatant receives while channelling the CT of an ability by X%",
+      "locator": "Stat modifiers > DmgTakenWhileCharging [X]; line 1710"
+    },
+    {
+      "name": "CritFromMndAndSpi",
+      "category": "Stat modifiers",
+      "description": "The combatant's Critical Hit / Damage derived stats are calculated using an average of their MND & SPI, rather than DEX",
+      "locator": "Stat modifiers > CritFromMndAndSpi; line 1712"
+    },
+    {
+      "name": "HiddenIntent",
+      "category": "Stat modifiers",
+      "description": "When applied to an enemy, their next intended action cannot be previewed using the info panels in combat\n---",
+      "locator": "Stat modifiers > HiddenIntent; line 1714"
+    },
+    {
+      "name": "Steal",
+      "category": "Ability modifiers",
+      "description": "This ability will attempt to steal an item after damage resolution. Has no effect on player combatants. Odds of success are based on the steal rates of the target's available-for-theft items, the user's LUK, and other independent factors\n- Note: This does work on multi-target abilities, but only the first combatant in the ability's targeting queue will push their own steal attempt result to the overhead display; the rest are skipped, though their stolen items are still visible in the end-of-battle summary\n- Note: Steal Rate boosts work by adding their rate increase to both the numerator and denominator of the fraction representing the odds of stealing any particular item; as an example, an accessory that boosts Steal Rate by 25% would raise the odds of an item with a rate of 1 in 100 to 26 in 125. This allows for Steal Rate boosts to dramatically affect the odds of obtaining rarer Steals, while having a smaller impact on the odds of obtaining more common Steals",
+      "locator": "Ability modifiers > Steal; line 1726"
+    },
+    {
+      "name": "Escape",
+      "category": "Ability modifiers",
+      "description": "Attempts to escape battle. Odds of success are based on the relative difference between the party's average Level and the average Level of living enemy combatants. The user's LUK is also considered, among other independent factors",
+      "locator": "Ability modifiers > Escape; line 1732"
+    },
+    {
+      "name": "AttributeDamageRate [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "X% of this ability's total damage is also dealt to the target's Y attribute, where Y is the target's HP, AP, or MP. Useful when creating abilities intended to damage more than one resource at once",
+      "locator": "Ability modifiers > AttributeDamageRate [X] [Y]; line 1734"
+    },
+    {
+      "name": "NeverMiss",
+      "category": "Ability modifiers",
+      "description": "This ability cannot miss\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to always evade the ability's damage type or if the user is under any effect that causes them to always miss with the ability's damage type, the ability will still miss\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Ability modifiers > NeverMiss; line 1736"
+    },
+    {
+      "name": "FixedHitRate_100 [X]",
+      "category": "Ability modifiers",
+      "description": "This ability will always have an X% chance to hit, ignoring external modifiers",
+      "locator": "Ability modifiers > FixedHitRate_100 [X]; line 1742"
+    },
+    {
+      "name": "NoReaction",
+      "category": "Ability modifiers",
+      "description": "Other combatants cannot process Reactions to this ability\n- Note: This differs from the IgnoreReaction stat mod in that a combatant affected by IgnoreReaction will not trigger targets' OnKilled reactions if the ability the target responds with has a Target value of Enemy",
+      "locator": "Ability modifiers > NoReaction; line 1744"
+    },
+    {
+      "name": "StatusRequiredTarget [X]",
+      "category": "Ability modifiers",
+      "description": "This ability will always miss unless the target has at least 1 tick of X status effect",
+      "locator": "Ability modifiers > StatusRequiredTarget [X]; line 1748"
+    },
+    {
+      "name": "NeverCrit",
+      "category": "Ability modifiers",
+      "description": "This ability will never deal a Critical Hit\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never receive Critical Hits of the ability's damage type or if the user is under any effect that causes them to always critically with the ability's damage type, the ability will still fail to crit",
+      "locator": "Ability modifiers > NeverCrit; line 1750"
+    },
+    {
+      "name": "AlwaysCrit",
+      "category": "Ability modifiers",
+      "description": "This ability will always deal a Critical Hit\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never receive Critical Hits of the ability's damage type or if the user is under any effect that causes them to always critically with the ability's damage type, the ability will still fail to crit",
+      "locator": "Ability modifiers > AlwaysCrit; line 1754"
+    },
+    {
+      "name": "StatusRequiredUser [X] [Bool: Always Enabled] ",
+      "category": "Ability modifiers",
+      "description": "The user cannot activate this ability unless they have at least 1 tick of X status effect. If Always Enabled is toggled, the ability can still be activated, but will always miss provided the aforementioned condition has not been fulfilled",
+      "locator": "Ability modifiers > StatusRequiredUser [X] [Bool: Always Enabled] ; line 1758"
+    },
+    {
+      "name": "StatusRestrictedTarget [X]",
+      "category": "Ability modifiers",
+      "description": "This ability will always miss if the target has at least 1 tick of X status effect",
+      "locator": "Ability modifiers > StatusRestrictedTarget [X]; line 1760"
+    },
+    {
+      "name": "StatusRestrictedUser [X] [Bool: Always Enabled]",
+      "category": "Ability modifiers",
+      "description": "The user cannot activate this ability if they have at least 1 tick of X status effect. If Always Enabled is toggled, the ability can still be activated, but will always miss provided the aforementioned condition has been fulfilled",
+      "locator": "Ability modifiers > StatusRestrictedUser [X] [Bool: Always Enabled]; line 1762"
+    },
+    {
+      "name": "ItemRequired  [X]",
+      "category": "Ability modifiers",
+      "description": "Requires at least 1 copy of X item in the player's inventory (any category) to activate this ability. It is not consumed; simply checked for presence",
+      "locator": "Ability modifiers > ItemRequired  [X]; line 1764"
+    },
+    {
+      "name": "NoDualWield",
+      "category": "Ability modifiers",
+      "description": "This ability will not oblige the mechanics imposed by the Duel Wield stat mod (no hit-double or reduced damage)",
+      "locator": "Ability modifiers > NoDualWield; line 1766"
+    },
+    {
+      "name": "DamageRateUserCurrent_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the user's current Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateUserCurrent_100 [X] [Y]; line 1768"
+    },
+    {
+      "name": "DamageRateUserMissing_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the user's missing Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateUserMissing_100 [X] [Y]; line 1770"
+    },
+    {
+      "name": "DamageRateUserMax_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the user's max Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateUserMax_100 [X] [Y]; line 1772"
+    },
+    {
+      "name": "DamageReturnRateOverflow_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP). Uses the totality of the final damage even if the ability's damage was fatal. Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageReturnRateOverflow_100 [X] [Y]; line 1774"
+    },
+    {
+      "name": "DamageReturnRateOnKill_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP) if the ability's damage was fatal.",
+      "locator": "Ability modifiers > DamageReturnRateOnKill_100 [X] [Y]; line 1776"
+    },
+    {
+      "name": "DamageRateCurrent_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the target's current Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateCurrent_100 [X] [Y]; line 1778"
+    },
+    {
+      "name": "DamageRateMissing_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the target's missing Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateMissing_100 [X] [Y]; line 1780"
+    },
+    {
+      "name": "DamageRateMax_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability gains damage equal to X% of the target's max Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageRateMax_100 [X] [Y]; line 1782"
+    },
+    {
+      "name": "KillsUser",
+      "category": "Ability modifiers",
+      "description": "The user is instantly KO'd when the ability resolves",
+      "locator": "Ability modifiers > KillsUser; line 1784"
+    },
+    {
+      "name": "DamageReturnRateNoOverflow_100 [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP). If the ability's damage was fatal, excess damage is discarded and only the remainder is used to calculate the recoil amount. Will convert to healing if given a negative X value",
+      "locator": "Ability modifiers > DamageReturnRateNoOverflow_100 [X] [Y]; line 1786"
+    },
+    {
+      "name": "KillsUser",
+      "category": "Ability modifiers",
+      "description": "The user's HP is reduced to 1 when the ability resolves",
+      "locator": "Ability modifiers > KillsUser; line 1788"
+    },
+    {
+      "name": "MaxDamageGiven [X]",
+      "category": "Ability modifiers",
+      "description": "This ability can deal no more than X damage",
+      "locator": "Ability modifiers > MaxDamageGiven [X]; line 1790"
+    },
+    {
+      "name": "NextTurnTTMult_100 [X]",
+      "category": "Ability modifiers",
+      "description": "The TT between the user's current and next turn is multiplied by X%",
+      "locator": "Ability modifiers > NextTurnTTMult_100 [X]; line 1792"
+    },
+    {
+      "name": "NextTurnComesImmediately ",
+      "category": "Ability modifiers",
+      "description": "The user's next turn arrives instantly. This is considered a 'free' turn that does not trigger On Each Turn reactions, does not tick down status effects with the On Each User Turn flag toggled, and does not generate AP in the same way a normal turn does",
+      "locator": "Ability modifiers > NextTurnComesImmediately ; line 1794"
+    },
+    {
+      "name": "ForceRepeatAction [X]",
+      "category": "Ability modifiers",
+      "description": "The user is forced to repeatedly use this ability for the next X turns, provided all costs and casting requirements are met. If any particular repetition fails to meet costs or requirements, the chain is broken and the user is allowed to select commands as normal",
+      "locator": "Ability modifiers > ForceRepeatAction [X]; line 1796"
+    },
+    {
+      "name": "NextTurnComesAfterNextAction",
+      "category": "Ability modifiers",
+      "description": "The user's next turn will arrive after the next combatant in turn order resolves an ability",
+      "locator": "Ability modifiers > NextTurnComesAfterNextAction; line 1798"
+    },
+    {
+      "name": "NextTurnComesAfterTarget",
+      "category": "Ability modifiers",
+      "description": "The user's next turn will arrive after the target combatant next resolves an ability\n- Note: Vanilla has no examples of this, but if you use this on a multiple-target ability, only the first combatant in the ability's targeting queue is considered for the purpose of this modifier",
+      "locator": "Ability modifiers > NextTurnComesAfterTarget; line 1800"
+    },
+    {
+      "name": "Multihit [X]",
+      "category": "Ability modifiers",
+      "description": "The ability will repeat X times within one casting. On-hit effects (status effects, AP generation, etc.) will only process on the first hit / repetition",
+      "locator": "Ability modifiers > Multihit [X]; line 1804"
+    },
+    {
+      "name": "AccumulateAP [X]",
+      "category": "Ability modifiers",
+      "description": "The user gains X AP. The ability is not required to 'hit' to trigger this modifier",
+      "locator": "Ability modifiers > AccumulateAP [X]; line 1806"
+    },
+    {
+      "name": "AddCooldownCountTarget [X]",
+      "category": "Ability modifiers",
+      "description": "Adds X to all of the target's active cooldowns",
+      "locator": "Ability modifiers > AddCooldownCountTarget [X]; line 1808"
+    },
+    {
+      "name": "ResetCooldownsTarget",
+      "category": "Ability modifiers",
+      "description": "The target's active cooldowns are set to 0",
+      "locator": "Ability modifiers > ResetCooldownsTarget; line 1810"
+    },
+    {
+      "name": "ResetCooldownsUser",
+      "category": "Ability modifiers",
+      "description": "The user's active cooldowns are set to 0",
+      "locator": "Ability modifiers > ResetCooldownsUser; line 1812"
+    },
+    {
+      "name": "IgnoreReflect",
+      "category": "Ability modifiers",
+      "description": "This ability, if toggled as Magical, does not trigger the Reflect stat mod",
+      "locator": "Ability modifiers > IgnoreReflect; line 1814"
+    },
+    {
+      "name": "RandomTarget",
+      "category": "Ability modifiers",
+      "description": "This ability targets a random, valid combatant within its Target pool\n- Note: This modifier has no effect if the ability's Scope is any value other than 'Single'. Like a normal ability, this modifier cannot target dead combatants unless the ability's Target explicitly contains 'dead' in its value",
+      "locator": "Ability modifiers > RandomTarget; line 1816"
+    },
+    {
+      "name": "RandomStatusUser",
+      "category": "Ability modifiers",
+      "description": "On resolution, this ability grants the user one status effect from the available pool listed in the User Statuses pane",
+      "locator": "Ability modifiers > RandomStatusUser; line 1820"
+    },
+    {
+      "name": "AddAllStatusCount [X]",
+      "category": "Ability modifiers",
+      "description": "Adds X ticks to all current status effects applied to the target",
+      "locator": "Ability modifiers > AddAllStatusCount [X]; line 1822"
+    },
+    {
+      "name": "RemoveAllStatus",
+      "category": "Ability modifiers",
+      "description": "Removes all status effects from the target",
+      "locator": "Ability modifiers > RemoveAllStatus; line 1824"
+    },
+    {
+      "name": "DamagePerTargetDebuff [X] [Type: PAtkRate / Power]",
+      "category": "Ability modifiers",
+      "description": "Adds X% PAtkRate or a flat X Power to the ability's damage calculation per debuff-type status effect the target currently suffers",
+      "locator": "Ability modifiers > DamagePerTargetDebuff [X] [Type: PAtkRate / Power]; line 1826"
+    },
+    {
+      "name": "RandomStatusTarget",
+      "category": "Ability modifiers",
+      "description": "Inflicts one status effect from the available pool listed in the Target Statuses pane",
+      "locator": "Ability modifiers > RandomStatusTarget; line 1828"
+    },
+    {
+      "name": "DamagePerUserBuff [X] [Type: PAtkRate / Power]",
+      "category": "Ability modifiers",
+      "description": "Adds X% PAtkRate or a flat X Power to the ability's damage calculation per buff-type status effect applied to the user",
+      "locator": "Ability modifiers > DamagePerUserBuff [X] [Type: PAtkRate / Power]; line 1830"
+    },
+    {
+      "name": "RemoveAllStatusCategory [Type: Buff / Debuff / Strict]",
+      "category": "Ability modifiers",
+      "description": "Removes all status effects of the chosen category from the target",
+      "locator": "Ability modifiers > RemoveAllStatusCategory [Type: Buff / Debuff / Strict]; line 1832"
+    },
+    {
+      "name": "CopyAllStatusToSelf",
+      "category": "Ability modifiers",
+      "description": "Copies all status effects applied to the target to the user, at the same number of remaining ticks per effect",
+      "locator": "Ability modifiers > CopyAllStatusToSelf; line 1834"
+    },
+    {
+      "name": "RemoveOneFromStatusCategory [Type: Buff / Debuff / Strict]",
+      "category": "Ability modifiers",
+      "description": "Removes one status effect of the chosen category from the target (priority given to oldest applied)",
+      "locator": "Ability modifiers > RemoveOneFromStatusCategory [Type: Buff / Debuff / Strict]; line 1836"
+    },
+    {
+      "name": "DamageRateVsStatus [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "The ability deals X% more damage if the target has Y status effect applied",
+      "locator": "Ability modifiers > DamageRateVsStatus [X] [Y]; line 1838"
+    },
+    {
+      "name": "DoesntWakeTarget",
+      "category": "Ability modifiers",
+      "description": "If this ability deals damage, it will not remove status effects that have the Cleared By Any Dmg flag toggled\n- Note: Despite the name, this modifier is not hard-coded to only work with Sleep (status ID 11). RiverRunning is aware this is a bug, but has chosen to leave it as-is",
+      "locator": "Ability modifiers > DoesntWakeTarget; line 1840"
+    },
+    {
+      "name": "AddSpecificStatusCountTarget [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Applies X ticks of Y status effect to the target, giving them the status effect if it wasn't already applied",
+      "locator": "Ability modifiers > AddSpecificStatusCountTarget [X] [Y]; line 1844"
+    },
+    {
+      "name": "ThreatGainMult [X]",
+      "category": "Ability modifiers",
+      "description": "Increases the ability's Threat generation by X%\n- Note: The ability needs to generate more than 0 Threat for this modifier to have an effect",
+      "locator": "Ability modifiers > ThreatGainMult [X]; line 1846"
+    },
+    {
+      "name": "ThreatGainFlat [X]",
+      "category": "Ability modifiers",
+      "description": "The ability generates X more / less Threat",
+      "locator": "Ability modifiers > ThreatGainFlat [X]; line 1850"
+    },
+    {
+      "name": "BottomThreatDamageMult [X]",
+      "category": "Ability modifiers",
+      "description": "The ability deals X% more damage / healing if the user is the target's bottom Threat",
+      "locator": "Ability modifiers > BottomThreatDamageMult [X]; line 1852"
+    },
+    {
+      "name": "NotBottomThreatDamageMult [X]",
+      "category": "Ability modifiers",
+      "description": "The ability deals X% more damage / healing if the user is not the target's bottom Threat",
+      "locator": "Ability modifiers > NotBottomThreatDamageMult [X]; line 1854"
+    },
+    {
+      "name": "ThreatCurrentChangeRate [X]",
+      "category": "Ability modifiers",
+      "description": "Increases the target's total generated Threat towards the user by X%\n- Note: As an example, an X of -50 will cut the target's generated Threat against the user in half",
+      "locator": "Ability modifiers > ThreatCurrentChangeRate [X]; line 1856"
+    },
+    {
+      "name": "ThreatCurrentChangeFlat [X]",
+      "category": "Ability modifiers",
+      "description": "Increases the target's total generated Threat towards the user by X",
+      "locator": "Ability modifiers > ThreatCurrentChangeFlat [X]; line 1860"
+    },
+    {
+      "name": "TopThreatDamageMult [X]",
+      "category": "Ability modifiers",
+      "description": "The ability deals X% more damage / healing if the user is the target's top Threat",
+      "locator": "Ability modifiers > TopThreatDamageMult [X]; line 1862"
+    },
+    {
+      "name": "NotTopThreatDamageMult [X]",
+      "category": "Ability modifiers",
+      "description": "The ability deals X% more damage / healing if the user is not the target's top Threat",
+      "locator": "Ability modifiers > NotTopThreatDamageMult [X]; line 1864"
+    },
+    {
+      "name": "NotBottomThreatAlwaysMiss",
+      "category": "Ability modifiers",
+      "description": "The ability will always miss if the user is not the target's bottom Threat\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never evade the ability's damage type or if the user is under any effect that causes them to always hit with the ability's damage type, the ability will still miss\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
+      "locator": "Ability modifiers > NotBottomThreatAlwaysMiss; line 1866"
+    },
+    {
+      "name": "ResetThreat",
+      "category": "Ability modifiers",
+      "description": "The target's Threat is reset to 0 for all combatants on ability resolution",
+      "locator": "Ability modifiers > ResetThreat; line 1872"
+    },
+    {
+      "name": "AddSpecificStatusCountUser [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Applies X ticks of Y status effect to the user, giving them the status effect if it wasn't already applied\n- Note: If the ability's Scope targets multiple combatants, this modifier is run once per each combatant affected by the ability",
+      "locator": "Ability modifiers > AddSpecificStatusCountUser [X] [Y]; line 1874"
+    },
+    {
+      "name": "AddToSpecificStatusCountTarget [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Applies X ticks of Y status effect to the target; the status effect must already exist on the target for this modifier to have an effect",
+      "locator": "Ability modifiers > AddToSpecificStatusCountTarget [X] [Y]; line 1878"
+    },
+    {
+      "name": "AddToSpecificStatusCountUser [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Applies X ticks of Y status effect to the user; the status effect must already exist on the user for this modifier to have an effect\n- Note: If the ability's Scope targets multiple combatants, this modifier is run once per each combatant affected by the ability",
+      "locator": "Ability modifiers > AddToSpecificStatusCountUser [X] [Y]; line 1880"
+    },
+    {
+      "name": "HealingRateVsStatus [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "The ability's healing is increased by X% if the target has Y status effect applied",
+      "locator": "Ability modifiers > HealingRateVsStatus [X] [Y]; line 1884"
+    },
+    {
+      "name": "CopyAllStatusCategoryToSelf [Type: Buff / Debuff / Strict]",
+      "category": "Ability modifiers",
+      "description": "Copies all status effects of the specified type applied to the target to the user, at the same number of remaining ticks per effect",
+      "locator": "Ability modifiers > CopyAllStatusCategoryToSelf [Type: Buff / Debuff / Strict]; line 1886"
+    },
+    {
+      "name": "InterruptTT",
+      "category": "Ability modifiers",
+      "description": "Resets the target's TT to its default wait value",
+      "locator": "Ability modifiers > InterruptTT; line 1888"
+    },
+    {
+      "name": "InterruptCT",
+      "category": "Ability modifiers",
+      "description": "If the target is charging an ability, it is cancelled and the target's TT is reset to its default wait value",
+      "locator": "Ability modifiers > InterruptCT; line 1890"
+    },
+    {
+      "name": "InstantTurnCharge",
+      "category": "Ability modifiers",
+      "description": "The target immediately gets a turn when this ability resolves",
+      "locator": "Ability modifiers > InstantTurnCharge; line 1892"
+    },
+    {
+      "name": "ConvertMPToHP",
+      "category": "Ability modifiers",
+      "description": "The target's MP is converted to HP until either MP is empty or HP is full",
+      "locator": "Ability modifiers > ConvertMPToHP; line 1894"
+    },
+    {
+      "name": "ConvertMPToAP",
+      "category": "Ability modifiers",
+      "description": "The target's MP is converted to AP until either MP is empty or AP is full",
+      "locator": "Ability modifiers > ConvertMPToAP; line 1896"
+    },
+    {
+      "name": "ConvertAPToMP",
+      "category": "Ability modifiers",
+      "description": "The target's AP is converted to MP until either AP is empty or MP is full",
+      "locator": "Ability modifiers > ConvertAPToMP; line 1898"
+    },
+    {
+      "name": "ResetSubJob",
+      "category": "Ability modifiers",
+      "description": "If the target's Subclass Commands were changed during combat, they are reverted to their state when combat started",
+      "locator": "Ability modifiers > ResetSubJob; line 1900"
+    },
+    {
+      "name": "LuckUp [X]",
+      "category": "Ability modifiers",
+      "description": "The user's LUK stat is treated as X% higher during the ability's processing",
+      "locator": "Ability modifiers > LuckUp [X]; line 1902"
+    },
+    {
+      "name": "ChanceForDamageMult [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "This ability has an X% chance to do Y% more damage",
+      "locator": "Ability modifiers > ChanceForDamageMult [X] [Y]; line 1904"
+    },
+    {
+      "name": "TransferThreat",
+      "category": "Ability modifiers",
+      "description": "Transfers the user's Threat to the target",
+      "locator": "Ability modifiers > TransferThreat; line 1906"
+    },
+    {
+      "name": "RemoveFromBattle",
+      "category": "Ability modifiers",
+      "description": "The target is permanently removed from combat (deleted, not simply dead)\n- Note: In Vanilla, this modifier is only used by Astley during the hard-mode variation of the final boss battle. It *can* be used against enemies, but they will not have been considered 'defeated' for the purpose of money / experience / drops",
+      "locator": "Ability modifiers > RemoveFromBattle; line 1908"
+    },
+    {
+      "name": "OncePerTurn",
+      "category": "Ability modifiers",
+      "description": "This ability can only be used once per turn per combatant",
+      "locator": "Ability modifiers > OncePerTurn; line 1912"
+    },
+    {
+      "name": "OncePerFight",
+      "category": "Ability modifiers",
+      "description": "This ability can only be used once per combat\n- Note: Unlike OncePerTurn, this restriction is shared across -all- combatants of a particular side; if one party member uses an ability with this modifier, no other party member may use that same ability for the remainder of combat",
+      "locator": "Ability modifiers > OncePerFight; line 1914"
+    },
+    {
+      "name": "SetSubJob [X]",
+      "category": "Ability modifiers",
+      "description": "Sets the target party member's Subclass Command to X job for the remainder of combat; only works if the target has an existing Subclass set",
+      "locator": "Ability modifiers > SetSubJob [X]; line 1918"
+    },
+    {
+      "name": "Rewind",
+      "category": "Ability modifiers",
+      "description": "Reverts the target's HP, MP, AP, and status effect values to what they were at the end of the target's last turn\n- Note: Cannot revive dead allies\n- Note: The way this works is described as utilizing a per-combatant 'save state' that is updated at battle start, at the end of the combatant's turn, and when the combatant dies; this modifier loads that save state when called",
+      "locator": "Ability modifiers > Rewind; line 1920"
+    },
+    {
+      "name": "ConsumeItem [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Requires and consumes X of Y item to use this ability.\n- Note: If X is negative, the item is given to the player instead\n- Note: Enemies ignore and do not trigger this modifier",
+      "locator": "Ability modifiers > ConsumeItem [X] [Y]; line 1926"
+    },
+    {
+      "name": "Teleport [X]",
+      "category": "Ability modifiers",
+      "description": "Teleports a player to X predetermined teleport locations; only works outside of combat",
+      "locator": "Ability modifiers > Teleport [X]; line 1932"
+    },
+    {
+      "name": "CanUsewhileDead",
+      "category": "Ability modifiers",
+      "description": "This ability can be activated by a dead combatant\n- Note: KO'd combatants are hard-coded to skip turns / command input; this modifier is only useful on abilities the user is forced to cast automatically via an external modifier, such as a status effect or reaction",
+      "locator": "Ability modifiers > CanUsewhileDead; line 1934"
+    },
+    {
+      "name": "RevealStats",
+      "category": "Ability modifiers",
+      "description": "The target's stats are permanently revealed to the player\n- Note: Has no effect on player-controlled combatants",
+      "locator": "Ability modifiers > RevealStats; line 1938"
+    },
+    {
+      "name": "SetMountType [X]",
+      "category": "Ability modifiers",
+      "description": "Changes the player's movement mode to one of several options; only works outside of combat",
+      "locator": "Ability modifiers > SetMountType [X]; line 1942"
+    },
+    {
+      "name": "AddComboToken [X]",
+      "category": "Ability modifiers",
+      "description": "The ability grants the user X Combo Token(s) after resolving; Combo Tokens are removed if a subsequent ability that does not grant Combo Tokens is used, or if the user passes their turn\n- Note: Although more than one token can be generated at once by this modifier, the automatically-generated text does not account for this and will only state \"generates a combo token\" regardless of how many are created\n- Note: Combo Tokens are technically hard-coded, invisible status effects that cannot be interacted with by mechanics that normally target status effects",
+      "locator": "Ability modifiers > AddComboToken [X]; line 1944"
+    },
+    {
+      "name": "ConsumeComboTokens [X] [Type: PAtkRate / Power]",
+      "category": "Ability modifiers",
+      "description": "The ability consumes all  Combo Token(s) the user has generated, adding X% PAtkRate or X Power to the ability's damage calculation per token consumed",
+      "locator": "Ability modifiers > ConsumeComboTokens [X] [Type: PAtkRate / Power]; line 1950"
+    },
+    {
+      "name": "SetSubJobToTargetsSubJob",
+      "category": "Ability modifiers",
+      "description": "The user's Subclass Commands become the target's Subclass Commands\n- Note: Only works on player-controlled combatants",
+      "locator": "Ability modifiers > SetSubJobToTargetsSubJob; line 1952"
+    },
+    {
+      "name": "MimicLastSeenAbility",
+      "category": "Ability modifiers",
+      "description": "The user performs the last used ability by any combatant, paying none of the ability's associated costs and ignoring its cast requirements",
+      "locator": "Ability modifiers > MimicLastSeenAbility; line 1956"
+    },
+    {
+      "name": "MimicLastTargetedByAbility",
+      "category": "Ability modifiers",
+      "description": "Copies the last ability that targeted the user; associated costs must be paid and cast requirements must be met",
+      "locator": "Ability modifiers > MimicLastTargetedByAbility; line 1958"
+    },
+    {
+      "name": "ChangeMonster [X]",
+      "category": "Ability modifiers",
+      "description": "Changes an enemy combatant into the specified enemy\n- Note: Only works on enemy-controlled combatants\n- Note: The combatant will retain its current HP / MP / AP values (unless the new monster's maximum values are lower, in which case they will be synced downwards) but will remove all status effects",
+      "locator": "Ability modifiers > ChangeMonster [X]; line 1960"
+    },
+    {
+      "name": "SummonMinion",
+      "category": "Ability modifiers",
+      "description": "Revives the target at max HP / MP",
+      "locator": "Ability modifiers > SummonMinion; line 1966"
+    },
+    {
+      "name": "SetMountToMyQuintar",
+      "category": "Ability modifiers",
+      "description": "Sets the player's Quintar mount type to the current favorite Quintar, if one exists; only works outside combat",
+      "locator": "Ability modifiers > SetMountToMyQuintar; line 1968"
+    },
+    {
+      "name": "GetEXP [X] ",
+      "category": "Ability modifiers",
+      "description": "The target gains X Experience Points",
+      "locator": "Ability modifiers > GetEXP [X] ; line 1970"
+    },
+    {
+      "name": "GetJXP [X] ",
+      "category": "Ability modifiers",
+      "description": "The target gains X Job Experience Points (100 JXP = 1 LP)",
+      "locator": "Ability modifiers > GetJXP [X] ; line 1972"
+    },
+    {
+      "name": "GetLevel [X] ",
+      "category": "Ability modifiers",
+      "description": "The target's Level increases by X",
+      "locator": "Ability modifiers > GetLevel [X] ; line 1974"
+    },
+    {
+      "name": "GetJP [X] ",
+      "category": "Ability modifiers",
+      "description": "The target gains X Learn Points",
+      "locator": "Ability modifiers > GetJP [X] ; line 1976"
+    },
+    {
+      "name": "TriggerNPC [X] [Y]",
+      "category": "Ability modifiers",
+      "description": "Trigger a specific NPC's Trigger page(s) based on X ID and within Y units Radius; only works outside combat",
+      "locator": "Ability modifiers > TriggerNPC [X] [Y]; line 1978"
+    },
+    {
+      "name": "SpawnAndTriggerModdedNPC [X]",
+      "category": "Ability modifiers",
+      "description": "Teleport a specific NPC to the player and trigger their Trigger page(s) based on X ID; only works outside combat",
+      "locator": "Ability modifiers > SpawnAndTriggerModdedNPC [X]; line 1980"
+    },
+    {
+      "name": "ServiceShortcut [X]",
+      "category": "Ability modifiers",
+      "description": "Shortcuts to the Gender Change, Atlas Registrar, Growth Reallocation, Lost & Found, Sadist, or Rename services; only works outside combat\n---",
+      "locator": "Ability modifiers > ServiceShortcut [X]; line 1982"
+    }
+  ]
+}

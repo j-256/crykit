@@ -1,0 +1,17 @@
+.class-research details > summary { cursor: pointer; padding: .6rem 0; font-weight: 700; }
+.growth-calculator { margin-top: .75rem; }
+.growth-calculator > .cluster { align-items: end; }
+.growth-calculator input[type="number"] { width: 7rem; }
+.growth-calculator .structured-value__table th, .growth-calculator .structured-value__table td { min-width: 4rem; }
+.growth-allocation { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; gap: .75rem; }
+.export-tree-scroll { overflow-x: auto; }
+.export-tree { display: grid; padding: 0; margin: .75rem 0; gap: .4rem; list-style: none; }
+.export-tree__node { display: flex; flex-direction: column; gap: .4rem; padding: .5rem; border: 1px solid var(--line); border-radius: .35rem; overflow-wrap: anywhere; }
+.export-tree__node--0 { opacity: .45; }
+.export-tree__node small { font-size: .7rem; }
+.export-tree__node strong { font-size: .8rem; }
+@media (max-width: 600px) {
+  .growth-allocation { grid-template-columns: minmax(0, 1fr) auto; }
+  .growth-allocation > .definition-picker-field { grid-column: 1 / -1; }
+  .growth-allocation > button { justify-self: start; }
+}

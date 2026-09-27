@@ -700,7 +700,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .grid-2, .grid-3, .slot-grid, .metric-grid, .comparison-grid { grid-template-columns: minmax(0, 1fr); }
   .comparison-column + .comparison-column { border-top: 1px solid var(--line); }
   .empty-state__actions { display: grid; width: 100%; }
-  .definition-row { grid-template-columns: 1fr; gap: 4px; }
+  .definition-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .definition-row dd { text-align: left; }
   .import-preview__counts { grid-template-columns: 1fr; }
   .sheet__body { padding: 17px 15px; }

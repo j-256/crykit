@@ -434,6 +434,7 @@ export const ImportFormatSchema = z.enum([
   'research-zip-1.1.0',
   'xlsx-v2',
   'native-backup-1.0.0',
+  'crystal-edit-json-1',
 ])
 
 export const NativeSourceManifestSchema = z.object({

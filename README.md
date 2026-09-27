@@ -6,6 +6,8 @@ The first visit starts with a labeled sample playthrough: Rowan the Warrior and 
 
 A searchable, revision-attributed community reference catalog covers items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](docs/catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules, PP capacity, and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
 
+Vanilla class ratings, equipment permissions, and exported learn trees ship with the app, using a baseline assumed to match the game release at export. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Crystal Edit data and growth estimates](docs/crystal-edit.md).
+
 Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
 
 The interface takes its visual cues from Crystal Project's menus: charcoal windows, silver borders, cyan dividers, blue selections, and pixel headings. [Pixel Operator](https://www.dafont.com/pixel-operator.font) by Jayvee Enaguas is a readable substitute for the game's lettering, not a verified match to its original typeface. It ships locally under [CC0](public/pixel-operator-CC0.txt), with regular weight, disabled ligatures, and fixed type sizes. Body text and compact section headings use system fonts for readable descriptions and forms. The original crystal artwork and menu icons ship with the app; decorative artwork does not represent recorded inventory or game progress. Reference entries also show locally bundled wiki sprites and icons where an explicit source mapping exists, with per-file attribution and separate [artwork rights and refresh instructions](docs/catalog-sources.md#sprite-and-icon-snapshot).
@@ -83,7 +85,7 @@ npm run test:e2e
 
 `npm run verify` runs both groups. Browser tests use the production build and include desktop and mobile emulation. They do not establish physical-device installation or verify a phone's native file picker.
 
-The [revision 2 specification](docs/spec-v2.md) defines data boundaries, core workflows, and acceptance gates. Formula simulation, displayed-stat prediction, optimization, and automatic game-state inspection require additional verified data and are outside the descriptive planner.
+The [revision 2 specification](docs/spec-v2.md) defines data boundaries, core workflows, and acceptance gates. Class pages offer scoped growth estimates with explicit inputs. Full displayed-stat prediction, damage simulation, optimization, and automatic game-state inspection require additional verified data.
 
 ## Static hosting
 

@@ -38,6 +38,10 @@ The first command fetches the required source revisions, template mappings, file
 
 Vite emits the images with the static application assets, so offline preparation caches them together with the shell. No wiki or CDN URL is used as an image source at runtime. Sprite metadata remains separate from immutable catalog facts and personal backups; refreshing artwork does not alter catalog checksums or recorded playthrough data.
 
+## Crystal Edit class facts and modding guide
+
+The bundled class export supplies vanilla numeric ratings, equipment categories, ability and passive membership, and learn-tree coordinates in a separate immutable catalog revision. Its game-release match is a maintainer assumption tied to the export date; the editor version is recorded independently. GEEF's modding guide supplies attributed modifier descriptions and the equations used by the class growth calculator. Saved references to earlier revisions remain valid. See [Crystal Edit data and growth estimates](crystal-edit.md) for provenance, custom class imports, and scope.
+
 ## Supporting identity sources
 
 Stable base item, equipment, class, and Monster Magic identities also come from the public [Crystal Project Archipelago world](https://github.com/Emerassi/CrystalProjectAPWorld), principally its [item table](https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/items.py), [class constants](https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/jobs.py), and [Scholar ability constants](https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/scholar_abilities.py). That project targets a Steam Archipelago branch and does not establish Nintendo Switch compatibility. Its repository is MIT-licensed, and this catalog uses its factual labels and source links.
@@ -56,7 +60,7 @@ Run `npm run catalog:update` to fetch main-namespace pages, expanded categories,
 
 Review the generated entity and gap changes, preserve stable starter IDs where identity is unchanged, and bump the built-in catalog revision before publishing a changed snapshot. Run the complete local verification suite. GitHub Actions must remain disabled.
 
-The snapshot checksum uses a `builtin:sha256:` namespace over the supporting source map, stable name records, generated wiki content digest, and confirmed Switch supplement. It is catalog identity metadata, not an imported private-file digest.
+The snapshot checksum uses a `builtin:sha256:` namespace over the supporting source map, stable name records, generated wiki content digest, and confirmed Switch supplement. The enriched Crystal Edit revision additionally hashes the complete canonical catalog content, including its normalized class and guide facts. These are catalog identities, not imported private-file digests.
 
 ## Confirmed Switch skill names
 

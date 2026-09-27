@@ -8,7 +8,7 @@ import type {
   Timestamp,
 } from '../domain/types'
 
-export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-1.0.0'
+export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-1.0.0' | 'crystal-edit-json-1'
 export type ImportGroup = 'reference' | 'personal' | 'mixed' | 'ignored'
 
 export interface ImportProblem {
@@ -92,7 +92,7 @@ export interface ImportPreview {
   readonly proposed: ImportCandidate
 }
 
-export type ImportCommitMode = 'new-profile' | 'merge' | 'replace'
+export type ImportCommitMode = 'new-profile' | 'merge' | 'replace' | 'add-reference'
 
 export interface CommitImportOptions {
   readonly restoreCorrections?: boolean

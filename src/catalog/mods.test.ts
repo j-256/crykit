@@ -7,6 +7,7 @@ import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
 import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, SWITCH_MOD_PACKS } from './mods'
 import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { CRYSTAL_EDIT_REVISION } from './crystal-edit'
 
 function ref(entityId: string): CatalogRef {
   return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(entityId) }
@@ -49,6 +50,7 @@ describe('confirmed catalog mod associations', () => {
       expect(definitionModAvailability(profile, ref(id))).toEqual({ requiredMod: mod, state: 'unknown' })
       expect(definitionModAvailability(profile, ref(id), { ...profile.rulesets[TEST_RULESET_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
       expect(definitionModAvailability(profile, ref(id), { ...profile.rulesets[TEST_RULESET_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
+      expect(definitionModAvailability(profile, { ...ref(id), catalogRevisionId: CRYSTAL_EDIT_REVISION }, { ...profile.rulesets[TEST_RULESET_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
     }
     expect(definitionModAvailability(profile, ref('base:warrior:innate:fighter'))).toEqual({ state: 'unknown' })
   })

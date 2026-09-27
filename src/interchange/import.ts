@@ -3,6 +3,7 @@ import { isJsonObject, parseBoundedJson } from './json'
 import { previewNativeBackup } from './native'
 import { previewXlsx } from './normalize-xlsx'
 import { previewResearchJson } from './research'
+import { isCrystalEdit, previewCrystalEdit } from './crystal-edit'
 import type { ImportPreview } from './types'
 import { inspectZip, safeUnzip } from './zip'
 
@@ -36,9 +37,9 @@ export async function previewImport(bytes: Uint8Array, filename: string): Promis
     })
   }
   const leadingByte = firstJsonByte(bytes)
-  if (leadingByte === 0x7b) return previewResearchJson(bytes, filename)
+  if (leadingByte === 0x7b) return isCrystalEdit(parseBoundedJson(bytes, filename)) ? previewCrystalEdit(bytes, filename) : previewResearchJson(bytes, filename)
   if (!isZip(bytes)) {
-    throw new AppDataError('unsupported-format', 'Select a supported research JSON, research ZIP, XLSX, or native backup', {
+    throw new AppDataError('unsupported-format', 'Select Crystal Edit JSON, research JSON, research ZIP, XLSX, or a native backup', {
       recoverable: true,
     })
   }

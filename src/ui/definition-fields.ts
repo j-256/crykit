@@ -1,4 +1,5 @@
 import type { DefinitionOption } from './definitions'
+import { CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 
 const WEAPON_CATEGORIES = ['Axes', 'Bows', 'Daggers', 'Katanas', 'Rapiers', 'Scythes', 'Spears', 'Staves', 'Swords', 'Wands', 'Wand', 'Two-Handed Staff']
 const HAND_CATEGORIES = [...WEAPON_CATEGORIES, 'Shields', 'Books', 'Pouches', 'Tools']
@@ -7,7 +8,7 @@ const BODY_CATEGORIES = ['Heavy armor', 'Light armor', 'Medium armor']
 const KNOWN_CATEGORIES = new Set([...HAND_CATEGORIES, ...HEAD_CATEGORIES, ...BODY_CATEGORIES, 'Accessories', 'Consumables', 'Crafting', 'Fishing', 'Key Items', 'Keys', 'Maps', 'Seeds'])
 
 export function commandName(option: DefinitionOption): string | undefined {
-  const command = Object.entries(option.record.fields).find(([key]) => key.toLowerCase() === 'command')?.[1]
+  const command = option.record.fields[CRYSTAL_EDIT_FIELDS.command] ?? Object.entries(option.record.fields).find(([key]) => key.toLowerCase() === 'command')?.[1]
   return command?.state === 'known' && typeof command.value === 'string' ? command.value : undefined
 }
 

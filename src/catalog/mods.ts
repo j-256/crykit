@@ -4,6 +4,7 @@ import type { EntityRef, Profile, RulesetRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { CRYSTAL_EDIT_REVISION } from './crystal-edit'
 
 export const SWITCH_MOD_PACKS = Object.freeze([
   {
@@ -99,7 +100,7 @@ export interface DefinitionModAvailability {
 
 export function definitionModAvailability(profile: Profile, ref: EntityRef, ruleset?: RulesetRevision): DefinitionModAvailability {
   const root = definitionLineageRootRef(profile, ref)
-  const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && root.catalogRevisionId === STARTER_CATALOG_REVISION_ID ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
+  const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (root.catalogRevisionId === STARTER_CATALOG_REVISION_ID || root.catalogRevisionId === CRYSTAL_EDIT_REVISION) ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
   return requiredMod ? { state: modState(ruleset, requiredMod), requiredMod } : { state: 'unknown' }
 }
 

@@ -5,6 +5,7 @@ import { definitionLineageRootRef, preferredDefinitionRef, resolveDefinition, sa
 import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-trees'
 import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, Profile, RulesetRevision, RulesetRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { CRYSTAL_EDIT_REVISION } from './crystal-edit'
 
 export const SWITCH_MOD_PACKS_MAP_SET = CONFIRMED_SWITCH_MOD_SETUP.id
 export const CONFIRMED_SKILL_MAP_SETS = Object.freeze([CONFIRMED_SWITCH_MOD_SETUP])
@@ -464,7 +465,10 @@ export interface SkillMapSuggestion {
 export function suggestSkillTreeMap(profile: Profile, catalogs: readonly CatalogSnapshot[], classRef: EntityRef, squares: readonly SkillSquare[], mapSetId: string, rulesetRevisionId?: RulesetRevisionId, draftMappings?: readonly SkillTreeMapping[]): SkillMapSuggestion {
   const saved = draftMappings ?? findSkillTreeLayout(profile, classRef, squares, rulesetRevisionId)?.mappings ?? []
   const root = definitionLineageRootRef(profile, classRef)
-  const confirmedMap = CONFIRMED_SKILL_MAPS.find(map => map.mapSetId === mapSetId && entityDefinitionKey(map.classRef) === entityDefinitionKey(root) && skillTreeShape(map.squares) === skillTreeShape(squares))
+  const mappedRoot = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && root.catalogRevisionId === CRYSTAL_EDIT_REVISION
+    ? { ...root, catalogRevisionId: STARTER_CATALOG_REVISION_ID }
+    : root
+  const confirmedMap = CONFIRMED_SKILL_MAPS.find(map => map.mapSetId === mapSetId && entityDefinitionKey(map.classRef) === entityDefinitionKey(mappedRoot) && skillTreeShape(map.squares) === skillTreeShape(squares))
   if (!confirmedMap || resolveDefinition(profile, catalogs, classRef)?.kind !== 'class') return { mappings: saved }
   const mappings = confirmedMap.mappings.map(mapping => ({ ...mapping, ref: preferredDefinitionRef(profile, mapping.ref) }))
   if (mappings.some(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind !== mapping.kind)) return { mappings: saved }

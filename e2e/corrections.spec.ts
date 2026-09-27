@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { STARTER_CATALOG } from '../src/catalog'
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { activeCorrections, type CatalogCorrection } from '../src/domain/corrections'
 import { exportCorrections, readCorrections } from '../src/interchange/corrections'
 
@@ -185,7 +186,7 @@ test('holds competing and stale imports for review and restores on a fresh brows
 })
 
 test('keeps hidden entries reachable and restores them from the corrections list', async ({ page }) => {
-  await page.goto(ITEM_PATH)
+  await page.goto(`/#/reference/catalog/${DEFAULT_CATALOG.id}/revisions/${DEFAULT_CATALOG.revisionId}/entities/${encodeURIComponent(ENTITY_ID)}`)
   await page.getByRole('button', { name: 'Edit reference', exact: true }).click()
   await page.getByRole('button', { name: 'More options', exact: true }).click()
   const details = page.getByRole('dialog', { name: 'Correction details: Artisan Rapier', exact: true })

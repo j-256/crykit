@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
+import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { createBlankProfile, createPersonalDefinition } from '../domain/profile'
 import { asId } from '../domain/core'
 import { observeInventory } from '../domain/inventory'
@@ -123,7 +124,7 @@ describe('workspace persistence', () => {
     const workspaces = await Promise.all(Array.from({ length: 4 }, () => loadWorkspace()))
     expect(new Set(workspaces.map((workspace) => workspace.profile.id)).size).toBe(1)
     expect(await database.profiles.count()).toBe(1)
-    expect(await database.catalogs.count()).toBe(1)
+    expect(await database.catalogs.count()).toBe(BUNDLED_CATALOGS.length)
     for (const workspace of workspaces) expect(workspace.profile).toEqual(workspaces[0]!.profile)
     expect(Object.keys(workspaces[0]!.profile.characters)).toHaveLength(2)
     expect((await loadWorkspace()).profile).toEqual(workspaces[0]!.profile)
@@ -145,7 +146,7 @@ describe('workspace persistence', () => {
     expect(second.profile.builds).toEqual({})
     expect(second.profile.scenarios).toEqual({})
     expect((await loadWorkspace()).profile).toEqual(second.profile)
-    expect(await database.catalogs.count()).toBe(1)
+    expect(await database.catalogs.count()).toBe(BUNDLED_CATALOGS.length)
     expect((await loadWorkspace(first.profile.id)).profile).toEqual(first.profile)
   })
 
