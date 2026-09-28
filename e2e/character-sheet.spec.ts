@@ -118,6 +118,26 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   expect(exported.inventory).toEqual({})
 })
 
+test('member details stay pinned during pointer transit and follow deliberate focus', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The shared member inspector is a desktop layout')
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  const details = page.getByRole('complementary', { name: 'Selection details', exact: true })
+  await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Choose Main hand', exact: true }).hover()
+  await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Choose Off hand', exact: true }).click()
+  await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()
+  const picker = page.getByRole('dialog', { name: 'Choose Off hand', exact: true })
+  const candidate = picker.locator('[data-definition-result="true"]').filter({ has: page.getByText('Ace of Diamonds', { exact: true }) })
+  await candidate.hover()
+  await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()
+  await candidate.focus()
+  await expect(details.getByRole('heading', { name: 'Ace of Diamonds', exact: true })).toBeVisible()
+})
+
 test('direct slot editing protects a draft and saves a new observation offline', async ({ page, context }) => {
   const original = await loadFixture(page)
   const storage = await dataPanel(page)

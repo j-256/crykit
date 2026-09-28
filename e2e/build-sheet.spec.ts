@@ -130,6 +130,22 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   expect(Object.values(selections).filter(Boolean)).toHaveLength(1)
 })
 
+test('build details ignore pointer transit while keyboard inspection stays available', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The shared build inspector is a desktop layout')
+  await page.goto('/#/builds/library/new')
+  await choose(page, 'Class', 'Warrior')
+  const details = page.getByRole('complementary', { name: 'Selection details', exact: true })
+  await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+
+  const classField = page.getByRole('combobox', { name: 'Class', exact: true })
+  await classField.fill('Wizard')
+  const candidate = page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) })
+  await candidate.hover()
+  await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+  await classField.press('ArrowDown')
+  await expect(details.getByRole('heading', { name: 'Wizard', exact: true })).toBeVisible()
+})
+
 test('failed creation retains the sheet and retry saves one build and checkpoint', async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await choose(page, 'Main hand', 'Muramasa')
