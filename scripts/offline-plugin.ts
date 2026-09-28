@@ -80,6 +80,8 @@ self.addEventListener('fetch', event => {
     const cache = await caches.open(CACHE_NAME);
     // Only immutable build assets and the static shell use this URL-only cache
     const cached = await cache.match(isNavigation ? indexUrl : url.href, { ignoreVary: true });
+    // Navigation requests reject responses whose fetch followed a redirect
+    if (isNavigation && cached?.redirected) return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers: cached.headers });
     if (cached) return cached;
     if (isBuildAsset) {
       for (const name of await previousCaches()) {

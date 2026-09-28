@@ -442,6 +442,10 @@ test('subpath installation stages updates without reloading an open draft', asyn
   const server = createServer(async (request, response) => {
     try {
       const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+      if (pathname === '/journal/index.html') {
+        response.writeHead(307, { Location: '/journal/' }).end()
+        return
+      }
       const relative = pathname.replace(/^\/journal\//, '') || 'index.html'
       if (!pathname.startsWith('/journal/') || relative.includes('..')) {
         response.writeHead(404).end()
@@ -470,6 +474,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
       await (await caches.open('unrelated-application')).put('/journal/index.html', new Response('Unrelated application'))
       await (await caches.open('crystal-companion-shell-test-build-1')).put('/journal/assets/previous-build-only.js', new Response('Previous build asset'))
     })
+    expect(await page.evaluate(async () => (await (await caches.open('crystal-companion-shell-test-build-1')).match('/journal/index.html'))?.redirected)).toBe(true)
     await closeData(page)
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
     const entry = page.getByRole('dialog', { name: 'Add inventory item' })

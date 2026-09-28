@@ -48,4 +48,6 @@ After deployment, inspect the Worker, serving version, Custom Domain, and disabl
 
 For a failed release, rebuild a known-good source revision and deploy its verified `dist/` tree, or use Wrangler's deployment rollback after inspecting the serving versions. Rollback of hosted files does not restore or migrate a user's browser database. App updates wait for explicit activation; cache cleanup retains the active and previous build for the same installation, leaving other installations and IndexedDB alone. Save drafts and reload older tabs after an update. Export personal backups before changing browser origins or clearing site storage.
 
+Cloudflare redirects `index.html` to the directory URL. The service worker copies redirected cached HTML responses before returning them to navigations, which reject a response with a redirect history. The subpath browser fixture reproduces that redirect and verifies updates and offline reloads with saved observations.
+
 Recovery requires the repository, lockfile, Actions configuration and secrets, Cloudflare account access, Custom Domain, alias DNS, redirect rule, and analytics Configuration Rule. These are separate state: restoring only a Git checkout does not restore zone settings or credentials. Source publication and hosting do not change third-party rights; keep [credits and notices](../NOTICE.md) with redistributions.
