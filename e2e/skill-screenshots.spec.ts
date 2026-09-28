@@ -1,4 +1,4 @@
-import { ADDITIONAL_CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
+import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
 import { STARTER_CATALOG } from '../src/catalog/starter'
 import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
@@ -28,19 +28,18 @@ async function loadFixture(page: Page, profile: Profile = { ...screenshotTestPro
 }
 
 async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice', classText?: string): Promise<Buffer> {
-  const fixture = ADDITIONAL_CLASS_MAP_FIXTURES.find(fixture => fixture.className.toLowerCase() === layout)
+  const fixture = CLASS_MAP_FIXTURES.find(fixture => fixture.className.toLowerCase() === layout)
+  if (layout !== 'practice' && !fixture) throw new Error(`Missing synthetic class fixture: ${layout}`)
   const url = await page.evaluate(({ menu, name, layout, fixture, classText }) => {
     const image = document.createElement('canvas')
     image.width = 1280; image.height = 720
     const ctx = image.getContext('2d')!
-    ctx.fillStyle = '#1f252b'; ctx.fillRect(0, 0, 1280, 720)
+    ctx.fillStyle = '#1f252b'; ctx.fillRect(0, 0, image.width, image.height)
     ctx.fillStyle = '#fafafa'; ctx.font = '20px Arial'
-    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(classText ?? fixture?.className ?? (layout === 'warrior' ? 'Warrior' : layout === 'monk' ? 'Monk' : 'Practice class'), 305, 229)
+    ctx.fillText(menu, 134, 110); ctx.fillText(name, 490, 60); ctx.fillText(classText ?? fixture?.className ?? 'Practice class', 305, 229)
     ctx.fillRect(624, 211, 1, 18)
-    const positions = fixture ? fixture.squares.map(([row, column]) => [row, column]) : layout === 'warrior'
-      ? [[0, 1], [0, 3], [1, 0], [1, 2], [2, 1], [2, 3], [3, 0], [3, 2], [4, 0], [4, 1], [4, 2], [4, 3], [5, 1], [5, 3]]
-      : [[0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [4, 0], [5, 1], [5, 2]]
-    const learnedPositions = fixture ? [0, 2, fixture.squares.findIndex(square => square[2] === null)] : layout === 'warrior' ? [1, 4] : [2, 5]
+    const positions = fixture?.squares.map(([row, column]) => [row, column]) ?? []
+    const learnedPositions = layout === 'warrior' ? [1, 4] : [0, 2, fixture?.squares.findIndex(square => square[2] === null)]
     const squares: readonly (readonly [number, number, string])[] = layout === 'practice'
       ? [[0, 0, '#c0bb28'], [0, 1, '#2096d4'], [1, 0, '#425059'], [1, 1, '#c0bb28']]
       : positions.map(([row, column], index) => [row, column, learnedPositions.includes(index) ? '#c0bb28' : '#425059'] as const)
@@ -223,16 +222,8 @@ test('failed screenshot writes retain review and recover through Retry save', as
 })
 
 for (const fixture of [
-  { squareCount: 14, mappedCount: 14, className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']] },
-  { squareCount: 14, mappedCount: 14, className: 'Monk', layout: 'monk', labels: ['3. Aversive Learned', '6. Brawler Learned'], learned: [['Aversive', 'innate'], ['Brawler', 'innate']] },
-  ...ADDITIONAL_CLASS_MAP_FIXTURES.map(fixture => ({
-    className: fixture.className,
-    layout: fixture.className.toLowerCase(),
-    squareCount: fixture.squares.length,
-    mappedCount: fixture.squares.filter(square => square[2] !== null).length,
-    labels: fixture.squares.flatMap((square, index) => [0, 2].includes(index) && square[2] ? [`${index + 1}. ${square[2]} Learned`] : []),
-    learned: fixture.squares.filter((square, index) => [0, 2].includes(index) && square[2] !== null).map(square => [square[2], square[3]]),
-  })),
+  { squareCount: 14, mappedCount: 14, className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']], unresolvedLearned: [] },
+  { squareCount: 23, mappedCount: 22, className: 'Scholar', layout: 'scholar', labels: ['1. Learning Learned', '3. Studious Learned', '12. Unresolved ability Learned'], learned: [['Learning', 'innate'], ['Studious', 'innate']], unresolvedLearned: [{ row: 3, column: 0, state: 'learned' }] },
 ] as const) {
   test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, async ({ page }) => {
     await loadFixture(page)
@@ -263,6 +254,8 @@ for (const fixture of [
     const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
     expect(learned.map(node => [resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
     expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(fixture.mappedCount)
+    const capture = Object.values(saved.skillTreeCaptures!)[0]
+    expect(capture.squares.filter(square => square.state === 'learned' && !capture.mappings.some(mapping => mapping.row === square.row && mapping.column === square.column))).toEqual(fixture.unresolvedLearned)
     expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })
     expect(saved.characters[CHARACTER].classProgress).toEqual({})
   })

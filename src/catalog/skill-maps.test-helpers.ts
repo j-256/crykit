@@ -1,6 +1,44 @@
 import type { LearnedNodeKind } from '../domain/types'
 
-export const ADDITIONAL_CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly classId?: string; readonly squares: readonly (readonly [number, number, string | null, LearnedNodeKind | null])[] }[] = [
+export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly classId?: string; readonly squares: readonly (readonly [number, number, string | null, LearnedNodeKind | null])[] }[] = [
+  {
+    className: 'Warrior',
+    squares: [
+      [0, 1, 'Taunt', 'ability'],
+      [0, 3, 'Fighter', 'innate'],
+      [1, 0, 'Defender', 'ability'],
+      [1, 2, 'Berserker', 'ability'],
+      [2, 1, 'Equip Sword', 'passive'],
+      [2, 3, 'Equip Axe', 'passive'],
+      [3, 0, 'Power Break', 'ability'],
+      [3, 2, 'Armor Break', 'ability'],
+      [4, 0, 'Bruiser Crush', 'ability'],
+      [4, 1, 'Paragon Crush', 'ability'],
+      [4, 2, 'Blitz Crush', 'ability'],
+      [4, 3, 'Battle Crush', 'ability'],
+      [5, 1, 'Grudge', 'passive'],
+      [5, 3, 'Adrenaline', 'passive'],
+    ],
+  },
+  {
+    className: 'Monk',
+    squares: [
+      [0, 1, 'Meditate', 'ability'],
+      [0, 2, 'Beat Down', 'ability'],
+      [0, 3, 'Aversive', 'innate'],
+      [1, 1, 'First-Aid', 'ability'],
+      [1, 2, 'Earth Split', 'ability'],
+      [2, 0, 'Brawler', 'innate'],
+      [2, 1, 'Chakra', 'ability'],
+      [2, 2, 'Thunder Chop', 'ability'],
+      [2, 3, 'Counter', 'passive'],
+      [3, 1, 'Focus Energy', 'ability'],
+      [3, 2, 'Wind Punch', 'ability'],
+      [4, 0, 'HP Boost', 'passive'],
+      [5, 1, 'Revive', 'ability'],
+      [5, 2, 'Chi Burst', 'ability'],
+    ],
+  },
   {
     className: 'Rogue',
     squares: [

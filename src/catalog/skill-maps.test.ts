@@ -1,73 +1,82 @@
-import { ADDITIONAL_CLASS_MAP_FIXTURES } from './skill-maps.test-helpers'
+import { CLASS_MAP_FIXTURES } from './skill-maps.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId } from '../domain/core'
 import { createCharacter } from '../domain/characters'
 import { createBlankProfile, createDefinitionOverride, createPersonalDefinition } from '../domain/profile'
 import { resolveDefinition } from '../domain/definitions'
-import { importSkillTrees } from '../domain/skill-trees'
-import { createTestProfile, known, TEST_RULESET_REVISION_ID } from '../domain/test-helpers'
+import { importSkillTrees, SKILL_SQUARE_STATES } from '../domain/skill-trees'
+import { createTestProfile, known, TEST_NOW, TEST_RULESET_REVISION_ID } from '../domain/test-helpers'
 import type { CharacterId, SkillSquare } from '../domain/types'
+import { detectSkillGrid } from '../interchange/skill-grid'
+import { SKILL_BORDER_COLORS, skillGridFixture } from '../interchange/skill-grid.test-helpers'
+import { CONFIRMED_SWITCH_MOD_SETUP } from './mods'
 import { CONFIRMED_SKILL_MAPS, CONFIRMED_SKILL_MAP_SETS, skillMapSetForRuleset, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
 import { STARTER_CATALOG } from './starter'
 
 const catalogs = [STARTER_CATALOG]
-const warrior = CONFIRMED_SKILL_MAPS[0]
+const warrior = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:warrior')!
 const squares: readonly SkillSquare[] = warrior.mappings.map(mapping => ({ row: mapping.row, column: mapping.column, state: 'unknown' }))
 
 describe('confirmed class square maps', () => {
-  it('resolves the checked Warrior order with exact ability, innate, and passive identities', () => {
-    const profile = createBlankProfile()
-    const suggestion = suggestSkillTreeMap(profile, catalogs, warrior.classRef, squares, SWITCH_MOD_PACKS_MAP_SET)
-    expect(suggestion.mappings.map(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.name)).toEqual([
-      'Taunt', 'Fighter', 'Defender', 'Berserker', 'Equip Sword', 'Equip Axe', 'Power Break', 'Armor Break', 'Bruiser Crush', 'Paragon Crush', 'Blitz Crush', 'Battle Crush', 'Grudge', 'Adrenaline',
-    ])
-    expect(suggestion.mappings[1].kind).toBe('innate')
-    expect(suggestion.mappings.at(-1)?.kind).toBe('passive')
-    expect(suggestion.mappings.every(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind === mapping.kind)).toBe(true)
+  it('has an independent fixture for every confirmed class identity', () => {
+    const fixtureClasses = CLASS_MAP_FIXTURES.map(fixture => fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`)
+    expect(fixtureClasses.sort()).toEqual(CONFIRMED_SKILL_MAPS.map(map => map.classRef.entityId).sort())
   })
 
-  it('maps Monk positions with Aversive and Brawler as learnable innates', () => {
+  for (const fixture of CLASS_MAP_FIXTURES) {
+    it.each(SKILL_SQUARE_STATES)(`detects ${fixture.className} pixels and imports observed learning with a %s first square`, firstState => {
+      const characterId = asId<CharacterId>('synthetic-mapped-character')
+      const original = createCharacter(createTestProfile(), { id: characterId, name: 'Rowan', now: TEST_NOW })
+      const ruleset = {
+        ...original.rulesets[TEST_RULESET_REVISION_ID],
+        platform: known(CONFIRMED_SWITCH_MOD_SETUP.platform),
+        mods: known(CONFIRMED_SWITCH_MOD_SETUP.enabledMods),
+        disabledMods: known(CONFIRMED_SWITCH_MOD_SETUP.disabledMods),
+      }
+      const profile = { ...original, rulesets: { ...original.rulesets, [ruleset.id]: ruleset } }
+      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === (fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`))!
+      expect(resolveDefinition(profile, catalogs, map.classRef)).toMatchObject({ kind: 'class', name: fixture.className })
+      const offset = SKILL_SQUARE_STATES.indexOf(firstState)
+      const expectedSquares: readonly SkillSquare[] = fixture.squares.map(([row, column], index) => ({ row, column, state: SKILL_SQUARE_STATES[(index + offset) % SKILL_SQUARE_STATES.length] }))
+      const { image, square, highlight } = skillGridFixture()
+      for (const { row, column, state } of expectedSquares) {
+        if (state === 'unknown') square(row, column, SKILL_BORDER_COLORS.learned, SKILL_BORDER_COLORS.available)
+        else square(row, column, SKILL_BORDER_COLORS[state])
+      }
+      highlight(0)
+      const detected = detectSkillGrid(image)
+      expect(detected).toEqual({ selectedRow: 0, squares: expectedSquares })
+      const mapSet = skillMapSetForRuleset(profile.rulesets[ruleset.id])
+      expect(mapSet).toBe(SWITCH_MOD_PACKS_MAP_SET)
+      const suggestion = suggestSkillTreeMap(profile, catalogs, map.classRef, detected.squares, mapSet, ruleset.id)
+      expect(suggestion.confirmedMap).toBe(map)
+      expect(suggestion.mappings.map(mapping => [mapping.row, mapping.column, resolveDefinition(profile, catalogs, mapping.ref)?.name, mapping.kind])).toEqual(fixture.squares.filter(square => square[2] !== null))
+      expect(suggestSkillTreeMap(profile, catalogs, map.classRef, detected.squares.slice(1), mapSet, ruleset.id).mappings).toEqual([])
+      const imported = importSkillTrees(profile, catalogs, [{ characterId, classRef: map.classRef, rulesetRevisionId: ruleset.id, sourceDigest: 'e'.repeat(64), filename: 'synthetic-class.png', squares: detected.squares, mappings: suggestion.mappings, reviewed: true }], profile.revision, TEST_NOW)
+      const nodes = Object.values(imported.characters[characterId].learnedNodes)
+      expect(nodes.map(node => [resolveDefinition(imported, catalogs, node.ref)?.name, node.kind, node.learned.state === 'known' ? node.learned.value : null])).toEqual(
+        fixture.squares.flatMap(([, , name, kind], index) => name !== null && expectedSquares[index].state !== 'unknown' ? [[name, kind, expectedSquares[index].state === 'learned']] : []),
+      )
+      expect(nodes.every(node => node.actualPaidLp.state === 'unknown')).toBe(true)
+      expect(Object.values(imported.skillTreeCaptures!)).toEqual([expect.objectContaining({ classRef: map.classRef, rulesetRevisionId: ruleset.id, squares: expectedSquares, mappings: suggestion.mappings })])
+      expect(Object.values(imported.skillTreeLayouts!)).toEqual([expect.objectContaining({ classRef: map.classRef, rulesetRevisionId: ruleset.id, mappings: suggestion.mappings })])
+      expect(suggestSkillTreeMap(imported, catalogs, map.classRef, detected.squares, '', ruleset.id).mappings).toEqual(suggestion.mappings)
+      expect(imported.characters[characterId].classProgress).toEqual({})
+      expect(imported.characters[characterId].snapshots).toBe(profile.characters[characterId].snapshots)
+      expect(imported.inventory).toBe(profile.inventory)
+      expect(imported.progress).toBe(profile.progress)
+      expect(imported.rulesets).toBe(profile.rulesets)
+    })
+  }
+
+  it('rejects Warrior and Monk maps when the observed shape belongs to the other class', () => {
     const profile = createBlankProfile()
     const monk = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:monk')!
-    const observed: readonly SkillSquare[] = [[0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [4, 0], [5, 1], [5, 2]].map(([row, column]) => ({ row, column, state: 'unknown' }))
-    const suggestion = suggestSkillTreeMap(profile, catalogs, monk.classRef, observed, SWITCH_MOD_PACKS_MAP_SET)
-    expect(suggestion.mappings.map(mapping => [mapping.row, mapping.column, resolveDefinition(profile, catalogs, mapping.ref)?.name, mapping.kind])).toEqual([
-      [0, 1, 'Meditate', 'ability'],
-      [0, 2, 'Beat Down', 'ability'],
-      [0, 3, 'Aversive', 'innate'],
-      [1, 1, 'First-Aid', 'ability'],
-      [1, 2, 'Earth Split', 'ability'],
-      [2, 0, 'Brawler', 'innate'],
-      [2, 1, 'Chakra', 'ability'],
-      [2, 2, 'Thunder Chop', 'ability'],
-      [2, 3, 'Counter', 'passive'],
-      [3, 1, 'Focus Energy', 'ability'],
-      [3, 2, 'Wind Punch', 'ability'],
-      [4, 0, 'HP Boost', 'passive'],
-      [5, 1, 'Revive', 'ability'],
-      [5, 2, 'Chi Burst', 'ability'],
-    ])
-    expect(suggestion.mappings.every(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind === mapping.kind)).toBe(true)
+    const monkFixture = CLASS_MAP_FIXTURES.find(fixture => fixture.className === 'Monk')!
+    const observed: readonly SkillSquare[] = monkFixture.squares.map(([row, column]) => ({ row, column, state: 'unknown' }))
     expect(suggestSkillTreeMap(profile, catalogs, warrior.classRef, observed, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
     expect(suggestSkillTreeMap(profile, catalogs, monk.classRef, squares, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
   })
-
-  for (const fixture of ADDITIONAL_CLASS_MAP_FIXTURES) {
-    it(`maps confirmed ${fixture.className} names and imports only their observed learning`, () => {
-      const characterId = asId<CharacterId>('synthetic-mapped-character')
-      const profile = createCharacter(createBlankProfile(), { id: characterId, name: 'Rowan' })
-      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === (fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`))!
-      const observed: readonly SkillSquare[] = fixture.squares.map(([row, column], index) => ({ row, column, state: index % 3 === 0 ? 'learned' : 'locked' }))
-      const suggestion = suggestSkillTreeMap(profile, catalogs, map.classRef, observed, SWITCH_MOD_PACKS_MAP_SET)
-      expect(suggestion.confirmedMap).toBe(map)
-      expect(suggestion.mappings.map(mapping => [mapping.row, mapping.column, resolveDefinition(profile, catalogs, mapping.ref)?.name, mapping.kind])).toEqual(fixture.squares.filter(square => square[2] !== null))
-      expect(suggestSkillTreeMap(profile, catalogs, map.classRef, observed.slice(1), SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
-      const imported = importSkillTrees(profile, catalogs, [{ characterId, classRef: map.classRef, sourceDigest: 'e'.repeat(64), filename: 'synthetic-class.png', squares: observed, mappings: suggestion.mappings, reviewed: true }], profile.revision)
-      const learned = Object.values(imported.characters[characterId].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
-      expect(learned.map(node => [resolveDefinition(imported, catalogs, node.ref)?.name, node.kind])).toEqual(fixture.squares.filter((square, index) => square[2] !== null && index % 3 === 0).map(square => [square[2], square[3]]))
-      expect(imported.characters[characterId].classProgress).toEqual({})
-    })
-  }
 
   it('keeps unconfirmed Scholar positions unresolved while preserving a later reviewed assignment', () => {
     const profile = createBlankProfile()
