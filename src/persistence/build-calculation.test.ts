@@ -12,7 +12,7 @@ beforeEach(() => { database = new CrystalCompanionDatabase(`build-calculation-${
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 const ref = (name: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === name)!.id as EntityId })
 
-it('pins calculation inputs through saving, cloning, immutable comparison, and backup restore', { timeout: 15_000 }, async () => {
+it('pins calculation inputs through saving, cloning, immutable comparison, and backup restore', async () => {
   await loadWorkspace()
   const before = await createProfile('Synthetic calculation')
   const id = createId<BuildId>('build')

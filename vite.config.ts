@@ -4,6 +4,9 @@ import { offlinePlugin } from './scripts/offline-plugin.ts'
 import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
 
+const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
+const CI_TEST_WORKERS = 2
+
 export default defineConfig({
   base: './',
   plugins: [
@@ -24,7 +27,11 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     restoreMocks: true,
+    maxWorkers: process.env.CI ? CI_TEST_WORKERS : undefined,
+    projects: [
+      { test: { name: 'unit', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], exclude: ['src/persistence/**'] } },
+      { test: { name: 'persistence', include: ['src/persistence/**/*.test.ts'], testTimeout: PERSISTENCE_TEST_TIMEOUT_MS } },
+    ],
   },
 })

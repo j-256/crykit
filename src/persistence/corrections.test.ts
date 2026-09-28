@@ -54,7 +54,7 @@ describe('global correction storage', () => {
     await expect(loadCorrections()).rejects.toThrow('valid JSON')
     expect((await database.meta.get(CORRECTIONS_STORAGE_KEY))?.value).toBe('{broken')
   })
-  it('includes global decisions in full backups and restores them only when requested', { timeout: 15_000 }, async () => {
+  it('includes global decisions in full backups and restores them only when requested', async () => {
     const workspace = await loadWorkspace()
     const correction = testCorrection()
     await saveCorrections([correction], 0)

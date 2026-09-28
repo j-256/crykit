@@ -9,7 +9,7 @@ const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value
 beforeEach(() => { database = new CrystalCompanionDatabase(`crystal-edit-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
-it('adds reference data without replacing personal records, repeats idempotently, and restores the source in a backup', { timeout: 15_000 }, async () => {
+it('adds reference data without replacing personal records, repeats idempotently, and restores the source in a backup', async () => {
   const before = await loadWorkspace()
   const preview = await previewImport(encode(syntheticCrystalEdit()), 'synthetic-mod.json')
   const added = await commitImport(preview, { mode: 'add-reference', targetProfileId: before.profile.id, expectedRevision: before.revision })
