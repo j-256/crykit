@@ -90,6 +90,12 @@ function catalogKey(snapshot: CatalogSnapshot): string {
   return catalogSnapshotKey(snapshot.id, snapshot.revisionId)
 }
 
+const BUNDLED_CATALOG_KEYS = new Set(BUNDLED_CATALOGS.map(catalogKey))
+
+function isBundledCatalog(snapshot: CatalogSnapshot): boolean {
+  return BUNDLED_CATALOG_KEYS.has(catalogKey(snapshot))
+}
+
 function toCatalogRecord(snapshot: CatalogSnapshot): CatalogRecord {
   return {
     key: catalogKey(snapshot),
@@ -144,14 +150,8 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
   }
 }
 
-async function ensureStarterCatalog(database: CrystalCompanionDatabase): Promise<void> {
-  await database.transaction('rw', database.catalogs, async () => {
-    for (const catalog of BUNDLED_CATALOGS) {
-      const existing = await database.catalogs.get(catalogKey(catalog))
-      if (existing) await assertCatalogsImmutable(database, [catalog])
-      else await database.catalogs.add(toCatalogRecord(catalog))
-    }
-  })
+async function removePersistedBundledCatalogs(database: CrystalCompanionDatabase): Promise<void> {
+  await database.catalogs.bulkDelete([...BUNDLED_CATALOG_KEYS])
 }
 
 async function initializeStarterRecord(database: CrystalCompanionDatabase): Promise<ProfileRecord> {
@@ -311,9 +311,9 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
   const keys = catalogReferences(record.profile)
   const digests = profileImportDigests(record.profile)
   const catalogRecords = (await database.catalogs.toArray()).filter(
-    (candidate) => BUNDLED_CATALOGS.some(catalog => candidate.key === catalogKey(catalog)) || keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? ''),
+    (candidate) => !BUNDLED_CATALOG_KEYS.has(candidate.key) && (keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? '')),
   )
-  for (const catalog of catalogRecords) {
+  for (const catalog of [...BUNDLED_CATALOGS, ...catalogRecords.map(record => record.snapshot)]) {
     const digest = /^sha256:(.+)$/.exec(catalog.checksum)?.[1]
     if (digest) digests.add(digest)
   }
@@ -327,7 +327,7 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
   return {
     profile: cloneJson(record.profile),
     lineage: cloneJson(record.lineage),
-    catalogs: catalogRecords.map((catalog) => cloneJson(catalog.snapshot)),
+    catalogs: [...BUNDLED_CATALOGS, ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))],
     evidence: evidence.map(cloneJson),
     revision: record.revision,
     canUndo,
@@ -337,7 +337,7 @@ async function workspaceForRecord(database: CrystalCompanionDatabase, record: Pr
 export async function loadWorkspace(profileId?: ProfileId): Promise<Workspace> {
   const database = getDatabase()
   try {
-    await ensureStarterCatalog(database)
+    await removePersistedBundledCatalogs(database)
     const record = await resolveProfileRecord(database, profileId)
     return await workspaceForRecord(database, record)
   } catch (error) {
@@ -432,9 +432,10 @@ async function storedCatalogsForProfile(
   profile: Profile,
 ): Promise<readonly CatalogSnapshot[]> {
   const keys = catalogReferences(profile)
-  return (await database.catalogs.toArray())
-    .filter((record) => keys.has(record.key))
+  const stored = (await database.catalogs.toArray())
+    .filter((record) => !BUNDLED_CATALOG_KEYS.has(record.key) && keys.has(record.key))
     .map((record) => record.snapshot)
+  return [...BUNDLED_CATALOGS.filter((catalog) => keys.has(catalogKey(catalog))), ...stored]
 }
 
 export async function saveProfileWithStatus(profile: Profile, expectedRevision: number): Promise<ProfileWriteResult> {
@@ -529,8 +530,10 @@ function rebaseRecordedBaselines(profile: Profile, profileRevision: number): Pro
 }
 
 async function putCandidateData(database: CrystalCompanionDatabase, candidate: ImportCandidate): Promise<void> {
-  await assertCatalogsImmutable(database, candidate.catalogs)
-  await database.catalogs.bulkPut(candidate.catalogs.map(toCatalogRecord))
+  assertStarterCatalogIdentity(candidate.catalogs)
+  const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog))
+  await assertCatalogsImmutable(database, storedCatalogs)
+  if (storedCatalogs.length > 0) await database.catalogs.bulkPut(storedCatalogs.map(toCatalogRecord))
   for (const evidence of candidate.evidence) {
     const existingEvidence = await database.evidence.get(evidence.id)
     if (existingEvidence && !jsonEqual(existingEvidence, evidence)) {
@@ -613,7 +616,12 @@ export async function commitImport(
           const timestamp = nowTimestamp()
           const receipts = Object.fromEntries(Object.entries(preview.proposed.profile.importReceipts).map(([id, receipt]) => [id, { ...receipt, importedAt: timestamp, profileRevision: target.revision + 1 }]))
           const updated = changedProfile(target.profile, { ...target.profile, importReceipts: { ...target.profile.importReceipts, ...receipts } }, 'add-reference-catalog', timestamp)
-          const storedCatalogs = (await database.catalogs.toArray()).map(record => record.snapshot)
+          const storedCatalogs = [
+            ...BUNDLED_CATALOGS,
+            ...(await database.catalogs.toArray())
+              .filter(record => !BUNDLED_CATALOG_KEYS.has(record.key))
+              .map(record => record.snapshot),
+          ]
           validateNativeProfileGraph(updated, storedCatalogs)
           await database.profiles.put({ ...target, revision: updated.revision, updatedAt: timestamp, profile: updated })
           await database.history.add(historyEntry(target.profile, updated, 'add-reference-catalog', timestamp))
@@ -845,6 +853,10 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
         }
       },
     )
+    const availableCatalogRecords = [
+      ...BUNDLED_CATALOGS.map(toCatalogRecord),
+      ...captured.catalogRecords.filter(record => !BUNDLED_CATALOG_KEYS.has(record.key)),
+    ]
     const payloadFor = (history: readonly PersistedHistoryEntry[]) => {
       const profile = history.length === 0 && captured.profile.changes.length > 0
         ? { ...captured.profile, changes: [] }
@@ -852,7 +864,7 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
       const catalogKeys = catalogReferences(profile)
       for (const entry of captured.corrections.entries) {
         const key = catalogSnapshotKey(entry.target.catalogId, entry.target.catalogRevisionId)
-        if (captured.catalogRecords.some(record => record.key === key)) catalogKeys.add(key)
+        if (availableCatalogRecords.some(record => record.key === key)) catalogKeys.add(key)
       }
       const importDigests = profileImportDigests(profile)
       for (const entry of history) {
@@ -861,12 +873,12 @@ export async function exportBackup(profileId: ProfileId, profileOverride?: Profi
         for (const digest of profileImportDigests(entry.before)) importDigests.add(digest)
         for (const digest of profileImportDigests(entry.after)) importDigests.add(digest)
       }
-      const catalogs = captured.catalogRecords
+      const catalogs = availableCatalogRecords
         .filter((record) => (
           catalogKeys.has(record.key) ||
           importDigests.has(/^sha256:([0-9a-f]{64})$/.exec(record.checksum)?.[1] ?? '')
         ))
-        .map((record) => cloneJson(record.snapshot))
+        .map((record) => isBundledCatalog(record.snapshot) ? record.snapshot : cloneJson(record.snapshot))
       const availableCatalogKeys = new Set(catalogs.map((catalog) => catalogKey(catalog)))
       if (Array.from(catalogKeys).some((key) => !availableCatalogKeys.has(key))) {
         throw new AppDataError('storage-failure', 'A profile references catalog data that is missing locally', {

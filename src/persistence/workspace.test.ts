@@ -10,6 +10,7 @@ import type { ImportPreview } from '../interchange/types'
 import type { PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
 import { previewResearchJson } from '../interchange/research'
 import { inspectZip } from '../interchange/zip'
+import { catalogSnapshotKey } from '../interchange/identity'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
@@ -124,7 +125,7 @@ describe('workspace persistence', () => {
     const workspaces = await Promise.all(Array.from({ length: 4 }, () => loadWorkspace()))
     expect(new Set(workspaces.map((workspace) => workspace.profile.id)).size).toBe(1)
     expect(await database.profiles.count()).toBe(1)
-    expect(await database.catalogs.count()).toBe(BUNDLED_CATALOGS.length)
+    expect(await database.catalogs.count()).toBe(0)
     for (const workspace of workspaces) expect(workspace.profile).toEqual(workspaces[0]!.profile)
     expect(Object.keys(workspaces[0]!.profile.characters)).toHaveLength(2)
     expect((await loadWorkspace()).profile).toEqual(workspaces[0]!.profile)
@@ -146,7 +147,7 @@ describe('workspace persistence', () => {
     expect(second.profile.builds).toEqual({})
     expect(second.profile.scenarios).toEqual({})
     expect((await loadWorkspace()).profile).toEqual(second.profile)
-    expect(await database.catalogs.count()).toBe(BUNDLED_CATALOGS.length)
+    expect(await database.catalogs.count()).toBe(0)
     expect((await loadWorkspace(first.profile.id)).profile).toEqual(first.profile)
   })
 
@@ -171,14 +172,22 @@ describe('workspace persistence', () => {
     expect((await loadWorkspace()).profile).toEqual(restored.profile)
   })
 
-  it('restores a missing starter catalog without replacing an existing playthrough', async () => {
+  it('removes legacy bundled catalog copies without replacing an existing playthrough', async () => {
     const workspace = await loadWorkspace()
     const saved = await saveProfile({ ...workspace.profile, label: 'Existing playthrough' }, workspace.revision)
-    await database.catalogs.clear()
+    await database.catalogs.bulkPut(BUNDLED_CATALOGS.map((catalog) => ({
+      key: catalogSnapshotKey(catalog.id, catalog.revisionId),
+      id: catalog.id,
+      revisionId: catalog.revisionId,
+      checksum: catalog.checksum,
+      snapshot: catalog,
+    })))
+    expect(await database.catalogs.count()).toBe(BUNDLED_CATALOGS.length)
     const reopened = await loadWorkspace(saved.id)
     expect(reopened.profile).toEqual(saved)
     expect(reopened.catalogs).toContainEqual(STARTER_CATALOG)
     expect(reopened.canUndo).toBe(true)
+    expect(await database.catalogs.count()).toBe(0)
   })
 
   it('backs up selected starter definitions without requiring an imported source archive', async () => {

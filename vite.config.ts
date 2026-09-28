@@ -6,6 +6,14 @@ import { softwareLicenses } from './scripts/software-licenses.ts'
 
 const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
+const LOCAL_TEST_WORKERS = '25%'
+const DOM_TEST_FILES = [
+  'src/interchange/xlsx.test.ts',
+  'src/ui/KnowledgeValue.test.tsx',
+  'src/ui/components.test.tsx',
+  'src/ui/navigation-controller.test.tsx',
+  'src/ui/route-state.test.ts',
+]
 
 export default defineConfig({
   base: './',
@@ -26,11 +34,12 @@ export default defineConfig({
     fs: { deny: ['.env', '.env.*', '**/.git/**', '**/*.{pem,key,crt}', '**/*.xlsx', '**/crystal_project_*', '**/private/**'] },
   },
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     restoreMocks: true,
-    maxWorkers: process.env.CI ? CI_TEST_WORKERS : undefined,
+    maxWorkers: process.env.CI ? CI_TEST_WORKERS : LOCAL_TEST_WORKERS,
     projects: [
-      { test: { name: 'unit', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], exclude: ['src/persistence/**'] } },
+      { test: { name: 'unit', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], exclude: ['src/persistence/**', ...DOM_TEST_FILES] } },
+      { test: { name: 'dom', environment: 'jsdom', include: DOM_TEST_FILES } },
       { test: { name: 'persistence', include: ['src/persistence/**/*.test.ts'], testTimeout: PERSISTENCE_TEST_TIMEOUT_MS } },
     ],
   },
