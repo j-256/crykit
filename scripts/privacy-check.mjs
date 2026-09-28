@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 
 const USAGE = `Usage: node scripts/privacy-check.mjs [-s|--staged] [-h|--help]
 Check tracked and nonignored application files for private imports, machine paths,
-credentials, personal email addresses, and enabled workflow files.
+credentials, personal email addresses, and unreviewed workflow files.
 --staged checks only the staged versions of added or modified files.
 Requires Node.js and Git. Exit: 0 clean/help, 1 findings/read failure, 2 usage,
 3 missing Git. No files are changed and no network requests are made.
@@ -25,8 +25,8 @@ const forbiddenPaths = [
   /(^|\/)(private|imports|backups|node_modules|\.env)(\/|$|\.)/i,
   /(^|\/)crystal_project_.*\.(md|html|json|xlsx|zip)$/i,
   /\.(xlsx|zip|sqlite|db|pem|key)$/i,
-  /^\.github\/workflows\//,
 ]
+const reviewedWorkflows = new Set(['.github/workflows/deploy.yml'])
 const machineRoot = '/' + 'Users' + '/'
 const scratchRoots = ['w', 'c', 'z'].map(name => '/' + name + '/')
 const forbiddenContent = [
@@ -62,7 +62,8 @@ try {
   }
 } catch { findings.push('Wiki sprite manifest: unable to read reviewed asset hashes') }
 for (const file of new Set(files)) {
-  if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact or enabled CI workflow`)
+  if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact`)
+  if (file.startsWith('.github/workflows/') && !reviewedWorkflows.has(file)) findings.push(`${file}: unreviewed CI workflow`)
   if (file.startsWith(spriteDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
   if (!file.startsWith(spriteDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes

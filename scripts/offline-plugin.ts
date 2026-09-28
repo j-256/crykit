@@ -5,7 +5,7 @@ import type { Plugin } from 'vite'
 
 export function offlinePlugin(): Plugin {
   let publicDirectory = 'public'
-  const publicAssets = ['icon.svg', 'manifest.webmanifest']
+  const publicAssets = ['icon.svg', 'manifest.webmanifest', 'pixel-operator-CC0.txt']
   return {
     name: 'crystal-companion-offline',
     apply: 'build',
@@ -24,16 +24,32 @@ export function offlinePlugin(): Plugin {
       }
       const version = digest.digest('hex').slice(0, 16)
       const source = `const CACHE_PREFIX = 'crystal-companion-shell-';
-const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(version)};
+const CACHE_NAME = CACHE_PREFIX + encodeURIComponent(self.registration.scope) + '-' + ${JSON.stringify(version)};
 const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
 const indexUrl = new URL('index.html', self.registration.scope).href;
 const prepareCache = () => caches.open(CACHE_NAME).then(cache => cache.addAll(assetUrls.map(url => new Request(url, { cache: 'reload' }))));
+const previousCaches = async () => {
+  const names = await caches.keys();
+  const currentIndex = names.indexOf(CACHE_NAME);
+  if (currentIndex < 0) return [];
+  const previous = names.slice(0, currentIndex);
+  const owned = [];
+  for (const name of previous) {
+    if (!name.startsWith(CACHE_PREFIX)) continue;
+    const cache = await caches.open(name);
+    if (await cache.match(indexUrl, { ignoreVary: true })) owned.push(name);
+  }
+  return owned;
+};
 self.addEventListener('install', event => {
   event.waitUntil(prepareCache());
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
+    // Retain one previous build for open tabs and preserve other installations
+    const previous = await previousCaches();
+    await Promise.all(previous.slice(0, -1).map(name => caches.delete(name)));
     await self.clients.claim();
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) client.postMessage({ type: 'OFFLINE_ACTIVATED' });
@@ -58,12 +74,20 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   const isNavigation = request.mode === 'navigate' && url.href.startsWith(self.registration.scope);
-  if (!isNavigation && !assetUrls.includes(url.href)) return;
+  const isBuildAsset = url.href.startsWith(new URL('assets/', self.registration.scope).href) || url.href.startsWith(new URL('ocr/', self.registration.scope).href);
+  if (!isNavigation && !assetUrls.includes(url.href) && !isBuildAsset) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     // Only immutable build assets and the static shell use this URL-only cache
     const cached = await cache.match(isNavigation ? indexUrl : url.href, { ignoreVary: true });
-    return cached || fetch(request);
+    if (cached) return cached;
+    if (isBuildAsset) {
+      for (const name of await previousCaches()) {
+        const previous = await (await caches.open(name)).match(url.href, { ignoreVary: true });
+        if (previous) return previous;
+      }
+    }
+    return fetch(request);
   })());
 });
 `

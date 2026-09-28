@@ -4,7 +4,7 @@ Build a local-first planner with explicit unknown values. Keep catalog definitio
 
 Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser profiles start with labeled synthetic sample records; explicitly created profiles start blank. The application makes no runtime requests for game data.
 
-GitHub Actions must remain disabled. Do not add executable workflows, enable CI, or invoke hosted runners. Run checks locally.
+GitHub Actions must remain disabled while the repository is private. Verify public visibility through GitHub before enabling Actions. The reviewed public deployment workflow runs local-equivalent checks and deploys only main; every job must retain its public-repository guard. Do not enable hosted runners for a private fork.
 
 Use strict TypeScript and pure domain functions for validation. Keep React out of the domain layer. Verify save failures, import rollback, unknown quantities, simultaneous stock conflicts, backup round-trips, and offline behavior.
 

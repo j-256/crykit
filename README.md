@@ -1,5 +1,7 @@
 # Crystal Companion
 
+[Open the app](https://crycom.lasers.app/) · [Credits & licenses](https://crycom.lasers.app/#/settings/credits) · [Report a problem](https://github.com/j-256/crystal-companion/issues)
+
 A local-first inventory, character, and party planner for Crystal Project. Personal records live in the browser and move between devices through explicit file backups. The application does not connect to the game or infer unrecorded possessions, mastery, or combat rules.
 
 The first visit starts with a labeled sample playthrough: Rowan the Warrior and Mira the Cleric, their starting equipment, character sheets, editable builds, and an active sample team. These synthetic records are for exploring the planner. Replace them with your observations, create a blank profile in Data & settings, or import a playthrough. Reloading retains saved edits; clearing the browser's application data starts the sample again.
@@ -8,7 +10,7 @@ A searchable, revision-attributed community reference catalog covers items, clas
 
 Vanilla class ratings, equipment permissions, and exported learn trees ship with the app, using a baseline assumed to match the game release at export. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Crystal Edit data and growth estimates](docs/crystal-edit.md).
 
-Development and verification run locally. GitHub Actions is disabled for this repository, and no workflow should be enabled without an explicit maintainer request.
+Development and verification can run entirely locally. The public repository also verifies changes and deploys main with GitHub Actions. Actions must remain disabled whenever the repository is private; the workflow retains a public-repository guard.
 
 The interface takes its visual cues from Crystal Project's menus: charcoal windows, silver borders, cyan dividers, blue selections, and pixel headings. [Pixel Operator](https://www.dafont.com/pixel-operator.font) by Jayvee Enaguas is a readable substitute for the game's lettering, not a verified match to its original typeface. It ships locally under [CC0](public/pixel-operator-CC0.txt), with regular weight, disabled ligatures, and fixed type sizes. Body text and compact section headings use system fonts for readable descriptions and forms. The original crystal artwork and menu icons ship with the app; decorative artwork does not represent recorded inventory or game progress. Reference entries also show locally bundled wiki sprites and icons where an explicit source mapping exists, with per-file attribution and separate [artwork rights and refresh instructions](docs/catalog-sources.md#sprite-and-icon-snapshot).
 
@@ -41,7 +43,7 @@ Use **Edit reference** to correct facts directly on the page, then collect and e
 
 The application makes no automatic requests for game data and has no login, telemetry, remote fonts, or cloud synchronization. Personal files stay in browser storage unless explicitly exported. Native backups can contain private notes and source records; handle them as personal files. A restored copy can remain a separate playthrough instead of overwriting another device's work.
 
-Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
+Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and unreviewed workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
 
 ## Plan a party
 
@@ -95,8 +97,12 @@ The [revision 2 specification](docs/spec-v2.md) defines data boundaries, core wo
 
 Serve `dist/` from a secure origin. Hash routes and relative asset URLs support a subdirectory. Offline preparation requires HTTPS or a browser's trusted localhost context. Prepare the production app while connected, then check its offline status before relying on it without a connection. App updates are staged for explicit activation; browser storage still needs external backups.
 
-No deployment service or hosted runner is required. Do not enable GitHub Actions or add an active workflow without an explicit maintainer request. Public hosting and redistribution of reference packs require their own review.
+The hosted app uses an assets-only Cloudflare Worker at `crycom.lasers.app`. The aliases `cp.lasers.app` and `crystal.lasers.app` use HTTP 307 redirects that preserve the request method, path, and query. See [deployment and recovery](docs/deployment.md) for configuration, the public-only CI sequence, and Free-plan limits. Local builds do not need Cloudflare credentials.
+
+Updates retain the active and previous offline builds, pruning older caches from the same installation. An update never forces other tabs to reload. Reload older tabs after saving their drafts to pick up the active build; IndexedDB records are separate from these caches.
 
 ## License
 
-Application code is licensed under AGPL-3.0-only. Imported reference material remains subject to its own rights and attribution requirements. Crystal Project belongs to its respective creators; this is an independent fan tool.
+Original application code is licensed under [AGPL-3.0-only](LICENSE). Game artwork, wiki content, fonts, and dependencies retain their separate rights and credits in [NOTICE.md](NOTICE.md) and **Data & settings > Credits & licenses**. Crystal Companion did not create the game sprites or wiki images. Crystal Project belongs to its respective creators; this is an independent, unofficial fan tool.
+
+Use [GitHub issues](https://github.com/j-256/crystal-companion/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples; do not upload personal backups, imports, or playthrough screenshots to a public issue.

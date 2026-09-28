@@ -58,7 +58,7 @@ Redlinks are leads, not proof that the named concept is a distinct game entity. 
 
 Run `npm run catalog:update` to fetch main-namespace pages, expanded categories, latest available revisions, redirects, and the item-category tree. The command writes an ignored source cache, regenerates `src/catalog/wiki-data.json`, and updates the combined starter digest in `src/catalog/data.ts`. Use `npm run catalog:update -- --cache` only to reproduce generation from the existing local cache.
 
-Review the generated entity and gap changes, preserve stable starter IDs where identity is unchanged, and bump the built-in catalog revision before publishing a changed snapshot. Run the complete local verification suite. GitHub Actions must remain disabled.
+Review the generated entity and gap changes, preserve stable starter IDs where identity is unchanged, and bump the built-in catalog revision before publishing a changed snapshot. Run the complete local verification suite. Keep GitHub Actions disabled for private repositories; see [deployment](deployment.md) for the public repository workflow.
 
 The snapshot checksum uses a `builtin:sha256:` namespace over the supporting source map, stable name records, generated wiki content digest, and confirmed Switch supplement. The enriched Crystal Edit revision additionally hashes the complete canonical catalog content, including its normalized class and guide facts. These are catalog identities, not imported private-file digests.
 

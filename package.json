@@ -4,7 +4,9 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
@@ -20,7 +22,10 @@
     "check:privacy": "node scripts/privacy-check.mjs",
     "check": "npm run typecheck && npm test && npm run sprites:check && npm run check:privacy && npm run build",
     "verify": "npm run check && npm run test:e2e",
-    "hooks:install": "git config core.hooksPath .githooks"
+    "hooks:install": "git config core.hooksPath .githooks",
+    "deploy:dry-run": "npm run check:assets && wrangler deploy --dry-run",
+    "deploy": "npm run check:assets && wrangler deploy",
+    "check:assets": "node scripts/check-assets.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",
@@ -42,6 +47,7 @@
     "jsdom": "^28.0.0",
     "typescript": "7.0.2",
     "vite": "8.3.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "wrangler": "4.137.0"
   }
 }

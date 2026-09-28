@@ -448,7 +448,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
         return
       }
       let bytes = await readFile(join(process.cwd(), 'dist', relative))
-      if (relative === 'sw.js') bytes = Buffer.from(`${bytes.toString()}\n// Synthetic deployment generation ${generation}\n`)
+      if (relative === 'sw.js') bytes = Buffer.from(bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crystal-companion-shell-test-build-${generation}';`))
       response.writeHead(200, { 'Content-Type': mimeTypes[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-store', Vary: 'Origin' })
       response.end(bytes)
     } catch {
@@ -465,6 +465,11 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
     await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
     await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+    await page.evaluate(async () => {
+      await (await caches.open('crystal-companion-shell-other-installation')).put('/other/index.html', new Response('Other installation'))
+      await (await caches.open('unrelated-application')).put('/journal/index.html', new Response('Unrelated application'))
+      await (await caches.open('crystal-companion-shell-test-build-1')).put('/journal/assets/previous-build-only.js', new Response('Previous build asset'))
+    })
     await closeData(page)
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
     const entry = page.getByRole('dialog', { name: 'Add inventory item' })
@@ -483,7 +488,9 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
     await expect(update).toBeVisible()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).not.toBeVisible()
+    expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crystal-companion-shell-test-build-1', 'crystal-companion-shell-test-build-2']))
     await context.setOffline(true)
+    expect(await page.evaluate(async () => (await fetch('./assets/previous-build-only.js')).text())).toBe('Previous build asset')
     await page.reload()
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
     await expect(update.getByText('Offline ready', { exact: true })).toBeVisible()
@@ -491,6 +498,17 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await expect(update).not.toBeVisible()
     await expect(page.getByText('Portable origin observation', { exact: true })).toBeVisible()
     await context.setOffline(false)
+    generation = 3
+    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update() })
+    await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting))).toBe(true)
+    const thirdUpdate = await openData(page)
+    await thirdUpdate.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+    await Promise.all([
+      page.waitForEvent('load'),
+      thirdUpdate.getByRole('button', { name: 'Apply app update', exact: true }).click(),
+    ])
+    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crystal-companion-shell-test-build-2', 'crystal-companion-shell-test-build-3', 'crystal-companion-shell-other-installation', 'unrelated-application']))
+    await expect.poll(() => page.evaluate(() => caches.keys())).not.toContain('crystal-companion-shell-test-build-1')
   } finally {
     server.closeAllConnections()
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))

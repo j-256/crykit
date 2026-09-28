@@ -18,7 +18,7 @@ import type {
 
 export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference'
 export type CharacterTab = 'current' | 'classes' | 'knowledge' | 'magic' | 'history'
-export type SettingsSection = 'data' | 'ruleset' | 'history' | 'storage'
+export type SettingsSection = 'data' | 'ruleset' | 'history' | 'storage' | 'credits'
 
 export type InventoryPageRoute =
   | { readonly page: 'inventory'; readonly view: 'list' }
@@ -281,7 +281,7 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
   }
   if (segments[0] === 'settings') {
     const section = segments[1]
-    if (section !== 'data' && section !== 'ruleset' && section !== 'history' && section !== 'storage') return bad('inventory')
+    if (section !== 'data' && section !== 'ruleset' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
     if (section === 'data' && segments[2] === 'import') {
       const previewId = decodeSegment(segments[3] ?? '')
       return previewId ? { page: { page: 'settings', section, previewId }, consumed: 4 } : bad('inventory', 'malformed-identifier')

@@ -57,6 +57,7 @@ describe('semantic navigation routes', () => {
       { page: 'settings', section: 'ruleset' },
       { page: 'settings', section: 'history' },
       { page: 'settings', section: 'storage' },
+      { page: 'settings', section: 'credits' },
     ] as unknown as PageRoute[]
     for (const page of pages) expectRoundTrip(route(page))
   })

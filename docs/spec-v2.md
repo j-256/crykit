@@ -21,8 +21,8 @@ The first complete release comprises data-preserving storage, useful tracking, a
 | Catalog upgrades | Retain immutable snapshots and build locks. A new catalog must not rewrite a saved revision. Explicit build rebasing creates a new checkpoint. |
 | Slots and PP | Rulesets contain editable slot definitions and capacity/cost knowledge. Suggested slots are a user configuration, not a verified claim about a platform or mod. |
 | Game mechanics | Typed, scoped rules only. Descriptions, spreadsheet formulas, and planner notes remain inert text. Unknown applicability yields an explained unresolved result. |
-| Publication | Source repository is private. Publish generic application code, documentation, original assets, synthetic fixtures, and reviewed public factual reference names with source attribution. Private inputs remain excluded. Reference data rights are independent of the code license. |
-| CI | GitHub Actions stays disabled and the source contains no executable workflow. Build, security, and browser verification run locally. |
+| Publication | Publish generic application code, documentation, synthetic fixtures, and reviewed public reference material with source attribution. Private inputs remain excluded. Reference content and artwork retain rights independent of the code license; see [credits](../NOTICE.md). |
+| CI | GitHub Actions stays disabled while the repository is private. Verify public visibility before enabling the reviewed public-only workflow. Build, security, and browser verification also run locally; see [deployment](deployment.md). |
 | Deployment | The app builds as portable static files, including under a subpath. No public host, custom domain, account, or backend is required. |
 | Optional depth | Evidence attachments, rich audits, three-way merge, advanced saved queries, recipe execution, and numerical engines may ship independently after the complete core. Unsupported operations must be described honestly rather than represented by nonfunctional controls. |
 
@@ -120,7 +120,7 @@ URLs do not contain unsaved form fields or imported file bytes. Missing local re
 
 | Gate | Required evidence |
 | --- | --- |
-| Privacy | Clean tracked tree and history, private remote, no personal fixtures or personal static seeds, no credentials/machine paths, Actions disabled, no workflow runs |
+| Privacy | Reviewed tracked tree and history, no personal fixtures or personal static seeds, no credentials/machine paths, no hosted workflow runs while the repository is private |
 | Import | Synthetic schema/security fixtures plus local real-workbook assertions; source state retained without invented characters, learning, possession, quantities, or dates |
 | Domain | Quantity/PP bounds, three-valued logic, separate party/character state, same-name identity, alternative versus simultaneous allocations, replacement semantics, revision locks |
 | Persistence | Real IndexedDB browser flow plus integration tests for atomic save/import, expected revision, rollback, unsupported backup, independent profile restore, and failed-save draft recovery |
