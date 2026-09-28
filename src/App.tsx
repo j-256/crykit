@@ -408,11 +408,12 @@ export default function App() {
   }), [commitProfile])
 
   const saveRuleset = useCallback(async (draft: RulesetDraft) => commitProfile((profile) => {
-    const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: slot.kind, order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: 'userDefined', sources: [] }))
-    const source = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+    const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: slot.kind, order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
+    const sourceRevisionId = draft.sourceRulesetRevisionId ?? profile.activeRulesetRevisionId
+    const source = sourceRevisionId ? profile.rulesets[sourceRevisionId] : undefined
     const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
     const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, activate: true, expectedRevision: profile.revision }
-    return profile.activeRulesetRevisionId ? updateRulesetRevision(profile, { sourceRevisionId: profile.activeRulesetRevisionId, ...values }) : createRulesetRevision(profile, values)
+    return sourceRevisionId ? updateRulesetRevision(profile, { sourceRevisionId, ...values }) : createRulesetRevision(profile, values)
   }), [commitProfile])
 
   const installWorkspace = useCallback((loaded: Workspace) => {

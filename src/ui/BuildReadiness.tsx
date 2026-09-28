@@ -1,11 +1,39 @@
 import { useState } from 'react'
 import { effectiveScenarioAssignments, entityDefinitionKey } from '../domain'
-import type { Build, BuildRevision, CatalogSnapshot, Profile, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
+import type { Build, BuildRevision, CatalogRef, CatalogSnapshot, Profile, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { groupValidationIssues } from './build-evidence'
 import { Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { catalogLocksMatch, entityName, ownRecordValue } from './model'
 import { useNavigation, type AppRoute } from './navigation'
+
+const VALIDATION_CODE = Object.freeze({
+  catalogApplicabilityUnknown: 'CATALOG_APPLICABILITY_UNKNOWN',
+  catalogSnapshotUnavailable: 'CATALOG_SNAPSHOT_UNAVAILABLE',
+  rulesetFieldUnknown: 'RULESET_FIELD_UNKNOWN',
+  suggestedSlotDefinition: 'SUGGESTED_SLOT_DEFINITION',
+})
+
+interface ValidationAction {
+  readonly label: string
+  readonly route: AppRoute
+}
+
+function issueInputs(issue: ValidationIssue): Readonly<Record<string, unknown>> {
+  return issue.inputs && typeof issue.inputs === 'object' && !Array.isArray(issue.inputs) ? issue.inputs as Readonly<Record<string, unknown>> : {}
+}
+
+function issueCatalog(issue: ValidationIssue, catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
+  const inputs = issueInputs(issue)
+  return typeof inputs.catalogId === 'string' && typeof inputs.revisionId === 'string'
+    ? catalogs.find(catalog => catalog.id === inputs.catalogId && catalog.revisionId === inputs.revisionId)
+    : undefined
+}
+
+function coverageRef(catalog: CatalogSnapshot): CatalogRef | undefined {
+  const entity = Object.values(catalog.entities).find(candidate => candidate.kind === 'other' && /catalog coverage|coverage gaps/i.test(candidate.name))
+  return entity ? { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id } : undefined
+}
 
 function issueContext(issue: ValidationIssue, profile: Profile, catalogs: readonly CatalogSnapshot[], report: ValidationReport, scenario?: TeamScenario) {
   const details: string[] = []
@@ -19,32 +47,60 @@ function issueContext(issue: ValidationIssue, profile: Profile, catalogs: readon
     })
     if (affected.length) details.push(`Assigned to ${affected.join(', ')}`)
   }
-  if (issue.inputs && typeof issue.inputs === 'object' && !Array.isArray(issue.inputs)) {
-    const inputs = issue.inputs as Readonly<Record<string, unknown>>
+  const inputs = issueInputs(issue)
+  if (Object.keys(inputs).length > 0) {
     if (typeof inputs.field === 'string') details.push(inputs.field)
     const demand = typeof inputs.demand === 'number' ? inputs.demand : undefined
     const available = typeof inputs.available === 'number' ? inputs.available : typeof inputs.confirmedAvailable === 'number' ? inputs.confirmedAvailable : undefined
     if (demand !== undefined) details.push(`${demand} required${available !== undefined ? `, ${available} confirmed available` : ''}`)
   }
+  if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) {
+    const catalog = issueCatalog(issue, catalogs)
+    if (catalog) {
+      const applicability = catalog.applicability
+      if (applicability.state === 'unknown' && applicability.reason) details.push(applicability.reason)
+      else if (applicability.state === 'conflicting') details.push('The pinned reference contains conflicting applicability claims')
+      details.push(`${catalog.id} · ${catalog.revisionId}`)
+    }
+  }
   return [...new Set(details)].join(' · ')
 }
 
-function issueAction(issue: ValidationIssue, profile: Profile, catalogs: readonly CatalogSnapshot[]): { label: string; route: AppRoute } | undefined {
-  if (issue.code.includes('STOCK')) return { label: issue.ref ? `Review stock for ${entityName(profile, catalogs, issue.ref)}` : 'Review inventory', route: { page: { page: 'inventory', view: 'list' }, overlays: [], query: { v: ['1'], q: [issue.ref ? entityName(profile, catalogs, issue.ref) : ''] } } }
-  if (issue.characterId && (issue.code.startsWith('PP_') || issue.code.includes('LEARN') || issue.code.startsWith('CLASS_'))) return { label: issue.code.startsWith('PP_') ? 'Record character PP capacity' : issue.code.startsWith('CLASS_') ? 'Review class unlocks' : 'Review learned skills', route: { page: { page: 'characters', view: 'character', characterId: issue.characterId, tab: issue.code.startsWith('PP_') ? 'current' : issue.code.startsWith('CLASS_') ? 'classes' : 'knowledge' }, overlays: [], query: {} } }
-  if (issue.code === 'SUGGESTED_SLOT_DEFINITION' || issue.code === 'RULESET_FIELD_UNKNOWN') return { label: 'Review ruleset settings', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: {} } }
-  if (issue.ref) return { label: `Inspect ${entityName(profile, catalogs, issue.ref)}`, route: { page: { page: 'reference', view: 'detail', ref: issue.ref }, overlays: [], query: {} } }
-  return undefined
+function issueActions(issue: ValidationIssue, profile: Profile, catalogs: readonly CatalogSnapshot[], report: ValidationReport): readonly ValidationAction[] {
+  if (issue.code.includes('STOCK')) return [{ label: issue.ref ? `Review stock for ${entityName(profile, catalogs, issue.ref)}` : 'Review inventory', route: { page: { page: 'inventory', view: 'list' }, overlays: [], query: { v: ['1'], q: [issue.ref ? entityName(profile, catalogs, issue.ref) : ''] } } }]
+  if (issue.characterId && (issue.code.startsWith('PP_') || issue.code.includes('LEARN') || issue.code.startsWith('CLASS_'))) return [{ label: issue.code.startsWith('PP_') ? 'Record character PP capacity' : issue.code.startsWith('CLASS_') ? 'Review class unlocks' : 'Review learned skills', route: { page: { page: 'characters', view: 'character', characterId: issue.characterId, tab: issue.code.startsWith('PP_') ? 'current' : issue.code.startsWith('CLASS_') ? 'classes' : 'knowledge' }, overlays: [], query: {} } }]
+  if (issue.code === VALIDATION_CODE.rulesetFieldUnknown) return [{ label: 'Review setup', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: { ruleset: [report.rulesetRevisionId], focus: ['setup'] } } }]
+  if (issue.code === VALIDATION_CODE.suggestedSlotDefinition) return [{ label: 'Review planner defaults', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: { ruleset: [report.rulesetRevisionId], focus: ['slots'] } } }]
+  if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) {
+    const catalog = issueCatalog(issue, catalogs)
+    const ref = catalog ? coverageRef(catalog) : undefined
+    return [
+      { label: 'Review catalog coverage', route: ref ? { page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} } : { page: { page: 'reference', view: 'list' }, overlays: [], query: { v: ['1'], q: ['catalog coverage'] } } },
+      { label: 'Import reference data', route: { page: { page: 'settings', section: 'data' }, overlays: [], query: {} } },
+    ]
+  }
+  if (issue.code === VALIDATION_CODE.catalogSnapshotUnavailable) return [{ label: 'Import reference data', route: { page: { page: 'settings', section: 'data' }, overlays: [], query: {} } }]
+  if (issue.ref) return [{ label: `Inspect ${entityName(profile, catalogs, issue.ref)}`, route: { page: { page: 'reference', view: 'detail', ref: issue.ref }, overlays: [], query: {} } }]
+  return []
+}
+
+function issueGroupPresentation(issue: ValidationIssue, count: number): { readonly summary: string; readonly detail?: string } {
+  if (issue.code === VALIDATION_CODE.rulesetFieldUnknown) return { summary: `Setup needs review${count > 1 ? ` · ${count} fields` : ''}`, detail: 'Record or resolve the playthrough setup used by this pinned ruleset. A recorded value is not an independent verification.' }
+  if (issue.code === VALIDATION_CODE.suggestedSlotDefinition) return { summary: `Planner defaults in use${count > 1 ? ` · ${count} slots` : ''}`, detail: 'These slots are planner-supplied starting assumptions. Review them or explicitly accept the layout for a new ruleset revision.' }
+  if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) return { summary: 'Reference coverage is limited', detail: 'The pinned catalog retains useful facts, but its sources do not establish exact applicability to this game setup.' }
+  if (issue.code === VALIDATION_CODE.catalogSnapshotUnavailable) return { summary: 'Pinned reference is unavailable', detail: 'Import the missing reference revision before relying on checks that use it.' }
+  return { summary: `${issue.status === 'invalid' ? 'Needs attention' : 'Unknown'}: ${issue.message}${count > 1 ? ` (${count} checks)` : ''}` }
 }
 
 export function ValidationPanel({ report, profile, catalogs, scenario }: { report?: ValidationReport; profile: Profile; catalogs: readonly CatalogSnapshot[]; scenario?: TeamScenario }) {
   const navigation = useNavigation()
-  const labels: Record<string, string> = { structure: 'Structure', equipment: 'Equipment legality', passives: 'Passive legality', characterReadiness: 'Character readiness', inventory: 'Inventory sufficiency', rulesetCertainty: 'Ruleset certainty', calculationReadiness: 'Calculation readiness' }
+  const labels: Record<string, string> = { structure: 'Structure', equipment: 'Equipment legality', passives: 'Passive legality', characterReadiness: 'Character readiness', inventory: 'Inventory sufficiency', rulesetCertainty: 'Setup and reference coverage', calculationReadiness: 'Calculation readiness' }
   if (!report) return <InlineNotice title="Validation awaits a scenario">Assign a saved revision to a team to evaluate simultaneous stock and readiness. Planning does not require ownership or learned skills.</InlineNotice>
   return <div className="validation-list">{Object.entries(report.dimensions).map(([dimension, result]) => <div className={`validation-item validation-item--${result.status}`} key={dimension}><span className="validation-item__icon"><Icon name={result.status === 'valid' ? 'check' : result.status === 'invalid' ? 'close' : 'warning'}/></span><div><strong>{labels[dimension] ?? dimension}</strong>{result.status === 'valid' ? <p>No issue found with the known inputs.</p> : result.status === 'notApplicable' ? <p>Not applicable in this scenario.</p> : groupValidationIssues(result.issues).map((group) => {
     const first = group[0]!
-    const actions = new Map(group.flatMap((issue) => { const action = issueAction(issue, profile, catalogs); return action ? [[JSON.stringify(action.route), action] as const] : [] }))
-    return <details className="validation-group" key={`${first.code}:${first.message}:${first.status}`}><summary>{first.status === 'invalid' ? 'Needs attention' : 'Unknown'}: {first.code === 'RULESET_FIELD_UNKNOWN' ? 'Ruleset settings need evidence' : first.message}{group.length > 1 ? ` (${group.length} checks)` : ''}</summary><ul className="validation-issues">{group.map((issue, index) => <li key={index}>{issueContext(issue, profile, catalogs, report, scenario) || issue.message}{issue.suggestion && <small>{issue.suggestion}</small>}</li>)}</ul><div className="validation-actions">{[...actions].map(([key, action]) => <Button key={key} onClick={() => navigation.navigate(action.route)} tone="quiet" type="button">{action.label}</Button>)}</div></details>
+    const presentation = issueGroupPresentation(first, group.length)
+    const actions = new Map(group.flatMap(issue => issueActions(issue, profile, catalogs, report).map(action => [`${action.label}:${JSON.stringify(action.route)}`, action] as const)))
+    return <details className="validation-group" key={`${first.code}:${first.message}:${first.status}`}><summary>{presentation.summary}</summary>{presentation.detail && <p>{presentation.detail}</p>}<ul className="validation-issues">{group.map((issue, index) => <li key={index}>{issueContext(issue, profile, catalogs, report, scenario) || issue.message}{issue.suggestion && <small>{issue.suggestion}</small>}</li>)}</ul><div className="validation-actions">{[...actions].map(([key, action]) => <Button key={key} onClick={() => navigation.navigate(action.route)} tone="quiet" type="button">{action.label}</Button>)}</div></details>
   })}</div></div>)}</div>
 }
 

@@ -93,3 +93,54 @@ test('an explicitly created blank playthrough stays empty after reload', async (
   const profile = await exportProfile(page)
   for (const key of ['characters', 'inventory', 'builds', 'scenarios'] as const) expect(profile[key]).toEqual({})
 })
+
+test('sample team uncertainty uses plain language and targeted actions', async ({ page }) => {
+  await page.goto('/#/builds/teams')
+  const team = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) })
+  const setup = team.locator('.validation-group').filter({ hasText: 'Setup needs review' })
+  const defaults = team.locator('.validation-group').filter({ hasText: 'Planner defaults in use' })
+  const coverage = team.locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
+
+  await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
+  await expect(setup.locator('summary')).toHaveText('Setup needs review · 4 fields')
+  await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 16 slots')
+  await expect(coverage.locator('summary')).toHaveText('Reference coverage is limited')
+  await expect(team.getByText('Ruleset settings need evidence', { exact: true })).toHaveCount(0)
+  await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
+
+  await setup.locator('summary').click()
+  await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
+  let panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await expect(panel.getByText('Editing Sample starter ruleset, revision 1.', { exact: false })).toBeVisible()
+  await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+
+  await defaults.locator('summary').click()
+  await defaults.getByRole('button', { name: 'Review planner defaults', exact: true }).click()
+  panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const accept = panel.getByRole('button', { name: 'Accept planner layout', exact: true })
+  await expect(accept).toBeFocused()
+  await expect(panel.getByText('Accepting records your choice; it does not claim independent verification of game behavior.', { exact: false })).toBeVisible()
+  await accept.click()
+  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+
+  const saved = await exportProfile(page)
+  const savedTeam = Object.values(saved.scenarios).find(scenario => scenario.label === 'Sample starter team')!
+  const activeRuleset = saved.rulesets[saved.activeRulesetRevisionId!]!
+  expect(activeRuleset.id).not.toBe(savedTeam.rulesetRevisionId)
+  expect(activeRuleset.slots.every(slot => slot.provenance === 'userDefined')).toBe(true)
+  expect(saved.rulesets[savedTeam.rulesetRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
+
+  await coverage.locator('summary').click()
+  await coverage.getByRole('button', { name: 'Review catalog coverage', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Wiki catalog coverage gaps', exact: true })).toBeVisible()
+
+  await page.goto('/#/builds/teams')
+  const reopenedCoverage = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) }).locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
+  await reopenedCoverage.locator('summary').click()
+  await reopenedCoverage.getByRole('button', { name: 'Import reference data', exact: true }).click()
+  panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await expect(panel.getByRole('heading', { name: 'Import or restore', exact: true })).toBeVisible()
+})
