@@ -161,7 +161,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
   await page.getByLabel('Snapshot note', { exact: true }).fill('Synthetic changed hand')
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Snapshot note', { exact: true })).toHaveCount(0)
   await page.reload()
   await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.getByText('Synthetic changed hand', { exact: true })).toBeVisible()
@@ -282,7 +282,7 @@ test('member picker links preserve unknown and empty selections and guard the in
   await expect(page).toHaveURL(new RegExp(`/characters/${CHARACTER_ID}/current$`))
   await expect(page.getByRole('button', { name: 'Capture snapshot', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Snapshot note', { exact: true })).toHaveCount(0)
   const saved = await exportProfile(page)
   const member = saved.characters[CHARACTER_ID]!
   const recorded = member.snapshots[member.currentSnapshotId!]!

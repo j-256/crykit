@@ -188,8 +188,9 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await expect(confirmation).not.toBeChecked()
   await confirmation.check()
   await recording.getByRole('button', { name: 'Record as current', exact: true }).click()
+  await expect(recording).not.toBeVisible()
   await navigate(page, 'Characters')
-  await expect(page.getByText('Warrior', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Synthetic routed character', exact: true }).getByText('Warrior', { exact: true })).toBeVisible()
 
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
