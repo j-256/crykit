@@ -44,6 +44,7 @@ import {
   type Timestamp,
   type ValidationReport,
 } from './domain'
+import type { DraftActions, DraftChangeHandler } from './ui/drafts'
 import { DEFAULT_CATALOG } from './catalog/bundled'
 import { createBuildPlan, ensureBuildPlanningRuleset } from './domain/build-planning'
 import { commitImport, createProfile, exportBackup, listProfiles, loadWorkspace, previewImport, saveProfileWithStatus, selectProfile, subscribeWorkspace, undoProfileWithStatus, validateProfileForStorage } from './persistence'
@@ -97,6 +98,8 @@ export default function App() {
   const persistedRevisionRef = useRef(0)
   const dirtyRef = useRef(false)
   const formDirtyRef = useRef(false)
+  const draftActionsRef = useRef<DraftActions | undefined>(undefined)
+  const pendingNavigationRef = useRef<AppRoute | undefined>(undefined)
   const buildDraftRouteRef = useRef<AppRoute>(undefined)
   const [profiles, setProfiles] = useState<readonly ProfileSummary[]>([])
   const [loadingError, setLoadingError] = useState<string>()
@@ -104,6 +107,7 @@ export default function App() {
   const [dirty, setDirty] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const [navigationWarning, setNavigationWarning] = useState(false)
+  const [resolvingDraft, setResolvingDraft] = useState(false)
   const [saveError, setSaveError] = useState<string>()
   const [importPreview, setImportPreview] = useState<ImportPreview>()
   const [importError, setImportError] = useState<string>()
@@ -115,7 +119,7 @@ export default function App() {
       if (buildDraftRouteRef.current && !dirtyRef.current) return !isReferenceResearchRoute(to) && !isRouteWithin(to, buildDraftRouteRef.current)
       return !isRouteWithin(to, routeWithoutOverlays(from))
     },
-    onBlocked: () => setNavigationWarning(true),
+    onBlocked: (to) => { pendingNavigationRef.current = to; setNavigationWarning(true) },
   })
   const destination = routeDestination(navigation.route)
   const dataOpen = navigation.route.page.page === 'settings'
@@ -138,15 +142,26 @@ export default function App() {
     return () => { live = false }
   }, [])
 
-  const setFormDraftDirty = useCallback((value: boolean) => {
+  const setFormDraftDirty = useCallback<DraftChangeHandler>((value, actions) => {
     formDirtyRef.current = value
+    draftActionsRef.current = value ? actions : undefined
     setFormDirty(value)
-    if (!value) setNavigationWarning(false)
+    if (!value) { pendingNavigationRef.current = undefined; setNavigationWarning(false) }
   }, [])
-  const setBuildDraftDirty = (value: boolean) => {
+  const setBuildDraftDirty: DraftChangeHandler = (value, actions) => {
     buildDraftRouteRef.current = value ? routeWithoutOverlays(navigation.route) : undefined
-    setFormDraftDirty(value)
+    setFormDraftDirty(value, actions)
   }
+  const resolveDraftNavigation = useCallback(async (resolution: 'save' | 'discard') => {
+    const actions = draftActionsRef.current
+    const destination = pendingNavigationRef.current
+    if (!actions || !destination) return
+    setResolvingDraft(true)
+    try {
+      const resolved = resolution === 'save' ? await actions.save() : (actions.discard(), true)
+      if (resolved) navigation.navigate(destination)
+    } finally { setResolvingDraft(false) }
+  }, [navigation])
 
   useEffect(() => {
     if (!dirty && !formDirty) return
@@ -520,5 +535,5 @@ export default function App() {
   const buildContent = buildRoute && <div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/></NavigationProvider></div>
   const draftReminder = destination === 'reference' && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Browse reference records, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectProfile={selectContextProfile} onSelectRuleset={selectRuleset} onSelectScenario={selectScenario} profile={profile} profiles={profiles} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Save or discard your changes before leaving this screen.</InlineNotice></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectProfile={selectContextProfile} onSelectRuleset={selectRuleset} onSelectScenario={selectScenario} profile={profile} profiles={profiles} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
 }

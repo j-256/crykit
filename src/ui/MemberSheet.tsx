@@ -14,6 +14,7 @@ import { WikiSprite, WikiSpriteSource } from './WikiSprite'
 import { DefinitionArtwork, FieldIconSources } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
+import type { DraftActions, DraftChangeHandler } from './drafts'
 
 const PRIMARY_CLASS = 'primary-class'
 const SECONDARY_CLASS = 'secondary-class'
@@ -100,7 +101,7 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
 
 export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSave, onRecord, onLearn, onDirtyChange, onRetrySave }: {
   profile: Profile; catalogs: readonly CatalogSnapshot[]; snapshot: CharacterSnapshot
-  hasPendingSave: boolean; onRetrySave: () => Promise<void>; onSave: (draft: SnapshotDraft) => Promise<void>; onDirtyChange: (dirty: boolean) => void; onRecord: () => void; onLearn: () => void
+  hasPendingSave: boolean; onRetrySave: () => Promise<void>; onSave: (draft: SnapshotDraft) => Promise<void>; onDirtyChange: DraftChangeHandler; onRecord: () => void; onLearn: () => void
 }) {
   const navigation = useNavigation()
   const { options } = useDefinitionWorkspace()
@@ -117,7 +118,10 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
   const retained = Boolean(error && snapshot.id !== submissionBase.current)
   const [savedDraft, setSavedDraft] = useState(draft)
   const dirty = JSON.stringify(draft) !== JSON.stringify(savedDraft) || note !== ''
-  useEffect(() => { onDirtyChange(dirty || busy); return () => onDirtyChange(false) }, [dirty, busy, onDirtyChange])
+  const actionsRef = useRef<DraftActions | undefined>(undefined)
+  const registeredActionsRef = useRef<DraftActions>({ save: () => actionsRef.current?.save() ?? Promise.resolve(false), discard: () => actionsRef.current?.discard() })
+  useEffect(() => { onDirtyChange(dirty || busy, dirty ? registeredActionsRef.current : undefined) }, [dirty, busy, onDirtyChange])
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange])
   const synchronizedSnapshot = useRef(snapshot.id)
   useEffect(() => {
     if (synchronizedSnapshot.current === snapshot.id || dirty || busy) return
@@ -187,8 +191,12 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
       setNote('')
       setWarning(false)
       blocked.current = false
-    } catch (reason) { setError(formatAppError(reason, 'Your changes could not be saved.')) } finally { setBusy(false) }
+      onDirtyChange(false)
+      return true
+    } catch (reason) { setError(formatAppError(reason, 'Your changes could not be saved.')); return false } finally { setBusy(false) }
   }
+  const discard = () => { setDraft(savedDraft); setNote(''); setWarning(false); setError(undefined); blocked.current = false; onDirtyChange(false) }
+  actionsRef.current = { save, discard }
   return <div className="recorded-sheet member-sheet">
     {warning && <InlineNotice title="Unsaved member changes" tone="warning">Save changes or discard them before leaving this member.</InlineNotice>}
     {!ruleset || ruleset.id !== profile.activeRulesetRevisionId ? <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the active ruleset. This snapshot keeps its original slot labels. <Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record under active ruleset</Button></InlineNotice> : null}
@@ -205,7 +213,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
     </div>
     {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals. Changing equipment here does not recalculate stats.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div><div><dt>PP capacity</dt><dd>{knowledgeLabel(snapshot.ppCapacity)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} profile={profile} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
     {picker && ![PRIMARY_CLASS, SECONDARY_CLASS, ...slots.map(slot => `slot:${slot.id}`)].includes(picker.fieldKey) && <InlineNotice title="Character field unavailable" tone="warning">The requested slot is not in this snapshot. <Button onClick={() => navigation.close()} tone="quiet">Close picker route</Button></InlineNotice>}
-    {dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={() => { setDraft(savedDraft); setNote(''); setWarning(false); setError(undefined); blocked.current = false }} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}
+    {dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={discard} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your choices are retained for retry.</InlineNotice>}
     <details className="member-record"><summary>Observation details<span>{snapshot.observedAt ? formatRelativeDate(snapshot.observedAt) : 'Date unknown'}</span></summary><p>Recorded {formatRelativeDate(snapshot.recordedAt)}</p>{snapshot.note && <p>{snapshot.note}</p>}<p>{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Slot context was not recorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.mods ?? UNKNOWN}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.disabledMods ?? UNKNOWN}/></dd></div></dl><SourceReferences sources={snapshot.sources}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.primaryClass }}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.secondaryClass }}/>{slots.map(slot => <div key={slot.id}><span>{slot.label}: </span><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'selection', value: slot.selection }}/></div>)}</details>
   </div>

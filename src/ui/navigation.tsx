@@ -710,7 +710,7 @@ export interface NavigationController {
   readonly hasOpenDraft: () => boolean
 }
 
-export function useNavigationController(options: { readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: () => void } = {}): NavigationController {
+export function useNavigationController(options: { readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: (to: AppRoute) => void } = {}): NavigationController {
   const [route, setRoute] = useState(() => typeof window === 'undefined' ? BUILDS_ROUTE : parseAppRoute(window.location.hash))
   const acceptedRef = useRef(route)
   const acceptedIndexRef = useRef(0)
@@ -724,7 +724,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
   }, [route])
 
   const blocked = useCallback((from: AppRoute, to: AppRoute) => {
-    if (optionsRef.current.shouldBlock?.(from, to)) { optionsRef.current.onBlocked?.(); return true }
+    if (optionsRef.current.shouldBlock?.(from, to)) { optionsRef.current.onBlocked?.(to); return true }
     for (const blocker of blockersRef.current) {
       if (!blocker.blocked() || isRouteWithin(to, blocker.scope) || blocker.allows?.(to)) continue
       blocker.onBlocked?.()

@@ -27,6 +27,7 @@ import { SkillScreenshotImport } from './SkillScreenshotImport'
 import type { ReviewedSkillTree } from '../domain/skill-trees'
 import { CharacterHistory } from './CharacterHistory'
 import { CharacterOverview } from './CharacterOverview'
+import type { DraftChangeHandler } from './drafts'
 
 const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
@@ -68,7 +69,7 @@ export interface CharactersViewProps {
   readonly profile: Profile
   readonly catalogs: readonly CatalogSnapshot[]
   readonly hasPendingSave: boolean
-  readonly onDraftChange: (dirty: boolean) => void
+  readonly onDraftChange: DraftChangeHandler
   readonly onRetrySave: () => Promise<void>
   readonly onAdd: (draft: CharacterDraft) => Promise<void>
   readonly onCapture: (characterId: CharacterId, draft: SnapshotDraft) => Promise<void>
@@ -309,7 +310,7 @@ function LearnedNodeForm({ initial, defaultKind, lockedKind, onCancel, onSubmit 
 export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCapture, onUpsertClass, onUpsertLearned, onImportScreenshots, onDraftChange, onRetrySave }: CharactersViewProps) {
   const navigation = useNavigation()
   const [memberDirty, setMemberDirty] = useState(false)
-  const updateMemberDirty = useCallback((dirty: boolean) => { setMemberDirty(dirty); onDraftChange(dirty) }, [onDraftChange])
+  const updateMemberDirty = useCallback<DraftChangeHandler>((dirty, actions) => { setMemberDirty(dirty); onDraftChange(dirty, actions) }, [onDraftChange])
   const characters = Object.values(profile.characters)
   const page = navigation.route.page.page === 'characters' ? navigation.route.page : { page: 'characters', view: 'list' } as const
   const selectedId = 'characterId' in page ? page.characterId : undefined

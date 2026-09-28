@@ -15,6 +15,7 @@ import { compactKnowledge, passivePpSummary } from './build-evidence'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { isReferenceResearchRoute, parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
+import type { DraftActions, DraftChangeHandler } from './drafts'
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly note?: string }
@@ -22,7 +23,7 @@ export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<
 
 type BuildsSection = 'library' | 'teams' | 'compare'
 
-function AddBuildForm({ profile, catalogs, onCancel, onSubmit, onSaved, onDirtyChange }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onCancel: () => void; onSubmit: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onSaved: (buildId: BuildId, revisionId: BuildRevisionId) => void; onDirtyChange: (dirty: boolean) => void }) {
+function AddBuildForm({ profile, catalogs, onCancel, onSubmit, onSaved, onDirtyChange }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onCancel: () => void; onSubmit: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onSaved: (buildId: BuildId, revisionId: BuildRevisionId) => void; onDirtyChange: DraftChangeHandler }) {
   const [id] = useState(() => createId<BuildId>('build'))
   const [revisionId] = useState(() => createId<BuildRevisionId>('buildRevision'))
   const [title, setTitle] = useState('')
@@ -70,7 +71,7 @@ function detachAllocation(selections: Readonly<Record<string, BuildSelection | n
   return next
 }
 
-function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false }: { build?: Build; characterId?: string; children?: ReactNode; locked?: boolean; sourceRevision?: BuildRevision; profile: Profile; catalogs: readonly CatalogSnapshot[]; onCancel?: () => void; onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; onSaved: (revisionId: BuildRevisionId) => void; onDirtyChange: (dirty: boolean) => void }) {
+function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false }: { build?: Build; characterId?: string; children?: ReactNode; locked?: boolean; sourceRevision?: BuildRevision; profile: Profile; catalogs: readonly CatalogSnapshot[]; onCancel?: () => void; onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; onSaved: (revisionId: BuildRevisionId) => void; onDirtyChange: DraftChangeHandler }) {
   const navigation = useNavigation()
   const { planningOptions } = useDefinitionWorkspace()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(profile.buildRevisions, build.latestRevisionId) : undefined)
@@ -81,6 +82,12 @@ function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs,
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const dirtyRef = useRef(false)
+  const draftRef = useRef(draft)
+  const assumptionsRef = useRef(assumptions)
+  const actionsRef = useRef<DraftActions | undefined>(undefined)
+  const registeredActionsRef = useRef<DraftActions>({ save: () => actionsRef.current?.save() ?? Promise.resolve(false), discard: () => actionsRef.current?.discard() })
+  draftRef.current = draft
+  assumptionsRef.current = assumptions
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [comparedWith, setComparedWith] = useState<DefinitionOption>()
   const [capacityCharacterId, setCapacityCharacterId] = useState<string>()
@@ -116,7 +123,7 @@ function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs,
   }, [candidateLimit, pickerOverlay, query])
   const editorScope: AppRoute = { ...navigation.route, overlays: [] }
   useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'), (to) => !busy && !locked && isReferenceResearchRoute(to))
-  const updateDirty = (value: boolean) => { dirtyRef.current = value; onDirtyChange(value) }
+  const updateDirty = (value: boolean) => { dirtyRef.current = value; onDirtyChange(value, value ? registeredActionsRef.current : undefined) }
   const openPicker = (target: PickerTarget) => {
     if (picker?.fieldKey === target.fieldKey) return
     const stored = pickerMemoryRef.current[target.fieldKey]
@@ -141,8 +148,10 @@ function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs,
     })
     updateDirty(true)
   }
-  const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draft, contextAssumptions: assumptions.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.') } finally { setBusy(false) } }
+  const save = async () => { setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draftRef.current, contextAssumptions: assumptionsRef.current.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId); return true } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.'); return false } finally { setBusy(false) } }
+  const submit = (event: FormEvent) => { event.preventDefault(); void save() }
   const discard = () => { const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
+  actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
   const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} label={target.label} onChange={(ref) => {
     if (target.key === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref }))
@@ -200,7 +209,7 @@ function ScenarioCard({ scenario, profile, catalogs, validation, onAssign }: { s
   return <article className="panel" id={`scenario-${scenario.id}`}><header className="panel__header"><div><div className="cluster"><h2>{scenario.label}</h2>{scenario.id === profile.activeScenarioId && <Badge tone="info">Active</Badge>}<Badge tone={scenario.kind === 'recordedCurrent' ? 'positive' : scenario.kind === 'hypothetical' ? 'warning' : 'info'}>{scenario.kind === 'recordedCurrent' ? 'Recorded current' : scenario.kind === 'hypothetical' ? 'Hypothetical' : 'Draft team'}</Badge></div><p>{scenario.inventoryPolicy.enforceStock ? 'Stock checks enabled' : 'Stock checks informational'} · {scenario.inventoryPolicy.includeProtected ? 'Protected copies allowed' : 'Protected copies excluded'}</p></div></header><div className="panel__body stack">{scenario.kind === 'recordedCurrent' && <InlineNotice title="Recorded assignments follow confirmed observations">Use a build's Record as current action after applying it in game. Draft and hypothetical scenarios remain directly editable.</InlineNotice>}<div className="grid-2">{characters.map((character) => <Field hint={scenario.kind === 'recordedCurrent' ? 'Record a pinned build as current to change this assignment.' : undefined} key={character.id} label={character.name}><select disabled={scenario.kind === 'recordedCurrent'} onChange={(event) => void assign(character.id, event.target.value)} value={ownRecordValue(effectiveAssignments, character.id) ?? ''}><option value="">No build assigned</option>{revisions.filter((revision) => { const build = ownRecordValue(profile.builds, revision.buildId); return build && (!build.characterId || build.characterId === character.id) }).map((revision) => <option key={revision.id} value={revision.id}>{revisionOptionLabel(profile, revision)}</option>)}</select></Field>)}</div>{assignmentError && <InlineNotice title="Assignment not saved" tone="danger">{assignmentError} The prior pinned assignment remains active.</InlineNotice>}<ValidationPanel catalogs={catalogs} profile={profile} report={validation} scenario={scenario}/></div></article>
 }
 
-export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCloneBuild, onSaveRevision, onCreateScenario, onAssign, onRecordCurrent, onDraftChange }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; validations: Readonly<Record<string, ValidationReport | undefined>>; onCreateBuild: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onCloneBuild: (buildId: string) => Promise<string>; onSaveRevision: (buildId: string, draft: RevisionDraft, parentRevisionId?: string) => Promise<BuildRevisionId>; onCreateScenario: (draft: ScenarioDraft) => Promise<void>; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void>; onRecordCurrent: (buildId: string, revisionId: string) => Promise<void>; onDraftChange: (dirty: boolean) => void }) {
+export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCloneBuild, onSaveRevision, onCreateScenario, onAssign, onRecordCurrent, onDraftChange }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; validations: Readonly<Record<string, ValidationReport | undefined>>; onCreateBuild: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onCloneBuild: (buildId: string) => Promise<string>; onSaveRevision: (buildId: string, draft: RevisionDraft, parentRevisionId?: string) => Promise<BuildRevisionId>; onCreateScenario: (draft: ScenarioDraft) => Promise<void>; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void>; onRecordCurrent: (buildId: string, revisionId: string) => Promise<void>; onDraftChange: DraftChangeHandler }) {
   const navigation = useNavigation()
   const page = navigation.route.page.page === 'builds' ? navigation.route.page : { page: 'builds', view: 'library' } as const
   const allBuilds = Object.values(profile.builds).filter((build) => build.state !== 'archived')
@@ -229,6 +238,9 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
   const [recordingBusy, setRecordingBusy] = useState(false)
   const [recordingError, setRecordingError] = useState<string>()
   const [editorDirty, setEditorDirty] = useState(false)
+  const editorActionsRef = useRef<DraftActions | undefined>(undefined)
+  const draftContinuationRef = useRef<(() => void) | undefined>(undefined)
+  const [resolvingDraft, setResolvingDraft] = useState(false)
   const [readinessScenarioId, setReadinessScenarioId] = useState<string>()
   const [draftGuard, setDraftGuard] = useState<string>()
   const [cloneBusy, setCloneBusy] = useState(false)
@@ -251,9 +263,20 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
     if (page.view !== 'scenario' || !ownRecordValue(profile.scenarios, page.scenarioId)) return
     window.requestAnimationFrame(() => document.getElementById(`scenario-${page.scenarioId}`)?.scrollIntoView({ block: 'start' }))
   }, [page, profile.scenarios])
-  const updateEditorDirty = (value: boolean) => { setEditorDirty(value); if (!value) setDraftGuard(undefined); onDraftChange(value) }
-  const changeSection = (value: BuildsSection) => { if (editorDirty && value !== section) { setDraftGuard('Save or discard the build edits before changing workspace sections.'); return } navigate({ page: 'builds', view: value }) }
-  const selectBuild = (value: string) => { const build = ownRecordValue(profile.builds, value); if (!build) return; if (editorDirty && value !== selected?.id) { setDraftGuard('Save or discard the build edits before opening another build.'); return } navigate(editorRouteFor(build)); if (window.matchMedia('(max-width: 820px)').matches) setLibraryOpen(false) }
+  const updateEditorDirty: DraftChangeHandler = (value, actions) => { setEditorDirty(value); editorActionsRef.current = value ? actions : undefined; if (!value) { draftContinuationRef.current = undefined; setDraftGuard(undefined) } onDraftChange(value, actions) }
+  const guardDraft = (message: string, continuation: () => void) => { draftContinuationRef.current = continuation; setDraftGuard(message) }
+  const changeSection = (value: BuildsSection) => { if (editorDirty && value !== section) { guardDraft('Choose whether to save or discard the build edits, then continue to the selected workspace.', () => navigate({ page: 'builds', view: value })); return } navigate({ page: 'builds', view: value }) }
+  const selectBuild = (value: string) => { const build = ownRecordValue(profile.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build)); if (window.matchMedia('(max-width: 820px)').matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
+  const resolveDraft = async (resolution: 'save' | 'discard') => {
+    const actions = editorActionsRef.current
+    const continuation = draftContinuationRef.current
+    if (!actions || !continuation) return
+    setResolvingDraft(true)
+    try {
+      const resolved = resolution === 'save' ? await actions.save() : (actions.discard(), true)
+      if (resolved) continuation()
+    } finally { setResolvingDraft(false) }
+  }
   const builds = allBuilds.filter((build) => `${build.title} ${build.tags.join(' ')} ${build.characterId ? ownRecordValue(profile.characters, build.characterId)?.name ?? '' : 'template'}`.toLocaleLowerCase().includes(buildQuery.trim().toLocaleLowerCase()))
   const selected = selectedId ? ownRecordValue(profile.builds, selectedId) : undefined
   const requestedRevisionId = page.view === 'revision' || page.view === 'revision-edit' || page.view === 'record-current' ? page.revisionId : undefined
@@ -422,7 +445,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
 
   return <div className="build-workspace">
     <ScreenHeader actions={section === 'teams' ? <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>New scenario</Button> : <>{!addingBuild && <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New build</Button>}{section === 'library' && selected?.latestRevisionId && <Button disabled={editorDirty || cloneBusy} icon="layers" onClick={() => void cloneSelected()} tone="secondary">{cloneBusy ? 'Cloning...' : 'Clone build'}</Button>}</>} description="Explore classes, equipment, and passives. No character or inventory tracking required." eyebrow="Buildcrafting" title="Builds"/>
-    <div className="toolbar"><Segmented label="Build workspace" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'teams', label: 'Team scenarios' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, characters" type="search" value={buildQuery}/></div>}</div>{draftGuard && <InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original build and checkpoint remain unchanged.</InlineNotice>}
+    <div className="toolbar"><Segmented label="Build workspace" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'teams', label: 'Team scenarios' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, characters" type="search" value={buildQuery}/></div>}</div>{draftGuard && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraft('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraft('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original build and checkpoint remain unchanged.</InlineNotice>}
     {missingBuild && <InlineNotice title="Build unavailable" tone="warning">The requested build is not available in this profile. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
     {missingRevision && <InlineNotice title="Build checkpoint unavailable" tone="warning">The requested checkpoint is missing or belongs to another build. No other checkpoint was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
     {!missingRevision && missingEditorBase && <InlineNotice title="Checkpoint base unavailable" tone="warning">The requested editor base is missing or belongs to another build. Choose an available checkpoint from the build library; no latest revision was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}

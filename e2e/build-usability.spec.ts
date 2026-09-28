@@ -75,6 +75,35 @@ test('build choices expose source facts, uncertain identities, and explicit inna
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('build edit warnings save or discard before continuing to another workspace', async ({ page }) => {
+  await page.goto('/')
+  await createBlankPlaythrough(page)
+  await page.goto('/#/builds/library/new')
+  await choose(page, 'Class', 'Warrior')
+  await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await choose(page, 'Main hand', 'Muramasa')
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
+
+  let warning = page.locator('.external-update').filter({ hasText: 'Build edits are still open' })
+  await expect(warning.getByRole('button', { name: 'Discard and continue', exact: true })).toBeVisible()
+  await expect(warning.getByRole('button', { name: 'Save and continue', exact: true })).toBeVisible()
+  await warning.getByRole('button', { name: 'Save and continue', exact: true }).click()
+  await expect(page).toHaveURL(/#\/builds\/teams$/)
+
+  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.locator('.build-card').filter({ hasText: 'Warrior build' }).click()
+  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
+  await choose(page, 'Main hand', 'Diamond Katana')
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
+
+  warning = page.locator('.external-update').filter({ hasText: 'Build edits are still open' })
+  await warning.getByRole('button', { name: 'Discard and continue', exact: true }).click()
+  await expect(page).toHaveURL(/#\/builds\/teams$/)
+  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.locator('.build-card').filter({ hasText: 'Warrior build' }).click()
+  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
+})
+
 test('new and existing build drafts survive Reference research, history, and return navigation', async ({ page, isMobile }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
