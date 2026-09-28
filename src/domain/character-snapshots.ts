@@ -1,8 +1,9 @@
-import type { CharacterSnapshot, EntityRef, Knowledge, ObservedStat, Profile, SlotDefinition, SourceRef } from './types'
+import type { CharacterSnapshot, EntityRef, Knowledge, ObservedStat, Profile, SourceRef } from './types'
 
 export type SnapshotValue =
   | { readonly kind: 'number'; readonly value: Knowledge<number>; readonly unit: string }
   | { readonly kind: 'reference'; readonly value: Knowledge<EntityRef> }
+  | { readonly kind: 'references'; readonly value: Knowledge<readonly EntityRef[]> }
   | { readonly kind: 'selection'; readonly value: EntityRef | null | undefined }
   | { readonly kind: 'text'; readonly value: string | undefined }
   | { readonly kind: 'ruleset'; readonly value: CharacterSnapshot['rulesetRevisionId'] }
@@ -22,7 +23,7 @@ export interface SnapshotComparisonRow {
 export interface SnapshotSlot {
   readonly id: string
   readonly label: string
-  readonly kind: SlotDefinition['kind'] | 'unmapped'
+  readonly kind: 'equipment' | 'passive' | 'unmapped'
   readonly selection: EntityRef | null | undefined
 }
 
@@ -31,11 +32,11 @@ export function snapshotSlots(profile: Profile, snapshot: CharacterSnapshot): re
   const slots: SnapshotSlot[] = [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order).map((slot) => ({
     id: slot.id,
     label: slot.label,
-    kind: slot.kind,
-    selection: Object.hasOwn(snapshot.selections, slot.id) ? snapshot.selections[slot.id] : undefined,
+    kind: 'equipment',
+    selection: Object.hasOwn(snapshot.equipment, slot.id) ? snapshot.equipment[slot.id] : undefined,
   }))
   const mapped = new Set(slots.map((slot) => slot.id))
-  for (const [id, selection] of Object.entries(snapshot.selections)) {
+  for (const [id, selection] of Object.entries(snapshot.equipment)) {
     if (!mapped.has(id)) slots.push({ id, label: `Slot ${id}`, kind: 'unmapped', selection })
   }
   return slots
@@ -65,9 +66,14 @@ export function compareCharacterSnapshots(left: CharacterSnapshot, right: Charac
   const leftStats = new Map(Object.entries(left.displayedStats))
   const rightStats = new Map(Object.entries(right.displayedStats))
   for (const key of new Set([...leftStats.keys(), ...rightStats.keys()])) add(`stat:${key}`, key, statValue(leftStats.get(key)), statValue(rightStats.get(key)))
-  const leftSelections = new Map(Object.entries(left.selections))
-  const rightSelections = new Map(Object.entries(right.selections))
+  const leftSelections = new Map(Object.entries(left.equipment))
+  const rightSelections = new Map(Object.entries(right.equipment))
   for (const id of new Set([...leftSelections.keys(), ...rightSelections.keys()])) add(`slot:${id}`, `Slot ${id}`, { kind: 'selection', value: leftSelections.get(id) }, { kind: 'selection', value: rightSelections.get(id) }, id)
+  const passiveRefs = (value: CharacterSnapshot['passives']) => value.state === 'known' ? value.value : []
+  const leftPassives = passiveRefs(left.passives)
+  const rightPassives = passiveRefs(right.passives)
+  for (let index = 0; index < Math.max(leftPassives.length, rightPassives.length); index += 1) add(`passive:${index}`, `Equipped passive ${index + 1}`, { kind: 'selection', value: leftPassives[index] }, { kind: 'selection', value: rightPassives[index] })
+  if (left.passives.state !== 'known' || right.passives.state !== 'known') add('passives', 'Equipped passives', { kind: 'references', value: left.passives }, { kind: 'references', value: right.passives })
   add('ruleset', 'Slot context', { kind: 'ruleset', value: left.rulesetRevisionId }, { kind: 'ruleset', value: right.rulesetRevisionId })
   add('observedAt', 'Observed on', { kind: 'text', value: left.observedAt }, { kind: 'text', value: right.observedAt })
   add('recordedAt', 'Recorded on', { kind: 'text', value: left.recordedAt }, { kind: 'text', value: right.recordedAt })

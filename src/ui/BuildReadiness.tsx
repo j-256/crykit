@@ -43,7 +43,7 @@ function issueContext(issue: ValidationIssue, profile: Profile, catalogs: readon
   if (issue.ref && scenario && !issue.characterId) {
     const affected = Object.entries(effectiveScenarioAssignments(scenario)).flatMap(([characterId, revisionId]) => {
       const revision = revisionId ? ownRecordValue(profile.buildRevisions, revisionId) : undefined
-      return revision && Object.values(revision.content.selections).some((selection) => selection && entityDefinitionKey(selection.ref) === entityDefinitionKey(issue.ref!)) ? [ownRecordValue(profile.characters, characterId)?.name ?? characterId] : []
+      return revision && [...Object.values(revision.content.equipment).flatMap(selection => selection ? [selection] : []), ...revision.content.passives].some((selection) => entityDefinitionKey(selection.ref) === entityDefinitionKey(issue.ref!)) ? [ownRecordValue(profile.characters, characterId)?.name ?? characterId] : []
     })
     if (affected.length) details.push(`Assigned to ${affected.join(', ')}`)
   }

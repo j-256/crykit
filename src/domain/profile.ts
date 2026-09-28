@@ -305,6 +305,7 @@ export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionIn
     if (slotIds.has(slot.id)) throw new DomainError('INVALID_INPUT', `Duplicate slot ID: ${slot.id}`)
     if (!slot.label.trim()) throw new DomainError('INVALID_INPUT', 'Slot label must not be empty')
     if (!Number.isSafeInteger(slot.order)) throw new DomainError('INVALID_INPUT', 'Slot order must be a safe integer')
+    if (slot.kind !== 'equipment') throw new DomainError('INVALID_INPUT', 'Ruleset slots describe equipment only; passives use the shared PP budget')
     slotIds.add(slot.id)
   }
   const overrideKeys = new Set<string>()

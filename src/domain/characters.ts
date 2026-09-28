@@ -126,7 +126,8 @@ export interface CaptureCharacterInput {
   readonly secondaryClass?: Knowledge<EntityRef>
   readonly displayedStats?: Readonly<Record<string, ObservedStat>>
   readonly ppCapacity?: Knowledge<number>
-  readonly selections?: Readonly<Record<string, EntityRef | null>>
+  readonly equipment?: Readonly<Record<string, EntityRef | null>>
+  readonly passives?: Knowledge<readonly EntityRef[]>
   readonly sources?: readonly SourceRef[]
   readonly note?: string
   readonly now?: Timestamp | string
@@ -135,6 +136,7 @@ export interface CaptureCharacterInput {
 
 const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_REF: Knowledge<EntityRef> = { state: 'unknown' }
+const UNKNOWN_REFS: Knowledge<readonly EntityRef[]> = { state: 'unknown' }
 
 export function captureCharacter(profile: Profile, input: CaptureCharacterInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
@@ -158,9 +160,10 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     assertTextLength(stat.unit, `Displayed stat ${key} unit`, MAX_SHORT_TEXT_LENGTH)
     for (const value of knowledgeValues(stat.value)) assertFiniteNumber(value, `Displayed stat ${key}`)
   }
-  for (const ref of Object.values(input.selections ?? {})) {
+  for (const ref of Object.values(input.equipment ?? {})) {
     if (ref) assertPersonalDefinitionRef(profile, ref)
   }
+  for (const refs of knowledgeValues(input.passives)) for (const ref of refs) assertPersonalDefinitionRef(profile, ref)
   const snapshotId = input.snapshotId ?? createId<CharacterSnapshotId>('characterSnapshot')
   if (current.snapshots[snapshotId]) {
     throw new DomainError('DUPLICATE_ID', `Character snapshot already exists: ${snapshotId}`)
@@ -175,7 +178,8 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     secondaryClass: input.secondaryClass ?? UNKNOWN_REF,
     displayedStats: input.displayedStats ?? {},
     ppCapacity: input.ppCapacity ?? UNKNOWN_NUMBER,
-    selections: input.selections ?? {},
+    equipment: input.equipment ?? {},
+    passives: input.passives ?? UNKNOWN_REFS,
     sources: input.sources ?? [],
     ...(input.observedAt === undefined ? {} : { observedAt: asTimestamp(input.observedAt) }),
     ...(input.note === undefined ? {} : { note: input.note }),

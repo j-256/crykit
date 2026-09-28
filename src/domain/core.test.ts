@@ -93,7 +93,7 @@ describe('domain identity and bounds', () => {
       label: 'Invalid slots',
       slots: [
         { id: slotId, kind: 'equipment', label: 'First', order: 0, provenance: 'userDefined', sources: [] },
-        { id: slotId, kind: 'passive', label: 'Second', order: 1, provenance: 'userDefined', sources: [] },
+        { id: slotId, kind: 'equipment', label: 'Second', order: 1, provenance: 'userDefined', sources: [] },
       ],
       now: TEST_NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))

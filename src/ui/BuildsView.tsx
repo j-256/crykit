@@ -39,7 +39,7 @@ function AddBuildForm({ profile, catalogs, onCancel, onSubmit, onSaved, onDirtyC
   </RevisionEditor></div></section>
 }
 
-interface PickerTarget { readonly fieldKey: string; readonly key: 'primaryClass' | 'secondaryClass' | string; readonly label: string; readonly kinds: readonly CatalogEntityKind[] }
+interface PickerTarget { readonly fieldKey: string; readonly key: string; readonly target: 'primaryClass' | 'secondaryClass' | 'equipment' | 'passive'; readonly label: string; readonly kinds: readonly CatalogEntityKind[] }
 
 function checkpointSuffix(revision: BuildRevision) {
   const name = revision.note?.trim()
@@ -62,14 +62,12 @@ function BuildCard({ build, selected, onSelect, profile, catalogs }: { build: Bu
   const pinnedRevision = revision?.buildId === build.id ? revision : undefined
   const ruleset = pinnedRevision ? ownRecordValue(profile.rulesets, pinnedRevision.rulesetRevisionId) : undefined
   const slots = [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order)
-  const knownSlotIds = new Set(slots.map(slot => slot.id as string))
   const selectedSlots = slots.flatMap(slot => {
-    const selection = pinnedRevision?.content.selections[slot.id]
+    const selection = pinnedRevision?.content.equipment[slot.id]
     return selection ? [{ slot, selection }] : []
   })
-  const equipment = selectedSlots.filter(({ slot }) => slot.kind === 'equipment')
-  const passives = selectedSlots.filter(({ slot }) => slot.kind === 'passive')
-  const otherSelections = pinnedRevision ? Object.entries(pinnedRevision.content.selections).flatMap(([slotId, selection]) => selection && !knownSlotIds.has(slotId) ? [{ slotId, selection }] : []) : []
+  const equipment = selectedSlots
+  const passives = pinnedRevision?.content.passives ?? []
   const character = build.characterId ? ownRecordValue(profile.characters, build.characterId) : undefined
   const stateLabel = build.state === 'recordedCurrent' ? 'Current' : build.state === 'hypothetical' ? 'Hypothetical' : 'Draft'
   const stateTone = build.state === 'recordedCurrent' ? 'positive' : build.state === 'hypothetical' ? 'warning' : 'info'
@@ -87,9 +85,8 @@ function BuildCard({ build, selected, onSelect, profile, catalogs }: { build: Bu
       </span>
       <span className="build-card__summary-group">
         <span className="build-card__summary-label"><Icon name="crystal"/>Passives</span>
-        {passives.length ? <span className="build-card__selections">{passives.map(({ slot, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slot.id} label={slot.label} profile={profile} value={selection.ref}/>)}</span> : <small>No passives selected</small>}
+        {passives.length ? <span className="build-card__selections">{passives.map((selection, index) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={`${entityDefinitionKey(selection.ref)}:${index}`} label={`Equipped passive ${index + 1}`} profile={profile} value={selection.ref}/>)}</span> : <small>No passives selected</small>}
       </span>
-      {otherSelections.length > 0 && <span className="build-card__summary-group"><span className="build-card__summary-label"><Icon name="layers"/>Other selections</span><span className="build-card__selections">{otherSelections.map(({ slotId, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slotId} label="Unmapped slot" profile={profile} value={selection.ref}/>)}</span></span>}
     </> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
     {build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}
   </button>
@@ -121,7 +118,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const { options, planningOptions } = useDefinitionWorkspace()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(profile.buildRevisions, build.latestRevisionId) : undefined)
   const ruleset = profile.activeRulesetRevisionId ? activeRuleset(profile) : latest ? ownRecordValue(profile.rulesets, latest.rulesetRevisionId) : undefined
-  const initialDraft = (): RevisionDraft => ({ primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, selections: { ...(latest?.content.selections ?? {}) }, rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
+  const initialDraft = (): RevisionDraft => ({ primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
   const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
@@ -137,23 +134,24 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const [comparedWith, setComparedWith] = useState<DefinitionOption>()
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
   const slots = useMemo(() => [...(ruleset?.slots.length ? ruleset.slots : SUGGESTED_BUILD_SLOTS)].sort((a, b) => a.order - b.order), [ruleset])
-  const passiveSlots = slots.filter((slot) => slot.kind === 'passive')
   const definitionIndex = useMemo(() => new Map(options.map(option => [entityDefinitionKey(option.ref), option.record])), [options])
   const validity = useMemo(() => validateBuildContent(draft, ruleset, slots, ref => definitionIndex.get(entityDefinitionKey(ref)), ref => logicalEntityKey(profile, ref)), [definitionIndex, draft, profile, ruleset, slots])
-  const requestedPicker = navigation.route.overlays[0]
-  const requestedPassiveIndex = requestedPicker?.kind === 'definition-picker' ? passiveSlots.findIndex((slot) => requestedPicker.fieldKey === `slot:${slot.id}`) : -1
-  const visiblePassiveSlots = passiveSlots.slice(0, Math.max(1, requestedPassiveIndex + 1, passiveSlots.findLastIndex((slot) => draft.selections[slot.id]) + 2))
-  const equipmentSlots = slots.filter((slot) => slot.kind === 'equipment')
+  const equipmentSlots = slots
   const equipmentSlotIds = new Set(equipmentSlots.map((slot) => slot.id as string))
   const targetForFieldKey = (fieldKey: string): PickerTarget | undefined => {
-    if (fieldKey === 'primary-class') return { fieldKey, key: 'primaryClass', label: 'Class', kinds: ['class'] }
-    if (fieldKey === 'secondary-class') return { fieldKey, key: 'secondaryClass', label: 'Sub-command', kinds: ['class'] }
+    if (fieldKey === 'primary-class') return { fieldKey, key: 'primaryClass', target: 'primaryClass', label: 'Class', kinds: ['class'] }
+    if (fieldKey === 'secondary-class') return { fieldKey, key: 'secondaryClass', target: 'secondaryClass', label: 'Sub-command', kinds: ['class'] }
     if (!fieldKey.startsWith('slot:')) return undefined
     const key = fieldKey.slice(5)
+    const passiveMatch = /^passive-(\d+)$/.exec(key)
+    if (passiveMatch) {
+      const index = Number(passiveMatch[1]) - 1
+      return index >= 0 && index <= draft.passives.length ? { fieldKey, key: String(index), target: 'passive', label: `Equipped passive ${index + 1}`, kinds: ['passive', 'innate'] } : undefined
+    }
     const slot = slots.find((entry) => entry.id === key)
     if (!slot) return undefined
-    const kinds: readonly CatalogEntityKind[] = slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value : slot.kind === 'passive' ? ['passive', 'innate'] : ['item']
-    return { fieldKey, key, label: slot.label, kinds }
+    const kinds: readonly CatalogEntityKind[] = slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value : ['item']
+    return { fieldKey, key, target: 'equipment', label: slot.label, kinds }
   }
   const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
   const picker = pickerOverlay ? targetForFieldKey(pickerOverlay.fieldKey) : undefined
@@ -178,15 +176,15 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   }
   const groupSelection = (slotId: string, peerSlotId: string) => {
     setDraft((value) => {
-      const selections = detachAllocation(value.selections, slotId, equipmentSlotIds)
-      const current = selections[slotId]
-      if (!current || !peerSlotId) return { ...value, selections }
-      const peer = selections[peerSlotId]
+      const equipment = detachAllocation(value.equipment, slotId, equipmentSlotIds)
+      const current = equipment[slotId]
+      if (!current || !peerSlotId) return { ...value, equipment }
+      const peer = equipment[peerSlotId]
       if (!peer || !sameLogicalEntity(profile, peer.ref, current.ref)) return value
       const allocationId = peer.allocationId ?? JSON.stringify(['shared-copy', ...[slotId, peerSlotId].sort()])
-      selections[slotId] = { ...current, allocationId }
-      selections[peerSlotId] = { ...peer, allocationId }
-      return { ...value, selections }
+      equipment[slotId] = { ...current, allocationId }
+      equipment[peerSlotId] = { ...peer, allocationId }
+      return { ...value, equipment }
     })
     updateDirty(true)
   }
@@ -196,16 +194,27 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
   const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} label={target.label} onChange={(ref) => {
-    if (target.key === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref }))
-    else if (target.key === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
-    else setDraft((current) => ({ ...current, selections: { ...(equipmentSlotIds.has(target.key) ? detachAllocation(current.selections, target.key, equipmentSlotIds) : current.selections), [target.key]: ref ? { ref, observedName: entityName(profile, catalogs, ref) } : null } }))
+    if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref }))
+    else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
+    else if (target.target === 'passive') setDraft((current) => {
+      const passives = [...current.passives]
+      const index = Number(target.key)
+      if (ref) passives[index] = { ref, observedName: entityName(profile, catalogs, ref) }
+      else if (index < passives.length) passives.splice(index, 1)
+      return { ...current, passives }
+    })
+    else setDraft((current) => ({ ...current, equipment: { ...detachAllocation(current.equipment, target.key, equipmentSlotIds), [target.key]: ref ? { ref, observedName: entityName(profile, catalogs, ref) } : null } }))
     updateDirty(true)
   }} onClose={closePicker} onDismiss={dismissPicker} onInspect={(option) => { setInspected(option); setComparedWith(findDefinitionOption(planningOptions, value)) }} onOpen={() => openPicker(target)} onQueryChange={(nextQuery) => updatePickerQuery(target, nextQuery)} onResultLimitChange={(limit) => updatePickerQuery(target, query, limit)} resultLimit={candidateLimit} open={picker?.fieldKey === target.fieldKey} query={picker?.fieldKey === target.fieldKey ? query : ''} value={value}/>
   const slotField = (slot: typeof slots[number]) => {
-    const selected = draft.selections[slot.id]
-    const peers = selected && slot.kind === 'equipment' ? equipmentSlots.filter((candidate) => candidate.id !== slot.id && draft.selections[candidate.id] && sameLogicalEntity(profile, draft.selections[candidate.id]!.ref, selected.ref)) : []
-    const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.selections[candidate.id]?.allocationId === selected.allocationId) : undefined
+    const selected = draft.equipment[slot.id]
+    const peers = selected ? equipmentSlots.filter((candidate) => candidate.id !== slot.id && draft.equipment[candidate.id] && sameLogicalEntity(profile, draft.equipment[candidate.id]!.ref, selected.ref)) : []
+    const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.equipment[candidate.id]?.allocationId === selected.allocationId) : undefined
     return <div className="slot-entry" key={slot.id}>{field(targetForFieldKey(`slot:${slot.id}`)!, selected?.ref ?? null)}{peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}</div>
+  }
+  const passiveField = (selection: BuildSelection | undefined, index: number) => {
+    const target = targetForFieldKey(`slot:passive-${index + 1}`)!
+    return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
   }
   return <form className="stack build-sheet" onInput={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox') updateDirty(true) }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
@@ -213,7 +222,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       <div className="build-sheet__slots">
         <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
         <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3>{equipmentSlots.map(slotField)}</section>
-        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Passives</h3><div className="build-sheet__passives">{visiblePassiveSlots.map(slotField)}</div></section>
+        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><p className="settings-section__intro">Spend one shared PP budget across any number of passives.</p><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
       </div>
       <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Your next build</h3><p>Pick a class, add your equipment, then choose passives.</p><p>Search any slot to see matching definitions and their descriptions.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
     </div>
@@ -354,12 +363,20 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       { label: 'Sub-command', before: currentSnapshot?.secondaryClass.state === 'known' ? currentSnapshot.secondaryClass.value : null, after: selectedRevision.content.secondaryClass },
     ].flatMap((change) => (change.before ? entityDefinitionKey(change.before) : '') === (change.after ? entityDefinitionKey(change.after) : '') ? [] : [{ label: change.label, before: change.before ? entityName(profile, catalogs, change.before) : 'Unrecorded', after: change.after ? entityName(profile, catalogs, change.after) : 'Empty' }])
     const slots = [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order).flatMap((slot) => {
-      const before = currentSnapshot?.selections[slot.id]
-      const after = selectedRevision.content.selections[slot.id]?.ref
+      const before = currentSnapshot?.equipment[slot.id]
+      const after = selectedRevision.content.equipment[slot.id]?.ref
       if ((before ? entityDefinitionKey(before) : '') === (after ? entityDefinitionKey(after) : '')) return []
       return [{ label: slot.label, before: before ? entityName(profile, catalogs, before) : 'Empty or unrecorded', after: after ? entityName(profile, catalogs, after) : 'Empty' }]
     })
-    return [...classes, ...slots]
+    const beforePassives = currentSnapshot?.passives.state === 'known' ? currentSnapshot.passives.value : []
+    const passiveCount = Math.max(beforePassives.length, selectedRevision.content.passives.length)
+    const passives = Array.from({ length: passiveCount }, (_, index) => {
+      const before = beforePassives[index]
+      const after = selectedRevision.content.passives[index]?.ref
+      if ((before ? entityDefinitionKey(before) : '') === (after ? entityDefinitionKey(after) : '')) return undefined
+      return { label: `Equipped passive ${index + 1}`, before: before ? entityName(profile, catalogs, before) : 'Empty or unrecorded', after: after ? entityName(profile, catalogs, after) : 'Empty' }
+    }).filter((change): change is NonNullable<typeof change> => Boolean(change))
+    return [...classes, ...slots, ...passives]
   }, [catalogs, currentSnapshot, profile, selectedRevision])
   const differences = useMemo(() => {
     const left = ownRecordValue(profile.buildRevisions, leftRevision)
@@ -386,7 +403,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       const stockRequirements = new Map<string, { ref: EntityRef; allocations: Set<string> }>()
       const contributions: string[] = []
       const effects: string[] = []
-      const definitionRefs = [revision.content.primaryClass, revision.content.secondaryClass, ...Object.values(revision.content.selections).map((selection) => selection?.ref ?? null)].filter((ref): ref is EntityRef => Boolean(ref))
+      const definitionRefs = [revision.content.primaryClass, revision.content.secondaryClass, ...Object.values(revision.content.equipment).map((selection) => selection?.ref ?? null), ...revision.content.passives.map(selection => selection.ref)].filter((ref): ref is EntityRef => Boolean(ref))
       for (const ref of definitionRefs) {
         const definition = resolveEntity(profile, catalogs, ref)
         if (!definition) continue
@@ -397,20 +414,20 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
         if (definition.grants?.state === 'known') effects.push(...definition.grants.value.map((grant) => `${definition.name}: ${grant}`))
         else if (definition.rawDescription) effects.push(`${definition.name}: ${definition.rawDescription}`)
       }
-      for (const [slotId, selection] of Object.entries(revision.content.selections)) {
+      for (const [slotId, selection] of Object.entries(revision.content.equipment)) {
         if (!selection) continue
-        const definition = resolveEntity(profile, catalogs, selection.ref)
         const slot = ruleset?.slots.find((value) => value.id === slotId)
-        if (slot?.kind === 'passive') {
-          if (definition?.ppCost?.state === 'known') pp += definition.ppCost.value
-          else unresolvedPp += 1
-        }
-        if (slot?.kind === 'equipment') {
+        if (slot) {
           const key = logicalEntityKey(profile, selection.ref)
           const requirement = stockRequirements.get(key) ?? { ref: selection.ref, allocations: new Set<string>() }
           requirement.allocations.add(selection.allocationId ?? `slot:${slotId}`)
           stockRequirements.set(key, requirement)
         }
+      }
+      for (const selection of revision.content.passives) {
+        const definition = resolveEntity(profile, catalogs, selection.ref)
+        if (definition?.ppCost?.state === 'known') pp += definition.ppCost.value
+        else unresolvedPp += 1
       }
       for (const requirement of stockRequirements.values()) {
         const needed = requirement.allocations.size
@@ -452,7 +469,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       return [`Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(profile, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(profile, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(profile, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
     }
     const scopeRows = statRows.length ? [{ label: 'Estimate exclusions', left: leftStats.excluded.join('; ') || 'None found in supplied fields', right: rightStats.excluded.join('; ') || 'None found in supplied fields' }, { label: 'Calculation notes', left: leftStats.issues.join('; '), right: rightStats.issues.join('; ') }] : []
-    return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.selections.') ? ownRecordValue(profile.rulesets, left.rulesetRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.selections.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]
+    return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.equipment.') ? ownRecordValue(profile.rulesets, left.rulesetRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.equipment.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]
   }, [catalogs, leftRevision, profile, rightRevision, validations])
   const createScenario = async (draft: ScenarioDraft) => { await onCreateScenario(draft); if (scenarioRevision) navigate({ page: 'builds', view: 'revision-edit', buildId: scenarioRevision.buildId, revisionId: scenarioRevision.id }); else navigation.close() }
   const changeCompareRevision = (side: 'left' | 'right', value: string) => {

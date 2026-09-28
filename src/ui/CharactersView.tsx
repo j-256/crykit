@@ -47,7 +47,8 @@ export interface SnapshotDraft {
   readonly ppCapacity: Knowledge<number>
   readonly observedAt?: string
   readonly note?: string
-  readonly selections: Readonly<Record<string, EntityRef | null>>
+  readonly equipment: Readonly<Record<string, EntityRef | null>>
+  readonly passives: Knowledge<readonly EntityRef[]>
 }
 
 export interface ClassProgressDraft {
@@ -152,7 +153,8 @@ function snapshotDraft(rulesetRevisionId: RulesetRevisionId | undefined, initial
     secondaryClass: initial?.secondaryClass ?? UNKNOWN_REF,
     displayedStats: initial?.displayedStats ?? {},
     ppCapacity: initial?.ppCapacity ?? UNKNOWN_NUMBER,
-    selections: initial?.rulesetRevisionId === rulesetRevisionId ? initial?.selections ?? {} : {},
+    equipment: initial?.rulesetRevisionId === rulesetRevisionId ? initial?.equipment ?? {} : {},
+    passives: initial?.passives ?? { state: 'unknown' },
   }
 }
 
@@ -164,7 +166,7 @@ function slotEntityKinds(slot: SlotDefinition): readonly CatalogEntityKind[] {
   if (slot.acceptedEntityKinds?.state === 'known' && slot.acceptedEntityKinds.value.length > 0) {
     return slot.acceptedEntityKinds.value
   }
-  return slot.kind === 'passive' ? ['passive', 'innate'] : ['item']
+  return ['item']
 }
 
 function SnapshotForm({ profile, initial, onSubmit }: {
@@ -200,7 +202,10 @@ function SnapshotForm({ profile, initial, onSubmit }: {
     return true
   }
   const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
-  const missingPicker = Boolean(pickerOverlay?.fieldKey.startsWith('slot:') && !ruleset?.slots.some((slot) => slot.id === pickerOverlay.fieldKey.slice(5)))
+  const requestedSlot = pickerOverlay?.fieldKey.startsWith('slot:') ? pickerOverlay.fieldKey.slice(5) : undefined
+  const passivePickerIndex = requestedSlot ? /^passive-(\d+)$/.exec(requestedSlot) : undefined
+  const knownPassives = draft.passives.state === 'known' ? draft.passives.value : []
+  const missingPicker = Boolean(requestedSlot && !ruleset?.slots.some((slot) => slot.id === requestedSlot) && !(passivePickerIndex && Number(passivePickerIndex[1]) >= 1 && Number(passivePickerIndex[1]) <= knownPassives.length + 1))
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setError(undefined)
@@ -222,25 +227,26 @@ function SnapshotForm({ profile, initial, onSubmit }: {
   const updateStat = (id: number, patch: Partial<StatRow>) => setStats((current) => current.map((stat) => stat.id === id ? { ...stat, ...patch } : stat))
   return <Sheet description="Save your character's in-game stats and equipment. Earlier snapshots stay unchanged." onClose={() => navigation.close()} onRequestClose={requestClose} open title="Capture character snapshot" width="wide"><form className="stack" onSubmit={submit}>
     {closeWarning && <InlineNotice title="Unsaved snapshot" tone="warning">Save this snapshot or choose {error ? 'Close form' : 'Cancel and discard'} before leaving.</InlineNotice>}
-    {initial && initial.rulesetRevisionId !== ruleset?.id && <InlineNotice title="Record selections again" tone="warning">The previous snapshot has different or unrecorded slot context. Its selections have not been copied into this ruleset.</InlineNotice>}
+    {initial && initial.rulesetRevisionId !== ruleset?.id && <InlineNotice title="Record equipment again" tone="warning">The previous snapshot has different or unrecorded equipment-slot context. Its equipment selections have not been copied into this ruleset. The separate passive list remains carried forward.</InlineNotice>}
     {initial && <InlineNotice title="Starting from the latest snapshot">Review the carried-forward values before saving this snapshot. The observation date and note start blank.</InlineNotice>}
-    <div className="grid-2"><NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/><NumberKnowledgeField hint="Displayed capacity, not inferred from selections." label="PP capacity" min={0} onChange={(ppCapacity) => setDraft({ ...draft, ppCapacity })} value={draft.ppCapacity}/></div>
+    <div className="grid-2"><NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/><NumberKnowledgeField hint="Displayed capacity shared across all equipped passives, not inferred from selections." label="Shared PP capacity" min={0} onChange={(ppCapacity) => setDraft({ ...draft, ppCapacity })} value={draft.ppCapacity}/></div>
     <div className="grid-2"><DefinitionPickerField allowedKinds={['class']} label="Primary class" onChange={(ref) => setDraft({ ...draft, primaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="primary-class" value={selectedRef(draft.primaryClass)}/><DefinitionPickerField allowedKinds={['class']} label="Secondary class" onChange={(ref) => setDraft({ ...draft, secondaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="secondary-class" value={selectedRef(draft.secondaryClass)}/></div>
     <div className="stack"><div className="split"><div><h3>Displayed final stats</h3><p className="settings-section__intro">Record only totals visible on the character screen.</p></div><Button onClick={() => { setStats((current) => [...current, { id: nextStatId, key: '', unit: 'displayed', value: UNKNOWN_NUMBER }]); setNextStatId((value) => value + 1) }} tone="secondary" type="button">Add stat</Button></div>{stats.length === 0 ? <InlineNotice title="No displayed stats recorded">Unlisted stats remain unrecorded and are never treated as zero.</InlineNotice> : stats.map((stat) => <div className="grid-3" key={stat.id}><Field label="Stat name" required><input onChange={(event) => updateStat(stat.id, { key: event.target.value })} placeholder="For example: Max HP" required value={stat.key}/></Field><NumberKnowledgeField label="Displayed value" min={0} onChange={(value) => updateStat(stat.id, { value })} value={stat.value}/><div className="field"><span className="field__label">Unit</span><input aria-label="Stat unit" onChange={(event) => updateStat(stat.id, { unit: event.target.value })} placeholder="displayed" value={stat.unit}/><Button onClick={() => setStats((current) => current.filter((entry) => entry.id !== stat.id))} tone="quiet" type="button">Remove stat</Button></div></div>)}</div>
-    {ruleset?.slots.length ? <div className="stack"><div><h3>Equipment & passives</h3><p className="settings-section__intro">Each saved choice keeps its exact personal or catalog identity. Candidate lists do not assert legality.</p></div><div className="grid-2">{[...ruleset.slots].sort((left, right) => left.order - right.order).map((slot) => {
+    {ruleset?.slots.length ? <div className="stack"><div><h3>Equipment</h3><p className="settings-section__intro">Each saved choice keeps its exact personal or catalog identity. Candidate lists do not assert legality.</p></div><div className="grid-2">{[...ruleset.slots].sort((left, right) => left.order - right.order).map((slot) => {
       const kinds = slotEntityKinds(slot)
-      const observed = Object.prototype.hasOwnProperty.call(draft.selections, slot.id)
-      const selection = draft.selections[slot.id]
+      const observed = Object.prototype.hasOwnProperty.call(draft.equipment, slot.id)
+      const selection = draft.equipment[slot.id]
       const setSelection = (ref: EntityRef | null | undefined) => setDraft((current) => {
-        const selections = { ...current.selections }
-        if (ref === undefined) delete selections[slot.id]
-        else selections[slot.id] = ref
-        return { ...current, selections }
+        const equipment = { ...current.equipment }
+        if (ref === undefined) delete equipment[slot.id]
+        else equipment[slot.id] = ref
+        return { ...current, equipment }
       })
       return <DefinitionPickerField allowEmpty allowedKinds={kinds} hint="Empty means nothing is equipped. Unknown means this slot has not been recorded." key={slot.id} label={slot.label} onChange={setSelection} routeKey={`slot:${slot.id}`} value={observed ? selection : undefined}/>
-    })}</div></div> : <InlineNotice title="No slots configured">Configure an active ruleset to capture ordered equipment and passive slots in this snapshot.</InlineNotice>}
+    })}</div></div> : <InlineNotice title="No equipment slots configured">Configure an active ruleset to capture ordered equipment in this snapshot.</InlineNotice>}
+    <div className="stack"><div><h3>Equipped passives</h3><p className="settings-section__intro">Record the variable-length passive list separately from the shared PP capacity.</p></div><Field label="Passive list certainty"><select aria-label="Passive list certainty" onChange={event => setDraft(current => ({ ...current, passives: event.target.value === 'known' ? { state: 'known', value: current.passives.state === 'known' ? current.passives.value : [] } : { state: 'unknown' } }))} value={draft.passives.state === 'known' ? 'known' : 'unknown'}><option value="unknown">Unknown</option><option value="known">Known</option></select></Field>{draft.passives.state === 'known' && <div className="grid-2">{[...draft.passives.value, undefined].map((ref, index) => <DefinitionPickerField allowedKinds={['passive', 'innate']} key={`${index}:${ref ? entityDefinitionKey(ref) : 'add'}`} label={`Equipped passive ${index + 1}`} onChange={value => setDraft(current => { const passives = current.passives.state === 'known' ? [...current.passives.value] : []; if (value) passives[index] = value; else if (index < passives.length) passives.splice(index, 1); return { ...current, passives: { state: 'known', value: passives } } })} routeKey={`slot:passive-${index + 1}`} value={ref}/>)}</div>}</div>
     <div className="grid-2"><Field label="Observed on"><input onChange={(event) => setDraft({ ...draft, observedAt: event.target.value || undefined })} type="date" value={draft.observedAt ?? ''}/></Field><Field label="Snapshot note"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} placeholder="Optional context" value={draft.note ?? ''}/></Field></div>
-    {missingPicker && <InlineNotice title="Character field unavailable" tone="warning">The requested slot is not part of the active ruleset. No other slot was opened. <Button onClick={() => navigation.close()} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
+    {missingPicker && <InlineNotice title="Character field unavailable" tone="warning">The requested equipment slot or passive position is unavailable. No other field was opened. <Button onClick={() => navigation.close()} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     <InlineNotice title="Stats are saved as entered">Changing equipment here does not recalculate stats. Use Planned builds to explore a different setup.</InlineNotice>
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
     <div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">{error ? 'Close form' : dirty ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>

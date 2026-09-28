@@ -71,18 +71,27 @@ export function compareBuildRevisions(left: BuildRevision, right: BuildRevision)
   )
 
   const slotIds = new Set([
-    ...Object.keys(left.content.selections),
-    ...Object.keys(right.content.selections),
+    ...Object.keys(left.content.equipment),
+    ...Object.keys(right.content.equipment),
   ])
   for (const slotId of [...slotIds].sort()) {
-    const leftSelection = left.content.selections[slotId]
-    const rightSelection = right.content.selections[slotId]
+    const leftSelection = left.content.equipment[slotId]
+    const rightSelection = right.content.equipment[slotId]
     pushDifference(
       differences,
-      `content.selections.${slotId}`,
-      `Selection: ${slotId}`,
+      `content.equipment.${slotId}`,
+      `Equipment: ${slotId}`,
       selectionValue(leftSelection),
       selectionValue(rightSelection),
+    )
+  }
+  for (let index = 0; index < Math.max(left.content.passives.length, right.content.passives.length); index += 1) {
+    pushDifference(
+      differences,
+      `content.passives.${index}`,
+      `Equipped passive ${index + 1}`,
+      selectionValue(left.content.passives[index]),
+      selectionValue(right.content.passives[index]),
     )
   }
 

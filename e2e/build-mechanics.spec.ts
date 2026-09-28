@@ -16,7 +16,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await choose(page, 'Main hand', 'Short Sword')
   const mechanics = page.getByRole('region', { name: 'Build mechanics', exact: true })
   await expect(mechanics.getByText('Cleric cannot equip Sword;', { exact: false })).toBeVisible()
-  await choose(page, 'Passive 1', 'Equip Sword')
+  await choose(page, 'Equipped passive 1', 'Equip Sword')
   await expect(mechanics.getByText('No conflict found in the supported equipment checks.')).toBeVisible()
   await mechanics.getByText('Stats & combat estimates', { exact: true }).click()
   await page.getByLabel('Planned level', { exact: true }).fill('20')

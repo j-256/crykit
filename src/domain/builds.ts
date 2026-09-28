@@ -153,10 +153,11 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
   const content: BuildRevisionContent = {
     primaryClass: sourceRevision.content.primaryClass,
     secondaryClass: sourceRevision.content.secondaryClass,
-    selections: Object.fromEntries(Object.entries(sourceRevision.content.selections).map(([slotId, selection]) => [
+    equipment: Object.fromEntries(Object.entries(sourceRevision.content.equipment).map(([slotId, selection]) => [
       slotId,
       selection === null ? null : { ...selection },
     ])),
+    passives: sourceRevision.content.passives.map(selection => ({ ...selection })),
     ...(sourceRevision.content.rotationNotes === undefined ? {} : { rotationNotes: sourceRevision.content.rotationNotes }),
     contextAssumptions: [...sourceRevision.content.contextAssumptions],
     ...(sourceRevision.content.calculation ? { calculation: structuredClone(sourceRevision.content.calculation) } : {}),
@@ -252,7 +253,7 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
     if (plan.ability) assertBuildRef(plan.ability, 'Calculation ability')
     if (plan.targetEvasion != null && (!Number.isFinite(plan.targetEvasion) || plan.targetEvasion < 0)) throw new DomainError('INVALID_INPUT', 'Target evasion must be nonnegative or unknown')
   }
-  for (const [slotId, selection] of Object.entries(input.content.selections)) {
+  for (const [slotId, selection] of Object.entries(input.content.equipment)) {
     if (!slotId.trim() || !slotIds.has(slotId)) {
       throw new DomainError('INVALID_INPUT', `Build selection references an unknown ruleset slot: ${slotId}`)
     }
@@ -262,6 +263,7 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
       throw new DomainError('INVALID_INPUT', 'Allocation ID must not be empty')
     }
   }
+  for (const [index, selection] of input.content.passives.entries()) assertBuildRef(selection.ref, `Equipped passive ${index + 1}`)
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const revision: BuildRevision = {
     id,

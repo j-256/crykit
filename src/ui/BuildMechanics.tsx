@@ -39,7 +39,7 @@ export function BuildMechanics({ content, slots, profile, catalogs, onChange }: 
   const hitChance = accuracy && accuracy.low === accuracy.high && plan?.targetEvasion != null ? physicalHitChance(accuracy.low, plan.targetEvasion) : null
   const update = (patch: Partial<BuildCalculationPlan>) => onChange({ level: null, growth: [], bonuses: [], statuses: [], ...plan, ...patch })
   const numberInput = (value: string) => value.trim() ? Number(value) : null
-  const hasSelections = Object.values(content.selections).some(Boolean)
+  const hasSelections = Object.values(content.equipment).some(Boolean) || content.passives.length > 0
   return <section aria-label="Build mechanics" className="build-mechanics stack">
     <div><h3>Equipment checks</h3><p>Primary-class permissions, selected permission effects, equipment roles, shared copies, and known unique flags. Sub-commands supply equipment permissions only through an explicit effect.</p>
       {equipment.length ? <ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}</li>)}</ul> : <p role="status">{hasSelections ? 'No conflict found in the supported equipment checks.' : 'Add equipment to check this build.'}</p>}

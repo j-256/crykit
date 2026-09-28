@@ -44,10 +44,10 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
     const buildId = createId<BuildId>('build')
     const revisionId = createId<BuildRevisionId>('buildRevision')
     const primaryClass = sampleRef(catalog, member.classId, 'class')
-    const selections: Record<string, EntityRef | null> = Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null]))
+    const equipment: Record<string, EntityRef | null> = Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null]))
     for (const [slotId, entityId] of Object.entries(member.equipment)) {
       const ref = sampleRef(catalog, entityId, 'item')
-      selections[slotId] = ref
+      equipment[slotId] = ref
       stock.set(entityId, { ref, quantity: (stock.get(entityId)?.quantity ?? 0) + 1 })
     }
     profile = createCharacter(profile, { id: characterId, name: member.name, appearanceLabel: 'Sample character', now })
@@ -56,7 +56,7 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
       characterId, rulesetRevisionId, level: { state: 'known', value: SAMPLE_LEVEL },
       primaryClass: { state: 'known', value: primaryClass },
       secondaryClass: { state: 'notApplicable', reason: 'No secondary class in this sample build' },
-      selections, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now,
+      equipment, passives: { state: 'known', value: [] }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now,
     })
     profile = createBuild(profile, {
       id: buildId, characterId, title: `${member.name}: sample ${catalog.entities[member.classId]!.name}`,
@@ -66,7 +66,8 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
       buildId, id: revisionId, rulesetRevisionId, catalogLock, note: SAMPLE_NOTE, now,
       content: {
         primaryClass, secondaryClass: null,
-        selections: Object.fromEntries(Object.entries(selections).map(([slotId, ref]) => [slotId, ref ? { ref } : null])),
+        equipment: Object.fromEntries(Object.entries(equipment).map(([slotId, ref]) => [slotId, ref ? { ref } : null])),
+        passives: [],
         contextAssumptions: [SAMPLE_NOTE],
       },
     })

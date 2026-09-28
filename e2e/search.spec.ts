@@ -228,8 +228,8 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await settings.getByLabel('Ruleset label').fill('Synthetic base rules')
-  await settings.getByRole('button', { name: 'Add slot', exact: true }).click()
-  await settings.getByLabel('Slot 1', { exact: true }).fill('Main hand')
+  await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
+  await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
 

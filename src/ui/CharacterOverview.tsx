@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { entityDefinitionKey } from '../domain/core'
 import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
+import { passivePosition } from '../domain/passive-loadout'
 import type { CatalogSnapshot, Character, EntityRef, Knowledge, LearnedNode, ObservedStat, Profile } from '../domain/types'
 import { MemberArtwork } from './MemberSheet'
 import { Icon } from './icons'
@@ -60,13 +61,7 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
   const progress = primary ? Object.values(character.classProgress).find(row => entityDefinitionKey(row.classRef) === entityDefinitionKey(primary)) : undefined
   const ruleset = snapshot?.rulesetRevisionId ? ownRecordValue(profile.rulesets, snapshot.rulesetRevisionId) : undefined
   const slots = snapshot ? snapshotSlots(profile, snapshot) : []
-  const equipment = slots.filter(slot => slot.kind !== 'passive')
-  const passives = slots.filter(slot => slot.kind === 'passive')
-  const equippedPassives = passives.filter(slot => slot.selection != null)
-  const otherPassives = passives.filter(slot => slot.selection == null)
-  const emptyPassives = otherPassives.filter(slot => slot.selection === null).length
-  const unknownPassives = otherPassives.length - emptyPassives
-  const passiveSummary = [emptyPassives && `${emptyPassives} empty`, unknownPassives && `${unknownPassives} unknown`].filter(Boolean).join(' · ')
+  const passiveSlots: readonly SnapshotSlot[] = snapshot?.passives.state === 'known' ? snapshot.passives.value.map((selection, index) => ({ ...passivePosition(index), selection })) : []
   const stats = Object.entries(snapshot?.displayedStats ?? {})
   const otherStats = stats.filter(([label]) => !vitalKind(label))
   const className = (value: Knowledge<EntityRef> | undefined) => knowledgeLabel(value ?? UNKNOWN, ref => entityName(profile, catalogs, ref))
@@ -85,14 +80,14 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
           {otherStats.map(([label, stat]) => <div key={label}><dt>{label}</dt><dd><RecordedNumber {...stat}/></dd></div>)}
           <div><dt>PP capacity</dt><dd><RecordedNumber value={snapshot.ppCapacity}/></dd></div>
         </dl></section>
-        <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{equipment.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{equipment.length ? <RecordedSlots catalogs={catalogs} profile={profile} slots={equipment}/> : <p className="roster-empty">No equipment recorded</p>}{!ruleset && <p className="roster-empty">Slot context unrecorded</p>}</section>
+        <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} profile={profile} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!ruleset && <p className="roster-empty">Slot context unrecorded</p>}</section>
         <section aria-label={`${character.name}: character learning`} className="roster-learning"><h3>Learning records</h3><dl>
           <div><dt>Primary class LP</dt><dd><RecordedNumber value={progress?.observedLp ?? UNKNOWN}/></dd></div>
           <div><dt>Primary class mastered</dt><dd data-state={progress?.mastered.state ?? 'unknown'}>{knowledgeLabel(progress?.mastered ?? UNKNOWN, mastered => mastered ? 'Yes' : 'No')}</dd></div>
           <div><dt>Learned skills</dt><dd>{learnedSummary(Object.values(character.learnedNodes))}</dd></div>
         </dl></section>
       </div>
-      {passives.length > 0 && <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3><div>{equippedPassives.length > 0 && <RecordedSlots catalogs={catalogs} profile={profile} slots={equippedPassives}/>}<details className="roster-passive-details" hidden={!otherPassives.length}><summary>{passiveSummary}</summary><RecordedSlots catalogs={catalogs} profile={profile} slots={otherPassives}/></details></div></section>}
+      <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} profile={profile} slots={passiveSlots}/> : <p className="roster-empty">None equipped</p> : <p className="roster-empty">{knowledgeLabel(snapshot.passives)}</p>}</section>
     </> : <div className="roster-card__blank"><Icon name="character"/><div><strong>{character.currentSnapshotId ? 'Current snapshot unavailable' : 'No snapshot recorded'}</strong><p>{character.currentSnapshotId ? 'The referenced snapshot is missing. Earlier snapshots remain in History.' : 'Capture a character sheet to add stats, equipment, and passives.'}</p>{Object.keys(character.learnedNodes).length > 0 && <p>Learned skills: {learnedSummary(Object.values(character.learnedNodes))}</p>}</div><OverviewLink className="button button--secondary" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture snapshot</OverviewLink></div>}
     <footer className="roster-card__footer"><div className="roster-observation">{snapshot ? <><span>{snapshot.observedAt ? `Observed ${formatRelativeDate(snapshot.observedAt)}` : 'Observation date unknown'}</span><small>Recorded {formatRelativeDate(snapshot.recordedAt)}</small></> : <span>Stats and equipment unknown</span>}</div><nav aria-label={`${character.name} views`}><OverviewLink className="roster-member-link" page={memberPage}>Member <Icon name="arrow-left"/></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'knowledge' }}>Learn</OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }}>History</OverviewLink></nav></footer>
   </article>

@@ -51,7 +51,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   const original = createTestProfile()
   let profile = updateRulesetRevision(original, { sourceRevisionId: TEST_RULESET_REVISION_ID, catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }, slots: original.rulesets[TEST_RULESET_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
   profile = createCharacter(profile, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
+  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, equipment: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
   profile = { ...profile, changes: [] }
   await page.goto('/')
   await importBackup(page, backup(profile))
@@ -87,8 +87,8 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
 test('mod settings control search and choices while sheets retain recorded context across backup restore', async ({ page }) => {
   let profile = updateRulesetRevision(createTestProfile(), { sourceRevisionId: TEST_RULESET_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId } })
   profile = createCharacter(profile, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: SHIELD }, note: 'Synthetic mod observation', now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(14), ppCapacity: known(4), displayedStats: {}, selections: { [HAND_SLOT]: SHIELD }, note: 'Synthetic later mod observation', now: '2026-01-03T00:00:00.000Z' })
+  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(12), ppCapacity: known(4), displayedStats: {}, equipment: { [HAND_SLOT]: SHIELD }, note: 'Synthetic mod observation', now: TEST_NOW })
+  profile = captureCharacter(profile, { characterId: CHARACTER, level: known(14), ppCapacity: known(4), displayedStats: {}, equipment: { [HAND_SLOT]: SHIELD }, note: 'Synthetic later mod observation', now: '2026-01-03T00:00:00.000Z' })
   profile = { ...profile, changes: [] }
   await page.goto('/')
   await importBackup(page, backup(profile))

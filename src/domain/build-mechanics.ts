@@ -1,6 +1,7 @@
 import { entityDefinitionKey } from './core'
 import { CRYSTAL_EDIT_FIELDS } from './crystal-edit'
 import { classEquipmentTypes, classInnateText, crystalEditRecord, effectText, equipmentFacts, equipmentFitsRole, equipmentRole, isWeapon, knownField, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
+import { passivePosition } from './passive-loadout'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 
 export type DefinitionResolver = (ref: EntityRef) => MechanicsDefinition | undefined
@@ -41,9 +42,8 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
   const permissions = new Set(classTypes ?? [])
   const effects = innateEffects(content, resolve).map(effect => permissionEffects(effect.text))
   const passiveIds = new Set<string>()
-  for (const slot of slots.filter(slot => slot.kind === 'passive')) {
-    const selection = content.selections[slot.id]
-    if (!selection) continue
+  for (const [index, selection] of content.passives.entries()) {
+    const slot = passivePosition(index)
     const definition = resolve(selection.ref)
     const key = identity(selection.ref)
     if (passiveIds.has(key)) add('DUPLICATE_PASSIVE', 'invalid', `${definition?.name ?? 'This passive'} is selected more than once`, slot.id)
@@ -61,8 +61,8 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
   const passiveIdsField = knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
   const explicitlyNoPassives = Array.isArray(passiveIdsField) && passiveIdsField.length === 0
   const unresolvedEffects = effects.some(effect => !effect.complete) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innateEffects(content, resolve).length === 0)
-  const equipment = slots.filter(slot => slot.kind === 'equipment').flatMap(slot => {
-    const selection = content.selections[slot.id]
+  const equipment = slots.flatMap(slot => {
+    const selection = content.equipment[slot.id]
     if (!selection) return []
     const definition = resolve(selection.ref)
     const role = equipmentRole(slot)

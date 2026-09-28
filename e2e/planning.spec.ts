@@ -37,8 +37,8 @@ async function configureRuleset(page: Page, slotLabels = ['Main hand']) {
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await panel.getByLabel('Ruleset label').fill('Synthetic configuration')
   for (const [index, label] of slotLabels.entries()) {
-    await panel.getByRole('button', { name: 'Add slot', exact: true }).click()
-    await panel.getByLabel(`Slot ${index + 1}`, { exact: true }).fill(label)
+    await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
+    await panel.getByLabel(`Equipment slot ${index + 1}`, { exact: true }).fill(label)
   }
   await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
@@ -81,8 +81,8 @@ test('character, party progress, and historical events remain independent observ
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
   await snapshot.getByLabel('Level certainty', { exact: true }).selectOption('known')
   await snapshot.getByLabel('Level', { exact: true }).fill('20')
-  await snapshot.getByLabel('PP capacity certainty', { exact: true }).selectOption('known')
-  await snapshot.getByLabel('PP capacity', { exact: true }).fill('8')
+  await snapshot.getByLabel('Shared PP capacity certainty', { exact: true }).selectOption('known')
+  await snapshot.getByLabel('Shared PP capacity', { exact: true }).fill('8')
   await snapshot.getByRole('button', { name: 'Add stat', exact: true }).click()
   await snapshot.getByLabel('Stat name').fill('Max HP')
   await snapshot.getByLabel('Displayed value certainty', { exact: true }).selectOption('known')
@@ -211,8 +211,8 @@ test('build drafts resist navigation and recording current preserves known level
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
   await snapshot.getByLabel('Level certainty', { exact: true }).selectOption('known')
   await snapshot.getByLabel('Level', { exact: true }).fill('20')
-  await snapshot.getByLabel('PP capacity certainty', { exact: true }).selectOption('known')
-  await snapshot.getByLabel('PP capacity', { exact: true }).fill('8')
+  await snapshot.getByLabel('Shared PP capacity certainty', { exact: true }).selectOption('known')
+  await snapshot.getByLabel('Shared PP capacity', { exact: true }).fill('8')
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
   await navigate(page, 'Builds')
@@ -221,7 +221,7 @@ test('build drafts resist navigation and recording current preserves known level
   await build.getByText('Build details & notes', { exact: true }).click()
   await build.getByLabel('Build title').fill('Observed Rowan build')
   await build.getByLabel('Character', { exact: true }).selectOption({ label: 'Synthetic Rowan' })
-  await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 PP / 10 PP limit')
+  await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 of 10 PP used across passives')
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
   const editor = page.locator('.build-sheet')
   await editor.getByLabel('Rotation or use notes').fill('Retain this unsaved draft')
@@ -302,10 +302,10 @@ test('named shared-copy checkpoints clone independently and picker history prese
   const before = await exportProfile(page)
   const originalBuild = Object.values(before.builds)[0]!
   const originalRevision = before.buildRevisions[originalBuild.latestRevisionId!]!
-  const selections = Object.values(originalRevision.content.selections).filter((value) => value !== null)
-  expect(selections).toHaveLength(2)
-  expect(selections[0]?.allocationId).toBeTruthy()
-  expect(selections[0]?.allocationId).toBe(selections[1]?.allocationId)
+  const equipment = Object.values(originalRevision.content.equipment).filter((value) => value !== null)
+  expect(equipment).toHaveLength(2)
+  expect(equipment[0]?.allocationId).toBeTruthy()
+  expect(equipment[0]?.allocationId).toBe(equipment[1]?.allocationId)
   expect(originalRevision.note).toBe('One physical staff')
 
   await page.getByRole('button', { name: 'Clone build', exact: true }).click()
@@ -368,8 +368,8 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await settings.getByLabel('Ruleset label').fill('Synthetic validation configuration')
-  await settings.getByRole('button', { name: 'Add slot', exact: true }).click()
-  await settings.getByLabel('Slot 1', { exact: true }).fill('Main hand')
+  await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
+  await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
   await settings.getByLabel('Accepted types').fill('item, typo')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
   await expect(settings.getByRole('alert')).toContainText('Accepted types contain unsupported values: typo')
@@ -397,7 +397,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   const character = Object.values(empty.characters)[0]!
   const emptySnapshot = character.snapshots[character.currentSnapshotId!]!
   const slotId = empty.rulesets[empty.activeRulesetRevisionId!]!.slots[0]!.id
-  expect(emptySnapshot.selections[slotId]).toBeNull()
+  expect(emptySnapshot.equipment[slotId]).toBeNull()
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   await form.getByRole('button', { name: 'Choose Main hand', exact: true }).click()
   await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Unknown/ }).click()
@@ -406,6 +406,6 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Unknown')
   const unrecorded = await exportProfile(page)
   const updated = unrecorded.characters[character.id]!
-  expect(updated.snapshots[updated.currentSnapshotId!]!.selections).not.toHaveProperty(slotId)
-  expect(updated.snapshots[emptySnapshot.id]!.selections[slotId]).toBeNull()
+  expect(updated.snapshots[updated.currentSnapshotId!]!.equipment).not.toHaveProperty(slotId)
+  expect(updated.snapshots[emptySnapshot.id]!.equipment[slotId]).toBeNull()
 })

@@ -14,9 +14,7 @@ import {
 } from './index'
 import {
   HAND_SLOT,
-  PASSIVE_SLOT,
   SECOND_HAND_SLOT,
-  SECOND_PASSIVE_SLOT,
   TEST_NOW,
   TEST_RULESET_REVISION_ID,
   addTestBuild,
@@ -410,10 +408,7 @@ describe('PP bounds and character readiness', () => {
       learned: known(true),
       now: TEST_NOW,
     })
-    profile = addTestBuild(profile, 'build', 'character', {
-      [PASSIVE_SLOT]: { ref: personalRef('known-passive') },
-      [SECOND_PASSIVE_SLOT]: { ref: personalRef('unknown-passive') },
-    })
+    profile = addTestBuild(profile, 'build', 'character', {}, { passives: [{ ref: personalRef('known-passive') }, { ref: personalRef('unknown-passive') }] })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
     expect(hasIssue(profile, 'scenario', 'PP_CAPACITY_EXCEEDED_BY_KNOWN_SUBTOTAL')).toBe(true)
@@ -433,10 +428,7 @@ describe('PP bounds and character readiness', () => {
         now: TEST_NOW,
       })
     }
-    profile = addTestBuild(profile, 'build', 'character', {
-      [PASSIVE_SLOT]: { ref: personalRef('known-passive') },
-      [SECOND_PASSIVE_SLOT]: { ref: personalRef('unknown-passive') },
-    })
+    profile = addTestBuild(profile, 'build', 'character', {}, { passives: [{ ref: personalRef('known-passive') }, { ref: personalRef('unknown-passive') }] })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
     expect(validateScenario(profile, asId<ScenarioId>('scenario')).dimensions.passives.status).toBe('undetermined')
@@ -457,10 +449,7 @@ describe('PP bounds and character readiness', () => {
         now: TEST_NOW,
       })
     }
-    profile = addTestBuild(profile, 'build', 'character', {
-      [PASSIVE_SLOT]: { ref: personalRef('known-passive') },
-      [SECOND_PASSIVE_SLOT]: { ref: personalRef('unknown-passive') },
-    })
+    profile = addTestBuild(profile, 'build', 'character', {}, { passives: [{ ref: personalRef('known-passive') }, { ref: personalRef('unknown-passive') }] })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
     expect(hasIssue(profile, 'scenario', 'PP_CAPACITY_EXCEEDED_BY_KNOWN_SUBTOTAL')).toBe(false)
@@ -763,7 +752,7 @@ describe('catalog revision identity', () => {
         ...profile.buildRevisions,
         'build-revision': {
           ...revision,
-          content: { ...revision.content, selections: { [HAND_SLOT]: { ref: selectedRef } } },
+          content: { ...revision.content, equipment: { [HAND_SLOT]: { ref: selectedRef } } },
         },
       },
     }

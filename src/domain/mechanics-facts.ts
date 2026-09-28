@@ -121,11 +121,11 @@ export function definitionWithMechanics<T extends MechanicsDefinition>(definitio
   const passive = definition.kind === 'passive' || definition.kind === 'innate'
   const record = crystalEditRecord(definition)
   const knownPassive = passive && !record && effects.complete
-  const mappedSlots = slots.every(slot => slot.kind !== 'equipment' || equipmentRole(slot) !== undefined)
+  const mappedSlots = slots.every(slot => equipmentRole(slot) !== undefined)
   return {
     ...definition,
-    slotKinds: fillUnknown(definition.slotKinds, passive ? slots.filter(slot => slot.kind === 'passive').map(slot => slot.id as string) : equipment.type && mappedSlots ? slots.filter(slot => equipmentRole(slot) && equipmentFitsRole(equipment.type!, equipmentRole(slot)!)).map(slot => slot.id as string) : undefined, definition.sources),
-    occupiesSlots: fillUnknown(definition.occupiesSlots, passive ? 1 : equipment.hands, definition.sources),
+    slotKinds: fillUnknown(definition.slotKinds, passive ? undefined : equipment.type && mappedSlots ? slots.filter(slot => equipmentRole(slot) && equipmentFitsRole(equipment.type!, equipmentRole(slot)!)).map(slot => slot.id as string) : undefined, definition.sources),
+    occupiesSlots: fillUnknown(definition.occupiesSlots, passive ? undefined : equipment.hands, definition.sources),
     requirements: fillUnknown(definition.requirements, permissions || knownPassive ? [] : equipment.type ? [{ kind: 'permission' as const, permission: equipmentPermission(equipment.type) }] : undefined, definition.sources),
     grants: fillUnknown(definition.grants, permissions ? permissions.map(equipmentPermission) : knownPassive ? effects.equipment.map(equipmentPermission) : undefined, definition.sources),
     ppCost: passive ? passivePointCost(definition) : definition.ppCost,

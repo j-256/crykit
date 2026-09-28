@@ -153,7 +153,7 @@ const personalDefinition = z.object({
 
 const slotDefinition = z.object({
   id,
-  kind: z.enum(['equipment', 'passive']),
+  kind: z.literal('equipment'),
   label: nonemptyText,
   order: safeInteger,
   equipmentRole: z.enum(['mainHand', 'offHand', 'head', 'body', 'accessory']).nullable().optional(),
@@ -227,7 +227,8 @@ const characterSnapshot = z.object({
   secondaryClass: knowledge(entityRef),
   displayedStats: z.record(z.string().min(1).max(MAX_ID_LENGTH), observedStat),
   ppCapacity: knowledge(nonnegativeInteger),
-  selections: z.record(id, entityRef.nullable()),
+  equipment: z.record(id, entityRef.nullable()),
+  passives: knowledge(z.array(entityRef).max(MAX_COLLECTION_LENGTH)),
   sources: sourceRefs,
   note: longText.optional(),
 }).strict()
@@ -281,7 +282,8 @@ const buildSelection = z.object({ ref: entityRef, observedName: shortText.option
 const buildRevisionContent = z.object({
   primaryClass: entityRef.nullable(),
   secondaryClass: entityRef.nullable(),
-  selections: z.record(id, buildSelection.nullable()),
+  equipment: z.record(id, buildSelection.nullable()),
+  passives: z.array(buildSelection).max(MAX_COLLECTION_LENGTH),
   rotationNotes: longText.optional(),
   contextAssumptions: z.array(shortText).max(MAX_COLLECTION_LENGTH),
   calculation: z.object({

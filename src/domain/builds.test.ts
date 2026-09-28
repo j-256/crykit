@@ -53,7 +53,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'copy-one' } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'copy-one' } },
+        passives: [],
         rotationNotes: 'Use after setup',
         contextAssumptions: ['Known test condition'],
       },
@@ -123,7 +124,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: {},
+        equipment: {},
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -152,7 +154,7 @@ describe('build revisions and descriptive comparison', () => {
     profile = captureCharacter(profile, {
       characterId: asId<CharacterId>('character'),
       displayedStats: { power: { value: known(100), unit: 'displayed' } },
-      selections: { [HAND_SLOT]: personalRef('first-item') },
+      equipment: { [HAND_SLOT]: personalRef('first-item') },
       now: TEST_NOW,
     })
     profile = createBuild(profile, {
@@ -169,7 +171,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('first-item') } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('first-item') } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -182,7 +185,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('second-item') } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('second-item') } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -195,7 +199,7 @@ describe('build revisions and descriptive comparison', () => {
     const character = profile.characters.character!
     expect(character.snapshots[character.currentSnapshotId!]?.displayedStats.power?.value).toEqual(known(100))
     expect(comparison.differences.map((difference) => difference.path)).toEqual([
-      `content.selections.${HAND_SLOT}`,
+      `content.equipment.${HAND_SLOT}`,
     ])
     expect(comparison.differences.some((difference) => difference.path.includes('displayedStats'))).toBe(false)
   })
@@ -219,7 +223,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('item') } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('item') } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -259,7 +264,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'first-copy' } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'first-copy' } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -272,7 +278,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'second-copy' } },
+        equipment: { [HAND_SLOT]: { ref: personalRef('item'), allocationId: 'second-copy' } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -282,7 +289,7 @@ describe('build revisions and descriptive comparison', () => {
       profile.buildRevisions['first-revision']!,
       profile.buildRevisions['second-revision']!,
     ).differences.map((difference) => difference.path)).toEqual([
-      `content.selections.${HAND_SLOT}`,
+      `content.equipment.${HAND_SLOT}`,
     ])
   })
 
@@ -316,7 +323,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: { kind: 'personal', definitionId: asId<PersonalDefinitionId>('missing-class') },
         secondaryClass: null,
-        selections: {},
+        equipment: {},
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -329,7 +337,8 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [asId<SlotId>('unknown-slot')]: { ref: personalRef('item') } },
+        equipment: { [asId<SlotId>('unknown-slot')]: { ref: personalRef('item') } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -353,7 +362,7 @@ describe('build revisions and descriptive comparison', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: {
+        equipment: {
           [HAND_SLOT]: {
             ref: {
               kind: 'catalog',
@@ -363,6 +372,7 @@ describe('build revisions and descriptive comparison', () => {
             },
           },
         },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,

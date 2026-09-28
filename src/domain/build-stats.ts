@@ -118,17 +118,28 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
   const allocations = new Set<string>()
   const hands: { type?: string; hands?: number; key: string; allocation: string }[] = []
   for (const slot of slots) {
-    const selection = content.selections[slot.id]
+    const selection = content.equipment[slot.id]
     if (!selection) continue
     const key = identity(selection.ref)
-    const allocation = slot.kind === 'equipment' ? `${key}:${selection.allocationId ?? slot.id}` : `passive:${key}`
+    const allocation = `${key}:${selection.allocationId ?? slot.id}`
     const definition = resolve(selection.ref)
     if (!definition) { excluded.push(`${slot.label}: definition is unavailable`); continue }
     if (equipmentRole(slot) === 'mainHand' || equipmentRole(slot) === 'offHand') hands.push({ type: equipmentFacts(definition).type, hands: equipmentFacts(definition).hands, key, allocation })
     if (allocations.has(allocation)) continue
     allocations.add(allocation)
     const parsed = statContributions(definition)
-    if (slot.kind === 'passive' && !crystalEditRecord(definition)) effectTexts.push(effectText(definition) ?? '')
+    contributions.push(...parsed.contributions)
+    excluded.push(...parsed.excluded)
+    for (const stat of parsed.unknownStats) unknownStats.add(stat)
+  }
+  for (const [index, selection] of content.passives.entries()) {
+    const definition = resolve(selection.ref)
+    const key = identity(selection.ref)
+    if (allocations.has(`passive:${key}`)) continue
+    allocations.add(`passive:${key}`)
+    if (!definition) { excluded.push(`Equipped passive ${index + 1}: definition is unavailable`); continue }
+    const parsed = statContributions(definition)
+    if (!crystalEditRecord(definition)) effectTexts.push(effectText(definition) ?? '')
     contributions.push(...parsed.contributions)
     excluded.push(...parsed.excluded)
     for (const stat of parsed.unknownStats) unknownStats.add(stat)

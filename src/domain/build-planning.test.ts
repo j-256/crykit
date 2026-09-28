@@ -8,7 +8,7 @@ import type { BuildRevisionContent, CatalogRef } from './types'
 const catalogLock = { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }
 const item = Object.values(STARTER_CATALOG.entities).find((entity) => entity.name === 'Muramasa')!
 const ref: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: item.id }
-const content: BuildRevisionContent = { primaryClass: null, secondaryClass: null, selections: { [SUGGESTED_BUILD_SLOTS[0]!.id]: { ref } }, contextAssumptions: [] }
+const content: BuildRevisionContent = { primaryClass: null, secondaryClass: null, equipment: { [SUGGESTED_BUILD_SLOTS[0]!.id]: { ref } }, passives: [], contextAssumptions: [] }
 
 describe('build planning without observations', () => {
   it('creates a complete saved plan without inventory, characters, or verified rules', () => {
@@ -46,7 +46,7 @@ describe('build planning without observations', () => {
   it('leaves the original profile unchanged if the initial revision is invalid', () => {
     const profile = createBlankProfile({ label: 'Synthetic planner' })
     const original = structuredClone(profile)
-    expect(() => createBuildPlan(profile, { title: 'Synthetic plan', kind: 'template', catalogLock, content: { ...content, selections: { invalid: { ref } } } })).toThrow('unknown ruleset slot')
+    expect(() => createBuildPlan(profile, { title: 'Synthetic plan', kind: 'template', catalogLock, content: { ...content, equipment: { invalid: { ref } } } })).toThrow('unknown ruleset slot')
     expect(profile).toEqual(original)
   })
 })

@@ -282,8 +282,11 @@ function validateProfileEntityRefs(
     for (const [snapshotId, snapshot] of Object.entries(character.snapshots)) {
       for (const ref of knowledgeValues(snapshot.primaryClass)) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.primaryClass`)
       for (const ref of knowledgeValues(snapshot.secondaryClass)) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.secondaryClass`)
-      for (const [slotId, ref] of Object.entries(snapshot.selections)) {
-        if (ref) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.selections.${slotId}`)
+      for (const [slotId, ref] of Object.entries(snapshot.equipment)) {
+        if (ref) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.equipment.${slotId}`)
+      }
+      for (const [claimIndex, refs] of knowledgeValues(snapshot.passives).entries()) {
+        for (const [index, ref] of refs.entries()) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.passives.${claimIndex}.${index}`)
       }
     }
     for (const [key, progress] of Object.entries(character.classProgress)) {
@@ -300,9 +303,10 @@ function validateProfileEntityRefs(
     for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
     for (const [index, ref] of (revision.content.calculation?.statuses ?? []).entries()) check(ref, `${label}.buildRevisions.${id}.content.calculation.statuses.${index}`)
     if (revision.content.calculation?.ability) check(revision.content.calculation.ability, `${label}.buildRevisions.${id}.content.calculation.ability`)
-    for (const [slotId, selection] of Object.entries(revision.content.selections)) {
-      if (selection) check(selection.ref, `${label}.buildRevisions.${id}.content.selections.${slotId}.ref`)
+    for (const [slotId, selection] of Object.entries(revision.content.equipment)) {
+      if (selection) check(selection.ref, `${label}.buildRevisions.${id}.content.equipment.${slotId}.ref`)
     }
+    for (const [index, selection] of revision.content.passives.entries()) check(selection.ref, `${label}.buildRevisions.${id}.content.passives.${index}.ref`)
   }
   for (const [goalId, goal] of Object.entries(profile.goals)) {
     for (const [index, requirement] of goal.requirements.entries()) {
@@ -499,8 +503,8 @@ function validateProfile(
     const slotIds = new Set((ruleset.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
     validatePinnedReferences(typedProfile, content, lock, `${label}.buildRevisions.${id}.content`)
-    const selections = recordValue(content.selections, `${label}.buildRevisions.${id}.content.selections`)
-    for (const slotId of Object.keys(selections)) {
+    const equipment = recordValue(content.equipment, `${label}.buildRevisions.${id}.content.equipment`)
+    for (const slotId of Object.keys(equipment)) {
       if (!slotIds.has(slotId)) schemaError('A build revision selects an unknown ruleset slot', { id, slotId })
     }
   }

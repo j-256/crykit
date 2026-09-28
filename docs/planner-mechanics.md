@@ -10,6 +10,10 @@ Equipment categories map to main hand, off hand, head, body, and accessory roles
 
 A two-handed weapon reserves both hands even when selected in one hand with the other empty. If the same copy is displayed in both hand slots, use **Same copy as**; its stats and stock demand count once. Separate weapons require Dual Wield. A one-handed weapon can share both hand slots when Two-Handed is present. Known unique-equipment flags, duplicate passive selections, disabled class selections, and wrong equipment roles produce conflicts. Missing hand counts and unknown permission effects produce unresolved findings where they matter. Plans can still be saved with conflicts.
 
+## Passive PP budget
+
+Passives are stored as an ordered, variable-length list, not as ruleset slots. Each passive contributes its documented PP cost to one shared total. The default ruleset permits up to 10 PP across all equipped passives, so the number of passives depends on their individual costs. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the build invalid even when another selected cost is unknown.
+
 The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion reads those properties from retained source records without changing old catalog snapshots.
 
 ## Saved calculation inputs

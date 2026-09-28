@@ -17,8 +17,8 @@ function syntheticProfile(changedContext = false): Profile {
   profile = createCharacter(profile, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
   profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
   profile = upsertCharacterClassProgress(profile, { characterId: CHARACTER_ID, classRef: personalRef('Synthetic warrior'), observedLp: known(12), now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), ppCapacity: known(8), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), ppCapacity: { state: 'unknown' }, displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, selections: { [HAND_SLOT]: personalRef('Synthetic blade') }, observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
+  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), ppCapacity: known(8), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, passives: known([]), observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
+  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), ppCapacity: { state: 'unknown' }, displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade') }, passives: known([]), observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
   profile = addTestBuild(profile, 'Synthetic Rowan proposal', CHARACTER_ID, {})
   profile = addTestBuild(profile, 'Synthetic Mira proposal', 'synthetic-mira', {})
   if (changedContext) {
@@ -173,7 +173,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   const character = saved.characters[CHARACTER_ID]!
   expect(character.snapshots[BEFORE_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
   expect(character.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
-  expect(character.snapshots[character.currentSnapshotId!]!.selections[HAND_SLOT]).toBeNull()
+  expect(character.snapshots[character.currentSnapshotId!]!.equipment[HAND_SLOT]).toBeNull()
   expect(character.snapshots[character.currentSnapshotId!]!.rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
   expect(character.learnedNodes).toEqual({})
   expect(saved.inventory).toEqual({})
@@ -206,14 +206,15 @@ test('legacy and missing snapshots keep explicit context and never fall back to 
   await expect(page.getByText('Different slot contexts', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
-  await expect(form.getByText('Record selections again', { exact: true })).toBeVisible()
+  await expect(form.getByText('Record equipment again', { exact: true })).toBeVisible()
   await expect(form.getByRole('button', { name: 'Choose Revised Hand', exact: true })).toContainText('Unknown')
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   const saved = await exportProfile(page)
   const character = saved.characters[CHARACTER_ID]!
   expect(character.snapshots[character.currentSnapshotId!]!.rulesetRevisionId).toBe('revised-ruleset')
-  expect(character.snapshots[character.currentSnapshotId!]!.selections).toEqual({})
-  expect(character.snapshots[AFTER_ID]!.selections[HAND_SLOT]).toEqual(personalRef('Synthetic blade'))
+  expect(character.snapshots[character.currentSnapshotId!]!.equipment).toEqual({})
+  expect(character.snapshots[character.currentSnapshotId!]!.passives).toEqual(known([]))
+  expect(character.snapshots[AFTER_ID]!.equipment[HAND_SLOT]).toEqual(personalRef('Synthetic blade'))
 })
 
 test('snapshot save failure retains entered fields and retries a single observation', async ({ page }) => {
@@ -270,10 +271,10 @@ test('recording a proposal retains its ruleset and requires in-game confirmation
 test('member picker links preserve unknown and empty selections and guard the inline draft', async ({ page }) => {
   const original = await loadFixture(page)
   await page.goto(`/#/characters/${CHARACTER_ID}/current/pick/slot/${PASSIVE_SLOT}`)
-  const passivePicker = page.getByRole('dialog', { name: 'Choose Passive 1', exact: true })
+  const passivePicker = page.getByRole('dialog', { name: 'Choose Equipped passive 1', exact: true })
   await expect(passivePicker.getByRole('searchbox')).toBeFocused()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Choose Passive 1', exact: true })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Choose Equipped passive 1', exact: true })).toBeFocused()
   await page.goto(`/#/characters/${CHARACTER_ID}/current/pick/slot/${HAND_SLOT}`)
   const picker = page.getByRole('dialog', { name: 'Choose Hand', exact: true })
   await expect(picker.getByRole('searchbox')).toBeFocused()
@@ -291,8 +292,8 @@ test('member picker links preserve unknown and empty selections and guard the in
   const saved = await exportProfile(page)
   const member = saved.characters[CHARACTER_ID]!
   const recorded = member.snapshots[member.currentSnapshotId!]!
-  expect(recorded.selections).not.toHaveProperty(HAND_SLOT)
-  expect(recorded.selections['second-hand']).toBeNull()
+  expect(recorded.equipment).not.toHaveProperty(HAND_SLOT)
+  expect(recorded.equipment['second-hand']).toBeNull()
   expect(recorded.displayedStats).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID]!.displayedStats)
   expect(saved.inventory).toEqual(original.inventory)
   expect(saved.buildRevisions).toEqual(original.buildRevisions)
@@ -343,7 +344,7 @@ test('the member menu stays compact and learning shares a single workspace', asy
   const mainHand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
   const bounds = await mainHand.boundingBox()
   expect(bounds!.y).toBeLessThan(isMobile ? 600 : 500)
-  await expect(page.getByRole('button', { name: 'Choose Passive 1', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Choose Equipped passive 1', exact: true })).toHaveCount(0)
   await mainHand.click()
   const picker = page.getByRole('dialog', { name: 'Choose Main hand', exact: true })
   await picker.getByRole('searchbox').fill('Ancient Labyrinth Map')

@@ -41,8 +41,8 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await choose(page, 'Body', 'Shadow Gi')
   await choose(page, 'Accessory 1', 'Acrobat Shoes')
   await choose(page, 'Accessory 2', 'Ring of Wizardry')
-  await choose(page, 'Passive 1', 'Counter')
-  await expect(page.getByRole('combobox', { name: 'Passive 2', exact: true })).toBeVisible()
+  await choose(page, 'Equipped passive 1', 'Counter')
+  await expect(page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('planned-sheet.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
@@ -128,8 +128,8 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   const saved = await exportProfile(page)
   expect(saved.personalDefinitions).toEqual({})
-  const selections = Object.values(saved.buildRevisions)[0]!.content.selections
-  expect(Object.values(selections).filter(Boolean)).toHaveLength(1)
+  const equipment = Object.values(saved.buildRevisions)[0]!.content.equipment
+  expect(Object.values(equipment).filter(Boolean)).toHaveLength(1)
 })
 
 test('build details ignore pointer transit while keyboard inspection stays available', async ({ page, isMobile }) => {
@@ -174,12 +174,12 @@ test('failed creation retains the sheet and retry saves one build and checkpoint
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
 })
 
-test('direct links reveal a later passive slot and restore its inline search', async ({ page }) => {
-  await page.goto('/#/builds/library/new/pick/slot/plan-passive-10?q=Counter')
-  const passive = page.getByRole('combobox', { name: 'Passive 10', exact: true })
+test('direct links reveal the next passive position and restore its inline search', async ({ page }) => {
+  await page.goto('/#/builds/library/new/pick/slot/passive-1?q=Counter')
+  const passive = page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })
   await expect(passive).toBeFocused()
   await expect(passive).toHaveValue('Counter')
-  await expect(page.getByRole('listbox', { name: 'Choose Passive 10', exact: true })).toBeVisible()
+  await expect(page.getByRole('listbox', { name: 'Choose Equipped passive 1', exact: true })).toBeVisible()
   await page.reload()
   await expect(passive).toBeFocused()
   await expect(passive).toHaveValue('Counter')

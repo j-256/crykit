@@ -16,27 +16,27 @@ const job: CatalogEntity = { id: 'job' as EntityId, kind: 'class', name: 'Synthe
 const sword: CatalogEntity = { id: 'sword' as EntityId, kind: 'item', name: 'Synthetic sword', aliases: [], fields: { Category: known(['Swords']), Hands: known(1), Attack: known(30), 'Other effects': known('-') }, sources: [] }
 const greatsword: CatalogEntity = { ...sword, id: 'greatsword' as EntityId, name: 'Synthetic greatsword', fields: { ...sword.fields, Hands: known(2) } }
 const passive: CatalogEntity = { id: 'permission' as EntityId, kind: 'passive', name: 'Synthetic permission', aliases: [], fields: { Description: known('Enable equipping Sword regardless of current Class.') }, sources: [] }
-const base: BuildRevisionContent = { primaryClass: ref('job'), secondaryClass: null, selections: {}, contextAssumptions: [], calculation: { level: 20, growth: [{ classRef: ref('job'), levels: 20 }], bonuses: [], statuses: [] } }
+const base: BuildRevisionContent = { primaryClass: ref('job'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: 20, growth: [{ classRef: ref('job'), levels: 20 }], bonuses: [], statuses: [] } }
 const definitions = [job, sword, greatsword, passive]
 const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definitions.find(entity => entity.id === reference.entityId) : undefined
 const analyze = (content: BuildRevisionContent) => analyzeBuildEquipment(content, SUGGESTED_BUILD_SLOTS, resolve)
 
 describe('equipment planning from source facts', () => {
   it('uses the primary class and explicit permission passives, independently of ownership', () => {
-    const content = { ...base, selections: { 'plan-main-hand': { ref: ref('sword') } } }
+    const content = { ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }
     expect(analyze(content)).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'invalid' })]))
-    const allowed = { ...content, selections: { ...content.selections, 'plan-passive-1': { ref: ref('permission') } } }
+    const allowed = { ...content, passives: [{ ref: ref('permission') }] }
     expect(analyze(allowed)).toEqual([])
     const secondaryResolver = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === 'swordsman' ? { ...job, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']) } } : resolve(reference)
     expect(analyzeBuildEquipment({ ...content, secondaryClass: ref('swordsman') }, SUGGESTED_BUILD_SLOTS, secondaryResolver).some(issue => issue.code === 'CLASS_EQUIPMENT_PERMISSION')).toBe(true)
   })
 
   it('reserves both hands for a two-handed weapon and counts an explicitly shared copy once', () => {
-    const content = { ...base, selections: { 'plan-main-hand': { ref: ref('greatsword') }, 'plan-passive-1': { ref: ref('permission') } } }
+    const content = { ...base, equipment: { 'plan-main-hand': { ref: ref('greatsword') } }, passives: [{ ref: ref('permission') }] }
     expect(analyze(content)).toEqual([])
-    expect(analyze({ ...content, selections: { ...content.selections, 'plan-off-hand': { ref: ref('sword') } } }).some(issue => issue.code === 'TWO_HAND_CONFLICT')).toBe(true)
+    expect(analyze({ ...content, equipment: { ...content.equipment, 'plan-off-hand': { ref: ref('sword') } } }).some(issue => issue.code === 'TWO_HAND_CONFLICT')).toBe(true)
     const shared = { ref: ref('greatsword'), allocationId: 'both-hands' }
-    const grouped = { ...content, selections: { ...content.selections, 'plan-main-hand': shared, 'plan-off-hand': shared } }
+    const grouped = { ...content, equipment: { ...content.equipment, 'plan-main-hand': shared, 'plan-off-hand': shared } }
     expect(analyze(grouped)).toEqual([])
     expect(calculateBuildStats(grouped, SUGGESTED_BUILD_SLOTS, resolve).stats.ATK.value).toEqual({ low: 30, high: 30 })
   })
@@ -44,16 +44,16 @@ describe('equipment planning from source facts', () => {
   it('detects wrong roles, duplicate passives, unique copies, and invalid shared allocations', () => {
     const unique: CatalogEntity = { ...sword, fields: { 'Crystal Edit source record': known({ EquipmentType: 18, IsTwoHanded: false, IsOneOnly: true, StatMods: [] }) } }
     const custom = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === sword.id ? unique : resolve(reference)
-    expect(analyzeBuildEquipment({ ...base, selections: { 'plan-accessory-1': { ref: ref('sword') }, 'plan-accessory-2': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, custom).some(issue => issue.code === 'UNIQUE_EQUIPMENT')).toBe(true)
-    const content = { ...base, selections: { 'plan-head': { ref: ref('sword') }, 'plan-passive-1': { ref: ref('permission') }, 'plan-passive-2': { ref: ref('permission') } } }
+    expect(analyzeBuildEquipment({ ...base, equipment: { 'plan-accessory-1': { ref: ref('sword') }, 'plan-accessory-2': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, custom).some(issue => issue.code === 'UNIQUE_EQUIPMENT')).toBe(true)
+    const content = { ...base, equipment: { 'plan-head': { ref: ref('sword') } }, passives: [{ ref: ref('permission') }, { ref: ref('permission') }] }
     expect(analyze(content).map(issue => issue.code)).toEqual(expect.arrayContaining(['EQUIPMENT_ROLE', 'DUPLICATE_PASSIVE']))
     const selection = { ref: ref('sword'), allocationId: 'not-a-two-handed-copy' }
-    expect(analyze({ ...base, selections: { 'plan-main-hand': selection, 'plan-off-hand': selection } }).some(issue => issue.code === 'EQUIPMENT_ALLOCATION_HANDS')).toBe(true)
+    expect(analyze({ ...base, equipment: { 'plan-main-hand': selection, 'plan-off-hand': selection } }).some(issue => issue.code === 'EQUIPMENT_ALLOCATION_HANDS')).toBe(true)
   })
 
   it('uses explicit innate effects for dual wield and shapeshift without granting secondary equipment types', () => {
     const ninja = { ...job, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']), 'Innate passive(s)': known('Synthetic innate: Equip two One-Handed weapons at the same time to attack with each one, but decrease Attack by 35%.*') } }
-    const content = { ...base, selections: { 'plan-main-hand': { ref: ref('sword') }, 'plan-off-hand': { ref: ref('sword') } } }
+    const content = { ...base, equipment: { 'plan-main-hand': { ref: ref('sword') }, 'plan-off-hand': { ref: ref('sword') } } }
     const custom = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === job.id ? ninja : resolve(reference)
     expect(analyzeBuildEquipment(content, SUGGESTED_BUILD_SLOTS, custom)).toEqual([])
     expect(calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, custom).stats.ATK.value).toEqual({ low: 39, high: 39 })
@@ -72,11 +72,11 @@ describe('equipment planning from source facts', () => {
     expect(definitionWithMechanics(custom, SUGGESTED_BUILD_SLOTS).requirements).toBe(custom.requirements)
     expect(equipmentFacts({ ...sword, fields: { ...sword.fields, 'Attack/Hands': known('2-Handed') } }).hands).toBeUndefined()
     const customRole = { ...custom, slotKinds: { state: 'known' as const, value: ['plan-head'] } }
-    expect(analyzeBuildEquipment({ ...base, selections: { 'plan-head': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === sword.id ? customRole : resolve(reference))).toEqual([])
+    expect(analyzeBuildEquipment({ ...base, equipment: { 'plan-head': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === sword.id ? customRole : resolve(reference))).toEqual([])
     expect(equipmentRole({ ...SUGGESTED_BUILD_SLOTS[0]!, equipmentRole: null })).toBeUndefined()
     expect(equipmentRole({ ...SUGGESTED_BUILD_SLOTS[0]!, equipmentRole: undefined })).toBe('mainHand')
     const conflictingJob = { ...job, grants: { state: 'conflicting' as const, claims: [{ value: ['equipment:Sword'], sources: [] }, { value: [], sources: [] }] } }
-    expect(analyzeBuildEquipment({ ...base, selections: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === job.id ? conflictingJob : resolve(reference))).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined' })]))
+    expect(analyzeBuildEquipment({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === job.id ? conflictingJob : resolve(reference))).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined' })]))
   })
 
   it('feeds documented roles and implicit two-hand occupancy into scenario validation', () => {
@@ -109,7 +109,7 @@ describe('supported build calculations', () => {
   it('keeps incomplete growth unknown, reports mixed flat/percent order, and refuses conflicting duplicate fields', () => {
     const gear = { ...sword, fields: { ...sword.fields, 'Max mp': known(10), 'Attack/Pierce/Hands': known('Attack: +30\n1-Handed') } }
     const custom = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === sword.id ? gear : resolve(reference)
-    const result = calculateBuildStats({ ...base, selections: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, custom)
+    const result = calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, custom)
     expect(result.stats.ATK.flat).toBe(30)
     expect(result.stats.MP.value?.low).toBeCloseTo(91.6)
     expect(result.stats.MP.value?.high).toBeCloseTo(93.6)
@@ -121,7 +121,7 @@ describe('supported build calculations', () => {
     expect(conflict.contributions.some(entry => entry.stat === 'ATK')).toBe(false)
     expect(conflict.excluded.some(message => message.includes('conflicting Attack'))).toBe(true)
     const conflictResolver = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === sword.id ? { ...gear, fields: { ...gear.fields, Stat: known('Attack +90') } } : resolve(reference)
-    expect(calculateBuildStats({ ...base, selections: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, conflictResolver).stats.ATK.value).toBeNull()
+    expect(calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, conflictResolver).stats.ATK.value).toBeNull()
   })
 
   it('uses percentage-point units for crits and preserves unknown numeric modifier tags', () => {

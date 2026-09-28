@@ -105,7 +105,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
 }) {
   const navigation = useNavigation()
   const { options } = useDefinitionWorkspace()
-  const [draft, setDraft] = useState(() => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, selections: snapshot.selections }))
+  const [draft, setDraft] = useState(() => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives }))
   const [active, setActive] = useState(PRIMARY_CLASS)
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [passivesOpen, setPassivesOpen] = useState(false)
@@ -126,7 +126,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
   useEffect(() => {
     if (synchronizedSnapshot.current === snapshot.id || dirty || busy) return
     synchronizedSnapshot.current = snapshot.id
-    const next = { primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, selections: snapshot.selections }
+    const next = { primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives }
     setDraft(next)
     setSavedDraft(next)
     setInspected(undefined)
@@ -151,9 +151,9 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
   const ruleset = snapshot.rulesetRevisionId ? ownRecordValue(profile.rulesets, snapshot.rulesetRevisionId) : undefined
   const editable = Boolean(ruleset && ruleset.id === profile.activeRulesetRevisionId) && !busy && !retained
   const slots = snapshotSlots(profile, { ...snapshot, ...draft })
-  const passives = slots.filter(slot => slot.kind === 'passive')
+  const passiveRefs = draft.passives.state === 'known' ? draft.passives.value : []
   const picker = currentMemberPicker(navigation.route)
-  const requestedPassive = passives.some(slot => picker?.fieldKey === `slot:${slot.id}`)
+  const requestedPassive = Boolean(picker?.fieldKey.startsWith('slot:passive-'))
   useEffect(() => { if (requestedPassive) setPassivesOpen(true) }, [requestedPassive])
   const primaryOption = findDefinitionOption(options, knownRef(draft.primaryClass))
   const primaryCommand = primaryOption && Object.entries(primaryOption.record.fields).find(([key]) => key.toLowerCase() === 'command')?.[1]
@@ -171,14 +171,24 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
   const slotField = (slot: SnapshotSlot) => {
     const key = `slot:${slot.id}`
     const configured = ruleset?.slots.find(entry => entry.id === slot.id)
-    const allowedKinds = configured?.acceptedEntityKinds?.state === 'known' && configured.acceptedEntityKinds.value.length ? configured.acceptedEntityKinds.value : slot.kind === 'passive' ? PASSIVE_KINDS : ITEM_KINDS
+    const allowedKinds = configured?.acceptedEntityKinds?.state === 'known' && configured.acceptedEntityKinds.value.length ? configured.acceptedEntityKinds.value : ITEM_KINDS
     const availability = slot.selection && definitionModAvailability(profile, slot.selection, ruleset)
     return <MemberChoice allowedKinds={allowedKinds} display={display(slot.selection)} editable={editable && slot.kind !== 'unmapped'} fieldKey={key} key={slot.id} label={slot.label} onChange={value => setDraft(current => {
-      const selections = { ...current.selections }
-      if (value === undefined) delete selections[slot.id]
-      else selections[slot.id] = value
-      return { ...current, selections }
+      const equipment = { ...current.equipment }
+      if (value === undefined) delete equipment[slot.id]
+      else equipment[slot.id] = value
+      return { ...current, equipment }
     })} onInspect={option => inspect(key, option)} selected={active === key} value={slot.selection}>{availability?.requiredMod && <RecordedModStatus availability={availability} className="member-slot-warning"/>}</MemberChoice>
+  }
+  const passiveField = (ref: EntityRef | undefined, index: number) => {
+    const key = `slot:passive-${index + 1}`
+    const availability = ref && definitionModAvailability(profile, ref, ruleset)
+    return <MemberChoice allowedKinds={PASSIVE_KINDS} display={ref ? display(ref) : 'Add passive'} editable={editable && draft.passives.state === 'known'} fieldKey={key} key={`${index}:${ref ? entityDefinitionKey(ref) : 'add'}`} label={`Equipped passive ${index + 1}`} onChange={value => setDraft(current => {
+      const passives = current.passives.state === 'known' ? [...current.passives.value] : []
+      if (value) passives[index] = value
+      else if (index < passives.length) passives.splice(index, 1)
+      return { ...current, passives: { state: 'known', value: passives } }
+    })} onInspect={option => inspect(key, option)} selected={active === key} value={ref}>{availability?.requiredMod && <RecordedModStatus availability={availability} className="member-slot-warning"/>}</MemberChoice>
   }
   const save = async () => {
     setBusy(true)
@@ -203,18 +213,18 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
     <div className="member-sheet__layout">
       <section aria-label="Equipment and equipped passives" className="member-menu">
         <div className="member-menu__group">{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</div>
-        <div className="member-menu__group">{slots.filter(slot => slot.kind !== 'passive').map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</div>
-        <div className="member-menu__group"><button aria-expanded={passivesOpen || requestedPassive} className="member-row" onClick={() => setPassivesOpen(value => !value)} type="button"><span className="member-row__label">Passives</span><span className="member-row__value member-passives">{passives.map(slot => <span className="member-passive" data-state={slot.selection === undefined ? 'unknown' : slot.selection === null ? 'empty' : 'equipped'} key={slot.id} title={`${slot.label}: ${display(slot.selection)}`}><Icon name="crystal"/></span>)}<span className="sr-only">{passives.map(slot => `${slot.label}: ${display(slot.selection)}`).join('; ')}</span><Icon name="chevron-down"/></span></button>{(passivesOpen || requestedPassive) && <div className="member-passive-list"><p>PP capacity: {knowledgeLabel(snapshot.ppCapacity)}</p>{passives.map(slotField)}</div>}
+        <div className="member-menu__group">{slots.map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</div>
+        <div className="member-menu__group"><button aria-expanded={passivesOpen || requestedPassive} className="member-row" onClick={() => setPassivesOpen(value => !value)} type="button"><span className="member-row__label">Passives</span><span className="member-row__value member-passives">{passiveRefs.map((ref, index) => <span className="member-passive" data-state="equipped" key={`${entityDefinitionKey(ref)}:${index}`} title={`Equipped passive ${index + 1}: ${display(ref)}`}><Icon name="crystal"/></span>)}<span className="sr-only">{draft.passives.state === 'known' ? passiveRefs.map((ref, index) => `Equipped passive ${index + 1}: ${display(ref)}`).join('; ') || 'No passives equipped' : 'Equipped passives unknown'}</span><Icon name="chevron-down"/></span></button>{(passivesOpen || requestedPassive) && <div className="member-passive-list"><p>{knowledgeLabel(snapshot.ppCapacity)} PP total capacity shared across equipped passives</p>{draft.passives.state === 'known' ? [...passiveRefs, undefined].map(passiveField) : <p>Equipped passive list: Unknown</p>}</div>}
           <button className="member-row" onClick={onLearn} type="button"><span className="member-row__label">Learn</span><span className="member-row__value">Classes & skills<Icon name="tome"/></span></button>
           <button aria-expanded={statusOpen} className="member-row" onClick={() => setStatusOpen(value => !value)} type="button"><span className="member-row__label">Status</span><span className="member-row__value">Recorded stats<Icon name="chevron-down"/></span></button>
         </div>
       </section>
       <aside aria-label="Selection details" className="member-inspector"><SelectionDetails empty={active === PRIMARY_CLASS ? 'Class unknown' : undefined} option={selectedOption}/></aside>
     </div>
-    {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals. Changing equipment here does not recalculate stats.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div><div><dt>PP capacity</dt><dd>{knowledgeLabel(snapshot.ppCapacity)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} profile={profile} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
-    {picker && ![PRIMARY_CLASS, SECONDARY_CLASS, ...slots.map(slot => `slot:${slot.id}`)].includes(picker.fieldKey) && <InlineNotice title="Character field unavailable" tone="warning">The requested slot is not in this snapshot. <Button onClick={() => navigation.close()} tone="quiet">Close picker route</Button></InlineNotice>}
+    {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals. Changing equipment here does not recalculate stats.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div><div><dt>Shared PP capacity</dt><dd>{knowledgeLabel(snapshot.ppCapacity)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} profile={profile} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
+    {picker && ![PRIMARY_CLASS, SECONDARY_CLASS, ...slots.map(slot => `slot:${slot.id}`), ...Array.from({ length: passiveRefs.length + 1 }, (_, index) => `slot:passive-${index + 1}`)].includes(picker.fieldKey) && <InlineNotice title="Character field unavailable" tone="warning">The requested field is not in this snapshot. <Button onClick={() => navigation.close()} tone="quiet">Close picker route</Button></InlineNotice>}
     {dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={discard} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your choices are retained for retry.</InlineNotice>}
-    <details className="member-record"><summary>Observation details<span>{snapshot.observedAt ? formatRelativeDate(snapshot.observedAt) : 'Date unknown'}</span></summary><p>Recorded {formatRelativeDate(snapshot.recordedAt)}</p>{snapshot.note && <p>{snapshot.note}</p>}<p>{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Slot context was not recorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.mods ?? UNKNOWN}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.disabledMods ?? UNKNOWN}/></dd></div></dl><SourceReferences sources={snapshot.sources}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.primaryClass }}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.secondaryClass }}/>{slots.map(slot => <div key={slot.id}><span>{slot.label}: </span><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'selection', value: slot.selection }}/></div>)}</details>
+    <details className="member-record"><summary>Observation details<span>{snapshot.observedAt ? formatRelativeDate(snapshot.observedAt) : 'Date unknown'}</span></summary><p>Recorded {formatRelativeDate(snapshot.recordedAt)}</p>{snapshot.note && <p>{snapshot.note}</p>}<p>{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Slot context was not recorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.mods ?? UNKNOWN}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><KnowledgeValue showSources value={ruleset?.disabledMods ?? UNKNOWN}/></dd></div></dl><SourceReferences sources={snapshot.sources}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.primaryClass }}/><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'reference', value: snapshot.secondaryClass }}/>{slots.map(slot => <div key={slot.id}><span>{slot.label}: </span><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'selection', value: slot.selection }}/></div>)}{passiveRefs.map((ref, index) => <div key={`${entityDefinitionKey(ref)}:${index}`}><span>Equipped passive {index + 1}: </span><SnapshotValueView catalogs={catalogs} profile={profile} ruleset={ruleset} value={{ kind: 'selection', value: ref }}/></div>)}</details>
   </div>
 }

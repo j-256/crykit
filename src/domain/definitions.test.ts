@@ -22,7 +22,6 @@ import {
 } from './index'
 import {
   HAND_SLOT,
-  PASSIVE_SLOT,
   TEST_NOW,
   TEST_RULESET_REVISION_ID,
   addTestCharacter,
@@ -266,8 +265,6 @@ describe('immutable personal definition overrides', () => {
       id: asId<PersonalDefinitionId>('passive'),
       kind: 'passive',
       name: 'Passive',
-      slotKinds: known([PASSIVE_SLOT]),
-      occupiesSlots: known(1),
       ppCost: known(1),
       requirements: known([]),
       grants: known([]),
@@ -300,7 +297,8 @@ describe('immutable personal definition overrides', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [PASSIVE_SLOT]: { ref: override.ref } },
+        equipment: {},
+        passives: [{ ref: override.ref }],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -340,7 +338,8 @@ describe('immutable personal definition overrides', () => {
       content: {
         primaryClass: null,
         secondaryClass: null,
-        selections: { [HAND_SLOT]: { ref: override.ref } },
+        equipment: { [HAND_SLOT]: { ref: override.ref } },
+        passives: [],
         contextAssumptions: [],
       },
       now: TEST_NOW,
@@ -352,7 +351,7 @@ describe('immutable personal definition overrides', () => {
       id: asId<BuildRevisionId>('revision'),
       catalogLock: { [BASE_REF.catalogId]: BASE_REF.catalogRevisionId },
     })
-    expect(saved.buildRevisions.revision?.content.selections[HAND_SLOT]?.ref).toEqual(override.ref)
+    expect(saved.buildRevisions.revision?.content.equipment[HAND_SLOT]?.ref).toEqual(override.ref)
     const invalid = {
       ...saved,
       buildRevisions: {

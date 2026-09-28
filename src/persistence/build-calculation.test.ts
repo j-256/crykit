@@ -18,7 +18,7 @@ it('pins calculation inputs through saving, cloning, immutable comparison, and b
   const id = createId<BuildId>('build')
   const revisionId = createId<BuildRevisionId>('buildRevision')
   const planned = createBuildPlan(before.profile, { id, revisionId, title: 'Synthetic planned caster', kind: 'template', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: {
-    primaryClass: ref('Cleric'), secondaryClass: null, selections: {}, contextAssumptions: [], calculation: { level: 20, growth: [{ classRef: ref('Cleric'), levels: 20 }], bonuses: ['SPI'], statuses: [ref('Power Up')], ability: ref('Cure'), targetEvasion: 50 },
+    primaryClass: ref('Cleric'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: 20, growth: [{ classRef: ref('Cleric'), levels: 20 }], bonuses: ['SPI'], statuses: [ref('Power Up')], ability: ref('Cure'), targetEvasion: 50 },
   } })
   const saved = await saveProfile(planned, before.revision)
   const original = saved.buildRevisions[revisionId]!
@@ -42,7 +42,7 @@ it('pins calculation inputs through saving, cloning, immutable comparison, and b
 it('rejects unpinned growth references and rolls a failed calculation save back atomically', async () => {
   const before = await loadWorkspace()
   const id = createId<BuildId>('build')
-  const planned = createBuildPlan(before.profile, { id, title: 'Synthetic rollback', kind: 'template', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: { primaryClass: null, secondaryClass: null, selections: {}, contextAssumptions: [], calculation: { level: null, growth: [], bonuses: [], statuses: [] } } })
+  const planned = createBuildPlan(before.profile, { id, title: 'Synthetic rollback', kind: 'template', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: null, growth: [], bonuses: [], statuses: [] } } })
   const original = planned.buildRevisions[planned.builds[id]!.latestRevisionId!]!
   expect(() => saveBuildRevision(planned, { buildId: id, rulesetRevisionId: original.rulesetRevisionId, content: { ...original.content, calculation: { ...original.content.calculation!, growth: [{ classRef: { ...ref('Cleric'), catalogRevisionId: 'unlocked-revision' as CatalogRef['catalogRevisionId'] }, levels: 20 }] } } })).toThrow('catalog lock')
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))

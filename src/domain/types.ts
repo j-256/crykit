@@ -168,7 +168,7 @@ export interface PersonalDefinition {
   readonly updatedAt: Timestamp
 }
 
-export type SlotKind = 'equipment' | 'passive'
+export type SlotKind = 'equipment'
 export type SlotProvenance = 'verified' | 'imported' | 'suggested' | 'userDefined'
 export type EquipmentRole = 'mainHand' | 'offHand' | 'head' | 'body' | 'accessory'
 
@@ -247,7 +247,8 @@ export interface CharacterSnapshot {
   readonly secondaryClass: Knowledge<EntityRef>
   readonly displayedStats: Readonly<Record<string, ObservedStat>>
   readonly ppCapacity: Knowledge<number>
-  readonly selections: Readonly<Record<string, EntityRef | null>>
+  readonly equipment: Readonly<Record<string, EntityRef | null>>
+  readonly passives: Knowledge<readonly EntityRef[]>
   readonly sources: readonly SourceRef[]
   readonly note?: string
 }
@@ -348,7 +349,8 @@ export interface BuildSelection {
 export interface BuildRevisionContent {
   readonly primaryClass: EntityRef | null
   readonly secondaryClass: EntityRef | null
-  readonly selections: Readonly<Record<string, BuildSelection | null>>
+  readonly equipment: Readonly<Record<string, BuildSelection | null>>
+  readonly passives: readonly BuildSelection[]
   readonly rotationNotes?: string
   readonly contextAssumptions: readonly string[]
   readonly calculation?: BuildCalculationPlan

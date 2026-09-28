@@ -25,8 +25,8 @@ describe('recorded snapshot comparison', () => {
   })
 
   it('keeps empty, absent, unknown, conflicting, and not applicable distinct', () => {
-    const left: CharacterSnapshot = { ...fixture(), selections: { hand: null }, displayedStats: { absent: { value: { state: 'unknown' }, unit: 'displayed' }, certainty: { value: { state: 'notApplicable', reason: 'Not observed for this form' }, unit: 'points' } } }
-    const right: CharacterSnapshot = { ...left, selections: {}, displayedStats: { certainty: { value: { state: 'conflicting', claims: [{ value: 1, sources: [] }, { value: 2, sources: [] }] }, unit: 'points' } } }
+    const left: CharacterSnapshot = { ...fixture(), equipment: { hand: null }, displayedStats: { absent: { value: { state: 'unknown' }, unit: 'displayed' }, certainty: { value: { state: 'notApplicable', reason: 'Not observed for this form' }, unit: 'points' } } }
+    const right: CharacterSnapshot = { ...left, equipment: {}, displayedStats: { certainty: { value: { state: 'conflicting', claims: [{ value: 1, sources: [] }, { value: 2, sources: [] }] }, unit: 'points' } } }
     const rows = compareCharacterSnapshots(left, right)
     expect(rows.find((row) => row.key === 'slot:hand')).toMatchObject({ changed: true, left: { kind: 'selection', value: null }, right: { kind: 'selection', value: undefined } })
     expect(rows.find((row) => row.key === 'stat:absent')).toMatchObject({ changed: true, left: { value: { state: 'unknown' } }, right: { kind: 'unrecorded' } })
@@ -35,16 +35,22 @@ describe('recorded snapshot comparison', () => {
   })
 
   it('compares exact definition references and observation details without depending on object key order', () => {
-    const left = { ...fixture(), primaryClass: known(personalRef('class-a')), selections: { hand: personalRef('item-a') } }
-    const right = { ...left, primaryClass: known(personalRef('class-b')), selections: { hand: personalRef('item-b') } }
+    const left = { ...fixture(), primaryClass: known(personalRef('class-a')), equipment: { hand: personalRef('item-a') } }
+    const right = { ...left, primaryClass: known(personalRef('class-b')), equipment: { hand: personalRef('item-b') } }
     expect(compareCharacterSnapshots(left, right).filter((row) => row.changed).map((row) => row.key)).toEqual(['primaryClass', 'slot:hand'])
-    expect(compareCharacterSnapshots(left, { ...left, selections: { hand: { definitionId: personalRef('item-a').definitionId, kind: 'personal' } } }).some((row) => row.changed)).toBe(false)
+    expect(compareCharacterSnapshots(left, { ...left, equipment: { hand: { definitionId: personalRef('item-a').definitionId, kind: 'personal' } } }).some((row) => row.changed)).toBe(false)
     expect(compareCharacterSnapshots(left, { ...left, level: { state: 'unknown', reason: 'Screen not checked' } }).find((row) => row.key === 'level')?.changed).toBe(true)
+  })
+
+  it('compares the exact claims in non-known passive lists', () => {
+    const left = { ...fixture(), passives: { state: 'conflicting', claims: [{ value: [personalRef('passive-a')], sources: [] }] } as const }
+    const right = { ...left, passives: { state: 'conflicting', claims: [{ value: [personalRef('passive-b')], sources: [] }] } as const }
+    expect(compareCharacterSnapshots(left, right).find((row) => row.key === 'passives')).toMatchObject({ changed: true, left: { kind: 'references' }, right: { kind: 'references' } })
   })
 
   it('treats imported prototype-shaped stat and slot keys as own data', () => {
     const snapshot = fixture()
-    const left = { ...snapshot, displayedStats: Object.fromEntries([['__proto__', { value: known(1), unit: 'points' }]]), selections: Object.fromEntries([['constructor', null]]) }
+    const left = { ...snapshot, displayedStats: Object.fromEntries([['__proto__', { value: known(1), unit: 'points' }]]), equipment: Object.fromEntries([['constructor', null]]) }
     const rows = compareCharacterSnapshots(left, snapshot)
     expect(rows.find((row) => row.key === 'stat:__proto__')?.right).toEqual({ kind: 'unrecorded' })
     expect(rows.find((row) => row.key === 'slot:constructor')?.right).toEqual({ kind: 'selection', value: undefined })
@@ -71,7 +77,7 @@ describe('snapshot slot context', () => {
   it('does not substitute active labels for legacy snapshots or hide unmapped selections', () => {
     const profile = createTestProfile()
     const { rulesetRevisionId: _context, ...legacy } = fixture()
-    const snapshot = { ...legacy, selections: { [HAND_SLOT]: null, orphan: personalRef('unresolved') } }
+    const snapshot = { ...legacy, equipment: { [HAND_SLOT]: null, orphan: personalRef('unresolved') } }
     expect(snapshotSlots(profile, snapshot)).toEqual([
       { id: HAND_SLOT, label: `Slot ${HAND_SLOT}`, kind: 'unmapped', selection: null },
       { id: 'orphan', label: 'Slot orphan', kind: 'unmapped', selection: personalRef('unresolved') },

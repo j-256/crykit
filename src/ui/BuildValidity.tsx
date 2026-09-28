@@ -3,11 +3,11 @@ import { Badge } from './components'
 import { Icon } from './icons'
 
 function ppSummary(report: BuildValidityReport): string {
-  const subtotal = `${report.pp.knownSubtotal}${report.pp.unresolvedCosts ? ` + ${report.pp.unresolvedCosts} unresolved` : ''} PP`
-  if (report.pp.limit.state === 'known') return `${subtotal} / ${report.pp.limit.value} PP limit`
-  if (report.pp.limit.state === 'conflicting') return `${subtotal} / conflicting PP limit`
-  if (report.pp.limit.state === 'notApplicable') return `${subtotal} / no PP limit applies`
-  return `${subtotal} / unknown PP limit`
+  const subtotal = `${report.pp.knownSubtotal}${report.pp.unresolvedCosts ? ` + ${report.pp.unresolvedCosts} unresolved` : ''}`
+  if (report.pp.limit.state === 'known') return `${subtotal} of ${report.pp.limit.value} PP used across passives`
+  if (report.pp.limit.state === 'conflicting') return `${subtotal} PP used / conflicting shared limit`
+  if (report.pp.limit.state === 'notApplicable') return `${subtotal} PP used / no shared limit applies`
+  return `${subtotal} PP used / unknown shared limit`
 }
 
 export function BuildValidity({ report }: { readonly report: BuildValidityReport }) {

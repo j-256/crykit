@@ -39,7 +39,7 @@ function syntheticOverview(): Profile {
       'Max. MP': { value: known(88), unit: 'points' }, Attack: { value: known(151), unit: 'displayed' },
       Speed: { value: { state: 'unknown' }, unit: 'displayed' }, Luck: { value: { state: 'conflicting', claims: [{ value: 5, sources: [] }, { value: 7, sources: [] }] }, unit: 'displayed' },
     },
-    ppCapacity: known(7), selections: { 'plan-main-hand': original.selections['plan-main-hand']!, 'plan-off-hand': null, 'plan-passive-1': personalRef('Synthetic focus') },
+    ppCapacity: known(7), equipment: { 'plan-main-hand': original.equipment['plan-main-hand']!, 'plan-off-hand': null }, passives: known([personalRef('Synthetic focus')]),
     observedAt: '2026-01-01T12:00:00.000Z', now: TEST_NOW,
   })
   profile = upsertCharacterClassProgress(profile, { characterId: rowan.id, classRef: primary, observedLp: known(0), mastered: known(true), now: TEST_NOW })
@@ -99,9 +99,7 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   await expect(rowan.getByText('Synthetic focus', { exact: true })).toBeVisible()
   await expect(rowan.locator('.roster-observation')).toContainText('Observed Jan 1, 2026')
   const passives = rowan.getByRole('region', { name: 'Rowan: recorded passives', exact: true })
-  await passives.locator('summary').click()
-  await expect(field(passives, 'Passive 2')).toHaveText('Unknown')
-  await passives.locator('summary').click()
+  await expect(field(passives, 'Equipped passive 1')).toHaveText('Synthetic focus')
   const mira = page.getByRole('article', { name: 'Mira', exact: true })
   await expect(field(mira, 'HP')).toHaveText('Unknown')
   await expect(field(mira, 'Learned skills')).toHaveText('Unrecorded')

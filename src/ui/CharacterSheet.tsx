@@ -53,6 +53,7 @@ export function SnapshotValueView({ profile, catalogs, ruleset: recordedRuleset,
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
   if (value.kind === 'selection') return value.value === undefined ? <>Unknown</> : value.value === null ? <>Empty</> : definition(value.value)
   if (value.kind === 'reference') return <RecordedKnowledge format={definition} value={value.value}/>
+  if (value.kind === 'references') return <RecordedKnowledge format={(refs) => refs.length ? <>{refs.map((ref, index) => <div key={index}>{definition(ref)}</div>)}</> : <>None equipped</>} value={value.value}/>
   if (value.kind === 'number') return <RecordedKnowledge format={(number) => <>{number}{value.unit && value.unit !== 'displayed' ? ` ${value.unit}` : ''}</>} value={value.value}/>
   const ruleset = value.value ? ownRecordValue(profile.rulesets, value.value) : undefined
   return <>{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Unrecorded slot context'}</>
@@ -65,7 +66,7 @@ export function CharacterSheet({ profile, catalogs, snapshot, onEditSlot }: Reco
     { label: 'Level', value: { kind: 'number', value: snapshot.level, unit: '' } },
     { label: 'Primary class', value: { kind: 'reference', value: snapshot.primaryClass } },
     { label: 'Secondary class', value: { kind: 'reference', value: snapshot.secondaryClass } },
-    { label: 'PP capacity', value: { kind: 'number', value: snapshot.ppCapacity, unit: '' } },
+    { label: 'Shared PP capacity', value: { kind: 'number', value: snapshot.ppCapacity, unit: '' } },
   ]
   const context = { profile, catalogs, ruleset }
   return <div className="recorded-sheet">
@@ -76,7 +77,8 @@ export function CharacterSheet({ profile, catalogs, snapshot, onEditSlot }: Reco
       <section aria-label="Displayed final stats"><h3>Displayed final stats</h3><p className="settings-section__intro">Saved in-game totals</p>{Object.keys(snapshot.displayedStats).length ? <dl className="recorded-stats">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView {...context} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl> : <p className="recorded-empty">No displayed stats recorded. Unlisted values remain unrecorded.</p>}</section>
       <section aria-label="Equipment and equipped passives"><h3>Equipment & passives</h3><p className="settings-section__intro">{ruleset ? `${ruleset.label} · revision ${ruleset.revision}` : 'Slot context was not recorded'}</p>
         {!ruleset && <p className="recorded-context-warning">Stored slot IDs are shown without labels from another ruleset.</p>}
-        {slots.length ? <div className="recorded-slots">{slots.map((slot) => <div className="recorded-slot" key={slot.id}><div><span className="slot__label">{slot.label}{slot.kind === 'passive' && <small>Equipped passive</small>}{slot.kind === 'unmapped' && ruleset && <small>Outside recorded slot context</small>}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: slot.selection }}/></div></div>{onEditSlot && ruleset?.id === profile.activeRulesetRevisionId && slot.kind !== 'unmapped' && <IconButton icon="edit" label={`Edit ${slot.label}`} onClick={() => onEditSlot(slot.id)}/>}</div>)}</div> : <p className="recorded-empty">No selections recorded.</p>}
+        {slots.length ? <div className="recorded-slots">{slots.map((slot) => <div className="recorded-slot" key={slot.id}><div><span className="slot__label">{slot.label}{slot.kind === 'unmapped' && ruleset && <small>Outside recorded slot context</small>}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: slot.selection }}/></div></div>{onEditSlot && ruleset?.id === profile.activeRulesetRevisionId && slot.kind !== 'unmapped' && <IconButton icon="edit" label={`Edit ${slot.label}`} onClick={() => onEditSlot(slot.id)}/>}</div>)}</div> : <p className="recorded-empty">No equipment selections recorded.</p>}
+        <div className="recorded-slots">{snapshot.passives.state === 'known' ? snapshot.passives.value.length ? snapshot.passives.value.map((ref, index) => <div className="recorded-slot" key={`${entityName(profile, catalogs, ref)}:${index}`}><div><span className="slot__label">Equipped passive {index + 1}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: ref }}/></div></div></div>) : <p className="recorded-empty">No passives equipped.</p> : <p className="recorded-empty">Equipped passive list is {snapshot.passives.state === 'notApplicable' ? 'not applicable' : snapshot.passives.state}.</p>}</div>
       </section>
     </div>
     {onEditSlot && snapshot.rulesetRevisionId !== profile.activeRulesetRevisionId && <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the active ruleset. The earlier selections remain in this snapshot.</InlineNotice>}

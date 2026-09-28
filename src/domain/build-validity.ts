@@ -1,6 +1,7 @@
 import { analyzeBuildEquipment, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
 import { entityDefinitionKey } from './core'
 import { passivePointCost } from './mechanics-facts'
+import { passivePosition } from './passive-loadout'
 import { DEFAULT_PP_LIMIT } from './profile'
 import type { BuildRevisionContent, EntityRef, Knowledge, RulesetRevision, SlotDefinition } from './types'
 
@@ -50,7 +51,7 @@ export function validateBuildContent(
   let knownSubtotal = 0
   let unresolvedCosts = 0
   let selectedPassives = 0
-  for (const [slotId, selection] of Object.entries(content.selections)) {
+  for (const [slotId, selection] of Object.entries(content.equipment)) {
     if (!selection) continue
     const slot = slotMap.get(slotId)
     if (!slot) {
@@ -66,8 +67,15 @@ export function validateBuildContent(
     } else if (!slot.acceptedEntityKinds || slot.acceptedEntityKinds.state === 'unknown' || slot.acceptedEntityKinds.state === 'conflicting') {
       add('SLOT_ACCEPTANCE_UNKNOWN', 'undetermined', `${slot.label}: accepted definition types are unresolved`, slotId)
     }
-    if (slot.kind !== 'passive') continue
+  }
+
+  for (const [index, selection] of content.passives.entries()) {
+    const slot = passivePosition(index)
+    checkCatalogLock(selection.ref, slot.label, slot.id)
+    const definition = resolve(selection.ref)
     selectedPassives += 1
+    if (!definition) add('DEFINITION_UNAVAILABLE', 'undetermined', `${slot.label}: selected definition is unavailable`, slot.id)
+    else if (!['passive', 'innate'].includes(definition.kind)) add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slot.id)
     const cost = definition ? passivePointCost(definition) : undefined
     if (cost?.state === 'known') knownSubtotal += cost.value
     else unresolvedCosts += 1

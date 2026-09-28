@@ -5,20 +5,12 @@ import { equipmentRole } from './mechanics-facts'
 import type { BuildId, BuildRevisionContent, BuildRevisionId, Profile, RulesetRevision, SlotDefinition, SlotId } from './types'
 
 const EQUIPMENT_LABELS = ['Main hand', 'Off hand', 'Head', 'Body', 'Accessory 1', 'Accessory 2'] as const
-const SUGGESTED_PASSIVE_SLOTS = 10
-
 export const SUGGESTED_BUILD_SLOTS: readonly SlotDefinition[] = [
   ...EQUIPMENT_LABELS.map((label, order): SlotDefinition => ({
     id: `plan-${label.toLowerCase().replaceAll(' ', '-')}` as SlotId,
     label, order, kind: 'equipment', provenance: 'suggested', sources: [],
     acceptedEntityKinds: { state: 'known', value: ['item'] },
     equipmentRole: equipmentRole({ id: `plan-${label.toLowerCase().replaceAll(' ', '-')}` as SlotId, kind: 'equipment' }),
-  })),
-  ...Array.from({ length: SUGGESTED_PASSIVE_SLOTS }, (_, index): SlotDefinition => ({
-    id: `plan-passive-${index + 1}` as SlotId,
-    label: `Passive ${index + 1}`, order: EQUIPMENT_LABELS.length + index,
-    kind: 'passive', provenance: 'suggested', sources: [],
-    acceptedEntityKinds: { state: 'known', value: ['passive', 'innate'] },
   })),
 ]
 

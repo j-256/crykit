@@ -3,6 +3,7 @@ import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
 import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
+import { passivePosition, type PassivePosition } from './passive-loadout'
 import type {
   BuildRevision,
   CatalogEntity,
@@ -47,12 +48,12 @@ interface Accumulator {
   readonly issues: ValidationIssue[]
 }
 
-function definitionView(original: ResolvedDefinition, slots: readonly SlotDefinition[], slot: SlotDefinition): DefinitionView {
+function definitionView(original: ResolvedDefinition, slots: readonly SlotDefinition[], slot: SlotDefinition | PassivePosition): DefinitionView {
   const definition = definitionWithMechanics(original, slots)
   const occupancy = original.occupiesSlots
   const documentedOccupancy = !occupancy || occupancy.state === 'unknown' || occupancy.state === 'known' && occupancy.value === equipmentFacts(original).hands
   return {
-    managedEquipment: Boolean(equipmentRole(slot) && equipmentFacts(original).type && documentedOccupancy),
+    managedEquipment: Boolean(slot.kind === 'equipment' && equipmentRole(slot) && equipmentFacts(original).type && documentedOccupancy),
     kind: definition.kind,
     name: definition.name,
     requirements: definition.requirements,
@@ -168,7 +169,7 @@ function findInventory(profile: Profile, ref: EntityRef): InventoryPosition | un
 interface SelectedEntry {
   readonly characterId: CharacterId
   readonly buildRevision: BuildRevision
-  readonly slot: SlotDefinition
+  readonly slot: SlotDefinition | PassivePosition
   readonly slotId: SlotId
   readonly ref: EntityRef
   readonly allocationKey: string
@@ -248,7 +249,7 @@ function collectSelections(
         buildRevisionId: revision.id,
       })
     }
-    for (const [slotIdValue, selection] of Object.entries(revision.content.selections)) {
+    for (const [slotIdValue, selection] of Object.entries(revision.content.equipment)) {
       if (!selection) {
         continue
       }
@@ -271,7 +272,7 @@ function collectSelections(
       if (!definition) {
         issue(accumulator, {
           code: 'DEFINITION_UNAVAILABLE',
-          dimension: slot.kind === 'passive' ? 'passives' : 'equipment',
+          dimension: 'equipment',
           status: 'undetermined',
           message: 'Selected definition is unavailable for this pinned catalog revision',
           characterId,
@@ -287,6 +288,32 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: selection.allocationId ?? slotIdValue,
+        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots, slot) }),
+      })
+    }
+    for (const [index, selection] of revision.content.passives.entries()) {
+      validateCatalogRefLock(profile, selection.ref, revision, characterId, accumulator)
+      const slot = passivePosition(index)
+      const definition = resolveDefinition(profile, catalogs, selection.ref)
+      if (!definition) {
+        issue(accumulator, {
+          code: 'DEFINITION_UNAVAILABLE',
+          dimension: 'passives',
+          status: 'undetermined',
+          message: 'Selected definition is unavailable for this pinned catalog revision',
+          characterId,
+          buildRevisionId: revision.id,
+          slotId: slot.id,
+          ref: selection.ref,
+        })
+      }
+      selected.push({
+        characterId,
+        buildRevision: revision,
+        slot,
+        slotId: slot.id,
+        ref: selection.ref,
+        allocationKey: `passive:${index}`,
         ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots, slot) }),
       })
     }
@@ -389,6 +416,9 @@ function validateSlotCompatibility(profile: Profile, selected: readonly Selected
         ref: entry.ref,
       })
     }
+    if (entry.slot.kind === 'passive') {
+      continue
+    }
     if (entry.definition.slotKinds?.state === 'known') {
       if (!entry.definition.slotKinds.value.includes(entry.slotId)) {
         issue(accumulator, {
@@ -422,7 +452,7 @@ function validateSlotCompatibility(profile: Profile, selected: readonly Selected
 
 function validateAllocationGroups(profile: Profile, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
   const groups = new Map<string, SelectedEntry[]>()
-  for (const entry of selected) {
+  for (const entry of selected.filter(value => value.slot.kind === 'equipment')) {
     const key = `${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`
     const group = groups.get(key) ?? []
     group.push(entry)
@@ -433,7 +463,7 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
     if (!first) {
       continue
     }
-    const dimension = first.slot.kind === 'passive' ? 'passives' : 'equipment'
+    const dimension = 'equipment'
     if (group.every(entry => entry.definition?.managedEquipment)) continue
     const refKeys = new Set(group.map((entry) => logicalEntityKey(profile, entry.ref)))
     if (refKeys.size > 1) {
@@ -752,6 +782,16 @@ function baseEligibility(
   if (accepted.state === 'known' && !accepted.value.includes(entry.definition.kind)) {
     return 'invalid'
   }
+  if (entry.slot.kind === 'passive') {
+    const learned = profile.characters[entry.characterId]?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
+    if (!learned || knowledgeUncertain(learned)) {
+      return 'unknown'
+    }
+    if (learned.state === 'known' && !learned.value) {
+      return 'invalid'
+    }
+    return passivePpEligibility(profile, ruleset, entries, entry.characterId)
+  }
   const slotKinds = entry.definition.slotKinds
   if (!slotKinds || knowledgeUncertain(slotKinds)) {
     return 'unknown'
@@ -774,19 +814,6 @@ function baseEligibility(
   }
   if (!entry.definition.managedEquipment && occupies?.state === 'known' && occupies.value !== allocationGroup.length) {
     return 'invalid'
-  }
-  if (entry.slot.kind === 'passive') {
-    const learned = profile.characters[entry.characterId]?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
-    if (!learned || knowledgeUncertain(learned)) {
-      return 'unknown'
-    }
-    if (learned.state === 'known' && !learned.value) {
-      return 'invalid'
-    }
-    const ppEligibility = passivePpEligibility(profile, ruleset, entries, entry.characterId)
-    if (ppEligibility !== 'valid') {
-      return ppEligibility
-    }
   }
   return 'valid'
 }
@@ -1134,7 +1161,7 @@ export function validateScenario(
     const resolve = (ref: EntityRef) => resolveDefinition(profile, catalogs, ref)
     const primary = revision.content.primaryClass ? resolve(revision.content.primaryClass) : undefined
     const modeled = classEquipmentTypes(primary) || ruleset.slots.some(slot => {
-      const selection = revision.content.selections[slot.id]
+      const selection = revision.content.equipment[slot.id]
       const definition = selection ? resolve(selection.ref) : undefined
       return equipmentRole(slot) && definition && equipmentFacts(definition).type
     })

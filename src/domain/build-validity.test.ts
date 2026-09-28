@@ -12,8 +12,6 @@ const passive = (id: string, cost?: number): CatalogEntity => ({
   name: id,
   aliases: [],
   fields: { Description: known('Synthetic passive effect') },
-  slotKinds: known(SUGGESTED_BUILD_SLOTS.filter(slot => slot.kind === 'passive').map(slot => slot.id as string)),
-  occupiesSlots: known(1),
   ...(cost === undefined ? { ppCost: { state: 'unknown' as const } } : { ppCost: known(cost) }),
   requirements: known([]),
   grants: known([]),
@@ -22,7 +20,7 @@ const passive = (id: string, cost?: number): CatalogEntity => ({
 const definitions = [passive('four', 4), passive('six', 6), passive('seven', 7), passive('unknown')]
 const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definitions.find(definition => definition.id === reference.entityId) : undefined
 const ruleset: Pick<RulesetRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, ppLimit: known(10), ppCostsNonNegative: known(true) }
-const content = (...ids: string[]): BuildRevisionContent => ({ primaryClass: null, secondaryClass: null, selections: Object.fromEntries(ids.map((id, index) => [`plan-passive-${index + 1}`, { ref: ref(id) }])), contextAssumptions: [] })
+const content = (...ids: string[]): BuildRevisionContent => ({ primaryClass: null, secondaryClass: null, equipment: {}, passives: ids.map(id => ({ ref: ref(id) })), contextAssumptions: [] })
 
 describe('character-independent build validity', () => {
   it('accepts a known PP total at the ruleset limit without character state', () => {

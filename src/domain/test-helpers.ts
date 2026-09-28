@@ -75,24 +75,6 @@ export function createTestProfile(ppCostsNonNegative: Knowledge<boolean> = known
         provenance: 'verified',
         sources: [],
       },
-      {
-        id: PASSIVE_SLOT,
-        kind: 'passive',
-        label: 'Passive 1',
-        order: 2,
-        acceptedEntityKinds: known(['passive', 'innate']),
-        provenance: 'verified',
-        sources: [],
-      },
-      {
-        id: SECOND_PASSIVE_SLOT,
-        kind: 'passive',
-        label: 'Passive 2',
-        order: 3,
-        acceptedEntityKinds: known(['passive', 'innate']),
-        provenance: 'verified',
-        sources: [],
-      },
     ],
     now: TEST_NOW,
   })
@@ -125,16 +107,14 @@ export function addTestDefinition(
   options: AddTestDefinitionOptions = {},
 ): Profile {
   const kind = options.kind ?? 'item'
-  const defaultSlots = kind === 'passive' || kind === 'innate'
-    ? [PASSIVE_SLOT, SECOND_PASSIVE_SLOT]
-    : [HAND_SLOT, SECOND_HAND_SLOT]
+  const passive = kind === 'passive' || kind === 'innate'
   return createPersonalDefinition(profile, {
     id: asId<PersonalDefinitionId>(value),
     kind,
     name: value,
-    slotKinds: options.slotKinds ?? known(defaultSlots),
-    occupiesSlots: options.occupiesSlots ?? known(1),
-    ...(kind === 'passive' || kind === 'innate' ? { ppCost: options.ppCost ?? known(0) } : {}),
+    ...(passive ? {} : { slotKinds: options.slotKinds ?? known([HAND_SLOT, SECOND_HAND_SLOT]) }),
+    ...(passive ? {} : { occupiesSlots: options.occupiesSlots ?? known(1) }),
+    ...(passive ? { ppCost: options.ppCost ?? known(0) } : {}),
     requirements: options.requirements ?? known([]),
     grants: options.grants ?? known([]),
     now: TEST_NOW,
@@ -145,11 +125,12 @@ export function addTestBuild(
   profile: Profile,
   buildValue: string,
   characterValue: string,
-  selections: Readonly<Record<string, BuildSelection | null>>,
+  equipment: Readonly<Record<string, BuildSelection | null>>,
   options: {
     readonly primaryClass?: EntityRef | null
     readonly secondaryClass?: EntityRef | null
     readonly catalogLock?: Readonly<Record<string, CatalogRevisionId>>
+    readonly passives?: readonly BuildSelection[]
   } = {},
 ): Profile {
   const buildId = asId<BuildId>(buildValue)
@@ -168,7 +149,8 @@ export function addTestBuild(
     content: {
       primaryClass: options.primaryClass ?? null,
       secondaryClass: options.secondaryClass ?? null,
-      selections,
+      equipment,
+      passives: options.passives ?? [],
       contextAssumptions: [],
     },
     now: TEST_NOW,

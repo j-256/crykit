@@ -103,7 +103,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
   await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
   await expect(setup.locator('summary')).toHaveText('Setup needs review · 4 fields')
-  await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 16 slots')
+  await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 6 slots')
   await expect(coverage.locator('summary')).toHaveText('Reference coverage is limited')
   await expect(team.getByText('Ruleset settings need evidence', { exact: true })).toHaveCount(0)
   await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
