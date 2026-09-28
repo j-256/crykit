@@ -27,7 +27,7 @@ export function Field({ label, hint, required, children, className = '' }: Props
 
 export function InlineNotice({ title, children, tone = 'info' }: PropsWithChildren<{ title: string; tone?: 'info' | 'warning' | 'danger' | 'positive' }>) {
   const icon = tone === 'positive' ? 'check' : tone === 'info' ? 'info' : 'warning'
-  return <div className={`notice notice--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}><Icon name={icon}/><div><strong>{title}</strong><p>{children}</p></div></div>
+  return <div className={`notice notice--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}><Icon name={icon}/><div><strong>{title}</strong><div className="notice__body">{children}</div></div></div>
 }
 
 export function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly { value: T; label: string }[]; onChange: (value: T) => void }) {

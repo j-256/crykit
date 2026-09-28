@@ -188,7 +188,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(222, 236, 242, .035); }
 .notice > svg { margin-top: 1px; }
 .notice strong { display: block; margin-bottom: 3px; font-size: .8rem; }
-.notice p { margin-bottom: 0; color: var(--text-dim); font-size: .75rem; line-height: 1.45; }
+.notice__body { color: var(--text-dim); font-size: .75rem; line-height: 1.45; }
+.notice__body > :first-child { margin-top: 0; }
+.notice__body > :last-child { margin-bottom: 0; }
 .notice--info > svg { color: var(--sky); }
 .notice--warning > svg { color: var(--amber); }
 .notice--danger > svg { color: var(--rust); }
