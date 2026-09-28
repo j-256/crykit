@@ -154,8 +154,9 @@ describe('semantic navigation routes', () => {
   })
 
   it('handles empty locations and prototype-shaped query keys without throwing', () => {
-    const empty = parseAppRoute('')
-    expect(empty).toMatchObject({ page: { page: 'inventory', view: 'list' }, legacy: true })
+    for (const hash of ['', '#', '#/']) {
+      expect(parseAppRoute(hash)).toMatchObject({ page: { page: 'builds', view: 'library' }, legacy: true })
+    }
     expect(() => parseAppRoute('#/inventory?__proto__=x&constructor=y&prototype=z')).not.toThrow()
     expect(parseAppRoute('#/inventory?__proto__=x&constructor=y&prototype=z').query).toEqual(Object.fromEntries([['__proto__', ['x']], ['constructor', ['y']], ['prototype', ['z']]]))
   })
@@ -171,5 +172,8 @@ describe('semantic navigation routes', () => {
     expect(picker.overlays).toHaveLength(1)
     expect(editor.page).toEqual({ page: 'builds', view: 'revision-new', buildId: 'build-1' })
     expect(parentRoute(editor)?.page).toEqual({ page: 'builds', view: 'build', buildId: 'build-1' })
+    expect(parentRoute(parseAppRoute('#/settings/data'))?.page).toEqual({ page: 'builds', view: 'library' })
+    expect(parseAppRoute('#/unknown').page).toMatchObject({ page: 'unresolved', recovery: 'builds' })
+    expect(parseAppRoute('#/inventory/unknown').page).toMatchObject({ page: 'unresolved', recovery: 'inventory' })
   })
 })

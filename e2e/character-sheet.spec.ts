@@ -244,6 +244,7 @@ test('recording a proposal retains its ruleset and requires in-game confirmation
   const original = await loadFixture(page, true)
   await page.getByText('Planned builds', { exact: true }).click()
   await page.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true }).click()
+  await page.locator('.build-readiness > summary').click()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
   const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()

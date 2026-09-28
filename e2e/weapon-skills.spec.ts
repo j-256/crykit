@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
 
 test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', async ({ page, context, isMobile }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.keyboard.press('Meta+k')
   const palette = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
   await expect(palette.getByRole('searchbox')).toBeFocused()

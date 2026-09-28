@@ -69,7 +69,7 @@ async function addStock(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/inventory')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })
@@ -237,6 +237,7 @@ test('build drafts resist navigation and recording current preserves known level
   }
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await page.locator('.build-readiness > summary').click()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
   const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()
@@ -347,7 +348,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await stock.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(stock).not.toBeVisible()
   await navigate(page, 'Builds')
-  await openBuildLibrary(page)
+  await expect(page.getByRole('region', { name: 'Build library', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^Two-slot template Draft/ }).click()
   await editor.getByRole('combobox', { name: 'Off hand: Same copy as', exact: true }).selectOption('')
   await editor.getByText('Build details & notes', { exact: true }).click()

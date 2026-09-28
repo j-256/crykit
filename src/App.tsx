@@ -86,7 +86,7 @@ function catalogIndex(catalogs: readonly CatalogSnapshot[]): CatalogIndex {
 }
 
 function LoadingView() {
-  return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening your playthrough</h1><p>Loading local records from this browser...</p></div></main>
+  return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening Crystal Companion</h1><p>Loading local records from this browser...</p></div></main>
 }
 
 export default function App() {
@@ -416,7 +416,7 @@ export default function App() {
 
   const waitForSafeTransition = useCallback(async () => {
     await commitQueueRef.current
-    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching playthrough, ruleset, or scenario.')
+    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching profile, ruleset, or scenario.')
   }, [navigation.hasOpenDraft])
 
   const refreshProfiles = useCallback(async () => setProfiles(await listProfiles()), [])
@@ -516,7 +516,7 @@ export default function App() {
     : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
-  const buildRoute = destination === 'builds' ? navigation.route : buildDraftRouteRef.current
+  const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
   const buildContent = buildRoute && <div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/></NavigationProvider></div>
   const draftReminder = destination === 'reference' && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Browse reference records, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 

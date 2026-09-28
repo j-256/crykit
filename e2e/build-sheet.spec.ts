@@ -27,7 +27,8 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('a blank playthrough can plan unowned gear directly and reopen it offline', async ({ page, context }, testInfo) => {
-  await page.goto('/#/builds/library')
+  await expect(page).toHaveURL(/#\/builds\/library$/)
+  await expect(page.getByRole('button', { name: /^Scenario:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New build', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeVisible()
   await expect(page.locator('dialog:modal')).toHaveCount(0)
@@ -45,6 +46,7 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await page.screenshot({ path: testInfo.outputPath('planned-sheet.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+  await expect(page.locator('.build-readiness')).not.toHaveAttribute('open')
   const before = await exportProfile(page)
   expect(Object.values(before.builds)).toHaveLength(1)
   expect(Object.values(before.buildRevisions)).toHaveLength(1)

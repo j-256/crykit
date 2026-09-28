@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { Profile } from '../src/domain/types'
 import { createBlankPlaythrough } from './profile-helpers'
 
-type ContextLabel = 'Playthrough' | 'Ruleset' | 'Scenario'
+type ContextLabel = 'Profile' | 'Ruleset' | 'Scenario'
 
 async function openContext(page: Page, label: ContextLabel) {
   await page.getByRole('button', { name: new RegExp(`^${label}:`) }).click()
@@ -48,13 +48,13 @@ async function addRulesetRevision(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Playthrough: Sample playthrough', exact: true })).toBeVisible()
+  await page.goto('/#/inventory')
+  await expect(page.getByRole('button', { name: 'Profile: Sample playthrough', exact: true })).toBeVisible()
 })
 
 test('all context selectors fit, search, support keyboard and touch, and dismiss to their trigger', async ({ page, isMobile }, testInfo) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
-  for (const label of ['Playthrough', 'Ruleset', 'Scenario'] as const) {
+  for (const label of ['Profile', 'Ruleset', 'Scenario'] as const) {
     const trigger = page.getByRole('button', { name: new RegExp(`^${label}:`) })
     await expect(trigger).toBeVisible()
     const bounds = (await trigger.boundingBox())!
@@ -93,24 +93,24 @@ test('playthrough switching isolates records, resets record links, and exposes b
   await expect(page.getByRole('button', { name: 'Ruleset: Not configured', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Scenario: None selected', exact: true })).toBeVisible()
   const rulesets = await openContext(page, 'Ruleset')
-  await expect(rulesets.getByText('No rulesets yet. Configure one to get started.', { exact: true })).toBeVisible()
+  await expect(rulesets.getByText('No saved rulesets. New builds can start with suggested planning slots.', { exact: true })).toBeVisible()
   await expect(rulesets.getByRole('button', { name: 'Configure ruleset', exact: true })).toBeEnabled()
   await page.keyboard.press('Escape')
   const scenarios = await openContext(page, 'Scenario')
   await expect(scenarios.getByRole('button', { name: 'New scenario', exact: true })).toBeDisabled()
   await page.keyboard.press('Escape')
-  await chooseContext(page, 'Playthrough', 'Sample playthrough')
+  await chooseContext(page, 'Profile', 'Sample playthrough')
   const sample = await readProfile(page)
   const characterId = Object.values(sample.characters)[0]!.id
   await page.goto(`/#/characters/${characterId}/current`)
-  await chooseContext(page, 'Playthrough', 'Blank test playthrough')
+  await chooseContext(page, 'Profile', 'Blank test playthrough')
   await expect(page).toHaveURL(/#\/characters$/)
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
   expect(await readProfile(page, 'Blank test playthrough')).toEqual(blank)
   expect(await readProfile(page)).toEqual(sample)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Playthrough: Blank test playthrough', exact: true })).toBeVisible()
-  await chooseContext(page, 'Playthrough', 'Sample playthrough')
+  await expect(page.getByRole('button', { name: 'Profile: Blank test playthrough', exact: true })).toBeVisible()
+  await chooseContext(page, 'Profile', 'Sample playthrough')
   await expect(page.getByRole('button', { name: 'Scenario: Sample starter team', exact: true })).toBeVisible()
 })
 
@@ -148,13 +148,13 @@ test('ruleset revisions and scenarios persist independently while saved pins rem
 
 test('open build drafts block every context change without losing edited selections', async ({ page }) => {
   await createBlankPlaythrough(page)
-  await chooseContext(page, 'Playthrough', 'Sample playthrough')
+  await chooseContext(page, 'Profile', 'Sample playthrough')
   await addRulesetRevision(page)
   const saved = await readProfile(page)
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.getByText('Warrior', { exact: true }) }).click()
-  for (const [label, option] of [['Playthrough', /^Blank test playthrough/], ['Ruleset', /^Sample starter ruleset Revision 1/], ['Scenario', /^None selected/]] as const) {
+  for (const [label, option] of [['Profile', /^Blank test playthrough/], ['Ruleset', /^Sample starter ruleset Revision 1/]] as const) {
     const picker = await openContext(page, label)
     await picker.getByRole('button', { name: option }).click()
     await expect(picker.getByText(`${label} switch failed`, { exact: true })).toBeVisible()
@@ -163,7 +163,9 @@ test('open build drafts block every context change without losing edited selecti
     await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
   }
   expect(await readProfile(page)).toEqual(saved)
+  await expect(page.getByRole('button', { name: /^Scenario:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
   await chooseContext(page, 'Scenario', 'None selected')
 })
 
@@ -182,15 +184,18 @@ test('the selected scenario supplies readiness when a checkpoint belongs to mult
   await page.goto(`/#/builds/library/${revision.buildId}/revisions/${revision.id}`)
   await page.locator('.build-readiness > summary').click()
   await expect(page.getByText('Evaluated in Synthetic readiness team', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
   await chooseContext(page, 'Scenario', 'Sample starter team')
+  await page.goto(`/#/builds/library/${revision.buildId}/revisions/${revision.id}`)
+  await page.locator('.build-readiness > summary').click()
   await expect(page.getByText('Evaluated in Sample starter team', { exact: true })).toBeVisible()
   expect((await readProfile(page)).buildRevisions).toEqual(original.buildRevisions)
 })
 
 test('failed selection remains recoverable and can be retried and reopened offline', async ({ page, context }) => {
   const original = await readProfile(page)
-  const profiles = await openContext(page, 'Playthrough')
-  await profiles.getByRole('button', { name: 'Manage playthroughs', exact: true }).click()
+  const profiles = await openContext(page, 'Profile')
+  await profiles.getByRole('button', { name: 'Manage profiles', exact: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   if (await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).isVisible()) await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()

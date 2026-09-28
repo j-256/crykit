@@ -105,7 +105,7 @@ export interface AppRoute {
   readonly legacy?: true
 }
 
-export const INVENTORY_ROUTE: AppRoute = Object.freeze({ page: { page: 'inventory' as const, view: 'list' as const }, overlays: [], query: {} })
+export const BUILDS_ROUTE: AppRoute = Object.freeze({ page: { page: 'builds' as const, view: 'library' as const }, overlays: [], query: {} })
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/
 const MAX_ROUTE_LENGTH = 16_384
 const MAX_QUERY_KEYS = 128
@@ -177,7 +177,7 @@ function unresolved(requestedPath: string, recovery: Destination, reason: Unreso
 
 function recoveryFor(segments: readonly string[]): Destination {
   const root = segments[0]
-  return root === 'characters' || root === 'builds' || root === 'progress' || root === 'reference' ? root : 'inventory'
+  return root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' ? root : 'builds'
 }
 
 function overlayStartsAt(segments: readonly string[], index: number): boolean {
@@ -475,7 +475,7 @@ function legacySelectedPage(value: string): ReferencePageRoute | undefined {
 }
 
 export function parseAppRoute(hash: string): AppRoute {
-  if (!hash || hash === '#') return { ...INVENTORY_ROUTE, legacy: true }
+  if (!hash || hash === '#' || hash === '#/') return { ...BUILDS_ROUTE, legacy: true }
   const boundedHash = hash.length <= MAX_ROUTE_LENGTH ? hash : '#/invalid'
   const [rawPath, rawQuery = ''] = boundedHash.replace(/^#/, '').split('?', 2)
   const path = rawPath.replace(/^\/?/, '/')
@@ -582,7 +582,7 @@ export function formatAppRoute(route: AppRoute): string {
 }
 
 export function routeDestination(route: AppRoute): Destination {
-  if (route.page.page === 'settings') return 'inventory'
+  if (route.page.page === 'settings') return 'builds'
   if (route.page.page === 'unresolved') return route.page.recovery
   return route.page.page
 }
@@ -637,7 +637,7 @@ export function parentRoute(route: AppRoute): AppRoute | undefined {
   }
   if (page.page === 'progress' && page.view !== 'list') return { ...route, page: { page: 'progress', view: 'list' } }
   if (page.page === 'reference' && page.view !== 'list') return { ...route, page: { page: 'reference', view: 'list' } }
-  if (page.page === 'settings') return INVENTORY_ROUTE
+  if (page.page === 'settings') return BUILDS_ROUTE
   return undefined
 }
 
@@ -711,7 +711,7 @@ export interface NavigationController {
 }
 
 export function useNavigationController(options: { readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: () => void } = {}): NavigationController {
-  const [route, setRoute] = useState(() => typeof window === 'undefined' ? INVENTORY_ROUTE : parseAppRoute(window.location.hash))
+  const [route, setRoute] = useState(() => typeof window === 'undefined' ? BUILDS_ROUTE : parseAppRoute(window.location.hash))
   const acceptedRef = useRef(route)
   const acceptedIndexRef = useRef(0)
   const pendingReversalRef = useRef<{ readonly index: number; readonly hash: string } | undefined>(undefined)
@@ -798,7 +798,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
   const close = useCallback(() => {
     const currentState = navigationState(window.history.state)
     if (acceptedRef.current.page.page === 'settings' && acceptedRef.current.overlays.length === 0) {
-      const returnRoute = currentState?.returnHash ? parseAppRoute(currentState.returnHash) : INVENTORY_ROUTE
+      const returnRoute = currentState?.returnHash ? parseAppRoute(currentState.returnHash) : BUILDS_ROUTE
       if (blocked(acceptedRef.current, returnRoute)) return false
       if (currentState?.returnIndex !== undefined && currentState.returnIndex !== acceptedIndexRef.current) {
         window.history.go(currentState.returnIndex - acceptedIndexRef.current)

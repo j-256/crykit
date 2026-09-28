@@ -41,7 +41,7 @@ async function chooseDefinition(page: Page, form: Locator, label: string, query:
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/inventory')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })

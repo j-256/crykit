@@ -17,7 +17,7 @@ async function clickOutside(page: Page, panel: Locator, touch: boolean) {
 
 test('backdrop dismissal ignores panel clicks and drags and restores focus without activating the page', async ({ page, isMobile }) => {
   await page.setViewportSize(BACKDROP_VIEWPORT)
-  await page.goto('/')
+  await page.goto('/#/inventory')
   const reference = page.getByRole('button', { name: 'Reference', exact: true }).filter({ visible: true })
   const referenceBounds = await reference.boundingBox()
   expect(referenceBounds).not.toBeNull()
@@ -46,7 +46,7 @@ test('backdrop dismissal ignores panel clicks and drags and restores focus witho
 })
 
 test('definition search is ready for typing on opening, reopening, and direct links', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/inventory')
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const observation = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   const trigger = observation.getByRole('button', { name: 'Choose Item definition', exact: true })
@@ -163,7 +163,7 @@ test('dropdown scrolling and Tab preserve keyboard access and dialogs are center
 })
 
 test('class dropdowns switch fields directly and a lower field opens upward', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/inventory')
   await createBlankPlaythrough(page)
   await page.goto('/#/characters/new')
   const creation = page.getByRole('dialog', { name: 'Add character', exact: true })

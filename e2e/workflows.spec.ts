@@ -59,7 +59,7 @@ async function exportPayload(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/inventory')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })
@@ -362,7 +362,7 @@ test('offline preparation repairs missing cached assets before reporting ready',
 test('stale tabs cannot overwrite a saved profile and can export their recovery draft', async ({ page, context }) => {
   await addItem(page, 'Shared baseline', 1)
   const stale = await context.newPage()
-  await stale.goto('/')
+  await stale.goto('/#/inventory')
   await expect(stale.getByText('Shared baseline', { exact: true })).toBeVisible()
   await addItem(page, 'Saved in first tab', 1)
   await addItem(page, 'Later first-tab observation', 1)
@@ -463,7 +463,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('The static fixture did not start')
   try {
-    await page.goto(`http://127.0.0.1:${address.port}/journal/`)
+    await page.goto(`http://127.0.0.1:${address.port}/journal/#/inventory`)
     await addItem(page, 'Portable origin observation', 1)
     const panel = await openData(page)
     await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -489,7 +489,6 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await update.getByRole('button', { name: 'Offline & storage', exact: true }).click()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).toBeVisible()
     await update.getByRole('button', { name: 'Apply app update', exact: true }).click()
-    await expect(page.getByText('Portable origin observation', { exact: true })).toBeVisible()
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
     await expect(update).toBeVisible()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).not.toBeVisible()

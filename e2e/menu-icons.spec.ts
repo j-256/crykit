@@ -20,7 +20,7 @@ async function characterDetails(page: Page) {
 test('game icons accompany character equipment, inventory, and both pickers without external requests', async ({ page, context, isMobile }) => {
   const external: string[] = []
   page.on('request', request => { if (!['127.0.0.1', 'localhost'].includes(new URL(request.url()).hostname)) external.push(request.url()) })
-  await page.goto('/')
+  await page.goto('/#/inventory')
   const sword = page.locator('.list-row').filter({ has: page.getByText('Short Sword', { exact: true }) })
   await loadedIcons(sword, 1)
   const details = await characterDetails(page)
