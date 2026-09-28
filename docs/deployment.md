@@ -13,7 +13,11 @@ npm run verify
 npm run deploy:dry-run
 ```
 
-Install Chromium with `npx playwright install chromium` before browser verification on a fresh machine. A dry run validates the built `dist/` tree and does not publish it. A deployment uses `npm run deploy`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` supplied through the environment. Use an account token with Workers Scripts edit and permission to manage the Custom Domain in the intended zone. Keep credentials out of source and browser build variables.
+Install Chromium with `npx playwright install chromium` before browser verification on a fresh machine. A dry run validates the built `dist/` tree and does not publish it. Supply `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` through the environment. Keep credentials out of source and browser build variables.
+
+Routine releases upload assets with `wrangler versions upload` and activate that exact version at 100% with `wrangler versions deploy`. They need only Workers Scripts Write for the existing Worker and leave its routes, Custom Domain, and other triggers unchanged. GitHub Actions reads the version ID from Wrangler's structured upload output and rejects missing, ambiguous, or unexpected upload records before deployment. It never chooses a version by recency. See Cloudflare's [version deployment documentation](https://developers.cloudflare.com/workers/versions-and-deployments/deployment-management/) and [Workers authorization requirements](https://developers.cloudflare.com/workers/authorization/workers/).
+
+Initial provisioning or intentional routing changes use `npm run deploy`, which also reconciles the Custom Domain in `wrangler.jsonc`. That operation additionally requires Zone Workers Routes Write for the affected zone. Keep those permissions with the operator managing hosting; the repository Actions token needs only Workers Scripts Write. Changing trigger configuration in source alone does not apply it through the routine release workflow.
 
 ## Public-only GitHub Actions
 
