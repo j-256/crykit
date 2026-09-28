@@ -23,6 +23,8 @@ The reviewed `.github/workflows/deploy.yml` runs only for public repositories. P
 
 GitHub's [Actions billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions) describes free standard hosted-runner use for public repositories. A public repository does not make larger runners or other billed services free.
 
+Verification builds the application once, checks deployment limits, and passes that artifact to desktop and mobile browser shards. Deployment uses the same artifact only after every shard succeeds. Browser assertions keep their normal timeouts; complete journeys have a one-minute budget. Failed browser jobs retain synthetic traces and screenshots for diagnosis, and GitHub annotations expose failures as they occur. Application and failure artifacts expire after one day to bound storage use.
+
 ## Hostnames and redirects
 
 Cloudflare manages TLS and DNS for the canonical Custom Domain. The `lasers.app` zone separately owns the aliases:

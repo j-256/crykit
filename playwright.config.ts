@@ -2,14 +2,16 @@ import { defineConfig, devices } from '@playwright/test'
 
 const e2ePort = process.env.CRYSTAL_COMPANION_E2E_PORT ?? '4173'
 const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`
+const END_TO_END_TEST_TIMEOUT_MS = 60_000
 
 export default defineConfig({
   testDir: './e2e',
+  timeout: END_TO_END_TEST_TIMEOUT_MS,
   fullyParallel: false,
   workers: 1,
   forbidOnly: true,
   retries: 0,
-  reporter: [['list']],
+  reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   use: {
     baseURL: e2eBaseUrl,
     trace: 'retain-on-failure',
