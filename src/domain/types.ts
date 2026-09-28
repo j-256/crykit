@@ -170,12 +170,14 @@ export interface PersonalDefinition {
 
 export type SlotKind = 'equipment' | 'passive'
 export type SlotProvenance = 'verified' | 'imported' | 'suggested' | 'userDefined'
+export type EquipmentRole = 'mainHand' | 'offHand' | 'head' | 'body' | 'accessory'
 
 export interface SlotDefinition {
   readonly id: SlotId
   readonly kind: SlotKind
   readonly label: string
   readonly order: number
+  readonly equipmentRole?: EquipmentRole | null
   readonly acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]>
   readonly provenance: SlotProvenance
   readonly sources: readonly SourceRef[]
@@ -348,6 +350,16 @@ export interface BuildRevisionContent {
   readonly selections: Readonly<Record<string, BuildSelection | null>>
   readonly rotationNotes?: string
   readonly contextAssumptions: readonly string[]
+  readonly calculation?: BuildCalculationPlan
+}
+
+export interface BuildCalculationPlan {
+  readonly level: number | null
+  readonly growth: readonly { readonly classRef: EntityRef | null; readonly levels: number | null }[]
+  readonly bonuses: readonly import('./crystal-edit').GrowthStat[]
+  readonly statuses: readonly EntityRef[]
+  readonly ability?: EntityRef | null
+  readonly targetEvasion?: number | null
 }
 
 export interface BuildRevision {

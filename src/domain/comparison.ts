@@ -101,6 +101,16 @@ export function compareBuildRevisions(left: BuildRevision, right: BuildRevision)
     right.content.contextAssumptions,
   )
 
+  const calculationValue = (revision: BuildRevision): JsonValue | undefined => revision.content.calculation ? {
+    level: revision.content.calculation.level,
+    growth: revision.content.calculation.growth.map(row => ({ classRef: refValue(row.classRef), levels: row.levels })),
+    bonuses: revision.content.calculation.bonuses,
+    statuses: revision.content.calculation.statuses.map(refValue),
+    ability: refValue(revision.content.calculation.ability ?? null),
+    targetEvasion: revision.content.calculation.targetEvasion ?? null,
+  } : undefined
+  pushDifference(differences, 'content.calculation', 'Calculation inputs', calculationValue(left), calculationValue(right))
+
   return {
     leftRevisionId: left.id,
     rightRevisionId: right.id,

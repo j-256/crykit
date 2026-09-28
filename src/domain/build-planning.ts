@@ -1,6 +1,7 @@
 import { createId } from './core'
 import { createBuild, saveBuildRevision, type CreateBuildInput } from './builds'
 import { createRulesetRevision, updateRulesetRevision } from './profile'
+import { equipmentRole } from './mechanics-facts'
 import type { BuildId, BuildRevisionContent, BuildRevisionId, Profile, RulesetRevision, SlotDefinition, SlotId } from './types'
 
 const EQUIPMENT_LABELS = ['Main hand', 'Off hand', 'Head', 'Body', 'Accessory 1', 'Accessory 2'] as const
@@ -11,6 +12,7 @@ export const SUGGESTED_BUILD_SLOTS: readonly SlotDefinition[] = [
     id: `plan-${label.toLowerCase().replaceAll(' ', '-')}` as SlotId,
     label, order, kind: 'equipment', provenance: 'suggested', sources: [],
     acceptedEntityKinds: { state: 'known', value: ['item'] },
+    equipmentRole: equipmentRole({ id: `plan-${label.toLowerCase().replaceAll(' ', '-')}` as SlotId, kind: 'equipment' }),
   })),
   ...Array.from({ length: SUGGESTED_PASSIVE_SLOTS }, (_, index): SlotDefinition => ({
     id: `plan-passive-${index + 1}` as SlotId,

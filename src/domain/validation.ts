@@ -1,6 +1,8 @@
 import { DomainError, entityDefinitionKey } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
+import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
+import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
 import type {
   BuildRevision,
   CatalogEntity,
@@ -29,6 +31,7 @@ import type {
 type ResolvedDefinition = CatalogEntity | PersonalDefinition
 
 interface DefinitionView {
+  readonly managedEquipment?: boolean
   readonly kind: CatalogEntityKind
   readonly name: string
   readonly ppCost?: Knowledge<number>
@@ -44,8 +47,12 @@ interface Accumulator {
   readonly issues: ValidationIssue[]
 }
 
-function definitionView(definition: ResolvedDefinition): DefinitionView {
+function definitionView(original: ResolvedDefinition, slots: readonly SlotDefinition[], slot: SlotDefinition): DefinitionView {
+  const definition = definitionWithMechanics(original, slots)
+  const occupancy = original.occupiesSlots
+  const documentedOccupancy = !occupancy || occupancy.state === 'unknown' || occupancy.state === 'known' && occupancy.value === equipmentFacts(original).hands
   return {
+    managedEquipment: Boolean(equipmentRole(slot) && equipmentFacts(original).type && documentedOccupancy),
     kind: definition.kind,
     name: definition.name,
     requirements: definition.requirements,
@@ -280,7 +287,7 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: selection.allocationId ?? slotIdValue,
-        ...(definition === undefined ? {} : { definition: definitionView(definition) }),
+        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots, slot) }),
       })
     }
     validateClassReadiness(profile, catalogs, character, revision, accumulator)
@@ -427,6 +434,7 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
       continue
     }
     const dimension = first.slot.kind === 'passive' ? 'passives' : 'equipment'
+    if (group.every(entry => entry.definition?.managedEquipment)) continue
     const refKeys = new Set(group.map((entry) => logicalEntityKey(profile, entry.ref)))
     if (refKeys.size > 1) {
       issue(accumulator, {
@@ -552,15 +560,16 @@ function classPermissionBase(
     return { permissions, unresolved }
   }
   const character = profile.characters[characterId]
-  for (const ref of [revision.content.primaryClass, revision.content.secondaryClass]) {
+  for (const ref of [revision.content.primaryClass]) {
     if (!ref || !refMatchesCatalogLock(profile, ref, revision.catalogLock)) {
       continue
     }
-    const definition = resolveDefinition(profile, catalogs, ref)
-    if (!definition) {
+    const original = resolveDefinition(profile, catalogs, ref)
+    if (!original) {
       unresolved = true
       continue
     }
+    const definition = definitionWithMechanics(original, ruleset.slots)
     if (definition.kind !== 'class') {
       continue
     }
@@ -587,6 +596,9 @@ function classPermissionBase(
     if (definition.grants.state === 'known') {
       for (const permission of definition.grants.value) {
         permissions.add(permission)
+      }
+      for (const innate of innateEffects(revision.content, ref => resolveDefinition(profile, catalogs, ref))) {
+        for (const type of permissionEffects(innate.text).equipment) permissions.add(equipmentPermission(type))
       }
     }
   }
@@ -757,10 +769,10 @@ function baseEligibility(
     return 'invalid'
   }
   const occupies = entry.definition.occupiesSlots
-  if (!occupies || knowledgeUncertain(occupies)) {
+  if (!entry.definition.managedEquipment && (!occupies || knowledgeUncertain(occupies))) {
     return 'unknown'
   }
-  if (occupies.state === 'known' && occupies.value !== allocationGroup.length) {
+  if (!entry.definition.managedEquipment && occupies?.state === 'known' && occupies.value !== allocationGroup.length) {
     return 'invalid'
   }
   if (entry.slot.kind === 'passive') {
@@ -1116,6 +1128,21 @@ export function validateScenario(
     })
   }
   const selected = collectSelections(profile, catalogs, scenario, ruleset, accumulator)
+  for (const [characterId, revisionId] of Object.entries(effectiveScenarioAssignments(scenario))) {
+    const revision = profile.buildRevisions[revisionId]
+    if (!revision) continue
+    const resolve = (ref: EntityRef) => resolveDefinition(profile, catalogs, ref)
+    const primary = revision.content.primaryClass ? resolve(revision.content.primaryClass) : undefined
+    const modeled = classEquipmentTypes(primary) || ruleset.slots.some(slot => {
+      const selection = revision.content.selections[slot.id]
+      const definition = selection ? resolve(selection.ref) : undefined
+      return equipmentRole(slot) && definition && equipmentFacts(definition).type
+    })
+    if (!modeled) continue
+    for (const finding of analyzeBuildEquipment(revision.content, ruleset.slots, resolve, ref => logicalEntityKey(profile, ref))) issue(accumulator, {
+      ...finding, code: `MECHANICS_${finding.code}`, dimension: finding.code.includes('PASSIVE') ? 'passives' : 'equipment', characterId: characterId as CharacterId, buildRevisionId: revision.id, slotId: finding.slotId as SlotId | undefined,
+    })
+  }
   validateSlotCompatibility(profile, selected, accumulator)
   if (scenario.inventoryPolicy.enforceStock) {
     validateInventory(profile, scenario, selected, accumulator)

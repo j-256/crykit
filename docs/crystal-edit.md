@@ -24,6 +24,8 @@ The equations come from GEEF's Crystal Project modding guide, **Game synopsis > 
 
 Results are estimates of unequipped base stats. Calculations retain fractions; display formatting shows up to three decimal places without asserting the game's integer rounding. Equipment, passives, statuses, and other mod effects are excluded. Estimates are never written into observed character stats. The calculator does not require a complete game database.
 
+The build editor extends this with [equipment checks and saved calculation plans](planner-mechanics.md), supported equipment/passive/status contributions, derived stats, and scoped ability previews. The reference-page calculator remains focused on unequipped class growth.
+
 ## Guide reference
 
 The guide's stat and ability modifier glossaries are bundled as searchable **Mechanics** entries with section and line locators. Repeated names with differing descriptions retain conflicting source claims, including the two descriptions of `KillsUser`. These entries describe community research and do not automatically become executable validation rules.

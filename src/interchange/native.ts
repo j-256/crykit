@@ -297,6 +297,9 @@ function validateProfileEntityRefs(
   for (const [id, revision] of Object.entries(profile.buildRevisions)) {
     if (revision.content.primaryClass) check(revision.content.primaryClass, `${label}.buildRevisions.${id}.content.primaryClass`)
     if (revision.content.secondaryClass) check(revision.content.secondaryClass, `${label}.buildRevisions.${id}.content.secondaryClass`)
+    for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
+    for (const [index, ref] of (revision.content.calculation?.statuses ?? []).entries()) check(ref, `${label}.buildRevisions.${id}.content.calculation.statuses.${index}`)
+    if (revision.content.calculation?.ability) check(revision.content.calculation.ability, `${label}.buildRevisions.${id}.content.calculation.ability`)
     for (const [slotId, selection] of Object.entries(revision.content.selections)) {
       if (selection) check(selection.ref, `${label}.buildRevisions.${id}.content.selections.${slotId}.ref`)
     }

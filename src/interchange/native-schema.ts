@@ -1,3 +1,5 @@
+import { GUIDE_LEVEL_CAP } from '../domain/growth'
+import { STAT_KEYS } from '../domain/crystal-edit'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
 import {
@@ -154,6 +156,7 @@ const slotDefinition = z.object({
   kind: z.enum(['equipment', 'passive']),
   label: nonemptyText,
   order: safeInteger,
+  equipmentRole: z.enum(['mainHand', 'offHand', 'head', 'body', 'accessory']).nullable().optional(),
   acceptedEntityKinds: knowledge(z.array(catalogEntityKind).max(MAX_COLLECTION_LENGTH)).optional(),
   provenance: z.enum(['verified', 'imported', 'suggested', 'userDefined']),
   sources: sourceRefs,
@@ -280,6 +283,14 @@ const buildRevisionContent = z.object({
   selections: z.record(id, buildSelection.nullable()),
   rotationNotes: longText.optional(),
   contextAssumptions: z.array(shortText).max(MAX_COLLECTION_LENGTH),
+  calculation: z.object({
+    level: z.number().int().min(1).max(GUIDE_LEVEL_CAP).nullable(),
+    growth: z.array(z.object({ classRef: entityRef.nullable(), levels: z.number().int().min(0).max(GUIDE_LEVEL_CAP).nullable() }).strict()).max(GUIDE_LEVEL_CAP),
+    bonuses: z.array(z.enum(STAT_KEYS)).max(STAT_KEYS.length).refine(values => new Set(values).size === values.length, 'Stat bonuses must be unique'),
+    statuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
+    ability: entityRef.nullable().optional(),
+    targetEvasion: finiteNumber.nonnegative().nullable().optional(),
+  }).strict().optional(),
 }).strict()
 
 const buildRevision = z.object({

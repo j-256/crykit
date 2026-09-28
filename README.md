@@ -59,6 +59,8 @@ The compact **Member** screen shows recorded vitals, class and command, equipmen
 
 Assign checkpoints to a team scenario to check simultaneous stock, learning, PP, equipment permissions, and source applicability. Alternative library builds do not reserve stock. Each dimension reports proved issues separately from facts that still need confirmation. Recording a build as current requires an explicit in-game confirmation and preserves the previous character snapshots.
 
+The build editor also checks documented equipment permissions, hand occupancy, roles, and unique flags before a scenario exists. **Stats & combat estimates** saves explicit growth plans, bonuses, statuses, and ability-preview inputs with each checkpoint. It shows supported stat contributions, derived estimates, and source costs, with conflicting values and excluded effects visible. These estimates do not alter recorded character data. See [build mechanics and calculation scope](docs/planner-mechanics.md).
+
 Definition fields open compact searchable dropdowns beside the selected field. Choices include descriptions, source labels, and relevant stock or PP details. The surrounding form stays usable, and dropdowns fit the available space above or below their field. Search receives focus on opening; arrow keys browse choices, Enter selects, and Escape returns to the field. Creation and editing use centered dialogs with a dim, unblurred backdrop. An outside click closes the dropdown first; unsaved-draft checks still apply to editing dialogs. An edit saves a separate personal override and preserves its source and earlier revisions. Ownership and learning follow the underlying identity; saved builds retain their exact definitions. Reference can collect reviewed personal definitions into a new ruleset revision without changing the active ruleset or existing selections.
 
 The inventory form starts with focus on the item picker and uses the selected item's name. Choose "Enter an unlisted item" to record something outside the list, or "Customize display name" to give a selected item a different inventory label. Clearing the optional display name or choosing "Use item name" restores the selected item's name without changing its definition.
@@ -87,7 +89,7 @@ npm run test:e2e
 
 `npm run verify` runs both groups. Browser tests use the production build and include desktop and mobile emulation. They do not establish physical-device installation or verify a phone's native file picker.
 
-The [revision 2 specification](docs/spec-v2.md) defines data boundaries, core workflows, and acceptance gates. Class pages offer scoped growth estimates with explicit inputs. Full displayed-stat prediction, damage simulation, optimization, and automatic game-state inspection require additional verified data.
+The [revision 2 specification](docs/spec-v2.md) defines data boundaries, core workflows, and acceptance gates. Class pages and build plans offer scoped estimates with explicit inputs. Full displayed-stat prediction, final enemy-damage simulation, optimization, and automatic game-state inspection require additional verified data.
 
 ## Static hosting
 

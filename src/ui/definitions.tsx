@@ -1,3 +1,4 @@
+import { passivePointCost } from '../domain/mechanics-facts'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, modAvailabilityLabel, type DefinitionModAvailability } from '../catalog/mods'
@@ -104,7 +105,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       key: entityDefinitionKey(ref), ref, kind: definition.kind, name: definition.name, aliases: definition.aliases,
       ...(definition.rawDescription === undefined ? {} : { description: definition.rawDescription }),
       ...(categoryKnowledge(definition.fields) === undefined ? {} : { category: categoryKnowledge(definition.fields) }),
-      ...(definition.ppCost === undefined ? {} : { ppCost: definition.ppCost }),
+      ppCost: passivePointCost(definition),
       sourceLabel: `${preferred ? `Personal revision ${definition.revision} · preferred` : `Personal revision ${definition.revision} · older exact definition`}${provenance ? ` · override of ${provenance}` : ''}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: definition,
       modAvailability: definitionModAvailability(profile, ref, activeRuleset),
@@ -120,7 +121,7 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
       ...(entity.rawDescription === undefined ? {} : { description: entity.rawDescription }),
       ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
-      ...(entity.ppCost === undefined ? {} : { ppCost: entity.ppCost }),
+      ppCost: passivePointCost(entity),
       sourceLabel: `${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
       stockLabel: inventoryLabel(profile, ref), preferred, record: entity,
       modAvailability: definitionModAvailability(profile, ref, activeRuleset),

@@ -1,0 +1,11 @@
+.build-mechanics { border-top: 1px solid var(--line); padding-top: 1rem; min-width: 0; }
+.build-mechanics h3 { margin-bottom: .5rem; }
+.mechanics-findings { padding-left: 1.3rem; }
+.mechanics-findings li { margin: .4rem 0; }
+.mechanics-findings [data-status="invalid"] strong { color: var(--rust); }
+.build-calculation > div { padding-top: 1rem; }
+.mechanics-growth-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(7rem, 1fr) auto; gap: .75rem; align-items: start; }
+.mechanics-status-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.build-mechanics .structured-value__table { overflow-x: auto; max-width: 100%; }
+.build-mechanics table { min-width: 32rem; }
+@media (max-width: 640px) { .mechanics-growth-row { grid-template-columns: minmax(0, 1fr); } }

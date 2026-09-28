@@ -1,13 +1,15 @@
 import { DefinitionArtwork } from './GameIcon'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, sameLogicalEntity } from '../domain'
-import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
+import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { activeRuleset, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
 import { findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
+import { BuildMechanics, formatStatRange } from './BuildMechanics'
+import { calculateBuildStats, CALCULATED_STATS, STAT_LABELS } from '../domain/build-stats'
 import { BuildSelectionDetails } from './BuildSelectionDetails'
 import { compactKnowledge, passivePpSummary } from './build-evidence'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
@@ -15,7 +17,7 @@ import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { isReferenceResearchRoute, parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
-export interface RevisionDraft { readonly primaryClass: EntityRef | null; readonly secondaryClass: EntityRef | null; readonly selections: Readonly<Record<string, BuildSelection | null>>; readonly rotationNotes?: string; readonly contextAssumptions: readonly string[]; readonly note?: string }
+export interface RevisionDraft extends BuildRevisionContent { readonly note?: string }
 export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<ScenarioKind, 'recordedCurrent'>; readonly baseline: 'empty' | 'recordedParty'; readonly enforceStock: boolean; readonly includeProtected: boolean; readonly buildRevisionId?: BuildRevisionId }
 
 type BuildsSection = 'library' | 'teams' | 'compare'
@@ -73,7 +75,7 @@ function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs,
   const { planningOptions } = useDefinitionWorkspace()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(profile.buildRevisions, build.latestRevisionId) : undefined)
   const ruleset = profile.activeRulesetRevisionId ? activeRuleset(profile) : latest ? ownRecordValue(profile.rulesets, latest.rulesetRevisionId) : undefined
-  const initialDraft = (): RevisionDraft => ({ primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, selections: { ...(latest?.content.selections ?? {}) }, rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], note: undefined })
+  const initialDraft = (): RevisionDraft => ({ primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, selections: { ...(latest?.content.selections ?? {}) }, rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
   const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
@@ -164,6 +166,7 @@ function RevisionEditor({ build, characterId, sourceRevision, profile, catalogs,
       </div>
       <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Your next build</h3><p>Pick a class, add your equipment, then choose passives.</p><p>Search any slot to see matching definitions and their descriptions.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
     </div>
+    <BuildMechanics catalogs={catalogs} content={draft} onChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }} profile={profile} slots={slots}/>
     <details className="build-details"><summary>Build details & notes</summary><div className="stack">{children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{ruleset?.slots.length ? `Slot layout: ${ruleset.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; adjust the layout in Data & settings.'}</p></div></details></fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
@@ -374,7 +377,16 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       { label: 'Descriptions and documented effects', left: leftSummary.effects, right: rightSummary.effects },
       { label: 'Scenario readiness', left: leftSummary.validation, right: rightSummary.validation },
     ]
-    return [...summaryRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.selections.') ? ownRecordValue(profile.rulesets, left.rulesetRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.selections.', ''))?.label ?? difference.label : difference.label, left: format(difference.left), right: format(difference.right) }))]
+    const leftStats = calculateBuildStats(left.content, ownRecordValue(profile.rulesets, left.rulesetRevisionId)?.slots ?? [], ref => resolveEntity(profile, catalogs, ref), ref => logicalEntityKey(profile, ref))
+    const rightStats = calculateBuildStats(right.content, ownRecordValue(profile.rulesets, right.rulesetRevisionId)?.slots ?? [], ref => resolveEntity(profile, catalogs, ref), ref => logicalEntityKey(profile, ref))
+    const statRows = left.content.calculation || right.content.calculation ? CALCULATED_STATS.map(stat => ({ label: `${STAT_LABELS[stat]} (supported estimate)`, left: formatStatRange(leftStats.stats[stat].value), right: formatStatRange(rightStats.stats[stat].value) })) : []
+    const calculationLabel = (revision: BuildRevision) => {
+      const plan = revision.content.calculation
+      if (!plan) return 'No calculation inputs'
+      return [`Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(profile, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(profile, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(profile, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
+    }
+    const scopeRows = statRows.length ? [{ label: 'Estimate exclusions', left: leftStats.excluded.join('; ') || 'None found in supplied fields', right: rightStats.excluded.join('; ') || 'None found in supplied fields' }, { label: 'Calculation notes', left: leftStats.issues.join('; '), right: rightStats.issues.join('; ') }] : []
+    return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.selections.') ? ownRecordValue(profile.rulesets, left.rulesetRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.selections.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]
   }, [catalogs, leftRevision, profile, rightRevision, validations])
   const createScenario = async (draft: ScenarioDraft) => { await onCreateScenario(draft); if (scenarioRevision) navigate({ page: 'builds', view: 'revision-edit', buildId: scenarioRevision.buildId, revisionId: scenarioRevision.id }); else navigation.close() }
   const changeCompareRevision = (side: 'left' | 'right', value: string) => {

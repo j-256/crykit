@@ -346,7 +346,7 @@ export default function App() {
       const rulesetId = profile.activeRulesetRevisionId
       if (!rulesetId) throw new Error('Configure an active ruleset before saving a build revision.')
       const build = profile.builds[buildId]
-      return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions }, note: draft.note, expectedRevision: profile.revision })
+      return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, selections: draft.selections, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation }, note: draft.note, expectedRevision: profile.revision })
     })
     return revisionId
   }, [commitProfile])
@@ -393,7 +393,7 @@ export default function App() {
   }), [commitProfile])
 
   const saveRuleset = useCallback(async (draft: RulesetDraft) => commitProfile((profile) => {
-    const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: slot.kind, order: index, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: 'userDefined', sources: [] }))
+    const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: slot.kind, order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: 'userDefined', sources: [] }))
     const source = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
     const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
     const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, activate: true, expectedRevision: profile.revision }

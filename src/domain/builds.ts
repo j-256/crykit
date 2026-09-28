@@ -9,6 +9,8 @@ import {
   updateProfile,
 } from './core'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
+import { GUIDE_LEVEL_CAP } from './growth'
+import { STAT_KEYS } from './crystal-edit'
 import { definitionLineageRootRef } from './definitions'
 import type {
   Build,
@@ -157,6 +159,7 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
     ])),
     ...(sourceRevision.content.rotationNotes === undefined ? {} : { rotationNotes: sourceRevision.content.rotationNotes }),
     contextAssumptions: [...sourceRevision.content.contextAssumptions],
+    ...(sourceRevision.content.calculation ? { calculation: structuredClone(sourceRevision.content.calculation) } : {}),
   }
   const revision: BuildRevision = {
     id: revisionId,
@@ -236,6 +239,19 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
   }
   if (input.content.primaryClass) assertBuildRef(input.content.primaryClass, 'Primary class')
   if (input.content.secondaryClass) assertBuildRef(input.content.secondaryClass, 'Secondary class')
+  if (input.content.calculation) {
+    const plan = input.content.calculation
+    if (plan.level !== null && (!Number.isInteger(plan.level) || plan.level < 1 || plan.level > GUIDE_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Calculation level must be a whole number from 1 to ${GUIDE_LEVEL_CAP} or unknown`)
+    if (plan.growth.length > GUIDE_LEVEL_CAP) throw new DomainError('INVALID_INPUT', 'Too many growth allocations')
+    if (plan.bonuses.some(stat => !STAT_KEYS.includes(stat)) || new Set(plan.bonuses).size !== plan.bonuses.length) throw new DomainError('INVALID_INPUT', 'Calculation stat bonuses must be unique supported stats')
+    for (const row of plan.growth) {
+      if (row.classRef) assertBuildRef(row.classRef, 'Growth class')
+      if (row.levels !== null && (!Number.isInteger(row.levels) || row.levels < 0 || row.levels > GUIDE_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Growth levels must be a whole number from 0 to ${GUIDE_LEVEL_CAP} or unknown`)
+    }
+    for (const ref of plan.statuses) assertBuildRef(ref, 'Calculation status')
+    if (plan.ability) assertBuildRef(plan.ability, 'Calculation ability')
+    if (plan.targetEvasion != null && (!Number.isFinite(plan.targetEvasion) || plan.targetEvasion < 0)) throw new DomainError('INVALID_INPUT', 'Target evasion must be nonnegative or unknown')
+  }
   for (const [slotId, selection] of Object.entries(input.content.selections)) {
     if (!slotId.trim() || !slotIds.has(slotId)) {
       throw new DomainError('INVALID_INPUT', `Build selection references an unknown ruleset slot: ${slotId}`)
