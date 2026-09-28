@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { Profile } from '../src/domain/types'
 
+const MAX_MOBILE_EVIDENCE_GAP_PX = 30
+
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
@@ -43,9 +45,11 @@ test('build choices expose source facts, uncertain identities, and explicit inna
   await expect(fang.locator('.build-field__evidence')).toContainText('Crit. Chance: +10%')
   await expect(fang.locator('.build-field__evidence')).toContainText('Accuracy: +20')
   if (isMobile) {
-    const inputBox = (await fang.getByRole('combobox').boundingBox())!
-    const factsBox = (await fang.locator('.build-field__evidence').boundingBox())!
-    expect(factsBox.y - inputBox.y - inputBox.height).toBeLessThan(30)
+    await expect.poll(() => fang.evaluate(field => {
+      const inputBox = field.querySelector('[role="combobox"]')!.getBoundingClientRect()
+      const factsBox = field.querySelector('.build-field__evidence')!.getBoundingClientRect()
+      return factsBox.top - inputBox.bottom
+    })).toBeLessThan(MAX_MOBILE_EVIDENCE_GAP_PX)
   }
   await choose(page, 'Passive 1', 'Attack Focus')
   await choose(page, 'Passive 2', 'Backstabber')
