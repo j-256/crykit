@@ -51,7 +51,7 @@ test('direct settings return to Builds and saved build tracking requires an expl
   const readiness = page.locator('.build-readiness')
   await expect(readiness).not.toHaveAttribute('open')
   await readiness.locator('summary').first().click()
-  await expect(readiness.getByRole('heading', { name: 'Optional tracking', exact: true })).toBeVisible()
+  await expect(readiness.getByRole('heading', { name: 'Current readiness', exact: true })).toBeVisible()
   await readiness.getByRole('button', { name: 'Record as current', exact: true }).click()
   const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()

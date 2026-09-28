@@ -99,6 +99,11 @@ describe('domain identity and bounds', () => {
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
   })
 
+  it('rejects an invalid ruleset PP limit', () => {
+    const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
+    expect(() => addRulesetRevision(profile, { label: 'Invalid PP limit', ppLimit: { state: 'known', value: -1 }, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  })
+
   it('rejects personal numeric fields that native backup cannot preserve', () => {
     const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
     expect(() => createPersonalDefinition(profile, {

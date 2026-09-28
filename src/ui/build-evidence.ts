@@ -48,12 +48,6 @@ export function sourcePpLabel(option: DefinitionOption): string {
   return cost?.state === 'known' ? `${cost.value} source PP` : `PP: ${compactKnowledge(cost).toLowerCase()}`
 }
 
-export function passivePpSummary(options: readonly (DefinitionOption | undefined)[]) {
-  return options.reduce((total, option) => option?.ppCost?.state === 'known'
-    ? { ...total, knownSubtotal: total.knownSubtotal + option.ppCost.value }
-    : { ...total, unresolved: total.unresolved + 1 }, { knownSubtotal: 0, unresolved: 0 })
-}
-
 export function similarNameOptions(profile: Profile, options: readonly DefinitionOption[]): ReadonlyMap<string, readonly DefinitionOption[]> {
   const groups = new Map<string, DefinitionOption[]>()
   for (const option of options) {

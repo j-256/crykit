@@ -351,9 +351,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .build-fact-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .72rem; }
 .build-fact-table caption { padding: 8px 0; text-align: left; color: var(--text-faint); }
 .build-fact-table th, .build-fact-table td { padding: 6px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-.build-pp-summary { margin-bottom: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .78rem; }
-.build-pp-summary p { margin: 8px 0; }
-.build-pp-summary small { color: var(--text-faint); }
+.build-validity { margin-top: 14px; }
+.build-validity .panel__header { align-items: center; }
+.build-validity .panel__body > p { margin: 0; }
 .build-draft-reminder { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .build-draft-reminder button, .build-innate-toggle, .build-library > summary { scroll-margin-block: 160px; }
 .readiness-assignment { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }

@@ -274,6 +274,7 @@ export interface AddRulesetRevisionInput {
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: RulesetRevision['catalogLock']
@@ -285,6 +286,7 @@ export interface AddRulesetRevisionInput {
 
 const UNKNOWN_STRING: Knowledge<string> = { state: 'unknown' }
 const UNKNOWN_STRINGS: Knowledge<readonly string[]> = { state: 'unknown' }
+export const DEFAULT_PP_LIMIT = 10
 
 export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
@@ -295,6 +297,7 @@ export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionIn
   }
   const revision = input.revision ?? 1
   assertNonnegativeInteger(revision, 'Ruleset revision')
+  for (const value of knowledgeValues(input.ppLimit)) assertNonnegativeInteger(value, 'PP limit')
   const slots = input.slots ?? []
   const slotIds = new Set<string>()
   for (const slot of slots) {
@@ -328,6 +331,7 @@ export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionIn
     mode: input.mode ?? UNKNOWN_STRING,
     mods: input.mods ?? UNKNOWN_STRINGS,
     ...(input.disabledMods === undefined ? {} : { disabledMods: input.disabledMods }),
+    ppLimit: input.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
     ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'unknown' },
     slots: [...slots].sort((left, right) => left.order - right.order),
     catalogLock: input.catalogLock ?? {},
@@ -358,6 +362,7 @@ export interface UpdateRulesetRevisionInput {
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: RulesetRevision['catalogLock']
@@ -382,6 +387,7 @@ export function updateRulesetRevision(profile: Profile, input: UpdateRulesetRevi
     mode: input.mode ?? source.mode,
     mods: input.mods ?? source.mods,
     disabledMods: input.disabledMods ?? source.disabledMods,
+    ppLimit: input.ppLimit ?? source.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
     ppCostsNonNegative: input.ppCostsNonNegative ?? source.ppCostsNonNegative,
     slots: input.slots ?? source.slots,
     catalogLock: input.catalogLock ?? source.catalogLock,

@@ -1,4 +1,5 @@
 export * from './builds'
+export * from './build-validity'
 export * from './characters'
 export * from './character-snapshots'
 export * from './comparison'

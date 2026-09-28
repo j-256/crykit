@@ -3,7 +3,7 @@ import { STARTER_CATALOG } from '../catalog'
 import { createBlankProfile } from '../domain'
 import type { CatalogRef, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, passivePpSummary, similarNameOptions } from './build-evidence'
+import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, similarNameOptions } from './build-evidence'
 
 const profile = createBlankProfile({ label: 'Synthetic build evidence' })
 const options = buildDefinitionOptions(profile, [STARTER_CATALOG])
@@ -37,13 +37,6 @@ describe('build choice evidence', () => {
     const record = { ...option('Muramasa').record, fields: { Defense: { state: 'known' as const, value: 50 }, Resistance: { state: 'known' as const, value: 50 }, Attack: { state: 'conflicting' as const, claims: [{ value: 1, sources: [] }, { value: 2, sources: [] }] } } }
     expect(decisionFacts(record)).toHaveLength(3)
     expect(compactKnowledge(record.fields.Attack)).toBe('Conflicting sources')
-  })
-
-  it('separates known PP from unresolved and conflicting costs, including innates', () => {
-    const passive = option('Attack Focus')
-    expect(passivePpSummary([passive, option('Backstabber'), option('Duel Ready')])).toEqual({ knownSubtotal: 9, unresolved: 0 })
-    expect(passivePpSummary([passive, option('Two-handed'), undefined, { ...passive, ppCost: { state: 'conflicting', claims: [{ value: 1, sources: [] }, { value: 3, sources: [] }] } }])).toEqual({ knownSubtotal: 2, unresolved: 3 })
-    expect(passivePpSummary([{ ...passive, ppCost: { state: 'known', value: 0 } }])).toEqual({ knownSubtotal: 0, unresolved: 0 })
   })
 
   it('groups shared causes without hiding invalid checks among unknown ones', () => {

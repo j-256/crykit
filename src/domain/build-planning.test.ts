@@ -20,6 +20,7 @@ describe('build planning without observations', () => {
     expect(ruleset.slots.every((slot) => slot.provenance === 'suggested')).toBe(true)
     expect(ruleset.platform.state).toBe('unknown')
     expect(ruleset.mods.state).toBe('unknown')
+    expect(ruleset.ppLimit).toEqual({ state: 'known', value: 10 })
     expect(ruleset.ppCostsNonNegative.state).toBe('unknown')
     for (const field of ['inventory', 'inventoryEvents', 'characters', 'progress', 'scenarios', 'personalDefinitions'] as const) expect(profile[field]).toEqual(before[field])
     expect(before.builds).toEqual({})

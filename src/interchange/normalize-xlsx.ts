@@ -528,6 +528,7 @@ function rulesetFromWorkbook(
     gameVersion: { state: 'unknown', reason: 'Exact game version was not supplied' },
     mode: { state: 'unknown', reason: 'Standard/Vanilla mode was not supplied' },
     mods: { state: 'unknown', reason: 'Exact mod IDs, versions, and load order were not supplied' },
+    ppLimit: { state: 'unknown', reason: 'No passive point limit was supplied' },
     ppCostsNonNegative: { state: 'unknown', reason: 'No complete ruleset verification was supplied' },
     slots: [],
     catalogLock: { [catalog.id]: catalog.revisionId },
