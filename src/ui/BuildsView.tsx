@@ -50,6 +50,51 @@ function revisionOptionLabel(profile: Profile, revision: BuildRevision) {
   return `${ownRecordValue(profile.builds, revision.buildId)?.title ?? 'Unresolved build'} · r${revision.revision}${checkpointSuffix(revision)}`
 }
 
+function BuildCardSelection({ label, value, profile, catalogs, empty, compact = false }: { label: string; value?: EntityRef | null; profile: Profile; catalogs: readonly CatalogSnapshot[]; empty: string; compact?: boolean }) {
+  return <span className="build-card__selection" data-compact={compact || undefined} data-empty={!value || undefined} title={`${label}: ${value ? entityName(profile, catalogs, value) : empty}`}>
+    {value ? <DefinitionArtwork catalogs={catalogs} profile={profile} value={value}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
+    <span><small className={compact ? 'sr-only' : undefined}>{label}</small><span>{value ? entityName(profile, catalogs, value) : empty}</span></span>
+  </span>
+}
+
+function BuildCard({ build, selected, onSelect, profile, catalogs }: { build: Build; selected: boolean; onSelect: () => void; profile: Profile; catalogs: readonly CatalogSnapshot[] }) {
+  const revision = build.latestRevisionId ? ownRecordValue(profile.buildRevisions, build.latestRevisionId) : undefined
+  const pinnedRevision = revision?.buildId === build.id ? revision : undefined
+  const ruleset = pinnedRevision ? ownRecordValue(profile.rulesets, pinnedRevision.rulesetRevisionId) : undefined
+  const slots = [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order)
+  const knownSlotIds = new Set(slots.map(slot => slot.id as string))
+  const selectedSlots = slots.flatMap(slot => {
+    const selection = pinnedRevision?.content.selections[slot.id]
+    return selection ? [{ slot, selection }] : []
+  })
+  const equipment = selectedSlots.filter(({ slot }) => slot.kind === 'equipment')
+  const passives = selectedSlots.filter(({ slot }) => slot.kind === 'passive')
+  const otherSelections = pinnedRevision ? Object.entries(pinnedRevision.content.selections).flatMap(([slotId, selection]) => selection && !knownSlotIds.has(slotId) ? [{ slotId, selection }] : []) : []
+  const character = build.characterId ? ownRecordValue(profile.characters, build.characterId) : undefined
+  const stateLabel = build.state === 'recordedCurrent' ? 'Current' : build.state === 'hypothetical' ? 'Hypothetical' : 'Draft'
+  const stateTone = build.state === 'recordedCurrent' ? 'positive' : build.state === 'hypothetical' ? 'warning' : 'info'
+  return <button aria-current={selected ? 'true' : undefined} className="build-card" onClick={onSelect} type="button">
+    <span className="build-card__header"><strong>{build.title}</strong><Badge tone={stateTone}>{stateLabel}</Badge></span>
+    <small className="build-card__meta">{build.characterId ? character?.name ?? 'Unresolved character' : 'Reusable template'} · {pinnedRevision ? `revision ${pinnedRevision.revision}` : build.latestRevisionId ? 'checkpoint unavailable' : 'no revision'}</small>
+    {pinnedRevision ? <>
+      <span className="build-card__classes">
+        <BuildCardSelection catalogs={catalogs} empty="No class selected" label="Class" profile={profile} value={pinnedRevision.content.primaryClass}/>
+        <BuildCardSelection catalogs={catalogs} empty="No sub-command" label="Sub-command" profile={profile} value={pinnedRevision.content.secondaryClass}/>
+      </span>
+      <span className="build-card__summary-group">
+        <span className="build-card__summary-label"><Icon name="sword"/>Equipment</span>
+        {equipment.length ? <span className="build-card__selections">{equipment.map(({ slot, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slot.id} label={slot.label} profile={profile} value={selection.ref}/>)}</span> : <small>No equipment selected</small>}
+      </span>
+      <span className="build-card__summary-group">
+        <span className="build-card__summary-label"><Icon name="crystal"/>Passives</span>
+        {passives.length ? <span className="build-card__selections">{passives.map(({ slot, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slot.id} label={slot.label} profile={profile} value={selection.ref}/>)}</span> : <small>No passives selected</small>}
+      </span>
+      {otherSelections.length > 0 && <span className="build-card__summary-group"><span className="build-card__summary-label"><Icon name="layers"/>Other selections</span><span className="build-card__selections">{otherSelections.map(({ slotId, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slotId} label="Unmapped slot" profile={profile} value={selection.ref}/>)}</span></span>}
+    </> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
+    {build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}
+  </button>
+}
+
 function selectionWithoutAllocation(selection: BuildSelection): BuildSelection {
   return {
     ref: selection.ref,
@@ -439,7 +484,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
     navigate({ page: 'builds', view: 'revision-edit', buildId: selected.id, revisionId: revisionId as BuildRevisionId })
   }
 
-  const buildCard = (build: Build) => <button aria-current={selected?.id === build.id ? 'true' : undefined} className="build-card" key={build.id} onClick={() => selectBuild(build.id)} type="button"><div className="split"><strong>{build.title}</strong><Badge tone={build.state === 'recordedCurrent' ? 'positive' : build.state === 'hypothetical' ? 'warning' : 'info'}>{build.state === 'recordedCurrent' ? 'Current' : build.state === 'hypothetical' ? 'Hypothetical' : 'Draft'}</Badge></div><small>{build.characterId ? ownRecordValue(profile.characters, build.characterId)?.name ?? 'Unresolved character' : 'Reusable template'} · {build.latestRevisionId ? `revision ${ownRecordValue(profile.buildRevisions, build.latestRevisionId)?.revision}` : 'no revision'}</small>{build.tags.length > 0 && <div className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</div>}</button>
+  const buildCard = (build: Build) => <BuildCard build={build} catalogs={catalogs} key={build.id} onSelect={() => selectBuild(build.id)} profile={profile} selected={selected?.id === build.id}/>
 
   return <div className="build-workspace">
     <ScreenHeader actions={section === 'teams' ? <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>New scenario</Button> : <>{!addingBuild && <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New build</Button>}{section === 'library' && selected?.latestRevisionId && <Button disabled={editorDirty || cloneBusy} icon="layers" onClick={() => void cloneSelected()} tone="secondary">{cloneBusy ? 'Cloning...' : 'Clone build'}</Button>}</>} description="Explore classes, equipment, and passives. No character or inventory tracking required." eyebrow="Buildcrafting" title="Builds"/>
