@@ -16,6 +16,7 @@ import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import { DefinitionModLabel } from './DefinitionModLabel'
+import { FIELD_FOCUS_QUERY_KEY, focusFieldElement } from './field-focus'
 
 const PRIMARY_CLASS = 'primary-class'
 const SECONDARY_CLASS = 'secondary-class'
@@ -30,7 +31,7 @@ const DETAIL_FIELDS = /^(command|weapons?|armors?|innate passives?(\(s\))?|attac
 function knownRef(value: Knowledge<EntityRef>) { return value.state === 'known' ? value.value : undefined }
 
 function currentMemberPicker(route: AppRoute) {
-  return route.page.page === 'characters' && route.page.view === 'character' && route.page.tab === 'current' ? route.overlays.find(overlay => overlay.kind === 'definition-picker') : undefined
+  return route.page.page === 'characters' && route.page.view === 'character' && route.page.tab !== 'history' ? route.overlays.find(overlay => overlay.kind === 'definition-picker') : undefined
 }
 
 export function MemberArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
@@ -74,9 +75,9 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
   </div>
 }
 
-function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable, selected, onInspect, onChange, children }: {
+function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable, selected, revealDetails = false, onInspect, onChange, children }: {
   fieldKey: string; label: string; value?: EntityRef | null; display: string; allowedKinds: readonly CatalogEntityKind[]; editable: boolean; selected: boolean
-  onInspect: (option?: DefinitionOption) => void; onChange: (value: EntityRef | null | undefined) => void; children?: ReactNode
+  revealDetails?: boolean; onInspect: (option?: DefinitionOption) => void; onChange: (value: EntityRef | null | undefined) => void; children?: ReactNode
 }) {
   const { profile, catalogs, options } = useDefinitionWorkspace()
   const navigation = useNavigation()
@@ -94,17 +95,17 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
     if (open) navigation.close()
     else navigation.navigate(routeWithOverlay(routeWithoutOverlays(navigation.route), { kind: 'definition-picker', fieldKey, query: '', resultLimit: PICKER_PAGE_SIZE }), { replace: Boolean(picker) })
   }
-  return <div className="member-choice">
+  return <div className="member-choice" data-field-key={fieldKey} tabIndex={-1}>
     <button aria-controls={open ? id : undefined} aria-expanded={editable ? open : undefined} aria-haspopup={editable ? 'dialog' : undefined} aria-label={`${editable ? 'Choose' : 'Inspect'} ${label}`} className="member-row" data-active={selected} data-definition-trigger="true" onClick={choose} onFocus={preview} onKeyDown={event => { if (editable && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); if (!open) choose() } }} ref={triggerRef} type="button"><span className="member-row__label">{label}</span><span className="member-row__value"><MemberArtwork catalogs={catalogs} profile={profile} value={value}/><span>{display}</span>{editable && <Icon name="chevron-down"/>}</span></button>
     {children}
-    {selected && <details className="member-mobile-detail"><summary>About {option?.name ?? label}</summary><SelectionDetails empty={display} option={option}/></details>}
+    {selected && <details className="member-mobile-detail" open={revealDetails}><summary>About {option?.name ?? label}</summary><SelectionDetails empty={display} option={option}/></details>}
     <DefinitionDropdown allowEmpty={fieldKey !== PRIMARY_CLASS} allowedKinds={allowedKinds} anchorRef={triggerRef} compact emptyDescription={fieldKey === SECONDARY_CLASS ? 'No sub-command is equipped' : undefined} emptyLabel={fieldKey === SECONDARY_CLASS ? 'Not applicable' : undefined} filterOption={candidate => matchesSlot(candidate, label)} id={id} onClose={() => navigation.close()} onInspect={onInspect} onSelect={onChange} open={open} optionLabel={optionLabel} selected={value} title={`Choose ${label}`}/>
   </div>
 }
 
-export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSave, onRecord, onLearn, onDirtyChange, onRetrySave }: {
+export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSave, onRecord, skillsOpen, onSkills, onDirtyChange, onRetrySave }: {
   profile: Profile; catalogs: readonly CatalogSnapshot[]; snapshot: CharacterSnapshot
-  hasPendingSave: boolean; onRetrySave: () => Promise<void>; onSave: (draft: SnapshotDraft) => Promise<void>; onDirtyChange: DraftChangeHandler; onRecord: () => void; onLearn: () => void
+  hasPendingSave: boolean; onRetrySave: () => Promise<void>; onSave: (draft: SnapshotDraft) => Promise<void>; onDirtyChange: DraftChangeHandler; onRecord: () => void; skillsOpen: boolean; onSkills: () => void
 }) {
   const navigation = useNavigation()
   const { options } = useDefinitionWorkspace()
@@ -158,6 +159,15 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
   const picker = currentMemberPicker(navigation.route)
   const requestedPassive = Boolean(picker?.fieldKey.startsWith('slot:passive-'))
   useEffect(() => { if (requestedPassive) setPassivesOpen(true) }, [requestedPassive])
+  const requestedFocusField = navigation.route.query[FIELD_FOCUS_QUERY_KEY]?.[0]
+  const requestedSlot = requestedFocusField?.startsWith('slot:') ? slots.find(slot => `slot:${slot.id}` === requestedFocusField) : undefined
+  const requestedSlotOption = findDefinitionOption(options, requestedSlot?.selection)
+  useEffect(() => {
+    if (!requestedFocusField || !requestedSlot) return
+    setActive(requestedFocusField)
+    setInspected(requestedSlotOption)
+    return focusFieldElement(requestedFocusField)
+  }, [requestedFocusField, requestedSlot?.id, requestedSlotOption])
   const primaryOption = findDefinitionOption(options, knownRef(draft.primaryClass))
   const primaryCommand = primaryOption && Object.entries(primaryOption.record.fields).find(([key]) => key.toLowerCase() === 'command')?.[1]
   const selectedOption = active === PRIMARY_CLASS ? inspected ?? primaryOption : inspected
@@ -181,7 +191,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
       if (value === undefined) delete equipment[slot.id]
       else equipment[slot.id] = value
       return { ...current, equipment }
-    })} onInspect={option => inspect(key, option)} selected={active === key} value={slot.selection}>{availability?.requiredMod && <RecordedModStatus availability={availability} className="member-slot-warning"/>}</MemberChoice>
+    })} onInspect={option => inspect(key, option)} revealDetails={requestedFocusField === key} selected={active === key} value={slot.selection}>{availability?.requiredMod && <RecordedModStatus availability={availability} className="member-slot-warning"/>}</MemberChoice>
   }
   const passiveField = (ref: EntityRef | undefined, index: number) => {
     const key = `slot:passive-${index + 1}`
@@ -218,7 +228,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
         <div className="member-menu__group">{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</div>
         <div className="member-menu__group">{slots.map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</div>
         <div className="member-menu__group"><button aria-expanded={passivesOpen || requestedPassive} className="member-row" onClick={() => setPassivesOpen(value => !value)} type="button"><span className="member-row__label">Passives</span><span className="member-row__value member-passives">{passiveRefs.map((ref, index) => <span className="member-passive" data-state="equipped" key={`${entityDefinitionKey(ref)}:${index}`} title={`Equipped passive ${index + 1}: ${display(ref)}`}><Icon name="crystal"/></span>)}<span className="sr-only">{draft.passives.state === 'known' ? passiveRefs.map((ref, index) => `Equipped passive ${index + 1}: ${display(ref)}`).join('; ') || 'No passives equipped' : 'Equipped passives unknown'}</span><Icon name="chevron-down"/></span></button>{(passivesOpen || requestedPassive) && <div className="member-passive-list"><p>{knowledgeLabel(snapshot.ppCapacity)} PP total capacity shared across equipped passives</p>{draft.passives.state === 'known' ? [...passiveRefs, undefined].map(passiveField) : <p>Equipped passive list: Unknown</p>}</div>}
-          <button className="member-row" onClick={onLearn} type="button"><span className="member-row__label">Learn</span><span className="member-row__value">Classes & skills<Icon name="tome"/></span></button>
+          <button aria-expanded={skillsOpen} aria-label="Skills" className="member-row" data-active={skillsOpen} onClick={onSkills} type="button"><span className="member-row__label">Skills</span><span className="member-row__value">Classes & skills<Icon name="tome"/></span></button>
           <button aria-expanded={statusOpen} className="member-row" onClick={() => setStatusOpen(value => !value)} type="button"><span className="member-row__label">Status</span><span className="member-row__value">Recorded stats<Icon name="chevron-down"/></span></button>
         </div>
       </section>

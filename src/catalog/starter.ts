@@ -25,7 +25,6 @@ export const STARTER_CATALOG_REVISION_ID = 'wiki-v1' as CatalogRevisionId
 const SOURCE_APPLICABILITY = 'Name evidence only; platform and enabled-mod applicability are unverified'
 const WIKI_GAP_REASON = 'No matching detail page or structured row was found in the bundled community wiki snapshot'
 const SLOT_UNKNOWN_REASON = 'The wiki does not map this definition to this planner ruleset\'s slot IDs'
-const OCCUPANCY_UNKNOWN_REASON = 'The scraped wiki fields do not establish how many configured planner slots this definition occupies'
 const REQUIREMENTS_UNKNOWN_REASON = 'The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions'
 const GRANTS_UNKNOWN_REASON = 'The wiki description is preserved, but its granted permissions are not normalized for validation'
 const PP_UNKNOWN_REASON = 'The scraped wiki fields do not document a numeric PP cost'
@@ -153,19 +152,6 @@ function knownNumber(field: Knowledge<JsonValue> | undefined): { readonly value:
     : undefined
 }
 
-function knownString(field: Knowledge<JsonValue> | undefined): string | undefined {
-  return field?.state === 'known' && typeof field.value === 'string' ? field.value : undefined
-}
-
-function derivedOccupancy(entity: CatalogEntity): Knowledge<number> {
-  const hands = knownNumber(entity.fields.Hands)
-  if (hands && Number.isInteger(hands.value) && hands.value > 0) return known(hands.value, hands.sources)
-  const combined = knownString(entity.fields['Attack/Pierce/Hands'])
-  const match = combined?.match(/\b([12])-Handed\b/i)
-  if (match) return known(Number(match[1]), entity.fields['Attack/Pierce/Hands']?.state === 'known' ? entity.fields['Attack/Pierce/Hands'].sources : undefined)
-  return unknown(OCCUPANCY_UNKNOWN_REASON, entity.sources)
-}
-
 function listedContributions(entity: CatalogEntity): Readonly<Record<string, Knowledge<NumericContribution>>> | undefined {
   if (entity.kind !== 'item') return undefined
   const contributions = Object.fromEntries(Object.entries(entity.fields).flatMap(([name, field]) => {
@@ -187,9 +173,6 @@ function applyPlanningKnowledge(entity: CatalogEntity): CatalogEntity {
     slotKinds: selectableEquipment || selectablePassive
       ? entity.slotKinds ?? unknown(SLOT_UNKNOWN_REASON, entity.sources)
       : entity.slotKinds ?? notApplicable('This reference kind is not assigned to equipment or passive slots'),
-    occupiesSlots: selectableEquipment
-      ? entity.occupiesSlots ?? derivedOccupancy(entity)
-      : entity.occupiesSlots ?? notApplicable('This reference kind does not occupy equipment slots'),
     ppCost: selectablePassive
       ? entity.ppCost ?? unknown(PP_UNKNOWN_REASON, entity.sources)
       : entity.ppCost ?? notApplicable('PP cost does not apply to this reference kind'),

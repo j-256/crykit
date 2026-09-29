@@ -30,13 +30,57 @@ async function railControlGeometry(page: Page) {
   }))
 }
 
+async function visibleArtworkOffset(locator: ReturnType<Page['locator']>) {
+  return locator.evaluate(async (container) => {
+    const image = container.querySelector('img')
+    if (!(image instanceof HTMLImageElement)) throw new Error('Artwork image was not found')
+    if (!image.complete) await new Promise<void>((resolve, reject) => {
+      image.addEventListener('load', () => resolve(), { once: true })
+      image.addEventListener('error', () => reject(new Error('Artwork image failed to load')), { once: true })
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas context was unavailable')
+    context.drawImage(image, 0, 0)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+    let minX = canvas.width
+    let maxX = -1
+    let minY = canvas.height
+    let maxY = -1
+    for (let y = 0; y < canvas.height; y += 1) for (let x = 0; x < canvas.width; x += 1) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] === 0) continue
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+    }
+    if (maxX < 0 || maxY < 0) throw new Error('Artwork image had no visible pixels')
+    const imageBounds = image.getBoundingClientRect()
+    const containerBounds = container.getBoundingClientRect()
+    const visibleCenterX = imageBounds.left + ((minX + maxX + 1) / 2) * (imageBounds.width / canvas.width)
+    const visibleCenterY = imageBounds.top + ((minY + maxY + 1) / 2) * (imageBounds.height / canvas.height)
+    return {
+      x: visibleCenterX - (containerBounds.left + containerBounds.width / 2),
+      y: visibleCenterY - (containerBounds.top + containerBounds.height / 2),
+    }
+  })
+}
+
 test('team and library summaries show every equipment slot and PP crystal', async ({ page }) => {
   await page.goto('/#/builds/teams')
   const rowan = page.getByRole('region', { name: 'Rowan loadout', exact: true })
   await expect(rowan.locator('.build-card__equipment .build-card__selection')).toHaveCount(6)
   const shortSword = rowan.locator('[data-tooltip^="Main hand: Short Sword"]')
   await expect(shortSword).toBeVisible()
-  await expect(shortSword).toHaveAttribute('data-tooltip', /Attack: 30/)
+  await expect(shortSword).toHaveAttribute('data-tooltip', /Attack: \+30/)
+  await expect(shortSword).toHaveAttribute('data-tooltip', /One-handed/)
+  await expect(shortSword).not.toHaveAttribute('data-tooltip', /Hands: 1/)
+  await expect(shortSword.locator('.build-card__hand-badge')).toHaveCount(0)
+  const centeredArtwork = await visibleArtworkOffset(shortSword)
+  expect(Math.abs(centeredArtwork.x)).toBeLessThan(1)
+  expect(Math.abs(centeredArtwork.y)).toBeLessThan(1)
   await expect(rowan.locator('[data-tooltip^="Head: Empty"]')).toBeVisible()
   await expect(rowan.locator('.passive-capacity__crystals svg')).toHaveCount(10)
   await expect(rowan.locator('.passive-capacity__crystals svg.is-lit')).toHaveCount(0)
@@ -45,6 +89,19 @@ test('team and library summaries show every equipment slot and PP crystal', asyn
   const card = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Rowan: sample Warrior' })
   await expect(card.locator('.build-card__equipment .build-card__selection')).toHaveCount(6)
   await expect(card.locator('[data-tooltip^="Accessory 2: Empty"]')).toBeVisible()
+  await expect(card.locator('[data-tooltip^="Accessory 2: Empty"] [data-empty-slot-icon="ring"]')).toBeVisible()
+  await expect(card.locator('[data-tooltip^="Accessory 2: Empty"] [data-ring-gem="true"]')).toBeVisible()
+  const mira = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Mira: sample Cleric' })
+  const miraMainHand = mira.locator('[data-tooltip^="Main hand: Short Staff"]')
+  const miraOffHand = mira.locator('[data-occupied-by-two-handed="Short Staff"]')
+  await expect(miraMainHand).toHaveAttribute('data-tooltip', /Two-handed/)
+  await expect(mira.locator('.build-card__hand-badge')).toHaveCount(0)
+  await expect(miraOffHand).toHaveAttribute('data-tooltip', /Off hand: Occupied by Short Staff/)
+  expect(await miraOffHand.locator('img').getAttribute('src')).toBe(await miraMainHand.locator('img').getAttribute('src'))
+  await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('filter', 'grayscale(1)')
+  await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('opacity', '0.46')
+  const sol = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Sol: sample Wizard' })
+  await expect(sol.locator('[data-tooltip^="Main hand: Oak Wand"]')).toHaveAttribute('data-tooltip', 'Main hand: Oak Wand\nOne-handed\nAttack: +42\nMind: +12\nMax. MP: +4')
 
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await page.getByLabel('Revision A').selectOption({ index: 1 })
@@ -56,14 +113,14 @@ test('team and library summaries show every equipment slot and PP crystal', asyn
   await expect(page.locator('.comparison-evidence')).not.toHaveAttribute('open', '')
 })
 
-test('desktop build summaries use the available width and keep passing checks compact', async ({ page, isMobile }) => {
+test('desktop character and build summaries share a compact card width', async ({ page, isMobile }) => {
   test.skip(isMobile, 'The mobile layout intentionally uses one full-width card')
-  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/#/builds/library')
 
   const libraryCards = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')
   await expect(libraryCards).toHaveCount(4)
-  const libraryBoxes = await libraryCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, height: card.getBoundingClientRect().height })))
+  const libraryBoxes = await libraryCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   expect(new Set(libraryBoxes.map(box => box.y)).size).toBe(1)
   expect(Math.max(...libraryBoxes.map(box => box.height))).toBeLessThanOrEqual(DENSE_LIBRARY_CARD_MAX_HEIGHT_PX)
 
@@ -75,15 +132,51 @@ test('desktop build summaries use the available width and keep passing checks co
   expect(Math.max(...teamBoxes.map(box => box.height))).toBeLessThanOrEqual(DENSE_TEAM_CARD_MAX_HEIGHT_PX)
   await expect(page.locator('.validation-item--valid')).toHaveCount(0)
   await expect(page.locator('.validation-overview')).toContainText('checks clear')
+
+  await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
+  const characterCards = page.getByRole('region', { name: 'Character overview', exact: true }).getByRole('article')
+  const characterBoxes = await characterCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, width: card.getBoundingClientRect().width })))
+  expect(new Set(characterBoxes.map(box => box.y)).size).toBe(1)
+  expect(Math.abs(characterBoxes[0]!.width - libraryBoxes[0]!.width)).toBeLessThan(1)
+  const miraCard = characterCards.filter({ hasText: 'Mira' })
+  await expect(miraCard.locator('.roster-equipment .roster-slot__hand-badge')).toHaveCount(0)
+  await expect(miraCard.locator('.roster-equipment [data-occupied-by-two-handed="Short Staff"]')).toBeVisible()
+  await expect(miraCard.locator('.roster-equipment [data-empty-slot-icon="ring"]')).toHaveCount(2)
+  await expect(miraCard.locator('.roster-equipment [data-ring-gem="true"]')).toHaveCount(2)
 })
 
 test('selected builds open as loadouts and the desktop sidebar starts expanded and remains collapsible', async ({ page, isMobile }) => {
   test.skip(isMobile, 'The desktop sidebar is replaced by bottom navigation')
   await page.goto('/#/builds/library')
-  await page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Rowan: sample Warrior' }).click()
+  const rowan = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Rowan: sample Warrior' })
+  await rowan.getByRole('button', { name: 'Open Main hand: Short Sword', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).not.toBeVisible()
   await expect(page.locator('.build-layout > .build-library')).toHaveCSS('position', 'sticky')
+  const mainHand = page.getByRole('combobox', { name: 'Main hand', exact: true })
+  const focusedSlot = page.locator('.slot-entry').filter({ has: mainHand })
+  await expect(page).toHaveURL(/focus=slot%3A/)
+  await expect(focusedSlot).toBeFocused()
+  await expect(mainHand).toHaveValue('Short Sword')
+  await expect(mainHand).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('complementary', { name: 'Selection details', exact: true })).toContainText('Short Sword')
+  const detailArtwork = page.getByRole('complementary', { name: 'Selection details', exact: true }).locator('.wiki-sprite')
+  const centeredDetailArtwork = await visibleArtworkOffset(detailArtwork)
+  expect(Math.abs(centeredDetailArtwork.x)).toBeLessThan(1)
+  expect(Math.abs(centeredDetailArtwork.y)).toBeLessThan(1)
+
+  const scrollBeforeAccessory = await page.evaluate(() => window.scrollY)
+  const selectedRowan = page.locator('.build-library .build-card').filter({ hasText: 'Rowan: sample Warrior' })
+  await selectedRowan.getByRole('button', { name: 'Open Accessory 1: Empty', exact: true }).click()
+  const accessory = page.getByRole('combobox', { name: 'Accessory 1', exact: true })
+  const focusedAccessory = page.locator('.slot-entry').filter({ has: accessory })
+  await expect(focusedAccessory).toBeFocused()
+  await expect(accessory).toHaveAttribute('aria-expanded', 'false')
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollBeforeAccessory)
+  await expect.poll(() => focusedAccessory.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return Math.abs(box.top + box.height / 2 - window.innerHeight / 2)
+  })).toBeLessThanOrEqual(2)
 
   const rail = page.locator('.rail')
   const main = page.locator('.main-shell')

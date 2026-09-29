@@ -32,12 +32,10 @@ import type {
 type ResolvedDefinition = CatalogEntity | PersonalDefinition
 
 interface DefinitionView {
-  readonly managedEquipment?: boolean
   readonly kind: CatalogEntityKind
   readonly name: string
   readonly ppCost?: Knowledge<number>
   readonly slotKinds?: Knowledge<readonly string[]>
-  readonly occupiesSlots?: Knowledge<number>
   readonly requirements?: Knowledge<readonly import('./types').EntityRequirement[]>
   readonly grants?: Knowledge<readonly string[]>
   readonly sources: readonly SourceRef[]
@@ -48,12 +46,9 @@ interface Accumulator {
   readonly issues: ValidationIssue[]
 }
 
-function definitionView(original: ResolvedDefinition, slots: readonly SlotDefinition[], slot: SlotDefinition | PassivePosition): DefinitionView {
+function definitionView(original: ResolvedDefinition, slots: readonly SlotDefinition[]): DefinitionView {
   const definition = definitionWithMechanics(original, slots)
-  const occupancy = original.occupiesSlots
-  const documentedOccupancy = !occupancy || occupancy.state === 'unknown' || occupancy.state === 'known' && occupancy.value === equipmentFacts(original).hands
   return {
-    managedEquipment: Boolean(slot.kind === 'equipment' && equipmentRole(slot) && equipmentFacts(original).type && documentedOccupancy),
     kind: definition.kind,
     name: definition.name,
     requirements: definition.requirements,
@@ -61,7 +56,6 @@ function definitionView(original: ResolvedDefinition, slots: readonly SlotDefini
     sources: definition.sources,
     ...(definition.ppCost === undefined ? {} : { ppCost: definition.ppCost }),
     ...(definition.slotKinds === undefined ? {} : { slotKinds: definition.slotKinds }),
-    ...(definition.occupiesSlots === undefined ? {} : { occupiesSlots: definition.occupiesSlots }),
   }
 }
 
@@ -288,7 +282,7 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: selection.allocationId ?? slotIdValue,
-        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots, slot) }),
+        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots) }),
       })
     }
     for (const [index, selection] of revision.content.passives.entries()) {
@@ -314,7 +308,7 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: `passive:${index}`,
-        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots, slot) }),
+        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots) }),
       })
     }
     validateClassReadiness(profile, catalogs, character, revision, accumulator)
@@ -464,7 +458,6 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
       continue
     }
     const dimension = 'equipment'
-    if (group.every(entry => entry.definition?.managedEquipment)) continue
     const refKeys = new Set(group.map((entry) => logicalEntityKey(profile, entry.ref)))
     if (refKeys.size > 1) {
       issue(accumulator, {
@@ -475,34 +468,6 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
         characterId: first.characterId,
         buildRevisionId: first.buildRevision.id,
         slotId: first.slotId,
-      })
-      continue
-    }
-    const occupies = first.definition?.occupiesSlots
-    if (!occupies || knowledgeUncertain(occupies)) {
-      issue(accumulator, {
-        code: 'SLOT_OCCUPANCY_UNKNOWN',
-        dimension,
-        status: 'undetermined',
-        message: 'Slot occupancy is unresolved for this selection',
-        characterId: first.characterId,
-        buildRevisionId: first.buildRevision.id,
-        slotId: first.slotId,
-        ref: first.ref,
-      })
-      continue
-    }
-    if (occupies.state === 'known' && occupies.value !== group.length) {
-      issue(accumulator, {
-        code: 'SLOT_OCCUPANCY_MISMATCH',
-        dimension,
-        status: 'invalid',
-        message: 'Allocation group size does not match verified slot occupancy',
-        characterId: first.characterId,
-        buildRevisionId: first.buildRevision.id,
-        slotId: first.slotId,
-        ref: first.ref,
-        inputs: { occupiedSlots: group.length, requiredSlots: occupies.value },
       })
     }
   }
@@ -806,13 +771,6 @@ function baseEligibility(
       candidate.allocationKey === entry.allocationKey,
   )
   if (allocationGroup.some((candidate) => logicalEntityKey(profile, candidate.ref) !== logicalEntityKey(profile, entry.ref))) {
-    return 'invalid'
-  }
-  const occupies = entry.definition.occupiesSlots
-  if (!entry.definition.managedEquipment && (!occupies || knowledgeUncertain(occupies))) {
-    return 'unknown'
-  }
-  if (!entry.definition.managedEquipment && occupies?.state === 'known' && occupies.value !== allocationGroup.length) {
     return 'invalid'
   }
   return 'valid'

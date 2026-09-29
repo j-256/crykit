@@ -56,7 +56,6 @@ async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', l
 }
 
 async function openImport(page: Page, files: { name: string; mimeType: string; buffer: Buffer }[]) {
-  await page.getByRole('button', { name: 'Learn', exact: true }).click()
   await page.getByRole('button', { name: 'Import skill screenshots', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Import skill screenshots', exact: true })
   await dialog.getByLabel('Skill screenshots', { exact: true }).setInputFiles(files)

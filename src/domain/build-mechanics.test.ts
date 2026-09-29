@@ -70,7 +70,10 @@ describe('equipment planning from source facts', () => {
     const custom = { ...sword, slotKinds: { state: 'known' as const, value: ['custom-slot'] }, requirements: { state: 'known' as const, value: [] } }
     expect(definitionWithMechanics(custom, SUGGESTED_BUILD_SLOTS).slotKinds).toBe(custom.slotKinds)
     expect(definitionWithMechanics(custom, SUGGESTED_BUILD_SLOTS).requirements).toBe(custom.requirements)
-    expect(equipmentFacts({ ...sword, fields: { ...sword.fields, 'Attack/Hands': known('2-Handed') } }).hands).toBeUndefined()
+    expect(equipmentFacts({ ...sword, fields: { ...sword.fields, 'Attack/Hands': known('2-Handed') } }).twoHanded).toBeUndefined()
+    expect(equipmentFacts({ ...sword, fields: { Category: known(['Staves']) } }).twoHanded).toBe(true)
+    expect(equipmentFacts({ ...sword, fields: { Category: known(['Wands']) } }).twoHanded).toBe(false)
+    expect(equipmentFacts({ ...sword, fields: { Category: known(['Staves']), Hands: known(1) } }).twoHanded).toBeUndefined()
     const customRole = { ...custom, slotKinds: { state: 'known' as const, value: ['plan-head'] } }
     expect(analyzeBuildEquipment({ ...base, equipment: { 'plan-head': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === sword.id ? customRole : resolve(reference))).toEqual([])
     expect(equipmentRole({ ...SUGGESTED_BUILD_SLOTS[0]!, equipmentRole: null })).toBeUndefined()
@@ -79,10 +82,10 @@ describe('equipment planning from source facts', () => {
     expect(analyzeBuildEquipment({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === job.id ? conflictingJob : resolve(reference))).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined' })]))
   })
 
-  it('feeds documented roles and implicit two-hand occupancy into scenario validation', () => {
+  it('feeds documented roles and handedness into scenario validation', () => {
     let profile = addTestCharacter(createTestProfile(), 'character')
     profile = addTestDefinition(profile, 'job', { kind: 'class', requirements: { state: 'unknown' }, grants: { state: 'unknown' } })
-    profile = addTestDefinition(profile, 'weapon', { slotKinds: { state: 'unknown' }, occupiesSlots: { state: 'unknown' }, requirements: { state: 'unknown' } })
+    profile = addTestDefinition(profile, 'weapon', { slotKinds: { state: 'unknown' }, requirements: { state: 'unknown' } })
     const ruleset = profile.rulesets[TEST_RULESET_REVISION_ID]!
     profile = { ...profile, rulesets: { ...profile.rulesets, [ruleset.id]: { ...ruleset, slots: ruleset.slots.map(slot => ({ ...slot, ...(slot.id === HAND_SLOT ? { equipmentRole: 'mainHand' as const } : slot.id === SECOND_HAND_SLOT ? { equipmentRole: 'offHand' as const } : {}) })) } }, personalDefinitions: { ...profile.personalDefinitions, job: { ...profile.personalDefinitions.job!, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']) } }, weapon: { ...profile.personalDefinitions.weapon!, fields: greatsword.fields } } }
     profile = upsertCharacterClassProgress(profile, { characterId: asId<CharacterId>('character'), classRef: personalRef('job'), unlocked: knowledge(true) })
@@ -90,7 +93,6 @@ describe('equipment planning from source facts', () => {
     profile = addTestScenario(profile, { character: asId<BuildRevisionId>('build-revision') })
     const report = validateScenario(profile, asId<ScenarioId>('scenario'))
     expect(report.dimensions.equipment.status).toBe('valid')
-    expect(report.issues.some(issue => issue.code === 'SLOT_OCCUPANCY_MISMATCH')).toBe(false)
   })
 })
 

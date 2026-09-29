@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { ASSET_FILE_PATTERN, MAX_IMAGE_BYTES, MAX_TOTAL_BYTES, TEMPLATE_TITLES, WIKI_ORIGIN, canonicalEntityIds, downloadedImage, licenseDeclaration, normalize, originalImageUrl, spriteCandidates, validateImage, wikiUrl } from './wiki-sprites.mjs'
 import { ICON_TEMPLATE, iconCandidates, validateIconRegion } from './wiki-icons.mjs'
+import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const CACHE = join(ROOT, '.wiki-cache', 'sprites')
@@ -12,7 +13,7 @@ const ASSETS = join(ROOT, 'src', 'assets', 'wiki-sprites')
 const MANIFEST = join(ROOT, 'src', 'catalog', 'wiki-sprites.json')
 const BATCH_SIZE = 50
 const CACHE_SCHEMA = 2
-const MANIFEST_SCHEMA = 2
+const MANIFEST_SCHEMA = 3
 const SOURCE_TEMPLATES = [...TEMPLATE_TITLES, ICON_TEMPLATE]
 const USER_AGENT = 'CrystalCompanionSprites/0.1 (personal offline fan planner)'
 const REQUEST_TIMEOUT_MS = 30_000
@@ -108,6 +109,11 @@ async function checkManifest(wikiContentDigest, entities) {
     const bytes = await readFile(join(ASSETS, asset.file))
     const checked = validateImage(bytes, asset)
     if (checked.file !== asset.file || checked.sha256 !== asset.sha256) throw new Error(`Local sprite digest mismatch: ${asset.title}`)
+    if (asset.contentBounds) {
+      validateContentBounds(asset.contentBounds, asset)
+      const actualBounds = await visibleContentBounds(bytes)
+      if (JSON.stringify(actualBounds) !== JSON.stringify(asset.contentBounds)) throw new Error(`Artwork content bounds mismatch: ${asset.title}`)
+    }
     originalImageUrl(asset.sourceUrl, asset.mime)
     if (!checkedFiles.has(asset.file)) total += bytes.length
     checkedFiles.add(asset.file)
@@ -118,6 +124,7 @@ async function checkManifest(wikiContentDigest, entities) {
     if (!manifest.assets[binding.asset] || !binding.sources.length) throw new Error('Sprite binding has no asset or attribution')
     const entity = identities.get(id)
     if (entity?.kind !== binding.kind || entity?.name !== binding.name) throw new Error(`Sprite binding does not match a catalog identity: ${id}`)
+    if (!manifest.assets[binding.asset].contentBounds) throw new Error(`Catalog artwork has no content bounds: ${binding.name}`)
   }
   for (const [id, binding] of Object.entries(manifest.icons)) {
     const asset = manifest.assets[binding.asset]
@@ -160,10 +167,12 @@ async function main() {
     const revision = page.revisions?.[0]
     if (!revision?.revid) throw new Error(`File description revision is missing: ${page.title}`)
     const assetKey = normalize(page.title)
+    const contentBounds = candidate.kind ? await visibleContentBounds(bytes) : manifest.assets[assetKey]?.contentBounds
     manifest.assets[assetKey] = {
       file, sha256, title: page.title, sourceUrl: originalImageUrl(info.url, info.mime), descriptionUrl: wikiUrl(page.title, revision.revid),
       descriptionRevisionId: revision.revid, uploadedAt: info.timestamp, sha1: metadata.sha1, mime: info.mime, width: info.width, height: info.height, size: metadata.size,
       ...(metadata.representation ? { representation: metadata.representation, originalSha1: metadata.originalSha1, originalSize: metadata.originalSize } : {}),
+      ...(contentBounds ? { contentBounds } : {}),
       license: licenseDeclaration(revision.slots?.main?.content ?? ''),
     }
     if (candidate.kind) manifest.entities[candidate.id] = { kind: candidate.kind, name: candidate.name, asset: assetKey, sources: candidate.sources }

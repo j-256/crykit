@@ -9,7 +9,9 @@ const REFERENCE_ARTICLES = new Set([
   'light-armor', 'light-hats', 'medium-armor', 'medium-headgear', 'rapiers',
   'scythes', 'shields', 'spears', 'staves', 'swords', 'wands',
 ].map((name) => `wiki:item:${name}`))
-const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|hands|weapons?|armor|innate passives?|command|pp|cost)$/i
+const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost)$/i
+const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
+const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])
 
 export function isReferenceArticle(profile: Profile, ref: EntityRef): boolean {
   const root = definitionLineageRootRef(profile, ref)
@@ -41,6 +43,41 @@ export function compactKnowledge(value?: Knowledge<unknown>): string {
   if (value.state === 'notApplicable') return 'Not applicable'
   if (typeof value.value === 'object') return Array.isArray(value.value) ? value.value.map(String).join(', ') : 'See details'
   return String(value.value)
+}
+
+function summaryIdentity(value: string): string {
+  return value.toLocaleLowerCase().replace(/\blisted flat value\b/g, '').replace(/\+/g, '').replace(/[.\s]/g, '')
+}
+
+export function summaryFactLines(record: Definition): readonly string[] {
+  const lines: string[] = []
+  const seen = new Set<string>()
+  const contributionLabels = new Set(Object.keys(record.listedContributions ?? {}).map(label => label.toLocaleLowerCase()))
+  const add = (line: string) => {
+    const trimmed = line.trim()
+    const identity = summaryIdentity(trimmed)
+    if (!trimmed || seen.has(identity)) return
+    seen.add(identity)
+    lines.push(trimmed)
+  }
+  for (const [label, contribution] of Object.entries(record.listedContributions ?? {})) {
+    if (contribution.state !== 'known') {
+      add(`${label}: ${compactKnowledge(contribution)}`)
+      continue
+    }
+    const { value, unit, condition } = contribution.value
+    const displayedUnit = FLAT_CONTRIBUTION_UNITS.has(unit.trim().toLocaleLowerCase()) ? '' : ` ${unit}`
+    add(`${label}: ${value > 0 ? '+' : ''}${value}${displayedUnit}${condition ? ` when ${condition}` : ''}`)
+  }
+  for (const fact of decisionFacts(record)) {
+    if (contributionLabels.has(fact.label.toLocaleLowerCase())) continue
+    if (fact.value.state === 'known' && typeof fact.value.value === 'string' && SUMMARY_LINE_FIELDS.test(fact.label)) {
+      for (const line of fact.value.value.split(/\r?\n/)) add(line)
+    } else {
+      add(`${fact.label}: ${compactKnowledge(fact.value)}`)
+    }
+  }
+  return lines.sort((left, right) => Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
 }
 
 export function ppCostLabel(option: DefinitionOption): string {

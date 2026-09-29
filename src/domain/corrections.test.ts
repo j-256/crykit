@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { activeCorrections, correctedEntity, correctionExportClosure, correctionStatus, hiddenCorrectionKeys, mergeCorrections, projectCorrectedCatalogs } from './corrections'
 import { CORRECTION_TEST_CATALOG as catalog, CORRECTION_TEST_ENTITY as entity, testCorrection } from './corrections.test-helpers'
+import { equipmentFacts } from './mechanics-facts'
 
 describe('correction registry', () => {
   it('preserves original source claims and applies compatible refinements without implying platform certainty', () => {
@@ -57,7 +58,8 @@ describe('correction registry', () => {
       { path: 'field', field: 'PP cost', before: entity.fields['PP cost']!, after: { state: 'known', value: 0 } },
     ] }))
     expect(corrected.listedContributions?.Attack).toMatchObject({ state: 'known', value: { value: 140, unit: 'listed flat value' } })
-    expect(corrected.occupiesSlots).toMatchObject({ state: 'known', value: 2 })
+    expect(corrected.fields.Hands).toMatchObject({ state: 'known', value: 2 })
+    expect(equipmentFacts(corrected).twoHanded).toBe(true)
     expect(corrected.ppCost).toMatchObject({ state: 'known', value: 0 })
     const uncertain = correctedEntity(entity, testCorrection({ changes: [
       { path: 'field', field: 'Attack', before: entity.fields.Attack!, after: { state: 'unknown' } },
@@ -65,10 +67,6 @@ describe('correction registry', () => {
     ] }))
     expect(uncertain.ppCost?.state).toBe('unknown')
     expect(uncertain.listedContributions?.Attack?.state).toBe('unknown')
-    const combinedSource = { ...entity, fields: { ...entity.fields, Hands: { state: 'unknown' as const }, 'Attack/Pierce/Hands': { state: 'known' as const, value: '100 Attack, 1-Handed' } } }
-    const combined = testCorrection({ changes: [{ path: 'field', field: 'Attack/Pierce/Hands', before: combinedSource.fields['Attack/Pierce/Hands'], after: { state: 'known', value: '100 Attack, 2-Handed' } }] })
-    expect(correctedEntity(combinedSource, combined).occupiesSlots).toMatchObject({ state: 'known', value: 2 })
-    expect(correctedEntity(combinedSource, { ...combined, changes: [{ ...combined.changes[0]!, path: 'field', field: 'Attack/Pierce/Hands', before: combinedSource.fields['Attack/Pierce/Hands'], after: null }] }).occupiesSlots?.state).toBe('unknown')
   })
   it('hides without deleting identities and restores through an explicit new decision', () => {
     const hidden = testCorrection({ changes: [{ path: 'visibility', before: false, after: true }] })

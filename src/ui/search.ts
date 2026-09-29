@@ -136,7 +136,6 @@ function countKnowledge(values: readonly Knowledge<unknown>[]): KnowledgeCounts 
 function entityKnowledge(entity: CatalogEntity, claims: readonly CatalogClaim[]): readonly Knowledge<unknown>[] {
   const values: Knowledge<unknown>[] = [...Object.values(entity.fields), ...claims.map((claim) => claim.value)]
   if (entity.slotKinds) values.push(entity.slotKinds)
-  if (entity.occupiesSlots) values.push(entity.occupiesSlots)
   if (entity.ppCost) values.push(entity.ppCost)
   if (entity.listedContributions) values.push(...Object.values(entity.listedContributions))
   if (entity.requirements) values.push(entity.requirements)

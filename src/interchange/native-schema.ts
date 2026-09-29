@@ -114,7 +114,6 @@ const entityShape = {
   fields: entityFields,
   rawDescription: longText.optional(),
   slotKinds: knowledge(z.array(nonemptyText).max(MAX_COLLECTION_LENGTH)).optional(),
-  occupiesSlots: knowledge(positiveInteger).optional(),
   ppCost: knowledge(finiteNumber).optional(),
   listedContributions: listedContributions.optional(),
   requirements: knowledge(z.array(entityRequirement).max(MAX_COLLECTION_LENGTH)).optional(),

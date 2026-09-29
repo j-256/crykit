@@ -3,7 +3,7 @@ import { STARTER_CATALOG } from '../catalog'
 import { createBlankProfile } from '../domain'
 import type { CatalogRef, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, similarNameOptions } from './build-evidence'
+import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, similarNameOptions, summaryFactLines } from './build-evidence'
 
 const profile = createBlankProfile({ label: 'Synthetic build evidence' })
 const options = buildDefinitionOptions(profile, [STARTER_CATALOG])
@@ -37,6 +37,11 @@ describe('build choice evidence', () => {
     const record = { ...option('Muramasa').record, fields: { Defense: { state: 'known' as const, value: 50 }, Resistance: { state: 'known' as const, value: 50 }, Attack: { state: 'conflicting' as const, claims: [{ value: 1, sources: [] }, { value: 2, sources: [] }] } } }
     expect(decisionFacts(record)).toHaveLength(3)
     expect(compactKnowledge(record.fields.Attack)).toBe('Conflicting sources')
+  })
+
+  it('condenses overlapping contribution fields into unique tooltip lines', () => {
+    expect(summaryFactLines(option('Oak Wand').record)).toEqual(['Attack: +42', 'Mind: +12', 'Max. MP: +4'])
+    expect(summaryFactLines(option('Short Sword').record)).not.toContain('Hands: 1')
   })
 
   it('groups shared causes without hiding invalid checks among unknown ones', () => {

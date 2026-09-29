@@ -17,6 +17,7 @@ import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { isReferenceResearchRoute, parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import { BuildLoadoutSummary, PassiveCapacityMeter } from './BuildLoadoutSummary'
+import { FIELD_FOCUS_QUERY_KEY, fieldFocusQuery, focusFieldElement } from './field-focus'
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly note?: string }
@@ -51,19 +52,19 @@ function revisionOptionLabel(profile: Profile, revision: BuildRevision) {
   return `${ownRecordValue(profile.builds, revision.buildId)?.title ?? 'Unresolved build'} · r${revision.revision}${checkpointSuffix(revision)}`
 }
 
-function BuildCard({ build, selected, onSelect, profile, catalogs }: { build: Build; selected: boolean; onSelect: () => void; profile: Profile; catalogs: readonly CatalogSnapshot[] }) {
+function BuildCard({ build, selected, onSelect, onSlotSelect, profile, catalogs }: { build: Build; selected: boolean; onSelect: () => void; onSlotSelect: (slotId: string) => void; profile: Profile; catalogs: readonly CatalogSnapshot[] }) {
   const revision = build.latestRevisionId ? ownRecordValue(profile.buildRevisions, build.latestRevisionId) : undefined
   const pinnedRevision = revision?.buildId === build.id ? revision : undefined
   const ruleset = pinnedRevision ? ownRecordValue(profile.rulesets, pinnedRevision.rulesetRevisionId) : undefined
   const character = build.characterId ? ownRecordValue(profile.characters, build.characterId) : undefined
   const stateLabel = build.state === 'recordedCurrent' ? 'Current' : build.state === 'hypothetical' ? 'Hypothetical' : 'Draft'
   const stateTone = build.state === 'recordedCurrent' ? 'positive' : build.state === 'hypothetical' ? 'warning' : 'info'
-  return <button aria-current={selected ? 'true' : undefined} className="build-card" onClick={onSelect} type="button">
-    <span className="build-card__header"><strong>{build.title}</strong><Badge tone={stateTone}>{stateLabel}</Badge></span>
+  return <article aria-current={selected ? 'true' : undefined} className="build-card" onClick={event => { if (!(event.target as HTMLElement).closest('button, a, input, select, textarea')) onSelect() }}>
+    <span className="build-card__header"><button className="build-card__open" onClick={event => { event.stopPropagation(); onSelect() }} type="button"><strong>{build.title}</strong></button><Badge tone={stateTone}>{stateLabel}</Badge></span>
     <small className="build-card__meta">{build.characterId ? character?.name ?? 'Unresolved character' : 'Reusable template'} · {pinnedRevision ? `revision ${pinnedRevision.revision}` : build.latestRevisionId ? 'checkpoint unavailable' : 'no revision'}</small>
-    {pinnedRevision ? <BuildLoadoutSummary catalogs={catalogs} content={pinnedRevision.content} profile={profile} ruleset={ruleset}/> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
+    {pinnedRevision ? <BuildLoadoutSummary catalogs={catalogs} content={pinnedRevision.content} onEquipmentSelect={onSlotSelect} profile={profile} ruleset={ruleset}/> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
     {build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}
-  </button>
+  </article>
 }
 
 function selectionWithoutAllocation(selection: BuildSelection): BuildSelection {
@@ -129,6 +130,28 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
     const kinds: readonly CatalogEntityKind[] = slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value : ['item']
     return { fieldKey, key, target: 'equipment', label: slot.label, kinds }
   }
+  const requestedFocusField = navigation.route.query[FIELD_FOCUS_QUERY_KEY]?.[0]
+  const requestedFocusTarget = requestedFocusField ? targetForFieldKey(requestedFocusField) : undefined
+  const requestedEquipmentField = requestedFocusTarget?.target === 'equipment' ? requestedFocusTarget.fieldKey : undefined
+  const requestedEquipmentOption = requestedFocusTarget?.target === 'equipment' ? findDefinitionOption(planningOptions, draft.equipment[requestedFocusTarget.key]?.ref) : undefined
+  const focusedEquipmentFieldRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!requestedEquipmentField) {
+      focusedEquipmentFieldRef.current = undefined
+      return
+    }
+    if (focusedEquipmentFieldRef.current === requestedEquipmentField) return
+    if (editorView !== 'loadout') {
+      setEditorView('loadout')
+      return
+    }
+    return focusFieldElement(requestedEquipmentField, () => { focusedEquipmentFieldRef.current = requestedEquipmentField })
+  }, [editorView, requestedEquipmentField])
+  useEffect(() => {
+    if (!requestedEquipmentField) return
+    setInspected(requestedEquipmentOption)
+    setComparedWith(undefined)
+  }, [requestedEquipmentField, requestedEquipmentOption])
   const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
   const picker = pickerOverlay ? targetForFieldKey(pickerOverlay.fieldKey) : undefined
   const missingPicker = Boolean(pickerOverlay && !picker)
@@ -186,7 +209,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
     const selected = draft.equipment[slot.id]
     const peers = selected ? equipmentSlots.filter((candidate) => candidate.id !== slot.id && draft.equipment[candidate.id] && sameLogicalEntity(profile, draft.equipment[candidate.id]!.ref, selected.ref)) : []
     const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.equipment[candidate.id]?.allocationId === selected.allocationId) : undefined
-    return <div className="slot-entry" key={slot.id}>{field(targetForFieldKey(`slot:${slot.id}`)!, selected?.ref ?? null)}{peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}</div>
+    return <div className="slot-entry" data-field-key={`slot:${slot.id}`} key={slot.id} tabIndex={-1}>{field(targetForFieldKey(`slot:${slot.id}`)!, selected?.ref ?? null)}{peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}</div>
   }
   const passiveField = (selection: BuildSelection | undefined, index: number) => {
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
@@ -253,7 +276,7 @@ function ScenarioCard({ scenario, profile, catalogs, validation, onAssign }: { s
     const revision = assignmentId ? ownRecordValue(profile.buildRevisions, assignmentId) : undefined
     const ruleset = revision ? ownRecordValue(profile.rulesets, revision.rulesetRevisionId) : scenarioRuleset
     const assignmentHint = scenario.kind === 'recordedCurrent' ? 'Record a pinned build as current to change this assignment.' : 'Choose the pinned build for this team member.'
-    return <section aria-label={`${character.name} loadout`} className="scenario-member-card" key={character.id}><header className="scenario-member-card__header"><div className="scenario-member-card__number">{index + 1}</div><strong className="scenario-member-card__name">{character.name}</strong><select aria-label={character.name} disabled={scenario.kind === 'recordedCurrent'} onChange={(event) => void assign(character.id, event.target.value)} title={assignmentHint} value={assignmentId ?? ''}><option value="">No build assigned</option>{revisions.filter((candidate) => { const candidateBuild = ownRecordValue(profile.builds, candidate.buildId); return candidateBuild && (!candidateBuild.characterId || candidateBuild.characterId === character.id) }).map((candidate) => <option key={candidate.id} value={candidate.id}>{revisionOptionLabel(profile, candidate)}</option>)}</select></header>{assignmentId && !revision ? <span className="build-card__unavailable"><Icon name="warning"/>Assigned checkpoint unavailable</span> : <BuildLoadoutSummary catalogs={catalogs} content={revision?.content} profile={profile} ruleset={ruleset}/>}</section>
+    return <section aria-label={`${character.name} loadout`} className="scenario-member-card" key={character.id}><header className="scenario-member-card__header"><div className="scenario-member-card__number">{index + 1}</div><strong className="scenario-member-card__name">{character.name}</strong><select aria-label={character.name} disabled={scenario.kind === 'recordedCurrent'} onChange={(event) => void assign(character.id, event.target.value)} title={assignmentHint} value={assignmentId ?? ''}><option value="">No build assigned</option>{revisions.filter((candidate) => { const candidateBuild = ownRecordValue(profile.builds, candidate.buildId); return candidateBuild && (!candidateBuild.characterId || candidateBuild.characterId === character.id) }).map((candidate) => <option key={candidate.id} value={candidate.id}>{revisionOptionLabel(profile, candidate)}</option>)}</select></header>{assignmentId && !revision ? <span className="build-card__unavailable"><Icon name="warning"/>Assigned checkpoint unavailable</span> : <BuildLoadoutSummary catalogs={catalogs} content={revision?.content} onEquipmentSelect={revision ? slotId => navigation.navigate({ page: { page: 'builds', view: 'revision-edit', buildId: revision.buildId, revisionId: revision.id }, overlays: [], query: fieldFocusQuery(`slot:${slotId}`) }) : undefined} profile={profile} ruleset={ruleset}/>}</section>
   })}</div>{assignmentError && <InlineNotice title="Assignment not saved" tone="danger">{assignmentError} The prior pinned assignment remains active.</InlineNotice>}<ValidationPanel catalogs={catalogs} profile={profile} report={validation} scenario={scenario}/></div></article>
 }
 
@@ -293,7 +316,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
   const [draftGuard, setDraftGuard] = useState<string>()
   const [cloneBusy, setCloneBusy] = useState(false)
   const [cloneError, setCloneError] = useState<string>()
-  const navigate = (next: BuildsPageRoute, replace = false) => navigation.navigate({ ...navigation.route, page: next, overlays: [], query: {} }, { replace })
+  const navigate = (next: BuildsPageRoute, replace = false, query = {}) => navigation.navigate({ ...navigation.route, page: next, overlays: [], query }, { replace })
   const editorRouteFor = (build: Build): BuildsPageRoute => build.latestRevisionId
     ? { page: 'builds', view: 'revision-edit', buildId: build.id, revisionId: build.latestRevisionId }
     : { page: 'builds', view: 'revision-new', buildId: build.id }
@@ -314,7 +337,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
   const updateEditorDirty: DraftChangeHandler = (value, actions) => { setEditorDirty(value); editorActionsRef.current = value ? actions : undefined; if (!value) { draftContinuationRef.current = undefined; setDraftGuard(undefined) } onDraftChange(value, actions) }
   const guardDraft = (message: string, continuation: () => void) => { draftContinuationRef.current = continuation; setDraftGuard(message) }
   const changeSection = (value: BuildsSection) => { if (editorDirty && value !== section) { guardDraft('Choose whether to save or discard the build edits, then continue to the selected workspace.', () => navigate({ page: 'builds', view: value })); return } navigate({ page: 'builds', view: value }) }
-  const selectBuild = (value: string) => { const build = ownRecordValue(profile.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build)); if (window.matchMedia('(max-width: 820px)').matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
+  const selectBuild = (value: string, focusField?: string) => { const build = ownRecordValue(profile.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build), false, focusField ? fieldFocusQuery(focusField) : {}); if (window.matchMedia('(max-width: 820px)').matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
   const resolveDraft = async (resolution: 'save' | 'discard') => {
     const actions = editorActionsRef.current
     const continuation = draftContinuationRef.current
@@ -505,7 +528,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
     navigate({ page: 'builds', view: 'revision-edit', buildId: selected.id, revisionId: revisionId as BuildRevisionId })
   }
 
-  const buildCard = (build: Build) => <BuildCard build={build} catalogs={catalogs} key={build.id} onSelect={() => selectBuild(build.id)} profile={profile} selected={selected?.id === build.id}/>
+  const buildCard = (build: Build) => <BuildCard build={build} catalogs={catalogs} key={build.id} onSelect={() => selectBuild(build.id)} onSlotSelect={slotId => selectBuild(build.id, `slot:${slotId}`)} profile={profile} selected={selected?.id === build.id}/>
 
   return <div className="build-workspace">
     <ScreenHeader actions={section === 'teams' ? <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>New scenario</Button> : <>{!addingBuild && <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New build</Button>}{section === 'library' && selected?.latestRevisionId && <Button disabled={editorDirty || cloneBusy} icon="layers" onClick={() => void cloneSelected()} tone="secondary">{cloneBusy ? 'Cloning...' : 'Clone build'}</Button>}</>} description="Explore classes, equipment, and passives. No character or inventory tracking required." eyebrow="Buildcrafting" title="Builds"/>
@@ -521,7 +544,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
     {section === 'teams' && <>{missingScenario && <InlineNotice title="Team scenario unavailable" tone="warning">The requested scenario is not available in this profile. No other scenario was selected. <Button onClick={() => navigate({ page: 'builds', view: 'teams' })} tone="quiet">Show team scenarios</Button></InlineNotice>}{scenarios.length === 0 ? <EmptyState aside={<>A scenario is the boundary for simultaneous inventory use. Alternative scenarios may each use the same recorded copy.</>} description="Create a draft, hypothetical, or recorded-current team, then pin one build revision per participating character." icon="team" title="No team scenarios"><Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>Create a scenario</Button></EmptyState> : <div className="stack">{scenarios.map((scenario) => <ScenarioCard catalogs={catalogs} key={scenario.id} onAssign={onAssign} profile={profile} scenario={scenario} validation={validations[scenario.id]}/>)}</div>}</>}
     {section === 'compare' && <div className="stack"><div className="panel"><div className="panel__body grid-2"><Field label="Revision A"><select onChange={(event) => changeCompareRevision('left', event.target.value)} value={leftRevision}><option value="">Choose revision</option>{revisions.map((revision) => <option key={revision.id} value={revision.id}>{revisionOptionLabel(profile, revision)}</option>)}</select></Field><Field label="Revision B"><select onChange={(event) => changeCompareRevision('right', event.target.value)} value={rightRevision}><option value="">Choose revision</option>{revisions.map((revision) => <option key={revision.id} value={revision.id}>{revisionOptionLabel(profile, revision)}</option>)}</select></Field></div></div>{missingCompareRevision ? <InlineNotice title="Comparison checkpoint unavailable" tone="warning">One or both requested checkpoints are not available in this profile. Choose two available checkpoints to create a new comparison address.</InlineNotice> : leftComparedRevision && rightComparedRevision ? <>
       <div className="comparison-grid comparison-grid--loadouts">
-        {[leftComparedRevision, rightComparedRevision].map((revision) => <section aria-label={`${ownRecordValue(profile.builds, revision.buildId)?.title ?? 'Unresolved build'} loadout`} className="comparison-column" key={revision.id}><h2>{ownRecordValue(profile.builds, revision.buildId)?.title}</h2><BuildLoadoutSummary catalogs={catalogs} content={revision.content} profile={profile} ruleset={ownRecordValue(profile.rulesets, revision.rulesetRevisionId)}/></section>)}
+        {[leftComparedRevision, rightComparedRevision].map((revision) => <section aria-label={`${ownRecordValue(profile.builds, revision.buildId)?.title ?? 'Unresolved build'} loadout`} className="comparison-column" key={revision.id}><h2>{ownRecordValue(profile.builds, revision.buildId)?.title}</h2><BuildLoadoutSummary catalogs={catalogs} content={revision.content} onEquipmentSelect={slotId => navigate({ page: 'builds', view: 'revision-edit', buildId: revision.buildId, revisionId: revision.id }, false, fieldFocusQuery(`slot:${slotId}`))} profile={profile} ruleset={ownRecordValue(profile.rulesets, revision.rulesetRevisionId)}/></section>)}
       </div>
       <details className="comparison-evidence"><summary>Evidence and differences</summary><div className="comparison-grid"><section className="comparison-column"><h3>{ownRecordValue(profile.builds, leftComparedRevision.buildId)?.title}</h3>{differences.map((row) => <div className="comparison-row" key={row.label}><small>{row.label}</small><strong>{row.left}</strong></div>)}</section><section className="comparison-column"><h3>{ownRecordValue(profile.builds, rightComparedRevision.buildId)?.title}</h3>{differences.map((row) => <div className="comparison-row" key={row.label}><small>{row.label}</small><strong>{row.right}</strong></div>)}</section></div></details>
     </> : <EmptyState description="Choose two immutable build revisions. The comparison explains changed selections without producing an opaque score." icon="compare" title="Select revisions to compare"/>}</div>}

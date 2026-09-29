@@ -4,6 +4,8 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { canonicalEntityIds, downloadedImage, hash, licenseDeclaration, originalImageUrl, spriteCandidates, switchMappings, validateImage } from './wiki-sprites.mjs'
 import { iconCandidates, validateIconRegion } from './wiki-icons.mjs'
+import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
+import sharp from 'sharp'
 
 const template = (title, cases) => ({ title, revisionId: 11, content: `[[File:{{#switch:{{lc:{{{1}}}}}\n${cases}\n|#default=\n}}|link=]]` })
 const entity = (kind, name, pages = []) => ({ id: `${kind}:${name}`, kind, name, legacy: { wiki: { pages } } })
@@ -94,6 +96,16 @@ test('explicit PNG reencoding records upload hashes separately and rejects chang
   assert.equal(accepted.metadata.sha1, hash(bytes, 'sha1'))
   assert.equal(accepted.metadata.representation, 'cdn-png')
   assert.throws(() => downloadedImage(bytes, { ...upload, width: 2 }, true), /dimensions/)
+})
+
+test('artwork content bounds capture visible pixels and stay inside the image', async () => {
+  const pixels = Buffer.alloc(4 * 4 * 4)
+  for (const [x, y] of [[2, 1], [3, 1], [2, 2], [3, 2]]) pixels[(y * 4 + x) * 4 + 3] = 255
+  const bytes = await sharp(pixels, { raw: { width: 4, height: 4, channels: 4 } }).png().toBuffer()
+  const bounds = await visibleContentBounds(bytes)
+  assert.deepEqual(bounds, { x: 2, y: 1, width: 2, height: 2 })
+  assert.doesNotThrow(() => validateContentBounds(bounds, { width: 4, height: 4 }))
+  for (const invalid of [{ ...bounds, x: -1 }, { ...bounds, width: 3 }, { ...bounds, height: 0 }]) assert.throws(() => validateContentBounds(invalid, { width: 4, height: 4 }), /content bounds/)
 })
 
 test('starter identities are matched by exact kind and normalized name', () => {

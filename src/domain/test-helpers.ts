@@ -109,7 +109,6 @@ export function addTestTeam(profile: Profile, preferredMemberValues: readonly st
 export interface AddTestDefinitionOptions {
   readonly kind?: CatalogEntityKind
   readonly slotKinds?: Knowledge<readonly string[]>
-  readonly occupiesSlots?: Knowledge<number>
   readonly ppCost?: Knowledge<number>
   readonly requirements?: Knowledge<readonly EntityRequirement[]>
   readonly grants?: Knowledge<readonly string[]>
@@ -127,7 +126,6 @@ export function addTestDefinition(
     kind,
     name: value,
     ...(passive ? {} : { slotKinds: options.slotKinds ?? known([HAND_SLOT, SECOND_HAND_SLOT]) }),
-    ...(passive ? {} : { occupiesSlots: options.occupiesSlots ?? known(1) }),
     ...(passive ? { ppCost: options.ppCost ?? known(0) } : {}),
     requirements: options.requirements ?? known([]),
     grants: options.grants ?? known([]),

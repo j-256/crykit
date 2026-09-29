@@ -16,7 +16,7 @@ export const CORRECTION_TEST_ENTITY: CatalogEntity = {
     'PP cost': { state: 'known', value: 3 },
   },
   sources: [{ sourceId: 'https://example.com/item?oldid=1', snapshot: 'revision 1', applicability: 'Platform unverified' }],
-  ppCost: { state: 'known', value: 3 }, occupiesSlots: { state: 'known', value: 1 },
+  ppCost: { state: 'known', value: 3 },
   listedContributions: { Attack: { state: 'known', value: { value: 100, unit: 'listed flat value' } } },
 }
 export const CORRECTION_TEST_CATALOG: CatalogSnapshot = {

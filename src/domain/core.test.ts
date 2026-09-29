@@ -107,12 +107,6 @@ describe('domain identity and bounds', () => {
   it('rejects personal numeric fields that native backup cannot preserve', () => {
     const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
     expect(() => createPersonalDefinition(profile, {
-      kind: 'item',
-      name: 'Invalid occupancy',
-      occupiesSlots: { state: 'known', value: 0 },
-      now: TEST_NOW,
-    })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
-    expect(() => createPersonalDefinition(profile, {
       kind: 'passive',
       name: 'Invalid PP',
       ppCost: { state: 'known', value: Number.NaN },

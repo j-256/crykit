@@ -118,7 +118,6 @@ export interface CatalogEntity {
   readonly fields: Readonly<Record<string, Knowledge<JsonValue>>>
   readonly rawDescription?: string
   readonly slotKinds?: Knowledge<readonly string[]>
-  readonly occupiesSlots?: Knowledge<number>
   readonly ppCost?: Knowledge<number>
   readonly listedContributions?: Readonly<Record<string, Knowledge<NumericContribution>>>
   readonly requirements?: Knowledge<readonly EntityRequirement[]>
@@ -158,7 +157,6 @@ export interface PersonalDefinition {
   readonly rawDescription?: string
   readonly fields: Readonly<Record<string, Knowledge<JsonValue>>>
   readonly slotKinds?: Knowledge<readonly string[]>
-  readonly occupiesSlots?: Knowledge<number>
   readonly ppCost?: Knowledge<number>
   readonly listedContributions?: Readonly<Record<string, Knowledge<NumericContribution>>>
   readonly requirements?: Knowledge<readonly EntityRequirement[]>

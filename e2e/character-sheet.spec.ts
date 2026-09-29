@@ -125,7 +125,7 @@ test('member details stay pinned during pointer transit and follow deliberate fo
   test.skip(isMobile, 'The shared member inspector is a desktop layout')
   await page.goto('/')
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
-  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   const details = page.getByRole('complementary', { name: 'Selection details', exact: true })
   await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Choose Main hand', exact: true }).hover()
@@ -341,7 +341,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
 
 test('the member menu stays compact and learning shares a single workspace', async ({ page, isMobile }) => {
   await page.goto('/#/characters')
-  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(0)
   const mainHand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
@@ -354,7 +354,7 @@ test('the member menu stays compact and learning shares a single workspace', asy
   await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Ancient Labyrinth Map' })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(mainHand).toBeFocused()
-  await page.getByRole('button', { name: 'Learn', exact: true }).click()
+  await page.getByRole('button', { name: 'Skills', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Class progress', exact: true })).toContainText('Warrior')
   await expect(page.getByRole('region', { name: 'Learned skills', exact: true })).toBeVisible()
   await page.getByRole('combobox', { name: 'Skill type', exact: true }).selectOption('monsterMagic')
@@ -362,15 +362,15 @@ test('the member menu stays compact and learning shares a single workspace', asy
   const url = page.url()
   for (const section of ['classes', 'knowledge', 'magic']) {
     await page.goto(url.replace(/knowledge$/, section))
-    await expect(page.getByRole('region', { name: 'Character learning', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('region', { name: 'Character skills', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Skills', exact: true })).toHaveAttribute('aria-expanded', 'true')
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test('member edits block context switches until saved or discarded', async ({ page }) => {
   await page.goto('/#/characters')
-  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   const hand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
   await hand.click()
   await page.getByRole('dialog', { name: 'Choose Main hand', exact: true }).getByRole('button', { name: /^Empty/ }).click()

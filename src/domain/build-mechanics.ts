@@ -81,9 +81,7 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
     const requiredTypes = requirements?.state === 'known' ? requirements.value.flatMap(requirement => requirement.kind === 'permission' && requirement.permission.startsWith('equipment:') ? [requirement.permission.slice('equipment:'.length)] : []) : facts.type ? [facts.type] : []
     if (requirements?.state === 'conflicting') add('EQUIPMENT_REQUIREMENTS_CONFLICT', 'undetermined', `${definition.name}: equipment requirement claims conflict`, slot.id)
     else for (const type of requiredTypes) if (!permissions.has(type)) add('CLASS_EQUIPMENT_PERMISSION', classTypes && !unresolvedEffects ? 'invalid' : 'undetermined', classTypes && !unresolvedEffects ? `${primary!.name} cannot equip ${type}; select a permission passive or change class` : `${type} permission is unresolved for the primary class and selected passives`, slot.id)
-    const customOccupancy = definition.occupiesSlots?.state === 'known' && definition.occupiesSlots.value !== facts.hands
-    if (customOccupancy || definition.occupiesSlots?.state === 'conflicting') add('CUSTOM_EQUIPMENT_OCCUPANCY', 'undetermined', `${definition.name}: scenario validation uses its explicit occupancy rules`, slot.id)
-    return [{ slot, selection, definition, role, facts: customOccupancy || definition.occupiesSlots?.state === 'conflicting' ? { ...facts, hands: undefined } : facts, key: identity(selection.ref), allocation: selection.allocationId ?? `slot:${slot.id}` }]
+    return [{ slot, selection, definition, role, facts, key: identity(selection.ref), allocation: selection.allocationId ?? `slot:${slot.id}` }]
   })
   const groups = new Map<string, typeof equipment>()
   for (const entry of equipment) groups.set(entry.allocation, [...(groups.get(entry.allocation) ?? []), entry])
@@ -92,13 +90,13 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
     const first = group[0]!
     if (group.some(entry => entry.key !== first.key)) add('MIXED_EQUIPMENT_ALLOCATION', 'invalid', 'A shared copy must refer to the same equipment in both slots', first.slot.id)
     else if (group.length !== 2 || !group.some(entry => entry.role === 'mainHand') || !group.some(entry => entry.role === 'offHand')) add('EQUIPMENT_ALLOCATION_ROLES', 'invalid', `${first.definition.name}: only the two hand slots can share one item`, first.slot.id)
-    else if (first.facts.hands !== 2 && !twoHanded) add('EQUIPMENT_ALLOCATION_HANDS', first.facts.hands === undefined || unresolvedEffects ? 'undetermined' : 'invalid', `${first.definition.name}: holding this copy in both hands requires a two-handed weapon or the Two-Handed effect`, first.slot.id)
+    else if (first.facts.twoHanded !== true && !twoHanded) add('EQUIPMENT_ALLOCATION_HANDS', first.facts.twoHanded === undefined || unresolvedEffects ? 'undetermined' : 'invalid', `${first.definition.name}: holding this copy in both hands requires a two-handed weapon or the Two-Handed effect`, first.slot.id)
   }
   const hands = equipment.filter(entry => entry.role === 'mainHand' || entry.role === 'offHand')
   for (const entry of hands) {
-    if (entry.facts.type && isWeapon(entry.facts.type) && entry.facts.hands === undefined && hands.some(other => other !== entry && other.allocation !== entry.allocation)) add('HAND_OCCUPANCY_UNKNOWN', 'undetermined', `${entry.definition.name}: hand occupancy is unresolved alongside the other hand selection`, entry.slot.id)
-    if (entry.facts.hands === 2 && hands.some(other => other !== entry && other.allocation !== entry.allocation)) add('TWO_HAND_CONFLICT', 'invalid', `${entry.definition.name} occupies both hands; remove the other item or group the same copy`, entry.slot.id)
-    if (entry.role === 'offHand' && entry.facts.type && isWeapon(entry.facts.type) && entry.facts.hands !== 2 && !dualWield && !groups.get(entry.allocation)?.some(other => other.role === 'mainHand' && other !== entry && twoHanded)) add('DUAL_WIELD_REQUIRED', unresolvedEffects || entry.facts.hands === undefined ? 'undetermined' : 'invalid', `${entry.definition.name} in the off hand requires Dual Wield or a shared two-handed allocation`, entry.slot.id)
+    if (entry.facts.type && isWeapon(entry.facts.type) && entry.facts.twoHanded === undefined && hands.some(other => other !== entry && other.allocation !== entry.allocation)) add('HAND_OCCUPANCY_UNKNOWN', 'undetermined', `${entry.definition.name}: hand occupancy is unresolved alongside the other hand selection`, entry.slot.id)
+    if (entry.facts.twoHanded === true && hands.some(other => other !== entry && other.allocation !== entry.allocation)) add('TWO_HAND_CONFLICT', 'invalid', `${entry.definition.name} occupies both hands; remove the other item or group the same copy`, entry.slot.id)
+    if (entry.role === 'offHand' && entry.facts.type && isWeapon(entry.facts.type) && entry.facts.twoHanded !== true && !dualWield && !groups.get(entry.allocation)?.some(other => other.role === 'mainHand' && other !== entry && twoHanded)) add('DUAL_WIELD_REQUIRED', unresolvedEffects || entry.facts.twoHanded === undefined ? 'undetermined' : 'invalid', `${entry.definition.name} in the off hand requires Dual Wield or a shared two-handed allocation`, entry.slot.id)
   }
   for (const entry of equipment.filter(entry => entry.facts.unique)) {
     const copies = new Set(equipment.filter(other => other.key === entry.key).map(other => other.allocation))

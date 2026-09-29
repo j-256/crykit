@@ -13,7 +13,7 @@ export function DefinitionFactsPanel({ facts, renderValue, children }: { facts: 
 
 export function DefinitionPlanningPanel({ definition }: { definition: CatalogEntity | PersonalDefinition }) {
   const fields: readonly [string, Knowledge<unknown> | undefined][] = [
-    ['Slot kinds', definition.slotKinds], ['Occupied slots', definition.occupiesSlots], ['PP cost', definition.ppCost], ['Requirements', definition.requirements], ['Grants', definition.grants], ['Listed contributions', definition.listedContributions ? { state: 'known', value: definition.listedContributions } : undefined],
+    ['Slot kinds', definition.slotKinds], ['PP cost', definition.ppCost], ['Requirements', definition.requirements], ['Grants', definition.grants], ['Listed contributions', definition.listedContributions ? { state: 'known', value: definition.listedContributions } : undefined],
   ]
   return <section className="panel" aria-label="Planning fields"><div className="panel__header"><div><h3>Planning fields</h3><p>Values used for validation; missing values stay unknown</p></div></div><div className="panel__body"><dl className="definition-list">{fields.map(([field, value]) => <div className={`definition-row${value?.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{field}</dt><dd>{value ? <><KnowledgeValue field={field} value={value}/><Badge tone={knowledgeTone(value)}>{value.state}</Badge></> : 'Not supplied'}</dd></div>)}</dl></div></section>
 }

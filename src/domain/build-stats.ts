@@ -116,7 +116,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
   }
   if (primary && !innates.length) excluded.push(`${primary.name}: innate passive definitions are unavailable`)
   const allocations = new Set<string>()
-  const hands: { type?: string; hands?: number; key: string; allocation: string }[] = []
+  const hands: { type?: string; twoHanded?: boolean; key: string; allocation: string }[] = []
   for (const slot of slots) {
     const selection = content.equipment[slot.id]
     if (!selection) continue
@@ -124,7 +124,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
     const allocation = `${key}:${selection.allocationId ?? slot.id}`
     const definition = resolve(selection.ref)
     if (!definition) { excluded.push(`${slot.label}: definition is unavailable`); continue }
-    if (equipmentRole(slot) === 'mainHand' || equipmentRole(slot) === 'offHand') hands.push({ type: equipmentFacts(definition).type, hands: equipmentFacts(definition).hands, key, allocation })
+    if (equipmentRole(slot) === 'mainHand' || equipmentRole(slot) === 'offHand') hands.push({ type: equipmentFacts(definition).type, twoHanded: equipmentFacts(definition).twoHanded, key, allocation })
     if (allocations.has(allocation)) continue
     allocations.add(allocation)
     const parsed = statContributions(definition)
@@ -182,14 +182,14 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
     stats.ATK = { ...stats.ATK, base: null, value: null }
     excluded.push('Unarmed Attack and its special bonuses need the project battle settings')
   } else if (distinctWeapons.size > 1) {
-    if (hands.every(entry => entry.hands === 1) && effectTexts.some(text => permissionEffects(text).dualWield)) {
+    if (hands.every(entry => entry.twoHanded === false) && effectTexts.some(text => permissionEffects(text).dualWield)) {
       stats.ATK = { ...stats.ATK, value: transform(stats.ATK.value, value => value * DOCUMENTED_DUAL_WIELD_RATE) }
       issues.push('Dual-wield Attack uses the selected description\'s 35% reduction on the combined supported Attack; custom battle settings can change this')
     } else {
       stats.ATK = { ...stats.ATK, value: null }
       excluded.push('Two equipped weapons need an explicit Dual Wield effect and Attack rate')
     }
-  } else if (hands.length === 2 && hands[0]!.hands === 1 && hands[0]!.allocation === hands[1]!.allocation && effectTexts.some(text => permissionEffects(text).twoHanded)) {
+  } else if (hands.length === 2 && hands[0]!.twoHanded === false && hands[0]!.allocation === hands[1]!.allocation && effectTexts.some(text => permissionEffects(text).twoHanded)) {
     const bonus = effectTexts.flatMap(text => text.split('\n')).map(text => /^Hold a One-Handed weapon with both hands to increase its attack by (\d+)\.?$/i.exec(text)).find(Boolean)
     if (bonus) {
       contributions.push({ stat: 'ATK', kind: 'flat', value: Number(bonus[1]), label: 'Two-Handed bonus from the selected effect description', sources: primary?.sources ?? [] })

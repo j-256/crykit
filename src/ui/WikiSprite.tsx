@@ -39,7 +39,11 @@ function SpriteImage({ sprite, entity, detailed, compact }: { readonly sprite: S
   if (failed) return <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
   const limit = compact ? INLINE_SIZE : detailed ? DETAIL_SIZE : COMPACT_SIZE
   const scale = Math.min(MAX_SCALE, limit / sprite.asset.width, limit / sprite.asset.height)
-  return <span className={`wiki-sprite${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`}><img alt={detailed ? `${entity.name} wiki artwork` : ''} decoding="async" height={Math.round(sprite.asset.height * scale)} loading={detailed ? 'eager' : 'lazy'} onError={() => setFailed(true)} src={sprite.url} width={Math.round(sprite.asset.width * scale)}/></span>
+  const bounds = sprite.asset.contentBounds
+  const offsetX = bounds ? sprite.asset.width / 2 - bounds.x - bounds.width / 2 : 0
+  const offsetY = bounds ? sprite.asset.height / 2 - bounds.y - bounds.height / 2 : 0
+  const style = offsetX || offsetY ? { transform: `translate(${offsetX / sprite.asset.width * 100}%, ${offsetY / sprite.asset.height * 100}%)` } : undefined
+  return <span className={`wiki-sprite${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`}><img alt={detailed ? `${entity.name} wiki artwork` : ''} decoding="async" height={Math.round(sprite.asset.height * scale)} loading={detailed ? 'eager' : 'lazy'} onError={() => setFailed(true)} src={sprite.url} style={style} width={Math.round(sprite.asset.width * scale)}/></span>
 }
 
 export function WikiSprite({ catalogId, entity, detailed = false, compact = false }: Props) {

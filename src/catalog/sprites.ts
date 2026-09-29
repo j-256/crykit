@@ -9,6 +9,7 @@ interface SpriteAsset {
   readonly width: number
   readonly height: number
   readonly license: string
+  readonly contentBounds?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 }
 
 interface SpriteBinding {

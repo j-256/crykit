@@ -4,7 +4,6 @@ import {
   assertFiniteNumber,
   assertNonnegativeInteger,
   assertPersonalDefinitionRef,
-  assertPositiveInteger,
   assertTextLength,
   createId,
   DomainError,
@@ -79,7 +78,6 @@ export interface CreatePersonalDefinitionInput {
   readonly rawDescription?: string
   readonly fields?: Readonly<Record<string, Knowledge<JsonValue>>>
   readonly slotKinds?: PersonalDefinition['slotKinds']
-  readonly occupiesSlots?: PersonalDefinition['occupiesSlots']
   readonly ppCost?: PersonalDefinition['ppCost']
   readonly listedContributions?: PersonalDefinition['listedContributions']
   readonly requirements?: PersonalDefinition['requirements']
@@ -96,7 +94,7 @@ function knowledgeValues<Value>(knowledge: Knowledge<Value> | undefined): readon
 }
 
 function validateEditableDefinition(
-  definition: Pick<PersonalDefinition, 'name' | 'aliases' | 'rawDescription' | 'fields' | 'occupiesSlots' | 'ppCost' | 'listedContributions' | 'requirements'>,
+  definition: Pick<PersonalDefinition, 'name' | 'aliases' | 'rawDescription' | 'fields' | 'ppCost' | 'listedContributions' | 'requirements'>,
   profile: Profile,
   allowedDefinitionId?: PersonalDefinitionId,
 ): void {
@@ -112,7 +110,6 @@ function validateEditableDefinition(
     if (!key.trim() || ['__proto__', 'prototype', 'constructor'].includes(key) || /[\u0000-\u001f\u007f]/.test(key)) throw new DomainError('INVALID_INPUT', 'Personal definition field name is invalid')
     assertTextLength(key, 'Personal definition field name', MAX_ID_LENGTH)
   }
-  for (const value of knowledgeValues(definition.occupiesSlots)) assertPositiveInteger(value, 'Occupied slot count')
   for (const value of knowledgeValues(definition.ppCost)) assertFiniteNumber(value, 'PP cost')
   for (const [key, contribution] of Object.entries(definition.listedContributions ?? {})) {
     if (!key.trim()) throw new DomainError('INVALID_INPUT', 'Contribution key must not be empty')
@@ -151,7 +148,6 @@ export function createPersonalDefinition(profile: Profile, input: CreatePersonal
     updatedAt: at,
     ...(input.rawDescription === undefined ? {} : { rawDescription: input.rawDescription }),
     ...(input.slotKinds === undefined ? {} : { slotKinds: input.slotKinds }),
-    ...(input.occupiesSlots === undefined ? {} : { occupiesSlots: input.occupiesSlots }),
     ...(input.ppCost === undefined ? {} : { ppCost: input.ppCost }),
     ...(input.listedContributions === undefined ? {} : { listedContributions: input.listedContributions }),
     ...(input.requirements === undefined ? {} : { requirements: input.requirements }),
@@ -254,7 +250,6 @@ export function createDefinitionOverride(
       ? {}
       : { rawDescription: input.rawDescription === undefined ? source.rawDescription : input.rawDescription }),
     ...(source.slotKinds === undefined ? {} : { slotKinds: source.slotKinds }),
-    ...(source.occupiesSlots === undefined ? {} : { occupiesSlots: source.occupiesSlots }),
     ...((input.ppCost === undefined ? source.ppCost : input.ppCost) === undefined || input.ppCost === null
       ? {}
       : { ppCost: input.ppCost === undefined ? source.ppCost : input.ppCost }),

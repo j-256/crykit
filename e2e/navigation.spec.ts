@@ -35,7 +35,7 @@ async function addCharacter(page: Page, name: string) {
   await form.getByLabel('Character name').fill(name)
   await form.getByRole('button', { name: 'Add character', exact: true }).click()
   await expect(form).not.toBeVisible()
-  await page.getByRole('article', { name, exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  await page.getByRole('article', { name, exact: true }).getByRole('link', { name, exact: true }).click()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -52,9 +52,10 @@ test('character learning and nested definition routes restore exact UI state', a
   await page.goto(currentUrl.replace(/current$/, 'magic'))
   await expect(page.getByRole('combobox', { name: 'Skill type', exact: true })).toHaveValue('monsterMagic')
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('region', { name: 'Character skills', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Character', exact: true })).toHaveAttribute('aria-current', 'page')
 
-  await page.getByRole('button', { name: 'Member', exact: true }).click()
+  await page.getByRole('button', { name: 'Character', exact: true }).click()
   await page.getByRole('button', { name: 'Capture current sheet', exact: true }).click()
   const capture = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })
   await expect(page).toHaveURL(/#\/characters\/[^/]+\/current\/snapshots\/new$/)

@@ -7,6 +7,7 @@ export const GUIDE_MECHANICS_SOURCE: SourceRef = { sourceId: 'community:geef-mod
 export const EQUIPMENT_ROLE_LABELS: Readonly<Record<EquipmentRole, string>> = Object.freeze({ mainHand: 'Main hand', offHand: 'Off hand', head: 'Head', body: 'Body', accessory: 'Accessory' })
 const PLAN_ROLES: Readonly<Record<string, EquipmentRole>> = Object.freeze({ 'plan-main-hand': 'mainHand', 'plan-off-hand': 'offHand', 'plan-head': 'head', 'plan-body': 'body', 'plan-accessory-1': 'accessory', 'plan-accessory-2': 'accessory' })
 const WIKI_EQUIPMENT_TYPES: Readonly<Record<string, string>> = Object.freeze({ swords: 'Sword', axes: 'Axe', daggers: 'Dagger', rapiers: 'Rapier', katanas: 'Katana', spears: 'Spear', scythes: 'Scythe', bows: 'Bow', staves: 'Staff', wands: 'Wand', wand: 'Wand', books: 'Book', shields: 'Shield', 'heavy helmets': 'Heavy Head', 'medium headgear': 'Medium Head', 'light hats': 'Light Head', 'heavy armor': 'Heavy Body', 'medium armor': 'Medium Body', 'light armor': 'Light Body', accessories: 'Accessory', 'two-handed staff': 'Staff' })
+const WIKI_CATEGORY_TWO_HANDED: Readonly<Record<string, boolean>> = Object.freeze({ books: true, bows: true, daggers: false, katanas: false, rapiers: false, scythes: true, spears: true, staves: true, wands: false, wand: false, 'two-handed staff': true })
 
 export function knownField(definition: Pick<MechanicsDefinition, 'fields'> | undefined, label: string): JsonValue | undefined {
   const field = definition?.fields[label]
@@ -24,7 +25,7 @@ export function equipmentRole(slot: Pick<SlotDefinition, 'kind' | 'id' | 'equipm
 
 export interface EquipmentFacts {
   readonly type?: string
-  readonly hands?: number
+  readonly twoHanded?: boolean
   readonly unique?: boolean
   readonly sources: readonly SourceRef[]
 }
@@ -33,7 +34,7 @@ export function equipmentFacts(definition: MechanicsDefinition): EquipmentFacts 
   const record = crystalEditRecord(definition)
   if (record) return {
     ...(typeof record.EquipmentType === 'number' && EQUIPMENT_TYPES[record.EquipmentType] ? { type: EQUIPMENT_TYPES[record.EquipmentType] } : {}),
-    ...(typeof record.IsTwoHanded === 'boolean' ? { hands: record.IsTwoHanded ? 2 : 1 } : {}),
+    ...(typeof record.IsTwoHanded === 'boolean' ? { twoHanded: record.IsTwoHanded } : {}),
     ...(typeof record.IsOneOnly === 'boolean' ? { unique: record.IsOneOnly } : {}),
     sources: definition.sources,
   }
@@ -44,12 +45,14 @@ export function equipmentFacts(definition: MechanicsDefinition): EquipmentFacts 
   const handsConflicting = definition.fields.Hands?.state === 'conflicting'
   const handTexts = Object.entries(definition.fields).filter(([key, value]) => key.includes('Hands') && value.state === 'known').flatMap(([, value]) => value.state === 'known' && typeof value.value === 'string' ? [value.value] : [])
   const parsedHands = [...new Set(handTexts.flatMap(text => [...text.matchAll(/\b([12])-Handed\b/gi)].map(match => match[1]!)))]
-  const twoHandedCategory = Array.isArray(categories) && categories.includes('Two-Handed Staff')
-  const handsDisagree = (hands === 1 || hands === 2) && parsedHands.some(value => Number(value) !== hands)
-  const knownHands = handsConflicting || handsDisagree ? undefined : hands === 1 || hands === 2 ? hands : parsedHands.length === 1 ? Number(parsedHands[0]) : twoHandedCategory ? 2 : type && !isWeapon(type) ? 1 : undefined
+  const categoryHandedness = [...new Set(Array.isArray(categories) ? categories.flatMap(value => typeof value === 'string' && Object.hasOwn(WIKI_CATEGORY_TWO_HANDED, value.toLowerCase()) ? [WIKI_CATEGORY_TWO_HANDED[value.toLowerCase()]!] : []) : [])]
+  const explicitHandCount = hands === 1 || hands === 2 ? hands : parsedHands.length === 1 ? Number(parsedHands[0]) : undefined
+  const categoryTwoHanded = categoryHandedness.length === 1 ? categoryHandedness[0] : undefined
+  const handsDisagree = hands === 1 || hands === 2 ? parsedHands.some(value => Number(value) !== hands) || categoryHandedness.some(value => value !== (hands === 2)) : parsedHands.length === 1 && categoryHandedness.some(value => value !== (Number(parsedHands[0]) === 2))
+  const twoHanded = handsConflicting || handsDisagree || categoryHandedness.length > 1 ? undefined : explicitHandCount !== undefined ? explicitHandCount === 2 : categoryTwoHanded ?? (type && !isWeapon(type) ? false : undefined)
   const effects = knownField(definition, 'Other effects')
   const unique = knownField(definition, 'Unique')
-  return { type, hands: knownHands, ...(unique === 'Yes' || typeof effects === 'string' && /\b(?:can only equip one|only one can be equipped|one only)\b/i.test(effects) ? { unique: true } : unique === 'No' ? { unique: false } : {}), sources: definition.sources }
+  return { type, twoHanded, ...(unique === 'Yes' || typeof effects === 'string' && /\b(?:can only equip one|only one can be equipped|one only)\b/i.test(effects) ? { unique: true } : unique === 'No' ? { unique: false } : {}), sources: definition.sources }
 }
 
 export function isWeapon(type: string): boolean {
@@ -125,7 +128,6 @@ export function definitionWithMechanics<T extends MechanicsDefinition>(definitio
   return {
     ...definition,
     slotKinds: fillUnknown(definition.slotKinds, passive ? undefined : equipment.type && mappedSlots ? slots.filter(slot => equipmentRole(slot) && equipmentFitsRole(equipment.type!, equipmentRole(slot)!)).map(slot => slot.id as string) : undefined, definition.sources),
-    occupiesSlots: fillUnknown(definition.occupiesSlots, passive ? undefined : equipment.hands, definition.sources),
     requirements: fillUnknown(definition.requirements, permissions || knownPassive ? [] : equipment.type ? [{ kind: 'permission' as const, permission: equipmentPermission(equipment.type) }] : undefined, definition.sources),
     grants: fillUnknown(definition.grants, permissions ? permissions.map(equipmentPermission) : knownPassive ? effects.equipment.map(equipmentPermission) : undefined, definition.sources),
     ppCost: passive ? passivePointCost(definition) : definition.ppCost,

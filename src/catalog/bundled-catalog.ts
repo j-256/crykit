@@ -3,7 +3,7 @@ import { addCrystalEditFacts } from './crystal-edit'
 import { addModdingGuideFacts } from './modding-guide'
 
 export const BUNDLED_CATALOG_REVISION_ID = 'bundled-v1' as CatalogRevisionId
-export const BUNDLED_CATALOG_CHECKSUM = 'builtin:sha256:abab286f37606a0d61ba5ea5d5bb86a0e79f62e2afe14dbe13aefd4dded1bfb4'
+export const BUNDLED_CATALOG_CHECKSUM = 'builtin:sha256:92e50dcd977f84d5a8b5d48df3f08b3969f183b08b4a4046c0720cdcadbc39b2'
 
 export function assembleBundledCatalog(base: CatalogSnapshot): CatalogSnapshot {
   const enriched = addModdingGuideFacts(addCrystalEditFacts(base))

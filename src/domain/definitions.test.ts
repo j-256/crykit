@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { validateNativeProfileGraph } from '../interchange/native'
+import { equipmentFacts } from './mechanics-facts'
 
 import {
   asId,
@@ -74,7 +75,6 @@ const CATALOG: CatalogSnapshot = {
         unsupported: known({ preserved: true }),
       },
       slotKinds: known([HAND_SLOT]),
-      occupiesSlots: known(1),
       ppCost: known(2),
       listedContributions: { attack: known({ value: 4, unit: 'displayed' }) },
       requirements: known([]),
@@ -103,12 +103,12 @@ describe('immutable personal definition overrides', () => {
     const originalCatalog = structuredClone(CLAIM_CATALOG)
     const first = createDefinitionOverride(createTestProfile(), [CLAIM_CATALOG], { sourceRef: BASE_REF, fieldUpdates: { Attack: known(15), Hands: known(2), PP: known(4), Detail: known({ enabled: false, values: [0, 'synthetic'] }) }, now: TEST_NOW })
     expect(first.definition.listedContributions?.Attack).toEqual(known({ value: 15, unit: 'listed flat value' }))
-    expect(first.definition.occupiesSlots).toEqual(known(2))
+    expect(equipmentFacts(first.definition).twoHanded).toBe(true)
     expect(first.definition.ppCost).toEqual(known(4))
     expect(first.definition.fields.Location).toEqual(LOCATION_CLAIMS)
     const second = createDefinitionOverride(first.profile, [CLAIM_CATALOG], { sourceRef: first.ref, fieldUpdates: { Attack: { state: 'unknown', reason: 'Needs observation' }, Hands: null, PP: { state: 'notApplicable' }, Detail: null }, now: TEST_NOW })
     expect(second.definition.listedContributions?.Attack).toEqual({ state: 'unknown', reason: 'Needs observation' })
-    expect(second.definition.occupiesSlots?.state).toBe('unknown')
+    expect(equipmentFacts(second.definition).twoHanded).toBeUndefined()
     expect(second.definition.ppCost).toEqual({ state: 'notApplicable' })
     expect(second.definition.fields.Detail).toBeUndefined()
     expect(second.profile.personalDefinitions[first.definition.id]).toEqual(first.definition)
@@ -193,7 +193,6 @@ describe('immutable personal definition overrides', () => {
       name: 'Switch Sword+',
       fields: { unsupported: known({ preserved: true }) },
       slotKinds: known([HAND_SLOT]),
-      occupiesSlots: known(1),
       listedContributions: { attack: known({ value: 4, unit: 'displayed' }) },
       requirements: known([]),
       grants: known(['equip.sword']),

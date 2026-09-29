@@ -512,19 +512,18 @@ describe('slot, allocation, and permission checks', () => {
     expect(hasIssue(profile, 'scenario', 'ENTITY_SLOT_UNKNOWN')).toBe(true)
   })
 
-  it('uses one copy for a verified two-slot allocation group', () => {
+  it('uses one copy for a shared allocation group', () => {
     let profile = createTestProfile()
     profile = addTestCharacter(profile, 'character')
-    profile = addTestDefinition(profile, 'two-slot-item', { occupiesSlots: known(2) })
-    profile = observe(profile, 'two-slot-item', { kind: 'exact', value: 1 })
+    profile = addTestDefinition(profile, 'shared-item')
+    profile = observe(profile, 'shared-item', { kind: 'exact', value: 1 })
     profile = addTestBuild(profile, 'build', 'character', {
-      [HAND_SLOT]: { ref: personalRef('two-slot-item'), allocationId: 'same-copy' },
-      [SECOND_HAND_SLOT]: { ref: personalRef('two-slot-item'), allocationId: 'same-copy' },
+      [HAND_SLOT]: { ref: personalRef('shared-item'), allocationId: 'same-copy' },
+      [SECOND_HAND_SLOT]: { ref: personalRef('shared-item'), allocationId: 'same-copy' },
     })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
     expect(validateScenario(profile, asId<ScenarioId>('scenario')).dimensions.inventory.status).toBe('valid')
-    expect(hasIssue(profile, 'scenario', 'SLOT_OCCUPANCY_MISMATCH')).toBe(false)
   })
 
   it('rejects an allocation ID reused for different definitions', () => {
@@ -679,7 +678,6 @@ describe('catalog revision identity', () => {
       aliases: [],
       fields: {},
       slotKinds: known([HAND_SLOT]),
-      occupiesSlots: known(1),
       requirements: known([]),
       grants: known([]),
       sources: [],

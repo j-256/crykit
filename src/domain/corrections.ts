@@ -189,8 +189,8 @@ export function correctionExportClosure(entries: readonly CatalogCorrection[], s
 
 const CONTRIBUTION_FIELDS = new Set(['Accuracy', 'Agility', 'Attack', 'Crit. Chance', 'Crit. Damage', 'Def. Pierce', 'Defense', 'Dexterity', 'Evasion', 'Luck', 'Max. HP', 'Max. MP', 'Mind', 'Res. Pierce', 'Resistance', 'Speed', 'Spirit', 'Strength', 'Vitality'])
 
-function numericKnowledge(value: Knowledge<JsonValue> | undefined, positiveInteger = false): Knowledge<number> {
-  const valid = (candidate: JsonValue): candidate is number => typeof candidate === 'number' && Number.isFinite(candidate) && (!positiveInteger || (candidate > 0 && Number.isInteger(candidate)))
+function numericKnowledge(value: Knowledge<JsonValue> | undefined): Knowledge<number> {
+  const valid = (candidate: JsonValue): candidate is number => typeof candidate === 'number' && Number.isFinite(candidate)
   if (value?.state === 'known' && valid(value.value)) return { ...value, value: value.value }
   if (value?.state === 'conflicting' && value.claims.every(claim => valid(claim.value))) return { state: 'conflicting', claims: value.claims.map(claim => ({ ...claim, value: claim.value as number })) }
   if (value?.state === 'unknown' || value?.state === 'notApplicable') return value
@@ -203,13 +203,6 @@ export function synchronizePlanningField(entity: CatalogEntity | PersonalDefinit
   const value = entity.fields[field]
   const normalized = field.toLocaleLowerCase().trim()
   if (normalized === 'pp' || normalized === 'pp cost') return { ...entity, ppCost: numericKnowledge(value) }
-  if (normalized === 'hands' && entity.kind === 'item') return { ...entity, occupiesSlots: numericKnowledge(value, true) }
-  if (normalized === 'attack/pierce/hands' && entity.kind === 'item') {
-    const hands = numericKnowledge(entity.fields.Hands, true)
-    if (hands.state === 'known') return { ...entity, occupiesSlots: hands }
-    const match = value?.state === 'known' && typeof value.value === 'string' ? /\b([12])-Handed\b/i.exec(value.value) : null
-    return { ...entity, occupiesSlots: match && value?.state === 'known' ? { state: 'known', value: Number(match[1]), ...(value.sources ? { sources: value.sources } : {}) } : { state: 'unknown', reason: 'The corrected source does not establish the number of occupied slots' } }
-  }
   if (normalized === 'description') {
     const { rawDescription: _description, ...rest } = entity
     return value?.state === 'known' && typeof value.value === 'string' ? { ...rest, rawDescription: value.value } : rest

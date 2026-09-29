@@ -53,7 +53,7 @@ async function addCharacter(page: Page, name: string) {
   await form.getByLabel('Character name').fill(name)
   await form.getByRole('button', { name: 'Add character', exact: true }).click()
   await expect(form).not.toBeVisible()
-  await page.getByRole('article', { name, exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
+  await page.getByRole('article', { name, exact: true }).getByRole('link', { name, exact: true }).click()
 }
 
 async function addStock(page: Page) {
@@ -92,7 +92,7 @@ test('character, party progress, and historical events remain independent observ
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
 
-  await page.getByRole('button', { name: 'Learn', exact: true }).click()
+  await page.getByRole('button', { name: 'Skills', exact: true }).click()
   await page.getByRole('combobox', { name: 'Skill type', exact: true }).selectOption('monsterMagic')
   await page.getByRole('button', { name: 'Add spell', exact: true }).click()
   const learning = page.getByRole('dialog', { name: 'Record Monster Magic' })
