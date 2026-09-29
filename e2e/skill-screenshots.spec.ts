@@ -24,7 +24,7 @@ async function loadFixture(page: Page, profile: Profile = { ...screenshotTestPro
   await expect(panel.getByText('native-backup-1.0.0', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
   await expect(panel).not.toBeVisible()
-  await page.goto(`/#/characters/${CHARACTER}/knowledge`)
+  await page.goto(`/#/characters/${CHARACTER}/current`)
   return profile
 }
 
@@ -229,7 +229,7 @@ for (const fixture of [
   test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, async ({ page }) => {
     await loadFixture(page)
     await useConfirmedSwitchSetup(page)
-    await page.goto(`/#/characters/${CHARACTER}/knowledge`)
+    await page.goto(`/#/characters/${CHARACTER}/current`)
     const characterBounds = await page.getByRole('combobox', { name: 'Character', exact: true }).boundingBox()
     for (const name of ['Import skill screenshots', 'Add character']) {
       const buttonBounds = await page.getByRole('button', { name, exact: true }).boundingBox()

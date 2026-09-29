@@ -91,7 +91,7 @@ test('character, party progress, and historical events remain independent observ
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
 
-  await page.getByRole('button', { name: 'Skills', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Skills', exact: true })).toHaveAttribute('aria-expanded', 'true')
   await page.getByRole('combobox', { name: 'Skill type', exact: true }).selectOption('monsterMagic')
   await page.getByRole('button', { name: 'Add spell', exact: true }).click()
   const learning = page.getByRole('dialog', { name: 'Record Monster Magic' })

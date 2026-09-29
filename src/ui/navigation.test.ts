@@ -23,7 +23,7 @@ describe('semantic navigation routes', () => {
       { page: 'inventory', view: 'edit', positionId: 'position / one' },
       { page: 'characters', view: 'list' },
       { page: 'characters', view: 'new' },
-      { page: 'characters', view: 'character', characterId: 'character / one', tab: 'magic' },
+      { page: 'characters', view: 'character', characterId: 'character / one', tab: 'current' },
       { page: 'characters', view: 'snapshot-new', characterId: 'character / one' },
       { page: 'characters', view: 'snapshot', characterId: 'character / one', snapshotId: 'snapshot / one' },
       { page: 'characters', view: 'snapshot-compare', characterId: 'character / one' },
@@ -91,6 +91,13 @@ describe('semantic navigation routes', () => {
     for (const hash of ['#/characters/c/history/snapshots/%E0%A4%A', '#/characters/c/history/compare/a', '#/characters/c/history/compare/a/b/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
     expect(parentRoute(parseAppRoute('#/characters/c/history/snapshots/s'))?.page).toEqual({ page: 'characters', view: 'character', characterId: 'c', tab: 'history' })
     expect(parentRoute(parseAppRoute('#/characters/c/history/compare/a/b'))?.page).toEqual({ page: 'characters', view: 'character', characterId: 'c', tab: 'history' })
+  })
+
+  it('canonicalizes character roots and rejects removed character subpages', () => {
+    const root = parseAppRoute('#/characters/character-example')
+    expect(root).toMatchObject({ page: { page: 'characters', view: 'character', characterId: 'character-example', tab: 'current' }, legacy: true })
+    expect(formatAppRoute(root)).toBe('#/characters/character-example/current')
+    for (const section of ['classes', 'knowledge', 'magic']) expect(parseAppRoute(`#/characters/character-example/${section}`).page.page).toBe('unresolved')
   })
 
   it('round-trips picker and editor descendants with every parent query intact', () => {

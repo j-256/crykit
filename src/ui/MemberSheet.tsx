@@ -31,7 +31,7 @@ const DETAIL_FIELDS = /^(command|weapons?|armors?|innate passives?(\(s\))?|attac
 function knownRef(value: Knowledge<EntityRef>) { return value.state === 'known' ? value.value : undefined }
 
 function currentMemberPicker(route: AppRoute) {
-  return route.page.page === 'characters' && route.page.view === 'character' && route.page.tab !== 'history' ? route.overlays.find(overlay => overlay.kind === 'definition-picker') : undefined
+  return route.page.page === 'characters' && route.page.view === 'character' && route.page.tab === 'current' ? route.overlays.find(overlay => overlay.kind === 'definition-picker') : undefined
 }
 
 export function MemberArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
@@ -72,6 +72,10 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
     {option.ppCost && option.ppCost.state !== 'notApplicable' && <p>PP: <KnowledgeValue value={option.ppCost}/></p>}
     <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
   </div>
+}
+
+export function MemberSkillsToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return <button aria-expanded={open} aria-label="Skills" className="member-row" data-active={open} onClick={onToggle} type="button"><span className="member-row__label">Skills</span><span className="member-row__value">Classes & skills<Icon name="chevron-down"/></span></button>
 }
 
 function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable, selected, revealDetails = false, onInspect, onChange, children }: {
@@ -227,7 +231,7 @@ export function MemberSheet({ profile, catalogs, snapshot, hasPendingSave, onSav
         <div className="member-menu__group">{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</div>
         <div className="member-menu__group">{slots.map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</div>
         <div className="member-menu__group"><button aria-expanded={passivesOpen || requestedPassive} className="member-row" onClick={() => setPassivesOpen(value => !value)} type="button"><span className="member-row__label">Passives</span><span className="member-row__value member-passives">{passiveRefs.map((ref, index) => <span className="member-passive" data-state="equipped" key={`${entityDefinitionKey(ref)}:${index}`} title={`Equipped passive ${index + 1}: ${display(ref)}`}><Icon name="crystal"/></span>)}<span className="sr-only">{draft.passives.state === 'known' ? passiveRefs.map((ref, index) => `Equipped passive ${index + 1}: ${display(ref)}`).join('; ') || 'No passives equipped' : 'Equipped passives unknown'}</span><Icon name="chevron-down"/></span></button>{(passivesOpen || requestedPassive) && <div className="member-passive-list"><p>{knowledgeLabel(ruleset?.ppLimit ?? UNKNOWN)} PP limit for this ruleset</p>{draft.passives.state === 'known' ? [...passiveRefs, undefined].map(passiveField) : <p>Equipped passive list: Unknown</p>}</div>}
-          <button aria-expanded={skillsOpen} aria-label="Skills" className="member-row" data-active={skillsOpen} onClick={onSkills} type="button"><span className="member-row__label">Skills</span><span className="member-row__value">Classes & skills<Icon name="tome"/></span></button>
+          <MemberSkillsToggle onToggle={onSkills} open={skillsOpen}/>
           <button aria-expanded={statusOpen} className="member-row" onClick={() => setStatusOpen(value => !value)} type="button"><span className="member-row__label">Status</span><span className="member-row__value">Recorded stats<Icon name="chevron-down"/></span></button>
         </div>
       </section>

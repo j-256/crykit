@@ -17,7 +17,7 @@ import type {
 } from '../domain/types'
 
 export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference'
-export type CharacterTab = 'current' | 'classes' | 'knowledge' | 'magic' | 'history'
+export type CharacterTab = 'current' | 'history'
 export type SettingsSection = 'data' | 'ruleset' | 'history' | 'storage' | 'credits'
 
 export type InventoryPageRoute =
@@ -185,7 +185,7 @@ function overlayStartsAt(segments: readonly string[], index: number): boolean {
   return segment === undefined || segment === 'search' || segment === 'pick' || segment === 'definitions' || segment === 'corrections' || segment === 'correct'
 }
 
-function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number } {
+function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number; readonly legacy?: true } {
   const bad = (recovery = recoveryFor(segments), reason?: UnresolvedPageRoute['reason']) => ({ page: unresolved(requestedPath, recovery, reason), consumed: segments.length })
   if (segments[0] === 'inventory') {
     if (overlayStartsAt(segments, 1)) return { page: { page: 'inventory', view: 'list' }, consumed: 1 }
@@ -203,29 +203,35 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
     const characterId = decodeSegment(segments[1] ?? '')
     if (!characterId) return bad('characters', 'malformed-identifier')
     const tab = segments[2]
-    if (tab === 'current' || tab === 'classes' || tab === 'knowledge' || tab === 'magic' || tab === 'history') {
+    const currentPage = { page: 'characters', view: 'character', characterId: characterId as CharacterId, tab: 'current' } as const
+    if (tab === undefined) return { page: currentPage, consumed: 2, legacy: true }
+    if (tab === 'current') {
+      if (overlayStartsAt(segments, 3)) return { page: currentPage, consumed: 3 }
+      if (segments[3] === 'snapshots' && segments[4] === 'new') return { page: { page: 'characters', view: 'snapshot-new', characterId: characterId as CharacterId }, consumed: 5 }
+      if (segments[3] === 'classes' && segments[4] === 'new') return { page: { page: 'characters', view: 'class-new', characterId: characterId as CharacterId }, consumed: 5 }
+      if (segments[3] === 'classes') {
+        const parsed = parseEntityRefPath(segments, 4)
+        if (parsed && segments[4 + parsed.consumed] === 'edit') return { page: { page: 'characters', view: 'class-edit', characterId: characterId as CharacterId, ref: parsed.ref }, consumed: 5 + parsed.consumed }
+      }
+      if (segments[3] === 'skills' && segments[4] === 'screenshots') return { page: { page: 'characters', view: 'skill-screenshots', characterId: characterId as CharacterId }, consumed: 5 }
+      const learningKind = segments[3] === 'skills' && (segments[4] === 'knowledge' || segments[4] === 'magic') ? segments[4] : undefined
+      if (learningKind && segments[5] === 'new') return { page: { page: 'characters', view: 'learning-new', characterId: characterId as CharacterId, learningKind }, consumed: 6 }
+      if (learningKind) {
+        const parsed = parseEntityRefPath(segments, 5)
+        if (parsed && segments[5 + parsed.consumed] === 'edit') return { page: { page: 'characters', view: 'learning-edit', characterId: characterId as CharacterId, learningKind, ref: parsed.ref }, consumed: 6 + parsed.consumed }
+      }
+    }
+    if (tab === 'history') {
       if (overlayStartsAt(segments, 3)) return { page: { page: 'characters', view: 'character', characterId: characterId as CharacterId, tab }, consumed: 3 }
-      if (tab === 'current' && segments[3] === 'snapshots' && segments[4] === 'new') return { page: { page: 'characters', view: 'snapshot-new', characterId: characterId as CharacterId }, consumed: 5 }
-      if (tab === 'history' && segments[3] === 'snapshots') {
+      if (segments[3] === 'snapshots') {
         const snapshotId = decodeSegment(segments[4] ?? '')
         return snapshotId ? { page: { page: 'characters', view: 'snapshot', characterId: characterId as CharacterId, snapshotId: snapshotId as CharacterSnapshotId }, consumed: 5 } : bad('characters', 'malformed-identifier')
       }
-      if (tab === 'history' && segments[3] === 'compare') {
+      if (segments[3] === 'compare') {
         if (overlayStartsAt(segments, 4)) return { page: { page: 'characters', view: 'snapshot-compare', characterId: characterId as CharacterId }, consumed: 4 }
         const leftSnapshotId = decodeSegment(segments[4] ?? '')
         const rightSnapshotId = decodeSegment(segments[5] ?? '')
         return leftSnapshotId && rightSnapshotId ? { page: { page: 'characters', view: 'snapshot-pair', characterId: characterId as CharacterId, leftSnapshotId: leftSnapshotId as CharacterSnapshotId, rightSnapshotId: rightSnapshotId as CharacterSnapshotId }, consumed: 6 } : bad('characters', 'malformed-identifier')
-      }
-      if (tab === 'knowledge' && segments[3] === 'screenshots') return { page: { page: 'characters', view: 'skill-screenshots', characterId: characterId as CharacterId }, consumed: 4 }
-      if (tab === 'classes' && segments[3] === 'new') return { page: { page: 'characters', view: 'class-new', characterId: characterId as CharacterId }, consumed: 4 }
-      if (tab === 'classes') {
-        const parsed = parseEntityRefPath(segments, 3)
-        if (parsed && segments[3 + parsed.consumed] === 'edit') return { page: { page: 'characters', view: 'class-edit', characterId: characterId as CharacterId, ref: parsed.ref }, consumed: 4 + parsed.consumed }
-      }
-      if ((tab === 'knowledge' || tab === 'magic') && segments[3] === 'new') return { page: { page: 'characters', view: 'learning-new', characterId: characterId as CharacterId, learningKind: tab }, consumed: 4 }
-      if (tab === 'knowledge' || tab === 'magic') {
-        const parsed = parseEntityRefPath(segments, 3)
-        if (parsed && segments[3 + parsed.consumed] === 'edit') return { page: { page: 'characters', view: 'learning-edit', characterId: characterId as CharacterId, learningKind: tab, ref: parsed.ref }, consumed: 4 + parsed.consumed }
       }
     }
     return bad('characters', segments.some((segment) => segment === 'catalog' || segment === 'personal') ? 'malformed-entity-reference' : 'unknown-route')
@@ -496,7 +502,7 @@ export function parseAppRoute(hash: string): AppRoute {
   if (parsed.page.page === 'unresolved') return { page: parsed.page, overlays: [], query: {} }
   const overlays = parseOverlays(segments, parsed.consumed, params)
   if (!overlays || !overlaysSupported(parsed.page, overlays)) return { page: unresolved(path, recoveryFor(segments)), overlays: [], query: {} }
-  return { page: parsed.page, overlays, query: queryFromParams(params, overlays.length > 0) }
+  return { page: parsed.page, overlays, query: queryFromParams(params, overlays.length > 0), ...(parsed.legacy ? { legacy: true as const } : {}) }
 }
 
 function formatPage(page: PageRoute): string {
@@ -514,11 +520,11 @@ function formatPage(page: PageRoute): string {
     if (page.view === 'snapshot') return `${root}/history/snapshots/${encodeSegment(page.snapshotId)}`
     if (page.view === 'snapshot-compare') return `${root}/history/compare`
     if (page.view === 'snapshot-pair') return `${root}/history/compare/${encodeIdentitySegment(page.leftSnapshotId, COMPARE_LEFT_ID_RESERVED_SEGMENTS)}/${encodeSegment(page.rightSnapshotId)}`
-    if (page.view === 'skill-screenshots') return `${root}/knowledge/screenshots`
-    if (page.view === 'class-new') return `${root}/classes/new`
-    if (page.view === 'class-edit') return `${root}/classes/${formatEntityRefPath(page.ref)}/edit`
-    if (page.view === 'learning-new') return `${root}/${page.learningKind}/new`
-    if (page.view === 'learning-edit') return `${root}/${page.learningKind}/${formatEntityRefPath(page.ref)}/edit`
+    if (page.view === 'skill-screenshots') return `${root}/current/skills/screenshots`
+    if (page.view === 'class-new') return `${root}/current/classes/new`
+    if (page.view === 'class-edit') return `${root}/current/classes/${formatEntityRefPath(page.ref)}/edit`
+    if (page.view === 'learning-new') return `${root}/current/skills/${page.learningKind}/new`
+    if (page.view === 'learning-edit') return `${root}/current/skills/${page.learningKind}/${formatEntityRefPath(page.ref)}/edit`
     return `${root}/${page.tab}`
   }
   if (page.page === 'builds') {
@@ -623,7 +629,7 @@ export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (page.page === 'characters') {
     if (page.view === 'new') return { ...route, page: { page: 'characters', view: 'list' } }
     if (page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: 'history' } }
-    if (page.view !== 'list' && page.view !== 'character') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: page.view === 'skill-screenshots' ? 'knowledge' : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current' } }
+    if (page.view !== 'list' && page.view !== 'character') return { ...route, page: { page: 'characters', view: 'character', characterId: page.characterId, tab: 'current' } }
     if (page.view === 'character') return { ...route, page: { page: 'characters', view: 'list' } }
   }
   if (page.page === 'builds') {

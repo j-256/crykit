@@ -20,7 +20,7 @@ import { activeRuleset, ownRecordValue } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField } from './definitions'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker, type CharactersPageRoute, type CharacterTab } from './navigation'
-import { MemberSheet, MemberSummary } from './MemberSheet'
+import { MemberSheet, MemberSkillsToggle, MemberSummary } from './MemberSheet'
 import { CharacterLearning } from './CharacterLearning'
 import './member.css'
 import { SkillScreenshotImport } from './SkillScreenshotImport'
@@ -314,17 +314,19 @@ function LearnedNodeForm({ initial, defaultKind, lockedKind, onCancel, onSubmit 
 export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCapture, onUpsertClass, onUpsertLearned, onImportScreenshots, onDraftChange, onRetrySave }: CharactersViewProps) {
   const navigation = useNavigation()
   const [memberDirty, setMemberDirty] = useState(false)
+  const [skillsOpen, setSkillsOpen] = useState(true)
   const updateMemberDirty = useCallback<DraftChangeHandler>((dirty, actions) => { setMemberDirty(dirty); onDraftChange(dirty, actions) }, [onDraftChange])
   const characters = Object.values(profile.characters)
   const page = navigation.route.page.page === 'characters' ? navigation.route.page : { page: 'characters', view: 'list' } as const
   const selectedId = 'characterId' in page ? page.characterId : undefined
   const selected = selectedId ? ownRecordValue(profile.characters, selectedId) : undefined
   const missingCharacter = Boolean(selectedId && !selected)
-  const tab: CharacterTab = page.view === 'skill-screenshots' ? 'knowledge' : page.view === 'character' ? page.tab : page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'history' : page.view === 'class-new' || page.view === 'class-edit' ? 'classes' : page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind : 'current'
+  const tab: CharacterTab = page.view === 'character' ? page.tab : page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'history' : 'current'
   const adding = page.view === 'new'
   const overview = page.view === 'list' || adding
   const capturing = page.view === 'snapshot-new' && Boolean(selected)
   const snapshot = selected?.currentSnapshotId ? ownRecordValue(selected.snapshots, selected.currentSnapshotId) : undefined
+  const initialLearningKind = page.view === 'learning-new' || page.view === 'learning-edit' ? page.learningKind === 'magic' ? 'monsterMagic' : 'all' : 'all'
 
   const classRows = selected ? Object.values(selected.classProgress) : []
   const knowledgeRows = selected ? Object.values(selected.learnedNodes).filter((node) => node.kind !== 'monsterMagic') : []
@@ -346,7 +348,6 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
   const saveClass = async (draft: ClassProgressDraft) => { if (!selected) return; await onUpsertClass(selected.id, draft); navigation.close() }
   const saveLearned = async (draft: LearnedNodeDraft) => { if (!selected) return; await onUpsertLearned(selected.id, draft); navigation.close() }
 
-  const learning = tab === 'classes' || tab === 'knowledge' || tab === 'magic'
   const selectedIndex = characters.findIndex(character => character.id === selected?.id)
   const selectNeighbor = (step: number) => {
     const character = characters[(selectedIndex + step + characters.length) % characters.length]
@@ -360,10 +361,10 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
       <MemberSummary catalogs={catalogs} character={selected} profile={profile} snapshot={page.view === 'snapshot' ? ownRecordValue(selected.snapshots, page.snapshotId) : snapshot}/>
       <nav aria-label="Character views" className="member-navigation"><div><Button aria-current={tab !== 'history' ? 'page' : undefined} icon="user" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'current' })} tone="quiet">Character</Button><Button aria-current={tab === 'history' ? 'page' : undefined} icon="history" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'history' })} tone="quiet">History</Button><Button disabled={memberDirty} icon="edit" onClick={record} tone="quiet">Capture snapshot</Button></div></nav>
       <div className="member-window__body">
-        {(tab === 'current' || learning) && <>{snapshot ? <MemberSheet catalogs={catalogs} hasPendingSave={hasPendingSave} key={selected.id} onDirtyChange={updateMemberDirty} onRetrySave={onRetrySave} onRecord={record} onSave={capture} onSkills={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: learning ? 'current' : 'knowledge' })} profile={profile} skillsOpen={learning} snapshot={snapshot}/> : <EmptyState description="Start with what you can see in game. Leave the rest unknown." icon="character" title="No snapshot recorded"><Button onClick={record}>Capture current sheet</Button></EmptyState>}
+        {tab === 'current' && <>{snapshot ? <MemberSheet catalogs={catalogs} hasPendingSave={hasPendingSave} key={selected.id} onDirtyChange={updateMemberDirty} onRetrySave={onRetrySave} onRecord={record} onSave={capture} onSkills={() => setSkillsOpen(value => !value)} profile={profile} skillsOpen={skillsOpen} snapshot={snapshot}/> : <><EmptyState description="Start with what you can see in game. Leave the rest unknown." icon="character" title="No snapshot recorded"><Button onClick={record}>Capture current sheet</Button></EmptyState><div className="member-menu__group member-skills-standalone"><MemberSkillsToggle onToggle={() => setSkillsOpen(value => !value)} open={skillsOpen}/></div></>}
           <details className="member-record member-plans"><summary>Planned builds</summary>{Object.values(profile.builds).filter(build => build.characterId === selected.id && (build.state === 'draft' || build.state === 'hypothetical')).map(build => <div className="list-row" key={build.id}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{build.state === 'draft' ? 'Draft' : 'Hypothetical'}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds</Button></details>
         </>}
-        {learning && <CharacterLearning catalogs={catalogs} character={selected} initialKind={tab === 'magic' ? 'monsterMagic' : 'all'} key={`${selected.id}:${tab === 'magic'}`} profile={profile}/>}
+        {tab === 'current' && skillsOpen && <CharacterLearning catalogs={catalogs} character={selected} initialKind={initialLearningKind} key={selected.id} profile={profile}/>}
         {tab === 'history' && <CharacterHistory catalogs={catalogs} character={selected} key={selected.id} page={page} profile={profile}/>}
       </div>
     </section>}
