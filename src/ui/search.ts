@@ -2,6 +2,7 @@ import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponT
 import type { ModState } from '../domain/mods'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
+import { projectSourceSemantics } from '../catalog/source-semantics'
 import { combineFacetKnowledge, facetStringValues, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
 import type {
   CatalogClaim,
@@ -170,31 +171,32 @@ export function projectReferenceEntity(
   suppliedClaims?: readonly CatalogClaim[],
 ): ReferenceSearchItem {
   const claims = suppliedClaims ?? catalog.claims.filter((claim) => claim.entityId === entity.id)
-  const categoryKnowledge = referenceCategoryKnowledge(entity, claims)
+  const projectedEntity = projectSourceSemantics(entity)
+  const categoryKnowledge = referenceCategoryKnowledge(projectedEntity, claims)
   const categories = Array.from(new Set(categoryKnowledge.flatMap(facetStringValues))).sort(compareText)
   const sources = Array.from(new Set([
     catalog.id,
-    ...entity.sources.map((source) => source.sourceId),
+    ...projectedEntity.sources.map((source) => source.sourceId),
     ...claims.flatMap((claim) => claim.sources.map((source) => source.sourceId)),
   ].filter(Boolean))).sort(compareText)
-  const ppCost = ppCostKnowledge(entity)
-  const keyParts = { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }
+  const ppCost = ppCostKnowledge(projectedEntity)
+  const keyParts = { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: projectedEntity.id }
   return {
     key: encodeReferenceEntityKey(keyParts),
     keyParts,
-    entity,
+    entity: projectedEntity,
     catalog,
     claims,
     categories,
     sources,
     ppCost,
-    weaponRule: skillWeaponRule(entity),
-    knowledgeCounts: countKnowledge(entityKnowledge(entity, claims)),
+    weaponRule: skillWeaponRule(projectedEntity),
+    knowledgeCounts: countKnowledge(entityKnowledge(projectedEntity, claims)),
     projection: {
-      text: { state: 'known', value: [entity.name, ...entity.aliases, entity.rawDescription ?? ''].join('\n').normalize('NFKC') },
-      kind: { state: 'known', value: entity.kind },
+      text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
+      kind: { state: 'known', value: projectedEntity.kind },
       category: combineFacetKnowledge(categoryKnowledge),
-      ...referenceFieldFacets(entity, claims),
+      ...referenceFieldFacets(projectedEntity, claims),
       source: { state: 'known', value: sources },
       ppCost,
       ppCostUnit: ppUnitKnowledge(ppCost),

@@ -5,6 +5,7 @@ import { STARTER_CATALOG } from '../src/catalog'
 import type { CatalogSnapshot, Profile } from '../src/domain/types'
 
 const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aartisan-rapier?v=1&category=Rapiers'
+const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aacrobat-shoes'
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Artisan_Rapier?oldid=11808'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Rapiers/table?oldid=13313'
 
@@ -30,6 +31,18 @@ async function exportProfile(page: Page) {
 function locationRow(page: Page) {
   return page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Location$/ }) })
 }
+
+test('equivalent source wording is shown as one known fact', async ({ page }) => {
+  await page.goto(EQUIVALENT_ITEM_PATH)
+  const location = locationRow(page)
+  await expect(location.getByText('Chest: Shoudu Province', { exact: true })).toBeVisible()
+  await expect(location.getByText('known', { exact: true })).toBeVisible()
+  await expect(location.getByText('differing source values')).toHaveCount(0)
+  await expect(page.getByText('Source descriptions differ', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Review source differences', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Community wiki · Accessories/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905')
+  await expect(page.getByRole('link', { name: 'Community wiki · Acrobat Shoes', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Acrobat_Shoes?oldid=13120')
+})
 
 test('conflicting fields expose every claim and protect explicit review choices', async ({ page, baseURL }) => {
   const externalRequests: string[] = []

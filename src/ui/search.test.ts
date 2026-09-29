@@ -129,6 +129,18 @@ describe('reference search projection', () => {
     expect(projectReferenceEntity(snapshot, spear).claims).toHaveLength(1)
   })
 
+  it('counts equivalent source wording as known without changing the immutable catalog', () => {
+    const location = { state: 'conflicting' as const, claims: [
+      { value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }] },
+      { value: 'It can be found in a chest, in Shoudu Province', sources: [{ sourceId: 'detail' }] },
+    ] }
+    const shoes = entity('shoes', { kind: 'item', name: 'Acrobat Shoes', fields: { Location: location } })
+    const item = projectReferenceEntity(catalog([shoes]), shoes)
+    expect(item.entity.fields.Location).toEqual({ state: 'known', value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }, { sourceId: 'detail' }] })
+    expect(item.knowledgeCounts).toMatchObject({ known: 1, conflicting: 0 })
+    expect(shoes.fields.Location).toBe(location)
+  })
+
   it('uses a collision-safe tuple for selected reference identity', () => {
     const left = encodeReferenceEntityKey({ catalogId: 'a:b', catalogRevisionId: 'c', entityId: 'd' })
     const right = encodeReferenceEntityKey({ catalogId: 'a', catalogRevisionId: 'b:c', entityId: 'd' })
