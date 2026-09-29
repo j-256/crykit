@@ -1,5 +1,5 @@
 import { sameCorrectionValue, type CatalogCorrection, type CorrectionChange } from '../domain/corrections'
-import type { CatalogEntity, JsonValue, Knowledge } from '../domain/types'
+import type { CatalogEntity, JsonValue, Knowledge, SourceRef } from '../domain/types'
 import { parseBoundedJson } from '../interchange/json'
 
 export interface CorrectionFieldDraft {
@@ -8,6 +8,7 @@ export interface CorrectionFieldDraft {
   readonly text: string
   readonly reason: string
   readonly preserved?: Knowledge<JsonValue>
+  readonly selectedSources?: readonly SourceRef[]
 }
 
 export function fieldDraft(value: Knowledge<JsonValue> | null | undefined, edited = false): CorrectionFieldDraft {
@@ -35,11 +36,11 @@ export function draftFieldValue(draft: CorrectionFieldDraft): Knowledge<JsonValu
     value = draft.text === 'true'
   } else if (draft.type === 'list') value = draft.text.split('\n').map(entry => entry.trim()).filter(Boolean)
   else if (draft.type === 'json') value = parseBoundedJson(new TextEncoder().encode(draft.text), 'Structured fact')
-  const sources = draft.preserved?.state === 'known' && sameCorrectionValue(draft.preserved.value, value) ? draft.preserved.sources : undefined
+  const sources = draft.preserved?.state === 'known' && sameCorrectionValue(draft.preserved.value, value) ? draft.preserved.sources : draft.preserved?.state === 'conflicting' ? draft.preserved.claims.find(claim => sameCorrectionValue(claim.value, value) && sameCorrectionValue(claim.sources, draft.selectedSources))?.sources : undefined
   return { state: 'known', value, ...(sources ? { sources } : {}) }
 }
 
-export function correctionDraftFields(entity: CatalogEntity, correction?: CatalogCorrection): Readonly<Record<string, CorrectionFieldDraft>> {
+export function correctionDraftFields(entity: Pick<CatalogEntity, 'fields'>, correction?: CatalogCorrection): Readonly<Record<string, CorrectionFieldDraft>> {
   const fields = Object.fromEntries(Object.entries(entity.fields).map(([name, value]) => [name, fieldDraft(value)]))
   for (const change of correction?.changes ?? []) if (change.path === 'field') fields[change.field] = fieldDraft(change.after, true)
   const description = correction?.changes.find(change => change.path === 'description')

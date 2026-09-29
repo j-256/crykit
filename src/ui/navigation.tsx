@@ -692,7 +692,7 @@ export function writeNavigationRoute(route: AppRoute, mode: 'push' | 'replace' =
 export interface NavigationBlocker {
   readonly scope: AppRoute
   readonly blocked: () => boolean
-  readonly onBlocked?: () => void
+  readonly onBlocked?: (to: AppRoute) => void
   readonly allows?: (to: AppRoute) => boolean
 }
 
@@ -727,7 +727,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
     if (optionsRef.current.shouldBlock?.(from, to)) { optionsRef.current.onBlocked?.(to); return true }
     for (const blocker of blockersRef.current) {
       if (!blocker.blocked() || isRouteWithin(to, blocker.scope) || blocker.allows?.(to)) continue
-      blocker.onBlocked?.()
+      blocker.onBlocked?.(to)
       return true
     }
     return false
@@ -834,7 +834,7 @@ export function useNavigation(): NavigationController {
   return value
 }
 
-export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: () => void, allows?: (to: AppRoute) => boolean): void {
+export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: (to: AppRoute) => void, allows?: (to: AppRoute) => boolean): void {
   const { registerBlocker } = useNavigation()
   const dirtyRef = useRef(dirty)
   const blockedRef = useRef(onBlocked)
@@ -843,7 +843,7 @@ export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => bo
   blockedRef.current = onBlocked
   allowsRef.current = allows
   const scopeHash = formatAppRoute(scope)
-  useEffect(() => registerBlocker({ scope, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: () => blockedRef.current?.(), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash])
+  useEffect(() => registerBlocker({ scope, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: to => blockedRef.current?.(to), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash])
 }
 
 export function routeWithOverlay(route: AppRoute, overlay: RouteOverlay): AppRoute {

@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings, LEARN_NODE_TYPES, MAX_TREE_COLUMNS, STAT_KEYS, type GrowthStat } from '../domain/crystal-edit'
 import { estimateGrowth, GUIDE_GROWTH_SOURCE, GUIDE_LEVEL_CAP } from '../domain/growth'
-import type { CatalogEntity, CatalogSnapshot, EntityRef } from '../domain/types'
+import type { CatalogEntity, CatalogSnapshot, EntityRef, PersonalDefinition } from '../domain/types'
 import { Button, Field, InlineNotice } from './components'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace } from './definitions'
 import { SourceSummary } from './KnowledgeValue'
@@ -9,7 +9,7 @@ import './class-research.css'
 
 interface AllocationDraft { readonly id: number; readonly ref?: EntityRef; readonly levels: string }
 
-function GrowthCalculator({ entity, catalog }: { entity: CatalogEntity; catalog: CatalogSnapshot }) {
+function GrowthCalculator({ entity, definitionRef }: { entity: CatalogEntity | PersonalDefinition; definitionRef: EntityRef }) {
   const { options } = useDefinitionWorkspace()
   const id = useId()
   const [level, setLevel] = useState(String(GUIDE_LEVEL_CAP))
@@ -21,7 +21,7 @@ function GrowthCalculator({ entity, catalog }: { entity: CatalogEntity; catalog:
   const display = (value: number | null) => value === null ? 'Unknown' : value.toLocaleString(undefined, { maximumFractionDigits: 3 })
   return <div className="stack growth-calculator">
     <p>Estimate unequipped base stats for <strong>{entity.name}</strong>. Allocate growth levels explicitly; the primary class does not establish level-up history.</p>
-    <div className="cluster"><Field label="Character level"><input aria-label="Character level" max={GUIDE_LEVEL_CAP} min="1" onChange={event => setLevel(event.target.value)} type="number" value={level}/></Field><Button onClick={() => { setRows([{ id: nextId, levels: level, ref: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id } }]); setNextId(nextId + 1) }} tone="secondary">Use {entity.name} for all growth levels</Button></div>
+    <div className="cluster"><Field label="Character level"><input aria-label="Character level" max={GUIDE_LEVEL_CAP} min="1" onChange={event => setLevel(event.target.value)} type="number" value={level}/></Field><Button onClick={() => { setRows([{ id: nextId, levels: level, ref: definitionRef }]); setNextId(nextId + 1) }} tone="secondary">Use {entity.name} for all growth levels</Button></div>
     {rows.map((row, index) => <div className="growth-allocation" key={row.id}>
       <DefinitionPickerField allowedKinds={['class']} label={`Growth class ${index + 1}`} onChange={ref => update(row.id, { ref: ref ?? undefined })} value={row.ref}/>
       <Field label={`Growth levels ${index + 1}`}><input aria-label={`Growth levels ${index + 1}`} min="0" max={GUIDE_LEVEL_CAP} onChange={event => update(row.id, { levels: event.target.value })} type="number" value={row.levels}/></Field>
@@ -35,16 +35,16 @@ function GrowthCalculator({ entity, catalog }: { entity: CatalogEntity; catalog:
   </div>
 }
 
-export function ClassResearch({ entity, catalog }: { entity: CatalogEntity; catalog: CatalogSnapshot }) {
+export function ClassResearch({ entity, catalog, definitionRef }: { entity: CatalogEntity | PersonalDefinition; catalog?: CatalogSnapshot; definitionRef: EntityRef }) {
   if (entity.kind !== 'class' || !(CRYSTAL_EDIT_FIELDS.ratings in entity.fields || CRYSTAL_EDIT_FIELDS.tree in entity.fields)) return null
   const nodes = exportedTree(entity)
   const columns = Math.min(MAX_TREE_COLUMNS, Math.max(1, ...nodes.map(node => node.column + 1)))
   const sorted = [...nodes].sort((a, b) => a.row - b.row || a.column - b.column)
   return <section aria-label="Class growth and learning" className="panel class-research"><div className="panel__header"><h3>Class growth and learning</h3></div><div className="panel__body stack">
-    <details><summary>Growth calculator</summary><GrowthCalculator catalog={catalog} entity={entity}/></details>
+    <details><summary>Growth calculator</summary><GrowthCalculator definitionRef={definitionRef} entity={entity}/></details>
     {nodes.length > 0 && <details><summary>Exported learn tree</summary><p>Tree positions and prerequisite connectors from the class export. Numbered abilities and passives need their definitions from the same game data. This tree does not record anyone's learning or change the confirmed Switch maps.</p><div className="export-tree-scroll"><ol aria-label="Exported learn tree nodes" className="export-tree" style={{ gridTemplateColumns: `repeat(${columns}, minmax(68px, 1fr))` }}>{sorted.map(node => {
       const family = node.nodeType === LEARN_NODE_TYPES.ability ? 'Abilities' : 'Passives'
-      const definition = catalog.entities[`crystal-edit:${family}:${node.dataId}`]
+      const definition = catalog?.entities[`crystal-edit:${family}:${node.dataId}`]
       const label = node.nodeType === LEARN_NODE_TYPES.blank ? 'Empty' : node.nodeType === LEARN_NODE_TYPES.gate ? 'Gate' : node.nodeType === LEARN_NODE_TYPES.ability ? definition?.name ?? `Ability #${node.dataId}` : node.nodeType === LEARN_NODE_TYPES.passive ? definition?.name ?? `Passive #${node.dataId}` : `Node type ${node.nodeType}`
       return <li className={`export-tree__node export-tree__node--${node.nodeType}`} key={`${node.row}:${node.column}`} style={{ gridRow: node.row + 1, gridColumn: node.column + 1 }}><small>R{node.row + 1} C{node.column + 1}</small><strong>{label}</strong>{node.prerequisites.length > 0 && <small>Requires {node.prerequisites.map(p => `R${p.row + 1} C${p.column + 1}`).join(', ')}</small>}</li>
     })}</ol></div></details>}

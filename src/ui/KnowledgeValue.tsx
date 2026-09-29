@@ -21,7 +21,7 @@ function StructuredValue({ value, field }: { value: unknown; field?: string }) {
       const columns = Array.from(new Set(value.flatMap((row) => Object.keys(row))))
       return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
     }
-    return <ul className="structured-value__list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} value={entry}/></li>)}</ul>
+    return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} value={entry}/></li>)}</ul>
   }
   if (isRecord(value)) return <dl className="structured-value__record">{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} value={nested}/></dd></div>)}</dl>
   return <span>{String(value)}</span>

@@ -1,5 +1,5 @@
 import { entityDefinitionKey } from './core'
-import type { CatalogClaim, CatalogEntity, CatalogRef, CatalogSnapshot, JsonValue, Knowledge, SourceRef } from './types'
+import type { CatalogClaim, CatalogEntity, CatalogRef, CatalogSnapshot, JsonValue, Knowledge, PersonalDefinition, SourceRef } from './types'
 
 export const CORRECTIONS_FORMAT = 'crystal-companion-corrections'
 export const CORRECTIONS_VERSION = 1
@@ -76,6 +76,12 @@ export function originalCorrectionValue(entity: CatalogEntity, change: Correctio
 export function activeCorrections(entries: readonly CatalogCorrection[]): readonly CatalogCorrection[] {
   const superseded = new Set(entries.flatMap(entry => entry.supersedes))
   return entries.filter(entry => !superseded.has(entry.id))
+}
+
+export function correctionTargetChanged(starting: CorrectionCollection, current: CorrectionCollection, target: CatalogRef): boolean {
+  const key = correctionKey({ target })
+  const decisions = (collection: CorrectionCollection) => activeCorrections(collection.entries).filter(entry => correctionKey(entry) === key).sort((left, right) => left.id.localeCompare(right.id))
+  return !sameCorrectionValue(decisions(starting), decisions(current))
 }
 
 export function correctionStatus(correction: CatalogCorrection, catalogs: readonly CatalogSnapshot[], entries: readonly CatalogCorrection[] = [correction]): CorrectionStatus {
@@ -191,7 +197,9 @@ function numericKnowledge(value: Knowledge<JsonValue> | undefined, positiveInteg
   return { state: 'unknown', reason: 'The corrected source does not establish a valid numeric planning value' }
 }
 
-export function synchronizePlanningField(entity: CatalogEntity, field: string): CatalogEntity {
+export function synchronizePlanningField(entity: CatalogEntity, field: string): CatalogEntity
+export function synchronizePlanningField(entity: PersonalDefinition, field: string): PersonalDefinition
+export function synchronizePlanningField(entity: CatalogEntity | PersonalDefinition, field: string): CatalogEntity | PersonalDefinition {
   const value = entity.fields[field]
   const normalized = field.toLocaleLowerCase().trim()
   if (normalized === 'pp' || normalized === 'pp cost') return { ...entity, ppCost: numericKnowledge(value) }

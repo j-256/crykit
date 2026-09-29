@@ -5,7 +5,7 @@ import { createBlankProfile } from '../domain/profile'
 import { mergeCorrections } from '../domain/corrections'
 import { testCorrection } from '../domain/corrections.test-helpers'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
-import { CORRECTIONS_STORAGE_KEY, loadCorrections, saveCorrections, subscribeCorrections } from './corrections'
+import { CORRECTIONS_STORAGE_KEY, loadCorrections, saveCorrectionDraft, saveCorrections, subscribeCorrections } from './corrections'
 
 describe('global correction storage', () => {
   let database: CrystalCompanionDatabase
@@ -14,6 +14,28 @@ describe('global correction storage', () => {
     setDatabaseForTests(database)
   })
   afterEach(async () => { setDatabaseForTests(undefined); await database.delete() })
+
+  it('merges unrelated concurrent drafts and rejects a changed target atomically', async () => {
+    const starting = await loadCorrections()
+    const first = testCorrection()
+    const unrelated = testCorrection({ id: 'unrelated', target: { ...first.target, entityId: 'another-item' as typeof first.target.entityId } })
+    await Promise.all([saveCorrectionDraft(first, starting), saveCorrectionDraft(unrelated, starting)])
+    const saved = await loadCorrections()
+    expect(saved.entries).toHaveLength(2)
+    await expect(saveCorrectionDraft(testCorrection({ id: 'competing' }), starting)).rejects.toMatchObject({ code: 'revision-conflict' })
+    expect(await loadCorrections()).toEqual(saved)
+    await saveCorrectionDraft(testCorrection({ id: 'replacement', supersedes: [first.id] }), saved)
+    expect((await loadCorrections()).entries.map(entry => entry.id)).toEqual(['replacement', first.id, unrelated.id])
+  })
+
+  it('retries the same editor draft after a storage failure without recording a partial revision', async () => {
+    const starting = await loadCorrections()
+    const entry = testCorrection()
+    vi.spyOn(database.meta, 'put').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
+    await expect(saveCorrectionDraft(entry, starting)).rejects.toMatchObject({ code: 'storage-failure' })
+    expect(await loadCorrections()).toEqual(starting)
+    expect((await saveCorrectionDraft(entry, starting)).entries).toEqual([entry])
+  })
 
   it('starts blank, persists independently of playthroughs, and updates live subscribers', async () => {
     expect(await loadCorrections()).toEqual({ revision: 0, entries: [] })

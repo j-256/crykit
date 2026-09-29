@@ -80,7 +80,7 @@ test('backdrop dismissal closes only the top layer and respects unsaved definiti
   await clickOutside(page, editor, isMobile)
   await expect(editor.getByText('Definition draft still open', { exact: true })).toBeVisible()
   await expect(editor.getByRole('textbox', { name: 'Definition name', exact: true })).toHaveValue('Retain this synthetic definition')
-  await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await editor.getByRole('button', { name: 'Discard draft', exact: true }).click()
   await expect(editor).not.toBeVisible()
   await expect(picker).toBeVisible()
   await expect(picker.getByRole('searchbox', { name: 'Search available definitions', exact: true })).toHaveValue('Synthetic')

@@ -21,6 +21,7 @@ import {
 } from './definitions'
 import { MAX_ID_LENGTH, MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import { assertModConfiguration } from './mods'
+import { synchronizePlanningField } from './corrections'
 import type {
   CatalogSnapshot,
   CatalogEntityKind,
@@ -108,7 +109,7 @@ function validateEditableDefinition(
     assertTextLength(definition.rawDescription, 'Personal definition description', MAX_LONG_TEXT_LENGTH)
   }
   for (const key of Object.keys(definition.fields)) {
-    if (!key.trim()) throw new DomainError('INVALID_INPUT', 'Personal definition field name must not be empty')
+    if (!key.trim() || ['__proto__', 'prototype', 'constructor'].includes(key) || /[\u0000-\u001f\u007f]/.test(key)) throw new DomainError('INVALID_INPUT', 'Personal definition field name is invalid')
     assertTextLength(key, 'Personal definition field name', MAX_ID_LENGTH)
   }
   for (const value of knowledgeValues(definition.occupiesSlots)) assertPositiveInteger(value, 'Occupied slot count')
@@ -138,7 +139,7 @@ export function createPersonalDefinition(profile: Profile, input: CreatePersonal
     throw new DomainError('DUPLICATE_ID', `Personal definition already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
-  const definition: PersonalDefinition = {
+  let definition: PersonalDefinition = {
     id,
     revision: 0,
     kind: input.kind,
@@ -156,6 +157,7 @@ export function createPersonalDefinition(profile: Profile, input: CreatePersonal
     ...(input.requirements === undefined ? {} : { requirements: input.requirements }),
     ...(input.grants === undefined ? {} : { grants: input.grants }),
   }
+  for (const field of Object.keys(definition.fields)) definition = synchronizePlanningField(definition, field)
   validateEditableDefinition(definition, profile, id)
   return updateProfile(
     profile,
@@ -175,6 +177,7 @@ export interface CreateDefinitionOverrideInput {
   readonly category?: Knowledge<string> | null
   readonly ppCost?: Knowledge<number> | null
   readonly fieldClaimSelections?: Readonly<Record<string, number>>
+  readonly fieldUpdates?: Readonly<Record<string, Knowledge<JsonValue> | null>>
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
@@ -207,6 +210,12 @@ export function createDefinitionOverride(
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const selectedFields = { ...source.fields }
+  for (const [field, value] of Object.entries(input.fieldUpdates ?? {})) {
+    if (['__proto__', 'prototype', 'constructor'].includes(field) || !field.trim() || /[\u0000-\u001f\u007f]/.test(field)) throw new DomainError('INVALID_INPUT', 'Personal definition field name is invalid')
+    if (Object.hasOwn(input.fieldClaimSelections ?? {}, field)) throw new DomainError('INVALID_INPUT', `Choose a source claim or edit ${field}, not both`)
+    if (value === null) delete selectedFields[field]
+    else selectedFields[field] = value
+  }
   for (const [field, index] of Object.entries(input.fieldClaimSelections ?? {})) {
     const value = Object.hasOwn(source.fields, field) ? source.fields[field] : undefined
     if (value?.state !== 'conflicting' || !Number.isInteger(index) || index < 0 || index >= value.claims.length) {
@@ -229,7 +238,7 @@ export function createDefinitionOverride(
   const previous = input.sourceRef.kind === 'personal'
     ? profile.personalDefinitions[input.sourceRef.definitionId]
     : undefined
-  const definition: PersonalDefinition = {
+  let definition: PersonalDefinition = {
     id,
     revision: previous ? previous.revision + 1 : 1,
     baseRef: definitionLineageRootRef(profile, input.sourceRef),
@@ -253,6 +262,7 @@ export function createDefinitionOverride(
     ...(source.requirements === undefined ? {} : { requirements: source.requirements }),
     ...(source.grants === undefined ? {} : { grants: source.grants }),
   }
+  for (const field of new Set([...Object.keys(input.fieldUpdates ?? {}), ...Object.keys(input.fieldClaimSelections ?? {})])) definition = synchronizePlanningField(definition, field)
   validateEditableDefinition(definition, profile, id)
   const nextProfile = updateProfile(
     profile,

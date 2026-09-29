@@ -1,5 +1,5 @@
 import { liveQuery } from 'dexie'
-import { sameCorrectionValue, EMPTY_CORRECTIONS, type CatalogCorrection, type CorrectionCollection } from '../domain/corrections'
+import { sameCorrectionValue, EMPTY_CORRECTIONS, correctionTargetChanged, mergeCorrections, type CatalogCorrection, type CorrectionCollection } from '../domain/corrections'
 import { parseCorrectionCollection, serializeCorrectionCollection } from '../interchange/corrections'
 import { AppDataError, asAppDataError } from '../interchange/errors'
 import { getDatabase } from './database'
@@ -32,4 +32,13 @@ export async function saveCorrections(entries: readonly CatalogCorrection[], exp
   } catch (error) {
     throw asAppDataError(error, { code: 'storage-failure', userMessage: 'Corrections could not be saved. Previous corrections are unchanged', recoverable: true })
   }
+}
+
+export async function saveCorrectionDraft(correction: CatalogCorrection, starting: CorrectionCollection): Promise<CorrectionCollection> {
+  const database = getDatabase()
+  return database.transaction('rw', database.meta, async () => {
+    const current = await loadCorrections()
+    if (correctionTargetChanged(starting, current, correction.target)) throw new AppDataError('revision-conflict', 'This definition was changed in another tab. Compare the saved version before replacing your draft')
+    return saveCorrections(mergeCorrections(current.entries, [correction]), current.revision)
+  })
 }

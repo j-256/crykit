@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { EMPTY_CORRECTIONS, hiddenCorrectionKeys, projectCorrectedCatalogs, type CatalogCorrection, type CorrectionCollection } from '../domain/corrections'
 import type { CatalogSnapshot } from '../domain/types'
-import { saveCorrections, subscribeCorrections } from '../persistence/corrections'
+import { saveCorrectionDraft, saveCorrections, subscribeCorrections } from '../persistence/corrections'
 import { formatAppError } from './model'
 
 const EMPTY_CATALOGS: readonly CatalogSnapshot[] = []
@@ -23,8 +23,12 @@ export function useCorrectionStore(baseline: readonly CatalogSnapshot[] = EMPTY_
     setCollection(current => next.revision >= current.revision ? next : current)
   }, [])
   const catalogs = useMemo(() => projectCorrectedCatalogs(baseline, collection.entries), [baseline, collection.entries])
+  const saveDraft = useCallback(async (entry: CatalogCorrection, starting: CorrectionCollection) => {
+    const next = await saveCorrectionDraft(entry, starting)
+    setCollection(current => next.revision >= current.revision ? next : current)
+  }, [])
   const hiddenKeys = useMemo(() => hiddenCorrectionKeys(baseline, collection.entries), [baseline, collection.entries])
-  return { collection, catalogs, baseline, hiddenKeys, ready, error, save }
+  return { collection, catalogs, baseline, hiddenKeys, ready, error, save, saveDraft }
 }
 
 export const CorrectionsContext = createContext<ReturnType<typeof useCorrectionStore> | undefined>(undefined)

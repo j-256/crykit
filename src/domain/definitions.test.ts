@@ -99,6 +99,23 @@ const CLAIM_CATALOG: CatalogSnapshot = {
 }
 
 describe('immutable personal definition overrides', () => {
+  it('edits typed facts and clears derived values without changing source claims or historical revisions', () => {
+    const originalCatalog = structuredClone(CLAIM_CATALOG)
+    const first = createDefinitionOverride(createTestProfile(), [CLAIM_CATALOG], { sourceRef: BASE_REF, fieldUpdates: { Attack: known(15), Hands: known(2), PP: known(4), Detail: known({ enabled: false, values: [0, 'synthetic'] }) }, now: TEST_NOW })
+    expect(first.definition.listedContributions?.Attack).toEqual(known({ value: 15, unit: 'listed flat value' }))
+    expect(first.definition.occupiesSlots).toEqual(known(2))
+    expect(first.definition.ppCost).toEqual(known(4))
+    expect(first.definition.fields.Location).toEqual(LOCATION_CLAIMS)
+    const second = createDefinitionOverride(first.profile, [CLAIM_CATALOG], { sourceRef: first.ref, fieldUpdates: { Attack: { state: 'unknown', reason: 'Needs observation' }, Hands: null, PP: { state: 'notApplicable' }, Detail: null }, now: TEST_NOW })
+    expect(second.definition.listedContributions?.Attack).toEqual({ state: 'unknown', reason: 'Needs observation' })
+    expect(second.definition.occupiesSlots?.state).toBe('unknown')
+    expect(second.definition.ppCost).toEqual({ state: 'notApplicable' })
+    expect(second.definition.fields.Detail).toBeUndefined()
+    expect(second.profile.personalDefinitions[first.definition.id]).toEqual(first.definition)
+    expect(CLAIM_CATALOG).toEqual(originalCatalog)
+    expect(() => validateNativeProfileGraph(second.profile, [CLAIM_CATALOG])).not.toThrow()
+  })
+
   it('preserves unresolved claims and saves an explicit choice with exact structured data and attribution', () => {
     const originalCatalog = structuredClone(CLAIM_CATALOG)
     const originalProfile = observeInventory(createTestProfile(), { ref: BASE_REF, possession: 'owned', quantity: { kind: 'unknown' }, now: TEST_NOW })

@@ -7,12 +7,14 @@ import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, Ent
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { formatAppError } from './model'
-import { parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type DefinitionPickerOverlay } from './navigation'
+import { parentRoute, routeWithOverlay, useNavigation, type DefinitionPickerOverlay } from './navigation'
 import { Sheet } from './Sheet'
 import { Dropdown } from './Dropdown'
 import { useOptionalCorrections } from './corrections-context'
 import { activeCorrections, bundledHiddenEntityKeys, historicalCatalogKeys, correctionKey, correctionStatus } from '../domain/corrections'
-import { ClaimList } from './KnowledgeValue'
+import { DefinitionFactsEditor, DefinitionOverviewEditor } from './DefinitionEditorFields'
+import { correctionDraftFields, draftFieldValue, fieldDraft, type CorrectionFieldDraft } from './correction-draft'
+import { DefinitionDraftNotice, useDefinitionDraft } from './definition-draft'
 import { DefinitionArtwork } from './GameIcon'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
@@ -26,9 +28,7 @@ export interface DefinitionEditorDraft {
   readonly name: string
   readonly aliases: readonly string[]
   readonly rawDescription?: string | null
-  readonly category?: Knowledge<string> | null
-  readonly ppCost?: Knowledge<number> | null
-  readonly fieldClaimSelections?: Readonly<Record<string, number>>
+  readonly fieldUpdates?: Readonly<Record<string, Knowledge<JsonValue> | null>>
 }
 
 export interface DefinitionOption {
@@ -63,13 +63,6 @@ const DefinitionWorkspaceContext = createContext<DefinitionWorkspaceValue | unde
 function categoryKnowledge(fields: Readonly<Record<string, Knowledge<JsonValue>>>): Knowledge<JsonValue> | undefined {
   const value = Object.entries(fields).find(([name]) => name.trim().toLocaleLowerCase() === 'category')?.[1]
   return value
-}
-
-function editableCategoryValue(value: Knowledge<JsonValue> | undefined): string {
-  if (value?.state !== 'known') return ''
-  if (typeof value.value === 'string') return value.value
-  if (Array.isArray(value.value)) return value.value.find((entry): entry is string => typeof entry === 'string') ?? ''
-  return ''
 }
 
 function inventoryLabel(profile: Profile, ref: EntityRef) {
@@ -181,81 +174,61 @@ export function definitionKindLabel(kind: CatalogEntityKind) {
 
 export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', routeIndex, onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; routeIndex?: number; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
   const navigation = useNavigation()
-  const { options, onSaveDefinition } = useDefinitionWorkspace()
-  const ownedEditorIndex = routeIndex ?? navigation.route.overlays.findLastIndex((overlay) => overlay.kind === 'definition-editor')
+  const { options, profile, onSaveDefinition } = useDefinitionWorkspace()
+  const ownedEditorIndex = routeIndex ?? navigation.route.overlays.findLastIndex(overlay => overlay.kind === 'definition-editor')
   const routedEditor = ownedEditorIndex >= 0 ? navigation.route.overlays[ownedEditorIndex] : undefined
   const routedBaseRef = routedEditor?.kind === 'definition-editor' && routedEditor.mode === 'override' ? routedEditor.ref : undefined
   const [editRef] = useState(() => baseRef ?? routedBaseRef)
-  const base = findDefinitionOption(options, editRef)
+  const [base] = useState(() => findDefinitionOption(options, editRef))
   const kinds = allowedKinds.length ? allowedKinds : ALL_DEFINITION_KINDS
   const [kind, setKind] = useState<CatalogEntityKind>(() => base?.kind ?? kinds[0] ?? 'other')
   const [name, setName] = useState(() => base?.name ?? initialName)
   const [aliases, setAliases] = useState(() => base?.aliases.join('\n') ?? '')
   const [description, setDescription] = useState(() => base?.description ?? '')
-  const [category, setCategory] = useState(() => editableCategoryValue(base?.category))
-  const [categoryMode, setCategoryMode] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
-  const [ppState, setPpState] = useState<'preserve' | 'known' | 'unknown' | 'clear'>(() => baseRef ? 'preserve' : 'unknown')
-  const [pp, setPp] = useState(() => base?.ppCost?.state === 'known' ? String(base.ppCost.value) : '')
-  const [fieldClaimSelections, setFieldClaimSelections] = useState<Readonly<Record<string, number>>>({})
-  const claimGroupId = useId()
-  const conflictingFields = Object.entries(base?.record.fields ?? {}).flatMap(([field, value]) => value.state === 'conflicting' ? [{ field, claims: value.claims }] : [])
-  const [busy, setBusy] = useState(false)
+  const [fields, setFields] = useState<Readonly<Record<string, CorrectionFieldDraft>>>(() => {
+    const fields = correctionDraftFields(base?.record ?? { fields: {} })
+    return {
+      ...(!Object.keys(fields).some(field => field.toLowerCase() === 'category') ? { Category: fieldDraft(undefined) } : {}),
+      ...(!Object.keys(fields).some(field => ['pp', 'pp cost'].includes(field.toLowerCase())) ? { PP: fieldDraft(base?.ppCost) } : {}),
+      ...fields,
+    }
+  })
   const [error, setError] = useState<string>()
-  const [closeWarning, setCloseWarning] = useState(false)
-  const dirtyRef = useRef(false)
-  const scopeRef = useRef({ ...navigation.route, overlays: navigation.route.overlays.slice(0, Math.max(0, ownedEditorIndex + 1)) })
-  useNavigationBlocker(scopeRef.current, () => dirtyRef.current, () => setCloseWarning(true))
-  const clearDirty = () => { dirtyRef.current = false; setCloseWarning(false) }
-  const close = () => { clearDirty(); onClose() }
-  const selectedClaimIndex = (field: string) => Object.hasOwn(fieldClaimSelections, field) ? fieldClaimSelections[field] : undefined
-  const selectClaim = (field: string, index?: number) => {
-    dirtyRef.current = true
-    setCloseWarning(false)
-    setFieldClaimSelections((current) => index === undefined ? Object.fromEntries(Object.entries(current).filter(([key]) => key !== field)) : { ...current, [field]: index })
-    if (field.trim().toLocaleLowerCase() === 'category') setCategoryMode('preserve')
-  }
-  const changeCategoryMode = (mode: typeof categoryMode) => {
-    setCategoryMode(mode)
-    setFieldClaimSelections((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key.trim().toLocaleLowerCase() !== 'category')))
-  }
-  if (editRef && !base) {
-    return <Sheet description="The exact definition in this address is unavailable in the active profile and reference catalogs." layer={ownedEditorIndex + 1} onClose={close} open={open} title="Definition unavailable" width="wide"><div className="stack"><InlineNotice title="Definition could not be opened" tone="warning">The requested definition may have been removed, or the link may belong to another profile or catalog revision. No substitute definition was selected.</InlineNotice><div className="form-actions"><Button onClick={close} tone="quiet" type="button">Close editor</Button></div></div></Sheet>
-  }
+  const [scope] = useState({ ...navigation.route, overlays: navigation.route.overlays.slice(0, Math.max(0, ownedEditorIndex + 1)) })
+  const draft = useDefinitionDraft(scope)
+  const formId = useId()
+  const close = () => draft.complete(onClose)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     event.stopPropagation()
-    const normalizedName = name.trim()
-    if (!normalizedName) return
-    const numericPp = ppState === 'known' && pp.trim() ? Number(pp) : undefined
-    if (ppState === 'known' && (numericPp === undefined || !Number.isFinite(numericPp))) { setError('Enter a finite PP value or mark PP as unknown.'); return }
-    setBusy(true)
+    if (draft.busy) return
     setError(undefined)
     try {
-      const draft: DefinitionEditorDraft = {
-        ...(editRef ? { baseRef: editRef } : {}), kind, name: normalizedName,
-        aliases: aliases.split('\n').map((alias) => alias.trim()).filter(Boolean),
-        rawDescription: description.trim() || (editRef ? null : undefined),
-        ...(categoryMode === 'preserve' ? {} : { category: categoryMode === 'known' ? { state: 'known' as const, value: category.trim() } : categoryMode === 'unknown' ? { state: 'unknown' as const } : null }),
-        ...(ppState === 'preserve' ? {} : { ppCost: ppState === 'known' ? { state: 'known' as const, value: numericPp! } : ppState === 'unknown' ? { state: 'unknown' as const } : null }),
-        fieldClaimSelections,
+      if (!name.trim()) throw new Error('Enter a definition name.')
+      const fieldUpdates: Record<string, Knowledge<JsonValue> | null> = {}
+      for (const [field, value] of Object.entries(fields)) {
+        try { const after = draftFieldValue(value); if (after !== undefined) fieldUpdates[field] = after } catch (error) { throw new Error(`${field}: ${error instanceof Error ? error.message : 'Invalid value'}`) }
       }
-      const ref = await onSaveDefinition(draft)
-      clearDirty()
-      onSaved(ref)
-    } catch (reason) { setError(formatAppError(reason, 'The definition could not be saved.')) } finally { setBusy(false) }
+      draft.pending(true)
+      const ref = await onSaveDefinition({ ...(editRef ? { baseRef: editRef } : {}), kind, name: name.trim(), aliases: [...new Set(aliases.split('\n').map(alias => alias.trim()).filter(Boolean))], rawDescription: description.trim() || (editRef ? null : undefined), fieldUpdates })
+      draft.complete(() => onSaved(ref), onClose)
+    } catch (reason) { setError(formatAppError(reason, 'The definition could not be saved.')) } finally { draft.pending(false) }
   }
-  return <Sheet description={editRef ? 'Editing creates a new personal override. Existing observations and build revisions keep their exact earlier reference.' : 'Create a personal definition without inventing unobserved mechanics.'} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={() => { if (!dirtyRef.current) return true; setCloseWarning(true); return false }} open={open} title={editRef ? `Edit ${base?.name ?? 'definition'}` : 'Create personal definition'} width="wide"><form className="stack" onInput={() => { dirtyRef.current = true; setCloseWarning(false) }} onSubmit={submit}>
-    {closeWarning && <InlineNotice title="Definition draft still open" tone="warning">Save this definition or choose Cancel to discard its entered values before leaving.</InlineNotice>}
-    {editRef && <InlineNotice title="Immutable override">The source definition remains available for historical records. This saved revision becomes the preferred choice in ordinary pickers.</InlineNotice>}
-    {conflictingFields.length > 0 && <section className="stack" aria-label="Review source differences"><div><h3>Review source differences</h3><p>Different source values may describe the same fact. Check the values and sources below, then choose a claim only if it applies to your game. Saving uses that value and its source in your personal override; the original catalog keeps all claims.</p></div>{conflictingFields.map(({ field, claims }, fieldIndex) => <fieldset className="claim-review" key={field}><legend>{field} claims</legend><label className="check-row"><input checked={selectedClaimIndex(field) === undefined} name={`${claimGroupId}-${fieldIndex}`} onChange={() => selectClaim(field)} type="radio" value="preserve"/><span>Keep unresolved<small>Preserve every claim until you have enough evidence.</small></span></label><ClaimList claims={claims} selection={{ name: `${claimGroupId}-${fieldIndex}`, index: selectedClaimIndex(field), onChange: (index) => selectClaim(field, index) }}/></fieldset>)}</section>}
-    <div className="grid-2"><Field label="Definition name" required><input autoFocus onChange={(event) => setName(event.target.value)} required value={name}/></Field><Field hint={baseRef ? 'Definition kind is inherited by an override.' : undefined} label="Definition type"><select disabled={Boolean(baseRef)} onChange={(event) => setKind(event.target.value as CatalogEntityKind)} value={kind}>{kinds.map((value) => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></div>
-    <Field hint="One alternate name per line." label="Aliases"><textarea onChange={(event) => setAliases(event.target.value)} value={aliases}/></Field>
-    <Field label="Description"><textarea onChange={(event) => setDescription(event.target.value)} placeholder="Optional source or personal description" value={description}/></Field>
-    <div className="grid-2"><Field label="Category knowledge"><select onChange={(event) => changeCategoryMode(event.target.value as typeof categoryMode)} value={categoryMode}>{baseRef && <option value="preserve">Keep current ({base?.category?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known category</option>{baseRef && <option value="clear">Clear category field</option>}</select></Field>{categoryMode === 'known' && <Field label="Category" required><input onChange={(event) => setCategory(event.target.value)} required value={category}/></Field>}</div>
-    <div className="grid-2"><Field label="PP knowledge"><select onChange={(event) => setPpState(event.target.value as typeof ppState)} value={ppState}>{baseRef && <option value="preserve">Keep current ({base?.ppCost?.state ?? 'unrecorded'})</option>}<option value="unknown">Unknown or not recorded</option><option value="known">Known value</option>{baseRef && <option value="clear">Clear PP field</option>}</select></Field>{ppState === 'known' && <Field label="PP value" required><input inputMode="decimal" onChange={(event) => setPp(event.target.value)} required type="number" value={pp}/></Field>}</div>
-    {error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor.</InlineNotice>}
-    <div className="form-actions"><Button disabled={busy} onClick={close} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !name.trim()} icon="check" type="submit">{busy ? 'Saving...' : editRef ? 'Save new override' : 'Create definition'}</Button></div>
-  </form></Sheet>
+  const saveDisabled = !name.trim() || Boolean(editRef && !base)
+  const creatingPersonalVersion = editRef?.kind === 'catalog'
+  const title = creatingPersonalVersion ? `Create personal version: ${base?.name ?? 'definition'}` : editRef ? `Edit personal version: ${base?.name ?? 'definition'}` : 'Create personal definition'
+  const saveLabel = creatingPersonalVersion ? 'Create personal version' : editRef ? 'Save personal revision' : 'Create definition'
+  const footer = <div className="definition-editor-footer"><DefinitionDraftNotice draft={draft} formId={formId} onDiscard={close} saveDisabled={saveDisabled} title="Definition draft still open"/>{error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor. Try saving again.</InlineNotice>}<small>Only {profile.label}. Saves a new revision; recorded references stay unchanged.</small><div className="form-actions"><Button disabled={draft.busy} onClick={close} tone="quiet" type="button">{draft.dirty ? 'Discard draft' : 'Cancel'}</Button><Button disabled={draft.busy || saveDisabled} form={formId} icon="check" type="submit">{draft.busy ? 'Saving...' : saveLabel}</Button></div></div>
+  return <Sheet description={`Customize this definition for ${profile.label}.`} footer={footer} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={draft.requestClose} open={open} title={title} width="wide">
+
+    {editRef && !base ? <InlineNotice title="Definition could not be opened" tone="warning">The exact definition is unavailable in this profile and reference catalogs.</InlineNotice> : <form className="stack definition-editor" id={formId} onSubmit={submit}>
+      <fieldset className="definition-editor-fields stack" disabled={draft.busy}>
+        <DefinitionOverviewEditor aliases={aliases} description={description} name={name} onAliases={value => { setAliases(value); draft.markDirty() }} onDescription={value => { setDescription(value); const field = Object.keys(fields).find(field => field.toLowerCase() === 'description'); if (field) setFields(current => ({ ...current, [field]: fieldDraft(value ? { state: 'known', value } : null, true) })); draft.markDirty() }} onName={value => { setName(value); draft.markDirty() }}><Field label="Definition type"><select disabled={Boolean(editRef)} onChange={event => { setKind(event.target.value as CatalogEntityKind); draft.markDirty() }} value={kind}>{kinds.map(value => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></DefinitionOverviewEditor>
+        <DefinitionFactsEditor fields={fields} onChange={value => { setFields(value); const field = Object.keys(value).find(field => field.toLowerCase() === 'description'); if (field && value[field] !== fields[field]) setDescription(value[field]?.mode === 'keep' ? base?.description ?? '' : value[field]?.mode === 'known' && value[field]?.type === 'text' ? value[field].text : ''); draft.markDirty() }} source={base?.record.fields ?? {}}/>
+      </fieldset>
+
+    </form>}
+  </Sheet>
 }
 
 export interface DefinitionDropdownProps {

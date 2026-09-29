@@ -34,6 +34,8 @@ import {
   type CatalogSnapshot,
   type CharacterId,
   type EntityRef,
+  type JsonValue,
+  type Knowledge,
   type PersonalDefinitionId,
   type Profile,
   type ProgressRecordId,
@@ -180,7 +182,7 @@ export default function App() {
     })
   }, [workspace?.profile.id])
 
-  const commitProfile = useCallback((transform: (profile: Profile) => Profile) => {
+  const commitProfile = useCallback((transform: (profile: Profile) => Profile, options: { rollbackOnFailure?: boolean } = {}) => {
     const run = async () => {
       const current = workspaceRef.current
       if (!current) throw new Error('The local workspace is not ready.')
@@ -210,7 +212,13 @@ export default function App() {
       } catch (error) {
         const message = formatAppError(error, 'The local transaction failed.')
         setSaveError(message)
-        setSaveState(optimistic ? 'error' : 'saved')
+        if (optimistic && options.rollbackOnFailure) {
+          workspaceRef.current = current
+          setWorkspace(current)
+          dirtyRef.current = false
+          setDirty(false)
+        }
+        setSaveState(optimistic && !options.rollbackOnFailure ? 'error' : 'saved')
         throw error
       }
     }
@@ -297,9 +305,7 @@ export default function App() {
           name: draft.name,
           aliases: draft.aliases,
           rawDescription: draft.rawDescription,
-          category: draft.category,
-          ppCost: draft.ppCost,
-          fieldClaimSelections: draft.fieldClaimSelections,
+          fieldUpdates: draft.fieldUpdates,
           expectedRevision: profile.revision,
         }).profile
       }
@@ -309,11 +315,10 @@ export default function App() {
         name: draft.name,
         aliases: draft.aliases,
         rawDescription: draft.rawDescription ?? undefined,
-        fields: draft.category ? { category: draft.category } : {},
-        ppCost: draft.ppCost ?? undefined,
+        fields: Object.fromEntries(Object.entries(draft.fieldUpdates ?? {}).filter((entry): entry is [string, Knowledge<JsonValue>] => entry[1] !== null)),
         expectedRevision: profile.revision,
       })
-    })
+    }, { rollbackOnFailure: true })
     return { kind: 'personal', definitionId }
   }, [commitProfile])
 

@@ -14,7 +14,7 @@ function locationRow(page: Page) {
   return page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Location$/ }) })
 }
 async function editLocation(page: Page, value: string) {
-  await page.getByRole('button', { name: 'Edit reference', exact: true }).click()
+  await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
   await page.getByRole('button', { name: 'Edit Location', exact: true }).click()
   const editor = page.getByRole('form', { name: 'Correct Location in place' })
   await editor.getByRole('textbox', { name: 'New Location', exact: true }).fill(value)
@@ -56,7 +56,8 @@ test('edits in place with minimal input, adds provenance later, and exports exac
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(editor.getByLabel('Evidence / provenance')).not.toBeVisible()
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
-  await expect(editor.getByText('Save this edit or choose Cancel before leaving.', { exact: true })).toBeVisible()
+  await expect(editor.getByText('Correction draft still open', { exact: true })).toBeVisible()
+  await editor.getByRole('button', { name: 'Keep editing', exact: true }).click()
   await editor.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(locationRow(page)).toContainText(CORRECTED_LOCATION)
   await expect(page.getByText('Tentative correction', { exact: true })).toBeVisible()
@@ -177,7 +178,7 @@ test('holds competing and stale imports for review and restores on a fresh brows
   await page.reload()
   await expect(manager.getByText('Needs review', { exact: true })).toBeVisible()
   await manager.getByRole('button', { name: 'Review baseline change', exact: true }).click()
-  const review = page.getByRole('dialog', { name: 'Correction details: Artisan Rapier', exact: true })
+  const review = page.getByRole('dialog', { name: 'Correct shared reference: Artisan Rapier', exact: true })
   await expect(review.getByText('Review against the changed baseline', { exact: true })).toBeVisible()
   await review.getByRole('button', { name: 'Save correction', exact: true }).click()
   await expect(review).not.toBeVisible()
@@ -187,10 +188,10 @@ test('holds competing and stale imports for review and restores on a fresh brows
 
 test('keeps hidden entries reachable and restores them from the corrections list', async ({ page }) => {
   await page.goto(`/#/reference/catalog/${DEFAULT_CATALOG.id}/revisions/${DEFAULT_CATALOG.revisionId}/entities/${encodeURIComponent(ENTITY_ID)}`)
-  await page.getByRole('button', { name: 'Edit reference', exact: true }).click()
-  await page.getByRole('button', { name: 'More options', exact: true }).click()
-  const details = page.getByRole('dialog', { name: 'Correction details: Artisan Rapier', exact: true })
-  await details.getByRole('combobox', { name: 'What to correct', exact: true }).selectOption('visibility')
+  await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
+  await page.getByRole('button', { name: 'Correct shared reference', exact: true }).click()
+  const details = page.getByRole('dialog', { name: 'Correct shared reference: Artisan Rapier', exact: true })
+  await details.locator('summary').filter({ hasText: /^Visibility$/ }).click()
   await details.getByRole('checkbox', { name: /^Hide from browsing and choices/ }).check()
   await details.getByRole('button', { name: 'Save correction', exact: true }).click()
   await expect(details).not.toBeVisible()
@@ -208,7 +209,7 @@ test('keeps hidden entries reachable and restores them from the corrections list
 
 test('adds facts gradually and keeps description edits consistent across both views', async ({ page }) => {
   await page.goto(ITEM_PATH)
-  await page.getByRole('button', { name: 'Edit reference', exact: true }).click()
+  await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
   await page.getByRole('button', { name: 'Edit description', exact: true }).click()
   const description = page.getByRole('form', { name: 'Correct description in place' })
   await description.getByRole('textbox', { name: 'New description', exact: true }).fill('Synthetic revised description')
