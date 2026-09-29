@@ -9,6 +9,7 @@ import type { CharacterId, CharacterSnapshotId, Profile } from '../src/domain/ty
 import { createBlankPlaythrough } from './profile-helpers'
 
 const CURRENT_SNAPSHOT = asId<CharacterSnapshotId>('synthetic-overview-current')
+const DENSE_CHARACTER_CARD_MAX_HEIGHT_PX = 380
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -84,6 +85,7 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   await expect(field(stats, 'HP')).toHaveText('0 points')
   await expect(field(stats, 'Max HP')).toHaveText('620 points')
   await expect(field(stats, 'Max. MP')).toHaveText('88 points')
+  await expect(stats.locator('[title="Attack: 151"]')).toBeVisible()
   await expect(field(stats, 'Speed')).toHaveText('Unknown')
   await expect(field(stats, 'Luck')).toHaveText('Conflicting claims')
   await expect(field(stats, 'PP capacity')).toHaveText('7')
@@ -115,6 +117,19 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('desktop overview fits the roster in one comparison row with every equipment slot visible', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The mobile overview intentionally uses one full-width card')
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('/#/characters')
+  const cards = page.getByRole('region', { name: 'Character overview', exact: true }).getByRole('article')
+  await expect(cards).toHaveCount(4)
+  const boxes = await cards.evaluateAll(elements => elements.map(element => ({ y: element.getBoundingClientRect().y, height: element.getBoundingClientRect().height })))
+  expect(new Set(boxes.map(box => box.y)).size).toBe(1)
+  expect(Math.max(...boxes.map(box => box.height))).toBeLessThanOrEqual(DENSE_CHARACTER_CARD_MAX_HEIGHT_PX)
+  for (const card of await cards.all()) await expect(card.locator('.roster-equipment .roster-slots > div')).toHaveCount(6)
+  await expect(cards.first().locator('[title="Main hand: Short Sword"]')).toBeVisible()
+})
+
 test('overview links support keyboard, history, offline reload and dirty member guards', async ({ page, context }, testInfo) => {
   const errors: string[] = []
   const external: string[] = []
@@ -125,8 +140,8 @@ test('overview links support keyboard, history, offline reload and dirty member 
   await expect(page.getByRole('article')).toHaveCount(4)
   const rowan = page.getByRole('article', { name: 'Rowan', exact: true })
   const mira = page.getByRole('article', { name: 'Mira', exact: true })
-  await expect(rowan.getByText('Short Sword', { exact: true })).toBeVisible()
-  await expect(mira.getByText('Short Staff', { exact: true })).toBeVisible()
+  await expect(rowan.locator('[title="Main hand: Short Sword"]')).toBeVisible()
+  await expect(mira.locator('[title="Main hand: Short Staff"]')).toBeVisible()
   const member = mira.getByRole('link', { name: 'Member', exact: true })
   await member.focus()
   await page.keyboard.press('Enter')

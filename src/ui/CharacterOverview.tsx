@@ -4,7 +4,7 @@ import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
 import { passivePosition } from '../domain/passive-loadout'
 import type { CatalogSnapshot, Character, EntityRef, Knowledge, LearnedNode, ObservedStat, Profile } from '../domain/types'
 import { MemberArtwork } from './MemberSheet'
-import { Icon } from './icons'
+import { Icon, type IconName } from './icons'
 import { entityName, formatRelativeDate, knowledgeLabel, ownRecordValue } from './model'
 import { useNavigation, type CharactersPageRoute } from './navigation'
 import { DefinitionModLabel } from './DefinitionModLabel'
@@ -12,19 +12,32 @@ import './character-overview.css'
 
 const UNKNOWN: Knowledge<never> = { state: 'unknown' }
 const VITAL_NAMES = ['HP', 'MP'] as const
+const STAT_ICONS: Readonly<Record<string, IconName>> = Object.freeze({
+  HP: 'shield',
+  'Max HP': 'shield',
+  'Max. HP': 'shield',
+  MP: 'crystal',
+  'Max MP': 'crystal',
+  'Max. MP': 'crystal',
+  Attack: 'sword',
+  Defense: 'shield',
+  Resistance: 'shield',
+  Speed: 'spark',
+  Luck: 'spark',
+})
 
 function vitalKind(label: string) {
   return VITAL_NAMES.find(name => label.trim().toUpperCase().replace(/^MAX\.?\s+/, '') === name)
 }
 
-function OverviewLink({ page, children, className = '' }: { readonly page: CharactersPageRoute; readonly children: ReactNode; readonly className?: string }) {
+function OverviewLink({ page, children, className = '', title }: { readonly page: CharactersPageRoute; readonly children: ReactNode; readonly className?: string; readonly title?: string }) {
   const navigation = useNavigation()
   const route = { page, overlays: [], query: {} }
   return <a className={className} href={navigation.href(route)} onClick={event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
     navigation.navigate(route)
-  }}>{children}</a>
+  }} title={title}>{children}</a>
 }
 
 function RecordedNumber({ value, unit }: { readonly value: Knowledge<number>; readonly unit?: string }) {
@@ -34,8 +47,15 @@ function RecordedNumber({ value, unit }: { readonly value: Knowledge<number>; re
 function RecordedVitals({ stats }: { readonly stats: readonly [string, ObservedStat][] }) {
   return VITAL_NAMES.flatMap(name => {
     const recorded = stats.filter(([label]) => vitalKind(label) === name)
-    return recorded.length ? recorded.map(([label, stat]) => <div className={`roster-vital roster-vital--${name.toLowerCase()}`} key={label}><dt>{label}</dt><dd><RecordedNumber {...stat}/></dd></div>) : [<div className={`roster-vital roster-vital--${name.toLowerCase()}`} key={name}><dt>{name}</dt><dd data-state="unknown">Unknown</dd></div>]
+    return recorded.length ? recorded.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>) : [<StatValue key={name} label={name}/>]
   })
+}
+
+function StatValue({ label, stat }: { readonly label: string; readonly stat?: ObservedStat }) {
+  const value = stat?.value ?? UNKNOWN
+  const display = knowledgeLabel(value)
+  const unit = value.state === 'known' && stat?.unit && stat.unit !== 'displayed' ? ` ${stat.unit}` : ''
+  return <div className={`roster-stat roster-stat--${vitalKind(label)?.toLowerCase() ?? 'other'}`} title={`${label}: ${display}${unit}`}><dt><Icon name={STAT_ICONS[label] ?? 'spark'}/>{label}</dt><dd><RecordedNumber unit={stat?.unit} value={value}/></dd></div>
 }
 
 function learnedSummary(nodes: readonly LearnedNode[]): string {
@@ -48,11 +68,14 @@ function learnedSummary(nodes: readonly LearnedNode[]): string {
   return [`${confirmed} confirmed`, notLearned && `${notLearned} not learned`, unknown && `${unknown} unknown`, conflicting && `${conflicting} conflicting`, notApplicable && `${notApplicable} not applicable`].filter(Boolean).join(' · ')
 }
 
-function RecordedSlots({ slots, profile, catalogs, ruleset }: { readonly slots: readonly SnapshotSlot[]; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[]; readonly ruleset?: Profile['rulesets'][string] }) {
-  return <dl className="roster-slots">{slots.map(slot => <div key={slot.id}>
-    <dt>{slot.label}</dt>
-    <dd data-state={slot.selection === undefined ? 'unknown' : 'known'}><MemberArtwork catalogs={catalogs} profile={profile} value={slot.selection}/><span className="roster-slot__identity"><span>{slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Empty' : entityName(profile, catalogs, slot.selection)}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={slot.selection}/></span></dd>
-  </div>)}</dl>
+function RecordedSlots({ slots, profile, catalogs, ruleset, showNames = false }: { readonly slots: readonly SnapshotSlot[]; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[]; readonly ruleset?: Profile['rulesets'][string]; readonly showNames?: boolean }) {
+  return <dl className="roster-slots">{slots.map(slot => {
+    const name = slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Empty' : entityName(profile, catalogs, slot.selection)
+    return <div data-state={slot.selection === undefined ? 'unknown' : slot.selection === null ? 'empty' : 'known'} key={slot.id} title={`${slot.label}: ${name}`}>
+      <dt className="sr-only">{slot.label}</dt>
+      <dd><span aria-hidden="true" className="roster-slot__art">{slot.selection ? <MemberArtwork catalogs={catalogs} profile={profile} value={slot.selection}/> : <Icon name="box"/>}</span><span className={`${showNames ? '' : 'sr-only '}roster-slot__identity`}><span>{name}</span><span className="sr-only"><DefinitionModLabel profile={profile} ruleset={ruleset} value={slot.selection}/></span></span></dd>
+    </div>
+  })}</dl>
 }
 
 function CharacterCard({ character, profile, catalogs }: { readonly character: Character; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[] }) {
@@ -72,26 +95,26 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
   return <article aria-labelledby={headingId} className="roster-card">
     <header className="roster-card__header">
       <div className="roster-card__identity"><span aria-hidden="true" className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2 id={headingId}><OverviewLink page={memberPage}>{character.name}</OverviewLink></h2>{character.appearanceLabel && <p>{character.appearanceLabel}</p>}</div></div>
-      <dl className="roster-classes"><div><dt>Primary class</dt><dd>{className(snapshot?.primaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot?.primaryClass)}/></dd></div><div><dt>Secondary class</dt><dd>{className(snapshot?.secondaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot?.secondaryClass)}/></dd></div></dl>
       <dl className="roster-level"><div><dt>Lv</dt><dd><RecordedNumber value={snapshot?.level ?? UNKNOWN}/></dd></div></dl>
     </header>
     {snapshot ? <>
       <div className="roster-card__body">
+        <dl className="roster-classes"><div><dt>Primary class</dt><dd>{className(snapshot.primaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot.primaryClass)}/></dd></div><div><dt>Secondary class</dt><dd>{className(snapshot.secondaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot.secondaryClass)}/></dd></div></dl>
         <section aria-label={`${character.name}: recorded stats`} className="roster-stats"><h3>Recorded stats</h3><dl>
           <RecordedVitals stats={stats}/>
-          {otherStats.map(([label, stat]) => <div key={label}><dt>{label}</dt><dd><RecordedNumber {...stat}/></dd></div>)}
-          <div><dt>PP capacity</dt><dd><RecordedNumber value={snapshot.ppCapacity}/></dd></div>
+          {otherStats.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>)}
+          <StatValue label="PP capacity" stat={{ value: snapshot.ppCapacity, unit: 'displayed' }}/>
         </dl></section>
         <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!ruleset && <p className="roster-empty">Slot context unrecorded</p>}</section>
+        <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty"><Icon name="warning"/>{knowledgeLabel(snapshot.passives)}</p>}</section>
         <section aria-label={`${character.name}: character learning`} className="roster-learning"><h3>Learning records</h3><dl>
           <div><dt>Primary class LP</dt><dd><RecordedNumber value={progress?.observedLp ?? UNKNOWN}/></dd></div>
           <div><dt>Primary class mastered</dt><dd data-state={progress?.mastered.state ?? 'unknown'}>{knowledgeLabel(progress?.mastered ?? UNKNOWN, mastered => mastered ? 'Yes' : 'No')}</dd></div>
-          <div><dt>Learned skills</dt><dd>{learnedSummary(Object.values(character.learnedNodes))}</dd></div>
+          <div><dt>Learned skills</dt><dd title={learnedSummary(Object.values(character.learnedNodes))}>{learnedSummary(Object.values(character.learnedNodes))}</dd></div>
         </dl></section>
       </div>
-      <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} slots={passiveSlots}/> : <p className="roster-empty">None equipped</p> : <p className="roster-empty">{knowledgeLabel(snapshot.passives)}</p>}</section>
     </> : <div className="roster-card__blank"><Icon name="character"/><div><strong>{character.currentSnapshotId ? 'Current snapshot unavailable' : 'No snapshot recorded'}</strong><p>{character.currentSnapshotId ? 'The referenced snapshot is missing. Earlier snapshots remain in History.' : 'Capture a character sheet to add stats, equipment, and passives.'}</p>{Object.keys(character.learnedNodes).length > 0 && <p>Learned skills: {learnedSummary(Object.values(character.learnedNodes))}</p>}</div><OverviewLink className="button button--secondary" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture snapshot</OverviewLink></div>}
-    <footer className="roster-card__footer"><div className="roster-observation">{snapshot ? <><span>{snapshot.observedAt ? `Observed ${formatRelativeDate(snapshot.observedAt)}` : 'Observation date unknown'}</span><small>Recorded {formatRelativeDate(snapshot.recordedAt)}</small></> : <span>Stats and equipment unknown</span>}</div><nav aria-label={`${character.name} views`}><OverviewLink className="roster-member-link" page={memberPage}>Member <Icon name="arrow-left"/></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'knowledge' }}>Learn</OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }}>History</OverviewLink></nav></footer>
+    <footer className="roster-card__footer"><div className="roster-observation">{snapshot ? <span title={`Recorded ${formatRelativeDate(snapshot.recordedAt)}`}>{snapshot.observedAt ? `Observed ${formatRelativeDate(snapshot.observedAt)}` : 'Observation date unknown'}</span> : <span>Stats and equipment unknown</span>}</div><nav aria-label={`${character.name} views`}><OverviewLink className="roster-member-link" page={memberPage} title="Member"><Icon name="user"/><span className="sr-only">Member</span></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'knowledge' }} title="Learn"><Icon name="spark"/><span className="sr-only">Learn</span></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }} title="History"><Icon name="history"/><span className="sr-only">History</span></OverviewLink></nav></footer>
   </article>
 }
 
