@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import { syntheticCrystalEdit } from '../src/interchange/crystal-edit.test-helpers'
 import type { Profile } from '../src/domain/types'
 
-const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/crystal-edit-v1/entities/base%3Aclass%3Awarrior'
+const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aclass%3Awarrior'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
