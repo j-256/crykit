@@ -336,7 +336,10 @@ test('named shared-copy checkpoints clone independently and picker history prese
 
   await page.getByRole('button', { name: 'Clone build', exact: true }).click()
   await openBuildLibrary(page)
-  await expect(page.getByRole('button', { name: /Two-slot template \(copy\)/ })).toHaveAttribute('aria-current', 'true')
+  const library = page.locator('.build-library')
+  const copyButton = library.getByRole('button', { name: 'Two-slot template (copy)', exact: true })
+  const copyCard = copyButton.locator('xpath=ancestor::article[1]')
+  await expect(copyCard).toHaveAttribute('aria-current', 'true')
   const after = await exportProfile(page)
   const copy = Object.values(after.builds).find((build) => build.id !== originalBuild.id)!
   const copiedRevision = after.buildRevisions[copy.latestRevisionId!]!
@@ -377,7 +380,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await expect(stock).not.toBeVisible()
   await navigate(page, 'Builds')
   await expect(page.getByRole('region', { name: 'Build library', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /^Two-slot template Draft/ }).click()
+  await page.getByRole('button', { name: 'Two-slot template', exact: true }).click()
   await editor.getByRole('combobox', { name: 'Off hand: Same copy as', exact: true }).selectOption('')
   await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await editor.getByText('Build details & notes', { exact: true }).click()

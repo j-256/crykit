@@ -58,6 +58,6 @@ test('failed sprite loading preserves the definition and an explicit fallback', 
   await page.goto(`${baseURL}${WARRIOR}`)
   await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Warrior artwork placeholder', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Normalized fields', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Definition facts', exact: true })).toBeVisible()
   await context.close()
 })

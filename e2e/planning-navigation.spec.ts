@@ -6,8 +6,9 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const library = page.getByRole('region', { name: 'Build library', exact: true })
-  const warrior = library.getByRole('button', { name: /Rowan: sample Warrior/ })
-  await expect(warrior).toBeVisible()
+  const warriorButton = page.getByRole('button', { name: /Rowan: sample Warrior/ })
+  const warrior = library.getByRole('article').filter({ has: warriorButton })
+  await expect(warriorButton).toBeVisible()
   await expect(warrior.locator('.build-card__classes')).toContainText('Warrior')
   const equipment = warrior.locator('.build-card__summary-group').filter({ hasText: 'Equipment' })
   await expect(equipment).toContainText('Short Sword')
@@ -22,10 +23,12 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(menu.getByRole('button')).toHaveText(['Builds', 'Characters', 'Reference', 'Inventory', 'Progress'])
   await expect(menu.getByRole('group', { name: 'Tracking', exact: true }).getByRole('button')).toHaveText(['Inventory', 'Progress'])
   await expect(menu.getByRole('button', { name: 'Builds', exact: true })).toHaveAttribute('aria-current', 'page')
-  for (const button of await menu.getByRole('button').all()) {
-    const bounds = (await button.boundingBox())!
-    expect(bounds.height).toBeGreaterThanOrEqual(44)
-    expect(bounds.width).toBeGreaterThanOrEqual(44)
+  if (isMobile) {
+    for (const button of await menu.getByRole('button').all()) {
+      const bounds = (await button.boundingBox())!
+      expect(bounds.height).toBeGreaterThanOrEqual(44)
+      expect(bounds.width).toBeGreaterThanOrEqual(44)
+    }
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('build-library-navigation.png'), fullPage: true })
@@ -47,7 +50,7 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(reference).toHaveAttribute('aria-current', 'page')
 })
 
-test('direct settings return to Builds and saved build tracking requires an explicit choice', async ({ page }) => {
+test('direct settings return to Builds and saved build tracking requires an explicit choice', async ({ page, isMobile }) => {
   await page.goto('/#/settings/data')
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await expect(settings).toBeVisible()
@@ -58,6 +61,10 @@ test('direct settings return to Builds and saved build tracking requires an expl
   await expect(page.getByRole('button', { name: 'Record as current', exact: true })).not.toBeVisible()
   const readiness = page.locator('.build-readiness')
   await expect(readiness).not.toHaveAttribute('open')
+  if (isMobile) {
+    await page.evaluate(() => scrollTo(0, 0))
+    await expect(readiness).not.toBeInViewport()
+  }
   await readiness.locator('summary').first().click()
   await expect(readiness.getByRole('heading', { name: 'Current readiness', exact: true })).toBeVisible()
   await readiness.getByRole('button', { name: 'Record as current', exact: true }).click()

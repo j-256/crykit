@@ -50,12 +50,16 @@
   --rail-control-size: 48px;
   --rail-toggle-size: 32px;
   --rail-local-note-height: 72px;
+  --mobile-header-height: 64px;
+  --mobile-context-region-height: 76px;
+  --mobile-bottom-nav-height: 66px;
+  --mobile-scroll-buffer: 16px;
   background: var(--ink-950);
   color: var(--text);
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; background: var(--ink-950); scroll-behavior: smooth; }
+html { min-width: 320px; background: var(--ink-950); }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--ink-950); }
 body.has-sheet { overflow: hidden; }
 button, input, select, textarea { font: inherit; }
@@ -824,17 +828,18 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 
 @media (max-width: 820px) {
   :root { --rail-width: 0px; }
-  .app-shell { display: block; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  html { scroll-padding-block: calc(var(--mobile-header-height) + var(--mobile-context-region-height)) calc(var(--mobile-bottom-nav-height) + var(--mobile-scroll-buffer) + env(safe-area-inset-bottom)); }
+  .app-shell { display: block; padding-bottom: calc(var(--mobile-bottom-nav-height) + 2px + env(safe-area-inset-bottom)); }
   .desktop-brand-header { display: none; }
   .rail { display: none; }
   .main-shell { display: block; }
-  .mobile-header { position: sticky; top: 0; z-index: 20; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: rgba(23, 29, 34, .9); backdrop-filter: blur(18px); }
+  .mobile-header { position: sticky; top: 0; z-index: 20; height: var(--mobile-header-height); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: rgba(23, 29, 34, .9); backdrop-filter: blur(18px); }
   .mobile-header .brand { min-width: 0; min-height: 44px; padding: 0; gap: 9px; }
   .mobile-header .brand__mark { width: 32px; height: 40px; }
   .mobile-header .brand__mark svg { width: 28px; height: 36px; }
   .mobile-header .brand__name { max-width: none; margin-bottom: 3px; font-size: var(--menu-size-compact); line-height: 1; }
   .mobile-header .brand__tagline { max-width: 190px; font-size: .58rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .context-bar { position: sticky; inset: auto; top: 64px; z-index: 19; height: auto; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--ink-900); }
+  .context-bar { position: sticky; inset: auto; top: var(--mobile-header-height); z-index: 19; height: auto; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--ink-900); }
   .context-bar__group { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
   .context-bar__group--scenario { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .context-picker + .context-picker { padding-left: 4px; }
@@ -845,7 +850,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .context-bar__meta { margin-left: auto; }
   .context-status { font-size: .67rem; }
   .context-status__dot { width: 6px; height: 6px; }
-  .bottom-nav { position: fixed; inset: auto 0 0; z-index: 30; height: calc(66px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 3fr 2fr; padding: 5px 3px env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: rgba(23, 29, 34, .95); backdrop-filter: blur(18px); }
+  .bottom-nav { position: fixed; inset: auto 0 0; z-index: 30; height: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 3fr 2fr; padding: 5px 3px env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: rgba(23, 29, 34, .95); backdrop-filter: blur(18px); }
   .bottom-nav__main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bottom-nav__tracking { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 1px solid var(--line-strong); }
   .bottom-nav button { min-width: 0; min-height: 55px; display: grid; place-items: center; align-content: center; gap: 3px; padding: 2px; color: var(--text-faint); border: 0; background: transparent; font-size: .61rem; font-weight: 650; }

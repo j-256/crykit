@@ -15,7 +15,7 @@ function locationRow(page: Page) {
 }
 async function editLocation(page: Page, value: string) {
   await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
-  await page.getByRole('button', { name: 'Edit Location', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit Location', exact: true }).press('Enter')
   const editor = page.getByRole('form', { name: 'Correct Location in place' })
   await editor.getByRole('textbox', { name: 'New Location', exact: true }).fill(value)
   return editor
@@ -66,7 +66,7 @@ test('edits in place with minimal input, adds provenance later, and exports exac
   await expect(locationRow(page)).toContainText('2 differing source values')
   await expect(locationRow(page).getByRole('link', { name: 'Community wiki · Rapiers/table' })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Rapiers/table?oldid=13313')
   await page.getByRole('button', { name: 'View corrected', exact: true }).click()
-  await page.getByRole('button', { name: 'Edit Location', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit Location', exact: true }).press('Enter')
   const incremental = page.getByRole('form', { name: 'Correct Location in place' })
   await incremental.locator('summary').filter({ hasText: 'Add evidence or detail' }).click()
   await incremental.getByLabel('Evidence / provenance').fill(VENDOR_SOURCE)

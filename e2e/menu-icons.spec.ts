@@ -45,7 +45,12 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await loadedIcons(warrior, 1)
   await warrior.click()
   const selectedDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Class', exact: true }) }).locator('.build-field__evidence > details > summary') : page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Warrior', exact: true })
-  await loadedIcons(selectedDetails, 1)
+  if (isMobile) {
+    await expect(selectedDetails).toHaveText('Details')
+    await expect(selectedDetails).toHaveAccessibleName('Details for Warrior')
+  } else {
+    await loadedIcons(selectedDetails, 1)
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
 
