@@ -12,12 +12,13 @@ describe('sample starter team', () => {
     expect(profile.label).toBe('Sample playthrough')
     expect(profile.revision).toBe(0)
     expect(profile.changes).toEqual([])
-    expect(Object.values(profile.characters).map(character => character.name)).toEqual(['Rowan', 'Mira'])
-    expect(Object.values(profile.builds)).toHaveLength(2)
+    expect(Object.values(profile.characters).map(character => character.name)).toEqual(['Rowan', 'Mira', 'Tavi', 'Sol'])
+    expect(Object.values(profile.builds)).toHaveLength(4)
     expect(Object.values(profile.scenarios)).toHaveLength(1)
     const scenario = profile.scenarios[profile.activeScenarioId!]!
     expect(scenario.rulesetRevisionId).toBe(profile.activeRulesetRevisionId)
     expect(scenario.inventoryPolicy.enforceStock).toBe(true)
+    expect(scenario.memberIds).toEqual(Object.keys(profile.characters))
     expect(Object.keys(scenario.assignments).sort()).toEqual(Object.keys(profile.characters).sort())
     for (const character of Object.values(profile.characters)) {
       const snapshot = character.snapshots[character.currentSnapshotId!]!
@@ -53,5 +54,13 @@ describe('sample starter team', () => {
     expect(() => createSampleProfile({ ...DEFAULT_CATALOG, entities: {} })).toThrow('sample team requires')
     const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
     expect(() => createSampleProfile({ ...DEFAULT_CATALOG, entities: { ...DEFAULT_CATALOG.entities, [warrior.id]: { ...warrior, kind: 'item' } } })).toThrow('sample team requires')
+  })
+
+  it('rejects duplicate members in an imported explicit team roster', () => {
+    const profile = createSampleProfile(DEFAULT_CATALOG)
+    const scenario = profile.scenarios[profile.activeScenarioId!]!
+    const duplicateRoster = [scenario.memberIds![0]!, scenario.memberIds![1]!, scenario.memberIds![2]!, scenario.memberIds![2]!]
+    const changed = { ...profile, scenarios: { ...profile.scenarios, [scenario.id]: { ...scenario, memberIds: duplicateRoster } } }
+    expect(() => validateNativeProfileGraph(changed, [DEFAULT_CATALOG])).toThrow('duplicate characters')
   })
 })

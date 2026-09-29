@@ -6,6 +6,7 @@ import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mod
 import { asId, captureCharacter, createCharacter, updateRulesetRevision } from '../src/domain'
 import { createTestProfile, HAND_SLOT, known, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
 import type { CatalogRef, CharacterId, EntityId, Profile } from '../src/domain/types'
+import { openSwitchModPacks } from './profile-helpers'
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const SHIELD: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('mod-pack-2:item:doge-shield') }
@@ -73,6 +74,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await help.getByRole('link', { name: 'Data & settings > Ruleset', exact: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await openSwitchModPacks(settings)
   await expect(settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true })).toHaveValue('unknown')
   await settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true }).selectOption('enabled')
   await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
@@ -100,6 +102,7 @@ test('mod settings control search and choices while sheets retain recorded conte
   await page.keyboard.press('Escape')
   const settings = await dataPanel(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await openSwitchModPacks(settings)
   await expect(settings.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('enabled')
   await settings.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
   await settings.getByRole('combobox', { name: 'Bloodmage', exact: true }).selectOption('enabled')
@@ -176,14 +179,15 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   if (await prepare.isVisible()) await prepare.click()
   await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await openSwitchModPacks(panel)
   await expect(panel.locator('textarea')).toHaveCount(0)
   for (const pack of SWITCH_MOD_PACKS) {
-    const group = panel.getByRole('group', { name: pack.name, exact: true })
+    const group = panel.locator('.ruleset-mod-pack').filter({ hasText: pack.name })
     await expect(group.getByRole('combobox')).toHaveCount(pack.mods.length)
     for (const name of pack.mods) await expect(group.getByRole('combobox', { name, exact: true })).toHaveValue('unknown')
   }
   await panel.getByLabel('Ruleset label', { exact: false }).fill('Synthetic Switch choices')
-  await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Apply confirmed Switch defaults', exact: true }).click()
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
   await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
@@ -210,6 +214,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   })
   await panel.getByRole('button', { name: /^(Create ruleset|Save new ruleset revision)$/ }).click()
   await expect(panel.getByText('Ruleset not saved', { exact: true })).toBeVisible()
+  await openSwitchModPacks(panel)
   await expect(shield).toHaveValue('disabled')
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
@@ -217,6 +222,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await page.reload()
   panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await openSwitchModPacks(panel)
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('disabled')
   await expect(panel.getByRole('combobox', { name: 'Pointier Hat', exact: true })).toHaveValue('unknown')
   await expect(panel.getByRole('combobox', { name: 'Bloodmage', exact: true })).toHaveValue('enabled')
@@ -238,6 +244,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   await importBackup(page, backup(profile))
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await openSwitchModPacks(panel)
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('conflicting')
   await panel.getByText('Other imported mod names (preserved)', { exact: true }).click()
   await expect(panel).toContainText('Synthetic imported mod')

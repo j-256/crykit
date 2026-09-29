@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { Profile } from '../src/domain/types'
-import { createBlankPlaythrough } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough } from './profile-helpers'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -30,15 +30,16 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await expect(page.getByText('Short Sword', { exact: true })).toBeVisible()
   const original = await exportProfile(page)
   expect(original.label).toBe('Sample playthrough')
-  expect(Object.values(original.characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan'])
-  expect(Object.values(original.builds)).toHaveLength(2)
+  expect(Object.values(original.characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan', 'Sol', 'Tavi'])
+  expect(Object.values(original.builds)).toHaveLength(4)
   const team = original.scenarios[original.activeScenarioId!]!
-  expect(Object.keys(team.assignments)).toHaveLength(2)
+  expect(team.memberIds).toEqual(Object.keys(original.characters))
+  expect(Object.keys(team.assignments)).toHaveLength(4)
 
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Member', exact: true }).click()
   const characterPicker = page.getByRole('combobox', { name: 'Character', exact: true })
-  for (const [name, className, weapon] of [['Rowan', 'Warrior', 'Short Sword'], ['Mira', 'Cleric', 'Short Staff']]) {
+  for (const [name, className, weapon] of [['Rowan', 'Warrior', 'Short Sword'], ['Mira', 'Cleric', 'Short Staff'], ['Tavi', 'Rogue', 'Dirk'], ['Sol', 'Wizard', 'Oak Wand']]) {
     await characterPicker.selectOption({ label: name })
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Choose Class', exact: true })).toContainText(className)
@@ -94,6 +95,37 @@ test('an explicitly created blank playthrough stays empty after reload', async (
   for (const key of ['characters', 'inventory', 'builds', 'scenarios'] as const) expect(profile[key]).toEqual({})
 })
 
+test('the ruleset starts as a visual summary and reveals one focused section at a time', async ({ page }, testInfo) => {
+  await page.goto('/#/settings/ruleset')
+  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await expect(panel.locator('.ruleset-summary-card')).toHaveCount(4)
+  await expect(panel.locator('.ruleset-editor-section[open]')).toHaveCount(0)
+  await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).not.toBeVisible()
+  await panel.locator('.ruleset-summary-card').filter({ hasText: 'Switch mods' }).click()
+  await expect(panel.locator('#ruleset-setup-section')).toHaveAttribute('open', '')
+  const pack = panel.locator('.ruleset-mod-pack').filter({ hasText: 'Mod Pack 2: New Challenges' })
+  await expect(pack).toBeVisible()
+  await expect(pack.getByRole('combobox')).not.toBeVisible()
+  await pack.locator(':scope > summary').click()
+  await expect(pack.getByRole('combobox').first()).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('ruleset-progressive-disclosure.png') })
+})
+
+test('new team scenarios require four distinct roster members before build assignment', async ({ page }) => {
+  await page.goto('/#/builds/teams')
+  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
+  const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
+  await form.getByLabel('Scenario label').fill('Synthetic exact team')
+  const create = form.getByRole('button', { name: 'Create scenario', exact: true })
+  await expect(create).toBeDisabled()
+  await chooseFourTeamMembers(form)
+  await expect(create).toBeEnabled()
+  await create.click()
+  const card = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Synthetic exact team', exact: true }) })
+  await expect(card.getByText('4 of 4 members', { exact: true })).toBeVisible()
+  await expect(card.getByRole('combobox')).toHaveCount(4)
+})
+
 test('sample team uncertainty uses plain language and targeted actions', async ({ page }) => {
   await page.goto('/#/builds/teams')
   const team = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) })
@@ -111,16 +143,16 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
   let panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.getByText('Editing Sample starter ruleset, revision 1.', { exact: false })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Sample starter ruleset · revision 1', exact: true })).toBeVisible()
   await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await defaults.locator('summary').click()
   await defaults.getByRole('button', { name: 'Review planner defaults', exact: true }).click()
   panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  const accept = panel.getByRole('button', { name: 'Accept planner layout', exact: true })
+  const accept = panel.getByRole('button', { name: 'Apply planner defaults', exact: true })
   await expect(accept).toBeFocused()
-  await expect(panel.getByText('Accepting records your choice; it does not claim independent verification of game behavior.', { exact: false })).toBeVisible()
+  await expect(panel.getByText('Applying them records your choice; it does not claim independent verification of game behavior.', { exact: false })).toBeVisible()
   await accept.click()
   await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { addRulesetRevision, asId, captureCharacter, createCharacter, upsertCharacterClassProgress } from '../src/domain'
+import { addRulesetRevision, asId, captureCharacter, createCharacter, createScenario, upsertCharacterClassProgress } from '../src/domain'
 import { addTestBuild, addTestDefinition, createTestProfile, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
 import type { CharacterId, CharacterSnapshotId, Profile, RulesetRevisionId } from '../src/domain/types'
 
@@ -16,11 +16,14 @@ function syntheticProfile(changedContext = false): Profile {
   profile = addTestDefinition(profile, 'Synthetic warrior', { kind: 'class' })
   profile = createCharacter(profile, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
   profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
+  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-tavi'), name: 'Synthetic Tavi', now: TEST_NOW })
+  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-sol'), name: 'Synthetic Sol', now: TEST_NOW })
   profile = upsertCharacterClassProgress(profile, { characterId: CHARACTER_ID, classRef: personalRef('Synthetic warrior'), observedLp: known(12), now: TEST_NOW })
   profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), ppCapacity: known(8), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, passives: known([]), observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
   profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), ppCapacity: { state: 'unknown' }, displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade') }, passives: known([]), observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
   profile = addTestBuild(profile, 'Synthetic Rowan proposal', CHARACTER_ID, {})
   profile = addTestBuild(profile, 'Synthetic Mira proposal', 'synthetic-mira', {})
+  profile = createScenario(profile, { label: 'Synthetic complete team', memberIds: [CHARACTER_ID, asId<CharacterId>('synthetic-mira'), asId<CharacterId>('synthetic-tavi'), asId<CharacterId>('synthetic-sol')], rulesetRevisionId: TEST_RULESET_REVISION_ID, activate: true, now: TEST_NOW })
   if (changedContext) {
     const character = profile.characters[CHARACTER_ID]!
     const { rulesetRevisionId: _context, ...legacy } = character.snapshots[BEFORE_ID]!

@@ -1,4 +1,4 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -36,6 +36,7 @@ async function configureRuleset(page: Page, slotLabels = ['Main hand']) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await panel.getByLabel('Ruleset label').fill('Synthetic configuration')
+  await openRulesetSection(panel, 'Equipment layout')
   for (const [index, label] of slotLabels.entries()) {
     await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
     await panel.getByLabel(`Equipment slot ${index + 1}`, { exact: true }).fill(label)
@@ -158,6 +159,8 @@ test('immutable alternatives contend only when selected together in a scenario',
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')
+  await addCharacter(page, 'Synthetic Ivo')
+  await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New build', exact: true }).click()
   const build = page.locator('.build-sheet')
@@ -183,6 +186,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await page.getByRole('button', { name: 'New scenario', exact: true }).click()
   const team = page.getByRole('dialog', { name: 'Create team scenario' })
   await team.getByLabel('Scenario label').fill('Synthetic simultaneous team')
+  await chooseFourTeamMembers(team)
   await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(team).not.toBeVisible()
   await page.getByRole('combobox', { name: 'Synthetic Rowan', exact: true }).selectOption(firstRevision.id)
@@ -207,6 +211,10 @@ test('immutable alternatives contend only when selected together in a scenario',
 test('build drafts resist navigation and recording current preserves known level and party baseline', async ({ page, isMobile }) => {
   await configureRuleset(page)
   await addCharacter(page, 'Synthetic Rowan')
+  await addCharacter(page, 'Synthetic Vale')
+  await addCharacter(page, 'Synthetic Ivo')
+  await addCharacter(page, 'Synthetic Nia')
+  await page.getByRole('combobox', { name: 'Character', exact: true }).selectOption({ label: 'Synthetic Rowan' })
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
   await snapshot.getByLabel('Level certainty', { exact: true }).selectOption('known')
@@ -216,6 +224,14 @@ test('build drafts resist navigation and recording current preserves known level
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
   await navigate(page, 'Builds')
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
+  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
+  const currentTeam = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
+  await currentTeam.getByLabel('Scenario label').fill('Synthetic current team')
+  await chooseFourTeamMembers(currentTeam)
+  await currentTeam.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await expect(currentTeam).not.toBeVisible()
+  await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.getByRole('button', { name: 'New build', exact: true }).click()
   const build = page.locator('.build-sheet')
   await build.getByText('Build details & notes', { exact: true }).click()
@@ -273,6 +289,9 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await configureRuleset(page, ['Main hand', 'Off hand'])
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')
+  await addCharacter(page, 'Synthetic Vale')
+  await addCharacter(page, 'Synthetic Ivo')
+  await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New build', exact: true }).click()
   const creation = page.locator('.build-sheet')
@@ -327,6 +346,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await page.getByRole('button', { name: 'New scenario', exact: true }).click()
   const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
   await team.getByLabel('Scenario label').fill('Shared physical copy')
+  await chooseFourTeamMembers(team)
   await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(team).not.toBeVisible()
   const assignment = page.getByRole('combobox', { name: 'Synthetic Rowan', exact: true })
@@ -368,6 +388,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await settings.getByLabel('Ruleset label').fill('Synthetic validation configuration')
+  await openRulesetSection(settings, 'Equipment layout')
   await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
   await settings.getByLabel('Accepted types').fill('item, typo')

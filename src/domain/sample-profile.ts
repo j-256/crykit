@@ -21,6 +21,16 @@ const SAMPLE_MEMBERS = [
     classId: 'base:class:cleric',
     equipment: { 'plan-main-hand': 'base:item:short-staff', 'plan-body': 'base:item:hemp-robe' },
   },
+  {
+    name: 'Tavi',
+    classId: 'base:class:rogue',
+    equipment: { 'plan-main-hand': 'base:item:dirk', 'plan-body': 'base:item:leather-outfit' },
+  },
+  {
+    name: 'Sol',
+    classId: 'base:class:wizard',
+    equipment: { 'plan-main-hand': 'base:item:oak-wand', 'plan-body': 'base:item:hemp-robe' },
+  },
 ] as const
 
 function sampleRef(catalog: CatalogSnapshot, id: string, kind: CatalogEntityKind): CatalogRef {
@@ -37,6 +47,7 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
   profile = addRulesetRevision(profile, { label: 'Sample starter ruleset', slots: SUGGESTED_BUILD_SLOTS, catalogLock, now })
   const rulesetRevisionId = profile.activeRulesetRevisionId!
   const assignments: Record<string, BuildRevisionId> = {}
+  const memberIds: CharacterId[] = []
   const stock = new Map<string, { ref: CatalogRef; quantity: number }>()
 
   for (const member of SAMPLE_MEMBERS) {
@@ -72,11 +83,12 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
       },
     })
     assignments[characterId] = revisionId
+    memberIds.push(characterId)
   }
 
   for (const { ref, quantity } of stock.values()) {
     profile = observeInventory(profile, { ref, possession: 'owned', quantity: { kind: 'exact', value: quantity }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now })
   }
-  profile = createScenario(profile, { label: 'Sample starter team', assignments, rulesetRevisionId, activate: true, now })
+  profile = createScenario(profile, { label: 'Sample starter team', memberIds, assignments, rulesetRevisionId, activate: true, now })
   return { ...profile, revision: 0, changes: [] }
 }

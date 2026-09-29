@@ -8,6 +8,7 @@ import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { screenshotTestProfile, CHARACTER } from '../src/domain/skill-trees.test-helpers'
 import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { Profile } from '../src/domain/types'
+import { openSwitchModPacks } from './profile-helpers'
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -104,7 +105,8 @@ async function exportProfile(page: Page): Promise<Profile> {
 async function useConfirmedSwitchSetup(page: Page) {
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await panel.getByRole('button', { name: 'Use confirmed Switch setup', exact: true }).click()
+  await openSwitchModPacks(panel)
+  await panel.getByRole('button', { name: 'Apply confirmed Switch defaults', exact: true }).click()
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
   await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()

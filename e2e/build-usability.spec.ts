@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createBlankPlaythrough } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { Profile } from '../src/domain/types'
@@ -14,6 +14,15 @@ async function choose(page: Page, label: string, name: string) {
 
 async function navigate(page: Page, name: string | RegExp) {
   await page.getByRole('button', { name, exact: typeof name === 'string' }).filter({ visible: true }).click()
+}
+
+async function addCharacter(page: Page, name: string) {
+  await navigate(page, 'Characters')
+  await page.getByRole('button', { name: 'Add character', exact: true }).first().click()
+  const form = page.getByRole('dialog', { name: 'Add character', exact: true })
+  await form.getByLabel('Character name').fill(name)
+  await form.getByRole('button', { name: 'Add character', exact: true }).click()
+  await expect(form).not.toBeVisible()
 }
 
 test('build choices expose catalog facts, uncertain identities, and explicit innate costs', async ({ page, isMobile }, testInfo) => {
@@ -197,6 +206,7 @@ test('readiness assigns the saved revision, groups shared causes, and opens affe
 test('readiness creates a team pinned to the saved build when the active ruleset changes', async ({ page }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
+  for (const name of ['Synthetic Rowan', 'Synthetic Mira', 'Synthetic Tavi', 'Synthetic Sol']) await addCharacter(page, name)
   await page.goto('/#/builds/library/new')
   await choose(page, 'Main hand', 'Muramasa')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
@@ -205,6 +215,7 @@ test('readiness creates a team pinned to the saved build when the active ruleset
   await navigate(page, /^(Data & settings|Open data and settings)$/)
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await openRulesetSection(settings, 'Passive rules')
   await expect(settings.getByLabel('Build PP limit certainty', { exact: true })).toHaveValue('known')
   await expect(settings.getByLabel('Build PP limit', { exact: true })).toHaveValue('10')
   await settings.getByLabel('Ruleset label').fill('Synthetic later ruleset')
@@ -217,6 +228,7 @@ test('readiness creates a team pinned to the saved build when the active ruleset
   const scenario = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
   await expect(scenario).toContainText('Uses saved r1:')
   await scenario.getByLabel('Scenario label').fill('Synthetic pinned readiness')
+  await chooseFourTeamMembers(scenario)
   await scenario.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(scenario).not.toBeVisible()
   await expect(page).toHaveURL(buildUrl)

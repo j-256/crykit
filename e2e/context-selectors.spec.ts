@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Profile } from '../src/domain/types'
-import { createBlankPlaythrough } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 
 type ContextLabel = 'Profile' | 'Ruleset' | 'Scenario'
 
@@ -40,6 +40,7 @@ async function addRulesetRevision(page: Page) {
   const picker = await openContext(page, 'Ruleset')
   await picker.getByRole('button', { name: 'Configure ruleset', exact: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await openRulesetSection(settings, 'Game setup')
   await settings.getByLabel('Platform', { exact: true }).fill('Synthetic platform')
   await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
   await expect(settings.getByRole('button', { name: 'Save new ruleset revision', exact: true })).toBeEnabled()
@@ -123,6 +124,7 @@ test('ruleset revisions and scenarios persist independently while saved pins rem
   await picker.getByRole('button', { name: 'New scenario', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
   await form.getByLabel('Scenario label').fill('Synthetic alternate team')
+  await chooseFourTeamMembers(form)
   await form.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(form).not.toBeVisible()
   const withAlternate = await readProfile(page)
@@ -177,6 +179,7 @@ test('the selected scenario supplies readiness when a checkpoint belongs to mult
   await picker.getByRole('button', { name: 'New scenario', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
   await form.getByLabel('Scenario label').fill('Synthetic readiness team')
+  await chooseFourTeamMembers(form)
   await form.getByRole('button', { name: 'Create scenario', exact: true }).click()
   const card = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Synthetic readiness team', exact: true }) })
   await card.getByRole('combobox', { name: character.name, exact: true }).selectOption(revision.id)

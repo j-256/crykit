@@ -6,6 +6,7 @@ import { createBlankProfile, createPersonalDefinition } from '../domain/profile'
 import { asId } from '../domain/core'
 import { observeInventory } from '../domain/inventory'
 import { MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
+import { TEAM_SIZE } from '../domain/scenarios'
 import type { ImportPreview } from '../interchange/types'
 import type { PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
 import { previewResearchJson } from '../interchange/research'
@@ -44,7 +45,7 @@ describe('workspace persistence', () => {
   it('starts with a sample team and saves an advanced domain revision with optimistic locking', async () => {
     const workspace = await loadWorkspace()
     expect(Object.keys(workspace.profile.inventory)).not.toHaveLength(0)
-    expect(Object.keys(workspace.profile.characters)).toHaveLength(2)
+    expect(Object.keys(workspace.profile.characters)).toHaveLength(TEAM_SIZE)
 
     const advanced = createPersonalDefinition(workspace.profile, {
       kind: 'item',
@@ -127,7 +128,7 @@ describe('workspace persistence', () => {
     expect(await database.profiles.count()).toBe(1)
     expect(await database.catalogs.count()).toBe(0)
     for (const workspace of workspaces) expect(workspace.profile).toEqual(workspaces[0]!.profile)
-    expect(Object.keys(workspaces[0]!.profile.characters)).toHaveLength(2)
+    expect(Object.keys(workspaces[0]!.profile.characters)).toHaveLength(TEAM_SIZE)
     expect((await loadWorkspace()).profile).toEqual(workspaces[0]!.profile)
     expect(await database.history.count()).toBe(0)
   })
@@ -157,7 +158,7 @@ describe('workspace persistence', () => {
     expect(await database.profiles.count()).toBe(0)
     expect(await database.meta.count()).toBe(0)
     const retried = await loadWorkspace()
-    expect(Object.keys(retried.profile.characters)).toHaveLength(2)
+    expect(Object.keys(retried.profile.characters)).toHaveLength(TEAM_SIZE)
     expect(await database.profiles.count()).toBe(1)
   })
 

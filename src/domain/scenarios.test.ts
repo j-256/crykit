@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { activateRuleset, activateScenario, asId, createScenario, updateRulesetRevision, type ScenarioId } from './index'
-import { createTestProfile, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
+import { activateRuleset, activateScenario, asId, createScenario, scenarioMemberIds, updateRulesetRevision, validateScenario, type CharacterId, type ScenarioId } from './index'
+import { addTestCharacter, createTestProfile, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
 
 describe('active scenario selection', () => {
   const scenarioId = asId<ScenarioId>('alternate-team')
@@ -33,5 +33,32 @@ describe('active scenario selection', () => {
     }
     expect(() => activateScenario(profile, { scenarioId, expectedRevision: profile.revision - 1 })).toThrow('Profile revision does not match')
     expect(profile.activeScenarioId).toBeUndefined()
+  })
+})
+
+describe('four-character team composition', () => {
+  const withCharacters = () => ['one', 'two', 'three', 'four', 'five'].reduce((profile, id) => addTestCharacter(profile, id), createTestProfile())
+  const team = ['one', 'two', 'three', 'four'].map(id => asId<CharacterId>(id))
+
+  it('requires exactly four distinct characters for an explicit team roster', () => {
+    const profile = withCharacters()
+    expect(() => createScenario(profile, { label: 'Short team', memberIds: team.slice(0, 3), rulesetRevisionId: TEST_RULESET_REVISION_ID })).toThrow('exactly 4 distinct characters')
+    expect(() => createScenario(profile, { label: 'Duplicate team', memberIds: [team[0]!, team[1]!, team[2]!, team[2]!], rulesetRevisionId: TEST_RULESET_REVISION_ID })).toThrow('exactly 4 distinct characters')
+  })
+
+  it('keeps four roster slots independent from optional build assignments', () => {
+    const profile = createScenario(withCharacters(), { id: asId<ScenarioId>('team'), label: 'Four-person team', memberIds: team, rulesetRevisionId: TEST_RULESET_REVISION_ID })
+    const scenario = profile.scenarios.team!
+    expect(scenarioMemberIds(scenario)).toEqual(team)
+    expect(scenario.assignments).toEqual({})
+    expect(validateScenario(profile, scenario.id).dimensions.structure.status).toBe('valid')
+  })
+
+  it('marks legacy incomplete rosters invalid without inventing members', () => {
+    const profile = createScenario(withCharacters(), { id: asId<ScenarioId>('legacy'), label: 'Legacy team', assignments: { one: null, two: null }, rulesetRevisionId: TEST_RULESET_REVISION_ID })
+    const scenario = profile.scenarios.legacy!
+    expect(scenario.memberIds).toBeUndefined()
+    expect(scenarioMemberIds(scenario)).toEqual(['one', 'two'])
+    expect(validateScenario(profile, scenario.id).issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'SCENARIO_TEAM_SIZE_INVALID', status: 'invalid' })]))
   })
 })

@@ -20,6 +20,7 @@ import {
   observeInventory,
   recordInventoryEvent,
   replaceScenarioBuild,
+  scenarioMemberIds,
   saveBuildRevision,
   updateBuild,
   updateRulesetRevision,
@@ -28,6 +29,7 @@ import {
   upsertLearnedNode,
   upsertProgress,
   validateScenario,
+  TEAM_SIZE,
   type BuildId,
   type BuildRevisionId,
   type CatalogIndex,
@@ -41,6 +43,7 @@ import {
   type ScenarioId,
   type SlotDefinition,
   type SlotId,
+  type TeamScenario,
   type Timestamp,
   type ValidationReport,
 } from './domain'
@@ -371,6 +374,7 @@ export default function App() {
     if (draft.buildRevisionId && !revision) throw new Error('The requested build revision is unavailable.')
     const rulesetRevisionId = revision?.rulesetRevisionId ?? profile.activeRulesetRevisionId
     if (!rulesetRevisionId) throw new Error('Configure an active ruleset before creating a team scenario.')
+    const memberIds = draft.memberIds.map(memberId => asId<CharacterId>(memberId))
     let baseline: Parameters<typeof createScenario>[1]['baseline'] = { kind: 'empty' }
     if (draft.baseline === 'recordedParty') {
       const recorded = Object.values(profile.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
@@ -380,7 +384,9 @@ export default function App() {
       if (!recorded || recorded.rulesetRevisionId !== rulesetRevisionId || !sameLock || !Object.keys(assignments).length) throw new Error('The recorded current party is no longer compatible with the chosen ruleset and catalog lock.')
       baseline = { kind: 'recordedParty', profileRevision: profile.revision, assignments }
     }
-    return createScenario(profile, { label: draft.label, kind: draft.kind, baseline, rulesetRevisionId, catalogLock: revision?.catalogLock, inventoryPolicy: { enforceStock: draft.enforceStock, includeProtected: draft.includeProtected }, activate: true, expectedRevision: profile.revision })
+    const revisionBuild = revision ? profile.builds[revision.buildId] : undefined
+    const assignments = revision && revisionBuild?.characterId && memberIds.includes(revisionBuild.characterId) ? { [revisionBuild.characterId]: revision.id } : undefined
+    return createScenario(profile, { label: draft.label, kind: draft.kind, memberIds, baseline, assignments, rulesetRevisionId, catalogLock: revision?.catalogLock, inventoryPolicy: { enforceStock: draft.enforceStock, includeProtected: draft.includeProtected }, activate: true, expectedRevision: profile.revision })
   }), [commitProfile])
 
   const assignScenario = useCallback(async (scenarioId: string, characterId: string, revisionId: string) => commitProfile((profile) => replaceScenarioBuild(profile, { scenarioId: asId<ScenarioId>(scenarioId), characterId: asId<CharacterId>(characterId), buildRevisionId: revisionId ? asId<BuildRevisionId>(revisionId) : null, expectedRevision: profile.revision })), [commitProfile])
@@ -390,16 +396,23 @@ export default function App() {
     if (!build?.characterId) throw new Error('Only a pinned character build can be recorded as current.')
     const revision = profile.buildRevisions[revisionId]
     if (!revision || revision.buildId !== build.id) throw new Error('The selected build revision is unavailable for this build.')
+    const compatibleTeam = (scenario: TeamScenario) => {
+      const memberIds = scenarioMemberIds(scenario)
+      return scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && memberIds.length === TEAM_SIZE && new Set(memberIds).size === TEAM_SIZE && memberIds.includes(build.characterId!)
+    }
+    const recorded = Object.values(profile.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
+    const active = profile.activeScenarioId ? profile.scenarios[profile.activeScenarioId] : undefined
+    const rosterSource = recorded && compatibleTeam(recorded) ? recorded : active && compatibleTeam(active) ? active : undefined
+    if (!rosterSource) throw new Error('Select a complete four-character team containing this character before recording the build as current.')
     let next = profile
     for (const other of Object.values(next.builds)) {
       if (other.id !== build.id && other.characterId === build.characterId && other.state === 'recordedCurrent') next = updateBuild(next, { buildId: other.id, state: 'draft', expectedRevision: next.revision })
     }
     next = updateBuild(next, { buildId: build.id, state: 'recordedCurrent', expectedRevision: next.revision })
-    const recorded = Object.values(next.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
-    if (recorded && recorded.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(recorded.catalogLock, revision.catalogLock)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: build.characterId, buildRevisionId: revision.id, expectedRevision: next.revision })
+    if (recorded && compatibleTeam(recorded)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: build.characterId, buildRevisionId: revision.id, expectedRevision: next.revision })
     else {
       if (recorded) next = updateScenario(next, { scenarioId: recorded.id, kind: 'draft', expectedRevision: next.revision })
-      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', rulesetRevisionId: revision.rulesetRevisionId, catalogLock: revision.catalogLock, assignments: { [build.characterId]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
+      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: scenarioMemberIds(rosterSource), rulesetRevisionId: revision.rulesetRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [build.characterId]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
     }
     const character = next.characters[build.characterId]
     const currentSnapshot = character?.currentSnapshotId ? character.snapshots[character.currentSnapshotId] : undefined

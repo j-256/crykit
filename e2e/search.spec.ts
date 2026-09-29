@@ -1,4 +1,4 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -228,6 +228,7 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await settings.getByLabel('Ruleset label').fill('Synthetic base rules')
+  await openRulesetSection(settings, 'Equipment layout')
   await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
   await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()

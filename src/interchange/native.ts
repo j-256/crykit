@@ -2,6 +2,7 @@ import { parseCorrectionCollection } from './corrections'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { assertModConfiguration } from '../domain/mods'
+import { TEAM_SIZE } from '../domain/scenarios'
 import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
 import {
   definitionLineageRootRef,
@@ -518,9 +519,21 @@ function validateProfile(
         schemaError('A scenario references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
+    let memberIds: readonly string[] | undefined
+    if (scenario.memberIds !== undefined) {
+      if (!Array.isArray(scenario.memberIds) || scenario.memberIds.length !== TEAM_SIZE) {
+        schemaError(`A scenario team must contain exactly ${TEAM_SIZE} characters`, { id })
+      }
+      memberIds = scenario.memberIds.map((characterId, index) => stringValue(characterId, `${label}.scenarios.${id}.memberIds[${index}]`))
+      if (new Set(memberIds).size !== TEAM_SIZE) schemaError('A scenario team contains duplicate characters', { id })
+      for (const characterId of memberIds) {
+        if (!characters[characterId]) schemaError('A scenario team references a missing character', { id, characterId })
+      }
+    }
     const assignments = recordValue(scenario.assignments, `${label}.scenarios.${id}.assignments`)
     for (const [characterId, revisionId] of Object.entries(assignments)) {
       if (!characters[characterId]) schemaError('A scenario assignment references a missing character', { id, characterId })
+      if (memberIds && !memberIds.includes(characterId)) schemaError('A scenario assignment is outside its team', { id, characterId })
       if (revisionId !== null && (typeof revisionId !== 'string' || !buildRevisions[revisionId])) {
         schemaError('A scenario references a missing build revision', { id, revisionId })
       }
@@ -533,6 +546,7 @@ function validateProfile(
       const baselineAssignments = recordValue(baseline.assignments, `${label}.scenarios.${id}.baseline.assignments`)
       for (const [characterId, revisionId] of Object.entries(baselineAssignments)) {
         if (!characters[characterId]) schemaError('A scenario baseline references a missing character', { id, characterId })
+        if (memberIds && !memberIds.includes(characterId)) schemaError('A scenario baseline assignment is outside its team', { id, characterId })
         if (typeof revisionId !== 'string' || !buildRevisions[revisionId]) {
           schemaError('A scenario baseline references a missing build revision', { id, revisionId })
         }

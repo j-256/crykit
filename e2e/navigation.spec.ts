@@ -1,4 +1,4 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function navigate(page: Page, destination: string) {
@@ -20,6 +20,7 @@ async function configureRuleset(page: Page) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
   await panel.getByLabel('Ruleset label').fill('Synthetic navigation ruleset')
+  await openRulesetSection(panel, 'Equipment layout')
   await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await panel.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
   await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
@@ -123,6 +124,9 @@ test('settings routes retain dirty forms and expired previews recover explicitly
 test('build drafts, checkpoint pickers, and comparisons have restorable routes', async ({ page }) => {
   await configureRuleset(page)
   await addCharacter(page, 'Synthetic routed character')
+  await addCharacter(page, 'Synthetic routed companion 2')
+  await addCharacter(page, 'Synthetic routed companion 3')
+  await addCharacter(page, 'Synthetic routed companion 4')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New build', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)
@@ -181,6 +185,12 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
   const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
   await expect(recording.getByText(/revision 2/)).toBeVisible()
+  await recording.getByRole('button', { name: 'Create four-person team', exact: true }).click()
+  const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
+  await team.getByLabel('Scenario label').fill('Synthetic routed team')
+  await chooseFourTeamMembers(team)
+  await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
   const confirmation = recording.getByRole('checkbox', { name: /I made these changes in game/ })
   await confirmation.check()
   await setHash(page, `#/builds/library/${firstRevisionRoute![1]!}/revisions/${firstRevisionRoute![2]!}/record-current`)

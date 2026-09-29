@@ -2,6 +2,7 @@ import { GUIDE_LEVEL_CAP } from '../domain/growth'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
+import { TEAM_SIZE } from '../domain/scenarios'
 import {
   MAX_COLLECTION_LENGTH,
   MAX_ID_LENGTH,
@@ -336,6 +337,7 @@ const scenario = z.object({
   revision: nonnegativeInteger,
   label: nonemptyText,
   kind: z.enum(['recordedCurrent', 'draft', 'hypothetical']),
+  memberIds: z.array(id).length(TEAM_SIZE).optional(),
   baseline: scenarioBaseline,
   assignments: z.record(id, id.nullable()),
   rulesetRevisionId: id,

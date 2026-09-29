@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { effectiveScenarioAssignments, entityDefinitionKey } from '../domain'
+import { effectiveScenarioAssignments, entityDefinitionKey, scenarioMemberIds, TEAM_SIZE } from '../domain'
 import type { Build, BuildRevision, CatalogRef, CatalogSnapshot, Profile, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { groupValidationIssues } from './build-evidence'
 import { Button, Field, InlineNotice } from './components'
@@ -106,12 +106,16 @@ export function ValidationPanel({ report, profile, catalogs, scenario }: { repor
 
 export function BuildReadinessAssignment({ build, revision, profile, disabled, onAssign, scenarioId, onScenarioChange }: { scenarioId?: string; onScenarioChange: (scenarioId: string) => void; build: Build; revision: BuildRevision; profile: Profile; disabled: boolean; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void> }) {
   const navigation = useNavigation()
-  const scenarios = Object.values(profile.scenarios).filter((scenario) => scenario.kind !== 'recordedCurrent' && scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock))
-  const characters = Object.values(profile.characters).filter((character) => !build.characterId || build.characterId === character.id)
+  const scenarios = Object.values(profile.scenarios).filter((scenario) => {
+    const members = scenarioMemberIds(scenario)
+    return scenario.kind !== 'recordedCurrent' && scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && members.length === TEAM_SIZE && new Set(members).size === TEAM_SIZE && (!build.characterId || members.includes(build.characterId))
+  })
   const [characterChoice, setCharacterChoice] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const scenario = scenarios.find((entry) => entry.id === scenarioId) ?? scenarios.find((entry) => entry.id === profile.activeScenarioId) ?? scenarios[0]
+  const members = new Set(scenario ? scenarioMemberIds(scenario) : [])
+  const characters = Object.values(profile.characters).filter((character) => members.has(character.id) && (!build.characterId || build.characterId === character.id))
   const character = characters.find((entry) => entry.id === characterChoice) ?? characters[0]
   const assigned = Boolean(scenario && character && effectiveScenarioAssignments(scenario)[character.id] === revision.id)
   const assign = async () => {
