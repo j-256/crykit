@@ -31,6 +31,7 @@ export function Shell({ profile, profiles, catalogs, destination, saveState, con
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
+  const developmentPort = import.meta.env.DEV ? window.location.port : ''
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
   }
@@ -70,7 +71,10 @@ export function Shell({ profile, profiles, catalogs, destination, saveState, con
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
         <ContextSelectors busy={contextBusy} onSelectProfile={onSelectProfile} onSelectRuleset={onSelectRuleset} onSelectScenario={onSelectScenario} profile={profile} profiles={profiles}/>
-        <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>
+        <div className="context-bar__meta">
+          <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>
+          {developmentPort && <span aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
+        </div>
       </header>
       <div className="content">{children}</div>
     </main>
