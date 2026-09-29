@@ -1,7 +1,7 @@
 import { DefinitionArtwork } from './GameIcon'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, sameLogicalEntity, validateBuildContent } from '../domain'
-import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
+import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, RulesetRevision, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { activeRuleset, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
@@ -16,6 +16,7 @@ import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinit
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { isReferenceResearchRoute, parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
 import type { DraftActions, DraftChangeHandler } from './drafts'
+import { DefinitionModLabel } from './DefinitionModLabel'
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly characterId?: string; readonly state: BuildState; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly note?: string }
@@ -50,10 +51,10 @@ function revisionOptionLabel(profile: Profile, revision: BuildRevision) {
   return `${ownRecordValue(profile.builds, revision.buildId)?.title ?? 'Unresolved build'} · r${revision.revision}${checkpointSuffix(revision)}`
 }
 
-function BuildCardSelection({ label, value, profile, catalogs, empty, compact = false }: { label: string; value?: EntityRef | null; profile: Profile; catalogs: readonly CatalogSnapshot[]; empty: string; compact?: boolean }) {
+function BuildCardSelection({ label, value, profile, catalogs, ruleset, empty, compact = false }: { label: string; value?: EntityRef | null; profile: Profile; catalogs: readonly CatalogSnapshot[]; ruleset?: RulesetRevision; empty: string; compact?: boolean }) {
   return <span className="build-card__selection" data-compact={compact || undefined} data-empty={!value || undefined} title={`${label}: ${value ? entityName(profile, catalogs, value) : empty}`}>
     {value ? <DefinitionArtwork catalogs={catalogs} profile={profile} value={value}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
-    <span><small className={compact ? 'sr-only' : undefined}>{label}</small><span>{value ? entityName(profile, catalogs, value) : empty}</span></span>
+    <span><small className={compact ? 'sr-only' : undefined}>{label}</small><span className="build-card__selection-name">{value ? entityName(profile, catalogs, value) : empty}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={value}/></span>
   </span>
 }
 
@@ -76,16 +77,16 @@ function BuildCard({ build, selected, onSelect, profile, catalogs }: { build: Bu
     <small className="build-card__meta">{build.characterId ? character?.name ?? 'Unresolved character' : 'Reusable template'} · {pinnedRevision ? `revision ${pinnedRevision.revision}` : build.latestRevisionId ? 'checkpoint unavailable' : 'no revision'}</small>
     {pinnedRevision ? <>
       <span className="build-card__classes">
-        <BuildCardSelection catalogs={catalogs} empty="No class selected" label="Class" profile={profile} value={pinnedRevision.content.primaryClass}/>
-        <BuildCardSelection catalogs={catalogs} empty="No sub-command" label="Sub-command" profile={profile} value={pinnedRevision.content.secondaryClass}/>
+        <BuildCardSelection catalogs={catalogs} empty="No class selected" label="Class" profile={profile} ruleset={ruleset} value={pinnedRevision.content.primaryClass}/>
+        <BuildCardSelection catalogs={catalogs} empty="No sub-command" label="Sub-command" profile={profile} ruleset={ruleset} value={pinnedRevision.content.secondaryClass}/>
       </span>
       <span className="build-card__summary-group">
         <span className="build-card__summary-label"><Icon name="sword"/>Equipment</span>
-        {equipment.length ? <span className="build-card__selections">{equipment.map(({ slot, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slot.id} label={slot.label} profile={profile} value={selection.ref}/>)}</span> : <small>No equipment selected</small>}
+        {equipment.length ? <span className="build-card__selections">{equipment.map(({ slot, selection }) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={slot.id} label={slot.label} profile={profile} ruleset={ruleset} value={selection.ref}/>)}</span> : <small>No equipment selected</small>}
       </span>
       <span className="build-card__summary-group">
         <span className="build-card__summary-label"><Icon name="crystal"/>Passives</span>
-        {passives.length ? <span className="build-card__selections">{passives.map((selection, index) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={`${entityDefinitionKey(selection.ref)}:${index}`} label={`Equipped passive ${index + 1}`} profile={profile} value={selection.ref}/>)}</span> : <small>No passives selected</small>}
+        {passives.length ? <span className="build-card__selections">{passives.map((selection, index) => <BuildCardSelection catalogs={catalogs} compact empty="Empty" key={`${entityDefinitionKey(selection.ref)}:${index}`} label={`Equipped passive ${index + 1}`} profile={profile} ruleset={ruleset} value={selection.ref}/>)}</span> : <small>No passives selected</small>}
       </span>
     </> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
     {build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}
@@ -132,6 +133,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   assumptionsRef.current = assumptions
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [comparedWith, setComparedWith] = useState<DefinitionOption>()
+  const [includeInnates, setIncludeInnates] = useState(true)
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
   const slots = useMemo(() => [...(ruleset?.slots.length ? ruleset.slots : SUGGESTED_BUILD_SLOTS)].sort((a, b) => a.order - b.order), [ruleset])
   const definitionIndex = useMemo(() => new Map(options.map(option => [entityDefinitionKey(option.ref), option.record])), [options])
@@ -193,7 +195,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const discard = () => { const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
   actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
-  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} label={target.label} onChange={(ref) => {
+  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
     if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref }))
     else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
     else if (target.target === 'passive') setDraft((current) => {
@@ -216,13 +218,13 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
     return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
   }
-  return <form className="stack build-sheet" onInput={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox') updateDirty(true) }} onSubmit={submit}>
+  return <form className="stack build-sheet" onInput={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     <fieldset className="build-sheet__fields" disabled={busy || locked}><div className="build-sheet__layout">
       <div className="build-sheet__slots">
         <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
         <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3>{equipmentSlots.map(slotField)}</section>
-        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><p className="settings-section__intro">Spend one shared PP budget across any number of passives.</p><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
+        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><p className="settings-section__intro">Spend one shared PP budget across any number of passives.</p><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>Enabled for every passive search. Some innate PP costs are not yet in the catalog.</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
       </div>
       <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Your next build</h3><p>Pick a class, add your equipment, then choose passives.</p><p>Search any slot to see matching definitions and their descriptions.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
     </div>
@@ -449,7 +451,7 @@ export function BuildsView({ profile, catalogs, validations, onCreateBuild, onCl
       const statuses = report ? Object.values(report.dimensions).reduce((counts, value) => ({ ...counts, [value.status]: (counts[value.status] ?? 0) + 1 }), {} as Record<string, number>) : undefined
       const summarizeText = (values: readonly string[], empty: string) => values.length ? `${values.slice(0, 3).join(' · ')}${values.length > 3 ? ` · ${values.length - 3} more` : ''}` : empty
       const scenarioName = scenario ? `${scenario.label}${scenario.id === profile.activeScenarioId ? ' (active)' : ''}` : undefined
-      return { pp: `${pp} known source PP${unresolvedPp ? ` + ${unresolvedPp} unresolved` : ''}`, stock: `${owned} confirmed · ${unknownStock} uncertain · ${missing} missing`, contributions: summarizeText(contributions, 'No documented numeric contributions'), effects: summarizeText(effects, 'No descriptions or documented effects'), validation: report ? `${scenarioName}: ${statuses?.invalid ?? 0} invalid · ${statuses?.undetermined ?? 0} undetermined` : scenarioName ? `${scenarioName}: validation unavailable` : 'Not assigned to a scenario' }
+      return { pp: `${pp} known PP${unresolvedPp ? ` + ${unresolvedPp} unresolved` : ''}`, stock: `${owned} confirmed · ${unknownStock} uncertain · ${missing} missing`, contributions: summarizeText(contributions, 'No documented numeric contributions'), effects: summarizeText(effects, 'No descriptions or documented effects'), validation: report ? `${scenarioName}: ${statuses?.invalid ?? 0} invalid · ${statuses?.undetermined ?? 0} undetermined` : scenarioName ? `${scenarioName}: validation unavailable` : 'Not assigned to a scenario' }
     }
     const leftSummary = summarize(left)
     const rightSummary = summarize(right)

@@ -10,10 +10,11 @@
 .member-summary__identity { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 180px; }
 .member-summary__identity h2 { margin: 0 0 4px; font-size: 2rem; overflow-wrap: anywhere; }
 .member-summary__identity > div > span { color: var(--text-dim); font-size: .8rem; }
+.member-summary__identity > div > .definition-mod-label { color: var(--cyan-300); font-size: .67rem; }
 .member-portrait { position: relative; display: grid; place-items: center; width: 42px; height: 52px; }
 .member-portrait .wiki-sprite { width: 42px; min-height: 0; }
 .member-portrait > svg { width: 34px; height: 42px; }
-.member-portrait:has(img) > svg { display: none; }
+.member-portrait:has(.wiki-sprite) > svg { display: none; }
 .member-vitals { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 6px 16px; width: 350px; max-width: 100%; margin: 0; }
 .member-vital { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 2px 6px 4px; border-bottom: 2px solid var(--line-strong); background: rgba(0, 0, 0, .12); font-family: var(--font-menu); font-size: 1.35rem; }
 .member-vital dt { color: var(--text-dim); }

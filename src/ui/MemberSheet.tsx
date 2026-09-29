@@ -15,6 +15,7 @@ import { DefinitionArtwork, FieldIconSources } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
 import type { DraftActions, DraftChangeHandler } from './drafts'
+import { DefinitionModLabel } from './DefinitionModLabel'
 
 const PRIMARY_CLASS = 'primary-class'
 const SECONDARY_CLASS = 'secondary-class'
@@ -33,14 +34,16 @@ function currentMemberPicker(route: AppRoute) {
 }
 
 export function MemberArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
-  const ref = value?.kind === 'personal' ? profile.personalDefinitions[value.definitionId]?.baseRef : value
+  const ref = value?.kind === 'personal' ? profile.personalDefinitions[value.definitionId]?.baseRef ?? value : value
   const entity = resolveEntity(profile, catalogs, ref)
   if (entity && ['ability', 'passive', 'monsterMagic', 'command'].includes(entity.kind)) return <DefinitionArtwork catalogs={catalogs} profile={profile} value={ref}/>
-  return ref?.kind === 'catalog' && entity ? <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/> : null
+  if (ref?.kind === 'catalog' && entity) return <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/>
+  return ref ? <DefinitionArtwork catalogs={catalogs} profile={profile} value={ref}/> : null
 }
 
 export function MemberSummary({ profile, catalogs, character, snapshot }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; character: Character; snapshot?: CharacterSnapshot }) {
   const primary = snapshot && knownRef(snapshot.primaryClass)
+  const ruleset = snapshot?.rulesetRevisionId ? ownRecordValue(profile.rulesets, snapshot.rulesetRevisionId) : undefined
   const historical = Boolean(snapshot && snapshot.id !== character.currentSnapshotId)
   const progress = primary && !historical ? Object.values(character.classProgress).find(row => entityDefinitionKey(row.classRef) === entityDefinitionKey(primary)) : undefined
   const vital = (name: string) => {
@@ -49,7 +52,7 @@ export function MemberSummary({ profile, catalogs, character, snapshot }: { prof
     return <div className={`member-vital member-vital--${name.toLowerCase()}`}><dt>{stat?.[0] ?? name}</dt><dd>{knowledgeLabel(stat?.[1].value ?? UNKNOWN)}</dd></div>
   }
   return <div className="member-summary">
-    <div className="member-summary__identity"><span className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2>{character.name}</h2><span>{primary ? entityName(profile, catalogs, primary) : `Class: ${knowledgeLabel(snapshot?.primaryClass ?? UNKNOWN)}`}</span></div></div>
+    <div className="member-summary__identity"><span className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2>{character.name}</h2><span>{primary ? entityName(profile, catalogs, primary) : `Class: ${knowledgeLabel(snapshot?.primaryClass ?? UNKNOWN)}`}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={primary}/></div></div>
     <dl className="member-vitals">{vital('HP')}{vital('MP')}<div className="member-vital member-vital--level"><dt>Lv</dt><dd>{knowledgeLabel(snapshot?.level ?? UNKNOWN)}</dd></div><div className="member-vital"><dt>LP</dt><dd>{knowledgeLabel(progress?.observedLp ?? UNKNOWN)}</dd></div></dl>
     <span className="member-state">{historical ? 'Historical' : 'Recorded'}</span>
   </div>

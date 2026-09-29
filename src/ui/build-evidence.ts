@@ -43,9 +43,9 @@ export function compactKnowledge(value?: Knowledge<unknown>): string {
   return String(value.value)
 }
 
-export function sourcePpLabel(option: DefinitionOption): string {
+export function ppCostLabel(option: DefinitionOption): string {
   const cost = option.ppCost
-  return cost?.state === 'known' ? `${cost.value} source PP` : `PP: ${compactKnowledge(cost).toLowerCase()}`
+  return cost?.state === 'known' ? `${cost.value} PP` : `PP: ${compactKnowledge(cost).toLowerCase()}`
 }
 
 export function similarNameOptions(profile: Profile, options: readonly DefinitionOption[]): ReadonlyMap<string, readonly DefinitionOption[]> {

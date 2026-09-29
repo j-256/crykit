@@ -37,7 +37,7 @@ test('wiki artwork renders with attribution and remains available after offline 
   expect(external).toEqual([])
 })
 
-test('reference results retain names and unmatched definitions do not invent images', async ({ page }) => {
+test('reference results retain names and unmatched definitions use placeholders without inventing images', async ({ page }) => {
   await page.goto('/#/reference?v=1&kind=class')
   const card = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Aegis', exact: true }) })
   await expect(card).toBeVisible()
@@ -46,6 +46,7 @@ test('reference results retain names and unmatched definitions do not invent ima
   await expectArtwork(page, 'Aegis')
   await page.goto(detail('mod-pack-2:class:barbarian'))
   await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
   await expect(page.getByText('No wiki artwork linked.', { exact: true })).toBeVisible()
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
@@ -56,7 +57,7 @@ test('failed sprite loading preserves the definition and an explicit fallback', 
   await page.route(/\.(?:gif|png|webp)(?:\?|$)/, route => route.abort())
   await page.goto(`${baseURL}${WARRIOR}`)
   await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
-  await expect(page.getByText('Artwork unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Warrior artwork placeholder', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Normalized fields', exact: true })).toBeVisible()
   await context.close()
 })

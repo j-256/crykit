@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import type { CatalogEntity, CatalogSnapshot, EntityRef, Profile } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile } from '../domain/types'
 import { menuIcon, type MenuIcon } from '../catalog/sprites'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
-import { WikiSprite } from './WikiSprite'
+import { ArtworkPlaceholder, WikiSprite } from './WikiSprite'
 
 const ICON_SIZE = 24
 
-function IconImage({ icon, iconKey }: { icon: MenuIcon; iconKey: string }) {
+function IconImage({ icon, iconKey, placeholderKind = 'other' }: { icon: MenuIcon; iconKey: string; placeholderKind?: CatalogEntityKind }) {
   const [failed, setFailed] = useState(false)
-  if (failed) return null
+  if (failed) return <ArtworkPlaceholder compact entity={{ kind: placeholderKind, name: icon.binding.name }}/>
   const region = icon.binding.region
   const width = region?.width ?? icon.asset.width
   const height = region?.height ?? icon.asset.height
@@ -20,17 +20,18 @@ function IconImage({ icon, iconKey }: { icon: MenuIcon; iconKey: string }) {
   </span>
 }
 
-export function GameIcon({ iconKey }: { iconKey?: string }) {
+export function GameIcon({ iconKey, placeholderKind }: { iconKey?: string; placeholderKind?: CatalogEntityKind }) {
   const icon = iconKey ? menuIcon(iconKey) : undefined
-  return icon && iconKey ? <IconImage icon={icon} iconKey={iconKey} key={`${iconKey}:${icon.asset.file}`}/> : null
+  return icon && iconKey ? <IconImage icon={icon} iconKey={iconKey} key={`${iconKey}:${icon.asset.file}`} placeholderKind={placeholderKind}/> : null
 }
 
 export function DefinitionArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
-  if (value?.kind !== 'catalog' || value.catalogId !== STARTER_CATALOG_ID) return null
+  if (!value) return null
   const entity = resolveDefinition(profile, catalogs, value)
-  if (!entity) return null
+  if (!entity) return <ArtworkPlaceholder compact entity={{ kind: 'other', name: 'Unresolved definition' }}/>
   const iconKey = definitionIconKey(entity)
-  if (iconKey) return <GameIcon iconKey={iconKey}/>
+  if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>
+  if (value.kind !== 'catalog' || value.catalogId !== STARTER_CATALOG_ID) return <ArtworkPlaceholder compact entity={entity}/>
   return <WikiSprite catalogId={value.catalogId} compact entity={{ id: value.entityId, kind: entity.kind, name: entity.name }}/>
 }
 
