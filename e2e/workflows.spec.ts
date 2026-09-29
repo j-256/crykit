@@ -1,4 +1,4 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { createBlankPlaythrough, openRulesetSection } from './profile-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -166,6 +166,33 @@ test('import previews before writing and native restore keeps original source by
   expect(restored.payload.profile.id).not.toBe(payload.profile.id)
   expect(restored.payload.catalogs).toEqual(payload.catalogs)
   expect(restored.payload.profile.inventory).toEqual({})
+})
+
+test('an imported ruleset requires a numeric PP budget before saving a revision', async ({ page }) => {
+  const panel = await openData(page)
+  const research = { ...SYNTHETIC_RESEARCH, player_context: { platform: 'Nintendo Switch' } }
+  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-ruleset.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
+  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await expect(panel).not.toBeVisible()
+
+  const settings = await openData(page)
+  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await expect(settings.getByText('Budget needs confirmation', { exact: true })).toBeVisible()
+  await openRulesetSection(settings, 'Passive rules')
+  await expect(settings.getByLabel('Build PP limit certainty', { exact: true })).toHaveCount(0)
+  const ppLimit = settings.getByLabel('Build PP limit', { exact: true })
+  await expect(ppLimit).toHaveValue('')
+  await expect(ppLimit).toHaveAttribute('required', '')
+  expect(await ppLimit.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true)
+  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(ppLimit).toBeFocused()
+
+  await ppLimit.fill('10')
+  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await closeData(page)
+  const { payload } = await exportPayload(page)
+  expect(payload.profile.rulesets[payload.profile.activeRulesetRevisionId].ppLimit).toEqual({ state: 'known', value: 10 })
 })
 
 test('large previews bound warning and facet elements while keeping every facet reachable', async ({ page, isMobile }) => {
