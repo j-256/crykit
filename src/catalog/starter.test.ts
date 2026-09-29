@@ -100,7 +100,7 @@ describe('built-in starter catalog', () => {
 
     const bloodmage = Object.values(STARTER_CATALOG.entities).find((entity) => entity.kind === 'class' && entity.name === 'Bloodmage')!
     expect(bloodmage.fields['Wiki coverage']).toMatchObject({ state: 'unknown', reason: expect.stringContaining('No matching detail') })
-    expect(bloodmage.sources.some((source) => source.sourceId.includes('nintendo.com'))).toBe(true)
+    expect(bloodmage.sources.some((source) => new URL(source.sourceId).hostname === 'www.nintendo.com')).toBe(true)
   })
 
   it('excludes Archipelago progression wrappers and traps', () => {

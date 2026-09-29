@@ -5,10 +5,20 @@ import { fileURLToPath } from 'node:url'
 import { canonicalEntityIds, downloadedImage, hash, licenseDeclaration, originalImageUrl, spriteCandidates, switchMappings, validateImage } from './wiki-sprites.mjs'
 import { iconCandidates, validateIconRegion } from './wiki-icons.mjs'
 import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
+import { stripHtmlComments, stripHtmlTags } from './wiki-markup.mjs'
 import sharp from 'sharp'
 
 const template = (title, cases) => ({ title, revisionId: 11, content: `[[File:{{#switch:{{lc:{{{1}}}}}\n${cases}\n|#default=\n}}|link=]]` })
 const entity = (kind, name, pages = []) => ({ id: `${kind}:${name}`, kind, name, legacy: { wiki: { pages } } })
+
+test('wiki markup stripping handles overlapping delimiters without reconstructing active markup', () => {
+  assert.equal(stripHtmlComments('before<!-- hidden -->after'), 'beforeafter')
+  assert.equal(stripHtmlComments('<!<!-- hidden -->--'), '')
+  assert.equal(stripHtmlComments('before<!-- unclosed'), 'before')
+  assert.equal(stripHtmlTags('before<strong>inside</strong>after'), 'beforeinsideafter')
+  assert.equal(stripHtmlTags('before<scr<script>ipt>after'), 'beforeipt>after')
+  assert.equal(stripHtmlTags('comparison 2 < 3'), 'comparison 2 < 3')
+})
 
 test('literal icon switches preserve aliases and reject changed template logic', () => {
   const page = template('Template:Buff link', '|shell|shell shield=shell.gif\n|cloak=cloak.webp')

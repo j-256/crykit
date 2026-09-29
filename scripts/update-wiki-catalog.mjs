@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripHtmlComments, stripHtmlTags } from './wiki-markup.mjs'
 
 const API_URL = 'https://crystal-project.fandom.com/api.php'
 const WIKI_ROOT = 'https://crystal-project.fandom.com/wiki/'
@@ -417,8 +418,7 @@ function templateText(value) {
 }
 
 function plainText(markup) {
-  let value = markup
-    .replace(/<!--[\s\S]*?-->/g, '')
+  let value = stripHtmlComments(markup)
     .replace(/<ref\b[^>]*>[\s\S]*?<\/ref\s*>/gi, '')
     .replace(/<ref\b[^>]*\/\s*>/gi, '')
     .replace(/<sup\b[^>]*>V<\/sup\s*>/gi, '')
@@ -433,14 +433,13 @@ function plainText(markup) {
     .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]#]+)(?:#[^\]]*)?\]\]/g, '$1')
     .replace(/\[(?:https?:\/\/\S+)(?:\s+([^\]]+))?\]/g, '$1')
-    .replace(/<[^>]*>/g, '')
     .replace(/'{2,5}/g, '')
     .replace(/^\s*[*#:;]+\s*/gm, '')
     .replace(/^\s*\{\|.*$/gm, '')
     .replace(/^\s*\|\}.*$/gm, '')
     .replace(/^\s*\|-.*$/gm, '')
     .replace(/^\s*[!|+]\s?/gm, '')
-  return normalizeTypography(decodeEntities(value))
+  return normalizeTypography(decodeEntities(stripHtmlTags(value)))
     .split('\n')
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter(Boolean)

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { stripHtmlComments } from './wiki-markup.mjs'
 
 export const WIKI_ORIGIN = 'https://crystal-project.fandom.com'
 export const IMAGE_ORIGIN = 'https://static.wikia.nocookie.net'
@@ -21,7 +22,7 @@ function source(page, locator) {
 }
 
 function templateBody(content, name) {
-  const markup = content.replace(/<!--[\s\S]*?-->|<nowiki\b[^>]*>[\s\S]*?<\/nowiki>/gi, '')
+  const markup = stripHtmlComments(content).replace(/<nowiki\b[^>]*>[\s\S]*?<\/nowiki>/gi, '')
   const start = new RegExp(`\\{\\{${name}(?=\\s*[|}])`, 'i').exec(markup)
   if (!start) return undefined
   let depth = 1
