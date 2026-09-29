@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { CatalogSnapshot, Profile, ProfileId, RulesetRevisionId, ScenarioId } from '../domain/types'
 import type { ProfileSummary } from '../interchange/types'
 import { ContextSelectors } from './ContextSelectors'
@@ -27,6 +27,7 @@ function Brand() {
 
 export function Shell({ profile, profiles, catalogs, destination, saveState, contextBusy, onSelectProfile, onSelectRuleset, onSelectScenario, onOpenData, children }: { profile: Profile; profiles: readonly ProfileSummary[]; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectProfile: (id: ProfileId) => Promise<void>; onSelectRuleset: (id: RulesetRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
@@ -48,18 +49,21 @@ export function Shell({ profile, profiles, catalogs, destination, saveState, con
     return () => window.removeEventListener('keydown', handleSearchShortcut)
   })
 
-  return <div className="app-shell">
+  const sidebarToggleLabel = sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'
+
+  return <div className={`app-shell${sidebarExpanded ? '' : ' app-shell--sidebar-collapsed'}`}>
+    <header className="desktop-brand-header"><Brand/></header>
     <aside className="rail">
-      <Brand />
       <nav aria-label="Primary navigation" className="menu-window">
-        <p className="menu-window__label">Menu</p>
+        <p className="nav-section__label">Planning</p>
         <ul aria-label="Builds, characters, and reference" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
-        <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-tracking__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul></div>
+        <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
         <button aria-current={navigation.route.page.page === 'settings' ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
         <div className="local-note"><strong>Your builds, your records</strong>Saved in this browser. Export a backup to keep a separate copy.</div>
+        <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={() => setSidebarExpanded(expanded => !expanded)} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>
     <main className="main-shell">

@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const COLLAPSED_RAIL_MAX_WIDTH_PX = 80
+const RAIL_CONTROL_WIDTH_PX = 48
+const RAIL_TOGGLE_WIDTH_PX = 32
+const EXPANDED_RAIL_WIDTH_PX = 232
 const DENSE_LIBRARY_CARD_MAX_HEIGHT_PX = 230
 const DENSE_TEAM_CARD_MAX_HEIGHT_PX = 190
 
@@ -8,6 +11,23 @@ async function choose(page: Page, label: string, name: string) {
   const field = page.getByRole('combobox', { name: label, exact: true })
   await field.fill(name)
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+}
+
+async function railControlGeometry(page: Page) {
+  return page.locator('.rail .nav-link').evaluateAll(controls => controls.map(control => {
+    const box = control.getBoundingClientRect()
+    const icon = control.querySelector('svg')!.getBoundingClientRect()
+    return {
+      isToggle: control.classList.contains('rail__toggle'),
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      centerX: box.x + box.width / 2,
+      iconY: icon.y,
+      iconWidth: icon.width,
+      iconHeight: icon.height,
+    }
+  }))
 }
 
 test('team and library summaries show every equipment slot and PP crystal', async ({ page }) => {
@@ -57,8 +77,8 @@ test('desktop build summaries use the available width and keep passing checks co
   await expect(page.locator('.validation-overview')).toContainText('checks clear')
 })
 
-test('selected builds open as loadouts and the desktop icon rail labels do not cover content', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'The desktop icon rail is replaced by bottom navigation')
+test('selected builds open as loadouts and the desktop sidebar starts expanded and remains collapsible', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The desktop sidebar is replaced by bottom navigation')
   await page.goto('/#/builds/library')
   await page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Rowan: sample Warrior' }).click()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).toBeVisible()
@@ -67,18 +87,57 @@ test('selected builds open as loadouts and the desktop icon rail labels do not c
 
   const rail = page.locator('.rail')
   const main = page.locator('.main-shell')
-  const collapsed = (await rail.boundingBox())!
-  const mainBefore = (await main.boundingBox())!
-  expect(collapsed.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
+  const desktopBrandHeader = page.locator('.desktop-brand-header')
+  const expanded = (await rail.boundingBox())!
+  const expandedMain = (await main.boundingBox())!
+  const expandedBrandHeader = (await desktopBrandHeader.boundingBox())!
+  const expandedControls = await railControlGeometry(page)
+  expect(expanded.width).toBe(EXPANDED_RAIL_WIDTH_PX)
+  expect(expanded.y).toBe(expandedBrandHeader.y + expandedBrandHeader.height)
+  await expect(rail).toHaveCSS('border-right-width', '1px')
+  await expect(page.locator('.rail .menu-window')).toHaveCSS('box-shadow', 'none')
+  await expect(page.locator('.rail__footer')).toHaveCSS('box-shadow', 'none')
+  const planningLabel = rail.locator('.nav-section__label').filter({ hasText: 'Planning' })
+  const trackingLabel = rail.locator('.nav-section__label').filter({ hasText: 'Tracking' })
+  await expect(planningLabel).toBeVisible()
+  await expect(trackingLabel).toBeVisible()
   const buildsNav = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).getByRole('button', { name: 'Builds', exact: true })
+  await expect(buildsNav.locator('span')).toBeVisible()
+  const collapseToggle = page.getByRole('button', { name: 'Collapse sidebar', exact: true })
+  const dataButton = page.getByRole('button', { name: 'Data & settings', exact: true })
+  expect((await collapseToggle.boundingBox())!.y).toBeGreaterThan((await dataButton.boundingBox())!.y)
+  await collapseToggle.click()
+  await expect(page.locator('.rail__toggle svg')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)')
+  const collapsedRail = (await rail.boundingBox())!
+  const collapsedBrandHeader = (await desktopBrandHeader.boundingBox())!
+  expect(collapsedRail.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
+  expect(collapsedBrandHeader).toEqual(expandedBrandHeader)
+  await expect(desktopBrandHeader.locator('.brand__name')).toBeVisible()
+  await expect(planningLabel).toBeHidden()
+  await expect(trackingLabel).toBeHidden()
+  const collapsedControls = await railControlGeometry(page)
+  expect(collapsedControls).toHaveLength(expandedControls.length)
+  for (const [index, control] of collapsedControls.entries()) {
+    const expandedControl = expandedControls[index]
+    expect(control.width).toBe(control.isToggle ? RAIL_TOGGLE_WIDTH_PX : RAIL_CONTROL_WIDTH_PX)
+    expect(control.y).toBe(expandedControl.y)
+    expect(control.height).toBe(expandedControl.height)
+    expect(control.iconY).toBe(expandedControl.iconY)
+    expect(control.iconWidth).toBe(expandedControl.iconWidth)
+    expect(control.iconHeight).toBe(expandedControl.iconHeight)
+    expect(control.centerX).toBe(collapsedRail.x + collapsedRail.width / 2)
+  }
+  expect((await main.boundingBox())!.x).toBeLessThan(expandedMain.x)
   await buildsNav.hover()
   await expect(buildsNav.locator('span')).toHaveCSS('opacity', '1')
   expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
-  expect((await main.boundingBox())!.x).toBe(mainBefore.x)
+
+  await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click()
+  expect((await rail.boundingBox())!.width).toBe(EXPANDED_RAIL_WIDTH_PX)
+  expect((await main.boundingBox())!.x).toBe(expandedMain.x)
 
   const referenceNav = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).getByRole('button', { name: 'Reference', exact: true })
-  await referenceNav.focus()
-  await expect(referenceNav.locator('span')).toHaveCSS('opacity', '1')
+  await expect(referenceNav.locator('span')).toBeVisible()
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).not.toBeVisible()
