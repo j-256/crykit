@@ -42551,7 +42551,7 @@
             }
           ],
           "state": "known",
-          "value": "Chaincaster: \"Doublecast\" costs 16 less MP.V"
+          "value": "Chaincaster: \"Doublecast\" costs 16 less MP."
         },
         "Master": {
           "sources": [
@@ -45908,7 +45908,7 @@
             }
           ],
           "state": "known",
-          "value": "\"Doublecast\" costs 16 less MP.V"
+          "value": "\"Doublecast\" costs 16 less MP."
         }
       },
       "id": "wiki:innate:chaincaster",
@@ -45927,7 +45927,7 @@
         }
       },
       "name": "Chaincaster",
-      "rawDescription": "\"Doublecast\" costs 16 less MP.V",
+      "rawDescription": "\"Doublecast\" costs 16 less MP.",
       "sources": [
         {
           "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
