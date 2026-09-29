@@ -716,6 +716,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .settings-section:last-child { border-bottom: 0; }
 .settings-section h3 { margin-bottom: 0; font-size: .96rem; }
 .settings-section__intro { margin: -7px 0 0; color: var(--text-faint); font-size: .72rem; }
+.settings-section > .split > div > .settings-section__intro { margin-top: 7px; }
 .definition-list { margin: 0; }
 .structured-value__text { white-space: pre-wrap; }
 .structured-value__list { margin: 4px 0 0; padding-left: 18px; }
