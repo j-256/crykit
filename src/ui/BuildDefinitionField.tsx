@@ -79,6 +79,6 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
     </Dropdown>
-    {selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected}/>{isReferenceArticle(profile, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary><span className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={selected.ref}/>Details for {selected.name}</span></summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected}/></details></div>}
+    {selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected}/>{isReferenceArticle(profile, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected}/></details></div>}
   </div>
 }
