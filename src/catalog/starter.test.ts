@@ -9,7 +9,7 @@ import {
 } from './data'
 import { starterEntitySourceLabel, starterSourceLabel } from './provenance'
 import { STARTER_CATALOG, STARTER_CATALOG_COUNTS, STARTER_CATALOG_GAPS } from './starter'
-import { SWITCH_CLASS_SOURCE } from './switch'
+import { SWITCH_CLASS_SOURCE, SWITCH_PASSIVE_PP_SOURCE } from './switch'
 
 const EXPECTED_COUNTS = {
   item: 959,
@@ -119,6 +119,11 @@ describe('built-in starter catalog', () => {
         if (source.sourceId === SWITCH_CLASS_SOURCE.sourceId) {
           expect(source.snapshot).toBe(SWITCH_CLASS_SOURCE.snapshot)
           expect(source.locator).toMatch(/class and skill identities$/)
+          continue
+        }
+        if (source.sourceId === SWITCH_PASSIVE_PP_SOURCE.sourceId) {
+          expect(source.snapshot).toBe(SWITCH_PASSIVE_PP_SOURCE.snapshot)
+          expect(source.locator).toMatch(/(?:PP cost|availability)$/)
           continue
         }
         expect(source.sourceId).toMatch(/^https:\/\//)

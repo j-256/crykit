@@ -78,6 +78,7 @@ export function validateBuildContent(
     else if (!['passive', 'innate'].includes(definition.kind)) add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slot.id)
     const cost = definition ? passivePointCost(definition) : undefined
     if (cost?.state === 'known') knownSubtotal += cost.value
+    else if (cost?.state === 'notApplicable') add('PASSIVE_NOT_EQUIPPABLE', 'invalid', `${definition?.name ?? 'This innate'} is not available as an equippable passive`, slot.id)
     else unresolvedCosts += 1
   }
 

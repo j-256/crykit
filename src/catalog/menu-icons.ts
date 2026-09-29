@@ -26,7 +26,7 @@ export function fieldIconKey(field: string, value: string): string | undefined {
 }
 
 export function definitionIconKey(entity: Pick<CatalogEntity, 'kind' | 'name' | 'fields'>): string | undefined {
-  if (entity.kind === 'passive') return 'skill:passive'
+  if (entity.kind === 'passive' || entity.kind === 'innate') return 'skill:passive'
   if (entity.kind === 'monsterMagic') return 'skill:monster magic'
   if (entity.kind === 'command') return fieldIconKey('Command', entity.name)
   if (entity.kind !== 'ability') return undefined

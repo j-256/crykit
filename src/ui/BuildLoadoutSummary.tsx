@@ -38,7 +38,7 @@ function SummarySelection({ label, value, profile, catalogs, ruleset, empty, com
   const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
   const content = <>
     {value ? <DefinitionArtwork catalogs={catalogs} profile={profile} value={value}/> : occupiedValue ? <DefinitionArtwork catalogs={catalogs} profile={profile} value={occupiedValue}/> : emptyIcon ? <Icon className="build-card__selection-empty-icon" data-empty-slot-icon={emptyIcon} name={emptyIcon}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
-    {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="build-card__selection-name">{name}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={value}/></span>}
+    {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="definition-badge-heading"><span className="build-card__selection-name">{name}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={value}/></span></span>}
   </>
   const shared = { className: 'build-card__selection', 'data-compact': compact || undefined, 'data-empty': !value && !occupiedBy || undefined, 'data-occupied-by-two-handed': occupiedBy || undefined, 'data-tooltip': tooltip, title: tooltip }
   return onActivate

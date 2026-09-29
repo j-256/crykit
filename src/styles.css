@@ -542,8 +542,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .picker-result > .picker-result__content { min-width: 0; flex: 1; }
 .picker-result strong { font-size: .85rem; }
 .picker-result small { margin-top: 3px; color: var(--text-dim); font-size: .7rem; line-height: 1.45; white-space: normal; }
-.picker-result__heading { display: flex; align-items: center; gap: 8px; }
-.picker-result__heading strong { flex: 1; }
+.picker-result__heading { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; }
+.picker-result__heading strong { min-width: 0; flex: 0 1 auto; }
+.picker-result__heading:has(.mod-badge) { align-items: flex-start; }
+.picker-result__heading:has(.mod-badge) > strong, .picker-result__heading:has(.mod-badge) > .picker-result__cost { margin-top: 4px; }
 .picker-result__heading svg, .picker-result > svg { width: 16px; flex: 0 0 16px; color: var(--cyan-300); }
 .picker-result small.picker-result__description { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .picker-result small.picker-result__source { color: var(--text-faint); font-size: .65rem; }
@@ -556,7 +558,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .definition-dropdown__empty { margin: 0; padding: 16px 12px; color: var(--text-dim); font-size: .8rem; }
 .definition-picker-trigger { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: rgba(17, 24, 30, .6); text-align: left; }
 .definition-picker-trigger:hover:not(:disabled) { border-color: rgba(123, 216, 243, .52); background: rgba(78, 166, 207, .08); }
-.definition-picker-trigger > span { min-width: 0; }
+.definition-picker-trigger > span { min-width: 0; flex: 1; }
 .definition-picker-trigger strong, .definition-picker-trigger small { display: block; overflow-wrap: anywhere; }
 .definition-picker-trigger strong { font-size: .8rem; }
 .definition-picker-trigger small { margin-top: 3px; color: var(--text-faint); font-size: .67rem; line-height: 1.35; }
@@ -671,7 +673,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .icon-label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
 .icon-values { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 2px; max-width: 100%; }
 .icon-values .icon-label { gap: 5px; }
-.definition-mod-label, .picker-result__mod { display: block; color: var(--cyan-300); font-size: .67rem; line-height: 1.35; }
+.mod-badge { width: fit-content; max-width: 100%; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px 7px; color: var(--text-dim); }
+.mod-badge > .badge { max-width: 100%; overflow-wrap: anywhere; }
+.mod-badge > .mod-badge__state { margin-top: 0; color: var(--text-faint); font-size: .65rem; line-height: 1.35; letter-spacing: normal; text-transform: none; white-space: normal; }
+.picker-result__heading .mod-badge { width: min-content; min-width: 0; flex: 1 1 min-content; margin-top: 0; }
+.picker-result__cost { margin-left: auto; flex: none; }
+.definition-badge-heading { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; }
+.definition-badge-heading > :first-child { min-width: 0; flex: 0 1 auto; }
+.definition-badge-heading > .mod-badge { width: min-content; min-width: 0; flex: 1 1 min-content; }
+.picker-result__heading .mod-badge > .badge, .definition-badge-heading > .mod-badge > .badge { white-space: nowrap; }
+.list-row__primary .definition-badge-heading > strong { margin-bottom: 0; }
 .definition-picker-trigger > .wiki-sprite, .definition-picker-trigger > .game-icon { margin-right: 8px; }
 .wiki-sprite-source, .menu-icon-sources, .wiki-sprite-missing { color: var(--text-dim); font-size: .75rem; }
 .wiki-sprite-source summary, .menu-icon-sources summary { width: fit-content; cursor: pointer; }
@@ -719,7 +730,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .universal-search__result { width: 100%; min-width: 0; min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(222, 236, 242, .025); text-align: left; }
 .universal-search__result:hover { border-color: rgba(123, 216, 243, .44); background: rgba(78, 166, 207, .1); }
 .universal-search__result > span:first-child { min-width: 0; }
-.universal-search__result > .badge { max-width: 120px; flex: 0 0 auto; overflow-wrap: anywhere; white-space: normal; }
+.universal-search__result-meta { max-width: 62%; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.universal-search__result-meta > .badge { max-width: 120px; flex: 0 0 auto; overflow-wrap: anywhere; white-space: normal; }
 .universal-search__result strong, .universal-search__result small { display: block; overflow-wrap: anywhere; }
 .universal-search__result small { margin-top: 3px; color: var(--text-faint); font-size: .68rem; }
 .definition-collection { min-width: 0; max-height: 320px; margin: 0; padding: 14px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); }

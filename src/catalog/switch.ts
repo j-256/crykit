@@ -18,6 +18,21 @@ export const SWITCH_CLASS_RECORDS: readonly ConfirmedSwitchClass[] = switchData.
   }),
 }))
 export const SWITCH_CLASS_SOURCE: SourceRef = switchData.source
+export const SWITCH_PASSIVE_PP_SOURCE: SourceRef = switchData.passivePp.source
+export const SWITCH_PASSIVE_PP_COSTS = switchData.passivePp.costs.map(record => {
+  const id = record[0]
+  const cost = record[1]
+  if (record.length !== 2 || typeof id !== 'string' || !id || typeof cost !== 'number' || !Number.isSafeInteger(cost) || cost < 0) throw new Error('Invalid confirmed Switch passive PP cost')
+  return [id, cost] as const
+})
+export const SWITCH_INNATE_PP_NOT_APPLICABLE = switchData.passivePp.notApplicable.map(record => {
+  const [id, reason] = record
+  if (record.length !== 2 || !id || !reason) throw new Error('Invalid confirmed Switch innate PP availability')
+  return [id, reason] as const
+})
+const passivePpFactIds = [...SWITCH_PASSIVE_PP_COSTS, ...SWITCH_INNATE_PP_NOT_APPLICABLE].map(([id]) => id)
+if (new Set(passivePpFactIds).size !== passivePpFactIds.length) throw new Error('Duplicate confirmed Switch passive PP fact')
+export const LEARNABLE_INNATE_FIELD = 'Learnable through Learnable Innate Skill'
 const DETAILS_UNKNOWN = 'Only names, node kinds, and class associations were confirmed in game'
 const MOD_UNKNOWN = 'The class source or required mod has not been confirmed'
 
@@ -25,8 +40,51 @@ function known(value: JsonValue, sources: readonly SourceRef[]): Knowledge<JsonV
   return { state: 'known', value, sources }
 }
 
+function uniqueSources(sources: readonly SourceRef[]): readonly SourceRef[] {
+  return Array.from(new Map(sources.map(source => [JSON.stringify(source), source])).values())
+}
+
+function passiveFactSource(entity: CatalogEntity, locator: string): SourceRef {
+  const className = entity.fields.Class
+  return {
+    ...SWITCH_PASSIVE_PP_SOURCE,
+    locator: `${className?.state === 'known' && typeof className.value === 'string' ? `${className.value} > ` : ''}${entity.name} > ${locator}`,
+  }
+}
+
+function withConfirmedPpCost(entity: CatalogEntity, cost: number): CatalogEntity {
+  if (entity.kind !== 'passive' && entity.kind !== 'innate') throw new Error(`Confirmed PP cost targets non-passive entity ${entity.id}`)
+  if (entity.ppCost?.state === 'known' && entity.ppCost.value !== cost) throw new Error(`Confirmed PP cost conflicts with ${entity.id}`)
+  if (entity.ppCost?.state === 'conflicting' || entity.ppCost?.state === 'notApplicable') throw new Error(`Confirmed PP cost cannot replace ${entity.ppCost.state} evidence for ${entity.id}`)
+  const source = passiveFactSource(entity, entity.kind === 'innate' ? 'PP cost and Learnable Innate Skill availability' : 'PP cost')
+  return {
+    ...entity,
+    fields: entity.kind === 'innate' ? { ...entity.fields, [LEARNABLE_INNATE_FIELD]: known(true, [source]) } : entity.fields,
+    ppCost: { state: 'known', value: cost, sources: uniqueSources([...(entity.ppCost?.state === 'known' ? entity.ppCost.sources ?? [] : []), source]) },
+    sources: uniqueSources([...entity.sources, source]),
+  }
+}
+
+function withUnavailableInnate(entity: CatalogEntity, reason: string): CatalogEntity {
+  if (entity.kind !== 'innate') throw new Error(`Confirmed innate availability targets ${entity.kind} entity ${entity.id}`)
+  if (entity.ppCost?.state === 'known' || entity.ppCost?.state === 'conflicting') throw new Error(`Confirmed innate availability conflicts with PP evidence for ${entity.id}`)
+  const source = passiveFactSource(entity, 'Learnable Innate Skill availability')
+  return {
+    ...entity,
+    fields: { ...entity.fields, [LEARNABLE_INNATE_FIELD]: known(false, [source]) },
+    ppCost: { state: 'notApplicable', reason },
+    sources: uniqueSources([...entity.sources, source]),
+  }
+}
+
+export function isPotentiallyLearnableInnate(entity: Pick<CatalogEntity, 'kind' | 'fields'>): boolean {
+  if (entity.kind !== 'innate') return false
+  const availability = entity.fields[LEARNABLE_INNATE_FIELD]
+  return availability?.state !== 'known' || availability.value !== false
+}
+
 export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[]): readonly CatalogEntity[] {
-  return SWITCH_CLASS_RECORDS.flatMap(record => {
+  const definitions = SWITCH_CLASS_RECORDS.flatMap(record => {
     const sources = [{ ...SWITCH_CLASS_SOURCE, locator: `${record.name} class and skill identities` }]
     const unknown = { state: 'unknown' as const, reason: DETAILS_UNKNOWN, sources }
     const mod = record.requiredMod ? known(record.requiredMod, sources) : { state: 'unknown' as const, reason: MOD_UNKNOWN, sources }
@@ -70,4 +128,16 @@ export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[]): 
     })
     return [classEntity, ...skills]
   })
+  const allById = new Map([...existing, ...definitions].map(entity => [entity.id as string, entity]))
+  const confirmedById = new Map(definitions.map(entity => [entity.id as string, entity]))
+  const apply = (id: string, enrich: (entity: CatalogEntity) => CatalogEntity) => {
+    const entity = allById.get(id)
+    if (!entity) throw new Error(`Missing confirmed Switch passive PP identity ${id}`)
+    const enriched = enrich(entity)
+    allById.set(id, enriched)
+    confirmedById.set(id, enriched)
+  }
+  for (const [id, cost] of SWITCH_PASSIVE_PP_COSTS) apply(id, entity => withConfirmedPpCost(entity, cost))
+  for (const [id, reason] of SWITCH_INNATE_PP_NOT_APPLICABLE) apply(id, entity => withUnavailableInnate(entity, reason))
+  return [...confirmedById.values()]
 }

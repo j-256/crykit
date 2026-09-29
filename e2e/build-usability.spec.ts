@@ -5,6 +5,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import type { Profile } from '../src/domain/types'
 
 const MAX_MOBILE_EVIDENCE_GAP_PX = 30
+const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
 
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -27,6 +28,22 @@ async function addCharacter(page: Page, name: string) {
 
 test('build choices expose catalog facts, uncertain identities, and explicit innate costs', async ({ page, isMobile }, testInfo) => {
   await page.goto('/#/builds/library/new')
+  const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
+  await classPicker.click()
+  await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).toBeVisible()
+  await page.mouse.click(20, 20)
+  await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).not.toBeVisible()
+  await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
+  await classPicker.fill('Barbarian')
+  const barbarianResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Barbarian$/ }) })
+  await expect(barbarianResult.locator('.picker-result__heading').getByText('Mod: Barbarian', { exact: true })).toBeVisible()
+  await expect(barbarianResult.locator('.picker-result__content > [data-mod-badge="Barbarian"]')).toHaveCount(0)
+  await expect.poll(() => barbarianResult.locator('.picker-result__heading').evaluate(heading => {
+    const name = heading.querySelector('strong')!.getBoundingClientRect()
+    const badge = heading.querySelector('[data-mod-badge="Barbarian"] > .badge')!.getBoundingClientRect()
+    return Math.abs((name.top + name.bottom - badge.top - badge.bottom) / 2)
+  })).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
+  await classPicker.press('Escape')
   const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await hand.fill('katana')
   await expect(page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Katanas$/ }) })).toHaveCount(0)
@@ -51,7 +68,8 @@ test('build choices expose catalog facts, uncertain identities, and explicit inn
   await page.getByRole('combobox', { name: 'Head', exact: true }).press('Escape')
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offHand.fill('Doge Shield')
-  await expect(page.getByRole('listbox')).toContainText('Doge Shield mod: enabled status not recorded')
+  await expect(page.getByRole('listbox').getByText('Mod: Doge Shield', { exact: true })).toBeVisible()
+  await expect(page.getByRole('listbox')).toContainText('Enabled status not recorded')
   await offHand.press('Escape')
   await choose(page, 'Accessory 1', 'Crit Fang')
   const fang = page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Accessory 1', exact: true }) })
@@ -73,12 +91,23 @@ test('build choices expose catalog facts, uncertain identities, and explicit inn
   await expect(innateToggle).toHaveCount(1)
   await expect(innateToggle).toBeChecked()
   const passive = page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })
+  await passive.fill('Toughness')
+  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await passive.fill('Squall')
+  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
   await passive.fill('Two-handed')
   let innateResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-handed$/ }) })
   await expect(innateResult).toContainText('Innate')
-  await expect(innateResult).toContainText('PP: unknown')
-  await expect(innateResult).toContainText('Available here through the Learnable Innate Skill mod')
-  await expect(innateResult.locator('[data-artwork-placeholder="innate"]')).toBeVisible()
+  await expect(innateResult).toContainText('6 PP')
+  await expect(innateResult.locator('.picker-result__heading').getByText('Mod: Learnable Innate Skills', { exact: true })).toBeVisible()
+  await expect(innateResult.locator('.picker-result__content > [data-mod-badge="Learnable Innate Skills"]')).toHaveCount(0)
+  await expect.poll(() => innateResult.locator('.picker-result__heading').evaluate(heading => {
+    const badge = heading.querySelector('[data-mod-badge="Learnable Innate Skills"]')!.getBoundingClientRect()
+    const ppCost = [...heading.querySelectorAll('small')].find(node => node.textContent === '6 PP')!.getBoundingClientRect()
+    return badge.right <= ppCost.left
+  })).toBe(true)
+  await expect(innateResult.locator('[data-game-icon="skill:passive"]')).toBeVisible()
+  await expect(innateResult.locator('[data-artwork-placeholder]')).toHaveCount(0)
   await expect.poll(() => innateResult.evaluate(row => {
     const artwork = row.querySelector(':scope > .wiki-sprite, :scope > .game-icon')!.getBoundingClientRect()
     return artwork.width
@@ -92,8 +121,17 @@ test('build choices expose catalog facts, uncertain identities, and explicit inn
   await passive.fill('Two-handed')
   innateResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-handed$/ }) })
   await innateResult.click()
-  await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 + 1? / 10 PP')
-  await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Some build checks are unresolved')
+  await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('15 / 10 PP')
+  await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Build needs changes')
+  await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Selected passives cost 15 PP, above the 10 PP limit')
+  await innateToggle.uncheck()
+  await expect(passive).toHaveValue('Two-handed')
+  await expect(page.getByText('1 equipped innate remains selected. Innates are hidden from search results.', { exact: true })).toBeVisible()
+  const nextPassive = page.getByRole('combobox', { name: 'Equipped passive 5', exact: true })
+  await nextPassive.fill('Two-handed')
+  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await nextPassive.press('Escape')
+  await innateToggle.check()
   await page.screenshot({ path: testInfo.outputPath('build-catalog-evidence.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()

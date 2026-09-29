@@ -10,7 +10,14 @@ import { definitionModAvailability } from './mods'
 import { starterEntitySourceLabel } from './provenance'
 import { CONFIRMED_SKILL_MAPS } from './skill-maps'
 import { STARTER_CATALOG } from './starter'
-import { SWITCH_CLASS_RECORDS } from './switch'
+import {
+  isPotentiallyLearnableInnate,
+  LEARNABLE_INNATE_FIELD,
+  SWITCH_CLASS_RECORDS,
+  SWITCH_INNATE_PP_NOT_APPLICABLE,
+  SWITCH_PASSIVE_PP_COSTS,
+  SWITCH_PASSIVE_PP_SOURCE,
+} from './switch'
 
 function ref(id: string): CatalogRef {
   return { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>(id) }
@@ -30,10 +37,33 @@ describe('confirmed Switch skill identities', () => {
       for (const [id, kind] of record.skills) {
         const entity = STARTER_CATALOG.entities[id]
         expect(entity.kind).toBe(kind)
-        expect(starterEntitySourceLabel(entity)).toBe('Switch in-game confirmation')
-        if (kind === 'passive') expect(entity.ppCost?.state).toBe('unknown')
-        else expect(skillAcceptsWeapon(skillWeaponRule(entity), 'Dagger', 'enabled').state).toBe('unknown')
+        expect(starterEntitySourceLabel(entity)).toContain('Switch in-game confirmation')
+        if (kind === 'ability') expect(skillAcceptsWeapon(skillWeaponRule(entity), 'Dagger', 'enabled').state).toBe('unknown')
       }
+    }
+  })
+
+  it('applies versioned PP costs and preserves unavailable or unobserved innates', () => {
+    for (const [id, cost] of SWITCH_PASSIVE_PP_COSTS) {
+      const entity = STARTER_CATALOG.entities[id]
+      expect(entity.ppCost).toMatchObject({ state: 'known', value: cost })
+      if (entity.ppCost?.state === 'known') expect(entity.ppCost.sources).toContainEqual(expect.objectContaining({ sourceId: SWITCH_PASSIVE_PP_SOURCE.sourceId }))
+      if (entity.kind === 'innate') {
+        expect(entity.fields[LEARNABLE_INNATE_FIELD]).toMatchObject({ state: 'known', value: true })
+        expect(isPotentiallyLearnableInnate(entity)).toBe(true)
+      }
+    }
+    for (const [id, reason] of SWITCH_INNATE_PP_NOT_APPLICABLE) {
+      const entity = STARTER_CATALOG.entities[id]
+      expect(entity.ppCost).toEqual({ state: 'notApplicable', reason })
+      expect(entity.fields[LEARNABLE_INNATE_FIELD]).toMatchObject({ state: 'known', value: false })
+      expect(isPotentiallyLearnableInnate(entity)).toBe(false)
+    }
+    for (const id of ['base:weaver:innate:chrono-loop', 'base:mimic:innate:shapeshift']) {
+      const entity = STARTER_CATALOG.entities[id]
+      expect(entity.ppCost?.state).toBe('unknown')
+      expect(entity.fields[LEARNABLE_INNATE_FIELD]).toBeUndefined()
+      expect(isPotentiallyLearnableInnate(entity)).toBe(true)
     }
   })
 

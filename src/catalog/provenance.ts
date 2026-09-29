@@ -1,11 +1,12 @@
 import type { CatalogEntity } from '../domain/types'
 import { STARTER_SOURCE_URLS } from './data'
-import { SWITCH_CLASS_SOURCE } from './switch'
+import { SWITCH_CLASS_SOURCE, SWITCH_PASSIVE_PP_SOURCE } from './switch'
 
 const FIXED_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   'crystal-edit:vanilla-class-copy': 'Crystal Edit vanilla class export',
   'community:geef-modding-guide': "GEEF's Crystal Project modding guide",
   [SWITCH_CLASS_SOURCE.sourceId]: 'Switch in-game confirmation',
+  [SWITCH_PASSIVE_PP_SOURCE.sourceId]: 'Switch in-game PP confirmation',
   [STARTER_SOURCE_URLS['apworld-items']]: 'Base game names',
   [STARTER_SOURCE_URLS['apworld-classes']]: 'Base class names',
   [STARTER_SOURCE_URLS['apworld-monster-magic']]: 'Base Monster Magic names',

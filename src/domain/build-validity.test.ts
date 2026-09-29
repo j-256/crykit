@@ -17,7 +17,8 @@ const passive = (id: string, cost?: number): CatalogEntity => ({
   grants: known([]),
   sources: [],
 })
-const definitions = [passive('four', 4), passive('six', 6), passive('seven', 7), passive('unknown')]
+const unavailable = { ...passive('unavailable'), kind: 'innate' as const, ppCost: { state: 'notApplicable' as const, reason: 'Not made learnable by this ruleset' } }
+const definitions = [passive('four', 4), passive('six', 6), passive('seven', 7), passive('unknown'), unavailable]
 const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definitions.find(definition => definition.id === reference.entityId) : undefined
 const ruleset: Pick<RulesetRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, ppLimit: known(10), ppCostsNonNegative: known(true) }
 const content = (...ids: string[]): BuildRevisionContent => ({ primaryClass: null, secondaryClass: null, equipment: {}, passives: ids.map(id => ({ ref: ref(id) })), contextAssumptions: [] })
@@ -42,5 +43,12 @@ describe('character-independent build validity', () => {
     const unknownLimit = validateBuildContent(content('four'), { ...ruleset, ppLimit: { state: 'unknown' } }, SUGGESTED_BUILD_SLOTS, resolve)
     expect(unknownLimit.status).toBe('undetermined')
     expect(unknownLimit.issues).toContainEqual(expect.objectContaining({ code: 'PP_LIMIT_UNKNOWN' }))
+  })
+
+  it('rejects an innate that is explicitly unavailable as an equippable passive', () => {
+    const report = validateBuildContent(content('unavailable'), ruleset, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(report.status).toBe('invalid')
+    expect(report.pp).toMatchObject({ knownSubtotal: 0, unresolvedCosts: 0 })
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PASSIVE_NOT_EQUIPPABLE', status: 'invalid' }))
   })
 })

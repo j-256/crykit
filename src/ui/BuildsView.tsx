@@ -112,6 +112,12 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
   const slots = useMemo(() => [...(ruleset?.slots.length ? ruleset.slots : SUGGESTED_BUILD_SLOTS)].sort((a, b) => a.order - b.order), [ruleset])
   const definitionIndex = useMemo(() => new Map(options.map(option => [entityDefinitionKey(option.ref), option.record])), [options])
+  const equippedInnateCount = useMemo(() => draft.passives.filter(selection => definitionIndex.get(entityDefinitionKey(selection.ref))?.kind === 'innate').length, [definitionIndex, draft.passives])
+  const innateToggleHint = includeInnates
+    ? 'Innates are included in every passive search. Some innate PP costs remain unknown.'
+    : equippedInnateCount > 0
+      ? `${equippedInnateCount} equipped ${equippedInnateCount === 1 ? 'innate remains' : 'innates remain'} selected. Innates are hidden from search results.`
+      : 'Innates are hidden from search results. Existing selections are unchanged.'
   const validity = useMemo(() => validateBuildContent(draft, ruleset, slots, ref => definitionIndex.get(entityDefinitionKey(ref)), ref => logicalEntityKey(profile, ref)), [definitionIndex, draft, profile, ruleset, slots])
   const equipmentSlots = slots
   const equipmentSlotIds = new Set(equipmentSlots.map((slot) => slot.id as string))
@@ -223,7 +229,7 @@ function RevisionEditor({ build, sourceRevision, profile, catalogs, onCancel, on
       <div className="build-sheet__slots">
         <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
         <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentSlots.map(slotField)}</div></section>
-        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>Enabled for every passive search. Some innate PP costs are not yet in the catalog.</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
+        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
       </div>
       <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Loadout</h3><p>Choose a slot to search the pinned catalog and inspect its details.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
     </div> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">

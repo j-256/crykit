@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { entityDefinitionKey } from '../domain'
 import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
 import type { CatalogEntityKind, CatalogSnapshot, Character, CharacterSnapshot, EntityRef, Knowledge, Profile } from '../domain/types'
-import { definitionModAvailability, modAvailabilityLabel } from '../catalog/mods'
+import { definitionModAvailability } from '../catalog/mods'
 import { Button, InlineNotice } from './components'
 import { DefinitionDropdown, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
 import { commandName, matchesSlot } from './definition-fields'
@@ -15,7 +15,7 @@ import { DefinitionArtwork, FieldIconSources } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
 import type { DraftActions, DraftChangeHandler } from './drafts'
-import { DefinitionModLabel } from './DefinitionModLabel'
+import { DefinitionModLabel, ModBadge } from './DefinitionModLabel'
 import { FIELD_FOCUS_QUERY_KEY, focusFieldElement } from './field-focus'
 
 const PRIMARY_CLASS = 'primary-class'
@@ -53,7 +53,7 @@ export function MemberSummary({ profile, catalogs, character, snapshot }: { prof
     return <div className={`member-vital member-vital--${name.toLowerCase()}`}><dt>{stat?.[0] ?? name}</dt><dd>{knowledgeLabel(stat?.[1].value ?? UNKNOWN)}</dd></div>
   }
   return <div className="member-summary">
-    <div className="member-summary__identity"><span className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2>{character.name}</h2><span>{primary ? entityName(profile, catalogs, primary) : `Class: ${knowledgeLabel(snapshot?.primaryClass ?? UNKNOWN)}`}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={primary}/></div></div>
+    <div className="member-summary__identity"><span className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2>{character.name}</h2><span className="definition-badge-heading member-summary__class"><span>{primary ? entityName(profile, catalogs, primary) : `Class: ${knowledgeLabel(snapshot?.primaryClass ?? UNKNOWN)}`}</span><DefinitionModLabel profile={profile} ruleset={ruleset} value={primary}/></span></div></div>
     <dl className="member-vitals">{vital('HP')}{vital('MP')}<div className="member-vital member-vital--level"><dt>Lv</dt><dd>{knowledgeLabel(snapshot?.level ?? UNKNOWN)}</dd></div><div className="member-vital"><dt>LP</dt><dd>{knowledgeLabel(progress?.observedLp ?? UNKNOWN)}</dd></div></dl>
     <span className="member-state">{historical ? 'Historical' : 'Recorded'}</span>
   </div>
@@ -65,12 +65,11 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
   const ref = option.ref
   const fields = Object.entries(option.record.fields).filter(([key]) => DETAIL_FIELDS.test(key))
   return <div className="member-detail">
-    <div className="member-detail__title">{ref.kind === 'catalog' && <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<h3>{option.name}</h3></div>
+    <div className="member-detail__title">{ref.kind === 'catalog' && <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{option.name}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
     <span className="member-detail__kind">{option.kind === 'class' ? 'Class reference' : 'Definition reference'}</span>
     {option.description && <p>{option.description}</p>}
     <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} value={value}/></dd></div>)}</dl>
     {option.ppCost && option.ppCost.state !== 'notApplicable' && <p>PP: <KnowledgeValue value={option.ppCost}/></p>}
-    {option.modAvailability?.requiredMod && <p className="member-detail__availability">{modAvailabilityLabel(option.modAvailability)}</p>}
     <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
   </div>
 }

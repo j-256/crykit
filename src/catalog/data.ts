@@ -1147,4 +1147,4 @@ export function starterCatalogChecksumInput(): string {
   return JSON.stringify({ sources: STARTER_SOURCE_URLS, records: STARTER_NAME_RECORDS, wikiContentDigest: wikiData.contentDigest, switchData })
 }
 
-export const STARTER_CATALOG_CONTENT_DIGEST = "18f4b659efb3091482f2300cee31257c9ec14a41eee59cd4e49ec97bb79a82fa"
+export const STARTER_CATALOG_CONTENT_DIGEST = "296d1e553ef938b0959a3d1ba2f42fdcfc78565eff2e56e6bc264427bb937013"

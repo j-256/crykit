@@ -1,8 +1,175 @@
 {
   "source": {
     "sourceId": "in-game:switch-class-mappings",
-    "snapshot": "Nintendo Switch in-game confirmation 2026-09-26",
-    "applicability": "Confirmed names, node kinds, and class associations; game version, skill mechanics, and costs unverified"
+    "snapshot": "Nintendo Switch 1.6.6 in-game confirmation 2026-09-26",
+    "applicability": "Confirmed names, node kinds, and class associations; skill mechanics and costs unverified"
+  },
+  "passivePp": {
+    "source": {
+      "sourceId": "in-game:switch-passive-pp",
+      "snapshot": "Nintendo Switch 1.6.6 in-game confirmation 2026-09-29",
+      "applicability": "PP costs displayed with 1 PP Passives disabled; innate availability and costs displayed with Learnable Innate Skill enabled"
+    },
+    "costs": [
+      [
+        "mod-pack-2:barbarian:passive:hardy",
+        1
+      ],
+      [
+        "mod-pack-2:barbarian:passive:ferocious",
+        3
+      ],
+      [
+        "mod-pack-2:barbarian:passive:endurance",
+        2
+      ],
+      [
+        "mod-pack-2:tempest:passive:preparation",
+        4
+      ],
+      [
+        "mod-pack-2:tempest:passive:fast-hands",
+        1
+      ],
+      [
+        "switch:brawler:passive:fists-of-steel",
+        3
+      ],
+      [
+        "switch:brawler:passive:brawlers-resolve",
+        3
+      ],
+      [
+        "switch:brawler:passive:close-combat",
+        3
+      ],
+      [
+        "switch:freelancer:passive:quick-thinking",
+        2
+      ],
+      [
+        "switch:freelancer:passive:scavenger",
+        2
+      ],
+      [
+        "switch:freelancer:passive:aptitude",
+        2
+      ],
+      [
+        "base:warrior:innate:fighter",
+        4
+      ],
+      [
+        "base:monk:innate:aversive",
+        5
+      ],
+      [
+        "base:monk:innate:brawler",
+        1
+      ],
+      [
+        "base:rogue:innate:pinpoint",
+        6
+      ],
+      [
+        "base:cleric:innate:pinch-healer",
+        4
+      ],
+      [
+        "base:wizard:innate:element-specialist",
+        5
+      ],
+      [
+        "base:warlock:innate:chaincaster",
+        8
+      ],
+      [
+        "base:fencer:innate:eagle-talon",
+        7
+      ],
+      [
+        "base:shaman:innate:spell-steal",
+        4
+      ],
+      [
+        "base:scholar:innate:studious",
+        5
+      ],
+      [
+        "base:scholar:innate:learning",
+        0
+      ],
+      [
+        "base:aegis:innate:white-knight",
+        7
+      ],
+      [
+        "base:hunter:innate:camouflage",
+        5
+      ],
+      [
+        "base:chemist:innate:efficience",
+        9
+      ],
+      [
+        "base:reaper:innate:reaping",
+        10
+      ],
+      [
+        "base:ninja:innate:dual-wield",
+        10
+      ],
+      [
+        "base:nomad:innate:ap-focus",
+        5
+      ],
+      [
+        "base:dervish:innate:aura",
+        5
+      ],
+      [
+        "base:beatsmith:innate:rhythm",
+        8
+      ],
+      [
+        "base:samurai:innate:endless-fury",
+        7
+      ],
+      [
+        "base:samurai:innate:two-handed",
+        6
+      ],
+      [
+        "base:assassin:innate:assassination",
+        7
+      ],
+      [
+        "base:valkyrie:innate:immortal",
+        7
+      ],
+      [
+        "base:summoner:innate:mp-boost",
+        4
+      ],
+      [
+        "base:beastmaster:innate:savage",
+        5
+      ],
+      [
+        "base:beastmaster:innate:morphology",
+        0
+      ]
+    ],
+    "notApplicable": [
+      [
+        "mod-pack-2:barbarian:innate:toughness",
+        "Learnable Innate Skill applies only to vanilla classes"
+      ],
+      [
+        "mod-pack-2:tempest:innate:squall",
+        "Learnable Innate Skill applies only to vanilla classes"
+      ]
+    ]
   },
   "classes": [
     {

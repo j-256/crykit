@@ -1,7 +1,7 @@
 import { normalizeWeaponType, WEAPON_TYPES } from '../domain/skill-weapons'
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { entityDefinitionKey } from '../domain'
-import { modAvailabilityLabel } from '../catalog/mods'
+import type { DefinitionModAvailability } from '../catalog/mods'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, Profile } from '../domain/types'
 import { Badge, Button, InlineNotice } from './components'
 import { DefinitionEditor, definitionKindLabel, useDefinitionWorkspace } from './definitions'
@@ -9,6 +9,7 @@ import { Icon } from './icons'
 import { routeForSearchTarget, type UniversalSearchTarget } from './search-navigation'
 import { Sheet } from './Sheet'
 import { routeWithOverlay, useNavigation } from './navigation'
+import { ModBadge } from './DefinitionModLabel'
 
 const UNIVERSAL_RESULT_LIMIT = 60
 const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
@@ -22,6 +23,7 @@ interface UniversalSearchItem {
   readonly section: string
   readonly target: UniversalSearchTarget
   readonly preferred?: boolean
+  readonly modAvailability?: DefinitionModAvailability
 }
 
 function definitionName(profile: Profile, optionsByKey: ReadonlyMap<string, string>, ref: EntityRef) {
@@ -61,7 +63,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
   }
   const items = useMemo(() => {
     const names = new Map(options.map((option) => [option.key, option.name]))
-    const definitions: UniversalSearchItem[] = availableOptions.map((option) => ({ key: `definition:${option.key}`, title: option.name, subtitle: [definitionKindLabel(option.kind), option.sourceLabel, option.modAvailability && modAvailabilityLabel(option.modAvailability)].filter(Boolean).join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred }))
+    const definitions: UniversalSearchItem[] = availableOptions.map((option) => ({ key: `definition:${option.key}`, title: option.name, subtitle: [definitionKindLabel(option.kind), option.sourceLabel].join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel} ${option.modAvailability?.requiredMod ?? ''}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred, modAvailability: option.modAvailability }))
     const inventory: UniversalSearchItem[] = Object.values(profile.inventory).map((position) => ({ key: `inventory:${position.id}`, title: position.observedName ?? definitionName(profile, names, position.ref), subtitle: 'Inventory observation', keywords: `${position.note ?? ''} ${position.possession}`, section: 'Inventory', target: { kind: 'inventory', positionId: position.id } }))
     const characters: UniversalSearchItem[] = Object.values(profile.characters).map((character) => ({ key: `character:${character.id}`, title: character.name, subtitle: 'Character', keywords: character.appearanceLabel ?? '', section: 'Characters', target: { kind: 'character', characterId: character.id } }))
     const builds: UniversalSearchItem[] = Object.values(profile.builds).map((build) => ({ key: `build:${build.id}`, title: build.title, subtitle: 'Build', keywords: `${build.tags.join(' ')} ${build.state}`, section: 'Builds & teams', target: { kind: 'build', buildId: build.id } }))
@@ -97,7 +99,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     <Sheet description="Search definitions and this profile's observations and plans." initialFocusRef={searchRef} layer={searchIndex + 1} onClose={() => { setError(undefined); navigation.close() }} open={open} title="Search Crystal Companion" universalSearch width="command"><div className="universal-search"><div className="search-field universal-search__input"><Icon name="search"/><input aria-label="Search Crystal Companion" onChange={(event) => { setQuery(event.target.value); setError(undefined) }} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Definitions, characters, builds, inventory, teams, or progress" ref={searchRef} type="search" value={query}/><kbd>Esc</kbd></div>
       {error && <InlineNotice title="Navigation blocked" tone="warning">{error} Your search and open draft remain unchanged.</InlineNotice>}
       {createdName && <InlineNotice title="Personal definition created">{createdName} is saved. Select its exact result when you are ready to navigate.</InlineNotice>}
-      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Type a name, weapon type, alias, description, or planner record.</p><small>{catalogs.length} local reference {catalogs.length === 1 ? 'pack' : 'packs'} available</small><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <button className="universal-search__result" data-universal-result="true" key={item.key} onClick={() => choose(item.target)} type="button"><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><Badge>{item.section}</Badge></button>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
+      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Type a name, weapon type, alias, description, or planner record.</p><small>{catalogs.length} local reference {catalogs.length === 1 ? 'pack' : 'packs'} available</small><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <button className="universal-search__result" data-universal-result="true" key={item.key} onClick={() => choose(item.target)} type="button"><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="universal-search__result-meta">{item.modAvailability?.requiredMod && <ModBadge name={item.modAvailability.requiredMod} state={item.modAvailability.state}/>}<Badge>{item.section}</Badge></span></button>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
     </div></Sheet>
     {creating && <DefinitionEditor allowedKinds={ALL_DEFINITION_KINDS} initialName={query} key={`universal-create:${query}`} onClose={() => navigation.close()} onSaved={() => { const savedName = query.trim() || 'The new definition'; navigation.close(); setCreatedName(savedName); setQuery(savedName) }} open routeIndex={searchIndex + 1}/>}
   </>

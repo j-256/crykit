@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
-import { definitionModAvailability, modAvailabilityLabel, type DefinitionModAvailability } from '../catalog/mods'
+import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import { snapshotSlots, type SnapshotValue } from '../domain/character-snapshots'
 import type { CatalogSnapshot, CharacterSnapshot, EntityRef, Knowledge, Profile, RulesetRevision, SourceRef } from '../domain/types'
 import { IconButton, InlineNotice } from './components'
 import { entityName, formatRelativeDate, ownRecordValue } from './model'
 import { useNavigation, type AppRoute } from './navigation'
+import { ModBadge } from './DefinitionModLabel'
 
 const RULESET_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: {} }
 const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
@@ -28,7 +29,7 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
   const navigation = useNavigation()
   if (!availability.requiredMod) return null
   return <details className={`recorded-sources recorded-mod ${className}`}>
-    <summary>{modAvailabilityLabel(availability)}</summary>
+    <summary><ModBadge name={availability.requiredMod} state={availability.state}/></summary>
     <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
     <p>Update the mod setting in <a href={navigation.href(RULESET_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(RULESET_SETTINGS_ROUTE) } }}>Data &amp; settings &gt; Ruleset</a>, then capture a new character snapshot. Existing snapshots keep their recorded mod settings.</p>
   </details>

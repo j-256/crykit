@@ -9,8 +9,7 @@
 .member-summary { display: flex; align-items: center; gap: 30px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
 .member-summary__identity { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 180px; }
 .member-summary__identity h2 { margin: 0 0 4px; font-size: 2rem; overflow-wrap: anywhere; }
-.member-summary__identity > div > span { color: var(--text-dim); font-size: .8rem; }
-.member-summary__identity > div > .definition-mod-label { color: var(--cyan-300); font-size: .67rem; }
+.member-summary__class { color: var(--text-dim); font-size: .8rem; }
 .member-portrait { position: relative; display: grid; place-items: center; width: 42px; height: 52px; }
 .member-portrait .wiki-sprite { width: 42px; min-height: 0; }
 .member-portrait > svg { width: 34px; height: 42px; }
@@ -61,6 +60,7 @@
 .member-detail { min-width: 0; color: var(--text-dim); font-size: .84rem; overflow-wrap: anywhere; }
 .member-detail__title { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 2px solid var(--cyan-500); }
 .member-detail__title h3, .member-detail > h3 { margin: 0; color: var(--text); font-family: var(--font-menu); font-size: 1.7rem; font-weight: 400; }
+.member-detail__title > .definition-badge-heading { flex: 1; }
 .member-detail__title .wiki-sprite { max-width: 38px; }
 .member-detail__title img { max-width: 38px; max-height: 42px; object-fit: contain; }
 .member-detail__kind { display: block; margin: 9px 0 16px; color: var(--text-faint); font-size: .68rem; }
@@ -95,7 +95,7 @@
 .member-learning__layout section > .split { border-bottom: 1px solid var(--cyan-700); margin-bottom: 14px; }
 .member-class { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--line); background: #26343e; }
 .member-class__title { display: flex; align-items: center; gap: 8px; }
-.member-class__title strong { flex: 1; }
+.member-class__title > .definition-badge-heading { flex: 1; }
 .member-class__title .wiki-sprite { width: 28px; }
 .member-class__title img { max-width: 28px; max-height: 34px; object-fit: contain; }
 .member-class dl { display: grid; gap: 7px; margin: 10px 0 0; font-size: .75rem; }

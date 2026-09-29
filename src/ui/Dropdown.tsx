@@ -43,6 +43,11 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
     })
     const isOutside = (target: EventTarget | null) => popup.matches(':popover-open') && target instanceof Node && !popup.contains(target) && !anchor.contains(target)
     let outsidePointerDown = false
+    let restoreFocusOnCleanup = true
+    const dismiss = () => {
+      restoreFocusOnCleanup = false
+      dismissRef.current()
+    }
     const pointerDown = (event: PointerEvent) => { outsidePointerDown = event.isPrimary && event.button === 0 && isOutside(event.target) }
     const pointerCancel = () => { outsidePointerDown = false }
     const click = (event: MouseEvent) => {
@@ -54,7 +59,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
         event.preventDefault()
         event.stopImmediatePropagation()
       }
-      dismissRef.current()
+      dismiss()
     }
     const keyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -63,7 +68,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       closeRef.current()
     }
     const focusIn = (event: FocusEvent) => {
-      if (isOutside(event.target) && !outsidePointerDown) dismissRef.current()
+      if (isOutside(event.target) && !outsidePointerDown) dismiss()
     }
     const observer = new ResizeObserver(position)
     observer.observe(anchor)
@@ -91,7 +96,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       document.removeEventListener('focusin', focusIn, true)
       const restoreFocus = popup.contains(document.activeElement) || document.activeElement === document.body
       if (popup.matches(':popover-open')) popup.hidePopover()
-      if (restoreFocus && anchor.isConnected) anchor.focus({ preventScroll: true })
+      if (restoreFocusOnCleanup && restoreFocus && anchor.isConnected) anchor.focus({ preventScroll: true })
     }
   }, [anchorRef, initialFocusRef, open])
 
