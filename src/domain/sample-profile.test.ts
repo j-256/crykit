@@ -30,7 +30,7 @@ describe('sample starter team', () => {
       expect(snapshot.equipment).toEqual(Object.fromEntries(Object.entries(revision.content.equipment).map(([slotId, selection]) => [slotId, selection?.ref ?? null])))
       expect(snapshot.passives).toEqual({ state: 'known', value: [] })
       expect(snapshot.level).toEqual({ state: 'known', value: 1 })
-      expect(snapshot.ppCapacity.state).toBe('unknown')
+      expect(snapshot).not.toHaveProperty('ppCapacity')
       expect(snapshot.displayedStats).toEqual({})
       expect(character.learnedNodes).toEqual({})
     }

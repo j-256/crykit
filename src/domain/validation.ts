@@ -2,6 +2,7 @@ import { DomainError, entityDefinitionKey } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
+import { effectivePpLimit } from './build-validity'
 import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
 import { passivePosition, type PassivePosition } from './passive-loadout'
 import type {
@@ -636,7 +637,6 @@ function validateLearning(
 }
 
 function validatePp(
-  profile: Profile,
   ruleset: RulesetRevision,
   selected: readonly SelectedEntry[],
   accumulator: Accumulator,
@@ -649,11 +649,7 @@ function validatePp(
   }
   for (const [characterId, entries] of byCharacter) {
     touch(accumulator, 'passives')
-    const character = profile.characters[characterId]
-    const snapshot = character?.currentSnapshotId
-      ? character.snapshots[character.currentSnapshotId]
-      : undefined
-    const capacity = snapshot?.ppCapacity
+    const limit = effectivePpLimit(ruleset)
     let knownSubtotal = 0
     let unknownCost = false
     for (const entry of entries) {
@@ -664,54 +660,54 @@ function validatePp(
         unknownCost = true
       }
     }
-    if (!capacity || knowledgeUncertain(capacity)) {
+    if (knowledgeUncertain(limit)) {
       issue(accumulator, {
-        code: 'PP_CAPACITY_UNKNOWN',
+        code: 'PP_LIMIT_UNKNOWN',
         dimension: 'passives',
         status: 'undetermined',
-        message: 'PP capacity is unknown for this character',
+        message: 'The passive PP limit is unresolved for this ruleset',
         characterId,
         inputs: { knownSubtotal },
       })
       continue
     }
-    if (capacity.state !== 'known') {
+    if (limit.state !== 'known') {
       continue
     }
     if (!unknownCost) {
-      if (knownSubtotal > capacity.value) {
+      if (knownSubtotal > limit.value) {
         issue(accumulator, {
-          code: 'PP_CAPACITY_EXCEEDED',
+          code: 'PP_LIMIT_EXCEEDED',
           dimension: 'passives',
           status: 'invalid',
-          message: 'Known PP cost exceeds capacity',
+          message: 'Selected passive costs exceed the ruleset PP limit',
           characterId,
-          inputs: { capacity: capacity.value, knownSubtotal },
+          inputs: { limit: limit.value, knownSubtotal },
         })
       }
       continue
     }
     if (
-      knownSubtotal > capacity.value &&
+      knownSubtotal > limit.value &&
       ruleset.ppCostsNonNegative.state === 'known' &&
       ruleset.ppCostsNonNegative.value
     ) {
       issue(accumulator, {
-        code: 'PP_CAPACITY_EXCEEDED_BY_KNOWN_SUBTOTAL',
+        code: 'PP_LIMIT_EXCEEDED',
         dimension: 'passives',
         status: 'invalid',
-        message: 'Known nonnegative PP subtotal already exceeds capacity',
+        message: 'Known nonnegative passive costs already exceed the ruleset PP limit',
         characterId,
-        inputs: { capacity: capacity.value, knownSubtotal },
+        inputs: { limit: limit.value, knownSubtotal },
       })
     } else {
       issue(accumulator, {
-        code: 'PP_TOTAL_UNKNOWN',
+        code: 'PP_COST_UNKNOWN',
         dimension: 'passives',
         status: 'undetermined',
         message: 'At least one selected PP cost or its sign constraint is unresolved',
         characterId,
-        inputs: { capacity: capacity.value, knownSubtotal },
+        inputs: { limit: limit.value, knownSubtotal },
       })
     }
   }
@@ -755,7 +751,7 @@ function baseEligibility(
     if (learned.state === 'known' && !learned.value) {
       return 'invalid'
     }
-    return passivePpEligibility(profile, ruleset, entries, entry.characterId)
+    return passivePpEligibility(ruleset, entries, entry.characterId)
   }
   const slotKinds = entry.definition.slotKinds
   if (!slotKinds || knowledgeUncertain(slotKinds)) {
@@ -777,17 +773,13 @@ function baseEligibility(
 }
 
 function passivePpEligibility(
-  profile: Profile,
   ruleset: RulesetRevision,
   entries: readonly SelectedEntry[],
   characterId: CharacterId,
 ): Eligibility {
-  const character = profile.characters[characterId]
-  const snapshot = character?.currentSnapshotId ? character.snapshots[character.currentSnapshotId] : undefined
-  const capacity = snapshot?.ppCapacity
-  if (capacity?.state !== 'known') {
-    return 'unknown'
-  }
+  const limit = effectivePpLimit(ruleset)
+  if (knowledgeUncertain(limit)) return 'unknown'
+  if (limit.state !== 'known') return 'valid'
   let knownSubtotal = 0
   let hasUnknownCost = false
   for (const entry of entries.filter((candidate) => candidate.characterId === characterId && candidate.slot.kind === 'passive')) {
@@ -799,10 +791,10 @@ function passivePpEligibility(
     }
   }
   if (!hasUnknownCost) {
-    return knownSubtotal > capacity.value ? 'invalid' : 'valid'
+    return knownSubtotal > limit.value ? 'invalid' : 'valid'
   }
   if (
-    knownSubtotal > capacity.value &&
+    knownSubtotal > limit.value &&
     ruleset.ppCostsNonNegative.state === 'known' &&
     ruleset.ppCostsNonNegative.value
   ) {
@@ -1133,7 +1125,7 @@ export function validateScenario(
     validateInventory(profile, scenario, selected, accumulator)
   }
   validateLearning(profile, selected, accumulator)
-  validatePp(profile, ruleset, selected, accumulator)
+  validatePp(ruleset, selected, accumulator)
   validatePermissions(profile, catalogs, ruleset, scenario, selected, accumulator)
   validateCatalogLocks(ruleset, scenario, catalogs, accumulator)
   validateRulesetCertainty(ruleset, accumulator)

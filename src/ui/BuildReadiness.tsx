@@ -10,6 +10,7 @@ import { useNavigation, type AppRoute } from './navigation'
 const VALIDATION_CODE = Object.freeze({
   catalogApplicabilityUnknown: 'CATALOG_APPLICABILITY_UNKNOWN',
   catalogSnapshotUnavailable: 'CATALOG_SNAPSHOT_UNAVAILABLE',
+  ppLimitUnknown: 'PP_LIMIT_UNKNOWN',
   rulesetFieldUnknown: 'RULESET_FIELD_UNKNOWN',
   suggestedSlotDefinition: 'SUGGESTED_SLOT_DEFINITION',
 })
@@ -68,7 +69,8 @@ function issueContext(issue: ValidationIssue, profile: Profile, catalogs: readon
 
 function issueActions(issue: ValidationIssue, profile: Profile, catalogs: readonly CatalogSnapshot[], report: ValidationReport): readonly ValidationAction[] {
   if (issue.code.includes('STOCK')) return [{ label: issue.ref ? `Review stock for ${entityName(profile, catalogs, issue.ref)}` : 'Review inventory', route: { page: { page: 'inventory', view: 'list' }, overlays: [], query: { v: ['1'], q: [issue.ref ? entityName(profile, catalogs, issue.ref) : ''] } } }]
-  if (issue.characterId && (issue.code.startsWith('PP_') || issue.code.includes('LEARN') || issue.code.startsWith('CLASS_'))) return [{ label: issue.code.startsWith('PP_') ? 'Record character PP capacity' : issue.code.startsWith('CLASS_') ? 'Review class unlocks' : 'Review learned skills', route: { page: { page: 'characters', view: 'character', characterId: issue.characterId, tab: issue.code.startsWith('PP_') ? 'current' : issue.code.startsWith('CLASS_') ? 'classes' : 'knowledge' }, overlays: [], query: {} } }]
+  if (issue.code === VALIDATION_CODE.ppLimitUnknown) return [{ label: 'Review passive rules', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: { ruleset: [report.rulesetRevisionId], focus: ['passives'] } } }]
+  if (issue.characterId && (issue.code.includes('LEARN') || issue.code.startsWith('CLASS_'))) return [{ label: issue.code.startsWith('CLASS_') ? 'Review class unlocks' : 'Review learned skills', route: { page: { page: 'characters', view: 'character', characterId: issue.characterId, tab: issue.code.startsWith('CLASS_') ? 'classes' : 'knowledge' }, overlays: [], query: {} } }]
   if (issue.code === VALIDATION_CODE.rulesetFieldUnknown) return [{ label: 'Review setup', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: { ruleset: [report.rulesetRevisionId], focus: ['setup'] } } }]
   if (issue.code === VALIDATION_CODE.suggestedSlotDefinition) return [{ label: 'Review planner defaults', route: { page: { page: 'settings', section: 'ruleset' }, overlays: [], query: { ruleset: [report.rulesetRevisionId], focus: ['slots'] } } }]
   if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) {

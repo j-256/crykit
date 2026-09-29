@@ -62,7 +62,6 @@ export function compareCharacterSnapshots(left: CharacterSnapshot, right: Charac
   add('level', 'Level', { kind: 'number', value: left.level, unit: '' }, { kind: 'number', value: right.level, unit: '' })
   add('primaryClass', 'Primary class', { kind: 'reference', value: left.primaryClass }, { kind: 'reference', value: right.primaryClass })
   add('secondaryClass', 'Secondary class', { kind: 'reference', value: left.secondaryClass }, { kind: 'reference', value: right.secondaryClass })
-  add('ppCapacity', 'PP capacity', { kind: 'number', value: left.ppCapacity, unit: '' }, { kind: 'number', value: right.ppCapacity, unit: '' })
   const leftStats = new Map(Object.entries(left.displayedStats))
   const rightStats = new Map(Object.entries(right.displayedStats))
   for (const key of new Set([...leftStats.keys(), ...rightStats.keys()])) add(`stat:${key}`, key, statValue(leftStats.get(key)), statValue(rightStats.get(key)))

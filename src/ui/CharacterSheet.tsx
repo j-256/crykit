@@ -67,7 +67,6 @@ export function CharacterSheet({ profile, catalogs, snapshot, onEditSlot }: Reco
     { label: 'Level', value: { kind: 'number', value: snapshot.level, unit: '' } },
     { label: 'Primary class', value: { kind: 'reference', value: snapshot.primaryClass } },
     { label: 'Secondary class', value: { kind: 'reference', value: snapshot.secondaryClass } },
-    { label: 'Shared PP capacity', value: { kind: 'number', value: snapshot.ppCapacity, unit: '' } },
   ]
   const context = { profile, catalogs, ruleset }
   return <div className="recorded-sheet">

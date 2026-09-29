@@ -130,7 +130,6 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
         <section aria-label={`${character.name}: recorded stats`} className="roster-stats"><h3>Recorded stats</h3><dl>
           <RecordedVitals stats={stats}/>
           {otherStats.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>)}
-          <StatValue label="PP capacity" stat={{ value: snapshot.ppCapacity, unit: 'displayed' }}/>
         </dl></section>
         <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} slotPage={memberPage} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!ruleset && <p className="roster-empty">Slot context unrecorded</p>}</section>
         <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty"><Icon name="warning"/>{knowledgeLabel(snapshot.passives)}</p>}</section>

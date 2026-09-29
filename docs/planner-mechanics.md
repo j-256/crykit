@@ -1,6 +1,6 @@
 # Build mechanics and estimates
 
-The build editor applies supported rules from GEEF's Crystal Project modding guide to the selected source definitions. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, PP capacity, class unlocks, and ruleset applicability. Saving a plan never changes observed character stats, inventory, or learning.
+The build editor applies supported rules from GEEF's Crystal Project modding guide to the selected source definitions. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, class unlocks, and ruleset applicability. Saving a plan never changes observed character stats, inventory, or learning.
 
 ## Equipment checks
 
@@ -12,7 +12,7 @@ A two-handed weapon reserves both hands even when selected in one hand with the 
 
 ## Passive PP budget
 
-Passives are stored as an ordered, variable-length list, not as ruleset slots. Each passive contributes its documented PP cost to one shared total. The default ruleset permits up to 10 PP across all equipped passives, so the number of passives depends on their individual costs. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the build invalid even when another selected cost is unknown.
+Passives are stored as an ordered, variable-length list, not as ruleset slots. Each passive contributes its documented PP cost to one total. The unmodified game permits up to 10 PP across all equipped passives, so new rulesets default to that limit and modded rulesets can override it. PP is a ruleset limit rather than a character observation. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the build invalid even when another selected cost is unknown.
 
 The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion reads those properties from retained source records without changing old catalog snapshots.
 

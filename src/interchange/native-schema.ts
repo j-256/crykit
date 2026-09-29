@@ -226,7 +226,6 @@ const characterSnapshot = z.object({
   primaryClass: knowledge(entityRef),
   secondaryClass: knowledge(entityRef),
   displayedStats: z.record(z.string().min(1).max(MAX_ID_LENGTH), observedStat),
-  ppCapacity: knowledge(nonnegativeInteger),
   equipment: z.record(id, entityRef.nullable()),
   passives: knowledge(z.array(entityRef).max(MAX_COLLECTION_LENGTH)),
   sources: sourceRefs,

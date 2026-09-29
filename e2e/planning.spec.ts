@@ -82,8 +82,7 @@ test('character, party progress, and historical events remain independent observ
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
   await snapshot.getByLabel('Level certainty', { exact: true }).selectOption('known')
   await snapshot.getByLabel('Level', { exact: true }).fill('20')
-  await snapshot.getByLabel('Shared PP capacity certainty', { exact: true }).selectOption('known')
-  await snapshot.getByLabel('Shared PP capacity', { exact: true }).fill('8')
+  await expect(snapshot.getByLabel('Shared PP capacity', { exact: true })).toHaveCount(0)
   await snapshot.getByRole('button', { name: 'Add stat', exact: true }).click()
   await snapshot.getByLabel('Stat name').fill('Max HP')
   await snapshot.getByLabel('Displayed value certainty', { exact: true }).selectOption('known')
@@ -148,7 +147,8 @@ test('character, party progress, and historical events remain independent observ
   expect(Object.values(after.inventoryEvents)[0]).not.toHaveProperty('observedAt')
   const character = Object.values(after.characters)[0]!
   const observed = character.snapshots[character.currentSnapshotId!]!
-  expect(observed).toMatchObject({ level: { state: 'known', value: 20 }, ppCapacity: { state: 'known', value: 8 }, observedAt: '2024-06-15' })
+  expect(observed).toMatchObject({ level: { state: 'known', value: 20 }, observedAt: '2024-06-15' })
+  expect(observed).not.toHaveProperty('ppCapacity')
   expect(observed.displayedStats['Max HP']?.value).toEqual({ state: 'known', value: 321 })
   expect(character.classProgress).toEqual({})
   expect(Object.values(character.learnedNodes)[0]).toMatchObject({ kind: 'monsterMagic', learned: { state: 'known', value: true }, actualPaidLp: { state: 'unknown' } })
@@ -222,8 +222,7 @@ test('build drafts resist navigation and recording current preserves known level
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
   await snapshot.getByLabel('Level certainty', { exact: true }).selectOption('known')
   await snapshot.getByLabel('Level', { exact: true }).fill('20')
-  await snapshot.getByLabel('Shared PP capacity certainty', { exact: true }).selectOption('known')
-  await snapshot.getByLabel('Shared PP capacity', { exact: true }).fill('8')
+  await expect(snapshot.getByLabel('Shared PP capacity', { exact: true })).toHaveCount(0)
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
   await navigate(page, 'Builds')
@@ -275,7 +274,7 @@ test('build drafts resist navigation and recording current preserves known level
   const character = Object.values(profile.characters)[0]!
   const observed = character.snapshots[character.currentSnapshotId!]!
   expect(observed.level).toEqual({ state: 'known', value: 20 })
-  expect(observed.ppCapacity.state).toBe('unknown')
+  expect(observed).not.toHaveProperty('ppCapacity')
   expect(profile.inventory).toEqual({})
   expect(character.learnedNodes).toEqual({})
   const scenario = Object.values(profile.scenarios).find((entry) => entry.label === 'Copied recorded party')!

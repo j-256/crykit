@@ -46,7 +46,7 @@ export function personalRef(value: string) {
   return { kind: 'personal' as const, definitionId: asId<PersonalDefinitionId>(value) }
 }
 
-export function createTestProfile(ppCostsNonNegative: Knowledge<boolean> = known(true)): Profile {
+export function createTestProfile(ppCostsNonNegative: Knowledge<boolean> = known(true), ppLimit: Knowledge<number> = known(10)): Profile {
   let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
   profile = addRulesetRevision(profile, {
     id: TEST_RULESET_REVISION_ID,
@@ -56,6 +56,7 @@ export function createTestProfile(ppCostsNonNegative: Knowledge<boolean> = known
     gameVersion: known('1'),
     mode: known('test'),
     mods: known([]),
+    ppLimit,
     ppCostsNonNegative,
     slots: [
       {
@@ -82,12 +83,11 @@ export function createTestProfile(ppCostsNonNegative: Knowledge<boolean> = known
   return profile
 }
 
-export function addTestCharacter(profile: Profile, value: string, ppCapacity = 10): Profile {
+export function addTestCharacter(profile: Profile, value: string): Profile {
   const characterId = asId<CharacterId>(value)
   let next = createCharacter(profile, { id: characterId, name: value, now: TEST_NOW })
   next = captureCharacter(next, {
     characterId,
-    ppCapacity: known(ppCapacity),
     now: TEST_NOW,
   })
   return next

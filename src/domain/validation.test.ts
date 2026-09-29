@@ -403,8 +403,8 @@ describe('PP bounds and character readiness', () => {
   })
 
   it('proves PP invalidity from an over-cap subtotal only under a nonnegative-cost rule', () => {
-    let profile = createTestProfile(known(true))
-    profile = addTestCharacter(profile, 'character', 5)
+    let profile = createTestProfile(known(true), known(5))
+    profile = addTestCharacter(profile, 'character')
     profile = addTestDefinition(profile, 'known-passive', { kind: 'passive', ppCost: known(6) })
     profile = addTestDefinition(profile, 'unknown-passive', { kind: 'passive', ppCost: { state: 'unknown' } })
     profile = upsertLearnedNode(profile, {
@@ -424,12 +424,13 @@ describe('PP bounds and character readiness', () => {
     profile = addTestBuild(profile, 'build', 'character', {}, { passives: [{ ref: personalRef('known-passive') }, { ref: personalRef('unknown-passive') }] })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
-    expect(hasIssue(profile, 'scenario', 'PP_CAPACITY_EXCEEDED_BY_KNOWN_SUBTOTAL')).toBe(true)
+    const report = validateScenario(profile, asId<ScenarioId>('scenario'))
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PP_LIMIT_EXCEEDED', inputs: { limit: 5, knownSubtotal: 6 } }))
   })
 
   it('keeps PP unresolved when an unknown cost could exceed the remaining budget', () => {
-    let profile = createTestProfile(known(true))
-    profile = addTestCharacter(profile, 'character', 5)
+    let profile = createTestProfile(known(true), known(5))
+    profile = addTestCharacter(profile, 'character')
     profile = addTestDefinition(profile, 'known-passive', { kind: 'passive', ppCost: known(4) })
     profile = addTestDefinition(profile, 'unknown-passive', { kind: 'passive', ppCost: { state: 'unknown' } })
     for (const definition of ['known-passive', 'unknown-passive']) {
@@ -445,12 +446,12 @@ describe('PP bounds and character readiness', () => {
     profile = addTestScenario(profile, assignment('character', 'build'))
 
     expect(validateScenario(profile, asId<ScenarioId>('scenario')).dimensions.passives.status).toBe('undetermined')
-    expect(hasIssue(profile, 'scenario', 'PP_TOTAL_UNKNOWN')).toBe(true)
+    expect(hasIssue(profile, 'scenario', 'PP_COST_UNKNOWN')).toBe(true)
   })
 
   it('does not prove an over-cap subtotal when unknown costs may be negative', () => {
-    let profile = createTestProfile({ state: 'unknown' })
-    profile = addTestCharacter(profile, 'character', 5)
+    let profile = createTestProfile({ state: 'unknown' }, known(5))
+    profile = addTestCharacter(profile, 'character')
     profile = addTestDefinition(profile, 'known-passive', { kind: 'passive', ppCost: known(6) })
     profile = addTestDefinition(profile, 'unknown-passive', { kind: 'passive', ppCost: { state: 'unknown' } })
     for (const definition of ['known-passive', 'unknown-passive']) {
@@ -465,8 +466,8 @@ describe('PP bounds and character readiness', () => {
     profile = addTestBuild(profile, 'build', 'character', {}, { passives: [{ ref: personalRef('known-passive') }, { ref: personalRef('unknown-passive') }] })
     profile = addTestScenario(profile, assignment('character', 'build'))
 
-    expect(hasIssue(profile, 'scenario', 'PP_CAPACITY_EXCEEDED_BY_KNOWN_SUBTOTAL')).toBe(false)
-    expect(hasIssue(profile, 'scenario', 'PP_TOTAL_UNKNOWN')).toBe(true)
+    expect(hasIssue(profile, 'scenario', 'PP_LIMIT_EXCEEDED')).toBe(false)
+    expect(hasIssue(profile, 'scenario', 'PP_COST_UNKNOWN')).toBe(true)
   })
 })
 

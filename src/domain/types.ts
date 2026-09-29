@@ -244,7 +244,6 @@ export interface CharacterSnapshot {
   readonly primaryClass: Knowledge<EntityRef>
   readonly secondaryClass: Knowledge<EntityRef>
   readonly displayedStats: Readonly<Record<string, ObservedStat>>
-  readonly ppCapacity: Knowledge<number>
   readonly equipment: Readonly<Record<string, EntityRef | null>>
   readonly passives: Knowledge<readonly EntityRef[]>
   readonly sources: readonly SourceRef[]

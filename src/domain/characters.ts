@@ -125,7 +125,6 @@ export interface CaptureCharacterInput {
   readonly primaryClass?: Knowledge<EntityRef>
   readonly secondaryClass?: Knowledge<EntityRef>
   readonly displayedStats?: Readonly<Record<string, ObservedStat>>
-  readonly ppCapacity?: Knowledge<number>
   readonly equipment?: Readonly<Record<string, EntityRef | null>>
   readonly passives?: Knowledge<readonly EntityRef[]>
   readonly sources?: readonly SourceRef[]
@@ -149,7 +148,6 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
   if (rulesetRevisionId && !Object.hasOwn(profile.rulesets, rulesetRevisionId)) {
     throw new DomainError('MISSING_RULESET', 'The snapshot ruleset revision is unavailable')
   }
-  validateNonnegativeKnowledge(input.ppCapacity, 'PP capacity')
   for (const ref of [...knowledgeValues(input.primaryClass), ...knowledgeValues(input.secondaryClass)]) {
     assertPersonalDefinitionRef(profile, ref)
   }
@@ -177,7 +175,6 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     primaryClass: input.primaryClass ?? UNKNOWN_REF,
     secondaryClass: input.secondaryClass ?? UNKNOWN_REF,
     displayedStats: input.displayedStats ?? {},
-    ppCapacity: input.ppCapacity ?? UNKNOWN_NUMBER,
     equipment: input.equipment ?? {},
     passives: input.passives ?? UNKNOWN_REFS,
     sources: input.sources ?? [],

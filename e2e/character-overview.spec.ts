@@ -40,7 +40,7 @@ function syntheticOverview(): Profile {
       'Max. MP': { value: known(88), unit: 'points' }, Attack: { value: known(151), unit: 'displayed' },
       Speed: { value: { state: 'unknown' }, unit: 'displayed' }, Luck: { value: { state: 'conflicting', claims: [{ value: 5, sources: [] }, { value: 7, sources: [] }] }, unit: 'displayed' },
     },
-    ppCapacity: known(7), equipment: { 'plan-main-hand': original.equipment['plan-main-hand']!, 'plan-off-hand': null }, passives: known([personalRef('Synthetic focus')]),
+    equipment: { 'plan-main-hand': original.equipment['plan-main-hand']!, 'plan-off-hand': null }, passives: known([personalRef('Synthetic focus')]),
     observedAt: '2026-01-01T12:00:00.000Z', now: TEST_NOW,
   })
   profile = upsertCharacterClassProgress(profile, { characterId: rowan.id, classRef: primary, observedLp: known(0), mastered: known(true), now: TEST_NOW })
@@ -88,7 +88,7 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   await expect(stats.locator('[title="Attack: 151"]')).toBeVisible()
   await expect(field(stats, 'Speed')).toHaveText('Unknown')
   await expect(field(stats, 'Luck')).toHaveText('Conflicting claims')
-  await expect(field(stats, 'PP capacity')).toHaveText('7')
+  await expect(stats).not.toContainText('PP capacity')
   await expect(rowan).not.toContainText('9999')
   await expect(rowan).not.toContainText('Changed Main hand')
   await expect(field(rowan, 'Main hand').locator('.roster-slot__identity')).toContainText('Short Sword')

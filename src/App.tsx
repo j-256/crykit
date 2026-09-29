@@ -287,7 +287,7 @@ export default function App() {
 
   const addCharacter = useCallback(async (draft: CharacterDraft) => commitProfile((profile) => createCharacter(profile, { name: draft.name, appearanceLabel: draft.appearanceLabel, expectedRevision: profile.revision })), [commitProfile])
 
-  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitProfile((profile) => captureCharacter(profile, { characterId, rulesetRevisionId: draft.rulesetRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, ppCapacity: draft.ppCapacity, equipment: draft.equipment, passives: draft.passives, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: profile.revision })), [commitProfile])
+  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitProfile((profile) => captureCharacter(profile, { characterId, rulesetRevisionId: draft.rulesetRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, equipment: draft.equipment, passives: draft.passives, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: profile.revision })), [commitProfile])
 
   const upsertCharacterClass = useCallback(async (characterId: CharacterId, draft: ClassProgressDraft) => commitProfile((profile) => upsertCharacterClassProgress(profile, { characterId, ...draft, expectedRevision: profile.revision })), [commitProfile])
 
@@ -419,7 +419,7 @@ export default function App() {
     const character = next.characters[build.characterId]
     const currentSnapshot = character?.currentSnapshotId ? character.snapshots[character.currentSnapshotId] : undefined
     const equipment = Object.fromEntries(Object.entries(revision.content.equipment).map(([slotId, selection]) => [slotId, selection?.ref ?? null]))
-    return captureCharacter(next, { characterId: build.characterId, rulesetRevisionId: revision.rulesetRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, note: 'Build recorded as current; PP capacity and displayed final stats require a new in-game observation', expectedRevision: next.revision })
+    return captureCharacter(next, { characterId: build.characterId, rulesetRevisionId: revision.rulesetRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
   }), [commitProfile])
 
   const saveRuleset = useCallback(async (draft: RulesetDraft) => commitProfile((profile) => {
