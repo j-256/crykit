@@ -96,7 +96,13 @@ export function ValidationPanel({ report, profile, catalogs, scenario }: { repor
   const navigation = useNavigation()
   const labels: Record<string, string> = { structure: 'Structure', equipment: 'Equipment legality', passives: 'Passive legality', characterReadiness: 'Character readiness', inventory: 'Inventory sufficiency', rulesetCertainty: 'Setup and reference coverage', calculationReadiness: 'Calculation readiness' }
   if (!report) return <InlineNotice title="Validation awaits a scenario">Assign a saved revision to a team to evaluate simultaneous stock and readiness. Planning does not require ownership or learned skills.</InlineNotice>
-  return <div className="validation-list">{Object.entries(report.dimensions).map(([dimension, result]) => <div className={`validation-item validation-item--${result.status}`} key={dimension}><span className="validation-item__icon"><Icon name={result.status === 'valid' ? 'check' : result.status === 'invalid' ? 'close' : 'warning'}/></span><div><strong>{labels[dimension] ?? dimension}</strong>{result.status === 'valid' ? <p>No issue found with the known inputs.</p> : result.status === 'notApplicable' ? <p>Not applicable in this scenario.</p> : groupValidationIssues(result.issues).map((group) => {
+  const dimensions = Object.entries(report.dimensions)
+  const concerns = dimensions.filter(([, result]) => result.status === 'invalid' || result.status === 'undetermined')
+  const invalidCount = concerns.filter(([, result]) => result.status === 'invalid').length
+  const clearCount = dimensions.filter(([, result]) => result.status === 'valid').length
+  const overviewStatus = invalidCount > 0 ? 'invalid' : concerns.length > 0 ? 'undetermined' : 'valid'
+  const overviewTitle = overviewStatus === 'invalid' ? 'Team needs changes' : overviewStatus === 'undetermined' ? 'Some team checks are unresolved' : 'No known team issues'
+  return <div className="validation-list"><div className="validation-overview" data-status={overviewStatus}><Icon name={overviewStatus === 'valid' ? 'check' : overviewStatus === 'invalid' ? 'close' : 'warning'}/><strong>{overviewTitle}</strong><small>{clearCount} {clearCount === 1 ? 'check' : 'checks'} clear</small></div>{concerns.map(([dimension, result]) => <div className={`validation-item validation-item--${result.status}`} key={dimension}><span className="validation-item__icon"><Icon name={result.status === 'invalid' ? 'close' : 'warning'}/></span><div><strong>{labels[dimension] ?? dimension}</strong>{groupValidationIssues(result.issues).map((group) => {
     const first = group[0]!
     const presentation = issueGroupPresentation(first, group.length)
     const actions = new Map(group.flatMap(issue => issueActions(issue, profile, catalogs, report).map(action => [`${action.label}:${JSON.stringify(action.route)}`, action] as const)))

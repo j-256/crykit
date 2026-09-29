@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const COLLAPSED_RAIL_MAX_WIDTH_PX = 80
+const DENSE_LIBRARY_CARD_MAX_HEIGHT_PX = 230
+const DENSE_TEAM_CARD_MAX_HEIGHT_PX = 190
 
 async function choose(page: Page, label: string, name: string) {
   const field = page.getByRole('combobox', { name: label, exact: true })
@@ -32,6 +34,27 @@ test('team and library summaries show every equipment slot and PP crystal', asyn
   await expect(comparedLoadouts.nth(0).locator('.build-card__equipment .build-card__selection')).toHaveCount(6)
   await expect(comparedLoadouts.nth(1).locator('.build-card__equipment .build-card__selection')).toHaveCount(6)
   await expect(page.locator('.comparison-evidence')).not.toHaveAttribute('open', '')
+})
+
+test('desktop build summaries use the available width and keep passing checks compact', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The mobile layout intentionally uses one full-width card')
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/#/builds/library')
+
+  const libraryCards = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')
+  await expect(libraryCards).toHaveCount(4)
+  const libraryBoxes = await libraryCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, height: card.getBoundingClientRect().height })))
+  expect(new Set(libraryBoxes.map(box => box.y)).size).toBe(1)
+  expect(Math.max(...libraryBoxes.map(box => box.height))).toBeLessThanOrEqual(DENSE_LIBRARY_CARD_MAX_HEIGHT_PX)
+
+  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
+  const teamCards = page.locator('.scenario-member-card')
+  await expect(teamCards).toHaveCount(4)
+  const teamBoxes = await teamCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, height: card.getBoundingClientRect().height })))
+  expect(new Set(teamBoxes.map(box => box.y)).size).toBe(1)
+  expect(Math.max(...teamBoxes.map(box => box.height))).toBeLessThanOrEqual(DENSE_TEAM_CARD_MAX_HEIGHT_PX)
+  await expect(page.locator('.validation-item--valid')).toHaveCount(0)
+  await expect(page.locator('.validation-overview')).toContainText('checks clear')
 })
 
 test('selected builds open as loadouts and the desktop icon rail labels do not cover content', async ({ page, isMobile }) => {

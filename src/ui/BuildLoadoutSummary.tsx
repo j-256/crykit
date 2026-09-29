@@ -80,7 +80,7 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, profile, ca
         const definition = resolveEntity(profile, catalogs, selection.ref)
         const cost = definition ? passivePointCost(definition) : undefined
         return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} profile={profile} ruleset={ruleset} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
-      })}</span> : <small>No passives selected</small>}
+      })}</span> : <small className="sr-only">No passives selected</small>}
     </span>
   </span>
 }
