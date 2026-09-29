@@ -267,7 +267,7 @@ const progressRecord = z.object({
   revision: nonnegativeInteger,
   subject: entityRef,
   displayName: nonemptyText,
-  stage: knowledge(z.enum(['collected', 'masteredPending', 'inProgress', 'unclassified'])),
+  stage: knowledge(z.enum(['notAcquired', 'unlocked', 'mastered', 'sealAcquired'])),
   unlocked: knowledge(z.boolean()),
   partyMastery: knowledge(z.boolean()),
   collection: knowledge(z.boolean()),

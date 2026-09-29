@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   activateRuleset,
   activateScenario,
+  advanceClassSealProgress,
   asId,
   captureCharacter,
   importSkillTrees,
@@ -21,6 +22,7 @@ import {
   recordInventoryEvent,
   replaceScenarioBuild,
   saveBuildRevision,
+  setClassSealProgressBatch,
   updateBuild,
   updateRulesetRevision,
   updateScenario,
@@ -33,12 +35,14 @@ import {
   type CatalogIndex,
   type CatalogSnapshot,
   type CharacterId,
+  type ClassSealProgressSelection,
   type EntityRef,
   type JsonValue,
   type Knowledge,
   type PersonalDefinitionId,
   type Profile,
   type ProgressRecordId,
+  type ProgressStage,
   type RulesetRevisionId,
   type ScenarioId,
   type SlotDefinition,
@@ -98,6 +102,7 @@ export default function App() {
   const corrections = useCorrectionStore(workspace?.catalogs)
   const workspaceRef = useRef<Workspace | undefined>(undefined)
   const commitQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const pendingCommitCountRef = useRef(0)
   const persistedRevisionRef = useRef(0)
   const dirtyRef = useRef(false)
   const formDirtyRef = useRef(false)
@@ -167,11 +172,14 @@ export default function App() {
   }, [navigation])
 
   useEffect(() => {
-    if (!dirty && !formDirty) return
-    const preventLoss = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    const preventLoss = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current && !formDirtyRef.current && pendingCommitCountRef.current === 0) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
     window.addEventListener('beforeunload', preventLoss)
     return () => window.removeEventListener('beforeunload', preventLoss)
-  }, [dirty, formDirty])
+  }, [])
 
   useEffect(() => {
     if (!workspaceRef.current) return
@@ -182,7 +190,8 @@ export default function App() {
     })
   }, [workspace?.profile.id])
 
-  const commitProfile = useCallback((transform: (profile: Profile) => Profile, options: { rollbackOnFailure?: boolean } = {}) => {
+  const commitProfile = useCallback((transform: (profile: Profile) => Profile, options: { rollbackOnFailure?: boolean; showSavingState?: boolean } = {}) => {
+    pendingCommitCountRef.current += 1
     const run = async () => {
       const current = workspaceRef.current
       if (!current) throw new Error('The local workspace is not ready.')
@@ -197,7 +206,7 @@ export default function App() {
         setWorkspace(optimistic)
         dirtyRef.current = true
         setDirty(true)
-        setSaveState('saving')
+        if (options.showSavingState !== false) setSaveState('saving')
         setSaveError(undefined)
         const write = await saveProfileWithStatus(nextProfile, persistedRevisionRef.current)
         const saved = write.profile
@@ -224,6 +233,8 @@ export default function App() {
     }
     const queued = commitQueueRef.current.then(run, run)
     commitQueueRef.current = queued.catch(() => undefined)
+    const settle = () => { pendingCommitCountRef.current = Math.max(0, pendingCommitCountRef.current - 1) }
+    void queued.then(settle, settle)
     return queued
   }, [])
 
@@ -338,6 +349,10 @@ export default function App() {
     const created = draft.subject ? { profile, ref: draft.subject } : addPersonalRef(profile, draft.name, 'class')
     return upsertProgress(created.profile, { id: createId<ProgressRecordId>('progress'), subject: created.ref, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: created.profile.revision })
   }), [commitProfile])
+
+  const advanceProgress = useCallback(async (subject: EntityRef, displayName: string) => commitProfile((profile) => advanceClassSealProgress(profile, { subject, displayName, expectedRevision: profile.revision }), { showSavingState: false }), [commitProfile])
+
+  const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitProfile((profile) => setClassSealProgressBatch(profile, { selections, stage, expectedRevision: profile.revision }), { showSavingState: false }), [commitProfile])
 
   const updateProgressRecord = useCallback(async (recordId: ProgressRecordId, draft: ProgressDraft) => commitProfile((profile) => {
     const current = profile.progress[recordId]
@@ -544,7 +559,7 @@ export default function App() {
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const content = unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} onAdd={addProgress} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
+    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} key={profile.id} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current

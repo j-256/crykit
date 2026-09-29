@@ -433,11 +433,11 @@ function progressRecords(
       },
       displayName,
       stage: collected
-        ? { state: 'known', value: 'collected', sources: [source] }
+        ? { state: 'known', value: 'sealAcquired', sources: [source] }
         : isMastered && awaiting
-          ? { state: 'known', value: 'masteredPending', sources: [source] }
+          ? { state: 'known', value: 'mastered', sources: [source] }
           : inProgress
-            ? { state: 'known', value: 'inProgress', sources: [source] }
+            ? { state: 'known', value: 'unlocked', sources: [source] }
             : { state: 'unknown', reason: 'Source labels did not establish a stage', sources: [source] },
       unlocked: isMastered || inProgress
         ? { state: 'known', value: true, sources: [source] }

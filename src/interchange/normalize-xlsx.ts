@@ -416,11 +416,11 @@ function progressFromWorkbook(
     const source = sourceFor(digest, row)
     const id = asProgressRecordId(`progress:${digest.slice(0, 16)}:${row.rowNumber}`)
     const stage = seal === 'Collected'
-      ? { state: 'known' as const, value: 'collected' as const, sources: [source] }
+      ? { state: 'known' as const, value: 'sealAcquired' as const, sources: [source] }
       : mastery === 'Mastered' && seal === 'Awaiting collection'
-        ? { state: 'known' as const, value: 'masteredPending' as const, sources: [source] }
+        ? { state: 'known' as const, value: 'mastered' as const, sources: [source] }
         : mastery === 'In progress'
-          ? { state: 'known' as const, value: 'inProgress' as const, sources: [source] }
+          ? { state: 'known' as const, value: 'unlocked' as const, sources: [source] }
           : { state: 'unknown' as const, reason: 'The imported progress labels do not establish a stage', sources: [source] }
     progress[id] = {
       id,

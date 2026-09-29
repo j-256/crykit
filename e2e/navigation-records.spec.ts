@@ -51,10 +51,10 @@ async function addInventoryItem(page: Page, name: string) {
 }
 
 async function addProgressRecord(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Add progress', exact: true }).first().click()
-  const form = page.getByRole('dialog', { name: 'Add class progress', exact: true })
+  await page.getByRole('button', { name: 'Add other class', exact: true }).first().click()
+  const form = page.getByRole('dialog', { name: 'Add other class progress', exact: true })
   await form.getByRole('textbox', { name: 'Class display name', exact: true }).fill(name)
-  await form.getByLabel('Tracking group').selectOption('inProgress')
+  await form.getByLabel('Mastery state').selectOption('unlocked')
   await form.getByRole('button', { name: 'Save progress', exact: true }).click()
   await expect(form).not.toBeVisible()
 }

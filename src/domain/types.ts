@@ -317,7 +317,7 @@ export interface Character {
   readonly updatedAt: Timestamp
 }
 
-export type ProgressStage = 'collected' | 'masteredPending' | 'inProgress' | 'unclassified'
+export type ProgressStage = 'notAcquired' | 'unlocked' | 'mastered' | 'sealAcquired'
 
 export interface PartyProgressRecord {
   readonly id: ProgressRecordId

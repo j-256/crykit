@@ -1,14 +1,30 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import type { CatalogSnapshot, EntityRef, Knowledge, PartyProgressRecord, Profile, ProgressRecordId, ProgressStage } from '../domain/types'
-import { Badge, Button, EmptyState, Field, InlineNotice, ScreenHeader } from './components'
-import { formatRelativeDate, knowledgeTone, ownRecordValue } from './model'
+import { memo, useCallback, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import classSealUrl from '../assets/class-seal.png?url&no-inline'
+import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
+import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
+import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, type ClassSealProgressSelection } from '../domain'
+import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, PartyProgressRecord, Profile, ProgressRecordId, ProgressStage } from '../domain/types'
+import { Badge, Button, Field, InlineNotice, ScreenHeader } from './components'
+import { Icon } from './icons'
+import { formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace } from './definitions'
-import { useNavigation, type ProgressPageRoute } from './navigation'
+import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
+import { WikiSprite } from './WikiSprite'
 
-const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
-const UNKNOWN_STAGE: Knowledge<ProgressStage> = { state: 'unknown' }
+
+const STAGE_DETAILS: Readonly<Record<ProgressStage, {
+  readonly label: string
+  readonly counterLabel: string
+  readonly nextLabel: string
+}>> = Object.freeze({
+  notAcquired: { label: 'Class not acquired', counterLabel: 'Not acquired', nextLabel: 'Mark class unlocked' },
+  unlocked: { label: 'Class unlocked', counterLabel: 'Unlocked', nextLabel: 'Mark class mastered' },
+  mastered: { label: 'Class mastered', counterLabel: 'Mastered', nextLabel: 'Mark seal acquired' },
+  sealAcquired: { label: 'Seal acquired', counterLabel: 'Seals acquired', nextLabel: 'Reset to not acquired' },
+})
 
 export interface ProgressDraft {
   readonly name: string
@@ -25,30 +41,36 @@ export interface ProgressViewProps {
   readonly profile: Profile
   readonly catalogs: readonly CatalogSnapshot[]
   readonly onAdd: (draft: ProgressDraft) => Promise<void>
+  readonly onAdvance: (subject: EntityRef, displayName: string) => Promise<void>
+  readonly onSetStage: (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => Promise<void>
   readonly onUpdate: (recordId: ProgressRecordId, draft: ProgressDraft) => Promise<void>
 }
 
-function booleanSelectValue(value: Knowledge<boolean>): string {
-  return value.state === 'known' ? String(value.value) : value.state
+interface ClassSealEntry {
+  readonly key: string
+  readonly classRef: EntityRef
+  readonly sealRef: EntityRef
+  readonly classEntity: CatalogEntity
+  readonly className: string
+  readonly sealName: string
+  readonly record?: PartyProgressRecord
+  readonly stage: ProgressStage
 }
 
-function BooleanKnowledgeField({ label, value, onChange }: {
-  readonly label: string
-  readonly value: Knowledge<boolean>
-  readonly onChange: (value: Knowledge<boolean>) => void
-}) {
-  const specialState = value.state === 'conflicting' || value.state === 'notApplicable' ? value.state : undefined
-  return <Field label={label}><select onChange={(event) => onChange(event.target.value === 'true' ? { state: 'known', value: true } : event.target.value === 'false' ? { state: 'known', value: false } : { state: 'unknown' })} value={booleanSelectValue(value)}><option value="unknown">Unknown</option><option value="true">Yes</option><option value="false">No</option>{specialState === 'conflicting' && <option disabled value="conflicting">Conflicting claims</option>}{specialState === 'notApplicable' && <option disabled value="notApplicable">Not applicable</option>}</select></Field>
+interface QueuedClassSealAdvance {
+  readonly count: number
+  readonly stage: ProgressStage
 }
 
 function progressDraft(record?: PartyProgressRecord): ProgressDraft {
+  const facts = classSealStageFacts('notAcquired')
   return {
     name: record?.displayName ?? '',
     ...(record ? { subject: record.subject } : {}),
-    stage: record?.stage ?? UNKNOWN_STAGE,
-    unlocked: record?.unlocked ?? UNKNOWN_BOOLEAN,
-    partyMastery: record?.partyMastery ?? UNKNOWN_BOOLEAN,
-    collection: record?.collection ?? UNKNOWN_BOOLEAN,
+    stage: record?.stage ?? facts.stage,
+    unlocked: record?.unlocked ?? facts.unlocked,
+    partyMastery: record?.partyMastery ?? facts.partyMastery,
+    collection: record?.collection ?? facts.collection,
     masterLocation: record?.masterLocation ?? UNKNOWN_LOCATION,
     ...(record?.observedAt ? { observedAt: record.observedAt.slice(0, 10) } : {}),
   }
@@ -64,7 +86,6 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const stageValue = draft.stage.state === 'known' ? draft.stage.value : draft.stage.state
-  const stageSpecialState = draft.stage.state === 'conflicting' || draft.stage.state === 'notApplicable' ? draft.stage.state : undefined
   const locationSpecialState = draft.masterLocation.state === 'conflicting' || draft.masterLocation.state === 'notApplicable' ? draft.masterLocation.state : undefined
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -72,47 +93,197 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
     setError(undefined)
     try { await onSubmit(draft) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The progress observation could not be saved.') } finally { setBusy(false) }
   }
+  const setStage = (stage: ProgressStage) => setDraft({ ...draft, ...classSealStageFacts(stage) })
   return <form className="stack" onSubmit={submit}>
     <DefinitionPickerField allowedKinds={['class']} autoFocus disabled={Boolean(initial)} hint={initial ? 'The linked subject identity stays unchanged while its observations are edited.' : 'Choose an exact class definition or create a personal class.'} label="Class reference" onChange={(ref) => { const option = findDefinitionOption(options, ref); setDraft({ ...draft, subject: ref ?? undefined, name: option?.name ?? draft.name }) }} routeKey="class-reference" value={draft.subject}/>
     <Field label="Class display name" required><input onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Enter the class name" required value={draft.name}/></Field>
-    <Field hint="Unknown remains distinct from the unclassified tracking group." label="Tracking group"><select onChange={(event) => setDraft({ ...draft, stage: event.target.value === 'unknown' ? UNKNOWN_STAGE : { state: 'known', value: event.target.value as ProgressStage } })} value={stageValue}><option value="unknown">Unknown</option><option value="collected">Seal collected</option><option value="masteredPending">Mastered, collection pending</option><option value="inProgress">In progress</option><option value="unclassified">Unclassified</option>{stageSpecialState === 'conflicting' && <option disabled value="conflicting">Conflicting claims</option>}{stageSpecialState === 'notApplicable' && <option disabled value="notApplicable">Not applicable</option>}</select></Field>
-    <div className="grid-3"><BooleanKnowledgeField label="Unlocked" onChange={(unlocked) => setDraft({ ...draft, unlocked })} value={draft.unlocked}/><BooleanKnowledgeField label="Party mastery" onChange={(partyMastery) => setDraft({ ...draft, partyMastery })} value={draft.partyMastery}/><BooleanKnowledgeField label="Seal collected" onChange={(collection) => setDraft({ ...draft, collection })} value={draft.collection}/></div>
+    <Field hint="Changing this state records consistent unlock, mastery, and seal facts for the playthrough." label="Mastery state"><select onChange={(event) => setStage(event.target.value as ProgressStage)} value={stageValue}>{draft.stage.state !== 'known' && <option disabled value={stageValue}>Imported state needs review</option>}{CLASS_SEAL_STAGES.map(stage => <option key={stage} value={stage}>{STAGE_DETAILS[stage].label}</option>)}</select></Field>
     <div className="field"><span className="field__label">Master location</span><select aria-label="Master location certainty" onChange={(event) => setDraft({ ...draft, masterLocation: event.target.value === 'known' ? { state: 'known', value: '' } : UNKNOWN_LOCATION })} value={draft.masterLocation.state}><option value="unknown">Unknown</option><option value="known">Known</option>{locationSpecialState === 'conflicting' && <option disabled value="conflicting">Conflicting claims</option>}{locationSpecialState === 'notApplicable' && <option disabled value="notApplicable">Not applicable</option>}</select>{draft.masterLocation.state === 'known' && <input aria-label="Master location" onChange={(event) => setDraft({ ...draft, masterLocation: { state: 'known', value: event.target.value } })} placeholder="Enter the observed destination or area" required value={draft.masterLocation.value}/>}<span className="field__hint">A destination or area is not a verified route.</span></div>
     <Field hint={initial?.observedAt ? 'Clear this field to explicitly remove the saved observation date.' : undefined} label="Observed on"><input onChange={(event) => setDraft({ ...draft, observedAt: event.target.value || (initial?.observedAt ? null : undefined) })} type="date" value={draft.observedAt ?? ''}/></Field>
-    <InlineNotice title="Dimensions stay separate">Collecting a seal does not change per-character mastery or create an exact accessory count.</InlineNotice>
+    <InlineNotice title="Playthrough-level progress">This state does not change any character's mastery, learned skills, builds, teams, or inventory quantities.</InlineNotice>
     {initial && <InlineNotice title="Stable progress record">Saving updates this record and keeps its exact subject reference. A matching display name never creates or links another identity.</InlineNotice>}
     {error && <InlineNotice title="Progress not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
     <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="check" type="submit">{busy ? 'Saving...' : initial ? 'Save changes' : 'Save progress'}</Button></div>
   </form>
 }
 
-const groups: readonly { readonly stage: ProgressStage; readonly title: string; readonly description: string }[] = [
-  { stage: 'inProgress', title: 'In progress', description: 'Classes actively being learned or investigated' },
-  { stage: 'masteredPending', title: 'Mastered, collection pending', description: 'Party milestone recorded; seal remains separate' },
-  { stage: 'collected', title: 'Collected', description: 'Seal collection recorded' },
-  { stage: 'unclassified', title: 'Unclassified', description: 'Records awaiting a clearer observation' },
-]
-
-export function ProgressView({ profile, onAdd, onUpdate }: ProgressViewProps) {
+function ReferenceLink({ children, refValue }: { readonly children: ReactNode; readonly refValue: EntityRef }) {
   const navigation = useNavigation()
+  const route: AppRoute = { page: { page: 'reference', view: 'detail', ref: refValue }, overlays: [], query: {} }
+  return <a href={navigation.href(route)} onClick={(event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    navigation.navigate(route)
+  }}>{children}</a>
+}
+
+function findTrackerCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
+  return catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === BUNDLED_CATALOG_REVISION_ID)
+    ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
+}
+
+function boardEntries(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly ClassSealEntry[] {
+  const catalog = findTrackerCatalog(catalogs)
+  if (!catalog) return []
+  const recordsBySubject = new Map(Object.values(profile.progress).map(record => [logicalEntityKey(profile, record.subject), record]))
+  return VANILLA_CLASS_SEAL_PAIRS.flatMap(pair => {
+    const classEntity = catalog.entities[pair.classEntityId]
+    const sealEntity = catalog.entities[pair.sealEntityId]
+    if (classEntity?.kind !== 'class' || sealEntity?.kind !== 'item') return []
+    const baseClassRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: classEntity.id } as const
+    const baseSealRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: sealEntity.id } as const
+    const classRef = preferredDefinitionRef(profile, baseClassRef)
+    const sealRef = preferredDefinitionRef(profile, baseSealRef)
+    const key = logicalEntityKey(profile, classRef)
+    const record = recordsBySubject.get(key)
+    return [{
+      key,
+      classRef,
+      sealRef,
+      classEntity,
+      className: resolveEntity(profile, catalogs, classRef)?.name ?? classEntity.name,
+      sealName: resolveEntity(profile, catalogs, sealRef)?.name ?? sealEntity.name,
+      record,
+      stage: classSealStage(record),
+    }]
+  })
+}
+
+const ClassSealTile = memo(function ClassSealTile({ entry, pending, selecting, selected, onAdvance, onEdit, onToggleSelection }: {
+  readonly entry: ClassSealEntry
+  readonly pending: boolean
+  readonly selecting: boolean
+  readonly selected: boolean
+  readonly onAdvance: (entry: ClassSealEntry) => void
+  readonly onEdit: (recordId: ProgressRecordId) => void
+  readonly onToggleSelection: (key: string) => void
+}) {
+  const detail = STAGE_DETAILS[entry.stage]
+  const recordId = entry.record?.id
+  const label = selecting ? `${entry.className}: ${selected ? 'selected' : 'not selected'} for bulk edit. Current state: ${detail.label}` : `${entry.className}: ${detail.label}. ${detail.nextLabel}`
+  return <article aria-busy={pending || undefined} className="class-seal-tile" data-selected={selected || undefined} data-stage={entry.stage}>
+    <button aria-label={label} aria-pressed={selecting ? selected : undefined} className="class-seal-tile__advance" onClick={() => selecting ? onToggleSelection(entry.key) : onAdvance(entry)} type="button">
+      {selecting && <span aria-hidden="true" className="class-seal-tile__selection-mark">{selected && <Icon name="check"/>}</span>}
+      <span className="class-seal-tile__art" aria-hidden="true">
+        <span className="class-seal-tile__seal"><img alt="" decoding="async" src={classSealUrl}/></span>
+        <span className="class-seal-tile__portrait"><WikiSprite catalogId={STARTER_CATALOG_ID} detailed entity={entry.classEntity}/></span>
+      </span>
+      <span className="class-seal-tile__copy">
+        <strong>{entry.className}</strong>
+        <span className="class-seal-tile__state">{detail.label}</span>
+        <small>{selecting ? selected ? 'Selected for bulk edit' : 'Select for bulk edit' : detail.nextLabel}</small>
+      </span>
+    </button>
+    <div className="class-seal-tile__links">
+      <ReferenceLink refValue={entry.classRef}>{entry.className}</ReferenceLink>
+      <ReferenceLink refValue={entry.sealRef}>{entry.sealName}</ReferenceLink>
+      {recordId && <button onClick={() => onEdit(recordId)} type="button">Details</button>}
+    </div>
+  </article>
+}, (previous, next) => previous.pending === next.pending
+  && previous.selecting === next.selecting
+  && previous.selected === next.selected
+  && previous.entry.stage === next.entry.stage
+  && previous.entry.className === next.entry.className
+  && previous.entry.sealName === next.entry.sealName
+  && previous.entry.classEntity === next.entry.classEntity
+  && previous.entry.record?.id === next.entry.record?.id
+  && entityDefinitionKey(previous.entry.classRef) === entityDefinitionKey(next.entry.classRef)
+  && entityDefinitionKey(previous.entry.sealRef) === entityDefinitionKey(next.entry.sealRef)
+  && previous.onAdvance === next.onAdvance
+  && previous.onEdit === next.onEdit
+  && previous.onToggleSelection === next.onToggleSelection)
+
+export function ProgressView({ profile, catalogs, onAdd, onAdvance, onSetStage, onUpdate }: ProgressViewProps) {
+  const navigation = useNavigation()
+  const [queuedAdvances, setQueuedAdvances] = useState<ReadonlyMap<string, QueuedClassSealAdvance>>(() => new Map())
+  const [selecting, setSelecting] = useState(false)
+  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string>()
   const records = Object.values(profile.progress)
+  const entries = useMemo(() => boardEntries(profile, catalogs), [catalogs, profile])
+  const displayedEntries = useMemo(() => entries.map((entry) => {
+    const queued = queuedAdvances.get(entry.key)
+    return queued ? { ...entry, stage: queued.stage } : entry
+  }), [entries, queuedAdvances])
+  const queuedAdvanceCount = useMemo(() => [...queuedAdvances.values()].reduce((total, queued) => total + queued.count, 0), [queuedAdvances])
   const page = navigation.route.page.page === 'progress' ? navigation.route.page : { page: 'progress', view: 'list' } as const
   const adding = page.view === 'new'
   const editing = page.view === 'edit' ? ownRecordValue(profile.progress, page.recordId) : undefined
   const missingRecord = page.view === 'edit' && !editing
-  const navigate = (next: ProgressPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] })
-  const grouped = useMemo(() => Object.fromEntries(groups.map((group) => [group.stage, records.filter((record) => record.stage.state === 'known' ? record.stage.value === group.stage : group.stage === 'unclassified')])), [records])
+  const navigate = useCallback((next: ProgressPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }), [navigation])
+  const boardKeys = useMemo(() => new Set(entries.map(entry => logicalEntityKey(profile, entry.classRef))), [entries, profile])
+  const otherRecords = records.filter(record => !boardKeys.has(logicalEntityKey(profile, record.subject)))
+  const counts = Object.fromEntries(CLASS_SEAL_STAGES.map(stage => [stage, displayedEntries.filter(entry => entry.stage === stage).length])) as Record<ProgressStage, number>
   const add = async (draft: ProgressDraft) => { await onAdd(draft); navigation.close() }
   const update = async (draft: ProgressDraft) => { if (!editing) return; await onUpdate(editing.id, draft); navigation.close() }
+  const advance = useCallback((entry: ClassSealEntry) => {
+    setQueuedAdvances((current) => {
+      const queued = current.get(entry.key)
+      const next = new Map(current)
+      next.set(entry.key, {
+        count: (queued?.count ?? 0) + 1,
+        stage: nextClassSealStage(queued?.stage ?? entry.stage),
+      })
+      return next
+    })
+    setSaveError(undefined)
+    void onAdvance(entry.classRef, entry.className).catch((reason: unknown) => {
+      setSaveError(current => current ?? (reason instanceof Error ? reason.message : `The ${entry.className} progress could not be saved.`))
+    }).finally(() => {
+      setQueuedAdvances((current) => {
+        const queued = current.get(entry.key)
+        if (!queued) return current
+        const updated = new Map(current)
+        if (queued.count === 1) {
+          updated.delete(entry.key)
+          return updated
+        }
+        updated.set(entry.key, { ...queued, count: queued.count - 1 })
+        return updated
+      })
+    })
+  }, [onAdvance])
+  const edit = useCallback((recordId: ProgressRecordId) => navigate({ page: 'progress', view: 'edit', recordId }), [navigate])
+  const toggleSelection = useCallback((key: string) => setSelectedKeys(current => {
+    const next = new Set(current)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  }), [])
+  const cancelSelection = useCallback(() => {
+    setSelecting(false)
+    setSelectedKeys(new Set())
+  }, [])
+  const applyBulkStage = async (stage: ProgressStage) => {
+    const selections = entries.filter(entry => selectedKeys.has(entry.key)).map(entry => ({ subject: entry.classRef, displayName: entry.className }))
+    if (selections.length === 0) return
+    setBulkSaving(true)
+    setSaveError(undefined)
+    try {
+      await onSetStage(selections, stage)
+      setSelectedKeys(new Set())
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : 'The selected class progress could not be saved.')
+    } finally { setBulkSaving(false) }
+  }
   return <>
-    <ScreenHeader actions={<Button icon="plus" onClick={() => navigate({ page: 'progress', view: 'new' })}>Add progress</Button>} description="Track class unlocks, party mastery, collection, and individual learning as separate facts." eyebrow="Classes & collections" title="Progress"/>
+    <ScreenHeader actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} description="Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough." eyebrow="Class mastery seals" title="Progress"/>
     {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another profile. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
-    {records.length === 0 ? <EmptyState aside={<>Imported party progress belongs here only after a review. It will not populate characters, inventory counts, or builds.</>} description="Record a class milestone manually, or import a playthrough record and preview each progress group before saving." icon="crystal" title="No milestones recorded"><Button icon="plus" onClick={() => navigate({ page: 'progress', view: 'new' })}>Add class progress</Button></EmptyState> : <div className="progress-groups">{groups.map((group) => {
-      const rows = grouped[group.stage] ?? []
-      if (!rows.length) return null
-      return <section className="progress-group" key={group.stage}><header className="progress-group__header"><div><h2>{group.title}</h2><p>{group.description}</p></div><Badge tone={group.stage === 'collected' ? 'positive' : group.stage === 'unclassified' ? 'warning' : 'info'}>{rows.length}</Badge></header>{rows.map((record) => <article className="progress-row" key={record.id}><div><strong>{record.displayName}</strong><small>{record.observedAt ? `Observed ${formatRelativeDate(record.observedAt)}` : 'Observation date unknown'}</small></div><Badge tone={knowledgeTone(record.stage)}>{record.stage.state === 'known' ? group.title : record.stage.state === 'conflicting' ? 'Stage claims conflict' : 'Stage unknown'}</Badge><div>{group.stage === 'collected' ? <small>Master location hidden in this progress view</small> : <><strong>{record.masterLocation.state === 'known' ? record.masterLocation.value : record.masterLocation.state === 'conflicting' ? 'Location claims conflict' : 'Master location unknown'}</strong><small>Destination only; route not inferred</small></>}</div><Button onClick={() => navigate({ page: 'progress', view: 'edit', recordId: record.id })} tone="quiet">Edit</Button></article>)}</section>
-    })}</div>}
-    <Sheet description="Record only the milestone dimensions you have actually observed." onClose={() => navigation.close()} open={adding} title="Add class progress"><ProgressForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
-    <Sheet description="Update this progress record without changing its linked subject identity." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit progress record">{editing && <ProgressForm initial={editing} key={editing.id} onCancel={() => navigation.close()} onSubmit={update}/>}</Sheet>
+    {saveError && <InlineNotice title="Progress not saved" tone="danger">{saveError}</InlineNotice>}
+    {selecting && <section aria-busy={bulkSaving} aria-label="Bulk edit class mastery" className="class-seal-bulk" data-saving={bulkSaving || undefined}>
+      <div aria-live="polite" className="class-seal-bulk__summary"><strong>{selectedKeys.size} selected</strong><small>{bulkSaving ? 'Saving selected classes...' : 'Select classes below, then set their shared state.'}</small></div>
+      <div className="class-seal-bulk__selection-actions"><Button disabled={bulkSaving || selectedKeys.size === entries.length} onClick={() => setSelectedKeys(new Set(entries.map(entry => entry.key)))} tone="secondary">Select all</Button><Button disabled={bulkSaving || selectedKeys.size === 0} onClick={() => setSelectedKeys(new Set())} tone="quiet">Clear</Button><Button disabled={bulkSaving} onClick={cancelSelection} tone="quiet">Done</Button></div>
+      <div aria-label="Set selected classes to" className="class-seal-bulk__states" role="group"><span>Set selected to</span>{CLASS_SEAL_STAGES.map(stage => <Button className="class-seal-bulk__state" data-stage={stage} disabled={bulkSaving || selectedKeys.size === 0} key={stage} onClick={() => void applyBulkStage(stage)} tone={stage === 'sealAcquired' ? 'primary' : 'secondary'}>{STAGE_DETAILS[stage].label}</Button>)}</div>
+    </section>}
+    <section aria-label="Class mastery seal totals" className="class-seal-summary">
+      <div className="class-seal-summary__primary"><span className="class-seal-summary__icon"><Icon name="crystal"/></span><strong>{counts.sealAcquired}</strong><span>Seals acquired</span><small>of {entries.length} vanilla classes</small></div>
+      <dl className="class-seal-summary__stages">{CLASS_SEAL_STAGES.filter(stage => stage !== 'sealAcquired').map(stage => <div data-stage={stage} key={stage}><dt>{STAGE_DETAILS[stage].counterLabel}</dt><dd>{counts[stage]}</dd></div>)}</dl>
+    </section>
+    {displayedEntries.length ? <section aria-label="Vanilla class mastery board" className="class-seal-board">{displayedEntries.map(entry => <ClassSealTile entry={entry} key={entry.key} onAdvance={advance} onEdit={edit} onToggleSelection={toggleSelection} pending={queuedAdvances.has(entry.key)} selected={selectedKeys.has(entry.key)} selecting={selecting}/>)}</section> : <InlineNotice title="Vanilla class references unavailable" tone="warning">The bundled vanilla class and seal references are not available in this workspace. Import or restore the bundled catalog before recording this checklist.</InlineNotice>}
+    <section className="progress-other"><div className="split"><div><h2>Other class records</h2><p>Personal classes and imported records outside the vanilla seal board remain separate.</p></div><Button icon="plus" onClick={() => navigate({ page: 'progress', view: 'new' })} tone="secondary">Add other class</Button></div>{otherRecords.length ? <div className="progress-other__rows">{otherRecords.map(record => <article className="progress-other__row" key={record.id}><div><strong>{record.displayName}</strong><small>{record.observedAt ? `Observed ${formatRelativeDate(record.observedAt)}` : 'Observation date unknown'}</small></div><Badge tone="info">{STAGE_DETAILS[classSealStage(record)].label}</Badge><Button onClick={() => navigate({ page: 'progress', view: 'edit', recordId: record.id })} tone="quiet">Details</Button></article>)}</div> : <p className="progress-other__empty">No additional class records.</p>}</section>
+    <Sheet description="Record a class that is not part of the vanilla mastery-seal board." onClose={() => navigation.close()} open={adding} title="Add other class progress"><ProgressForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
+    <Sheet description="Update secondary details without changing the linked class identity." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit progress record">{editing && <ProgressForm initial={editing} key={editing.id} onCancel={() => navigation.close()} onSubmit={update}/>}</Sheet>
   </>
 }
