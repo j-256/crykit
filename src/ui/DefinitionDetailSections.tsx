@@ -6,7 +6,7 @@ import { knowledgeTone } from './model'
 
 export function DefinitionFactsPanel({ facts, renderValue, children }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode }) {
   return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list">{facts.map(([field, value]) => {
-    const content = <><KnowledgeValue field={field} value={value}/><Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>{value.state === 'known' && Boolean(value.sources?.length) && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences sources={value.sources!}/></details>}</>
+    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{value.state === 'known' && Boolean(value.sources?.length) && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences sources={value.sources!}/></details>}</>
     return <div className={`definition-row${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{field}</dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
   })}</dl> : <InlineNotice title="No definition facts">Unrecorded facts remain unknown. Add a fact in the definition editor.</InlineNotice>}{children}</div></section>
 }
@@ -15,7 +15,7 @@ export function DefinitionPlanningPanel({ definition }: { definition: CatalogEnt
   const fields: readonly [string, Knowledge<unknown> | undefined][] = [
     ['Slot kinds', definition.slotKinds], ['PP cost', definition.ppCost], ['Requirements', definition.requirements], ['Grants', definition.grants], ['Listed contributions', definition.listedContributions ? { state: 'known', value: definition.listedContributions } : undefined],
   ]
-  return <section className="panel" aria-label="Planning fields"><div className="panel__header"><div><h3>Planning fields</h3><p>Values used for validation; missing values stay unknown</p></div></div><div className="panel__body"><dl className="definition-list">{fields.map(([field, value]) => <div className={`definition-row${value?.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{field}</dt><dd>{value ? <><KnowledgeValue field={field} value={value}/><Badge tone={knowledgeTone(value)}>{value.state}</Badge></> : 'Not supplied'}</dd></div>)}</dl></div></section>
+  return <section className="panel" aria-label="Planning fields"><div className="panel__header"><div><h3>Planning fields</h3><p>Values used for validation; missing values stay unknown</p></div></div><div className="panel__body"><dl className="definition-list">{fields.map(([field, value]) => <div className={`definition-row${value?.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{field}</dt><dd>{value ? <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state}</Badge>}</> : 'Not supplied'}</dd></div>)}</dl></div></section>
 }
 
 export function DefinitionSourcesPanel({ sources, children }: { sources: readonly SourceRef[]; children?: ReactNode }) {

@@ -24,6 +24,7 @@ test('uses matching detail sections and typed editors for catalog and personal d
   await page.goto(RAPIER)
   const sections = ['Definition facts', 'Source trail', 'Planning fields', 'Imported claims']
   for (const name of sections) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Planning fields', exact: true }).locator('.badge').getByText('known', { exact: true })).toHaveCount(0)
   const artwork = await page.locator('.reference-title img').getAttribute('src')
   const catalog = await edit(page)
   await catalog.getByLabel('Fact to edit').selectOption('Attack')

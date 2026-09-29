@@ -32,11 +32,11 @@ function locationRow(page: Page) {
   return page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Location$/ }) })
 }
 
-test('equivalent source wording is shown as one known fact', async ({ page }) => {
+test('equivalent source wording is shown as one fact with known implied', async ({ page }) => {
   await page.goto(EQUIVALENT_ITEM_PATH)
   const location = locationRow(page)
   await expect(location.getByText('Chest: Shoudu Province', { exact: true })).toBeVisible()
-  await expect(location.getByText('known', { exact: true })).toBeVisible()
+  await expect(location.locator('.badge').getByText('known', { exact: true })).toHaveCount(0)
   await expect(location.getByText('differing source values')).toHaveCount(0)
   await expect(page.getByText('Source descriptions differ', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Review source differences', exact: true })).toHaveCount(0)
@@ -53,6 +53,7 @@ test('conflicting fields expose every claim and protect explicit review choices'
   await expect(location.getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
   await expect(location.getByRole('link', { name: 'Community wiki · Artisan Rapier', exact: true })).toHaveAttribute('href', ITEM_SOURCE)
   await expect(location.getByRole('link', { name: 'Community wiki · Rapiers/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
+  await expect(location.locator('.badge').getByText('Sources differ', { exact: true })).toBeVisible()
   await expect(location.getByText(/revision 11808/)).toBeVisible()
   await expect(location.getByText(/revision 13313/)).toBeVisible()
   await expect(page.getByText('No auxiliary claims were imported. Field-level claims appear with their values above.', { exact: true })).toBeVisible()
