@@ -1,4 +1,5 @@
-import { forwardRef, useMemo, useState, type ButtonHTMLAttributes, type PropsWithChildren, type ReactNode } from 'react'
+import { forwardRef, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
+import { Dropdown } from './Dropdown'
 import { Icon, type IconName } from './icons'
 
 export function Button({ children, className = '', tone = 'primary', icon, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: 'primary' | 'secondary' | 'quiet' | 'danger'; icon?: IconName }) {
@@ -41,7 +42,7 @@ export interface FacetOptionDisplay {
   readonly detail?: string
 }
 
-export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption, alwaysSearch = false }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay; alwaysSearch?: boolean }) {
+export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption, alwaysSearch = false, searchInputRef }: { groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay; alwaysSearch?: boolean; searchInputRef?: RefObject<HTMLInputElement | null> }) {
   const [query, setQuery] = useState('')
   const searchable = alwaysSearch || options.length > FACET_OPTION_DOM_LIMIT
   const filtered = useMemo(() => {
@@ -54,7 +55,7 @@ export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected
   const visible = filtered.slice(0, FACET_OPTION_DOM_LIMIT)
   const omitted = filtered.length - visible.length
   return <div className="bounded-facet-options">
-    {searchable && <div className="search-field bounded-facet-options__search"><Icon name="search"/><input aria-label={searchLabel} onChange={(event) => setQuery(event.target.value)} placeholder="Search this facet" type="search" value={query}/></div>}
+    {searchable && <div className="search-field bounded-facet-options__search"><Icon name="search"/><input aria-label={searchLabel} onChange={(event) => setQuery(event.target.value)} placeholder="Search this facet" ref={searchInputRef} type="search" value={query}/></div>}
     <div aria-label={groupLabel} className="filter-chips" role="group"><button aria-pressed={selected.length === 0} className="filter-chip" onClick={onClear} type="button"><span className="filter-chip__label">All</span></button>{visible.map((option) => {
       const display = formatOption?.(option.value) ?? { label: option.value }
       const accessibleLabel = formatOption ? `${display.label}. Full source: ${option.value}. ${option.count} matches` : `${option.value} (${option.count})`
@@ -62,6 +63,23 @@ export function BoundedFacetOptions({ groupLabel, searchLabel, options, selected
     })}</div>
     {omitted > 0 && <small className="bounded-facet-options__summary" role="status">Showing the first {visible.length} of {filtered.length} options. Search this facet to reach the remaining {omitted}.</small>}
     {searchable && filtered.length === 0 && <small className="bounded-facet-options__summary" role="status">No facet options match this search.</small>}
+  </div>
+}
+
+export function FacetDropdown({ label, allLabel, groupLabel, searchLabel, options, selected, onClear, onToggle, formatOption }: { label: string; allLabel: string; groupLabel: string; searchLabel: string; options: readonly { value: string; count: number }[]; selected: readonly string[]; onClear: () => void; onToggle: (value: string) => void; formatOption?: (value: string) => FacetOptionDisplay }) {
+  const [open, setOpen] = useState(false)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const dropdownId = useId()
+  const selectedOptions = options.filter((option) => selected.includes(option.value))
+  const summary = selectedOptions.length === 0 ? allLabel : selectedOptions.length === 1 ? (formatOption?.(selectedOptions[0]!.value).label ?? selectedOptions[0]!.value) : `${selectedOptions.length} selected`
+  const close = () => setOpen(false)
+  return <div className="facet-dropdown-field">
+    <h3>{label}</h3>
+    <button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`${label}: ${summary}`} className="facet-dropdown-trigger" onClick={() => setOpen((value) => !value)} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) } }} ref={anchorRef} type="button"><span><strong>{summary}</strong><small>{options.length} {options.length === 1 ? 'option' : 'options'}</small></span><Icon name="chevron-down"/></button>
+    <Dropdown anchorRef={anchorRef} id={dropdownId} initialFocusRef={searchRef} onClose={close} onDismiss={close} open={open} title={`Filter by ${label.toLocaleLowerCase()}`}>
+      <div className="facet-dropdown__content"><BoundedFacetOptions alwaysSearch formatOption={formatOption} groupLabel={groupLabel} onClear={onClear} onToggle={onToggle} options={options} searchInputRef={searchRef} searchLabel={searchLabel} selected={selected}/></div>
+    </Dropdown>
   </div>
 }
 

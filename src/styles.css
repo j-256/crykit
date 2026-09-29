@@ -262,6 +262,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .filter-chip__detail { color: var(--text-faint); font-size: .63rem; font-weight: 500; line-height: 1.3; }
 .filter-chip__count { min-width: 25px; padding: 2px 6px; color: var(--text-faint); border-radius: var(--radius-sm); background: rgba(222, 236, 242, .05); font-size: .63rem; text-align: center; }
 .bounded-facet-options__summary { display: block; overflow-wrap: anywhere; color: var(--text-faint); font-size: .67rem; line-height: 1.4; }
+.facet-dropdown-field { min-width: 0; }
+.facet-dropdown-trigger { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(17, 24, 30, .45); text-align: left; }
+.facet-dropdown-trigger:hover, .facet-dropdown-trigger[aria-expanded="true"] { border-color: rgba(123, 216, 243, .52); background: rgba(78, 166, 207, .08); }
+.facet-dropdown-trigger > span { min-width: 0; }
+.facet-dropdown-trigger strong, .facet-dropdown-trigger small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facet-dropdown-trigger strong { font-size: .78rem; }
+.facet-dropdown-trigger small { margin-top: 3px; color: var(--text-faint); font-size: .64rem; }
+.facet-dropdown-trigger > svg { width: 16px; height: 16px; transition: transform .14s ease; }
+.facet-dropdown-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.facet-dropdown__content, .facet-dropdown__content .bounded-facet-options { min-height: 0; display: flex; flex-direction: column; }
+.facet-dropdown__content .bounded-facet-options__search { flex: none; margin: 8px; }
+.facet-dropdown__content .bounded-facet-options .filter-chips { padding: 0 8px 8px; }
 .list { display: grid; margin: 0; padding: 0; list-style: none; }
 .list-row { min-height: 74px; display: grid; grid-template-columns: minmax(180px, 1.5fr) minmax(110px, .7fr) minmax(140px, 1fr) auto; align-items: center; gap: 18px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
 .list-row:last-child { border-bottom: 0; }
@@ -614,8 +626,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .reference-card, .reference-card h3, .reference-card p, .reference-card__meta .badge { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .mobile-filter-toggle { display: none; }
 .reference-filter-options { display: block; }
-.inventory-facets { display: grid; gap: 12px; padding-block: 12px; }
+.inventory-facets { display: grid; grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(170px, 220px)); align-items: end; gap: 12px; padding-block: 12px; }
 .inventory-facets h3 { margin-bottom: 7px; font-family: inherit; font-size: .69rem; letter-spacing: .06em; text-transform: uppercase; }
+.inventory-facets__state { min-width: 0; }
+.inventory-state-filters { flex-wrap: wrap; overflow: visible; }
+.list-row__primary .inventory-item-label { min-height: 32px; display: flex; align-items: center; gap: 9px; }
+.inventory-item-label > .game-icon, .inventory-item-label > .wiki-sprite { width: 32px; min-height: 32px; height: 32px; flex: 0 0 32px; padding: 3px; transform: translateY(1px); }
+.inventory-item-label > .wiki-sprite img { max-width: 24px; max-height: 26px; object-fit: contain; }
+.inventory-item-label__name { min-width: 0; }
 
 .sheet-dialog { width: min(600px, calc(100% - 32px)); max-width: none; height: fit-content; max-height: calc(100dvh - 48px); margin: auto; padding: 0; overflow: hidden; color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--ink-900); box-shadow: var(--shadow); animation: modal-in .14s ease both; }
 .sheet-dialog::backdrop { background: rgba(10, 15, 20, .5); }
@@ -734,6 +752,8 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .empty-state__aside { grid-column: 2; }
   .empty-state--inventory { padding-right: 36px; }
   .empty-state--inventory::after { display: none; }
+  .inventory-facets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-facets__state { grid-column: 1 / -1; }
   .screen-header { align-items: flex-start; flex-direction: column; gap: 18px; }
   .workspace-grid { grid-template-columns: minmax(0, 1fr) 290px; }
 }

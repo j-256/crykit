@@ -329,7 +329,9 @@ test('inventory facets and search survive browser back navigation', async ({ pag
     await form.getByRole('button', { name: 'Add item', exact: true }).click()
     await expect(form).not.toBeVisible()
   }
+  await page.getByRole('button', { name: 'Linked category: All categories', exact: true }).click()
   await page.getByRole('group', { name: 'Inventory category filters', exact: true }).getByRole('button', { name: 'Staff (1)', exact: true }).click()
+  await page.keyboard.press('Escape')
   await expect(page.getByText('Reed Staff', { exact: true })).toBeVisible()
   await expect(page.getByText('Paper Shield', { exact: true })).not.toBeVisible()
   await page.getByLabel('Search inventory').fill('synthetic staff')
@@ -338,6 +340,7 @@ test('inventory facets and search survive browser back navigation', async ({ pag
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await expect(page.getByLabel('Search inventory')).toHaveValue('synthetic staff')
+  await page.getByRole('button', { name: 'Linked category: Staff', exact: true }).click()
   await expect(page.getByRole('group', { name: 'Inventory category filters', exact: true }).getByRole('button', { name: 'Staff (1)', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Reed Staff', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

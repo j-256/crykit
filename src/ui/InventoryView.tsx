@@ -2,8 +2,9 @@ import { DefinitionArtwork } from './GameIcon'
 import { useCallback, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { entityDefinitionKey, partitionQuery } from '../domain'
 import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
-import { Badge, BoundedFacetOptions, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader } from './components'
+import { Badge, Button, EmptyState, FacetDropdown, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
+import { expandCategoryFacetValues, groupCategoryFacetValues, selectedCategoryFacetValues } from './inventory-facets'
 import { activeRuleset, entityName, formatRelativeDate, knowledgeLabel, ownRecordValue, quantityLabel } from './model'
 import { INVENTORY_PAGE_SIZE, ROUTE_MAX_RESULT_LIMIT, commitInventoryRouteState, readInventoryRouteState, type InventoryRouteState } from './route-state'
 import { buildFacetOptions, buildReferenceSearchItems } from './search'
@@ -11,6 +12,7 @@ import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
 import { useNavigation, type InventoryPageRoute } from './navigation'
 import { DefinitionModLabel } from './DefinitionModLabel'
+import { sourceDisplay } from './source-display'
 
 export interface InventoryDraft {
   readonly name: string
@@ -156,14 +158,23 @@ export interface InventoryViewProps {
   readonly onOpenData: () => void
 }
 
-function categoryFacetValues(option: DefinitionOption | undefined) {
-  const strings = (value: unknown) => typeof value === 'string'
+function stringFacetValues(value: unknown) {
+  return typeof value === 'string'
     ? [value]
     : Array.isArray(value)
       ? value.filter((entry): entry is string => typeof entry === 'string')
       : []
-  if (option?.category?.state === 'known') return strings(option.category.value)
-  if (option?.category?.state === 'conflicting') return option.category.claims.flatMap((claim) => strings(claim.value))
+}
+
+function categoryFacetValues(option: DefinitionOption | undefined) {
+  if (option?.category?.state === 'known') return stringFacetValues(option.category.value)
+  if (option?.category?.state === 'conflicting') return option.category.claims.flatMap((claim) => stringFacetValues(claim.value))
+  return []
+}
+
+function categoryQueryValues(value: QueryValue | undefined) {
+  if (value?.state === 'known') return stringFacetValues(value.value)
+  if (value?.state === 'conflicting') return value.claims.flatMap((claim) => stringFacetValues(claim.value))
   return []
 }
 
@@ -206,14 +217,12 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     }
     return [...linked.values()]
   }, [positions, referenceByDefinition, referenceItems])
-  const categoryOptions = useMemo(() => {
-    const counts = new Map(buildFacetOptions(linkedReferenceItems, 'category').map((option) => [option.value, option.count]))
-    for (const position of positions) {
-      if (position.ref.kind !== 'personal') continue
-      for (const value of new Set(categoryFacetValues(optionByDefinition.get(entityDefinitionKey(position.ref))))) counts.set(value, (counts.get(value) ?? 0) + 1)
-    }
-    return [...counts].map(([value, count]) => ({ value, count })).sort((left, right) => left.value.localeCompare(right.value))
-  }, [linkedReferenceItems, optionByDefinition, positions])
+  const categoryGroups = useMemo(() => groupCategoryFacetValues(positions.map((position) => {
+    const key = entityDefinitionKey(position.ref)
+    return position.ref.kind === 'catalog' ? categoryQueryValues(referenceByDefinition.get(key)?.projection.category) : categoryFacetValues(optionByDefinition.get(key))
+  })), [optionByDefinition, positions, referenceByDefinition])
+  const selectedCategoryGroups = useMemo(() => selectedCategoryFacetValues(categoryGroups, route.categories), [categoryGroups, route.categories])
+  const selectedCategoryValues = useMemo(() => expandCategoryFacetValues(categoryGroups, route.categories), [categoryGroups, route.categories])
   const sourceOptions = useMemo(() => {
     const imported = buildFacetOptions(linkedReferenceItems, 'source')
     const personalCount = positions.filter((position) => position.ref.kind === 'personal').length
@@ -230,7 +239,7 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     if (route.filter === 'Unknown') children.push({ kind: 'or', children: [{ kind: 'predicate', field: 'possession', operator: 'eq', value: 'unknown' }, { kind: 'predicate', field: 'quantityKind', operator: 'eq', value: 'unknown' }] })
     if (route.filter === 'Wishlist') children.push({ kind: 'predicate', field: 'wishlist', operator: 'eq', value: true })
     if (route.filter === 'Protected') children.push({ kind: 'predicate', field: 'protectedQuantity', operator: 'gt', value: 0 })
-    if (route.categories.length) children.push({ kind: 'or', children: route.categories.map((value) => ({ kind: 'predicate', field: 'category', operator: 'eq', value })) })
+    if (selectedCategoryValues.length) children.push({ kind: 'or', children: selectedCategoryValues.map((value) => ({ kind: 'predicate', field: 'category', operator: 'eq', value })) })
     if (route.sources.length) children.push({ kind: 'or', children: route.sources.map((value) => ({ kind: 'predicate', field: 'source', operator: 'eq', value })) })
     const tree: QueryNode = { kind: 'and', children }
     return partitionQuery(positions, tree, (position): QueryRecord => {
@@ -248,7 +257,7 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
         source: position.ref.kind === 'personal' ? { state: 'known', value: ['Personal entry'] } : reference?.projection.source ?? { state: 'unknown', reason: 'No linked catalog source' },
       }
     })
-  }, [catalogs, optionByDefinition, positions, profile, referenceByDefinition, route])
+  }, [catalogs, optionByDefinition, positions, profile, referenceByDefinition, route, selectedCategoryValues])
   const visible = [...partition.confirmed, ...partition.possible]
 
   const add = async (draft: InventoryDraft) => {
@@ -267,11 +276,11 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     {missingPosition && <InlineNotice title="Inventory entry unavailable" tone="warning">The requested inventory entry is not part of the active playthrough. It may have been removed or the link may belong to another profile. <Button onClick={() => navigate({ page: 'inventory', view: 'list' })} tone="quiet">Return to inventory</Button></InlineNotice>}
     {positions.length === 0 ? <EmptyState className="empty-state--inventory" aside={<><strong>Not sure how many you own?</strong>Leave the quantity unknown. Looking up an item in Reference never adds it to your inventory.</>} description="Found a new weapon, a piece of armor, or a useful consumable? Record it here to keep track of what your party can use." icon="chest" title="Record your first item"><Button icon="plus" onClick={() => navigate({ page: 'inventory', view: 'new' })}>Add an item</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import a record</Button></EmptyState> : <div className="panel">
       <div className="panel__header toolbar"><div className="search-field"><Icon name="search"/><input aria-label="Search inventory" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Search names and linked descriptions" type="search" value={route.query}/></div><div className="cluster"><Badge tone={visible.some((item) => item.quantity.kind === 'unknown') ? 'warning' : 'neutral'}>{partition.confirmed.length} confirmed</Badge>{partition.possible.length > 0 && <Badge tone="warning">{partition.possible.length} possible</Badge>}</div></div>
-      <div className="panel__body inventory-facets"><div><h3>Inventory state</h3><div aria-label="Inventory filters" className="filter-chips" role="group">{filters.map((value) => <button aria-pressed={route.filter === value} className="filter-chip" key={value} onClick={() => updateFilter({ filter: value }, 'push')} type="button">{value}</button>)}</div></div>{categoryOptions.length > 0 && <div><h3>Linked category</h3><BoundedFacetOptions groupLabel="Inventory category filters" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryOptions} searchLabel="Search inventory categories" selected={route.categories}/></div>}{sourceOptions.length > 0 && <div><h3>Linked source</h3><BoundedFacetOptions groupLabel="Inventory source filters" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search inventory sources" selected={route.sources}/></div>}</div>
+      <div className="panel__body inventory-facets"><div className="inventory-facets__state"><h3>Inventory state</h3><div aria-label="Inventory filters" className="filter-chips inventory-state-filters" role="group">{filters.map((value) => <button aria-pressed={route.filter === value} className="filter-chip" key={value} onClick={() => updateFilter({ filter: value }, 'push')} type="button">{value}</button>)}</div></div>{categoryGroups.length > 0 && <FacetDropdown allLabel="All categories" groupLabel="Inventory category filters" label="Linked category" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(selectedCategoryGroups, value) }, 'push')} options={categoryGroups} searchLabel="Search inventory categories" selected={selectedCategoryGroups}/>} {sourceOptions.length > 0 && <FacetDropdown allLabel="All sources" formatOption={sourceDisplay} groupLabel="Inventory source filters" label="Linked source" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search inventory sources" selected={route.sources}/>}</div>
       {visible.length ? <><ul aria-live="polite" className="list">{visible.slice(0, route.resultLimit).map((position) => {
         const name = position.observedName ?? entityName(profile, catalogs, position.ref)
         const tone = position.possession === 'owned' ? 'positive' : position.possession === 'notOwned' ? 'neutral' : 'warning'
-        return <li className="list-row" key={position.id}><div className="list-row__primary"><strong className="icon-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={position.ref}/>{name}</strong><small>{position.ref.kind === 'personal' ? 'Personal entry' : 'Catalog-linked item'} · {formatRelativeDate(position.observedAt)}</small><DefinitionModLabel profile={profile} ruleset={ruleset} value={position.ref}/></div><div><Badge tone={tone}>{position.possession === 'owned' ? 'Owned' : position.possession === 'notOwned' ? 'Not owned' : 'Possession unknown'}</Badge></div><div className="list-row__fact"><strong>{quantityLabel(position.quantity)}</strong><small>{position.protectedQuantity ? `${position.protectedQuantity} protected` : position.wishlist ? 'On wishlist' : 'No special policy'}</small></div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${name}`} onClick={() => navigate({ page: 'inventory', view: 'edit', positionId: position.id })}/></div></li>
+        return <li className="list-row" key={position.id}><div className="list-row__primary"><strong className="icon-label inventory-item-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={position.ref}/><span className="inventory-item-label__name">{name}</span></strong><small>{position.ref.kind === 'personal' ? 'Personal entry' : 'Catalog-linked item'} · {formatRelativeDate(position.observedAt)}</small><DefinitionModLabel profile={profile} ruleset={ruleset} value={position.ref}/></div><div><Badge tone={tone}>{position.possession === 'owned' ? 'Owned' : position.possession === 'notOwned' ? 'Not owned' : 'Possession unknown'}</Badge></div><div className="list-row__fact"><strong>{quantityLabel(position.quantity)}</strong><small>{position.protectedQuantity ? `${position.protectedQuantity} protected` : position.wishlist ? 'On wishlist' : 'No special policy'}</small></div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${name}`} onClick={() => navigate({ page: 'inventory', view: 'edit', positionId: position.id })}/></div></li>
       })}</ul>{visible.length > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + INVENTORY_PAGE_SIZE) })} tone="secondary">Show {Math.min(INVENTORY_PAGE_SIZE, visible.length - route.resultLimit)} more</Button></div>}{visible.length > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Inventory display limit reached">Refine the name, category, source, or inventory-state filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}</> : <div className="panel__body"><InlineNotice title="No matching entries">Change the search or filters to see another part of your recorded inventory. Unknown catalog facets remain possible matches.</InlineNotice></div>}
     </div>}
     <section className="panel" style={{ marginTop: 18 }}><div className="panel__header"><div><h2>Acquisition & loss history</h2><p>Historical events stay separate from current stock</p></div><Button onClick={() => navigate({ page: 'inventory', view: 'event-new' })} tone="secondary">Record event</Button></div>{events.length ? <><ul className="list">{events.slice(0, eventLimit).map((entry) => <li className="list-row" key={entry.id}><div className="list-row__primary"><strong>{entry.observedName ?? entityName(profile, catalogs, entry.ref)}</strong><small>{formatRelativeDate(entry.observedAt)} · Recorded {formatRelativeDate(entry.recordedAt)}</small><DefinitionModLabel profile={profile} ruleset={ruleset} value={entry.ref}/></div><Badge tone={entry.kind === 'acquired' ? 'positive' : 'warning'}>{entry.kind === 'acquired' ? 'Acquired' : 'Lost'}</Badge><div className="list-row__fact"><strong>{knowledgeLabel(entry.quantity, (value) => `${value}`)}</strong><small>{entry.quantity.state === 'known' ? 'Recorded amount' : 'Amount unknown'}</small></div><div className="list-row__fact">{entry.note ?? 'No event note'}</div></li>)}</ul>{events.length > eventLimit && <div className="panel__body"><Button onClick={() => setEventLimit((value) => value + 100)} tone="secondary">Show 100 more events</Button></div>}</> : <div className="panel__body"><InlineNotice title="No acquisition or loss events">Add historical events here without changing the current inventory observation.</InlineNotice></div>}</section>
