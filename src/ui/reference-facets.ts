@@ -12,6 +12,35 @@ export type ReferenceFacetKey = typeof REFERENCE_FACETS[number]['key']
 export type ReferenceFacetFilters = Readonly<Partial<Record<ReferenceFacetKey, readonly string[]>>>
 export type FacetRecord = Pick<CatalogEntity, 'kind' | 'fields'> & Partial<Pick<CatalogEntity, 'name' | 'slotKinds'>>
 
+export const OPTIONAL_REFERENCE_AUDIENCES = [
+  { value: 'technical', label: 'Technical mechanics', description: 'Engine modifier identifiers for modding and mechanics research' },
+  { value: 'diagnostic', label: 'Catalog diagnostics', description: 'Catalog coverage and extraction diagnostics' },
+  { value: 'about', label: 'About & history', description: 'Game, developer, release, and media articles' },
+  { value: 'tooling', label: 'Tools & modding', description: 'External tools and modding articles' },
+] as const
+
+export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[number]['value']
+export type ReferenceAudience = 'default' | OptionalReferenceAudience
+
+const TECHNICAL_REFERENCE_PREFIXES = ['guide:mechanic:stat:', 'guide:mechanic:ability:'] as const
+const DIAGNOSTIC_REFERENCE_IDS = new Set(['wiki:other:catalog-coverage-gaps'])
+const ABOUT_REFERENCE_IDS = new Set(['wiki:other:andrew-willman', 'wiki:other:crystal-project-demo', 'wiki:other:crystal-project-game', 'wiki:other:patch-notes', 'wiki:other:soundtrack'])
+const TOOLING_REFERENCE_IDS = new Set(['wiki:other:cheat-engine'])
+const REFERENCE_ARTIFACT_IDS = new Set(['wiki:other:bgtest', 'wiki:other:defender'])
+
+export function referenceAudience(entity: Pick<CatalogEntity, 'id'>): ReferenceAudience {
+  const id = String(entity.id)
+  if (TECHNICAL_REFERENCE_PREFIXES.some(prefix => id.startsWith(prefix))) return 'technical'
+  if (DIAGNOSTIC_REFERENCE_IDS.has(id)) return 'diagnostic'
+  if (ABOUT_REFERENCE_IDS.has(id)) return 'about'
+  if (TOOLING_REFERENCE_IDS.has(id)) return 'tooling'
+  return 'default'
+}
+
+export function isReferenceArtifact(entity: Pick<CatalogEntity, 'id'>): boolean {
+  return REFERENCE_ARTIFACT_IDS.has(String(entity.id))
+}
+
 const CATEGORY_FIELDS = new Set(['category', 'categories', 'class category', 'equipment type', 'item type', 'type'])
 
 export function facetStringValues(value: Knowledge<JsonValue>): readonly string[] {

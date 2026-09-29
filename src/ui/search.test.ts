@@ -129,6 +129,25 @@ describe('reference search projection', () => {
     expect(projectReferenceEntity(snapshot, spear).claims).toHaveLength(1)
   })
 
+  it('projects reference audiences and suppresses explicit extraction artifacts', () => {
+    const records = [
+      entity('guide:mechanic:stat:Synthetic', { kind: 'other', name: 'Technical' }),
+      entity('wiki:other:catalog-coverage-gaps', { kind: 'other', name: 'Diagnostic' }),
+      entity('wiki:other:patch-notes', { kind: 'other', name: 'History' }),
+      entity('wiki:other:cheat-engine', { kind: 'other', name: 'Tooling' }),
+      entity('wiki:other:bgtest', { kind: 'other', name: 'Artifact' }),
+      entity('imported:other:technical-looking', { kind: 'other', name: 'Imported technical-looking record' }),
+    ]
+    const projected = buildReferenceSearchItems([catalog(records)])
+    expect(projected.map(item => [item.entity.name, item.audience])).toEqual([
+      ['Diagnostic', 'diagnostic'],
+      ['History', 'about'],
+      ['Imported technical-looking record', 'default'],
+      ['Technical', 'technical'],
+      ['Tooling', 'tooling'],
+    ])
+  })
+
   it('counts equivalent source wording as known without changing the immutable catalog', () => {
     const location = { state: 'conflicting' as const, claims: [
       { value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }] },

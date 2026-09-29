@@ -3,7 +3,7 @@ import type { ModState } from '../domain/mods'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { projectSourceSemantics } from '../catalog/source-semantics'
-import { combineFacetKnowledge, facetStringValues, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
+import { combineFacetKnowledge, facetStringValues, isReferenceArtifact, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -41,6 +41,7 @@ export interface ReferenceSearchItem {
   readonly ppCost: Knowledge<number>
   readonly weaponRule: Knowledge<SkillWeaponRule>
   readonly knowledgeCounts: KnowledgeCounts
+  readonly audience: ReferenceAudience
 }
 
 export interface NumericBound {
@@ -191,6 +192,7 @@ export function projectReferenceEntity(
     ppCost,
     weaponRule: skillWeaponRule(projectedEntity),
     knowledgeCounts: countKnowledge(entityKnowledge(projectedEntity, claims)),
+    audience: referenceAudience(projectedEntity),
     projection: {
       text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: projectedEntity.kind },
@@ -212,7 +214,7 @@ export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]):
         claims.push(claim)
         claimsByEntity.set(claim.entityId, claims)
       }
-      return Object.values(catalog.entities).map((entity) => projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? []))
+      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? []))
     })
     .sort((left, right) => (
       compareText(left.entity.name, right.entity.name) ||

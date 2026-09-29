@@ -31,6 +31,7 @@ describe('reference route state', () => {
       kinds: ['item', 'passive'],
       categories: ['Two handed'],
       sources: ['pack:alpha'],
+      audiences: ['technical', 'about'],
       classes: ['Scribe', 'Mage'],
       elements: ['Wind'],
       slots: ['mainHand', 'offHand'],
@@ -67,8 +68,9 @@ describe('reference route state', () => {
   })
 
   it('bounds malformed route values and rejects invalid selected identities', () => {
-    const parsed = parseReferenceRoute('#/reference?v=1&kind=not-a-kind&kind=item&limit=999999&ppMin=NaN&selected=bad')
+    const parsed = parseReferenceRoute('#/reference?v=1&kind=not-a-kind&kind=item&audience=unknown&audience=tooling&limit=999999&ppMin=NaN&selected=bad')
     expect(parsed.kinds).toEqual(['item'])
+    expect(parsed.audiences).toEqual(['tooling'])
     expect(parseReferenceRoute('#/reference?weapon=unknown').weapon).toBeUndefined()
     expect(parseReferenceRoute('#/reference?weapon=daggers').weapon).toBe('Dagger')
     expect(parsed.resultLimit).toBe(2_000)

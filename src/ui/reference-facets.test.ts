@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { referenceCategoryGroup, referenceFieldFacets } from './reference-facets'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
+import type { EntityId } from '../domain/types'
+import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceFieldFacets } from './reference-facets'
 
 describe('reference facet organization', () => {
   it('groups equipment aliases and technical wiki tags without changing their values', () => {
@@ -26,5 +28,15 @@ describe('reference facet organization', () => {
   it('retains a documented mod candidate alongside conflicting imported evidence', () => {
     const projected = referenceFieldFacets({ kind: 'item', fields: { 'Source mod': { state: 'conflicting', claims: [{ value: 'Pack A', sources: [] }, { value: 'Pack B', sources: [] }] } } }, [], 'Documented expansion')
     expect(projected.mods).toEqual({ state: 'conflicting', claims: [{ value: ['Pack A'], sources: [] }, { value: ['Pack B'], sources: [] }, { value: ['Documented expansion'], sources: [] }] })
+  })
+
+  it('classifies bundled supplemental records by stable identity without guessing imported content', () => {
+    const entities = Object.values(DEFAULT_CATALOG.entities)
+    expect(entities.filter(entity => referenceAudience(entity) === 'technical')).toHaveLength(300)
+    expect(entities.filter(entity => referenceAudience(entity) === 'diagnostic')).toHaveLength(1)
+    expect(entities.filter(entity => referenceAudience(entity) === 'about')).toHaveLength(5)
+    expect(entities.filter(entity => referenceAudience(entity) === 'tooling')).toHaveLength(1)
+    expect(entities.filter(isReferenceArtifact).map(entity => entity.name).sort()).toEqual(['Bgtest', 'Defender'])
+    expect(referenceAudience({ id: 'imported:other:AbilityItemConsumptionDown' as EntityId })).toBe('default')
   })
 })

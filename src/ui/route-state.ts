@@ -1,7 +1,7 @@
 import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { CatalogEntityKind } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
-import { REFERENCE_FACETS, type ReferenceFacetFilters } from './reference-facets'
+import { OPTIONAL_REFERENCE_AUDIENCES, REFERENCE_FACETS, type OptionalReferenceAudience, type ReferenceFacetFilters } from './reference-facets'
 import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
 
 export const REFERENCE_ROUTE_STORAGE_KEY = 'crystal-companion:reference-route:v1'
@@ -33,6 +33,7 @@ export interface ReferenceRouteState extends ReferenceFacetFilters {
   readonly kinds: readonly CatalogEntityKind[]
   readonly categories: readonly string[]
   readonly sources: readonly string[]
+  readonly audiences: readonly OptionalReferenceAudience[]
   readonly weapon?: WeaponType
   readonly includeUncertainSkills?: boolean
   readonly ppMin?: number
@@ -46,6 +47,7 @@ export const DEFAULT_REFERENCE_ROUTE_STATE: ReferenceRouteState = Object.freeze(
   kinds: [],
   categories: [],
   sources: [],
+  audiences: [],
   resultLimit: REFERENCE_PAGE_SIZE,
 })
 
@@ -72,6 +74,12 @@ function kindValues(value: unknown): readonly CatalogEntityKind[] {
   return facetValues(value).filter((entry): entry is CatalogEntityKind => KINDS.has(entry as CatalogEntityKind))
 }
 
+const REFERENCE_AUDIENCE_VALUES = new Set<OptionalReferenceAudience>(OPTIONAL_REFERENCE_AUDIENCES.map(audience => audience.value))
+
+function audienceValues(value: unknown): readonly OptionalReferenceAudience[] {
+  return facetValues(value).filter((entry): entry is OptionalReferenceAudience => REFERENCE_AUDIENCE_VALUES.has(entry as OptionalReferenceAudience))
+}
+
 function finiteNumber(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
   return value
@@ -96,6 +104,7 @@ export function normalizeReferenceRouteState(value: unknown): ReferenceRouteStat
     kinds: kindValues(record.kinds),
     categories: facetValues(record.categories),
     sources: facetValues(record.sources),
+    audiences: audienceValues(record.audiences),
     ...Object.fromEntries(REFERENCE_FACETS.flatMap(facet => {
       const values = facetValues(record[facet.key])
       return values.length ? [[facet.key, values]] : []
@@ -143,6 +152,7 @@ function referenceQuery(state: ReferenceRouteState): RouteQuery {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  for (const audience of state.audiences) params.append('audience', audience)
   for (const facet of REFERENCE_FACETS) for (const value of state[facet.key] ?? []) params.append(facet.parameter, value)
   if (state.weapon) params.set('weapon', state.weapon)
   if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
@@ -165,6 +175,7 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     kinds: params.getAll('kind'),
     categories: params.getAll('category'),
     sources: params.getAll('source'),
+    audiences: params.getAll('audience'),
     ...Object.fromEntries(REFERENCE_FACETS.map(facet => [facet.key, params.getAll(facet.parameter)])),
     weapon: params.get('weapon'),
     includeUncertainSkills: params.get('uncertainSkills') === '1',
@@ -182,6 +193,7 @@ export function formatReferenceRoute(value: ReferenceRouteState): string {
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
+  for (const audience of state.audiences) params.append('audience', audience)
   for (const facet of REFERENCE_FACETS) for (const entry of state[facet.key] ?? []) params.append(facet.parameter, entry)
   if (state.weapon) params.set('weapon', state.weapon)
   if (state.includeUncertainSkills) params.set('uncertainSkills', '1')

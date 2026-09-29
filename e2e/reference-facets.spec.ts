@@ -48,6 +48,36 @@ test('category families remain searchable, preserve alternatives, and expose hid
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
+test('supplemental reference audiences stay hidden by default and remain directly reachable', async ({ page, isMobile }) => {
+  await page.goto('/#/reference?v=1&q=AbilityItemConsumptionDown')
+  await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })).toHaveCount(0)
+  const hidden = page.getByRole('status').filter({ hasText: 'additional match is hidden' })
+  await expect(hidden).toBeVisible()
+  await hidden.getByRole('button', { name: 'Show Technical mechanics', exact: true }).click()
+  const technical = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })
+  await expect(technical).toBeVisible()
+  await expect(page).toHaveURL(/audience=technical/)
+
+  await showFilters(page, isMobile)
+  await page.getByRole('button', { name: 'Additional reference', exact: true }).click()
+  const audiences = page.getByRole('group', { name: 'Additional reference filters', exact: true })
+  await expect(audiences.getByRole('button', { name: /^Technical mechanics \d+$/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('group', { name: 'Active reference filters', exact: true }).getByRole('button', { name: 'Remove Include Technical mechanics filter', exact: true }).click()
+  await expect(technical).toHaveCount(0)
+  await expect(page).not.toHaveURL(/audience=technical/)
+
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/guide%3Amechanic%3Astat%3AAbilityItemConsumptionDown?v=1')
+  await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
+  await expect(page).not.toHaveURL(/audience=technical/)
+
+  await page.goto('/#/reference?v=1&q=Growth+estimates+and+damage+formula+research')
+  await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Growth estimates and damage formula research', exact: true }) })).toBeVisible()
+  await page.goto('/#/reference?v=1&q=Bgtest')
+  await expect(page.getByText('No matches', { exact: true })).toBeVisible()
+  await expect(page.getByText(/additional match/)).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
 test('class facets combine with definition types and survive details and offline reloads', async ({ page, context, isMobile }) => {
   await page.goto('/#/reference?v=1&kind=ability')
   await showFilters(page, isMobile)
