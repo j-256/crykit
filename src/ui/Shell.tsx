@@ -33,7 +33,7 @@ export function Shell({ profile, profiles, catalogs, destination, saveState, con
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
   }
-  const destinationButton = (item: MenuDestination) => <button aria-current={activeDestination === item.id ? 'page' : undefined} className="nav-link" key={item.id} onClick={() => navigate(item.id)} type="button"><Icon name={item.icon}/><span>{item.label}</span></button>
+  const destinationButton = (item: MenuDestination) => <button aria-current={activeDestination === item.id ? 'page' : undefined} className="nav-link" key={item.id} onClick={() => navigate(item.id)} title={item.label} type="button"><Icon name={item.icon}/><span>{item.label}</span></button>
   const openSearch = () => {
     if (searchOpen) return
     navigation.navigate(routeWithOverlay(navigation.route, { kind: 'search', query: '' }))
