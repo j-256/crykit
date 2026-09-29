@@ -24,10 +24,18 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(menu.getByRole('group', { name: 'Tracking', exact: true }).getByRole('button')).toHaveText(['Inventory', 'Progress'])
   await expect(menu.getByRole('button', { name: 'Builds', exact: true })).toHaveAttribute('aria-current', 'page')
   if (isMobile) {
+    const mainBounds = (await page.locator('.main-shell').boundingBox())!
+    const menuBounds = (await menu.boundingBox())!
+    expect(mainBounds.y + mainBounds.height).toBeLessThanOrEqual(menuBounds.y)
     for (const button of await menu.getByRole('button').all()) {
       const bounds = (await button.boundingBox())!
       expect(bounds.height).toBeGreaterThanOrEqual(44)
       expect(bounds.width).toBeGreaterThanOrEqual(44)
+      expect(await button.evaluate((target) => {
+        const bounds = target.getBoundingClientRect()
+        const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        return hit === target || target.contains(hit)
+      })).toBe(true)
     }
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -62,7 +70,7 @@ test('direct settings return to Builds and saved build tracking requires an expl
   const readiness = page.locator('.build-readiness')
   await expect(readiness).not.toHaveAttribute('open')
   if (isMobile) {
-    await page.evaluate(() => scrollTo(0, 0))
+    await page.locator('.main-shell').evaluate((element) => element.scrollTo(0, 0))
     await expect(readiness).not.toBeInViewport()
   }
   await readiness.locator('summary').first().click()
