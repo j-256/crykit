@@ -1,6 +1,6 @@
 import { DomainError, entityDefinitionKey } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
-import { effectiveScenarioAssignments, scenarioMemberIds, TEAM_SIZE } from './scenarios'
+import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
 import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
 import { passivePosition, type PassivePosition } from './passive-loadout'
@@ -1140,17 +1140,6 @@ export function validateScenario(
     throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${scenario.rulesetRevisionId}`)
   }
   const accumulator: Accumulator = { touched: new Set(['structure']), issues: [] }
-  const memberIds = scenarioMemberIds(scenario)
-  if (memberIds.length !== TEAM_SIZE || new Set(memberIds).size !== TEAM_SIZE) {
-    issue(accumulator, {
-      code: 'SCENARIO_TEAM_SIZE_INVALID',
-      dimension: 'structure',
-      status: 'invalid',
-      message: `A team scenario must contain exactly ${TEAM_SIZE} distinct characters`,
-      inputs: { memberCount: memberIds.length, requiredMemberCount: TEAM_SIZE },
-      suggestion: 'Create a four-character team before assigning builds',
-    })
-  }
   if (
     scenario.baseline.kind === 'recordedParty' &&
     (!Number.isSafeInteger(scenario.baseline.profileRevision) ||

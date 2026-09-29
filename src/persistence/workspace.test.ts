@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { createBlankProfile, createPersonalDefinition } from '../domain/profile'
+import { createCharacter } from '../domain/characters'
 import { asId } from '../domain/core'
 import { observeInventory } from '../domain/inventory'
 import { MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { TEAM_SIZE } from '../domain/scenarios'
 import type { ImportPreview } from '../interchange/types'
-import type { PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
+import type { CharacterId, PersonalDefinitionId, Profile, ProfileId, RulesetId, RulesetRevisionId, ScenarioId, Timestamp } from '../domain/types'
 import { previewResearchJson } from '../interchange/research'
 import { inspectZip } from '../interchange/zip'
 import { catalogSnapshotKey } from '../interchange/identity'
@@ -348,8 +349,11 @@ describe('workspace persistence', () => {
     const timestamp = '2026-01-02T03:04:05.000Z' as Timestamp
     const rulesetId = 'ruleset-revision:source' as RulesetRevisionId
     const scenarioId = 'scenario:source' as ScenarioId
+    const memberIds = ['one', 'two', 'three', 'four'].map(value => `character:${value}` as CharacterId)
+    let sourceBase = structuredClone(target.profile)
+    for (const memberId of memberIds) sourceBase = createCharacter(sourceBase, { id: memberId, name: memberId, now: timestamp })
     const sourceProfile: Profile = {
-      ...structuredClone(target.profile),
+      ...sourceBase,
       id: 'profile:source' as ProfileId,
       revision: 5,
       activeRulesetRevisionId: rulesetId,
@@ -376,6 +380,7 @@ describe('workspace persistence', () => {
           revision: 0,
           label: 'Recorded source',
           kind: 'recordedCurrent',
+          memberIds,
           baseline: { kind: 'recordedParty', profileRevision: 4, assignments: {} },
           assignments: {},
           rulesetRevisionId: rulesetId,

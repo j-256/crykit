@@ -59,8 +59,16 @@ describe('sample starter team', () => {
   it('rejects duplicate members in an imported explicit team roster', () => {
     const profile = createSampleProfile(DEFAULT_CATALOG)
     const scenario = profile.scenarios[profile.activeScenarioId!]!
-    const duplicateRoster = [scenario.memberIds![0]!, scenario.memberIds![1]!, scenario.memberIds![2]!, scenario.memberIds![2]!]
+    const duplicateRoster = [scenario.memberIds[0]!, scenario.memberIds[1]!, scenario.memberIds[2]!, scenario.memberIds[2]!]
     const changed = { ...profile, scenarios: { ...profile.scenarios, [scenario.id]: { ...scenario, memberIds: duplicateRoster } } }
     expect(() => validateNativeProfileGraph(changed, [DEFAULT_CATALOG])).toThrow('duplicate characters')
+  })
+
+  it('rejects an imported team without an explicit roster', () => {
+    const profile = createSampleProfile(DEFAULT_CATALOG)
+    const scenario = profile.scenarios[profile.activeScenarioId!]!
+    const { memberIds: _memberIds, ...rosterlessScenario } = scenario
+    const changed = { ...profile, scenarios: { ...profile.scenarios, [scenario.id]: rosterlessScenario } }
+    expect(() => validateNativeProfileGraph(changed as unknown as typeof profile, [DEFAULT_CATALOG])).toThrow('unsupported shape')
   })
 })

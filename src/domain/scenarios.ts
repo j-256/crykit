@@ -25,7 +25,7 @@ export interface CreateScenarioInput {
   readonly id?: ScenarioId
   readonly label: string
   readonly kind?: ScenarioKind
-  readonly memberIds?: readonly CharacterId[]
+  readonly memberIds: readonly CharacterId[]
   readonly baseline?: ScenarioBaseline
   readonly assignments?: Readonly<Record<string, BuildRevisionId | null>>
   readonly rulesetRevisionId: RulesetRevisionId
@@ -80,15 +80,6 @@ function assertAssignmentsBelongToTeam(
   }
 }
 
-export function scenarioMemberIds(scenario: TeamScenario): readonly CharacterId[] {
-  if (scenario.memberIds) return scenario.memberIds
-  const inferred = [
-    ...(scenario.baseline.kind === 'recordedParty' ? Object.keys(scenario.baseline.assignments) : []),
-    ...Object.keys(scenario.assignments),
-  ]
-  return [...new Set(inferred)] as CharacterId[]
-}
-
 export function createScenario(profile: Profile, input: CreateScenarioInput): Profile {
   assertExpectedRevision(profile, input.expectedRevision)
   const ruleset = profile.rulesets[input.rulesetRevisionId]
@@ -96,18 +87,18 @@ export function createScenario(profile: Profile, input: CreateScenarioInput): Pr
     throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.rulesetRevisionId}`)
   }
   const baseline = input.baseline ?? { kind: 'empty' }
-  if (input.memberIds) assertTeamMembers(profile, input.memberIds)
+  assertTeamMembers(profile, input.memberIds)
   if (baseline.kind === 'recordedParty') {
     assertNonnegativeInteger(baseline.profileRevision, 'Scenario baseline profile revision')
     if (baseline.profileRevision > profile.revision) {
       throw new DomainError('INVALID_INPUT', 'Scenario baseline cannot reference a future profile revision')
     }
     validateAssignments(profile, baseline.assignments)
-    if (input.memberIds) assertAssignmentsBelongToTeam(baseline.assignments, input.memberIds)
+    assertAssignmentsBelongToTeam(baseline.assignments, input.memberIds)
   }
   const assignments = input.assignments ?? {}
   validateAssignments(profile, assignments)
-  if (input.memberIds) assertAssignmentsBelongToTeam(assignments, input.memberIds)
+  assertAssignmentsBelongToTeam(assignments, input.memberIds)
   const id = input.id ?? createId<ScenarioId>('scenario')
   if (profile.scenarios[id]) {
     throw new DomainError('DUPLICATE_ID', `Scenario already exists: ${id}`)
@@ -118,7 +109,7 @@ export function createScenario(profile: Profile, input: CreateScenarioInput): Pr
     revision: 0,
     label: input.label.trim() || 'Untitled scenario',
     kind: input.kind ?? 'draft',
-    ...(input.memberIds ? { memberIds: [...input.memberIds] } : {}),
+    memberIds: [...input.memberIds],
     baseline,
     assignments,
     rulesetRevisionId: input.rulesetRevisionId,
@@ -174,7 +165,7 @@ export function replaceScenarioBuild(profile: Profile, input: ReplaceScenarioBui
   if (!profile.characters[input.characterId]) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
-  if (!scenarioMemberIds(current).includes(input.characterId)) {
+  if (!current.memberIds.includes(input.characterId)) {
     throw new DomainError('INVALID_INPUT', `Character is not a member of this four-character team: ${input.characterId}`)
   }
   if (input.buildRevisionId) {
@@ -232,7 +223,7 @@ export function updateScenario(profile: Profile, input: UpdateScenarioInput): Pr
 export function effectiveScenarioAssignments(
   scenario: TeamScenario,
 ): Readonly<Record<string, BuildRevisionId>> {
-  const members = new Set<string>(scenarioMemberIds(scenario))
+  const members = new Set<string>(scenario.memberIds)
   const assignments: Record<string, BuildRevisionId> =
     scenario.baseline.kind === 'recordedParty'
       ? Object.fromEntries(Object.entries(scenario.baseline.assignments).filter(([characterId]) => members.has(characterId)))

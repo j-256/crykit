@@ -20,7 +20,6 @@ import {
   observeInventory,
   recordInventoryEvent,
   replaceScenarioBuild,
-  scenarioMemberIds,
   saveBuildRevision,
   updateBuild,
   updateRulesetRevision,
@@ -29,7 +28,6 @@ import {
   upsertLearnedNode,
   upsertProgress,
   validateScenario,
-  TEAM_SIZE,
   type BuildId,
   type BuildRevisionId,
   type CatalogIndex,
@@ -397,8 +395,7 @@ export default function App() {
     const revision = profile.buildRevisions[revisionId]
     if (!revision || revision.buildId !== build.id) throw new Error('The selected build revision is unavailable for this build.')
     const compatibleTeam = (scenario: TeamScenario) => {
-      const memberIds = scenarioMemberIds(scenario)
-      return scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && memberIds.length === TEAM_SIZE && new Set(memberIds).size === TEAM_SIZE && memberIds.includes(build.characterId!)
+      return scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && scenario.memberIds.includes(build.characterId!)
     }
     const recorded = Object.values(profile.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
     const active = profile.activeScenarioId ? profile.scenarios[profile.activeScenarioId] : undefined
@@ -412,7 +409,7 @@ export default function App() {
     if (recorded && compatibleTeam(recorded)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: build.characterId, buildRevisionId: revision.id, expectedRevision: next.revision })
     else {
       if (recorded) next = updateScenario(next, { scenarioId: recorded.id, kind: 'draft', expectedRevision: next.revision })
-      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: scenarioMemberIds(rosterSource), rulesetRevisionId: revision.rulesetRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [build.characterId]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
+      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: rosterSource.memberIds, rulesetRevisionId: revision.rulesetRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [build.characterId]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
     }
     const character = next.characters[build.characterId]
     const currentSnapshot = character?.currentSnapshotId ? character.snapshots[character.currentSnapshotId] : undefined

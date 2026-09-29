@@ -411,7 +411,7 @@ export interface TeamScenario {
   readonly revision: number
   readonly label: string
   readonly kind: ScenarioKind
-  readonly memberIds?: readonly CharacterId[]
+  readonly memberIds: readonly CharacterId[]
   readonly baseline: ScenarioBaseline
   readonly assignments: Readonly<Record<string, BuildRevisionId | null>>
   readonly rulesetRevisionId: RulesetRevisionId

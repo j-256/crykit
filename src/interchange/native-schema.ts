@@ -337,7 +337,7 @@ const scenario = z.object({
   revision: nonnegativeInteger,
   label: nonemptyText,
   kind: z.enum(['recordedCurrent', 'draft', 'hypothetical']),
-  memberIds: z.array(id).length(TEAM_SIZE).optional(),
+  memberIds: z.array(id).length(TEAM_SIZE),
   baseline: scenarioBaseline,
   assignments: z.record(id, id.nullable()),
   rulesetRevisionId: id,

@@ -25,6 +25,7 @@ import {
   TEST_NOW,
   TEST_RULESET_REVISION_ID,
   addTestCharacter,
+  addTestTeam,
   createTestProfile,
   known,
   personalRef,
@@ -303,9 +304,12 @@ describe('immutable personal definition overrides', () => {
       },
       now: TEST_NOW,
     })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Scenario',
+      memberIds: team.memberIds,
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       assignments: { character: asId<BuildRevisionId>('passive-revision') },
       now: TEST_NOW,

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { activateRuleset, activateScenario, asId, createScenario, scenarioMemberIds, updateRulesetRevision, validateScenario, type CharacterId, type ScenarioId } from './index'
-import { addTestCharacter, createTestProfile, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
+import { activateRuleset, activateScenario, asId, createScenario, updateRulesetRevision, validateScenario, type CharacterId, type ScenarioId } from './index'
+import { addTestCharacter, addTestTeam, createTestProfile, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
 
 describe('active scenario selection', () => {
   const scenarioId = asId<ScenarioId>('alternate-team')
-  const withScenario = () => createScenario(createTestProfile(), { id: scenarioId, label: 'Alternate team', rulesetRevisionId: TEST_RULESET_REVISION_ID, activate: false, now: TEST_NOW })
+  const withScenario = () => {
+    const team = addTestTeam(createTestProfile())
+    return createScenario(team.profile, { id: scenarioId, label: 'Alternate team', memberIds: team.memberIds, rulesetRevisionId: TEST_RULESET_REVISION_ID, activate: false, now: TEST_NOW })
+  }
 
   it('changes only the active selection and preserves the rulesets and scenario pins', () => {
     const original = withScenario()
@@ -49,16 +52,8 @@ describe('four-character team composition', () => {
   it('keeps four roster slots independent from optional build assignments', () => {
     const profile = createScenario(withCharacters(), { id: asId<ScenarioId>('team'), label: 'Four-person team', memberIds: team, rulesetRevisionId: TEST_RULESET_REVISION_ID })
     const scenario = profile.scenarios.team!
-    expect(scenarioMemberIds(scenario)).toEqual(team)
+    expect(scenario.memberIds).toEqual(team)
     expect(scenario.assignments).toEqual({})
     expect(validateScenario(profile, scenario.id).dimensions.structure.status).toBe('valid')
-  })
-
-  it('marks legacy incomplete rosters invalid without inventing members', () => {
-    const profile = createScenario(withCharacters(), { id: asId<ScenarioId>('legacy'), label: 'Legacy team', assignments: { one: null, two: null }, rulesetRevisionId: TEST_RULESET_REVISION_ID })
-    const scenario = profile.scenarios.legacy!
-    expect(scenario.memberIds).toBeUndefined()
-    expect(scenarioMemberIds(scenario)).toEqual(['one', 'two'])
-    expect(validateScenario(profile, scenario.id).issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'SCENARIO_TEAM_SIZE_INVALID', status: 'invalid' })]))
   })
 })

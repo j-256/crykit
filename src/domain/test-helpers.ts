@@ -9,6 +9,7 @@ import {
   createPersonalDefinition,
   createScenario,
   saveBuildRevision,
+  TEAM_SIZE,
 } from './index'
 import type {
   BuildId,
@@ -92,6 +93,19 @@ export function addTestCharacter(profile: Profile, value: string, ppCapacity = 1
   return next
 }
 
+export function addTestTeam(profile: Profile, preferredMemberValues: readonly string[] = []): { readonly profile: Profile; readonly memberIds: readonly CharacterId[] } {
+  const memberValues = [...new Set(preferredMemberValues)]
+  for (let index = 1; memberValues.length < TEAM_SIZE; index += 1) {
+    const value = `test-team-member-${index}`
+    if (!memberValues.includes(value)) memberValues.push(value)
+  }
+  let next = profile
+  for (const value of memberValues) {
+    if (!next.characters[value]) next = addTestCharacter(next, value)
+  }
+  return { profile: next, memberIds: memberValues.map(value => asId<CharacterId>(value)) }
+}
+
 export interface AddTestDefinitionOptions {
   readonly kind?: CatalogEntityKind
   readonly slotKinds?: Knowledge<readonly string[]>
@@ -163,9 +177,11 @@ export function addTestScenario(
   assignments: Readonly<Record<string, BuildRevisionId | null>>,
   value = 'scenario',
 ): Profile {
-  return createScenario(profile, {
+  const team = addTestTeam(profile, Object.keys(assignments))
+  return createScenario(team.profile, {
     id: asId<ScenarioId>(value),
     label: value,
+    memberIds: team.memberIds,
     assignments,
     rulesetRevisionId: TEST_RULESET_REVISION_ID,
     now: TEST_NOW,

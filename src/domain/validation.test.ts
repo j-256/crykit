@@ -21,6 +21,7 @@ import {
   addTestCharacter,
   addTestDefinition,
   addTestScenario,
+  addTestTeam,
   createTestProfile,
   known,
   personalRef,
@@ -144,9 +145,12 @@ describe('scenario stock semantics', () => {
     profile = addTestBuild(profile, 'replacement-build', 'character', {
       [HAND_SLOT]: { ref: personalRef('item') },
     })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Replacement',
+      memberIds: team.memberIds,
       baseline: {
         kind: 'recordedParty',
         profileRevision: profile.revision,
@@ -170,9 +174,12 @@ describe('scenario stock semantics', () => {
     profile = addTestBuild(profile, 'recorded-build', 'character', {
       [HAND_SLOT]: { ref: personalRef('item') },
     })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Removal',
+      memberIds: team.memberIds,
       baseline: {
         kind: 'recordedParty',
         profileRevision: profile.revision,
@@ -253,9 +260,12 @@ describe('scenario stock semantics', () => {
     profile = addTestBuild(profile, 'build', 'character', {
       [HAND_SLOT]: { ref: personalRef('item') },
     })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Informational scenario',
+      memberIds: team.memberIds,
       assignments: assignment('character', 'build'),
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       inventoryPolicy: { enforceStock: false, includeProtected: false },
@@ -294,9 +304,12 @@ describe('scenario stock semantics', () => {
     profile = addTestBuild(profile, 'second-recorded', 'second-character', {
       [HAND_SLOT]: { ref: personalRef('second-item') },
     })
+    const team = addTestTeam(profile, ['first-character', 'second-character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Partial replacement',
+      memberIds: team.memberIds,
       baseline: {
         kind: 'recordedParty',
         profileRevision: profile.revision,
@@ -688,9 +701,12 @@ describe('catalog revision identity', () => {
     profile = addTestBuild(profile, 'build', 'character', {
       [HAND_SLOT]: { ref: oldRef },
     }, { catalogLock: { catalog: asId<CatalogRevisionId>('old') } })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Pinned',
+      memberIds: team.memberIds,
       assignments: assignment('character', 'build'),
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       now: TEST_NOW,
@@ -773,9 +789,12 @@ describe('scenario revision locks', () => {
     let profile = createTestProfile()
     profile = addTestCharacter(profile, 'character')
     profile = addTestBuild(profile, 'build', 'character', {}, { catalogLock: lock })
+    const team = addTestTeam(profile, ['character'])
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Mismatched lock',
+      memberIds: team.memberIds,
       assignments: assignment('character', 'build'),
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       catalogLock: lock,
@@ -799,9 +818,12 @@ describe('scenario revision locks', () => {
     [{ state: 'notApplicable', reason: 'different platform' } as const, 'CATALOG_NOT_APPLICABLE', 'invalid'],
   ])('uses pinned catalog applicability in ruleset certainty', (applicability, code, status) => {
     let profile = withCatalogLock(createTestProfile())
+    const team = addTestTeam(profile)
+    profile = team.profile
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Catalog applicability',
+      memberIds: team.memberIds,
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       now: TEST_NOW,
     })
@@ -817,9 +839,12 @@ describe('scenario revision locks', () => {
 
   it('rejects future baseline revisions in commands and validation', () => {
     let profile = createTestProfile()
+    const team = addTestTeam(profile)
+    profile = team.profile
     expect(() => createScenario(profile, {
       id: asId<ScenarioId>('future'),
       label: 'Future baseline',
+      memberIds: team.memberIds,
       baseline: { kind: 'recordedParty', profileRevision: profile.revision + 1, assignments: {} },
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       now: TEST_NOW,
@@ -828,6 +853,7 @@ describe('scenario revision locks', () => {
     profile = createScenario(profile, {
       id: asId<ScenarioId>('scenario'),
       label: 'Valid baseline',
+      memberIds: team.memberIds,
       baseline: { kind: 'recordedParty', profileRevision: profile.revision, assignments: {} },
       rulesetRevisionId: TEST_RULESET_REVISION_ID,
       now: TEST_NOW,
