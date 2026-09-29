@@ -1,4 +1,4 @@
-import { createBlankPlaythrough, openRulesetSection } from './profile-helpers'
+import { selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -96,11 +96,11 @@ test('manual observations preserve unknowns and survive reload without horizonta
   await expect(page.getByText('Unknown keepsake', { exact: true })).toBeVisible()
   await expect(page.getByText('Known keepsake', { exact: true })).toBeVisible()
   const { payload } = await exportPayload(page)
-  const inventory = Object.values(payload.profile.inventory) as { observedName: string; possession: string; quantity: unknown }[]
+  const inventory = Object.values(selectedPlaythrough(payload.localData).inventory) as { observedName: string; possession: string; quantity: unknown }[]
   expect(inventory.find((item) => item.observedName === 'Unknown keepsake')).toMatchObject({ possession: 'unknown', quantity: { kind: 'unknown' } })
   expect(inventory.find((item) => item.observedName === 'Known keepsake')).toMatchObject({ possession: 'owned', quantity: { kind: 'exact', value: 2 } })
-  expect(payload.profile.characters).toEqual({})
-  expect(payload.profile.inventoryEvents).toEqual({})
+  expect(selectedPlaythrough(payload.localData).characters).toEqual({})
+  expect(selectedPlaythrough(payload.localData).inventoryEvents).toEqual({})
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
 })
@@ -133,7 +133,7 @@ test('import previews before writing and native restore keeps original source by
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-research.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Record your first item' })).toBeVisible()
   await page.getByRole('button', { name: 'Reference', exact: true }).click()
@@ -152,47 +152,47 @@ test('import previews before writing and native restore keeps original source by
   const { bytes, payload } = await exportPayload(page)
   const importedCatalog = payload.catalogs.find((catalog: { entities: Record<string, unknown> }) => catalog.entities['synthetic:reed-staff'])
   expect(importedCatalog.entities['synthetic:reed-staff'].name).toBe('Reed Staff')
-  expect(payload.profile.inventory).toEqual({})
-  expect(payload.profile.characters).toEqual({})
+  expect(selectedPlaythrough(payload.localData).inventory).toEqual({})
+  expect(selectedPlaythrough(payload.localData).characters).toEqual({})
   const files = unzipSync(bytes)
   const manifest = JSON.parse(strFromU8(files['manifest.json']!))
   expect(strFromU8(files[manifest.sources[0].path]!)).toBe(JSON.stringify(SYNTHETIC_RESEARCH))
   const restore = await openData(page)
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
-  await expect(restore.getByText('native-backup-1.0.0', { exact: true })).toBeVisible()
-  await restore.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await expect(restore.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
   const restored = await exportPayload(page)
-  expect(restored.payload.profile.id).not.toBe(payload.profile.id)
+  expect(restored.payload.localData.id).toBe(payload.localData.id)
   expect(restored.payload.catalogs).toEqual(payload.catalogs)
-  expect(restored.payload.profile.inventory).toEqual({})
+  expect(selectedPlaythrough(restored.payload.localData).inventory).toEqual({})
 })
 
-test('an imported ruleset requires a numeric PP budget before saving a revision', async ({ page }) => {
+test('an imported Game Setup requires a numeric PP budget before saving a revision', async ({ page }) => {
   const panel = await openData(page)
   const research = { ...SYNTHETIC_RESEARCH, player_context: { platform: 'Nintendo Switch' } }
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-ruleset.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-game-setup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
+  await panel.getByRole('combobox', { name: /^Import action/ }).selectOption('replace')
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
 
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await expect(settings.getByText('Budget needs confirmation', { exact: true })).toBeVisible()
-  await openRulesetSection(settings, 'Passive rules')
+  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openGameSetupSection(settings, 'Passive validation rules')
   await expect(settings.getByLabel('Build PP limit certainty', { exact: true })).toHaveCount(0)
   const ppLimit = settings.getByLabel('Build PP limit', { exact: true })
   await expect(ppLimit).toHaveValue('')
   await expect(ppLimit).toHaveAttribute('required', '')
   expect(await ppLimit.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true)
-  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(ppLimit).toBeFocused()
 
   await ppLimit.fill('10')
-  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await closeData(page)
   const { payload } = await exportPayload(page)
-  expect(payload.profile.rulesets[payload.profile.activeRulesetRevisionId].ppLimit).toEqual({ state: 'known', value: 10 })
+  expect(payload.localData.gameSetups[payload.localData.planningGameSetupRevisionId].ppLimit).toEqual({ state: 'known', value: 10 })
 })
 
 test('large previews bound warning and facet elements while keeping every facet reachable', async ({ page, isMobile }) => {
@@ -212,7 +212,7 @@ test('large previews bound warning and facet elements while keeping every facet 
   const warningRows = await panel.getByText('passives contains a row without a supported name field', { exact: true }).count()
   expect(warningRows).toBeGreaterThan(0)
   expect(warningRows).toBeLessThanOrEqual(100)
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await page.getByRole('button', { name: 'Reference', exact: true }).click()
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
@@ -226,62 +226,51 @@ test('large previews bound warning and facet elements while keeping every facet 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('replacement confirmation belongs to one preview and one target profile', async ({ page }) => {
+test('replacement confirmation belongs to one import preview', async ({ page }) => {
   const panel = await openData(page)
-  const profiles = panel.getByRole('combobox', { name: 'Active profile', exact: true })
-  const firstProfileId = await profiles.inputValue()
-  await panel.getByLabel('New blank profile').fill('Second replacement target')
-  await panel.getByRole('button', { name: 'Create', exact: true }).click()
-  await expect(profiles).not.toHaveValue(firstProfileId)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-first-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   const action = panel.getByRole('combobox', { name: /^Import action/ })
   await action.selectOption('replace')
-  await panel.getByRole('checkbox', { name: /Replace the current profile after validation/ }).check()
-  await expect(panel.getByRole('button', { name: 'Replace profile', exact: true })).toBeEnabled()
+  await panel.getByRole('checkbox', { name: /Replace all local planner data after validation/ }).check()
+  await expect(panel.getByRole('button', { name: 'Replace planner data', exact: true })).toBeEnabled()
   await panel.getByRole('button', { name: 'Choose another file', exact: true }).click()
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-second-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...SYNTHETIC_RESEARCH, synthetic_note: 'Different preview' })) })
-  await expect(action).toHaveValue('new-profile')
-  await action.selectOption('replace')
-  await expect(panel.getByRole('checkbox', { name: /Replace the current profile after validation/ })).not.toBeChecked()
-  await expect(panel.getByRole('button', { name: 'Replace profile', exact: true })).toBeDisabled()
-  await panel.getByRole('checkbox', { name: /Replace the current profile after validation/ }).check()
-  await profiles.selectOption(firstProfileId)
-  await expect(action).toHaveValue('new-profile')
-  await action.selectOption('replace')
-  await expect(panel.getByRole('checkbox', { name: /Replace the current profile after validation/ })).not.toBeChecked()
-  await expect(panel.getByRole('button', { name: 'Replace profile', exact: true })).toBeDisabled()
+  await expect(action).toHaveValue('replace')
+  await expect(panel.getByRole('checkbox', { name: /Replace all local planner data after validation/ })).not.toBeChecked()
+  await expect(panel.getByRole('button', { name: 'Replace planner data', exact: true })).toBeDisabled()
 })
 
-test('local profile switching isolates records and undo restores the previous observation', async ({ page }) => {
-  await addItem(page, 'First profile keepsake', 1)
-  const original = (await exportPayload(page)).payload.profile.id as string
+test('Playthrough switching isolates records and undo restores the previous observation', async ({ page }) => {
+  await addItem(page, 'First Playthrough keepsake', 1)
   const panel = await openData(page)
-  await panel.getByLabel('New blank profile').fill('Synthetic second profile')
+  const playthroughs = panel.getByRole('combobox', { name: 'Active Playthrough', exact: true })
+  const original = await playthroughs.inputValue()
+  await panel.getByLabel('New blank Playthrough').fill('Synthetic second Playthrough')
   await panel.getByRole('button', { name: 'Create', exact: true }).click()
-  await expect(panel.getByRole('combobox', { name: 'Active profile', exact: true })).not.toHaveValue(original)
+  await expect(playthroughs).not.toHaveValue(original)
   await closeData(page)
-  await expect(page.getByText('First profile keepsake', { exact: true })).not.toBeVisible()
-  await addItem(page, 'Second profile keepsake', 2)
+  await expect(page.getByText('First Playthrough keepsake', { exact: true })).not.toBeVisible()
+  await addItem(page, 'Second Playthrough keepsake', 2)
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'History', exact: true }).click()
-  await settings.getByRole('checkbox', { name: /Restore the previous saved profile state/ }).check()
+  await settings.getByRole('checkbox', { name: /Restore the previous saved planner state/ }).check()
   await settings.getByRole('button', { name: 'Undo latest', exact: true }).click()
-  await expect(settings.getByRole('checkbox', { name: /Restore the previous saved profile state/ })).not.toBeChecked()
+  await expect(settings.getByRole('checkbox', { name: /Restore the previous saved planner state/ })).not.toBeChecked()
   await closeData(page)
-  await expect(page.getByText('Second profile keepsake', { exact: true })).not.toBeVisible()
+  await expect(page.getByText('Second Playthrough keepsake', { exact: true })).not.toBeVisible()
   const switcher = await openData(page)
-  await switcher.getByRole('button', { name: 'Import & backup', exact: true }).click()
-  await switcher.getByRole('combobox', { name: 'Active profile', exact: true }).selectOption(original)
-  await closeData(page)
-  await expect(page.getByText('First profile keepsake', { exact: true })).toBeVisible()
-  await expect(page.getByText('Second profile keepsake', { exact: true })).not.toBeVisible()
+  await switcher.getByRole('combobox', { name: 'Active Playthrough', exact: true }).selectOption(original)
+  await expect(switcher).not.toBeVisible()
+  await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
+  await expect(page.getByText('First Playthrough keepsake', { exact: true })).toBeVisible()
+  await expect(page.getByText('Second Playthrough keepsake', { exact: true })).not.toBeVisible()
 })
 
 test('reference facets combine alternatives and keep unknown numeric values as possible matches', async ({ page, isMobile }) => {
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await page.getByRole('button', { name: 'Reference', exact: true }).click()
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
@@ -315,7 +304,7 @@ test('reference facets combine alternatives and keep unknown numeric values as p
 test('inventory facets and search survive browser back navigation', async ({ page }) => {
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-inventory.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   for (const name of ['Reed Staff', 'Paper Shield']) {
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
@@ -359,7 +348,7 @@ test('a production shell reloads and exports after going offline', async ({ page
   await expect(page.getByText('Offline keepsake', { exact: true })).toBeVisible()
   await addItem(page, 'Recorded offline')
   const { payload } = await exportPayload(page)
-  expect(Object.values(payload.profile.inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Recorded offline', possession: 'unknown' })]))
+  expect(Object.values(selectedPlaythrough(payload.localData).inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Recorded offline', possession: 'unknown' })]))
   await context.setOffline(false)
 })
 
@@ -389,14 +378,14 @@ test('offline preparation repairs missing cached assets before reporting ready',
   await context.setOffline(false)
 })
 
-test('stale tabs cannot overwrite a saved profile and can export their recovery draft', async ({ page, context }) => {
+test('stale tabs cannot overwrite saved planner data and can export their recovery draft', async ({ page, context }) => {
   await addItem(page, 'Shared baseline', 1)
   const stale = await context.newPage()
   await stale.goto('/#/inventory')
   await expect(stale.getByText('Shared baseline', { exact: true })).toBeVisible()
   await addItem(page, 'Saved in first tab', 1)
   await addItem(page, 'Later first-tab observation', 1)
-  await expect(stale.getByText('Another tab changed this profile', { exact: true })).toBeVisible()
+  await expect(stale.getByText('Another tab changed the planner data', { exact: true })).toBeVisible()
   await stale.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = stale.getByRole('dialog', { name: 'Add inventory item' })
   await dialog.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
@@ -406,9 +395,9 @@ test('stale tabs cannot overwrite a saved profile and can export their recovery 
   await expect(dialog.getByLabel('Item name')).toHaveValue('Unsaved in stale tab')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   const recovery = await exportPayload(stale)
-  expect(Object.values(recovery.payload.profile.inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Unsaved in stale tab' })]))
+  expect(Object.values(selectedPlaythrough(recovery.payload.localData).inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Unsaved in stale tab' })]))
   const stored = await exportPayload(page)
-  expect(Object.values(stored.payload.profile.inventory)).not.toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Unsaved in stale tab' })]))
+  expect(Object.values(selectedPlaythrough(stored.payload.localData).inventory)).not.toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Unsaved in stale tab' })]))
   await stale.close()
 })
 
@@ -417,7 +406,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'profiles') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
+      if (this.name === 'localDatas') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
       return original.apply(this, args)
     }
   })
@@ -430,7 +419,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   await expect(dialog.getByLabel('Item name')).toHaveValue('Recovery-only observation')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   const recovery = await exportPayload(page)
-  expect(Object.values(recovery.payload.profile.inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Recovery-only observation' })]))
+  expect(Object.values(selectedPlaythrough(recovery.payload.localData).inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Recovery-only observation' })]))
   await page.reload()
   await expect(page.getByText('Before storage failure', { exact: true })).toBeVisible()
   await expect(page.getByText('Recovery-only observation', { exact: true })).not.toBeVisible()
@@ -441,7 +430,7 @@ test('retry persists one retained observation after a transient storage failure'
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'profiles' && failOnce) {
+      if (this.name === 'localDatas' && failOnce) {
         failOnce = false
         throw new DOMException('Synthetic temporary storage failure', 'QuotaExceededError')
       }
@@ -461,9 +450,9 @@ test('retry persists one retained observation after a transient storage failure'
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
   const { payload } = await exportPayload(page)
-  expect(Object.values(payload.profile.inventory)).toHaveLength(1)
-  expect(Object.values(payload.profile.personalDefinitions)).toHaveLength(1)
-  expect(Object.values(payload.profile.inventory)[0]).toMatchObject({ observedName: 'Retry once keepsake', possession: 'unknown' })
+  expect(Object.values(selectedPlaythrough(payload.localData).inventory)).toHaveLength(1)
+  expect(Object.values(payload.localData.personalDefinitions)).toHaveLength(1)
+  expect(Object.values(selectedPlaythrough(payload.localData).inventory)[0]).toMatchObject({ observedName: 'Retry once keepsake', possession: 'unknown' })
 })
 
 test('subpath installation stages updates without reloading an open draft', async ({ page, context }) => {

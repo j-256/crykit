@@ -1,26 +1,22 @@
 export { CrystalCompanionDatabase, getDatabase, setDatabaseForTests } from './database'
 export {
   commitImport,
-  createProfile,
   exportBackup,
-  listProfiles,
-  loadWorkspace,
+  loadLocalData,
   previewImport,
-  saveProfile,
-  saveProfileWithStatus,
-  selectProfile,
+  saveLocalData,
+  saveLocalDataWithStatus,
   sourceDigest,
-  subscribeWorkspace,
-  undoProfile,
-  undoProfileWithStatus,
-  validateProfileForStorage,
-} from './workspace'
-export type { ProfileWriteResult } from './workspace'
+  subscribeLocalData,
+  undoLocalData,
+  undoLocalDataWithStatus,
+  validateLocalDataForStorage,
+} from './local-data'
+export type { LocalDataWriteResult } from './local-data'
 export type {
   CommitImportOptions,
   ImportPreview,
-  ProfileSummary,
-  Workspace,
-  WorkspaceNotification,
+  LoadedLocalData,
+  LocalDataNotification,
 } from '../interchange/types'
 export { AppDataError } from '../interchange/errors'

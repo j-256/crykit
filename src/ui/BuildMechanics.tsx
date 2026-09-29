@@ -6,7 +6,7 @@ import { ABILITY_COSTS, estimateAbility } from '../domain/ability-estimates'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { GUIDE_LEVEL_CAP } from '../domain/growth'
 import { GUIDE_MECHANICS_SOURCE } from '../domain/mechanics-facts'
-import type { BuildCalculationPlan, BuildRevisionContent, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile, SlotDefinition } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, SlotDefinition } from '../domain/types'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
 import { Button, Field, InlineNotice } from './components'
 import { resolveEntity } from './model'
@@ -26,10 +26,10 @@ function CalculationPicker({ label, kinds, value, onChange }: { label: string; k
   return <BuildDefinitionField allowedKinds={kinds} label={label} onChange={onChange} onClose={() => setOpen(false)} onDismiss={() => setOpen(false)} onInspect={() => undefined} onOpen={() => setOpen(true)} onQueryChange={value => { setQuery(value); setLimit(BUILD_DEFINITION_PAGE_SIZE) }} onResultLimitChange={setLimit} open={open} query={query} resultLimit={limit} value={value}/>
 }
 
-export function BuildMechanics({ content, slots, profile, catalogs, onChange }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; profile: Profile; catalogs: readonly CatalogSnapshot[]; onChange: (plan: BuildCalculationPlan | undefined) => void }) {
+export function BuildMechanics({ content, slots, localData, catalogs, onChange }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; onChange: (plan: BuildCalculationPlan | undefined) => void }) {
   const id = useId()
-  const resolve = (ref: EntityRef) => resolveEntity(profile, catalogs, ref)
-  const identity = (ref: EntityRef) => logicalEntityKey(profile, ref)
+  const resolve = (ref: EntityRef) => resolveEntity(localData, catalogs, ref)
+  const identity = (ref: EntityRef) => logicalEntityKey(localData, ref)
   const equipment = analyzeBuildEquipment(content, slots, resolve, identity)
   const estimate = calculateBuildStats(content, slots, resolve, identity)
   const plan = content.calculation

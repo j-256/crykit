@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { classFields, jsonRecord, LAST_VANILLA_JOB_ID, LEARN_NODE_TYPES, MAX_GROWTH_RATING, MAX_TREE_COLUMNS, MAX_TREE_ROWS, RATING_FIELDS } from '../domain/crystal-edit'
-import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityId, JsonValue, Profile, SourceRef } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityId, JsonValue, LocalData, SourceRef } from '../domain/types'
 import { AppDataError } from './errors'
 import { parseBoundedJson } from './json'
 import type { ImportPreview, ImportProblem } from './types'
-import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankProfile, nowTimestamp, randomId, sha256, stableSourceId } from './util'
+import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
 
 export const CRYSTAL_EDIT_FORMAT = 'crystal-edit-json-1' as const
 const MAX_MODELS = 20_000
@@ -86,12 +86,12 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
     legacy: { editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing] },
   }
-  const base = createBlankProfile('Imported Crystal Edit references', importedAt)
+  const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
   const receiptId = asImportReceiptId(`import:${digest}`)
-  const profile: Profile = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, importedAt, profileRevision: 0 } } }
+  const localData: LocalData = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, importedAt, localDataRevision: 0 } } }
   return {
     id: randomId('import-preview'), filename, detectedFormat: CRYSTAL_EDIT_FORMAT, detectedSchema: `Crystal Edit ${root.EditorVersion}`, sourceDigest: digest,
-    counts: { reference: total, personal: 0, mixed: 0, ignored }, warnings, errors: [], profile: { label: profile.label },
-    proposed: { profile, lineage: { rootProfileId: profile.id }, catalogs: [catalog], evidence: [], history: [], sources: [{ id: sourceId, digest, filename, mediaType: 'application/json', format: CRYSTAL_EDIT_FORMAT, importedAt, bytes: Uint8Array.from(bytes) }] },
+    counts: { reference: total, personal: 0, mixed: 0, ignored }, warnings, errors: [], localData: { label: base.playthroughs[base.selectedPlaythroughId!]!.label },
+    proposed: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [catalog], evidence: [], history: [], sources: [{ id: sourceId, digest, filename, mediaType: 'application/json', format: CRYSTAL_EDIT_FORMAT, importedAt, bytes: Uint8Array.from(bytes) }] },
   }
 }

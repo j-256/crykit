@@ -10,11 +10,11 @@ import { modState } from '../domain/mods'
 import { normalizeWeaponType, skillWeaponLabel, skillWeaponRule, UNRESTRICTED_WEAPON_SKILLS_MOD, WEAPON_TYPES } from '../domain/skill-weapons'
 import { useCallback, useMemo, useState } from 'react'
 import { definitionLineageRootRef, entityDefinitionKey, preferredDefinitionRef } from '../domain'
-import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, CatalogRef, EntityRef, Profile, RulesetRevisionId } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, CatalogRef, EntityRef, LocalData, GameSetupRevisionId } from '../domain/types'
 import { Badge, BoundedFacetOptions, Button, EmptyState, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { formatAppError, knowledgeTone } from './model'
-import { DefinitionEditor, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
+import { DefinitionEditor, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { ModBadge } from './DefinitionModLabel'
 import { routeWithOverlay, useNavigation, type ReferencePageRoute } from './navigation'
 import { Sheet } from './Sheet'
@@ -113,16 +113,16 @@ function DetailView({ item: displayedItem, modAvailability, onBack, onEdit, pers
 }
 
 function PersonalDetail({ option, onBack, onEdit, onOpenDefinition }: { option: DefinitionOption; onBack: () => void; onEdit: () => void; onOpenDefinition: (ref: EntityRef) => void }) {
-  const { profile } = useDefinitionWorkspace()
+  const { localData } = useDefinitionLibrary()
   const { baseline } = useCorrections()
   const definition = option.record
-  const root = definitionLineageRootRef(profile, option.ref)
+  const root = definitionLineageRootRef(localData, option.ref)
   const source = root.kind === 'catalog' ? correctionSource(baseline, root) : undefined
   const facts = Object.entries(definition.fields).filter(([field]) => field !== CRYSTAL_EDIT_FIELDS.tree && field !== 'Crystal Edit source record')
   return <div className="panel__body stack reference-detail">
     <div className="split"><Button icon="arrow-left" onClick={onBack} tone="quiet">Back to results</Button><Button icon="edit" onClick={onEdit} tone="secondary">{option.preferred ? 'Edit personal version' : 'Edit preferred personal version'}</Button></div>
     <div><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal definition</Badge>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge></div><div className="reference-title">{source ? <WikiSprite catalogId={source.catalog.id} detailed entity={source.entity}/> : <ArtworkPlaceholder detailed entity={definition}/>}<h2>{option.name}</h2></div><p><MoneyText>{option.description ?? 'No raw description supplied.'}</MoneyText></p>{option.aliases.length > 0 && <small>Aliases: {option.aliases.join(', ')}</small>}{source && <WikiSpriteSource catalogId={source.catalog.id} entity={source.entity}/>}<FieldIconSources fields={definition.fields}/></div>
-    <p className="definition-scope">Personal definition for {profile.label}. Edits save a new revision; existing records keep their saved version.</p>
+    <p className="definition-scope">Shared personal definition. Edits save a new revision; existing records keep their saved version.</p>
     <ClassResearch catalog={source?.catalog} definitionRef={option.ref} entity={definition} key={option.key}/>
     <div className="grid-2 definition-detail-columns"><DefinitionFactsPanel facts={facts}/><DefinitionSourcesPanel sources={definition.sources}><details className="correction-disclosure"><summary>Definition history</summary><dl className="definition-list"><div className="definition-row"><dt>Revision</dt><dd>{'revision' in definition ? definition.revision : 'Catalog base'}</dd></div>{'baseRef' in definition && definition.baseRef && <div className="definition-row"><dt>Based on</dt><dd><Button onClick={() => onOpenDefinition(definition.baseRef!)} tone="quiet">View source definition</Button></dd></div>}{'previousRevision' in definition && definition.previousRevision && <div className="definition-row"><dt>Previous revision</dt><dd><Button onClick={() => onOpenDefinition(definition.previousRevision!)} tone="quiet">View previous revision</Button></dd></div>}<div className="definition-row"><dt>Exact identity</dt><dd>{option.key}</dd></div></dl></details></DefinitionSourcesPanel></div>
     <DefinitionPlanningPanel definition={definition}/>
@@ -136,14 +136,14 @@ function mergeFacetOptions(base: readonly { readonly value: string; readonly cou
   return [...counts].map(([value, count]) => ({ value, count })).sort((left, right) => left.value.localeCompare(right.value))
 }
 
-export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefinitions }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void; onPromoteDefinitions: (sourceRulesetRevisionId: RulesetRevisionId, definitionRefs: readonly EntityRef[], label: string) => Promise<void> }) {
+export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefinitions }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; onOpenData: () => void; onPromoteDefinitions: (sourceGameSetupRevisionId: GameSetupRevisionId, definitionRefs: readonly EntityRef[], label: string) => Promise<void> }) {
   const navigation = useNavigation()
   const { baseline } = useCorrections()
-  const { options, availableOptions } = useDefinitionWorkspace()
+  const { options, availableOptions } = useDefinitionLibrary()
   const route = readReferenceRouteState()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [promotionRefs, setPromotionRefs] = useState<readonly EntityRef[]>([])
-  const [promotionRulesetId, setPromotionRulesetId] = useState<RulesetRevisionId | ''>(profile.activeRulesetRevisionId ?? '')
+  const [promotionGameSetupId, setPromotionGameSetupId] = useState<GameSetupRevisionId | ''>(localData.planningGameSetupRevisionId ?? '')
   const [promotionLabel, setPromotionLabel] = useState('Reviewed personal definitions')
   const [promotionBusy, setPromotionBusy] = useState(false)
   const [promotionError, setPromotionError] = useState<string>()
@@ -181,7 +181,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     return facets
   }, [facetItems, facetPersonalOptions])
   const sourceOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'source'), availablePersonalOptions.map(() => 'Personal definitions')), [searchableItems, availablePersonalOptions])
-  const unrestrictedWeaponSkills = modState(profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined, UNRESTRICTED_WEAPON_SKILLS_MOD)
+  const unrestrictedWeaponSkills = modState(localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined, UNRESTRICTED_WEAPON_SKILLS_MOD)
   const referenceFilters = useMemo<ReferenceFilters>(() => ({
     query: route.query,
     weapon: route.weapon,
@@ -209,7 +209,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const selectedRef = page.view === 'detail' ? page.ref : undefined
   const selected = selectedRef?.kind === 'catalog' ? items.find((item) => item.catalog.id === selectedRef.catalogId && item.catalog.revisionId === selectedRef.catalogRevisionId && item.entity.id === selectedRef.entityId) : undefined
   const selectedPersonal = selectedRef?.kind === 'personal' ? findDefinitionOption(options, selectedRef) : undefined
-  const selectedPreferred = selectedRef ? findDefinitionOption(options, preferredDefinitionRef(profile, selectedRef)) : undefined
+  const selectedPreferred = selectedRef ? findDefinitionOption(options, preferredDefinitionRef(localData, selectedRef)) : undefined
   const selectedAvailability = selectedRef ? optionsByKey.get(entityDefinitionKey(selectedRef))?.modAvailability : undefined
   const missingDetail = page.view === 'detail' && !selected && !selectedPersonal
   const promoting = page.view === 'promote'
@@ -218,7 +218,7 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const editingOption = editingRef ? findDefinitionOption(options, editingRef) : undefined
   const missingEditingRef = Boolean(editingRef && !editingOption)
   const knowledgeCounts = useMemo(() => aggregateKnowledgeCounts(results), [results])
-  const rulesets = Object.values(profile.rulesets).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  const gameSetups = Object.values(localData.gameSetups).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 
   const updateRoute = useCallback((change: Partial<ReferenceRouteState>, mode: 'push' | 'replace' = 'replace') => {
     commitReferenceRouteState({ ...route, ...change }, mode)
@@ -247,15 +247,15 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const openDetail = (ref: EntityRef) => navigate({ page: 'reference', view: 'detail', ref })
 
   const promote = async () => {
-    if (!promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()) return
+    if (!promotionGameSetupId || !promotionRefs.length || !promotionLabel.trim()) return
     setPromotionBusy(true)
     setPromotionError(undefined)
     try {
-      await onPromoteDefinitions(promotionRulesetId, promotionRefs, promotionLabel.trim())
+      await onPromoteDefinitions(promotionGameSetupId, promotionRefs, promotionLabel.trim())
       setPromotionRefs([])
       navigation.close()
     } catch (reason) {
-      setPromotionError(formatAppError(reason, 'The ruleset revision could not be created.'))
+      setPromotionError(formatAppError(reason, 'The Game Setup revision could not be created.'))
     } finally {
       setPromotionBusy(false)
     }
@@ -264,11 +264,11 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
   const hiddenMatchNotice = route.query && hiddenAudienceMatches.length > 0 ? <InlineNotice title={`${hiddenResults.length} additional ${hiddenResults.length === 1 ? 'match is' : 'matches are'} hidden`} tone="warning"><p>The default Reference omits technical and supplemental material. Include a matching category to see these results.</p><div className="cluster">{hiddenAudienceMatches.map(audience => <Button key={audience.value} onClick={() => updateFilter({ audiences: [...route.audiences, audience.value] }, 'push')} tone="quiet">Show {audience.label}</Button>)}</div></InlineNotice> : null
 
   return <>
-    <ScreenHeader actions={<><CorrectionsButton/><Button disabled={!preferredPersonalOptions.length || !rulesets.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into ruleset revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Look up equipment, classes, abilities, and monsters. Check sources and unknown details before planning." eyebrow="Game reference" title="Reference"/>
+    <ScreenHeader actions={<><CorrectionsButton/><Button disabled={!preferredPersonalOptions.length || !gameSetups.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map((option) => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into Game Setup revision</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button></>} description="Look up equipment, classes, abilities, and monsters. Check sources and unknown details before planning." eyebrow="Game reference" title="Reference"/>
     {activeFilters.length > 0 && <div aria-label="Active reference filters" className="reference-active-filters" role="group">{activeFilters.map(filter => <button aria-label={`Remove ${filter.label} filter`} className="filter-chip" key={filter.key} onClick={() => updateFilter(filter.clear, 'push')} title={filter.label} type="button"><span>{filter.label}</span><Icon name="close"/></button>)}<Button onClick={clearFilters} tone="quiet">Clear all filters</Button></div>}
     {!selectedRef && availableOptions.length < options.length && <p className="settings-section__intro">Definitions from explicitly disabled mods are hidden. Unclassified entries and uncertain mod settings remain visible.</p>}
-    {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this workspace. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}
-    {catalogs.length === 0 && personalOptions.length === 0 ? <EmptyState aside={<>Personal records remain available even if a local reference pack cannot be loaded.</>} description="No reference pack is available in this workspace. Import a permitted pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
+    {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this planner. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}
+    {catalogs.length === 0 && personalOptions.length === 0 ? <EmptyState aside={<>Personal records remain available even if a local reference pack cannot be loaded.</>} description="No reference pack is available in this planner. Import a permitted pack locally and review its format, rights, and coverage before adding it." icon="book" title="Reference library is empty"><Button icon="upload" onClick={onOpenData}>Import a reference pack</Button></EmptyState> : <div className="reference-layout">
       <aside className="panel facet-panel">
         <div className="panel__header"><div><h2>Refine</h2><p>{partition.confirmed.length + personalPartition.confirmed.length} confirmed · {partition.possible.length + personalPartition.possible.length} possible</p></div></div>
         <div className="facet-group"><div className="search-field"><Icon name="search"/><input aria-label="Search reference" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Name, alias, or raw text" type="search" value={route.query}/></div></div>
@@ -301,12 +301,12 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
       </aside>
       <section className="panel">
         {!selectedRef && route.weapon && <div className="panel__header"><div><h2>Skills usable with {route.weapon}</h2><p>Weapon skills only, including multi-weapon and any-weapon skills.</p>{partition.possible.length + personalPartition.possible.length > 0 && <label className="check-row"><input checked={route.includeUncertainSkills ?? false} onChange={event => updateFilter({ includeUncertainSkills: event.target.checked }, 'push')} type="checkbox"/><span>Include skills with unknown or conflicting requirements ({partition.possible.length + personalPartition.possible.length})</span></label>}{unrestrictedWeaponSkills === 'enabled' && <p>Unrestricted Weapon Skills is enabled. All documented weapon skills match; their original weapon requirements are shown below.</p>}</div></div>}
-        {selectedPersonal ? <PersonalDetail key={selectedPersonal.key} onOpenDefinition={openDetail} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedPersonal.ref) }))} option={selectedPersonal}/> : selected ? <DetailView key={selected.key} item={selected} modAvailability={selectedAvailability} onOpenDefinition={openDetail} personalOverride={selectedPreferred?.ref.kind === 'personal' ? selectedPreferred : undefined} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }) }))}/> : results.length || personalResults.length ? <div>
+        {selectedPersonal ? <PersonalDetail key={selectedPersonal.key} onOpenDefinition={openDetail} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(localData, selectedPersonal.ref) }))} option={selectedPersonal}/> : selected ? <DetailView key={selected.key} item={selected} modAvailability={selectedAvailability} onOpenDefinition={openDetail} personalOverride={selectedPreferred?.ref.kind === 'personal' ? selectedPreferred : undefined} onBack={() => navigation.close()} onEdit={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(localData, { kind: 'catalog', catalogId: selected.catalog.id, catalogRevisionId: selected.catalog.revisionId, entityId: selected.entity.id }) }))}/> : results.length || personalResults.length ? <div>
           {hiddenMatchNotice && <div className="panel__body">{hiddenMatchNotice}</div>}
           {partition.confirmed.length + personalPartition.confirmed.length === 0 && partition.possible.length + personalPartition.possible.length > 0 && <div className="panel__body"><InlineNotice title="Only possible matches">Unknown or conflicting fields may satisfy the active filters. Review each source before relying on it.</InlineNotice></div>}
           {visiblePersonalResults.map((option) => {
             const possible = personalPartition.possible.includes(option)
-            const root = definitionLineageRootRef(profile, option.ref)
+            const root = definitionLineageRootRef(localData, option.ref)
             const source = root.kind === 'catalog' ? correctionSource(baseline, root) : undefined
             return <button className="reference-card" key={option.key} onClick={() => openDetail(option.ref)} style={{ width: '100%', color: 'inherit', background: 'none', borderInline: 0, borderTop: 0, textAlign: 'left' }} type="button"><div className="reference-card__meta"><Badge tone="info">{option.kind}</Badge><Badge>Personal</Badge>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>} {possible && <Badge tone="warning">Possible match</Badge>}<Badge tone={option.preferred ? 'positive' : 'warning'}>{option.preferred ? 'Preferred revision' : 'Historical revision'}</Badge>{option.ppCost?.state === 'known' && <Badge tone="info">{option.ppCost.value} PP</Badge>}</div><div className="reference-title">{source ? <WikiSprite catalogId={source.catalog.id} entity={source.entity}/> : <ArtworkPlaceholder entity={option.record}/>}<h3>{option.name}</h3></div>{route.weapon && <SkillSummary entity={option.record}/>}<p><MoneyText>{option.description ?? `${option.sourceLabel} · ${option.stockLabel}`}</MoneyText></p></button>
           })}
@@ -318,12 +318,12 @@ export function ReferenceView({ profile, catalogs, onOpenData, onPromoteDefiniti
     </div>}
     {missingEditingRef && <InlineNotice title="Definition override unavailable" tone="warning">The exact definition selected for this override is unavailable. Close this editor address and choose an available definition without changing the original reference. <Button onClick={() => navigation.close()} tone="quiet">Close editor</Button></InlineNotice>}
     {editingRef && editingOption && <DefinitionEditor allowedKinds={[]} baseRef={editingRef} key={entityDefinitionKey(editingRef)} onClose={() => navigation.close()} onSaved={(ref) => navigation.navigate({ ...navigation.route, page: { page: 'reference', view: 'detail', ref }, overlays: [] }, { replace: true })} open routeIndex={0}/>}
-    <Sheet description="Collect reviewed preferred personal definitions into a new immutable ruleset revision. Existing build checkpoints keep their exact references, and the active ruleset does not change." onClose={() => navigation.close()} open={promoting} title="Collect into ruleset revision" width="wide"><div className="stack">
-      <InlineNotice title="Promotion-ready collection">This creates a new ruleset revision from the selected source. It does not publish a catalog, rewrite old records, or activate the new revision.</InlineNotice>
-      <div className="grid-2"><label className="field"><span className="field__label">Source ruleset revision</span><select onChange={(event) => setPromotionRulesetId(event.target.value as RulesetRevisionId)} value={promotionRulesetId}><option value="">Choose ruleset revision</option>{rulesets.map((ruleset) => <option key={ruleset.id} value={ruleset.id}>{ruleset.label} · revision {ruleset.revision}</option>)}</select></label><label className="field"><span className="field__label">New revision label</span><input onChange={(event) => setPromotionLabel(event.target.value)} required value={promotionLabel}/></label></div>
+    <Sheet description="Collect reviewed preferred personal definitions into a new immutable Game Setup revision. Existing build checkpoints keep their exact references, and the current Game Setup does not change." onClose={() => navigation.close()} open={promoting} title="Collect into Game Setup revision" width="wide"><div className="stack">
+      <InlineNotice title="Promotion-ready collection">This creates a new Game Setup revision from the selected source. It does not publish a catalog, rewrite old records, or activate the new revision.</InlineNotice>
+      <div className="grid-2"><label className="field"><span className="field__label">Source Game Setup revision</span><select onChange={(event) => setPromotionGameSetupId(event.target.value as GameSetupRevisionId)} value={promotionGameSetupId}><option value="">Choose Game Setup revision</option>{gameSetups.map((gameSetup) => <option key={gameSetup.id} value={gameSetup.id}>{gameSetup.label} · revision {gameSetup.revision}</option>)}</select></label><label className="field"><span className="field__label">New revision label</span><input onChange={(event) => setPromotionLabel(event.target.value)} required value={promotionLabel}/></label></div>
       <fieldset className="definition-collection"><legend>Preferred personal definitions</legend>{preferredPersonalOptions.map((option) => { const checked = promotionRefs.some((ref) => entityDefinitionKey(ref) === option.key); return <label className="check-row" key={option.key}><input checked={checked} onChange={(event) => setPromotionRefs((current) => event.target.checked ? [...current, option.ref] : current.filter((ref) => entityDefinitionKey(ref) !== option.key))} type="checkbox"/><span><strong>{option.name}</strong><small>{option.kind} · {option.sourceLabel}</small></span></label> })}</fieldset>
-      {promotionError && <InlineNotice title="Ruleset revision not created" tone="danger">{promotionError} Your selected definitions remain checked.</InlineNotice>}
-      <div className="form-actions"><Button disabled={promotionBusy} onClick={() => navigation.close()} tone="quiet">Cancel</Button><Button disabled={promotionBusy || !promotionRulesetId || !promotionRefs.length || !promotionLabel.trim()} icon="check" onClick={() => void promote()}>{promotionBusy ? 'Creating revision...' : 'Create ruleset revision'}</Button></div>
+      {promotionError && <InlineNotice title="Game Setup revision not created" tone="danger">{promotionError} Your selected definitions remain checked.</InlineNotice>}
+      <div className="form-actions"><Button disabled={promotionBusy} onClick={() => navigation.close()} tone="quiet">Cancel</Button><Button disabled={promotionBusy || !promotionGameSetupId || !promotionRefs.length || !promotionLabel.trim()} icon="check" onClick={() => void promote()}>{promotionBusy ? 'Creating revision...' : 'Create Game Setup revision'}</Button></div>
     </div></Sheet>
   </>
 }

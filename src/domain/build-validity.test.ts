@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { validateBuildContent } from './build-validity'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
-import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef, JsonValue, RulesetRevision } from './types'
+import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef, JsonValue, GameSetupRevision } from './types'
 
 const known = <Value extends JsonValue>(value: Value) => ({ state: 'known' as const, value })
 const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
@@ -17,36 +17,36 @@ const passive = (id: string, cost?: number): CatalogEntity => ({
   grants: known([]),
   sources: [],
 })
-const unavailable = { ...passive('unavailable'), kind: 'innate' as const, ppCost: { state: 'notApplicable' as const, reason: 'Not made learnable by this ruleset' } }
+const unavailable = { ...passive('unavailable'), kind: 'innate' as const, ppCost: { state: 'notApplicable' as const, reason: 'Not made learnable by this Game Setup' } }
 const definitions = [passive('four', 4), passive('six', 6), passive('seven', 7), passive('unknown'), unavailable]
 const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definitions.find(definition => definition.id === reference.entityId) : undefined
-const ruleset: Pick<RulesetRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, ppLimit: known(10), ppCostsNonNegative: known(true) }
+const gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, ppLimit: known(10), ppCostsNonNegative: known(true) }
 const content = (...ids: string[]): BuildRevisionContent => ({ primaryClass: null, secondaryClass: null, equipment: {}, passives: ids.map(id => ({ ref: ref(id) })), contextAssumptions: [] })
 
 describe('character-independent build validity', () => {
-  it('accepts a known PP total at the ruleset limit without character state', () => {
-    const report = validateBuildContent(content('four', 'six'), ruleset, SUGGESTED_BUILD_SLOTS, resolve)
+  it('accepts a known PP total at the gameSetup limit without character state', () => {
+    const report = validateBuildContent(content('four', 'six'), gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
     expect(report.pp).toMatchObject({ knownSubtotal: 10, unresolvedCosts: 0, status: 'valid' })
     expect(report.status).toBe('valid')
   })
 
-  it('rejects a known PP total above the ruleset limit', () => {
-    const report = validateBuildContent(content('four', 'seven'), ruleset, SUGGESTED_BUILD_SLOTS, resolve)
+  it('rejects a known PP total above the gameSetup limit', () => {
+    const report = validateBuildContent(content('four', 'seven'), gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
     expect(report.status).toBe('invalid')
     expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PP_LIMIT_EXCEEDED', status: 'invalid' }))
   })
 
   it('keeps unresolved costs and limits explicit', () => {
-    const unknownCost = validateBuildContent(content('four', 'unknown'), ruleset, SUGGESTED_BUILD_SLOTS, resolve)
+    const unknownCost = validateBuildContent(content('four', 'unknown'), gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
     expect(unknownCost.status).toBe('undetermined')
     expect(unknownCost.issues).toContainEqual(expect.objectContaining({ code: 'PP_COST_UNKNOWN' }))
-    const unknownLimit = validateBuildContent(content('four'), { ...ruleset, ppLimit: { state: 'unknown' } }, SUGGESTED_BUILD_SLOTS, resolve)
+    const unknownLimit = validateBuildContent(content('four'), { ...gameSetup, ppLimit: { state: 'unknown' } }, SUGGESTED_BUILD_SLOTS, resolve)
     expect(unknownLimit.status).toBe('undetermined')
     expect(unknownLimit.issues).toContainEqual(expect.objectContaining({ code: 'PP_LIMIT_UNKNOWN' }))
   })
 
   it('rejects an innate that is explicitly unavailable as an equippable passive', () => {
-    const report = validateBuildContent(content('unavailable'), ruleset, SUGGESTED_BUILD_SLOTS, resolve)
+    const report = validateBuildContent(content('unavailable'), gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
     expect(report.status).toBe('invalid')
     expect(report.pp).toMatchObject({ knownSubtotal: 0, unresolvedCosts: 0 })
     expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PASSIVE_NOT_EQUIPPABLE', status: 'invalid' }))

@@ -1,6 +1,7 @@
 export type Brand<Value, Name extends string> = Value & { readonly __brand: Name }
 
-export type ProfileId = Brand<string, 'ProfileId'>
+export type LocalDataId = Brand<string, 'LocalDataId'>
+export type PlaythroughId = Brand<string, 'PlaythroughId'>
 export type PersonalDefinitionId = Brand<string, 'PersonalDefinitionId'>
 export type CatalogId = Brand<string, 'CatalogId'>
 export type CatalogRevisionId = Brand<string, 'CatalogRevisionId'>
@@ -13,8 +14,8 @@ export type ProgressRecordId = Brand<string, 'ProgressRecordId'>
 export type BuildId = Brand<string, 'BuildId'>
 export type BuildRevisionId = Brand<string, 'BuildRevisionId'>
 export type ScenarioId = Brand<string, 'ScenarioId'>
-export type RulesetId = Brand<string, 'RulesetId'>
-export type RulesetRevisionId = Brand<string, 'RulesetRevisionId'>
+export type GameSetupId = Brand<string, 'GameSetupId'>
+export type GameSetupRevisionId = Brand<string, 'GameSetupRevisionId'>
 export type GoalId = Brand<string, 'GoalId'>
 export type ChangeId = Brand<string, 'ChangeId'>
 export type ImportReceiptId = Brand<string, 'ImportReceiptId'>
@@ -22,7 +23,8 @@ export type SlotId = Brand<string, 'SlotId'>
 export type Timestamp = Brand<string, 'Timestamp'>
 
 export type DomainId =
-  | ProfileId
+  | LocalDataId
+  | PlaythroughId
   | PersonalDefinitionId
   | CatalogId
   | CatalogRevisionId
@@ -35,8 +37,8 @@ export type DomainId =
   | BuildId
   | BuildRevisionId
   | ScenarioId
-  | RulesetId
-  | RulesetRevisionId
+  | GameSetupId
+  | GameSetupRevisionId
   | GoalId
   | ChangeId
   | ImportReceiptId
@@ -181,9 +183,9 @@ export interface SlotDefinition {
   readonly sources: readonly SourceRef[]
 }
 
-export interface RulesetRevision {
-  readonly id: RulesetRevisionId
-  readonly rulesetId: RulesetId
+export interface GameSetupRevision {
+  readonly id: GameSetupRevisionId
+  readonly gameSetupId: GameSetupId
   readonly revision: number
   readonly label: string
   readonly platform: Knowledge<string>
@@ -237,7 +239,7 @@ export interface ObservedStat {
 
 export interface CharacterSnapshot {
   readonly id: CharacterSnapshotId
-  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly gameSetupRevisionId?: GameSetupRevisionId
   readonly observedAt?: Timestamp
   readonly recordedAt: Timestamp
   readonly level: Knowledge<number>
@@ -287,7 +289,7 @@ export interface SkillTreeMapping {
 export interface SkillTreeLayout {
   readonly id: string
   readonly classRef: EntityRef
-  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly gameSetupRevisionId?: GameSetupRevisionId
   readonly shape: string
   readonly mappings: readonly SkillTreeMapping[]
 }
@@ -296,7 +298,7 @@ export interface SkillTreeCapture {
   readonly id: string
   readonly characterId: CharacterId
   readonly classRef: EntityRef
-  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly gameSetupRevisionId?: GameSetupRevisionId
   readonly sourceDigest: string
   readonly filename: string
   readonly recordedAt: Timestamp
@@ -334,8 +336,8 @@ export interface PartyProgressRecord {
   readonly updatedAt: Timestamp
 }
 
-export type BuildKind = 'character' | 'template'
-export type BuildState = 'recordedCurrent' | 'draft' | 'hypothetical' | 'archived'
+export type BuildKind = 'build' | 'template'
+export type BuildState = 'draft' | 'hypothetical' | 'archived'
 
 export interface BuildSelection {
   readonly ref: EntityRef
@@ -367,7 +369,7 @@ export interface BuildRevision {
   readonly buildId: BuildId
   readonly revision: number
   readonly parentRevisionId?: BuildRevisionId
-  readonly rulesetRevisionId: RulesetRevisionId
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
   readonly content: BuildRevisionContent
   readonly note?: string
@@ -376,10 +378,10 @@ export interface BuildRevision {
 
 export interface Build {
   readonly id: BuildId
+  readonly gameSetupId: GameSetupId
   readonly revision: number
   readonly title: string
   readonly kind: BuildKind
-  readonly characterId?: CharacterId
   readonly state: BuildState
   readonly tags: readonly string[]
   readonly favorite: boolean
@@ -399,7 +401,7 @@ export type ScenarioBaseline =
   | { readonly kind: 'empty' }
   | {
       readonly kind: 'recordedParty'
-      readonly profileRevision: number
+      readonly playthroughRevision: number
       readonly assignments: Readonly<Record<string, BuildRevisionId>>
     }
 
@@ -411,7 +413,7 @@ export interface TeamScenario {
   readonly memberIds: readonly CharacterId[]
   readonly baseline: ScenarioBaseline
   readonly assignments: Readonly<Record<string, BuildRevisionId | null>>
-  readonly rulesetRevisionId: RulesetRevisionId
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
   readonly inventoryPolicy: InventoryPolicy
   readonly createdAt: Timestamp
@@ -446,7 +448,7 @@ export interface ImportReceipt {
   readonly sourceFormat: string
   readonly sourceIdentity: string
   readonly importedAt: Timestamp
-  readonly profileRevision: number
+  readonly localDataRevision: number
 }
 
 export interface ChangeEntry {
@@ -458,29 +460,39 @@ export interface ChangeEntry {
   readonly recordedAt: Timestamp
 }
 
-export interface Profile {
-  readonly schemaVersion: '1.0.0'
-  readonly id: ProfileId
+export interface Playthrough {
+  readonly id: PlaythroughId
   readonly revision: number
   readonly label: string
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
-  readonly activeRulesetRevisionId?: RulesetRevisionId
+  readonly currentGameSetupRevisionId?: GameSetupRevisionId
   readonly activeScenarioId?: ScenarioId
-  readonly personalDefinitions: Readonly<Record<string, PersonalDefinition>>
-  readonly rulesets: Readonly<Record<string, RulesetRevision>>
   readonly inventory: Readonly<Record<string, InventoryPosition>>
   readonly inventoryEvents: Readonly<Record<string, InventoryEvent>>
   readonly characters: Readonly<Record<string, Character>>
   readonly progress: Readonly<Record<string, PartyProgressRecord>>
-  readonly builds: Readonly<Record<string, Build>>
-  readonly buildRevisions: Readonly<Record<string, BuildRevision>>
   readonly scenarios: Readonly<Record<string, TeamScenario>>
   readonly goals: Readonly<Record<string, Goal>>
+  readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>
+}
+
+export interface LocalData {
+  readonly schemaVersion: '2.0.0'
+  readonly id: LocalDataId
+  readonly revision: number
+  readonly createdAt: Timestamp
+  readonly updatedAt: Timestamp
+  readonly selectedPlaythroughId?: PlaythroughId
+  readonly planningGameSetupRevisionId?: GameSetupRevisionId
+  readonly personalDefinitions: Readonly<Record<string, PersonalDefinition>>
+  readonly gameSetups: Readonly<Record<string, GameSetupRevision>>
+  readonly builds: Readonly<Record<string, Build>>
+  readonly buildRevisions: Readonly<Record<string, BuildRevision>>
+  readonly playthroughs: Readonly<Record<string, Playthrough>>
   readonly importReceipts: Readonly<Record<string, ImportReceipt>>
   readonly changes: readonly ChangeEntry[]
   readonly skillTreeLayouts?: Readonly<Record<string, SkillTreeLayout>>
-  readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>
 }
 
 export type TruthValue = 'true' | 'false' | 'unknown'
@@ -507,7 +519,7 @@ export type ValidationDimension =
   | 'passives'
   | 'characterReadiness'
   | 'inventory'
-  | 'rulesetCertainty'
+  | 'gameSetupCertainty'
   | 'calculationReadiness'
 
 export type ValidationStatus = 'valid' | 'invalid' | 'undetermined' | 'notApplicable'
@@ -534,8 +546,8 @@ export interface ValidationDimensionResult {
 
 export interface ValidationReport {
   readonly scenarioId: ScenarioId
-  readonly profileRevision: number
-  readonly rulesetRevisionId: RulesetRevisionId
+  readonly playthroughRevision: number
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly dimensions: Readonly<Record<ValidationDimension, ValidationDimensionResult>>
   readonly issues: readonly ValidationIssue[]
 }

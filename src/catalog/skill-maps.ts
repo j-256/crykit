@@ -3,7 +3,7 @@ import { normalizeModName } from '../domain/mods'
 import { asId, entityDefinitionKey } from '../domain/core'
 import { definitionLineageRootRef, preferredDefinitionRef, resolveDefinition, sameLogicalEntity } from '../domain/definitions'
 import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-trees'
-import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, Profile, RulesetRevision, RulesetRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
+import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, LocalData, GameSetupRevision, GameSetupRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 import { BUNDLED_CATALOG_REVISION_ID } from './bundled-catalog'
 
@@ -446,14 +446,14 @@ export const CONFIRMED_SKILL_MAPS: readonly ConfirmedSkillMap[] = Object.freeze(
   ], [], 'switch:class:freelancer'),
 ])
 
-export function skillMapSetForRuleset(ruleset?: RulesetRevision): string {
-  if (ruleset?.platform.state !== 'known' || !['switch', 'nintendo switch'].includes(normalizeModName(ruleset.platform.value)) || ruleset.mods.state !== 'known' || ruleset.disabledMods?.state !== 'known') return ''
+export function skillMapSetForGameSetup(gameSetup?: GameSetupRevision): string {
+  if (gameSetup?.platform.state !== 'known' || !['switch', 'nintendo switch'].includes(normalizeModName(gameSetup.platform.value)) || gameSetup.mods.state !== 'known' || gameSetup.disabledMods?.state !== 'known') return ''
   const equalNames = (left: readonly string[], right: readonly string[]) => {
     const names = new Set(left.map(normalizeModName))
     return names.size === right.length && right.every(name => names.has(normalizeModName(name)))
   }
-  const enabled = ruleset.mods.value
-  const disabled = ruleset.disabledMods.value
+  const enabled = gameSetup.mods.value
+  const disabled = gameSetup.disabledMods.value
   return CONFIRMED_SKILL_MAP_SETS.find(set => equalNames(enabled, set.enabledMods) && equalNames(disabled, set.disabledMods))?.id ?? ''
 }
 
@@ -462,19 +462,19 @@ export interface SkillMapSuggestion {
   readonly confirmedMap?: ConfirmedSkillMap
 }
 
-export function suggestSkillTreeMap(profile: Profile, catalogs: readonly CatalogSnapshot[], classRef: EntityRef, squares: readonly SkillSquare[], mapSetId: string, rulesetRevisionId?: RulesetRevisionId, draftMappings?: readonly SkillTreeMapping[]): SkillMapSuggestion {
-  const saved = draftMappings ?? findSkillTreeLayout(profile, classRef, squares, rulesetRevisionId)?.mappings ?? []
-  const root = definitionLineageRootRef(profile, classRef)
+export function suggestSkillTreeMap(localData: LocalData, catalogs: readonly CatalogSnapshot[], classRef: EntityRef, squares: readonly SkillSquare[], mapSetId: string, gameSetupRevisionId?: GameSetupRevisionId, draftMappings?: readonly SkillTreeMapping[]): SkillMapSuggestion {
+  const saved = draftMappings ?? findSkillTreeLayout(localData, classRef, squares, gameSetupRevisionId)?.mappings ?? []
+  const root = definitionLineageRootRef(localData, classRef)
   const mappedRoot = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && root.catalogRevisionId === BUNDLED_CATALOG_REVISION_ID
     ? { ...root, catalogRevisionId: STARTER_CATALOG_REVISION_ID }
     : root
   const confirmedMap = CONFIRMED_SKILL_MAPS.find(map => map.mapSetId === mapSetId && entityDefinitionKey(map.classRef) === entityDefinitionKey(mappedRoot) && skillTreeShape(map.squares) === skillTreeShape(squares))
-  if (!confirmedMap || resolveDefinition(profile, catalogs, classRef)?.kind !== 'class') return { mappings: saved }
-  const mappings = confirmedMap.mappings.map(mapping => ({ ...mapping, ref: preferredDefinitionRef(profile, mapping.ref) }))
-  if (mappings.some(mapping => resolveDefinition(profile, catalogs, mapping.ref)?.kind !== mapping.kind)) return { mappings: saved }
+  if (!confirmedMap || resolveDefinition(localData, catalogs, classRef)?.kind !== 'class') return { mappings: saved }
+  const mappings = confirmedMap.mappings.map(mapping => ({ ...mapping, ref: preferredDefinitionRef(localData, mapping.ref) }))
+  if (mappings.some(mapping => resolveDefinition(localData, catalogs, mapping.ref)?.kind !== mapping.kind)) return { mappings: saved }
   if (saved.some(prior => {
     const expected = mappings.find(next => squareKey(prior) === squareKey(next))
-    return expected ? prior.kind !== expected.kind || !sameLogicalEntity(profile, prior.ref, expected.ref) : !confirmedMap.squares.some(square => squareKey(square) === squareKey(prior))
+    return expected ? prior.kind !== expected.kind || !sameLogicalEntity(localData, prior.ref, expected.ref) : !confirmedMap.squares.some(square => squareKey(square) === squareKey(prior))
   })) return { mappings: saved }
   const retained = saved.filter(prior => !mappings.some(next => squareKey(prior) === squareKey(next)))
   return { mappings: [...mappings.map(mapping => saved.find(prior => squareKey(prior) === squareKey(mapping)) ?? mapping), ...retained].sort((a, b) => a.row - b.row || a.column - b.column), confirmedMap }

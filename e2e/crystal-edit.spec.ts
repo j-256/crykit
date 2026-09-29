@@ -1,8 +1,9 @@
+import { selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { syntheticCrystalEdit } from '../src/interchange/crystal-edit.test-helpers'
-import type { Profile } from '../src/domain/types'
+import type { LocalData } from '../src/domain/types'
 
 const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aclass%3Awarrior'
 
@@ -11,14 +12,14 @@ async function openData(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
   await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
   const entries = unzipSync(await readFile((await (await download).path())!))
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return (JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile }).profile
+  return (JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }).localData
 }
 
 test('bundled class calculations respond to explicit mixed growth and work offline', async ({ page, context, baseURL }, testInfo) => {
@@ -61,7 +62,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
 
 test('custom class imports preserve the playthrough and supply tree names and command selections', async ({ page }, testInfo) => {
   await page.goto('/')
-  const before = await exportProfile(page)
+  const before = await exportLocalData(page)
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await settings.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mod.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(syntheticCrystalEdit())) })
@@ -69,11 +70,11 @@ test('custom class imports preserve the playthrough and supply tree names and co
   await expect(settings.getByText(/referenced ability or passive definitions are absent/)).toBeVisible()
   await settings.getByRole('button', { name: 'Add references', exact: true }).click()
   await expect(settings).not.toBeVisible()
-  const after = await exportProfile(page)
+  const after = await exportLocalData(page)
   expect(after.id).toBe(before.id)
-  expect(after.characters).toEqual(before.characters)
-  expect(after.inventory).toEqual(before.inventory)
-  expect(after.rulesets).toEqual(before.rulesets)
+  expect(selectedPlaythrough(after).characters).toEqual(selectedPlaythrough(before).characters)
+  expect(selectedPlaythrough(after).inventory).toEqual(selectedPlaythrough(before).inventory)
+  expect(after.gameSetups).toEqual(before.gameSetups)
   await page.goto('/#/reference')
   await page.getByLabel('Search reference', { exact: true }).fill('Synthetic Scholar')
   await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic Scholar', exact: true }) }).click()

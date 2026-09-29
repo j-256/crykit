@@ -1,15 +1,15 @@
-import { createBlankPlaythrough, openRulesetSection } from './profile-helpers'
+import { selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { CatalogSnapshot, Profile } from '../src/domain/types'
+import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page) {
+async function exportLocalData(page: Page) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
@@ -18,7 +18,7 @@ async function exportProfile(page: Page) {
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile; catalogs: readonly CatalogSnapshot[] }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[] }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return { ...bundle, bytes }
 }
@@ -74,11 +74,11 @@ test('starter picklists and universal search work without importing or inventing
   page.on('request', (request) => {
     if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url())
   })
-  const blank = await exportProfile(page)
-  expect(blank.profile.inventory).toEqual({})
-  expect(blank.profile.characters).toEqual({})
-  expect(blank.profile.progress).toEqual({})
-  expect(blank.profile.personalDefinitions).toEqual({})
+  const blank = await exportLocalData(page)
+  expect(selectedPlaythrough(blank.localData).inventory).toEqual({})
+  expect(selectedPlaythrough(blank.localData).characters).toEqual({})
+  expect(selectedPlaythrough(blank.localData).progress).toEqual({})
+  expect(blank.localData.personalDefinitions).toEqual({})
 
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
@@ -119,13 +119,13 @@ test('starter picklists and universal search work without importing or inventing
   await palette.locator('[data-universal-result="true"]').click()
   await expect(page.getByRole('dialog', { name: 'Edit inventory observation', exact: true })).toBeVisible()
   await page.getByRole('dialog', { name: 'Edit inventory observation', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click()
-  const saved = await exportProfile(page)
-  expect(Object.values(saved.profile.inventory)).toHaveLength(1)
-  expect(Object.values(saved.profile.inventory)[0]?.observedName).toBe('Potion')
-  expect(Object.values(saved.profile.inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 3 })
+  const saved = await exportLocalData(page)
+  expect(Object.values(selectedPlaythrough(saved.localData).inventory)).toHaveLength(1)
+  expect(Object.values(selectedPlaythrough(saved.localData).inventory)[0]?.observedName).toBe('Potion')
+  expect(Object.values(selectedPlaythrough(saved.localData).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 3 })
   expect(saved.catalogs.some((catalog) => catalog.id === 'crystal-project-public-starter')).toBe(true)
-  expect(saved.profile.characters).toEqual({})
-  expect(saved.profile.progress).toEqual({})
+  expect(selectedPlaythrough(saved.localData).characters).toEqual({})
+  expect(selectedPlaythrough(saved.localData).progress).toEqual({})
   expect(externalRequests).toEqual([])
 })
 
@@ -142,11 +142,11 @@ test('inventory display names remain optional and preserve the selected item acr
   await expect(displayName).toHaveValue('Synthetic travel potion')
   await form.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(form).not.toBeVisible()
-  const created = await exportProfile(page)
-  const position = Object.values(created.profile.inventory)[0]!
+  const created = await exportLocalData(page)
+  const position = Object.values(selectedPlaythrough(created.localData).inventory)[0]!
   expect(position.observedName).toBe('Synthetic travel potion')
   expect(position.ref.kind).toBe('catalog')
-  expect(created.profile.personalDefinitions).toEqual({})
+  expect(created.localData.personalDefinitions).toEqual({})
 
   await page.reload()
   await page.getByRole('button', { name: 'Edit Synthetic travel potion', exact: true }).click()
@@ -156,8 +156,8 @@ test('inventory display names remain optional and preserve the selected item acr
   await editor.getByRole('textbox', { name: 'Display name', exact: true }).fill('')
   await editor.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(editor).not.toBeVisible()
-  const restoredName = await exportProfile(page)
-  expect(restoredName.profile.inventory[position.id]).toMatchObject({ id: position.id, ref: position.ref, observedName: 'Potion', possession: position.possession, quantity: position.quantity })
+  const restoredName = await exportLocalData(page)
+  expect(selectedPlaythrough(restoredName.localData).inventory[position.id]).toMatchObject({ id: position.id, ref: position.ref, observedName: 'Potion', possession: position.possession, quantity: position.quantity })
 
   await page.getByRole('button', { name: 'Edit Potion', exact: true }).click()
   await expect(editor.getByRole('textbox', { name: 'Display name', exact: true })).not.toBeVisible()
@@ -173,11 +173,11 @@ test('inventory display names remain optional and preserve the selected item acr
   await expect(editor.getByRole('textbox', { name: 'Display name', exact: true })).not.toBeVisible()
   await editor.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(editor).not.toBeVisible()
-  const changedItem = await exportProfile(page)
-  expect(Object.values(changedItem.profile.inventory)).toHaveLength(1)
-  expect(changedItem.profile.inventory[position.id]?.observedName).toBe('Ether')
-  expect(changedItem.profile.inventory[position.id]?.ref).not.toEqual(position.ref)
-  expect(changedItem.profile.personalDefinitions).toEqual({})
+  const changedItem = await exportLocalData(page)
+  expect(Object.values(selectedPlaythrough(changedItem.localData).inventory)).toHaveLength(1)
+  expect(selectedPlaythrough(changedItem.localData).inventory[position.id]?.observedName).toBe('Ether')
+  expect(selectedPlaythrough(changedItem.localData).inventory[position.id]?.ref).not.toEqual(position.ref)
+  expect(changedItem.localData.personalDefinitions).toEqual({})
   expect(changedItem.catalogs).toEqual(created.catalogs)
 })
 
@@ -215,23 +215,23 @@ test('nested definition creation preserves the observation and universal search 
   await expect(form.getByRole('textbox', { name: 'Item name', exact: true })).not.toBeVisible()
   await form.getByRole('button', { name: 'Cancel', exact: true }).click()
 
-  const backup = await exportProfile(page)
-  expect(backup.profile.inventory).toEqual({})
-  expect(Object.values(backup.profile.personalDefinitions).map((definition) => definition.name)).toEqual(['Synthetic glass lantern'])
+  const backup = await exportLocalData(page)
+  expect(selectedPlaythrough(backup.localData).inventory).toEqual({})
+  expect(Object.values(backup.localData.personalDefinitions).map((definition) => definition.name)).toEqual(['Synthetic glass lantern'])
   await search(page, 'Synthetic beacon')
   await expect(palette.locator('[data-universal-result="true"]')).toHaveCount(1)
   await palette.locator('[data-universal-result="true"]').click()
   await expect(page.getByRole('heading', { name: 'Synthetic glass lantern', exact: true })).toBeVisible()
 })
 
-test('item overrides preserve stock and checkpoints and can be collected into an inactive ruleset revision', async ({ page }) => {
+test('item overrides preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await settings.getByLabel('Ruleset label').fill('Synthetic base rules')
-  await openRulesetSection(settings, 'Equipment layout')
+  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await settings.getByLabel('Game Setup label').fill('Synthetic base rules')
+  await openGameSetupSection(settings, 'Equipment slot rules')
   await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
+  await settings.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
@@ -244,7 +244,7 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await expect(stock).not.toBeVisible()
 
   await page.getByRole('button', { name: /^(Builds|Builds & teams)$/ }).filter({ visible: true }).click()
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
@@ -265,8 +265,9 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Before personal correction')
   await buildEditor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  const before = await exportProfile(page)
-  expect(Object.values(before.profile.buildRevisions)).toHaveLength(1)
+  const before = await exportLocalData(page)
+  const checkpointBuild = Object.values(before.localData.builds).find((build) => build.title === 'Synthetic catalog checkpoint')!
+  expect(Object.values(before.localData.buildRevisions).filter((revision) => revision.buildId === checkpointBuild.id)).toHaveLength(1)
 
   await search(page, 'Iron Sword item')
   await palette.locator('[data-universal-result="true"]').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
@@ -284,19 +285,19 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await expect(definition).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic tempered sword', exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Collect into ruleset revision', exact: true }).click()
-  const collection = page.getByRole('dialog', { name: 'Collect into ruleset revision', exact: true })
-  await collection.getByLabel('Source ruleset revision').selectOption(before.profile.activeRulesetRevisionId!)
+  await page.getByRole('button', { name: 'Collect into Game Setup revision', exact: true }).click()
+  const collection = page.getByRole('dialog', { name: 'Collect into Game Setup revision', exact: true })
+  await collection.getByLabel('Source Game Setup revision').selectOption(before.localData.planningGameSetupRevisionId!)
   await collection.getByLabel('New revision label').fill('Synthetic reviewed definitions')
-  await collection.getByRole('button', { name: 'Create ruleset revision', exact: true }).click()
+  await collection.getByRole('button', { name: 'Create Game Setup revision', exact: true }).click()
   await expect(collection).not.toBeVisible()
-  const after = await exportProfile(page)
-  expect(after.profile.inventory).toEqual(before.profile.inventory)
-  expect(after.profile.buildRevisions).toEqual(before.profile.buildRevisions)
-  expect(after.profile.activeRulesetRevisionId).toBe(before.profile.activeRulesetRevisionId)
-  const override = Object.values(after.profile.personalDefinitions).find((entry) => entry.name === 'Synthetic tempered sword')!
-  expect(override.baseRef).toEqual(Object.values(before.profile.inventory)[0]!.ref)
-  const collected = Object.values(after.profile.rulesets).find((entry) => entry.label === 'Synthetic reviewed definitions')!
+  const after = await exportLocalData(page)
+  expect(selectedPlaythrough(after.localData).inventory).toEqual(selectedPlaythrough(before.localData).inventory)
+  expect(after.localData.buildRevisions).toEqual(before.localData.buildRevisions)
+  expect(after.localData.planningGameSetupRevisionId).toBe(before.localData.planningGameSetupRevisionId)
+  const override = Object.values(after.localData.personalDefinitions).find((entry) => entry.name === 'Synthetic tempered sword')!
+  expect(override.baseRef).toEqual(Object.values(selectedPlaythrough(before.localData).inventory)[0]!.ref)
+  const collected = Object.values(after.localData.gameSetups).find((entry) => entry.label === 'Synthetic reviewed definitions')!
   expect(collected.definitionOverrides).toEqual([{ kind: 'personal', definitionId: override.id }])
 
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
@@ -310,19 +311,19 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await page.getByRole('group', { name: 'Inventory category filters', exact: true }).getByRole('button', { name: 'Synthetic weapons (1)', exact: true }).click()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Edit Synthetic tempered sword', exact: true })).toBeVisible()
-  const linked = await exportProfile(page)
-  expect(Object.values(linked.profile.inventory)).toHaveLength(1)
-  expect(Object.values(linked.profile.inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 2 })
-  expect(Object.values(linked.profile.inventory)[0]?.ref).toEqual({ kind: 'personal', definitionId: override.id })
-  expect(linked.profile.buildRevisions).toEqual(before.profile.buildRevisions)
+  const linked = await exportLocalData(page)
+  expect(Object.values(selectedPlaythrough(linked.localData).inventory)).toHaveLength(1)
+  expect(Object.values(selectedPlaythrough(linked.localData).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 2 })
+  expect(Object.values(selectedPlaythrough(linked.localData).inventory)[0]?.ref).toEqual({ kind: 'personal', definitionId: override.id })
+  expect(linked.localData.buildRevisions).toEqual(before.localData.buildRevisions)
 
   const restore = await openData(page)
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overrides.zip', mimeType: 'application/zip', buffer: linked.bytes })
-  await restore.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
-  const restored = await exportProfile(page)
-  expect(restored.profile.personalDefinitions).toEqual(linked.profile.personalDefinitions)
-  expect(restored.profile.inventory).toEqual(linked.profile.inventory)
-  expect(restored.profile.rulesets).toEqual(linked.profile.rulesets)
-  expect(restored.profile.buildRevisions).toEqual(linked.profile.buildRevisions)
+  const restored = await exportLocalData(page)
+  expect(restored.localData.personalDefinitions).toEqual(linked.localData.personalDefinitions)
+  expect(selectedPlaythrough(restored.localData).inventory).toEqual(selectedPlaythrough(linked.localData).inventory)
+  expect(restored.localData.gameSetups).toEqual(linked.localData.gameSetups)
+  expect(restored.localData.buildRevisions).toEqual(linked.localData.buildRevisions)
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBlankProfile } from '../domain/profile'
+import { createBlankLocalData } from '../domain/local-data'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../interchange/correction-promotion'
@@ -47,7 +47,7 @@ describe('bundled catalog assembly', () => {
 
   it('keeps confirmed Switch mappings available in the assembled revision', () => {
     const map = CONFIRMED_SKILL_MAPS[0]!
-    const result = suggestSkillTreeMap(createBlankProfile(), BUNDLED_CATALOGS, { ...map.classRef, catalogRevisionId: DEFAULT_CATALOG.revisionId }, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
+    const result = suggestSkillTreeMap(createBlankLocalData(), BUNDLED_CATALOGS, { ...map.classRef, catalogRevisionId: DEFAULT_CATALOG.revisionId }, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
     expect(result.confirmedMap).toBe(map)
     expect(result.mappings).toEqual(map.mappings)
     expect(result.mappings.some(mapping => mapping.kind === 'innate')).toBe(true)

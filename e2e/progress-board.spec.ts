@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { createBlankPlaythrough } from './profile-helpers'
+import { createBlankPlaythrough } from './local-data-helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/progress')

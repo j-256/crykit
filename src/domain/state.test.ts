@@ -4,14 +4,16 @@ import {
   asId,
   asTimestamp,
   captureCharacter,
-  createBlankProfile,
+  createBlankLocalData,
   createCharacter,
   createPersonalDefinition,
+  createPlaythrough,
   entityRefKey,
   linkInventoryPosition,
   MAX_ID_LENGTH,
   observeInventory,
   recordInventoryEvent,
+  requirePlaythrough,
   upsertLearnedNode,
   upsertProgress,
 } from './index'
@@ -23,7 +25,7 @@ import type {
   InventoryEventId,
   InventoryPositionId,
   PersonalDefinitionId,
-  ProfileId,
+  LocalDataId,
   ProgressRecordId,
   SourceRef,
 } from './types'
@@ -43,30 +45,33 @@ function catalog(revision: string) {
   }
 }
 
-describe('profile state separation', () => {
-  it('starts blank with no personal or reference state', () => {
-    const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+function createTrackedLocalData() {
+  return createPlaythrough(
+    createBlankLocalData({ id: asId<LocalDataId>('localData'), now: NOW }),
+    { label: 'Test playthrough', now: NOW },
+  )
+}
 
-    expect(profile.revision).toBe(0)
-    expect(profile.personalDefinitions).toEqual({})
-    expect(profile.inventory).toEqual({})
-    expect(profile.inventoryEvents).toEqual({})
-    expect(profile.characters).toEqual({})
-    expect(profile.progress).toEqual({})
-    expect(profile.builds).toEqual({})
-    expect(profile.scenarios).toEqual({})
+describe('localData state separation', () => {
+  it('starts blank with no personal or reference state', () => {
+    const localData = createBlankLocalData({ id: asId<LocalDataId>('localData'), now: NOW })
+
+    expect(localData.revision).toBe(0)
+    expect(localData.personalDefinitions).toEqual({})
+    expect(localData.builds).toEqual({})
+    expect(localData.playthroughs).toEqual({})
   })
 
   it('records a historical acquisition without inventing current stock', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const definitionId = asId<PersonalDefinitionId>('unmatched-item')
-    profile = createPersonalDefinition(profile, {
+    localData = createPersonalDefinition(localData, {
       id: definitionId,
       kind: 'item',
       name: 'Unmatched item',
       now: NOW,
     })
-    profile = recordInventoryEvent(profile, {
+    localData = recordInventoryEvent(localData, {
       id: asId<InventoryEventId>('event'),
       ref: personal(definitionId),
       kind: 'acquired',
@@ -74,24 +79,24 @@ describe('profile state separation', () => {
       now: NOW,
     })
 
-    expect(profile.inventory).toEqual({})
-    expect(profile.inventoryEvents.event?.quantity).toEqual({
+    expect(requirePlaythrough(localData).inventory).toEqual({})
+    expect(requirePlaythrough(localData).inventoryEvents.event?.quantity).toEqual({
       state: 'unknown',
       reason: 'historical note omitted amount',
     })
   })
 
   it('links an unmatched observation without losing its original name', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const definitionId = asId<PersonalDefinitionId>('placeholder')
     const positionId = asId<InventoryPositionId>('position')
-    profile = createPersonalDefinition(profile, {
+    localData = createPersonalDefinition(localData, {
       id: definitionId,
       kind: 'item',
       name: 'Original spelling',
       now: NOW,
     })
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       observedName: 'Original spelling',
@@ -99,25 +104,25 @@ describe('profile state separation', () => {
       quantity: { kind: 'unknown' },
       now: NOW,
     })
-    profile = linkInventoryPosition(profile, { positionId, ref: catalog('revision-1'), now: NOW })
+    localData = linkInventoryPosition(localData, { positionId, ref: catalog('revision-1'), now: NOW })
 
-    expect(profile.inventory.position?.observedName).toBe('Original spelling')
-    expect(profile.inventory.position?.ref).toEqual(catalog('revision-1'))
+    expect(requirePlaythrough(localData).inventory.position?.observedName).toBe('Original spelling')
+    expect(requirePlaythrough(localData).inventory.position?.ref).toEqual(catalog('revision-1'))
   })
 
   it('treats a current count as a replacement observation rather than an additive event', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const definitionId = asId<PersonalDefinitionId>('item')
     const positionId = asId<InventoryPositionId>('position')
-    profile = createPersonalDefinition(profile, { id: definitionId, kind: 'item', name: 'Item', now: NOW })
-    profile = observeInventory(profile, {
+    localData = createPersonalDefinition(localData, { id: definitionId, kind: 'item', name: 'Item', now: NOW })
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       possession: 'owned',
       quantity: { kind: 'exact', value: 2 },
       now: NOW,
     })
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       possession: 'owned',
@@ -125,31 +130,31 @@ describe('profile state separation', () => {
       now: NOW,
     })
 
-    expect(profile.inventory.position?.quantity).toEqual({ kind: 'exact', value: 3 })
-    expect(profile.inventoryEvents).toEqual({})
+    expect(requirePlaythrough(localData).inventory.position?.quantity).toEqual({ kind: 'exact', value: 3 })
+    expect(requirePlaythrough(localData).inventoryEvents).toEqual({})
   })
 
   it('does not zero omitted positions when one position is updated', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const firstDefinition = asId<PersonalDefinitionId>('first')
     const secondDefinition = asId<PersonalDefinitionId>('second')
-    profile = createPersonalDefinition(profile, { id: firstDefinition, kind: 'item', name: 'First', now: NOW })
-    profile = createPersonalDefinition(profile, { id: secondDefinition, kind: 'item', name: 'Second', now: NOW })
-    profile = observeInventory(profile, {
+    localData = createPersonalDefinition(localData, { id: firstDefinition, kind: 'item', name: 'First', now: NOW })
+    localData = createPersonalDefinition(localData, { id: secondDefinition, kind: 'item', name: 'Second', now: NOW })
+    localData = observeInventory(localData, {
       positionId: asId<InventoryPositionId>('first-position'),
       ref: personal(firstDefinition),
       possession: 'owned',
       quantity: { kind: 'exact', value: 1 },
       now: NOW,
     })
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId: asId<InventoryPositionId>('second-position'),
       ref: personal(secondDefinition),
       possession: 'owned',
       quantity: { kind: 'exact', value: 4 },
       now: NOW,
     })
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId: asId<InventoryPositionId>('first-position'),
       ref: personal(firstDefinition),
       possession: 'notOwned',
@@ -157,16 +162,16 @@ describe('profile state separation', () => {
       now: NOW,
     })
 
-    expect(profile.inventory['first-position']?.quantity).toEqual({ kind: 'exact', value: 0 })
-    expect(profile.inventory['second-position']?.quantity).toEqual({ kind: 'exact', value: 4 })
+    expect(requirePlaythrough(localData).inventory['first-position']?.quantity).toEqual({ kind: 'exact', value: 0 })
+    expect(requirePlaythrough(localData).inventory['second-position']?.quantity).toEqual({ kind: 'exact', value: 4 })
   })
 
   it('preserves or explicitly clears an inventory observation date', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const definitionId = asId<PersonalDefinitionId>('item')
     const positionId = asId<InventoryPositionId>('position')
-    profile = createPersonalDefinition(profile, { id: definitionId, kind: 'item', name: 'Item', now: NOW })
-    profile = observeInventory(profile, {
+    localData = createPersonalDefinition(localData, { id: definitionId, kind: 'item', name: 'Item', now: NOW })
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       possession: 'owned',
@@ -174,16 +179,16 @@ describe('profile state separation', () => {
       observedAt: '2025-05-01T00:00:00.000Z',
       now: NOW,
     })
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       possession: 'owned',
       quantity: { kind: 'exact', value: 2 },
       now: NOW,
     })
-    expect(profile.inventory.position?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
+    expect(requirePlaythrough(localData).inventory.position?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
 
-    profile = observeInventory(profile, {
+    localData = observeInventory(localData, {
       positionId,
       ref: personal(definitionId),
       possession: 'owned',
@@ -191,45 +196,45 @@ describe('profile state separation', () => {
       observedAt: null,
       now: NOW,
     })
-    expect(profile.inventory.position?.observedAt).toBeUndefined()
+    expect(requirePlaythrough(localData).inventory.position?.observedAt).toBeUndefined()
   })
 
   it('keeps same-name definitions distinct by ID and type', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
-    profile = createPersonalDefinition(profile, {
+    let localData = createTrackedLocalData()
+    localData = createPersonalDefinition(localData, {
       id: asId<PersonalDefinitionId>('class-definition'),
       kind: 'class',
       name: 'Shared label',
       now: NOW,
     })
-    profile = createPersonalDefinition(profile, {
+    localData = createPersonalDefinition(localData, {
       id: asId<PersonalDefinitionId>('innate-definition'),
       kind: 'innate',
       name: 'Shared label',
       now: NOW,
     })
 
-    expect(Object.values(profile.personalDefinitions).map((definition) => definition.kind)).toEqual([
+    expect(Object.values(localData.personalDefinitions).map((definition) => definition.kind)).toEqual([
       'class',
       'innate',
     ])
   })
 
   it('rejects unresolved personal observation references and unsafe numeric values', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const characterId = asId<CharacterId>('character')
-    profile = createCharacter(profile, { id: characterId, name: 'Character', now: NOW })
-    expect(() => captureCharacter(profile, {
+    localData = createCharacter(localData, { id: characterId, name: 'Character', now: NOW })
+    expect(() => captureCharacter(localData, {
       characterId,
       primaryClass: { state: 'known', value: personal('missing-class') },
       now: NOW,
     })).toThrowError(expect.objectContaining({ code: 'MISSING_PERSONAL_DEFINITION' }))
-    expect(() => captureCharacter(profile, {
+    expect(() => captureCharacter(localData, {
       characterId,
       level: { state: 'known', value: Number.MAX_SAFE_INTEGER + 1 },
       now: NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
-    expect(() => captureCharacter(profile, {
+    expect(() => captureCharacter(localData, {
       characterId,
       displayedStats: {
         ['x'.repeat(MAX_ID_LENGTH + 1)]: { value: { state: 'known', value: 1 }, unit: 'displayed' },
@@ -239,22 +244,22 @@ describe('profile state separation', () => {
   })
 
   it('updates party progress without inventing character learning or inventory', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const classId = asId<PersonalDefinitionId>('class')
     const passiveId = asId<PersonalDefinitionId>('passive')
     const characterId = asId<CharacterId>('character')
-    profile = createPersonalDefinition(profile, { id: classId, kind: 'class', name: 'Class', now: NOW })
-    profile = createPersonalDefinition(profile, { id: passiveId, kind: 'passive', name: 'Optional node', now: NOW })
-    profile = createCharacter(profile, { id: characterId, name: 'Character', now: NOW })
-    profile = upsertLearnedNode(profile, {
+    localData = createPersonalDefinition(localData, { id: classId, kind: 'class', name: 'Class', now: NOW })
+    localData = createPersonalDefinition(localData, { id: passiveId, kind: 'passive', name: 'Optional node', now: NOW })
+    localData = createCharacter(localData, { id: characterId, name: 'Character', now: NOW })
+    localData = upsertLearnedNode(localData, {
       characterId,
       ref: personal(passiveId),
       kind: 'passive',
       learned: { state: 'unknown' },
       now: NOW,
     })
-    const charactersBefore = profile.characters
-    profile = upsertProgress(profile, {
+    const charactersBefore = requirePlaythrough(localData).characters
+    localData = upsertProgress(localData, {
       id: asId<ProgressRecordId>('progress'),
       subject: personal(classId),
       displayName: 'Class',
@@ -263,18 +268,18 @@ describe('profile state separation', () => {
       now: NOW,
     })
 
-    expect(profile.characters).toBe(charactersBefore)
-    expect(profile.characters.character?.learnedNodes[entityRefKey(personal(passiveId))]?.learned).toEqual({
+    expect(requirePlaythrough(localData).characters).toBe(charactersBefore)
+    expect(requirePlaythrough(localData).characters.character?.learnedNodes[entityRefKey(personal(passiveId))]?.learned).toEqual({
       state: 'unknown',
     })
-    expect(profile.inventory).toEqual({})
+    expect(requirePlaythrough(localData).inventory).toEqual({})
   })
 
   it('does not rewrite gameplay observations when only a source check date changes elsewhere', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const classId = asId<PersonalDefinitionId>('class')
-    profile = createPersonalDefinition(profile, { id: classId, kind: 'class', name: 'Class', now: NOW })
-    profile = upsertProgress(profile, {
+    localData = createPersonalDefinition(localData, { id: classId, kind: 'class', name: 'Class', now: NOW })
+    localData = upsertProgress(localData, {
       id: asId<ProgressRecordId>('progress'),
       subject: personal(classId),
       displayName: 'Class',
@@ -282,12 +287,12 @@ describe('profile state separation', () => {
       observedAt: '2025-05-01T00:00:00.000Z',
       now: NOW,
     })
-    const progressBefore = profile.progress.progress
+    const progressBefore = requirePlaythrough(localData).progress.progress
     const source: SourceRef = {
       sourceId: 'reference',
       checkedAt: asTimestamp('2026-02-01T00:00:00.000Z'),
     }
-    profile = createPersonalDefinition(profile, {
+    localData = createPersonalDefinition(localData, {
       id: asId<PersonalDefinitionId>('unrelated'),
       kind: 'other',
       name: 'Source check',
@@ -295,52 +300,52 @@ describe('profile state separation', () => {
       now: '2026-02-01T00:00:00.000Z',
     })
 
-    expect(profile.progress.progress).toBe(progressBefore)
-    expect(profile.progress.progress?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
+    expect(requirePlaythrough(localData).progress.progress).toBe(progressBefore)
+    expect(requirePlaythrough(localData).progress.progress?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
   })
 
   it('preserves or explicitly clears a progress observation date', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const classId = asId<PersonalDefinitionId>('class')
     const progressId = asId<ProgressRecordId>('progress')
-    profile = createPersonalDefinition(profile, { id: classId, kind: 'class', name: 'Class', now: NOW })
-    profile = upsertProgress(profile, {
+    localData = createPersonalDefinition(localData, { id: classId, kind: 'class', name: 'Class', now: NOW })
+    localData = upsertProgress(localData, {
       id: progressId,
       subject: personal(classId),
       displayName: 'Class',
       observedAt: '2025-05-01T00:00:00.000Z',
       now: NOW,
     })
-    profile = upsertProgress(profile, {
+    localData = upsertProgress(localData, {
       id: progressId,
       subject: personal(classId),
       displayName: 'Class',
       now: NOW,
     })
-    expect(profile.progress.progress?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
+    expect(requirePlaythrough(localData).progress.progress?.observedAt).toBe(asTimestamp('2025-05-01T00:00:00.000Z'))
 
-    profile = upsertProgress(profile, {
+    localData = upsertProgress(localData, {
       id: progressId,
       subject: personal(classId),
       displayName: 'Class',
       observedAt: null,
       now: NOW,
     })
-    expect(profile.progress.progress?.observedAt).toBeUndefined()
+    expect(requirePlaythrough(localData).progress.progress?.observedAt).toBeUndefined()
   })
 
   it('does not create two progress rows for one stable subject identity', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: NOW })
+    let localData = createTrackedLocalData()
     const classId = asId<PersonalDefinitionId>('class')
-    profile = createPersonalDefinition(profile, { id: classId, kind: 'class', name: 'Class', now: NOW })
-    profile = upsertProgress(profile, {
+    localData = createPersonalDefinition(localData, { id: classId, kind: 'class', name: 'Class', now: NOW })
+    localData = upsertProgress(localData, {
       id: asId<ProgressRecordId>('first'),
       subject: personal(classId),
       displayName: 'Class',
       now: NOW,
     })
 
-    expect(() => upsertProgress(profile, {
+    expect(() => upsertProgress(localData, {
       id: asId<ProgressRecordId>('second'),
       subject: personal(classId),
       displayName: 'Duplicate class',

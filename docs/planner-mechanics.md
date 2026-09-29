@@ -1,18 +1,18 @@
 # Build mechanics and estimates
 
-The build editor applies supported rules from GEEF's Crystal Project modding guide to the selected source definitions. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, class unlocks, and ruleset applicability. Saving a plan never changes observed character stats, inventory, or learning.
+The Build editor applies supported rules from GEEF's Crystal Project modding guide to the selected source definitions. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, passive PP limits, class unlocks, and Game Setup applicability. Saving a plan never changes observed character stats, inventory, or learning.
 
 ## Equipment checks
 
 Exported primary-class equipment categories provide permissions. The sub-command does not supply its class's equipment list. Supported permission descriptions such as Equip Sword and Equip All add categories. Explicit innate descriptions supply Dual Wield and Two-Handed; Shapeshift can inherit a documented sub-command innate. Custom Crystal Edit classes use their own exported fields and same-catalog passive references, without resolving IDs through similarly named vanilla records.
 
-Equipment categories map to main hand, off hand, head, body, and accessory roles. The suggested layout has these roles; custom layouts can assign them under **Data & settings > Ruleset**. Historical suggested slots retain their established roles. Explicit custom slot and requirement rules remain available to scenario validation.
+Equipment categories map to main hand, off hand, head, body, and accessory roles. The suggested layout has these roles; custom layouts can assign them under **Data & settings > Game Setup**. Accepted definition types use a finite multi-select rather than comma-separated identifiers. Historical suggested slots retain their established roles. Explicit custom slot and requirement rules remain available to scenario validation.
 
 A two-handed weapon reserves both hands even when selected in one hand with the other empty. If the same copy is displayed in both hand slots, use **Same copy as**; its stats and stock demand count once. Separate weapons require Dual Wield. A one-handed weapon can share both hand slots when Two-Handed is present. Known unique-equipment flags, duplicate passive selections, disabled class selections, and wrong equipment roles produce conflicts. Missing hand counts and unknown permission effects produce unresolved findings where they matter. Plans can still be saved with conflicts.
 
 ## Passive PP budget
 
-Passives are stored as an ordered, variable-length list, not as ruleset slots. Each passive contributes its documented PP cost to one total. The unmodified game permits up to 10 PP across all equipped passives, so new rulesets default to that limit and modded rulesets can override it. PP is a ruleset limit rather than a character observation. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the build invalid even when another selected cost is unknown.
+Passives are stored as an ordered, variable-length list, not as Game Setup slots. Each passive contributes its documented PP cost to one total. The unmodified game permits up to 10 PP across all equipped passives, so new Game Setups default to that limit and modded Game Setups can override it. PP is a Game Setup limit rather than a character observation. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the Build invalid even when another selected cost is unknown.
 
 The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion reads those properties from retained source records without changing old catalog snapshots.
 

@@ -3,15 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   asId,
   asTimestamp,
-  addRulesetRevision,
-  createBlankProfile,
+  addGameSetupRevision,
+  createBlankLocalData,
   createPersonalDefinition,
   entityDefinitionKey,
   entityRefKey,
   normalizePossessionQuantity,
 } from './index'
 import { TEST_NOW } from './test-helpers'
-import type { CatalogId, CatalogRevisionId, EntityId, ProfileId } from './types'
+import type { CatalogId, CatalogRevisionId, EntityId, LocalDataId } from './types'
 import type { SlotId } from './types'
 
 function catalogRef(catalogId: string, revisionId: string, entityId: string) {
@@ -71,10 +71,10 @@ describe('domain identity and bounds', () => {
     })
   })
 
-  it('keeps the profile change journal bounded', () => {
-    let profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
+  it('keeps the localData change journal bounded', () => {
+    let localData = createBlankLocalData({ id: asId<LocalDataId>('localData'), now: TEST_NOW })
     for (let index = 0; index < 210; index += 1) {
-      profile = createPersonalDefinition(profile, {
+      localData = createPersonalDefinition(localData, {
         id: asId(`definition-${index}`),
         kind: 'other',
         name: `Definition ${index}`,
@@ -82,14 +82,14 @@ describe('domain identity and bounds', () => {
       })
     }
 
-    expect(profile.changes.length).toBeLessThan(profile.revision)
-    expect(profile.changes.at(-1)?.nextRevision).toBe(profile.revision)
+    expect(localData.changes.length).toBeLessThan(localData.revision)
+    expect(localData.changes.at(-1)?.nextRevision).toBe(localData.revision)
   })
 
-  it('rejects duplicate slot identities before saving a ruleset', () => {
-    const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
+  it('rejects duplicate slot identities before saving a gameSetup', () => {
+    const localData = createBlankLocalData({ id: asId<LocalDataId>('localData'), now: TEST_NOW })
     const slotId = asId<SlotId>('slot')
-    expect(() => addRulesetRevision(profile, {
+    expect(() => addGameSetupRevision(localData, {
       label: 'Invalid slots',
       slots: [
         { id: slotId, kind: 'equipment', label: 'First', order: 0, provenance: 'userDefined', sources: [] },
@@ -99,14 +99,14 @@ describe('domain identity and bounds', () => {
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
   })
 
-  it('rejects an invalid ruleset PP limit', () => {
-    const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
-    expect(() => addRulesetRevision(profile, { label: 'Invalid PP limit', ppLimit: { state: 'known', value: -1 }, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  it('rejects an invalid gameSetup PP limit', () => {
+    const localData = createBlankLocalData({ id: asId<LocalDataId>('localData'), now: TEST_NOW })
+    expect(() => addGameSetupRevision(localData, { label: 'Invalid PP limit', ppLimit: { state: 'known', value: -1 }, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
   })
 
   it('rejects personal numeric fields that native backup cannot preserve', () => {
-    const profile = createBlankProfile({ id: asId<ProfileId>('profile'), now: TEST_NOW })
-    expect(() => createPersonalDefinition(profile, {
+    const localData = createBlankLocalData({ id: asId<LocalDataId>('localData'), now: TEST_NOW })
+    expect(() => createPersonalDefinition(localData, {
       kind: 'passive',
       name: 'Invalid PP',
       ppCost: { state: 'known', value: Number.NaN },

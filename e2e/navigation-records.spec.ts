@@ -1,8 +1,8 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { Profile } from '../src/domain/types'
+import type { LocalData } from '../src/domain/types'
 
 async function navigate(page: Page, destination: string) {
   await page.getByRole('button', { name: new RegExp(`^${destination}$`) }).filter({ visible: true }).click()
@@ -13,7 +13,7 @@ async function openData(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
@@ -21,9 +21,9 @@ async function exportProfile(page: Page): Promise<Profile> {
   const path = await (await downloaded).path()
   if (!path) throw new Error('Expected a completed backup download')
   const entries = unzipSync(await readFile(path))
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return bundle.profile
+  return bundle.localData
 }
 
 async function setHash(page: Page, hash: string) {
@@ -68,9 +68,9 @@ test.beforeEach(async ({ page }) => {
 test('inventory edit routes hydrate exact records and reject missing identities', async ({ page }) => {
   await addInventoryItem(page, 'Synthetic inventory alpha')
   await addInventoryItem(page, 'Synthetic inventory beta')
-  const initial = await exportProfile(page)
-  const alpha = Object.values(initial.inventory).find((entry) => entry.observedName === 'Synthetic inventory alpha')!
-  const beta = Object.values(initial.inventory).find((entry) => entry.observedName === 'Synthetic inventory beta')!
+  const initial = await exportLocalData(page)
+  const alpha = Object.values(selectedPlaythrough(initial).inventory).find((entry) => entry.observedName === 'Synthetic inventory alpha')!
+  const beta = Object.values(selectedPlaythrough(initial).inventory).find((entry) => entry.observedName === 'Synthetic inventory beta')!
 
   await setHash(page, `#/inventory/items/${encodeURIComponent(alpha.id)}/edit`)
   const editor = page.getByRole('dialog', { name: 'Edit inventory observation', exact: true })
@@ -88,9 +88,9 @@ test('inventory edit routes hydrate exact records and reject missing identities'
   await editor.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(editor).not.toBeVisible()
 
-  const saved = await exportProfile(page)
-  expect(saved.inventory[alpha.id]?.observedName).toBe('Synthetic inventory alpha')
-  expect(saved.inventory[beta.id]?.observedName).toBe('Synthetic inventory beta updated')
+  const saved = await exportLocalData(page)
+  expect(selectedPlaythrough(saved).inventory[alpha.id]?.observedName).toBe('Synthetic inventory alpha')
+  expect(selectedPlaythrough(saved).inventory[beta.id]?.observedName).toBe('Synthetic inventory beta updated')
 
   await setHash(page, '#/inventory/items/synthetic-missing-position/edit')
   await expect(page.getByText('Inventory entry unavailable', { exact: true })).toBeVisible()
@@ -101,9 +101,9 @@ test('progress edit routes hydrate exact records and reject missing identities',
   await navigate(page, 'Progress')
   await addProgressRecord(page, 'Synthetic progress alpha')
   await addProgressRecord(page, 'Synthetic progress beta')
-  const initial = await exportProfile(page)
-  const alpha = Object.values(initial.progress).find((entry) => entry.displayName === 'Synthetic progress alpha')!
-  const beta = Object.values(initial.progress).find((entry) => entry.displayName === 'Synthetic progress beta')!
+  const initial = await exportLocalData(page)
+  const alpha = Object.values(selectedPlaythrough(initial).progress).find((entry) => entry.displayName === 'Synthetic progress alpha')!
+  const beta = Object.values(selectedPlaythrough(initial).progress).find((entry) => entry.displayName === 'Synthetic progress beta')!
 
   await setHash(page, `#/progress/${encodeURIComponent(alpha.id)}/edit`)
   const editor = page.getByRole('dialog', { name: 'Edit progress record', exact: true })
@@ -116,9 +116,9 @@ test('progress edit routes hydrate exact records and reject missing identities',
   await editor.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(editor).not.toBeVisible()
 
-  const saved = await exportProfile(page)
-  expect(saved.progress[alpha.id]?.displayName).toBe('Synthetic progress alpha')
-  expect(saved.progress[beta.id]?.displayName).toBe('Synthetic progress beta updated')
+  const saved = await exportLocalData(page)
+  expect(selectedPlaythrough(saved).progress[alpha.id]?.displayName).toBe('Synthetic progress alpha')
+  expect(selectedPlaythrough(saved).progress[beta.id]?.displayName).toBe('Synthetic progress beta updated')
 
   await setHash(page, '#/progress/synthetic-missing-record/edit')
   await expect(page.getByText('Progress record unavailable', { exact: true })).toBeVisible()

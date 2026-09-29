@@ -12,5 +12,5 @@ export type {
   ImportPreview,
   ImportProblem,
   SourceArchiveRecord,
-  Workspace,
+  LoadedLocalData,
 } from './types'

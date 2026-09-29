@@ -43,10 +43,10 @@ export function compareBuildRevisions(left: BuildRevision, right: BuildRevision)
   const differences: DescriptiveDifference[] = []
   pushDifference(
     differences,
-    'rulesetRevisionId',
-    'Ruleset revision',
-    left.rulesetRevisionId,
-    right.rulesetRevisionId,
+    'gameSetupRevisionId',
+    'Game Setup revision',
+    left.gameSetupRevisionId,
+    right.gameSetupRevisionId,
   )
   pushDifference(
     differences,

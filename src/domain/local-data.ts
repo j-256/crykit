@@ -9,7 +9,8 @@ import {
   DomainError,
   entityDefinitionKey,
   nowTimestamp,
-  updateProfile,
+  updateLocalData,
+  updatePlaythrough,
 } from './core'
 import {
   definitionLineageRootRef,
@@ -30,43 +31,145 @@ import type {
   PersonalDefinition,
   PersonalDefinitionId,
   PersonalRef,
-  Profile,
-  ProfileId,
-  RulesetId,
-  RulesetRevision,
-  RulesetRevisionId,
+  LocalData,
+  LocalDataId,
+  Playthrough,
+  PlaythroughId,
+  GameSetupId,
+  GameSetupRevision,
+  GameSetupRevisionId,
   SlotDefinition,
   SourceRef,
   Timestamp,
 } from './types'
 
-export interface CreateBlankProfileInput {
-  readonly id?: ProfileId
-  readonly label?: string
+export interface CreateBlankLocalDataInput {
+  readonly id?: LocalDataId
   readonly now?: Timestamp | string
 }
 
-export function createBlankProfile(input: CreateBlankProfileInput = {}): Profile {
+export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): LocalData {
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   return {
-    schemaVersion: '1.0.0',
-    id: input.id ?? createId<ProfileId>('profile'),
+    schemaVersion: '2.0.0',
+    id: input.id ?? createId<LocalDataId>('localData'),
     revision: 0,
-    label: input.label?.trim() || 'New playthrough',
     createdAt: at,
     updatedAt: at,
     personalDefinitions: {},
-    rulesets: {},
+    gameSetups: {},
+    builds: {},
+    buildRevisions: {},
+    playthroughs: {},
+    importReceipts: {},
+    changes: [],
+  }
+}
+
+export interface CreatePlaythroughInput {
+  readonly id?: PlaythroughId
+  readonly label: string
+  readonly currentGameSetupRevisionId?: GameSetupRevisionId
+  readonly select?: boolean
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+export function createPlaythrough(localData: LocalData, input: CreatePlaythroughInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const label = input.label.trim()
+  if (!label) throw new DomainError('INVALID_INPUT', 'Playthrough label must not be empty')
+  assertTextLength(label, 'Playthrough label', MAX_SHORT_TEXT_LENGTH)
+  if (input.currentGameSetupRevisionId && !localData.gameSetups[input.currentGameSetupRevisionId]) {
+    throw new DomainError('MISSING_GAME_SETUP', 'The selected Game Setup revision does not exist')
+  }
+  const id = input.id ?? createId<PlaythroughId>('playthrough')
+  if (localData.playthroughs[id]) throw new DomainError('DUPLICATE_ID', `Playthrough already exists: ${id}`)
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  const playthrough: Playthrough = {
+    id,
+    revision: 0,
+    label,
+    createdAt: at,
+    updatedAt: at,
+    ...(input.currentGameSetupRevisionId ? { currentGameSetupRevisionId: input.currentGameSetupRevisionId } : {}),
     inventory: {},
     inventoryEvents: {},
     characters: {},
     progress: {},
-    builds: {},
-    buildRevisions: {},
     scenarios: {},
     goals: {},
-    importReceipts: {},
-    changes: [],
+  }
+  const select = input.select ?? localData.selectedPlaythroughId === undefined
+  return updateLocalData(
+    localData,
+    {
+      playthroughs: { ...localData.playthroughs, [id]: playthrough },
+      ...(select ? { selectedPlaythroughId: id } : {}),
+    },
+    'playthrough.create',
+    [`playthroughs.${id}`, ...(select ? ['selectedPlaythroughId'] : [])],
+    at,
+  )
+}
+
+export interface SelectPlaythroughInput {
+  readonly playthroughId: PlaythroughId
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+export function selectPlaythrough(localData: LocalData, input: SelectPlaythroughInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = localData.playthroughs[input.playthroughId]
+  if (!playthrough) throw new DomainError('MISSING_PLAYTHROUGH', `Playthrough does not exist: ${input.playthroughId}`)
+  if (localData.selectedPlaythroughId === input.playthroughId) return localData
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  return updateLocalData(
+    localData,
+    {
+      selectedPlaythroughId: input.playthroughId,
+      ...(playthrough.currentGameSetupRevisionId ? { planningGameSetupRevisionId: playthrough.currentGameSetupRevisionId } : {}),
+    },
+    'playthrough.select',
+    ['selectedPlaythroughId', ...(playthrough.currentGameSetupRevisionId ? ['planningGameSetupRevisionId'] : [])],
+    at,
+  )
+}
+
+export interface SetPlaythroughGameSetupInput {
+  readonly playthroughId?: PlaythroughId
+  readonly gameSetupRevisionId: GameSetupRevisionId
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+export function setPlaythroughGameSetup(localData: LocalData, input: SetPlaythroughGameSetupInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  if (!localData.gameSetups[input.gameSetupRevisionId]) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
+  }
+  const playthroughId = input.playthroughId ?? localData.selectedPlaythroughId
+  if (!playthroughId) throw new DomainError('MISSING_PLAYTHROUGH', 'Select a playthrough before changing its Game Setup')
+  const playthrough = localData.playthroughs[playthroughId]
+  if (!playthrough) throw new DomainError('MISSING_PLAYTHROUGH', `Playthrough does not exist: ${playthroughId}`)
+  if (playthrough.currentGameSetupRevisionId === input.gameSetupRevisionId) return localData
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  const nextLocalData = updatePlaythrough(
+    localData,
+    playthroughId,
+    { currentGameSetupRevisionId: input.gameSetupRevisionId },
+    'playthrough.setGameSetup',
+    ['currentGameSetupRevisionId'],
+    at,
+  )
+  if (localData.selectedPlaythroughId !== playthroughId) return nextLocalData
+  return {
+    ...nextLocalData,
+    planningGameSetupRevisionId: input.gameSetupRevisionId,
+    changes: nextLocalData.changes.map((change, index) => index === nextLocalData.changes.length - 1
+      ? { ...change, changedPaths: [...change.changedPaths, 'planningGameSetupRevisionId'] }
+      : change),
   }
 }
 
@@ -95,7 +198,7 @@ function knowledgeValues<Value>(knowledge: Knowledge<Value> | undefined): readon
 
 function validateEditableDefinition(
   definition: Pick<PersonalDefinition, 'name' | 'aliases' | 'rawDescription' | 'fields' | 'ppCost' | 'listedContributions' | 'requirements'>,
-  profile: Profile,
+  localData: LocalData,
   allowedDefinitionId?: PersonalDefinitionId,
 ): void {
   if (!definition.name.trim()) throw new DomainError('INVALID_INPUT', 'Personal definition name must not be empty')
@@ -122,17 +225,17 @@ function validateEditableDefinition(
   }
   for (const values of knowledgeValues(definition.requirements)) {
     for (const requirement of values) {
-      if (requirement.kind === 'selected') assertPersonalDefinitionRef(profile, requirement.ref, allowedDefinitionId)
+      if (requirement.kind === 'selected') assertPersonalDefinitionRef(localData, requirement.ref, allowedDefinitionId)
       else if (!requirement.permission.trim()) throw new DomainError('INVALID_INPUT', 'Permission must not be empty')
     }
   }
 }
 
-export function createPersonalDefinition(profile: Profile, input: CreatePersonalDefinitionInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
+export function createPersonalDefinition(localData: LocalData, input: CreatePersonalDefinitionInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
   const name = input.name.trim()
   const id = input.id ?? createId<PersonalDefinitionId>('definition')
-  if (profile.personalDefinitions[id]) {
+  if (localData.personalDefinitions[id]) {
     throw new DomainError('DUPLICATE_ID', `Personal definition already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -154,10 +257,10 @@ export function createPersonalDefinition(profile: Profile, input: CreatePersonal
     ...(input.grants === undefined ? {} : { grants: input.grants }),
   }
   for (const field of Object.keys(definition.fields)) definition = synchronizePlanningField(definition, field)
-  validateEditableDefinition(definition, profile, id)
-  return updateProfile(
-    profile,
-    { personalDefinitions: { ...profile.personalDefinitions, [id]: definition } },
+  validateEditableDefinition(definition, localData, id)
+  return updateLocalData(
+    localData,
+    { personalDefinitions: { ...localData.personalDefinitions, [id]: definition } },
     'personalDefinition.create',
     [`personalDefinitions.${id}`],
     at,
@@ -179,29 +282,29 @@ export interface CreateDefinitionOverrideInput {
 }
 
 export interface DefinitionOverrideResult {
-  readonly profile: Profile
+  readonly localData: LocalData
   readonly ref: PersonalRef
   readonly definition: PersonalDefinition
 }
 
 export function createDefinitionOverride(
-  profile: Profile,
+  localData: LocalData,
   catalogs: readonly CatalogSnapshot[],
   input: CreateDefinitionOverrideInput,
 ): DefinitionOverrideResult {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const preferred = preferredDefinitionRef(profile, input.sourceRef)
+  assertExpectedRevision(localData, input.expectedRevision)
+  const preferred = preferredDefinitionRef(localData, input.sourceRef)
   if (entityDefinitionKey(preferred) !== entityDefinitionKey(input.sourceRef)) {
     throw new DomainError('REVISION_CONFLICT', 'A newer personal definition revision already exists')
   }
-  const source = resolveDefinition(profile, catalogs, input.sourceRef)
+  const source = resolveDefinition(localData, catalogs, input.sourceRef)
   if (!source) throw new DomainError('INVALID_INPUT', 'The definition to edit is unavailable')
   for (const category of knowledgeValues(input.category ?? undefined)) {
     if (!category.trim()) throw new DomainError('INVALID_INPUT', 'Personal definition category must be nonempty text')
     assertTextLength(category, 'Personal definition category', MAX_SHORT_TEXT_LENGTH)
   }
   const id = input.id ?? createId<PersonalDefinitionId>('definition')
-  if (profile.personalDefinitions[id]) {
+  if (localData.personalDefinitions[id]) {
     throw new DomainError('DUPLICATE_ID', `Personal definition already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -232,12 +335,12 @@ export function createDefinitionOverride(
       ? fieldsWithoutCategory
       : { ...fieldsWithoutCategory, category: input.category }
   const previous = input.sourceRef.kind === 'personal'
-    ? profile.personalDefinitions[input.sourceRef.definitionId]
+    ? localData.personalDefinitions[input.sourceRef.definitionId]
     : undefined
   let definition: PersonalDefinition = {
     id,
     revision: previous ? previous.revision + 1 : 1,
-    baseRef: definitionLineageRootRef(profile, input.sourceRef),
+    baseRef: definitionLineageRootRef(localData, input.sourceRef),
     ...(input.sourceRef.kind === 'personal' ? { previousRevision: input.sourceRef } : {}),
     kind: source.kind,
     name: input.name === undefined ? source.name : input.name.trim(),
@@ -258,20 +361,20 @@ export function createDefinitionOverride(
     ...(source.grants === undefined ? {} : { grants: source.grants }),
   }
   for (const field of new Set([...Object.keys(input.fieldUpdates ?? {}), ...Object.keys(input.fieldClaimSelections ?? {})])) definition = synchronizePlanningField(definition, field)
-  validateEditableDefinition(definition, profile, id)
-  const nextProfile = updateProfile(
-    profile,
-    { personalDefinitions: { ...profile.personalDefinitions, [id]: definition } },
+  validateEditableDefinition(definition, localData, id)
+  const nextLocalData = updateLocalData(
+    localData,
+    { personalDefinitions: { ...localData.personalDefinitions, [id]: definition } },
     'personalDefinition.override',
     [`personalDefinitions.${id}`],
     at,
   )
-  return { profile: nextProfile, ref: personalDefinitionRef(definition), definition }
+  return { localData: nextLocalData, ref: personalDefinitionRef(definition), definition }
 }
 
-export interface AddRulesetRevisionInput {
-  readonly id?: RulesetRevisionId
-  readonly rulesetId?: RulesetId
+export interface AddGameSetupRevisionInput {
+  readonly id?: GameSetupRevisionId
+  readonly gameSetupId?: GameSetupId
   readonly revision?: number
   readonly label: string
   readonly platform?: Knowledge<string>
@@ -282,7 +385,7 @@ export interface AddRulesetRevisionInput {
   readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
-  readonly catalogLock?: RulesetRevision['catalogLock']
+  readonly catalogLock?: GameSetupRevision['catalogLock']
   readonly definitionOverrides?: readonly PersonalRef[]
   readonly activate?: boolean
   readonly now?: Timestamp | string
@@ -292,16 +395,18 @@ export interface AddRulesetRevisionInput {
 const UNKNOWN_STRING: Knowledge<string> = { state: 'unknown' }
 const UNKNOWN_STRINGS: Knowledge<readonly string[]> = { state: 'unknown' }
 export const DEFAULT_PP_LIMIT = 10
+export const DEFAULT_PP_COSTS_NONNEGATIVE = true
+export const DEFAULT_GAME_VERSION = '1.6.6'
 
-export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
+export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRevisionInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
   assertModConfiguration({ mods: input.mods ?? UNKNOWN_STRINGS, disabledMods: input.disabledMods })
-  const id = input.id ?? createId<RulesetRevisionId>('rulesetRevision')
-  if (profile.rulesets[id]) {
-    throw new DomainError('DUPLICATE_ID', `Ruleset revision already exists: ${id}`)
+  const id = input.id ?? createId<GameSetupRevisionId>('gameSetupRevision')
+  if (localData.gameSetups[id]) {
+    throw new DomainError('DUPLICATE_ID', `Game Setup revision already exists: ${id}`)
   }
   const revision = input.revision ?? 1
-  assertNonnegativeInteger(revision, 'Ruleset revision')
+  assertNonnegativeInteger(revision, 'Game Setup revision')
   for (const value of knowledgeValues(input.ppLimit)) assertNonnegativeInteger(value, 'PP limit')
   const slots = input.slots ?? []
   const slotIds = new Set<string>()
@@ -310,58 +415,58 @@ export function addRulesetRevision(profile: Profile, input: AddRulesetRevisionIn
     if (slotIds.has(slot.id)) throw new DomainError('INVALID_INPUT', `Duplicate slot ID: ${slot.id}`)
     if (!slot.label.trim()) throw new DomainError('INVALID_INPUT', 'Slot label must not be empty')
     if (!Number.isSafeInteger(slot.order)) throw new DomainError('INVALID_INPUT', 'Slot order must be a safe integer')
-    if (slot.kind !== 'equipment') throw new DomainError('INVALID_INPUT', 'Ruleset slots describe equipment only; passives use the shared PP budget')
+    if (slot.kind !== 'equipment') throw new DomainError('INVALID_INPUT', 'Game Setup slots describe equipment only; passives use the shared PP budget')
     slotIds.add(slot.id)
   }
   const overrideKeys = new Set<string>()
   for (const ref of input.definitionOverrides ?? []) {
-    assertPersonalDefinitionRef(profile, ref)
-    const key = logicalEntityKey(profile, ref)
+    assertPersonalDefinitionRef(localData, ref)
+    const key = logicalEntityKey(localData, ref)
     if (overrideKeys.has(key)) {
-      throw new DomainError('DUPLICATE_REFERENCE', 'Ruleset definition overrides contain the same logical entity twice')
+      throw new DomainError('DUPLICATE_REFERENCE', 'Game Setup definition overrides contain the same logical entity twice')
     }
-    const root = definitionLineageRootRef(profile, ref)
+    const root = definitionLineageRootRef(localData, ref)
     if (root.kind === 'catalog' && (input.catalogLock ?? {})[root.catalogId] !== root.catalogRevisionId) {
-      throw new DomainError('INVALID_INPUT', 'A ruleset definition override falls outside the catalog lock')
+      throw new DomainError('INVALID_INPUT', 'A Game Setup definition override falls outside the catalog lock')
     }
     overrideKeys.add(key)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
-  const ruleset: RulesetRevision = {
+  const gameSetup: GameSetupRevision = {
     id,
-    rulesetId: input.rulesetId ?? createId<RulesetId>('ruleset'),
+    gameSetupId: input.gameSetupId ?? createId<GameSetupId>('gameSetup'),
     revision,
-    label: input.label.trim() || 'Untitled ruleset',
+    label: input.label.trim() || 'Untitled Game Setup',
     platform: input.platform ?? UNKNOWN_STRING,
-    gameVersion: input.gameVersion ?? UNKNOWN_STRING,
+    gameVersion: input.gameVersion ?? { state: 'known', value: DEFAULT_GAME_VERSION },
     mode: input.mode ?? UNKNOWN_STRING,
     mods: input.mods ?? UNKNOWN_STRINGS,
     ...(input.disabledMods === undefined ? {} : { disabledMods: input.disabledMods }),
     ppLimit: input.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
-    ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'unknown' },
+    ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'known', value: DEFAULT_PP_COSTS_NONNEGATIVE },
     slots: [...slots].sort((left, right) => left.order - right.order),
     catalogLock: input.catalogLock ?? {},
     ...(input.definitionOverrides === undefined ? {} : { definitionOverrides: input.definitionOverrides }),
     createdAt: at,
   }
-  const activate = input.activate ?? profile.activeRulesetRevisionId === undefined
-  return updateProfile(
-    profile,
+  const activate = input.activate ?? localData.planningGameSetupRevisionId === undefined
+  return updateLocalData(
+    localData,
     {
-      rulesets: { ...profile.rulesets, [id]: ruleset },
-      ...(activate ? { activeRulesetRevisionId: id } : {}),
+      gameSetups: { ...localData.gameSetups, [id]: gameSetup },
+      ...(activate ? { planningGameSetupRevisionId: id } : {}),
     },
-    'ruleset.addRevision',
-    [`rulesets.${id}`, ...(activate ? ['activeRulesetRevisionId'] : [])],
+    'gameSetup.addRevision',
+    [`gameSetups.${id}`, ...(activate ? ['planningGameSetupRevisionId'] : [])],
     at,
   )
 }
 
-export const createRulesetRevision = addRulesetRevision
+export const createGameSetupRevision = addGameSetupRevision
 
-export interface UpdateRulesetRevisionInput {
-  readonly sourceRevisionId: RulesetRevisionId
-  readonly id?: RulesetRevisionId
+export interface UpdateGameSetupRevisionInput {
+  readonly sourceRevisionId: GameSetupRevisionId
+  readonly id?: GameSetupRevisionId
   readonly label?: string
   readonly platform?: Knowledge<string>
   readonly gameVersion?: Knowledge<string>
@@ -371,21 +476,21 @@ export interface UpdateRulesetRevisionInput {
   readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
-  readonly catalogLock?: RulesetRevision['catalogLock']
+  readonly catalogLock?: GameSetupRevision['catalogLock']
   readonly definitionOverrides?: readonly PersonalRef[]
   readonly activate?: boolean
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
 
-export function updateRulesetRevision(profile: Profile, input: UpdateRulesetRevisionInput): Profile {
-  const source = profile.rulesets[input.sourceRevisionId]
+export function updateGameSetupRevision(localData: LocalData, input: UpdateGameSetupRevisionInput): LocalData {
+  const source = localData.gameSetups[input.sourceRevisionId]
   if (!source) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.sourceRevisionId}`)
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.sourceRevisionId}`)
   }
-  return addRulesetRevision(profile, {
+  return addGameSetupRevision(localData, {
     id: input.id,
-    rulesetId: source.rulesetId,
+    gameSetupId: source.gameSetupId,
     revision: source.revision + 1,
     label: input.label ?? source.label,
     platform: input.platform ?? source.platform,
@@ -405,9 +510,9 @@ export function updateRulesetRevision(profile: Profile, input: UpdateRulesetRevi
 }
 
 export interface CoalesceDefinitionOverridesInput {
-  readonly sourceRulesetRevisionId: RulesetRevisionId
+  readonly sourceGameSetupRevisionId: GameSetupRevisionId
   readonly definitionRefs: readonly PersonalRef[]
-  readonly id?: RulesetRevisionId
+  readonly id?: GameSetupRevisionId
   readonly label?: string
   readonly activate?: boolean
   readonly now?: Timestamp | string
@@ -415,40 +520,40 @@ export interface CoalesceDefinitionOverridesInput {
 }
 
 export function coalesceDefinitionOverrides(
-  profile: Profile,
+  localData: LocalData,
   input: CoalesceDefinitionOverridesInput,
-): Profile {
-  const source = profile.rulesets[input.sourceRulesetRevisionId]
+): LocalData {
+  const source = localData.gameSetups[input.sourceGameSetupRevisionId]
   if (!source) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.sourceRulesetRevisionId}`)
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.sourceGameSetupRevisionId}`)
   }
   const selectedByLogicalKey = new Map<string, PersonalRef>()
   const catalogLock = { ...source.catalogLock }
   for (const ref of input.definitionRefs) {
-    assertPersonalDefinitionRef(profile, ref)
-    if (entityDefinitionKey(preferredDefinitionRef(profile, ref)) !== entityDefinitionKey(ref)) {
-      throw new DomainError('REVISION_CONFLICT', 'Only preferred personal definition revisions can enter a new ruleset layer')
+    assertPersonalDefinitionRef(localData, ref)
+    if (entityDefinitionKey(preferredDefinitionRef(localData, ref)) !== entityDefinitionKey(ref)) {
+      throw new DomainError('REVISION_CONFLICT', 'Only preferred personal definition revisions can enter a new Game Setup layer')
     }
-    const key = logicalEntityKey(profile, ref)
+    const key = logicalEntityKey(localData, ref)
     if (selectedByLogicalKey.has(key)) {
       throw new DomainError('DUPLICATE_REFERENCE', 'Definition override selection contains one logical entity twice')
     }
     selectedByLogicalKey.set(key, ref)
-    const root = definitionLineageRootRef(profile, ref)
+    const root = definitionLineageRootRef(localData, ref)
     if (root.kind === 'catalog') {
       const lockedRevision = catalogLock[root.catalogId]
       if (lockedRevision !== undefined && lockedRevision !== root.catalogRevisionId) {
-        throw new DomainError('INVALID_INPUT', 'A definition override conflicts with the source ruleset catalog lock')
+        throw new DomainError('INVALID_INPUT', 'A definition override conflicts with the source Game Setup catalog lock')
       }
       catalogLock[root.catalogId] = root.catalogRevisionId
     }
   }
   const definitionOverrides = [
-    ...(source.definitionOverrides ?? []).filter((ref) => !selectedByLogicalKey.has(logicalEntityKey(profile, ref))),
+    ...(source.definitionOverrides ?? []).filter((ref) => !selectedByLogicalKey.has(logicalEntityKey(localData, ref))),
     ...selectedByLogicalKey.values(),
   ]
-  return updateRulesetRevision(profile, {
-    sourceRevisionId: input.sourceRulesetRevisionId,
+  return updateGameSetupRevision(localData, {
+    sourceRevisionId: input.sourceGameSetupRevisionId,
     id: input.id,
     label: input.label,
     catalogLock,
@@ -459,26 +564,26 @@ export function coalesceDefinitionOverrides(
   })
 }
 
-export interface ActivateRulesetInput {
-  readonly rulesetRevisionId: RulesetRevisionId
+export interface ActivateGameSetupInput {
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
 
-export function activateRuleset(profile: Profile, input: ActivateRulesetInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  if (!profile.rulesets[input.rulesetRevisionId]) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.rulesetRevisionId}`)
+export function activateGameSetup(localData: LocalData, input: ActivateGameSetupInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  if (!localData.gameSetups[input.gameSetupRevisionId]) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
   }
-  if (profile.activeRulesetRevisionId === input.rulesetRevisionId) {
-    return profile
+  if (localData.planningGameSetupRevisionId === input.gameSetupRevisionId) {
+    return localData
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
-  return updateProfile(
-    profile,
-    { activeRulesetRevisionId: input.rulesetRevisionId },
-    'ruleset.activate',
-    ['activeRulesetRevisionId'],
+  return updateLocalData(
+    localData,
+    { planningGameSetupRevisionId: input.gameSetupRevisionId },
+    'gameSetup.activate',
+    ['planningGameSetupRevisionId'],
     at,
   )
 }

@@ -1,9 +1,9 @@
 import { assertTextLength, DomainError } from './core'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
-import type { Knowledge, RulesetRevision } from './types'
+import type { Knowledge, GameSetupRevision } from './types'
 
 export type ModState = 'enabled' | 'disabled' | 'unknown' | 'conflicting'
-export type ModConfiguration = Pick<RulesetRevision, 'mods' | 'disabledMods'>
+export type ModConfiguration = Pick<GameSetupRevision, 'mods' | 'disabledMods'>
 export interface ModSelection {
   readonly name: string
   readonly state: Exclude<ModState, 'conflicting'>

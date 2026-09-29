@@ -5,12 +5,12 @@ import type {
   ImportReceiptId,
   InventoryEventId,
   InventoryPositionId,
-  Profile,
-  ProfileId,
+  LocalData,
+  LocalDataId,
   ProgressRecordId,
   Timestamp,
 } from '../domain/types'
-import { createBlankProfile as createDomainBlankProfile } from '../domain/profile'
+import { createBlankLocalData as createDomainBlankLocalData, createPlaythrough } from '../domain/local-data'
 
 export function nowTimestamp(): Timestamp {
   return new Date().toISOString() as Timestamp
@@ -26,11 +26,11 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
 }
 
-export function createBlankProfile(label = 'My playthrough', timestamp = nowTimestamp()): Profile {
-  return createDomainBlankProfile({ label, now: timestamp })
+export function createBlankLocalData(label = 'My playthrough', timestamp = nowTimestamp()): LocalData {
+  return createPlaythrough(createDomainBlankLocalData({ now: timestamp }), { label, now: timestamp })
 }
 
-export const asProfileId = (value: string): ProfileId => value as ProfileId
+export const asLocalDataId = (value: string): LocalDataId => value as LocalDataId
 export const asCatalogId = (value: string): CatalogId => value as CatalogId
 export const asCatalogRevisionId = (value: string): CatalogRevisionId => value as CatalogRevisionId
 export const asProgressRecordId = (value: string): ProgressRecordId => value as ProgressRecordId

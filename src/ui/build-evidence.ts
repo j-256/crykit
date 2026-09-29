@@ -1,6 +1,6 @@
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
-import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, Profile, ValidationIssue } from '../domain/types'
+import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
 
 type Definition = CatalogEntity | PersonalDefinition
@@ -13,8 +13,8 @@ const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
 const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])
 
-export function isReferenceArticle(profile: Profile, ref: EntityRef): boolean {
-  const root = definitionLineageRootRef(profile, ref)
+export function isReferenceArticle(localData: LocalData, ref: EntityRef): boolean {
+  const root = definitionLineageRootRef(localData, ref)
   return root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && REFERENCE_ARTICLES.has(root.entityId)
 }
 
@@ -85,7 +85,7 @@ export function ppCostLabel(option: DefinitionOption): string {
   return cost?.state === 'known' ? `${cost.value} PP` : `PP: ${compactKnowledge(cost).toLowerCase()}`
 }
 
-export function similarNameOptions(profile: Profile, options: readonly DefinitionOption[]): ReadonlyMap<string, readonly DefinitionOption[]> {
+export function similarNameOptions(localData: LocalData, options: readonly DefinitionOption[]): ReadonlyMap<string, readonly DefinitionOption[]> {
   const groups = new Map<string, DefinitionOption[]>()
   for (const option of options) {
     const key = `${option.kind}:${option.name.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')}`
@@ -94,7 +94,7 @@ export function similarNameOptions(profile: Profile, options: readonly Definitio
     groups.set(key, group)
   }
   return new Map([...groups.values()].filter((group) => group.length > 1).flatMap((group) => group.flatMap((option) => {
-    const alternatives = group.filter((other) => !sameLogicalEntity(profile, option.ref, other.ref))
+    const alternatives = group.filter((other) => !sameLogicalEntity(localData, option.ref, other.ref))
     return alternatives.length ? [[option.key, alternatives] as const] : []
   })))
 }
@@ -102,7 +102,7 @@ export function similarNameOptions(profile: Profile, options: readonly Definitio
 export function groupValidationIssues(issues: readonly ValidationIssue[]): readonly (readonly ValidationIssue[])[] {
   const groups = new Map<string, ValidationIssue[]>()
   for (const issue of issues) {
-    const key = JSON.stringify([issue.status, issue.code, issue.code === 'RULESET_FIELD_UNKNOWN' ? '' : issue.message])
+    const key = JSON.stringify([issue.status, issue.code, issue.code === 'GAME_SETUP_FIELD_UNKNOWN' ? '' : issue.message])
     const group = groups.get(key) ?? []
     group.push(issue)
     groups.set(key, group)

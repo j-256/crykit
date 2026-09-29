@@ -1,22 +1,22 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { Profile } from '../src/domain/types'
-import { chooseFourTeamMembers, createBlankPlaythrough } from './profile-helpers'
+import type { LocalData } from '../src/domain/types'
+import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough } from './local-data-helpers'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
   await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }).profile
+  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
 }
 
 test('a fresh guest can explore and edit the sample team, then reopen it offline without duplicates', async ({ page, context, baseURL }, testInfo) => {
@@ -28,12 +28,12 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
   await expect(page.getByText('Short Sword', { exact: true })).toBeVisible()
-  const original = await exportProfile(page)
-  expect(original.label).toBe('Sample playthrough')
-  expect(Object.values(original.characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan', 'Sol', 'Tavi'])
+  const original = await exportLocalData(page)
+  expect(selectedPlaythrough(original).label).toBe('Sample playthrough')
+  expect(Object.values(selectedPlaythrough(original).characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan', 'Sol', 'Tavi'])
   expect(Object.values(original.builds)).toHaveLength(4)
-  const team = original.scenarios[original.activeScenarioId!]!
-  expect(team.memberIds).toEqual(Object.keys(original.characters))
+  const team = selectedPlaythrough(original).scenarios[selectedPlaythrough(original).activeScenarioId!]!
+  expect(team.memberIds).toEqual(Object.keys(selectedPlaythrough(original).characters))
   expect(Object.keys(team.assignments)).toHaveLength(4)
 
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
@@ -51,7 +51,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await page.screenshot({ path: testInfo.outputPath('sample-character.png'), fullPage: true })
   await page.goto(`/#/builds/teams/${encodeURIComponent(team.id)}`)
   await expect(page.getByRole('heading', { name: 'Sample starter team', exact: true })).toBeVisible()
-  for (const character of Object.values(original.characters)) {
+  for (const character of Object.values(selectedPlaythrough(original).characters)) {
     await expect(page.getByRole('combobox', { name: character.name, exact: true })).toHaveValue(team.assignments[character.id]!)
   }
   await page.screenshot({ path: testInfo.outputPath('sample-team.png'), fullPage: true })
@@ -64,11 +64,11 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await page.getByRole('listbox', { name: 'Choose Main hand', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  const saved = await exportProfile(page)
+  const saved = await exportLocalData(page)
   expect(saved.builds[build.id]!.latestRevisionId).not.toBe(build.latestRevisionId)
-  expect(saved.characters).toEqual(original.characters)
-  expect(saved.scenarios).toEqual(original.scenarios)
-  expect(saved.inventory).toEqual(original.inventory)
+  expect(selectedPlaythrough(saved).characters).toEqual(selectedPlaythrough(original).characters)
+  expect(selectedPlaythrough(saved).scenarios).toEqual(selectedPlaythrough(original).scenarios)
+  expect(selectedPlaythrough(saved).inventory).toEqual(selectedPlaythrough(original).inventory)
 
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -79,36 +79,40 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Rapier')
-  expect(await exportProfile(page)).toEqual(saved)
+  expect(await exportLocalData(page)).toEqual(saved)
   expect(errors).toEqual([])
   expect(externalRequests).toEqual([])
 })
 
-test('an explicitly created blank playthrough stays empty after reload', async ({ page }) => {
+test('an explicitly created blank playthrough keeps its records empty while shared Builds remain', async ({ page }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Plan your next build', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Builds for current Game Setup', exact: true }).locator('.build-card')).toHaveCount(4)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
-  const profile = await exportProfile(page)
-  for (const key of ['characters', 'inventory', 'builds', 'scenarios'] as const) expect(profile[key]).toEqual({})
+  const localData = await exportLocalData(page)
+  for (const key of ['characters', 'inventory', 'scenarios'] as const) expect(selectedPlaythrough(localData)[key]).toEqual({})
+  expect(Object.values(localData.builds)).toHaveLength(4)
 })
 
-test('the ruleset starts as a visual summary and reveals one focused section at a time', async ({ page }, testInfo) => {
-  await page.goto('/#/settings/ruleset')
+test('the Game Setup keeps mods visible and technical fields under Advanced Game Setup', async ({ page }, testInfo) => {
+  await page.goto('/#/settings/game-setup')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.locator('.ruleset-summary-card')).toHaveCount(4)
-  await expect(panel.locator('.ruleset-editor-section[open]')).toHaveCount(0)
+  await expect(panel.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  await expect(panel.getByText('Starter list, not a complete catalog', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('link', { name: 'Steam Workshop', exact: true })).toHaveAttribute('href', 'https://steamcommunity.com/app/1637730/workshop/')
+  await expect(panel.getByRole('link', { name: 'Nintendo eShop: Mod Pack 1', exact: true })).toHaveAttribute('href', /mod-pack-1-quality-fun/)
+  await expect(panel.getByRole('link', { name: 'Nintendo eShop: Mod Pack 2', exact: true })).toHaveAttribute('href', /mod-pack-2-new-challenges/)
+  await expect(panel.locator('.game-setup-editor-section[open]')).toHaveCount(0)
+  await expect(panel.getByText('Equipment slot rules', { exact: true })).not.toBeVisible()
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).not.toBeVisible()
-  await panel.locator('.ruleset-summary-card').filter({ hasText: 'Switch mods' }).click()
-  await expect(panel.locator('#ruleset-setup-section')).toHaveAttribute('open', '')
-  const pack = panel.locator('.ruleset-mod-pack').filter({ hasText: 'Mod Pack 2: New Challenges' })
+  const pack = panel.locator('.game-setup-mod-pack').filter({ hasText: 'Mod Pack 2: New Challenges' })
   await expect(pack).toBeVisible()
   await expect(pack.getByRole('combobox')).not.toBeVisible()
   await pack.locator(':scope > summary').click()
   await expect(pack.getByRole('combobox').first()).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('ruleset-progressive-disclosure.png') })
+  await page.screenshot({ path: testInfo.outputPath('game-setup-progressive-disclosure.png') })
 })
 
 test('new team scenarios require four distinct roster members before build assignment', async ({ page }) => {
@@ -134,16 +138,17 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   const coverage = team.locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
 
   await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
-  await expect(setup.locator('summary')).toHaveText('Setup needs review · 4 fields')
+  await expect(setup.locator('summary')).toHaveText('Setup needs review · 3 fields')
   await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 6 slots')
   await expect(coverage.locator('summary')).toHaveText('Reference coverage is limited')
-  await expect(team.getByText('Ruleset settings need evidence', { exact: true })).toHaveCount(0)
+  await expect(team.getByText('Game Setup settings need evidence', { exact: true })).toHaveCount(0)
   await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
 
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
   let panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Sample starter ruleset · revision 1', exact: true })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Sample starter Game Setup · revision 1', exact: true })).toBeVisible()
+  await expect(panel.locator('.game-setup-advanced')).toHaveAttribute('open', '')
   await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
@@ -154,16 +159,16 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await expect(accept).toBeFocused()
   await expect(panel.getByText('Applying them records your choice; it does not claim independent verification of game behavior.', { exact: false })).toBeVisible()
   await accept.click()
-  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
-  const saved = await exportProfile(page)
-  const savedTeam = Object.values(saved.scenarios).find(scenario => scenario.label === 'Sample starter team')!
-  const activeRuleset = saved.rulesets[saved.activeRulesetRevisionId!]!
-  expect(activeRuleset.id).not.toBe(savedTeam.rulesetRevisionId)
-  expect(activeRuleset.slots.every(slot => slot.provenance === 'userDefined')).toBe(true)
-  expect(saved.rulesets[savedTeam.rulesetRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
+  const saved = await exportLocalData(page)
+  const savedTeam = Object.values(selectedPlaythrough(saved).scenarios).find(scenario => scenario.label === 'Sample starter team')!
+  const activeGameSetup = saved.gameSetups[saved.planningGameSetupRevisionId!]!
+  expect(activeGameSetup.id).not.toBe(savedTeam.gameSetupRevisionId)
+  expect(activeGameSetup.slots.every(slot => slot.provenance === 'userDefined')).toBe(true)
+  expect(saved.gameSetups[savedTeam.gameSetupRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
 
   await coverage.locator('summary').click()
   await coverage.getByRole('button', { name: 'Review catalog coverage', exact: true }).click()

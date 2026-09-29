@@ -5,11 +5,13 @@ import {
   createId,
   DomainError,
   nowTimestamp,
-  updateProfile,
+  requirePlaythrough,
+  updatePlaythrough,
 } from './core'
-import type { Goal, GoalId, GoalRequirement, GoalStatus, Profile, Timestamp } from './types'
+import type { Goal, GoalId, GoalRequirement, GoalStatus, LocalData, PlaythroughId, Timestamp } from './types'
 
 export interface CreateGoalInput {
+  readonly playthroughId?: PlaythroughId
   readonly id?: GoalId
   readonly title: string
   readonly status?: GoalStatus
@@ -19,8 +21,9 @@ export interface CreateGoalInput {
   readonly expectedRevision?: number
 }
 
-export function createGoal(profile: Profile, input: CreateGoalInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
+export function createGoal(localData: LocalData, input: CreateGoalInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
   const title = input.title.trim()
   if (!title) {
     throw new DomainError('INVALID_INPUT', 'Goal title must not be empty')
@@ -31,7 +34,7 @@ export function createGoal(profile: Profile, input: CreateGoalInput): Profile {
   }
   for (const requirement of input.requirements ?? []) {
     if (!requirement.id.trim()) throw new DomainError('INVALID_INPUT', 'Goal requirement ID must not be empty')
-    if (requirement.target) assertPersonalDefinitionRef(profile, requirement.target)
+    if (requirement.target) assertPersonalDefinitionRef(localData, requirement.target)
     const quantity = requirement.quantity
     if (quantity && quantity.kind !== 'unknown') {
       const valid = Number.isSafeInteger(quantity.value) &&
@@ -40,7 +43,7 @@ export function createGoal(profile: Profile, input: CreateGoalInput): Profile {
     }
   }
   const id = input.id ?? createId<GoalId>('goal')
-  if (profile.goals[id]) {
+  if (playthrough.goals[id]) {
     throw new DomainError('DUPLICATE_ID', `Goal already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -54,9 +57,10 @@ export function createGoal(profile: Profile, input: CreateGoalInput): Profile {
     createdAt: at,
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { goals: { ...profile.goals, [id]: goal } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { goals: { ...playthrough.goals, [id]: goal } },
     'goal.create',
     [`goals.${id}`],
     at,

@@ -1,36 +1,38 @@
+import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { addRulesetRevision, asId, captureCharacter, createCharacter, createScenario, upsertCharacterClassProgress } from '../src/domain'
-import { addTestBuild, addTestDefinition, createTestProfile, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_RULESET_REVISION_ID } from '../src/domain/test-helpers'
-import type { CharacterId, CharacterSnapshotId, Profile, RulesetRevisionId } from '../src/domain/types'
+import { addGameSetupRevision, asId, captureCharacter, createCharacter, createScenario, upsertCharacterClassProgress } from '../src/domain'
+import { addTestBuild, addTestDefinition, createTestLocalData, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
+import type { BuildRevisionId, CharacterId, CharacterSnapshotId, LocalData, GameSetupRevisionId } from '../src/domain/types'
 
 const CHARACTER_ID = asId<CharacterId>('synthetic-rowan')
 const BEFORE_ID = asId<CharacterSnapshotId>('before')
 const AFTER_ID = asId<CharacterSnapshotId>('after')
 const BEFORE_DATE = '2026-01-01T10:00:00.000Z'
 
-function syntheticProfile(changedContext = false): Profile {
-  let profile = createTestProfile()
-  profile = addTestDefinition(profile, 'Synthetic blade')
-  profile = addTestDefinition(profile, 'Synthetic warrior', { kind: 'class' })
-  profile = createCharacter(profile, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
-  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
-  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-tavi'), name: 'Synthetic Tavi', now: TEST_NOW })
-  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-sol'), name: 'Synthetic Sol', now: TEST_NOW })
-  profile = upsertCharacterClassProgress(profile, { characterId: CHARACTER_ID, classRef: personalRef('Synthetic warrior'), observedLp: known(12), now: TEST_NOW })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, passives: known([]), observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
-  profile = captureCharacter(profile, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade') }, passives: known([]), observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
-  profile = addTestBuild(profile, 'Synthetic Rowan proposal', CHARACTER_ID, {})
-  profile = addTestBuild(profile, 'Synthetic Mira proposal', 'synthetic-mira', {})
-  profile = createScenario(profile, { label: 'Synthetic complete team', memberIds: [CHARACTER_ID, asId<CharacterId>('synthetic-mira'), asId<CharacterId>('synthetic-tavi'), asId<CharacterId>('synthetic-sol')], rulesetRevisionId: TEST_RULESET_REVISION_ID, activate: true, now: TEST_NOW })
+function syntheticLocalData(changedContext = false): LocalData {
+  let localData = createTestLocalData()
+  localData = addTestDefinition(localData, 'Synthetic blade')
+  localData = addTestDefinition(localData, 'Synthetic warrior', { kind: 'class' })
+  localData = createCharacter(localData, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
+  localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
+  localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-tavi'), name: 'Synthetic Tavi', now: TEST_NOW })
+  localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-sol'), name: 'Synthetic Sol', now: TEST_NOW })
+  localData = upsertCharacterClassProgress(localData, { characterId: CHARACTER_ID, classRef: personalRef('Synthetic warrior'), observedLp: known(12), now: TEST_NOW })
+  localData = captureCharacter(localData, { characterId: CHARACTER_ID, snapshotId: BEFORE_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(24), displayedStats: { 'Max HP': { value: known(540), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade'), 'second-hand': null }, passives: known([]), observedAt: BEFORE_DATE, note: 'Synthetic earlier observation', now: BEFORE_DATE })
+  localData = captureCharacter(localData, { characterId: CHARACTER_ID, snapshotId: AFTER_ID, primaryClass: known(personalRef('Synthetic warrior')), level: known(26), displayedStats: { 'Max HP': { value: known(620), unit: 'points' }, Luck: { value: { state: 'unknown' }, unit: 'displayed' } }, equipment: { [HAND_SLOT]: personalRef('Synthetic blade') }, passives: known([]), observedAt: TEST_NOW, note: 'Synthetic later observation', now: TEST_NOW })
+  localData = addTestBuild(localData, 'Synthetic Rowan proposal', CHARACTER_ID, {})
+  localData = addTestBuild(localData, 'Synthetic Mira proposal', 'synthetic-mira', {})
+  localData = createScenario(localData, { label: 'Synthetic complete team', memberIds: [CHARACTER_ID, asId<CharacterId>('synthetic-mira'), asId<CharacterId>('synthetic-tavi'), asId<CharacterId>('synthetic-sol')], assignments: { [CHARACTER_ID]: asId<BuildRevisionId>('Synthetic Rowan proposal-revision') }, gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID, activate: true, now: TEST_NOW })
   if (changedContext) {
-    const character = profile.characters[CHARACTER_ID]!
-    const { rulesetRevisionId: _context, ...legacy } = character.snapshots[BEFORE_ID]!
-    profile = { ...profile, characters: { ...profile.characters, [CHARACTER_ID]: { ...character, snapshots: { ...character.snapshots, [BEFORE_ID]: legacy } } } }
-    profile = addRulesetRevision(profile, { ...profile.rulesets[TEST_RULESET_REVISION_ID]!, id: asId<RulesetRevisionId>('revised-ruleset'), activate: true, slots: profile.rulesets[TEST_RULESET_REVISION_ID]!.slots.map((slot) => ({ ...slot, label: `Revised ${slot.label}` })), now: TEST_NOW })
+    const character = selectedPlaythrough(localData).characters[CHARACTER_ID]!
+    const { gameSetupRevisionId: _context, ...legacy } = character.snapshots[BEFORE_ID]!
+    const playthrough = selectedPlaythrough(localData)
+    localData = { ...localData, playthroughs: { ...localData.playthroughs, [playthrough.id]: { ...playthrough, characters: { ...playthrough.characters, [CHARACTER_ID]: { ...character, snapshots: { ...character.snapshots, [BEFORE_ID]: legacy } } } } } }
+    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: asId<GameSetupRevisionId>('revised-gameSetup'), activate: true, slots: localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!.slots.map((slot) => ({ ...slot, label: `Revised ${slot.label}` })), now: TEST_NOW })
   }
-  return { ...profile, changes: [] }
+  return { ...localData, changes: [] }
 }
 
 async function dataPanel(page: Page) {
@@ -40,32 +42,32 @@ async function dataPanel(page: Page) {
 
 async function loadFixture(page: Page, changedContext = false) {
   await page.goto('/')
-  const profile = syntheticProfile(changedContext)
+  const localData = syntheticLocalData(changedContext)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ profile, lineage: { rootProfileId: profile.id }, catalogs: [], evidence: [], history: [] }),
+    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], evidence: [], history: [] }),
   })
   const panel = await dataPanel(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-sheet.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
-  await expect(panel.getByText('native-backup-1.0.0', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await page.goto(`/#/characters/${CHARACTER_ID}/current`)
   await expect(page.getByRole('heading', { name: 'Synthetic Rowan', exact: true })).toBeVisible()
-  return profile
+  return localData
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
   const download = page.waitForEvent('download')
   await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
   const path = await (await download).path()
   if (!path) throw new Error('Backup download failed')
   const archive = unzipSync(await readFile(path))
-  const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }
+  const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return payload.profile
+  return payload.localData
 }
 
 test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', async ({ page }) => {
@@ -76,19 +78,24 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   const equipment = page.getByRole('region', { name: 'Equipment and equipped passives', exact: true })
   await page.getByRole('button', { name: 'Status Recorded stats', exact: true }).click()
   await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
-  await page.getByText('Planned builds', { exact: true }).click()
   await expect(stats.getByText('620', { exact: false })).toBeVisible()
   await expect(page.getByText('Synthetic later observation', { exact: true })).toBeVisible()
+  await page.getByText('Build assignments', { exact: true }).click()
   await expect(page.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Synthetic Mira proposal', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: /^Passives/ }).click()
-  await expect(equipment).toContainText('10 PP limit for this ruleset')
+  await expect(equipment).toContainText('10 PP limit for this Game Setup')
   const statBounds = await stats.boundingBox()
   const equipmentBounds = await equipment.boundingBox()
   expect(statBounds).not.toBeNull()
   expect(equipmentBounds).not.toBeNull()
   expect(equipmentBounds!.y).toBeLessThan(statBounds!.y)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.goto('/#/builds/library')
+  const library = page.getByRole('region', { name: 'Build library', exact: true })
+  await expect(library.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true })).toBeVisible()
+  await expect(library.getByRole('button', { name: 'Synthetic Mira proposal', exact: true })).toBeVisible()
+  await page.goto(`/#/characters/${CHARACTER_ID}/current`)
   await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Inspect snapshot', exact: true }).last().click()
   await expect(page).toHaveURL(new RegExp(`/history/snapshots/${BEFORE_ID}$`))
@@ -115,10 +122,10 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   await expect(hp).toContainText('+80')
   await page.getByRole('combobox', { name: 'Snapshot A', exact: true }).selectOption(AFTER_ID)
   await expect(page.getByText('Same snapshot selected', { exact: true })).toBeVisible()
-  const exported = await exportProfile(page)
-  expect(exported.characters).toEqual(original.characters)
+  const exported = await exportLocalData(page)
+  expect(selectedPlaythrough(exported).characters).toEqual(selectedPlaythrough(original).characters)
   expect(exported.buildRevisions).toEqual(original.buildRevisions)
-  expect(exported.inventory).toEqual({})
+  expect(selectedPlaythrough(exported).inventory).toEqual({})
 })
 
 test('member details stay pinned during pointer transit and follow deliberate focus', async ({ page, isMobile }) => {
@@ -172,14 +179,14 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await page.reload()
   await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.getByText('Synthetic changed hand', { exact: true })).toBeVisible()
-  const saved = await exportProfile(page)
-  const character = saved.characters[CHARACTER_ID]!
-  expect(character.snapshots[BEFORE_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
-  expect(character.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
+  const saved = await exportLocalData(page)
+  const character = selectedPlaythrough(saved).characters[CHARACTER_ID]!
+  expect(character.snapshots[BEFORE_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
+  expect(character.snapshots[AFTER_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[AFTER_ID])
   expect(character.snapshots[character.currentSnapshotId!]!.equipment[HAND_SLOT]).toBeNull()
-  expect(character.snapshots[character.currentSnapshotId!]!.rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
+  expect(character.snapshots[character.currentSnapshotId!]!.gameSetupRevisionId).toBe(TEST_GAME_SETUP_REVISION_ID)
   expect(character.learnedNodes).toEqual({})
-  expect(saved.inventory).toEqual({})
+  expect(selectedPlaythrough(saved).inventory).toEqual({})
   await page.getByRole('button', { name: 'History', exact: true }).click()
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Hand', exact: true })).toContainText('Empty')
@@ -212,9 +219,9 @@ test('legacy and missing snapshots keep explicit context and never fall back to 
   await expect(form.getByText('Record equipment again', { exact: true })).toBeVisible()
   await expect(form.getByRole('button', { name: 'Choose Revised Hand', exact: true })).toContainText('Unknown')
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
-  const saved = await exportProfile(page)
-  const character = saved.characters[CHARACTER_ID]!
-  expect(character.snapshots[character.currentSnapshotId!]!.rulesetRevisionId).toBe('revised-ruleset')
+  const saved = await exportLocalData(page)
+  const character = selectedPlaythrough(saved).characters[CHARACTER_ID]!
+  expect(character.snapshots[character.currentSnapshotId!]!.gameSetupRevisionId).toBe('revised-gameSetup')
   expect(character.snapshots[character.currentSnapshotId!]!.equipment).toEqual({})
   expect(character.snapshots[character.currentSnapshotId!]!.passives).toEqual(known([]))
   expect(character.snapshots[AFTER_ID]!.equipment[HAND_SLOT]).toEqual(personalRef('Synthetic blade'))
@@ -226,7 +233,7 @@ test('snapshot save failure retains entered fields and retries a single observat
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'profiles' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+      if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -242,33 +249,34 @@ test('snapshot save failure retains entered fields and retries a single observat
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
-  const profile = await exportProfile(page)
-  const snapshots = Object.values(profile.characters[CHARACTER_ID]!.snapshots)
+  const localData = await exportLocalData(page)
+  const snapshots = Object.values(selectedPlaythrough(localData).characters[CHARACTER_ID]!.snapshots)
   expect(snapshots.filter((snapshot) => snapshot.note === 'Synthetic retained observation')).toHaveLength(1)
   expect(snapshots).toHaveLength(3)
 })
 
-test('recording a proposal retains its ruleset and requires in-game confirmation', async ({ page }) => {
+test('recording a proposal retains its Game Setup and requires in-game confirmation', async ({ page }) => {
   const original = await loadFixture(page, true)
-  await page.getByText('Planned builds', { exact: true }).click()
+  await page.goto('/#/builds/library')
   await page.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true }).click()
   await page.locator('.build-readiness > summary').click()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
-  const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
+  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
+  await recording.getByRole('combobox', { name: /^Character/ }).selectOption(CHARACTER_ID)
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()
   await recording.getByRole('checkbox', { name: /I made these changes in game/ }).check()
   await recording.getByRole('button', { name: 'Record as current', exact: true }).click()
   await expect(recording).not.toBeVisible()
-  const saved = await exportProfile(page)
-  const character = saved.characters[CHARACTER_ID]!
+  const saved = await exportLocalData(page)
+  const character = selectedPlaythrough(saved).characters[CHARACTER_ID]!
   const snapshot = character.snapshots[character.currentSnapshotId!]!
-  expect(saved.activeRulesetRevisionId).toBe('revised-ruleset')
-  expect(snapshot.rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
+  expect(saved.planningGameSetupRevisionId).toBe('revised-gameSetup')
+  expect(snapshot.gameSetupRevisionId).toBe(TEST_GAME_SETUP_REVISION_ID)
   expect(snapshot.displayedStats).toEqual({})
   expect(snapshot).not.toHaveProperty('ppCapacity')
-  expect(character.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
+  expect(character.snapshots[AFTER_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[AFTER_ID])
   expect(character.learnedNodes).toEqual({})
-  expect(saved.inventory).toEqual({})
+  expect(selectedPlaythrough(saved).inventory).toEqual({})
 })
 
 test('member picker links preserve unknown and empty selections and guard the inline draft', async ({ page }) => {
@@ -292,13 +300,13 @@ test('member picker links preserve unknown and empty selections and guard the in
   await expect(page.getByRole('button', { name: 'Capture snapshot', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(page.getByLabel('Snapshot note', { exact: true })).toHaveCount(0)
-  const saved = await exportProfile(page)
-  const member = saved.characters[CHARACTER_ID]!
+  const saved = await exportLocalData(page)
+  const member = selectedPlaythrough(saved).characters[CHARACTER_ID]!
   const recorded = member.snapshots[member.currentSnapshotId!]!
   expect(recorded.equipment).not.toHaveProperty(HAND_SLOT)
   expect(recorded.equipment['second-hand']).toBeNull()
-  expect(recorded.displayedStats).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID]!.displayedStats)
-  expect(saved.inventory).toEqual(original.inventory)
+  expect(recorded.displayedStats).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[AFTER_ID]!.displayedStats)
+  expect(selectedPlaythrough(saved).inventory).toEqual(selectedPlaythrough(original).inventory)
   expect(saved.buildRevisions).toEqual(original.buildRevisions)
   await page.getByRole('button', { name: 'Next member', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic Mira', exact: true })).toBeVisible()
@@ -316,7 +324,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
       const put = IDBObjectStore.prototype.put
       let failOnce = true
       IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-        if (this.name === 'profiles' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+        if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
         return put.apply(this, args)
       }
     })
@@ -330,16 +338,16 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
     await expect(page.getByText('Snapshot not saved', { exact: true })).toHaveCount(0)
     await page.reload()
     await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Empty')
-    const saved = await exportProfile(page)
-    const member = saved.characters[CHARACTER_ID]!
-    expect(Object.values(member.snapshots)).toHaveLength(Object.keys(original.characters[CHARACTER_ID]!.snapshots).length + 1)
+    const saved = await exportLocalData(page)
+    const member = selectedPlaythrough(saved).characters[CHARACTER_ID]!
+    expect(Object.values(member.snapshots)).toHaveLength(Object.keys(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots).length + 1)
     expect(Object.values(member.snapshots).filter(snapshot => snapshot.note === 'Synthetic inline recovery')).toHaveLength(1)
-    expect(member.snapshots[BEFORE_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
-    expect(member.snapshots[AFTER_ID]).toEqual(original.characters[CHARACTER_ID]!.snapshots[AFTER_ID])
+    expect(member.snapshots[BEFORE_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
+    expect(member.snapshots[AFTER_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[AFTER_ID])
   })
 }
 
-test('the member menu stays compact and learning shares a single workspace', async ({ page, isMobile }) => {
+test('the member menu stays compact and learning shares a single view', async ({ page, isMobile }) => {
   await page.goto('/#/characters')
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()

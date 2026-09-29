@@ -1,15 +1,15 @@
 import { DefinitionArtwork } from './GameIcon'
 import { useCallback, useId, useMemo, useRef, useState, type FormEvent } from 'react'
-import { entityDefinitionKey, partitionQuery } from '../domain'
-import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, Profile, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
+import { entityDefinitionKey, partitionQuery, requirePlaythrough } from '../domain'
+import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, LocalData, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
 import { Badge, Button, EmptyState, FacetDropdown, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { expandCategoryFacetValues, groupCategoryFacetValues, selectedCategoryFacetValues } from './inventory-facets'
-import { activeRuleset, entityName, formatRelativeDate, knowledgeLabel, ownRecordValue, quantityLabel } from './model'
+import { activeGameSetup, entityName, formatRelativeDate, knowledgeLabel, ownRecordValue, quantityLabel } from './model'
 import { INVENTORY_PAGE_SIZE, ROUTE_MAX_RESULT_LIMIT, commitInventoryRouteState, readInventoryRouteState, type InventoryRouteState } from './route-state'
 import { buildFacetOptions, buildReferenceSearchItems } from './search'
 import { Sheet } from './Sheet'
-import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace, type DefinitionOption } from './definitions'
+import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { useNavigation, type InventoryPageRoute } from './navigation'
 import { DefinitionModLabel } from './DefinitionModLabel'
 import { sourceDisplay } from './source-display'
@@ -46,7 +46,7 @@ function blankDraft(): InventoryDraft {
 }
 
 function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?: InventoryDraft; onCancel: () => void; onSubmit: (draft: InventoryDraft) => Promise<void> | void; submitLabel: string }) {
-  const { options } = useDefinitionWorkspace()
+  const { options } = useDefinitionLibrary()
   const [draft, setDraft] = useState(initial ?? blankDraft())
   const selected = findDefinitionOption(options, draft.ref)
   const [editingName, setEditingName] = useState(Boolean(initial && initial.name !== selected?.name))
@@ -119,15 +119,15 @@ function InventoryForm({ initial, onCancel, onSubmit, submitLabel }: { initial?:
   </form>
 }
 
-function positionDraft(profile: Profile, catalogs: readonly CatalogSnapshot[], position: InventoryPosition): InventoryDraft {
-  return { name: position.observedName ?? entityName(profile, catalogs, position.ref), ref: position.ref, possession: position.possession, quantity: position.quantity, favorite: position.favorite, protectedQuantity: position.protectedQuantity, wishlist: position.wishlist, note: position.note, observedAt: position.observedAt }
+function positionDraft(localData: LocalData, catalogs: readonly CatalogSnapshot[], position: InventoryPosition): InventoryDraft {
+  return { name: position.observedName ?? entityName(localData, catalogs, position.ref), ref: position.ref, possession: position.possession, quantity: position.quantity, favorite: position.favorite, protectedQuantity: position.protectedQuantity, wishlist: position.wishlist, note: position.note, observedAt: position.observedAt }
 }
 
 function InventoryEventForm({ onCancel, onSubmit }: {
   readonly onCancel: () => void
   readonly onSubmit: (draft: InventoryEventDraft) => Promise<void>
 }) {
-  const { options } = useDefinitionWorkspace()
+  const { options } = useDefinitionLibrary()
   const [draft, setDraft] = useState<InventoryEventDraft>({ name: '', kind: 'acquired', quantity: { state: 'unknown' } })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -150,7 +150,7 @@ function InventoryEventForm({ onCancel, onSubmit }: {
 }
 
 export interface InventoryViewProps {
-  readonly profile: Profile
+  readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly onAdd: (draft: InventoryDraft) => Promise<void>
   readonly onUpdate: (positionId: string, draft: InventoryDraft) => Promise<void>
@@ -192,18 +192,18 @@ function categoryQueryValue(option: DefinitionOption | undefined): QueryValue {
   return category
 }
 
-export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEvent, onOpenData }: InventoryViewProps) {
+export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEvent, onOpenData }: InventoryViewProps) {
   const navigation = useNavigation()
-  const { options } = useDefinitionWorkspace()
-  const ruleset = activeRuleset(profile)
-  const positions = Object.values(profile.inventory)
-  const events = Object.values(profile.inventoryEvents).sort((left, right) => (right.observedAt ?? right.recordedAt).localeCompare(left.observedAt ?? left.recordedAt))
+  const { options } = useDefinitionLibrary()
+  const gameSetup = activeGameSetup(localData)
+  const positions = Object.values(requirePlaythrough(localData).inventory)
+  const events = Object.values(requirePlaythrough(localData).inventoryEvents).sort((left, right) => (right.observedAt ?? right.recordedAt).localeCompare(left.observedAt ?? left.recordedAt))
   const route = readInventoryRouteState()
   const [eventLimit, setEventLimit] = useState(100)
   const page = navigation.route.page.page === 'inventory' ? navigation.route.page : { page: 'inventory', view: 'list' } as const
   const adding = page.view === 'new'
   const recordingEvent = page.view === 'event-new'
-  const editing = page.view === 'edit' ? ownRecordValue(profile.inventory, page.positionId) : undefined
+  const editing = page.view === 'edit' ? ownRecordValue(requirePlaythrough(localData).inventory, page.positionId) : undefined
   const missingPosition = page.view === 'edit' && !editing
   const navigate = (next: InventoryPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] })
   const referenceItems = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
@@ -245,7 +245,7 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
     return partitionQuery(positions, tree, (position): QueryRecord => {
       const reference = referenceByDefinition.get(entityDefinitionKey(position.ref))
       const personalDefinition = position.ref.kind === 'personal' ? optionByDefinition.get(entityDefinitionKey(position.ref)) : undefined
-      const name = position.observedName ?? entityName(profile, catalogs, position.ref)
+      const name = position.observedName ?? entityName(localData, catalogs, position.ref)
       const referenceText = reference ? `${reference.entity.name} ${reference.entity.aliases.join(' ')} ${reference.entity.rawDescription ?? ''}` : personalDefinition ? `${personalDefinition.name} ${personalDefinition.aliases.join(' ')} ${personalDefinition.description ?? ''} ${categoryFacetValues(personalDefinition).join(' ')}` : ''
       return {
         text: { state: 'known', value: `${name} ${referenceText}` },
@@ -257,7 +257,7 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
         source: position.ref.kind === 'personal' ? { state: 'known', value: ['Personal entry'] } : reference?.projection.source ?? { state: 'unknown', reason: 'No linked catalog source' },
       }
     })
-  }, [catalogs, optionByDefinition, positions, profile, referenceByDefinition, route, selectedCategoryValues])
+  }, [catalogs, optionByDefinition, positions, localData, referenceByDefinition, route, selectedCategoryValues])
   const visible = [...partition.confirmed, ...partition.possible]
 
   const add = async (draft: InventoryDraft) => {
@@ -273,19 +273,19 @@ export function InventoryView({ profile, catalogs, onAdd, onUpdate, onRecordEven
 
   return <>
     <ScreenHeader actions={<><Button icon="plus" onClick={() => navigate({ page: 'inventory', view: 'new' })}>Add item</Button><Button onClick={() => navigate({ page: 'inventory', view: 'event-new' })} tone="secondary">Record event</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import</Button></>} description="Keep track of your equipment, consumables, and the copies available to your party." eyebrow="Items & equipment" title="Inventory"/>
-    {missingPosition && <InlineNotice title="Inventory entry unavailable" tone="warning">The requested inventory entry is not part of the active playthrough. It may have been removed or the link may belong to another profile. <Button onClick={() => navigate({ page: 'inventory', view: 'list' })} tone="quiet">Return to inventory</Button></InlineNotice>}
+    {missingPosition && <InlineNotice title="Inventory entry unavailable" tone="warning">The requested inventory entry is not part of the active Playthrough. It may have been removed or the link may belong to another Playthrough. <Button onClick={() => navigate({ page: 'inventory', view: 'list' })} tone="quiet">Return to inventory</Button></InlineNotice>}
     {positions.length === 0 ? <EmptyState className="empty-state--inventory" aside={<><strong>Not sure how many you own?</strong>Leave the quantity unknown. Looking up an item in Reference never adds it to your inventory.</>} description="Found a new weapon, a piece of armor, or a useful consumable? Record it here to keep track of what your party can use." icon="chest" title="Record your first item"><Button icon="plus" onClick={() => navigate({ page: 'inventory', view: 'new' })}>Add an item</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import a record</Button></EmptyState> : <div className="panel">
       <div className="panel__header toolbar"><div className="search-field"><Icon name="search"/><input aria-label="Search inventory" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Search names and linked descriptions" type="search" value={route.query}/></div><div className="cluster"><Badge tone={visible.some((item) => item.quantity.kind === 'unknown') ? 'warning' : 'neutral'}>{partition.confirmed.length} confirmed</Badge>{partition.possible.length > 0 && <Badge tone="warning">{partition.possible.length} possible</Badge>}</div></div>
       <div className="panel__body inventory-facets"><div className="inventory-facets__state"><h3>Inventory state</h3><div aria-label="Inventory filters" className="filter-chips inventory-state-filters" role="group">{filters.map((value) => <button aria-pressed={route.filter === value} className="filter-chip" key={value} onClick={() => updateFilter({ filter: value }, 'push')} type="button">{value}</button>)}</div></div>{categoryGroups.length > 0 && <FacetDropdown allLabel="All categories" groupLabel="Inventory category filters" label="Linked category" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(selectedCategoryGroups, value) }, 'push')} options={categoryGroups} searchLabel="Search inventory categories" selected={selectedCategoryGroups}/>} {sourceOptions.length > 0 && <FacetDropdown allLabel="All sources" formatOption={sourceDisplay} groupLabel="Inventory source filters" label="Linked source" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search inventory sources" selected={route.sources}/>}</div>
       {visible.length ? <><ul aria-live="polite" className="list">{visible.slice(0, route.resultLimit).map((position) => {
-        const name = position.observedName ?? entityName(profile, catalogs, position.ref)
+        const name = position.observedName ?? entityName(localData, catalogs, position.ref)
         const tone = position.possession === 'owned' ? 'positive' : position.possession === 'notOwned' ? 'neutral' : 'warning'
-        return <li className="list-row" key={position.id}><div className="list-row__primary"><div className="definition-badge-heading"><strong className="icon-label inventory-item-label"><DefinitionArtwork catalogs={catalogs} profile={profile} value={position.ref}/><span className="inventory-item-label__name">{name}</span></strong><DefinitionModLabel profile={profile} ruleset={ruleset} value={position.ref}/></div><small>{position.ref.kind === 'personal' ? 'Personal entry' : 'Catalog-linked item'} · {formatRelativeDate(position.observedAt)}</small></div><div><Badge tone={tone}>{position.possession === 'owned' ? 'Owned' : position.possession === 'notOwned' ? 'Not owned' : 'Possession unknown'}</Badge></div><div className="list-row__fact"><strong>{quantityLabel(position.quantity)}</strong><small>{position.protectedQuantity ? `${position.protectedQuantity} protected` : position.wishlist ? 'On wishlist' : 'No special policy'}</small></div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${name}`} onClick={() => navigate({ page: 'inventory', view: 'edit', positionId: position.id })}/></div></li>
+        return <li className="list-row" key={position.id}><div className="list-row__primary"><div className="definition-badge-heading"><strong className="icon-label inventory-item-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={position.ref}/><span className="inventory-item-label__name">{name}</span></strong><DefinitionModLabel localData={localData} gameSetup={gameSetup} value={position.ref}/></div><small>{position.ref.kind === 'personal' ? 'Personal entry' : 'Catalog-linked item'} · {formatRelativeDate(position.observedAt)}</small></div><div><Badge tone={tone}>{position.possession === 'owned' ? 'Owned' : position.possession === 'notOwned' ? 'Not owned' : 'Possession unknown'}</Badge></div><div className="list-row__fact"><strong>{quantityLabel(position.quantity)}</strong><small>{position.protectedQuantity ? `${position.protectedQuantity} protected` : position.wishlist ? 'On wishlist' : 'No special policy'}</small></div><div className="list-row__action"><IconButton icon="edit" label={`Edit ${name}`} onClick={() => navigate({ page: 'inventory', view: 'edit', positionId: position.id })}/></div></li>
       })}</ul>{visible.length > route.resultLimit && route.resultLimit < ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><Button onClick={() => updateRoute({ resultLimit: Math.min(ROUTE_MAX_RESULT_LIMIT, route.resultLimit + INVENTORY_PAGE_SIZE) })} tone="secondary">Show {Math.min(INVENTORY_PAGE_SIZE, visible.length - route.resultLimit)} more</Button></div>}{visible.length > ROUTE_MAX_RESULT_LIMIT && route.resultLimit >= ROUTE_MAX_RESULT_LIMIT && <div className="panel__body"><InlineNotice title="Inventory display limit reached">Refine the name, category, source, or inventory-state filters to reach entries beyond the first {ROUTE_MAX_RESULT_LIMIT.toLocaleString()} matches.</InlineNotice></div>}</> : <div className="panel__body"><InlineNotice title="No matching entries">Change the search or filters to see another part of your recorded inventory. Unknown catalog facets remain possible matches.</InlineNotice></div>}
     </div>}
-    <section className="panel" style={{ marginTop: 18 }}><div className="panel__header"><div><h2>Acquisition & loss history</h2><p>Historical events stay separate from current stock</p></div><Button onClick={() => navigate({ page: 'inventory', view: 'event-new' })} tone="secondary">Record event</Button></div>{events.length ? <><ul className="list">{events.slice(0, eventLimit).map((entry) => <li className="list-row" key={entry.id}><div className="list-row__primary"><div className="definition-badge-heading"><strong>{entry.observedName ?? entityName(profile, catalogs, entry.ref)}</strong><DefinitionModLabel profile={profile} ruleset={ruleset} value={entry.ref}/></div><small>{formatRelativeDate(entry.observedAt)} · Recorded {formatRelativeDate(entry.recordedAt)}</small></div><Badge tone={entry.kind === 'acquired' ? 'positive' : 'warning'}>{entry.kind === 'acquired' ? 'Acquired' : 'Lost'}</Badge><div className="list-row__fact"><strong>{knowledgeLabel(entry.quantity, (value) => `${value}`)}</strong><small>{entry.quantity.state === 'known' ? 'Recorded amount' : 'Amount unknown'}</small></div><div className="list-row__fact">{entry.note ?? 'No event note'}</div></li>)}</ul>{events.length > eventLimit && <div className="panel__body"><Button onClick={() => setEventLimit((value) => value + 100)} tone="secondary">Show 100 more events</Button></div>}</> : <div className="panel__body"><InlineNotice title="No acquisition or loss events">Add historical events here without changing the current inventory observation.</InlineNotice></div>}</section>
+    <section className="panel" style={{ marginTop: 18 }}><div className="panel__header"><div><h2>Acquisition & loss history</h2><p>Historical events stay separate from current stock</p></div><Button onClick={() => navigate({ page: 'inventory', view: 'event-new' })} tone="secondary">Record event</Button></div>{events.length ? <><ul className="list">{events.slice(0, eventLimit).map((entry) => <li className="list-row" key={entry.id}><div className="list-row__primary"><div className="definition-badge-heading"><strong>{entry.observedName ?? entityName(localData, catalogs, entry.ref)}</strong><DefinitionModLabel localData={localData} gameSetup={gameSetup} value={entry.ref}/></div><small>{formatRelativeDate(entry.observedAt)} · Recorded {formatRelativeDate(entry.recordedAt)}</small></div><Badge tone={entry.kind === 'acquired' ? 'positive' : 'warning'}>{entry.kind === 'acquired' ? 'Acquired' : 'Lost'}</Badge><div className="list-row__fact"><strong>{knowledgeLabel(entry.quantity, (value) => `${value}`)}</strong><small>{entry.quantity.state === 'known' ? 'Recorded amount' : 'Amount unknown'}</small></div><div className="list-row__fact">{entry.note ?? 'No event note'}</div></li>)}</ul>{events.length > eventLimit && <div className="panel__body"><Button onClick={() => setEventLimit((value) => value + 100)} tone="secondary">Show 100 more events</Button></div>}</> : <div className="panel__body"><InlineNotice title="No acquisition or loss events">Add historical events here without changing the current inventory observation.</InlineNotice></div>}</section>
     <Sheet description="Record current possession and quantity without implying anything from earlier acquisitions." onClose={() => navigation.close()} open={adding} title="Add inventory item"><InventoryForm onCancel={() => navigation.close()} onSubmit={add} submitLabel="Add item"/></Sheet>
-    <Sheet description="This records a corrected current observation. It does not create a gain or loss event." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit inventory observation">{editing && <InventoryForm initial={positionDraft(profile, catalogs, editing)} key={editing.id} onCancel={() => navigation.close()} onSubmit={update} submitLabel="Save observation"/>}</Sheet>
+    <Sheet description="This records a corrected current observation. It does not create a gain or loss event." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit inventory observation">{editing && <InventoryForm initial={positionDraft(localData, catalogs, editing)} key={editing.id} onCancel={() => navigation.close()} onSubmit={update} submitLabel="Save observation"/>}</Sheet>
     <Sheet description="Record a historical event without adjusting current stock." onClose={() => navigation.close()} open={recordingEvent} title="Record acquisition or loss"><InventoryEventForm onCancel={() => navigation.close()} onSubmit={recordEvent}/></Sheet>
   </>
 }

@@ -2,13 +2,13 @@ import type { CorrectionCollection } from '../domain/corrections'
 import type {
   CatalogSnapshot,
   JsonValue,
-  Profile,
-  ProfileId,
+  LocalData,
+  LocalDataId,
   SourceRef,
   Timestamp,
 } from '../domain/types'
 
-export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-1.0.0' | 'crystal-edit-json-1'
+export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-2.0.0' | 'crystal-edit-json-1'
 export type ImportGroup = 'reference' | 'personal' | 'mixed' | 'ignored'
 
 export interface ImportProblem {
@@ -46,29 +46,29 @@ export interface SourceArchiveRecord {
   readonly bytes: Uint8Array
 }
 
-export interface ProfileLineage {
-  readonly rootProfileId: ProfileId
-  readonly parentProfileId?: ProfileId
-  readonly sourceProfileId?: ProfileId
+export interface LocalDataLineage {
+  readonly rootLocalDataId: LocalDataId
+  readonly parentLocalDataId?: LocalDataId
+  readonly sourceLocalDataId?: LocalDataId
   readonly sourceRevision?: number
   readonly forkedAt?: Timestamp
 }
 
 export interface PersistedHistoryEntry {
   readonly id: string
-  readonly profileId: ProfileId
+  readonly localDataId: LocalDataId
   readonly command: string
   readonly previousRevision: number
   readonly nextRevision: number
-  readonly before: Profile
-  readonly after: Profile
+  readonly before: LocalData
+  readonly after: LocalData
   readonly recordedAt: Timestamp
 }
 
 export interface ImportCandidate {
   readonly corrections?: CorrectionCollection
-  readonly profile: Profile
-  readonly lineage: ProfileLineage
+  readonly localData: LocalData
+  readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]
   readonly evidence: readonly EvidenceRecord[]
   readonly sources: readonly SourceArchiveRecord[]
@@ -84,45 +84,36 @@ export interface ImportPreview {
   readonly counts: ImportCounts
   readonly warnings: readonly ImportProblem[]
   readonly errors: readonly ImportProblem[]
-  readonly profile: {
+  readonly localData: {
     readonly label: string
-    readonly identity?: ProfileId
-    readonly ancestry?: ProfileLineage
+    readonly identity?: LocalDataId
+    readonly ancestry?: LocalDataLineage
   }
   readonly proposed: ImportCandidate
 }
 
-export type ImportCommitMode = 'new-profile' | 'merge' | 'replace' | 'add-reference'
+export type ImportCommitMode = 'replace' | 'add-reference'
 
 export interface CommitImportOptions {
   readonly restoreCorrections?: boolean
   readonly mode?: ImportCommitMode
-  readonly targetProfileId?: ProfileId
+  readonly targetLocalDataId?: LocalDataId
   readonly expectedRevision?: number
 }
 
-export interface Workspace {
-  readonly profile: Profile
-  readonly lineage: ProfileLineage
+export interface LoadedLocalData {
+  readonly localData: LocalData
+  readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]
   readonly evidence: readonly EvidenceRecord[]
   readonly revision: number
   readonly canUndo: boolean
 }
 
-export interface WorkspaceNotification {
-  readonly profileId: ProfileId
+export interface LocalDataNotification {
+  readonly localDataId: LocalDataId
   readonly revision: number
-  readonly reason: 'save' | 'import' | 'undo' | 'active-profile'
-}
-
-export interface ProfileSummary {
-  readonly id: ProfileId
-  readonly label: string
-  readonly revision: number
-  readonly updatedAt: Timestamp
-  readonly lineage: ProfileLineage
-  readonly active: boolean
+  readonly reason: 'save' | 'import' | 'undo'
 }
 
 export interface NativeBackupSourceManifest {
@@ -138,7 +129,7 @@ export interface NativeBackupSourceManifest {
 
 export interface NativeBackupManifest {
   readonly format: 'crystal-companion-backup'
-  readonly formatVersion: '1.0.0'
+  readonly formatVersion: '2.0.0'
   readonly exportedAt: Timestamp
   readonly payload: 'bundle.json'
   readonly sources: readonly NativeBackupSourceManifest[]
@@ -151,8 +142,8 @@ export interface NativeBackupManifest {
 
 export interface NativeBackupPayload {
   readonly corrections?: CorrectionCollection
-  readonly profile: Profile
-  readonly lineage: ProfileLineage
+  readonly localData: LocalData
+  readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]
   readonly evidence: readonly EvidenceRecord[]
   readonly history: readonly PersistedHistoryEntry[]

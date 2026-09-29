@@ -5,15 +5,18 @@ import {
   createId,
   DomainError,
   nowTimestamp,
-  updateProfile,
+  requirePlaythrough,
+  updatePlaythrough,
 } from './core'
 import type {
   BuildRevisionId,
   CatalogRevisionId,
   CharacterId,
   InventoryPolicy,
-  Profile,
-  RulesetRevisionId,
+  LocalData,
+  Playthrough,
+  PlaythroughId,
+  GameSetupRevisionId,
   ScenarioBaseline,
   ScenarioId,
   ScenarioKind,
@@ -22,13 +25,14 @@ import type {
 } from './types'
 
 export interface CreateScenarioInput {
+  readonly playthroughId?: PlaythroughId
   readonly id?: ScenarioId
   readonly label: string
   readonly kind?: ScenarioKind
   readonly memberIds: readonly CharacterId[]
   readonly baseline?: ScenarioBaseline
   readonly assignments?: Readonly<Record<string, BuildRevisionId | null>>
-  readonly rulesetRevisionId: RulesetRevisionId
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock?: Readonly<Record<string, CatalogRevisionId>>
   readonly inventoryPolicy?: InventoryPolicy
   readonly activate?: boolean
@@ -38,32 +42,33 @@ export interface CreateScenarioInput {
 
 export const TEAM_SIZE = 4
 
-function assertBuildRevisionExists(profile: Profile, revisionId: BuildRevisionId): void {
-  if (!profile.buildRevisions[revisionId]) {
+function assertBuildRevisionExists(localData: LocalData, revisionId: BuildRevisionId): void {
+  if (!localData.buildRevisions[revisionId]) {
     throw new DomainError('MISSING_BUILD_REVISION', `Build revision does not exist: ${revisionId}`)
   }
 }
 
 function validateAssignments(
-  profile: Profile,
+  localData: LocalData,
+  playthrough: Playthrough,
   assignments: Readonly<Record<string, BuildRevisionId | null>>,
 ): void {
   for (const [characterId, revisionId] of Object.entries(assignments)) {
-    if (!profile.characters[characterId]) {
+    if (!playthrough.characters[characterId]) {
       throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${characterId}`)
     }
     if (revisionId) {
-      assertBuildRevisionExists(profile, revisionId)
+      assertBuildRevisionExists(localData, revisionId)
     }
   }
 }
 
-function assertTeamMembers(profile: Profile, memberIds: readonly CharacterId[]): void {
+function assertTeamMembers(playthrough: Playthrough, memberIds: readonly CharacterId[]): void {
   if (memberIds.length !== TEAM_SIZE || new Set(memberIds).size !== TEAM_SIZE) {
     throw new DomainError('INVALID_INPUT', `A team must contain exactly ${TEAM_SIZE} distinct characters`)
   }
   for (const characterId of memberIds) {
-    if (!profile.characters[characterId]) {
+    if (!playthrough.characters[characterId]) {
       throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${characterId}`)
     }
   }
@@ -80,27 +85,28 @@ function assertAssignmentsBelongToTeam(
   }
 }
 
-export function createScenario(profile: Profile, input: CreateScenarioInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const ruleset = profile.rulesets[input.rulesetRevisionId]
-  if (!ruleset) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.rulesetRevisionId}`)
+export function createScenario(localData: LocalData, input: CreateScenarioInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const gameSetup = localData.gameSetups[input.gameSetupRevisionId]
+  if (!gameSetup) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
   }
   const baseline = input.baseline ?? { kind: 'empty' }
-  assertTeamMembers(profile, input.memberIds)
+  assertTeamMembers(playthrough, input.memberIds)
   if (baseline.kind === 'recordedParty') {
-    assertNonnegativeInteger(baseline.profileRevision, 'Scenario baseline profile revision')
-    if (baseline.profileRevision > profile.revision) {
-      throw new DomainError('INVALID_INPUT', 'Scenario baseline cannot reference a future profile revision')
+    assertNonnegativeInteger(baseline.playthroughRevision, 'Scenario baseline playthrough revision')
+    if (baseline.playthroughRevision > playthrough.revision) {
+      throw new DomainError('INVALID_INPUT', 'Scenario baseline cannot reference a future playthrough revision')
     }
-    validateAssignments(profile, baseline.assignments)
+    validateAssignments(localData, playthrough, baseline.assignments)
     assertAssignmentsBelongToTeam(baseline.assignments, input.memberIds)
   }
   const assignments = input.assignments ?? {}
-  validateAssignments(profile, assignments)
+  validateAssignments(localData, playthrough, assignments)
   assertAssignmentsBelongToTeam(assignments, input.memberIds)
   const id = input.id ?? createId<ScenarioId>('scenario')
-  if (profile.scenarios[id]) {
+  if (playthrough.scenarios[id]) {
     throw new DomainError('DUPLICATE_ID', `Scenario already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -112,17 +118,18 @@ export function createScenario(profile: Profile, input: CreateScenarioInput): Pr
     memberIds: [...input.memberIds],
     baseline,
     assignments,
-    rulesetRevisionId: input.rulesetRevisionId,
-    catalogLock: input.catalogLock ?? ruleset.catalogLock,
+    gameSetupRevisionId: input.gameSetupRevisionId,
+    catalogLock: input.catalogLock ?? gameSetup.catalogLock,
     inventoryPolicy: input.inventoryPolicy ?? { includeProtected: false, enforceStock: true },
     createdAt: at,
     updatedAt: at,
   }
-  const activate = input.activate ?? profile.activeScenarioId === undefined
-  return updateProfile(
-    profile,
+  const activate = input.activate ?? playthrough.activeScenarioId === undefined
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
     {
-      scenarios: { ...profile.scenarios, [id]: scenario },
+      scenarios: { ...playthrough.scenarios, [id]: scenario },
       ...(activate ? { activeScenarioId: id } : {}),
     },
     'scenario.create',
@@ -132,6 +139,7 @@ export function createScenario(profile: Profile, input: CreateScenarioInput): Pr
 }
 
 export interface ReplaceScenarioBuildInput {
+  readonly playthroughId?: PlaythroughId
   readonly scenarioId: ScenarioId
   readonly characterId: CharacterId
   readonly buildRevisionId: BuildRevisionId | null
@@ -140,36 +148,39 @@ export interface ReplaceScenarioBuildInput {
 }
 
 export interface ActivateScenarioInput {
+  readonly playthroughId?: PlaythroughId
   readonly scenarioId: ScenarioId | null
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
 
-export function activateScenario(profile: Profile, input: ActivateScenarioInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  if (input.scenarioId !== null && !Object.hasOwn(profile.scenarios, input.scenarioId)) {
+export function activateScenario(localData: LocalData, input: ActivateScenarioInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  if (input.scenarioId !== null && !Object.hasOwn(playthrough.scenarios, input.scenarioId)) {
     throw new DomainError('MISSING_SCENARIO', `Scenario does not exist: ${input.scenarioId}`)
   }
   const activeScenarioId = input.scenarioId ?? undefined
-  if (profile.activeScenarioId === activeScenarioId) return profile
+  if (playthrough.activeScenarioId === activeScenarioId) return localData
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
-  return updateProfile(profile, { activeScenarioId }, 'scenario.activate', ['activeScenarioId'], at)
+  return updatePlaythrough(localData, playthrough.id, { activeScenarioId }, 'scenario.activate', ['activeScenarioId'], at)
 }
 
-export function replaceScenarioBuild(profile: Profile, input: ReplaceScenarioBuildInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.scenarios[input.scenarioId]
+export function replaceScenarioBuild(localData: LocalData, input: ReplaceScenarioBuildInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.scenarios[input.scenarioId]
   if (!current) {
     throw new DomainError('MISSING_SCENARIO', `Scenario does not exist: ${input.scenarioId}`)
   }
-  if (!profile.characters[input.characterId]) {
+  if (!playthrough.characters[input.characterId]) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
   if (!current.memberIds.includes(input.characterId)) {
     throw new DomainError('INVALID_INPUT', `Character is not a member of this four-character team: ${input.characterId}`)
   }
   if (input.buildRevisionId) {
-    assertBuildRevisionExists(profile, input.buildRevisionId)
+    assertBuildRevisionExists(localData, input.buildRevisionId)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const scenario: TeamScenario = {
@@ -178,9 +189,10 @@ export function replaceScenarioBuild(profile: Profile, input: ReplaceScenarioBui
     assignments: { ...current.assignments, [input.characterId]: input.buildRevisionId },
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { scenarios: { ...profile.scenarios, [scenario.id]: scenario } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { scenarios: { ...playthrough.scenarios, [scenario.id]: scenario } },
     'scenario.replaceBuild',
     [`scenarios.${scenario.id}.assignments.${input.characterId}`],
     at,
@@ -188,6 +200,7 @@ export function replaceScenarioBuild(profile: Profile, input: ReplaceScenarioBui
 }
 
 export interface UpdateScenarioInput {
+  readonly playthroughId?: PlaythroughId
   readonly scenarioId: ScenarioId
   readonly label?: string
   readonly kind?: ScenarioKind
@@ -196,9 +209,10 @@ export interface UpdateScenarioInput {
   readonly expectedRevision?: number
 }
 
-export function updateScenario(profile: Profile, input: UpdateScenarioInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.scenarios[input.scenarioId]
+export function updateScenario(localData: LocalData, input: UpdateScenarioInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.scenarios[input.scenarioId]
   if (!current) {
     throw new DomainError('MISSING_SCENARIO', `Scenario does not exist: ${input.scenarioId}`)
   }
@@ -211,9 +225,10 @@ export function updateScenario(profile: Profile, input: UpdateScenarioInput): Pr
     inventoryPolicy: input.inventoryPolicy ?? current.inventoryPolicy,
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { scenarios: { ...profile.scenarios, [scenario.id]: scenario } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { scenarios: { ...playthrough.scenarios, [scenario.id]: scenario } },
     'scenario.update',
     [`scenarios.${scenario.id}`],
     at,

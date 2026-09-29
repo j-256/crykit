@@ -1,7 +1,7 @@
 import { act, StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createBlankProfile } from '../domain'
+import { createBlankLocalData } from '../domain'
 import { DefinitionEditor, DefinitionProvider } from './definitions'
 import { NavigationProvider, routeWithOverlay, useNavigation, useNavigationController, type NavigationController } from './navigation'
 import { Sheet } from './Sheet'
@@ -40,7 +40,7 @@ function LateParentSheets({ parent }: { parent: boolean }) {
 function MissingDefinitionHarness() {
   const navigation = useNavigationController()
   const editorIndex = navigation.route.overlays.findIndex((overlay) => overlay.kind === 'definition-editor')
-  return <NavigationProvider controller={navigation}><DefinitionProvider catalogs={[]} onSaveDefinition={() => Promise.reject(new Error('Unexpected save'))} profile={createBlankProfile()}><DefinitionEditor allowedKinds={['item']} onClose={() => navigation.close()} onSaved={() => undefined} open routeIndex={editorIndex}/></DefinitionProvider></NavigationProvider>
+  return <NavigationProvider controller={navigation}><DefinitionProvider catalogs={[]} onSaveDefinition={() => Promise.reject(new Error('Unexpected save'))} localData={createBlankLocalData()}><DefinitionEditor allowedKinds={['item']} onClose={() => navigation.close()} onSaved={() => undefined} open routeIndex={editorIndex}/></DefinitionProvider></NavigationProvider>
 }
 
 beforeEach(() => {

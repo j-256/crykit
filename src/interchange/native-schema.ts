@@ -163,9 +163,9 @@ const slotDefinition = z.object({
 }).strict()
 
 const catalogLock = z.record(id, id)
-const rulesetRevision = z.object({
+const gameSetupRevision = z.object({
   id,
-  rulesetId: id,
+  gameSetupId: id,
   revision: nonnegativeInteger,
   label: nonemptyText,
   platform: knowledge(shortText),
@@ -219,7 +219,7 @@ const inventoryEvent = z.object({
 const observedStat = z.object({ value: knowledge(finiteNumber), unit: nonemptyText }).strict()
 const characterSnapshot = z.object({
   id,
-  rulesetRevisionId: id.optional(),
+  gameSetupRevisionId: id.optional(),
   observedAt: dateOrTimestamp.optional(),
   recordedAt: timestamp,
   level: knowledge(nonnegativeInteger),
@@ -300,7 +300,7 @@ const buildRevision = z.object({
   buildId: id,
   revision: nonnegativeInteger,
   parentRevisionId: id.optional(),
-  rulesetRevisionId: id,
+  gameSetupRevisionId: id,
   catalogLock,
   content: buildRevisionContent,
   note: longText.optional(),
@@ -309,11 +309,11 @@ const buildRevision = z.object({
 
 const build = z.object({
   id,
+  gameSetupId: id,
   revision: nonnegativeInteger,
   title: nonemptyText,
-  kind: z.enum(['character', 'template']),
-  characterId: id.optional(),
-  state: z.enum(['recordedCurrent', 'draft', 'hypothetical', 'archived']),
+  kind: z.enum(['build', 'template']),
+  state: z.enum(['draft', 'hypothetical', 'archived']),
   tags: z.array(shortText).max(MAX_COLLECTION_LENGTH),
   favorite: z.boolean(),
   latestRevisionId: id.optional(),
@@ -325,7 +325,7 @@ const scenarioBaseline = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('empty') }).strict(),
   z.object({
     kind: z.literal('recordedParty'),
-    profileRevision: nonnegativeInteger,
+    playthroughRevision: nonnegativeInteger,
     assignments: z.record(id, id),
   }).strict(),
 ])
@@ -338,7 +338,7 @@ const scenario = z.object({
   memberIds: z.array(id).length(TEAM_SIZE),
   baseline: scenarioBaseline,
   assignments: z.record(id, id.nullable()),
-  rulesetRevisionId: id,
+  gameSetupRevisionId: id,
   catalogLock,
   inventoryPolicy: z.object({ includeProtected: z.boolean(), enforceStock: z.boolean() }).strict(),
   createdAt: timestamp,
@@ -370,7 +370,7 @@ const importReceipt = z.object({
   sourceFormat: nonemptyText,
   sourceIdentity: nonemptyText,
   importedAt: timestamp,
-  profileRevision: nonnegativeInteger,
+  localDataRevision: nonnegativeInteger,
 }).strict()
 
 const changeEntry = z.object({
@@ -385,38 +385,48 @@ const changeEntry = z.object({
 const skillPosition = { row: z.number().int().min(0).max(5), column: z.number().int().min(0).max(3) }
 const skillMapping = z.object({ ...skillPosition, ref: entityRef, kind: z.enum(['ability', 'passive', 'innate', 'monsterMagic']) }).strict()
 const skillSquare = z.object({ ...skillPosition, state: z.enum(['learned', 'available', 'locked', 'unknown']) }).strict()
-const skillLayout = z.object({ id, classRef: entityRef, rulesetRevisionId: id.optional(), shape: shortText, mappings: z.array(skillMapping).max(24) }).strict()
-const skillCapture = z.object({ id, characterId: id, classRef: entityRef, rulesetRevisionId: id.optional(), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), filename: shortText.regex(/^[^/\\]+$/), recordedAt: timestamp, squares: z.array(skillSquare).min(1).max(24), mappings: z.array(skillMapping).max(24) }).strict()
+const skillLayout = z.object({ id, classRef: entityRef, gameSetupRevisionId: id.optional(), shape: shortText, mappings: z.array(skillMapping).max(24) }).strict()
+const skillCapture = z.object({ id, characterId: id, classRef: entityRef, gameSetupRevisionId: id.optional(), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), filename: shortText.regex(/^[^/\\]+$/), recordedAt: timestamp, squares: z.array(skillSquare).min(1).max(24), mappings: z.array(skillMapping).max(24) }).strict()
 
-export const NativeProfileSchema = z.object({
-  schemaVersion: z.literal('1.0.0'),
+const playthrough = z.object({
   id,
   revision: nonnegativeInteger,
   label: nonemptyText,
   createdAt: timestamp,
   updatedAt: timestamp,
-  activeRulesetRevisionId: id.optional(),
+  currentGameSetupRevisionId: id.optional(),
   activeScenarioId: id.optional(),
-  personalDefinitions: z.record(id, personalDefinition),
-  rulesets: z.record(id, rulesetRevision),
   inventory: z.record(id, inventoryPosition),
   inventoryEvents: z.record(id, inventoryEvent),
   characters: z.record(id, character),
   progress: z.record(id, progressRecord),
-  builds: z.record(id, build),
-  buildRevisions: z.record(id, buildRevision),
   scenarios: z.record(id, scenario),
   goals: z.record(id, goal),
-  importReceipts: z.record(id, importReceipt),
-  changes: z.array(changeEntry).max(500),
-  skillTreeLayouts: z.record(id, skillLayout).optional(),
   skillTreeCaptures: z.record(id, skillCapture).optional(),
 }).strict()
 
+export const NativeLocalDataSchema = z.object({
+  schemaVersion: z.literal('2.0.0'),
+  id,
+  revision: nonnegativeInteger,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  selectedPlaythroughId: id.optional(),
+  planningGameSetupRevisionId: id.optional(),
+  personalDefinitions: z.record(id, personalDefinition),
+  gameSetups: z.record(id, gameSetupRevision),
+  builds: z.record(id, build),
+  buildRevisions: z.record(id, buildRevision),
+  playthroughs: z.record(id, playthrough),
+  importReceipts: z.record(id, importReceipt),
+  changes: z.array(changeEntry).max(500),
+  skillTreeLayouts: z.record(id, skillLayout).optional(),
+}).strict()
+
 export const NativeLineageSchema = z.object({
-  rootProfileId: id,
-  parentProfileId: id.optional(),
-  sourceProfileId: id.optional(),
+  rootLocalDataId: id,
+  parentLocalDataId: id.optional(),
+  sourceLocalDataId: id.optional(),
   sourceRevision: nonnegativeInteger.optional(),
   forkedAt: timestamp.optional(),
 }).strict()
@@ -434,12 +444,12 @@ export const NativeEvidenceSchema = z.object({
 
 export const NativeHistorySchema = z.object({
   id,
-  profileId: id,
+  localDataId: id,
   command: nonemptyText,
   previousRevision: nonnegativeInteger,
   nextRevision: nonnegativeInteger,
-  before: NativeProfileSchema,
-  after: NativeProfileSchema,
+  before: NativeLocalDataSchema,
+  after: NativeLocalDataSchema,
   recordedAt: timestamp,
 }).strict()
 
@@ -447,7 +457,7 @@ export const ImportFormatSchema = z.enum([
   'research-json-1.1.0',
   'research-zip-1.1.0',
   'xlsx-v2',
-  'native-backup-1.0.0',
+  'native-backup-2.0.0',
   'crystal-edit-json-1',
 ])
 
@@ -464,7 +474,7 @@ export const NativeSourceManifestSchema = z.object({
 
 export const NativeManifestSchema = z.object({
   format: z.literal('crystal-companion-backup'),
-  formatVersion: z.literal('1.0.0'),
+  formatVersion: z.literal('2.0.0'),
   exportedAt: timestamp,
   payload: z.literal('bundle.json'),
   sources: z.array(NativeSourceManifestSchema).max(510),
@@ -477,7 +487,7 @@ export const NativeManifestSchema = z.object({
 
 export const NativePayloadSchema = z.object({
   corrections: z.unknown().optional(),
-  profile: NativeProfileSchema,
+  localData: NativeLocalDataSchema,
   lineage: NativeLineageSchema,
   catalogs: z.array(NativeCatalogSnapshotSchema).max(MAX_COLLECTION_LENGTH),
   evidence: z.array(NativeEvidenceSchema).max(MAX_COLLECTION_LENGTH),

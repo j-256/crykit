@@ -9,9 +9,9 @@ import type {
   JsonValue,
   Knowledge,
   PartyProgressRecord,
-  Profile,
-  RulesetRevision,
-  RulesetRevisionId,
+  LocalData,
+  GameSetupRevision,
+  GameSetupRevisionId,
   SourceRef,
   Timestamp,
 } from '../domain/types'
@@ -24,7 +24,7 @@ import {
   asImportReceiptId,
   asInventoryEventId,
   asProgressRecordId,
-  createBlankProfile,
+  createBlankLocalData,
   nowTimestamp,
   randomId,
   sha256,
@@ -504,22 +504,22 @@ function inventoryEventsFromWorkbook(
   return events
 }
 
-function rulesetFromWorkbook(
+function gameSetupFromWorkbook(
   workbook: RawXlsxWorkbook,
   catalog: CatalogSnapshot,
   digest: string,
   importedAt: Timestamp,
-): RulesetRevision | undefined {
+): GameSetupRevision | undefined {
   const table = workbook.tables.find((candidate) => candidate.name === 'CPPlaythroughContext')
   if (!table) return undefined
   const context = new Map(table.rows.map((row) => [textCell(row, 'Field'), textCell(row, 'Last-reported value')]))
   const platform = context.get('Platform')
   const sourceRow = table.rows.find((row) => textCell(row, 'Field') === 'Platform')
   const source = sourceRow ? sourceFor(digest, sourceRow) : undefined
-  const id = `ruleset-revision:${digest.slice(0, 16)}` as RulesetRevisionId
+  const id = `gameSetup-revision:${digest.slice(0, 16)}` as GameSetupRevisionId
   return {
     id,
-    rulesetId: `ruleset:${digest.slice(0, 16)}` as RulesetRevision['rulesetId'],
+    gameSetupId: `gameSetup:${digest.slice(0, 16)}` as GameSetupRevision['gameSetupId'],
     revision: 1,
     label: 'Imported playthrough context',
     platform: platform
@@ -529,7 +529,7 @@ function rulesetFromWorkbook(
     mode: { state: 'unknown', reason: 'Standard/Vanilla mode was not supplied' },
     mods: { state: 'unknown', reason: 'Exact mod IDs, versions, and load order were not supplied' },
     ppLimit: { state: 'unknown', reason: 'No passive point limit was supplied' },
-    ppCostsNonNegative: { state: 'unknown', reason: 'No complete ruleset verification was supplied' },
+    ppCostsNonNegative: { state: 'unknown', reason: 'No complete Game Setup verification was supplied' },
     slots: [],
     catalogLock: { [catalog.id]: catalog.revisionId },
     createdAt: importedAt,
@@ -567,24 +567,32 @@ export async function previewXlsx(bytes: Uint8Array, filename: string): Promise<
   }
   const ambiguousEntityIds = new Set<string>()
   const catalog = buildCatalog(workbook, digest, importedAt, warnings, ambiguousEntityIds)
-  const profile = createBlankProfile('Imported playthrough', importedAt)
-  const ruleset = rulesetFromWorkbook(workbook, catalog, digest, importedAt)
+  const localData = createBlankLocalData('Imported playthrough', importedAt)
+  const gameSetup = gameSetupFromWorkbook(workbook, catalog, digest, importedAt)
   const progress = progressFromWorkbook(workbook, catalog, digest, importedAt, warnings, ambiguousEntityIds)
   const inventoryEvents = inventoryEventsFromWorkbook(workbook, catalog, digest, importedAt, warnings, ambiguousEntityIds)
   const receiptId = asImportReceiptId(`import:${digest}`)
-  const proposedProfile: Profile = {
-    ...profile,
-    activeRulesetRevisionId: ruleset?.id,
-    rulesets: ruleset ? { [ruleset.id]: ruleset } : {},
-    progress,
-    inventoryEvents,
+  const playthroughId = localData.selectedPlaythroughId!
+  const playthrough = localData.playthroughs[playthroughId]!
+  const proposedLocalData: LocalData = {
+    ...localData,
+    planningGameSetupRevisionId: gameSetup?.id,
+    gameSetups: gameSetup ? { [gameSetup.id]: gameSetup } : {},
+    playthroughs: {
+      [playthroughId]: {
+        ...playthrough,
+        ...(gameSetup ? { currentGameSetupRevisionId: gameSetup.id } : {}),
+        progress,
+        inventoryEvents,
+      },
+    },
     importReceipts: {
       [receiptId]: {
         id: receiptId,
         sourceFormat: 'xlsx-v2',
         sourceIdentity: `sha256:${digest}`,
         importedAt,
-        profileRevision: profile.revision,
+        localDataRevision: localData.revision,
       },
     },
   }
@@ -618,10 +626,10 @@ export async function previewXlsx(bytes: Uint8Array, filename: string): Promise<
     counts: counts(workbook),
     warnings,
     errors: [],
-    profile: { label: proposedProfile.label },
+    localData: { label: playthrough.label },
     proposed: {
-      profile: proposedProfile,
-      lineage: { rootProfileId: proposedProfile.id },
+      localData: proposedLocalData,
+      lineage: { rootLocalDataId: proposedLocalData.id },
       catalogs: [catalog],
       evidence,
       sources: [source],

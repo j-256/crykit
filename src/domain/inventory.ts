@@ -6,7 +6,8 @@ import {
   createId,
   DomainError,
   nowTimestamp,
-  updateProfile,
+  requirePlaythrough,
+  updatePlaythrough,
 } from './core'
 import { logicalEntityKey, sameLogicalEntity } from './definitions'
 import type {
@@ -18,7 +19,8 @@ import type {
   InventoryPositionId,
   Knowledge,
   PossessionState,
-  Profile,
+  LocalData,
+  PlaythroughId,
   Quantity,
   SourceRef,
   Timestamp,
@@ -98,13 +100,14 @@ export function normalizePossessionQuantity(
   }
 }
 
-function assertResolvablePersonalRef(profile: Profile, ref: EntityRef): void {
-  if (ref.kind === 'personal' && !profile.personalDefinitions[ref.definitionId]) {
+function assertResolvablePersonalRef(localData: LocalData, ref: EntityRef): void {
+  if (ref.kind === 'personal' && !localData.personalDefinitions[ref.definitionId]) {
     throw new DomainError('MISSING_PERSONAL_DEFINITION', `Personal definition does not exist: ${ref.definitionId}`)
   }
 }
 
 export interface ObserveInventoryInput {
+  readonly playthroughId?: PlaythroughId
   readonly positionId?: InventoryPositionId
   readonly ref: EntityRef
   readonly observedName?: string
@@ -120,15 +123,16 @@ export interface ObserveInventoryInput {
   readonly expectedRevision?: number
 }
 
-export function observeInventory(profile: Profile, input: ObserveInventoryInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  assertResolvablePersonalRef(profile, input.ref)
-  const matching = Object.values(profile.inventory).find((position) => sameLogicalEntity(profile, position.ref, input.ref))
-  const current = input.positionId === undefined ? matching : profile.inventory[input.positionId]
+export function observeInventory(localData: LocalData, input: ObserveInventoryInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  assertResolvablePersonalRef(localData, input.ref)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const matching = Object.values(playthrough.inventory).find((position) => sameLogicalEntity(localData, position.ref, input.ref))
+  const current = input.positionId === undefined ? matching : playthrough.inventory[input.positionId]
   if (input.positionId !== undefined && !current && matching) {
-    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(profile, input.ref)}`)
+    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(localData, input.ref)}`)
   }
-  if (current && !sameLogicalEntity(profile, current.ref, input.ref)) {
+  if (current && !sameLogicalEntity(localData, current.ref, input.ref)) {
     throw new DomainError('INVALID_INPUT', 'Use linkInventoryPosition to change an inventory reference')
   }
   const id = current?.id ?? input.positionId ?? createId<InventoryPositionId>('inventory')
@@ -157,9 +161,10 @@ export function observeInventory(profile: Profile, input: ObserveInventoryInput)
     ...(input.note ?? current?.note ? { note: input.note ?? current?.note } : {}),
     ...(observedAt === undefined ? {} : { observedAt }),
   }
-  return updateProfile(
-    profile,
-    { inventory: { ...profile.inventory, [id]: position } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { inventory: { ...playthrough.inventory, [id]: position } },
     current ? 'inventory.observe.update' : 'inventory.observe.create',
     [`inventory.${id}`],
     at,
@@ -167,24 +172,26 @@ export function observeInventory(profile: Profile, input: ObserveInventoryInput)
 }
 
 export interface LinkInventoryPositionInput {
+  readonly playthroughId?: PlaythroughId
   readonly positionId: InventoryPositionId
   readonly ref: EntityRef
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
 }
 
-export function linkInventoryPosition(profile: Profile, input: LinkInventoryPositionInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  assertResolvablePersonalRef(profile, input.ref)
-  const current = profile.inventory[input.positionId]
+export function linkInventoryPosition(localData: LocalData, input: LinkInventoryPositionInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  assertResolvablePersonalRef(localData, input.ref)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.inventory[input.positionId]
   if (!current) {
     throw new DomainError('MISSING_INVENTORY_POSITION', `Inventory position does not exist: ${input.positionId}`)
   }
-  const duplicate = Object.values(profile.inventory).find(
-    (position) => position.id !== current.id && sameLogicalEntity(profile, position.ref, input.ref),
+  const duplicate = Object.values(playthrough.inventory).find(
+    (position) => position.id !== current.id && sameLogicalEntity(localData, position.ref, input.ref),
   )
   if (duplicate) {
-    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(profile, input.ref)}`)
+    throw new DomainError('DUPLICATE_REFERENCE', `Another inventory position already uses ${logicalEntityKey(localData, input.ref)}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const position: InventoryPosition = {
@@ -193,9 +200,10 @@ export function linkInventoryPosition(profile: Profile, input: LinkInventoryPosi
     revision: current.revision + 1,
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { inventory: { ...profile.inventory, [position.id]: position } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { inventory: { ...playthrough.inventory, [position.id]: position } },
     'inventory.link',
     [`inventory.${position.id}.ref`],
     at,
@@ -203,6 +211,7 @@ export function linkInventoryPosition(profile: Profile, input: LinkInventoryPosi
 }
 
 export interface RecordInventoryEventInput {
+  readonly playthroughId?: PlaythroughId
   readonly id?: InventoryEventId
   readonly positionId?: InventoryPositionId
   readonly ref: EntityRef
@@ -227,21 +236,22 @@ function validateEventQuantity(quantity: Knowledge<number>): void {
   }
 }
 
-export function recordInventoryEvent(profile: Profile, input: RecordInventoryEventInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  assertResolvablePersonalRef(profile, input.ref)
+export function recordInventoryEvent(localData: LocalData, input: RecordInventoryEventInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  assertResolvablePersonalRef(localData, input.ref)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
   if (input.positionId) {
-    const position = profile.inventory[input.positionId]
+    const position = playthrough.inventory[input.positionId]
     if (!position) {
       throw new DomainError('MISSING_INVENTORY_POSITION', `Inventory position does not exist: ${input.positionId}`)
     }
-    if (!sameLogicalEntity(profile, position.ref, input.ref)) {
+    if (!sameLogicalEntity(localData, position.ref, input.ref)) {
       throw new DomainError('INVALID_INPUT', 'Inventory event reference does not match its position')
     }
   }
   validateEventQuantity(input.quantity)
   const id = input.id ?? createId<InventoryEventId>('inventoryEvent')
-  if (profile.inventoryEvents[id]) {
+  if (playthrough.inventoryEvents[id]) {
     throw new DomainError('DUPLICATE_ID', `Inventory event already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -257,9 +267,10 @@ export function recordInventoryEvent(profile: Profile, input: RecordInventoryEve
     ...(input.observedAt === undefined ? {} : { observedAt: asTimestamp(input.observedAt) }),
     ...(input.note === undefined ? {} : { note: input.note }),
   }
-  return updateProfile(
-    profile,
-    { inventoryEvents: { ...profile.inventoryEvents, [id]: event } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { inventoryEvents: { ...playthrough.inventoryEvents, [id]: event } },
     'inventory.event.record',
     [`inventoryEvents.${id}`],
     at,

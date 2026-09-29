@@ -7,7 +7,7 @@ const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)
 const file = (corrections: unknown[]) => ({ format: CORRECTIONS_FORMAT, version: CORRECTIONS_VERSION, exportedAt: '2026-01-02T03:04:05.000Z', corrections })
 
 describe('corrections interchange', () => {
-  it('round trips exact decisions, evidence, source revisions and explicit unknowns without profile data', () => {
+  it('round trips exact decisions, evidence, source revisions and explicit unknowns without localData data', () => {
     const entry = testCorrection({ evidence: 'Synthetic source URL and observation details', changes: [
       ...testCorrection().changes,
       { path: 'field', field: 'New fact', before: null, after: { state: 'unknown', reason: 'Still researching' } },
@@ -16,13 +16,13 @@ describe('corrections interchange', () => {
     expect(readCorrections(exportCorrections([entry]))).toEqual([entry])
     const payload = JSON.parse(new TextDecoder().decode(exportCorrections([entry])))
     expect(Object.keys(payload).sort()).toEqual(['corrections', 'exportedAt', 'format', 'version'])
-    expect(serializeCorrectionCollection({ revision: 1, entries: [entry] })).not.toMatch(/inventory|characters|profileId|localPath/)
+    expect(serializeCorrectionCollection({ revision: 1, entries: [entry] })).not.toMatch(/inventory|characters|localDataId|localPath/)
     expect(parseCorrectionCollection(serializeCorrectionCollection({ revision: 1, entries: [entry] }))).toEqual({ revision: 1, entries: [entry] })
   })
   it('rejects unknown properties, unsafe keys, excessive input, duplicate IDs and bad values', () => {
     const correction = testCorrection()
     for (const value of [
-      { ...file([correction]), profile: { inventory: {} } },
+      { ...file([correction]), localData: { inventory: {} } },
       file([{ ...correction, localPath: 'private-source' }]),
       file([correction, correction]),
       file([{ ...correction, changes: [...correction.changes, correction.changes[0]] }]),

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createBlankPlaythrough } from './profile-helpers'
+import { createBlankPlaythrough } from './local-data-helpers'
 
 async function choose(page: Page, label: string, name: string) {
   const field = page.getByRole('combobox', { name: label, exact: true })

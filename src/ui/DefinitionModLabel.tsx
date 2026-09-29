@@ -1,5 +1,5 @@
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
-import type { EntityRef, Profile, RulesetRevision } from '../domain/types'
+import type { EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import { Badge } from './components'
 
 const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], string>> = Object.freeze({
@@ -16,8 +16,8 @@ export function ModBadge({ name, state, className = '' }: { readonly name: strin
   return <span aria-label={`Mod: ${name}${status ? `. ${status}.` : ''}`} className={`mod-badge ${className}`.trim()} data-mod-badge={name} data-mod-state={state}><Badge tone={tone}>Mod: {name}</Badge>{status && <small className="mod-badge__state">{status}</small>}</span>
 }
 
-export function DefinitionModLabel({ profile, ruleset, value, className = '' }: { readonly profile: Profile; readonly ruleset?: RulesetRevision; readonly value?: EntityRef | null; readonly className?: string }) {
+export function DefinitionModLabel({ localData, gameSetup, value, className = '' }: { readonly localData: LocalData; readonly gameSetup?: GameSetupRevision; readonly value?: EntityRef | null; readonly className?: string }) {
   if (!value) return null
-  const availability = definitionModAvailability(profile, value, ruleset)
+  const availability = definitionModAvailability(localData, value, gameSetup)
   return availability.requiredMod ? <ModBadge className={`definition-mod-label ${className}`.trim()} name={availability.requiredMod} state={availability.state}/> : null
 }

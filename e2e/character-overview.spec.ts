@@ -2,11 +2,11 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
-import { addRulesetRevision, asId, captureCharacter, createCharacter, upsertCharacterClassProgress, upsertLearnedNode } from '../src/domain'
-import { createSampleProfile } from '../src/domain/sample-profile'
+import { addGameSetupRevision, asId, captureCharacter, createCharacter, upsertCharacterClassProgress, upsertLearnedNode } from '../src/domain'
+import { createSampleLocalData } from '../src/domain/sample-data'
 import { addTestDefinition, known, personalRef, TEST_NOW } from '../src/domain/test-helpers'
-import type { CharacterId, CharacterSnapshotId, Profile } from '../src/domain/types'
-import { createBlankPlaythrough } from './profile-helpers'
+import type { CharacterId, CharacterSnapshotId, LocalData } from '../src/domain/types'
+import { selectedPlaythrough, createBlankPlaythrough, replacePlannerData } from './local-data-helpers'
 
 const CURRENT_SNAPSHOT = asId<CharacterSnapshotId>('synthetic-overview-current')
 const DENSE_CHARACTER_CARD_MAX_HEIGHT_PX = 410
@@ -16,24 +16,24 @@ async function openData(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
   await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }).profile
+  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
 }
 
-function syntheticOverview(): Profile {
-  let profile = createSampleProfile(DEFAULT_CATALOG, TEST_NOW)
-  const rowan = Object.values(profile.characters).find(character => character.name === 'Rowan')!
+function syntheticOverview(): LocalData {
+  let localData = createSampleLocalData(DEFAULT_CATALOG, TEST_NOW)
+  const rowan = Object.values(selectedPlaythrough(localData).characters).find(character => character.name === 'Rowan')!
   const original = rowan.snapshots[rowan.currentSnapshotId!]!
   if (original.primaryClass.state !== 'known') throw new Error('The synthetic starter requires a known class')
   const primary = original.primaryClass.value
-  for (const name of ['Synthetic focus', 'Synthetic unknown', 'Synthetic conflict', 'Synthetic not learned']) profile = addTestDefinition(profile, name, { kind: 'passive' })
-  profile = captureCharacter(profile, {
+  for (const name of ['Synthetic focus', 'Synthetic unknown', 'Synthetic conflict', 'Synthetic not learned']) localData = addTestDefinition(localData, name, { kind: 'passive' })
+  localData = captureCharacter(localData, {
     characterId: rowan.id, snapshotId: CURRENT_SNAPSHOT, level: known(35), primaryClass: original.primaryClass, secondaryClass: { state: 'notApplicable' },
     displayedStats: {
       HP: { value: known(0), unit: 'points' }, 'Max HP': { value: known(620), unit: 'points' },
@@ -43,29 +43,30 @@ function syntheticOverview(): Profile {
     equipment: { 'plan-main-hand': original.equipment['plan-main-hand']!, 'plan-off-hand': null }, passives: known([personalRef('Synthetic focus')]),
     observedAt: '2026-01-01T12:00:00.000Z', now: TEST_NOW,
   })
-  profile = upsertCharacterClassProgress(profile, { characterId: rowan.id, classRef: primary, observedLp: known(0), mastered: known(true), now: TEST_NOW })
+  localData = upsertCharacterClassProgress(localData, { characterId: rowan.id, classRef: primary, observedLp: known(0), mastered: known(true), now: TEST_NOW })
   for (const [index, name] of ['Synthetic focus', 'Synthetic unknown', 'Synthetic conflict', 'Synthetic not learned'].entries()) {
-    profile = upsertLearnedNode(profile, { characterId: rowan.id, ref: personalRef(name), kind: 'passive', learned: index === 0 ? known(true) : index === 1 ? { state: 'unknown' } : index === 2 ? { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] } : known(false), now: TEST_NOW })
+    localData = upsertLearnedNode(localData, { characterId: rowan.id, ref: personalRef(name), kind: 'passive', learned: index === 0 ? known(true) : index === 1 ? { state: 'unknown' } : index === 2 ? { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] } : known(false), now: TEST_NOW })
   }
-  profile = captureCharacter(profile, { characterId: rowan.id, level: known(99), displayedStats: { HP: { value: known(9999), unit: 'points' } }, now: '2026-02-01T12:00:00.000Z' })
-  profile = { ...profile, label: 'Synthetic overview', characters: { ...profile.characters, [rowan.id]: { ...profile.characters[rowan.id]!, currentSnapshotId: CURRENT_SNAPSHOT } } }
-  profile = createCharacter(profile, { id: asId<CharacterId>('synthetic-neri'), name: 'Synthetic Neri', now: TEST_NOW })
-  profile = upsertLearnedNode(profile, { characterId: asId<CharacterId>('synthetic-neri'), ref: personalRef('Synthetic focus'), kind: 'passive', learned: known(true), now: TEST_NOW })
-  const ruleset = profile.rulesets[profile.activeRulesetRevisionId!]!
-  profile = addRulesetRevision(profile, { ...ruleset, id: undefined, label: 'Different slot context', slots: ruleset.slots.map(slot => ({ ...slot, label: `Changed ${slot.label}` })), activate: true, now: TEST_NOW })
-  return { ...profile, changes: [] }
+  localData = captureCharacter(localData, { characterId: rowan.id, level: known(99), displayedStats: { HP: { value: known(9999), unit: 'points' } }, now: '2026-02-01T12:00:00.000Z' })
+  const playthrough = selectedPlaythrough(localData)
+  localData = { ...localData, playthroughs: { ...localData.playthroughs, [playthrough.id]: { ...playthrough, label: 'Synthetic overview', characters: { ...playthrough.characters, [rowan.id]: { ...playthrough.characters[rowan.id]!, currentSnapshotId: CURRENT_SNAPSHOT } } } } }
+  localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-neri'), name: 'Synthetic Neri', now: TEST_NOW })
+  localData = upsertLearnedNode(localData, { characterId: asId<CharacterId>('synthetic-neri'), ref: personalRef('Synthetic focus'), kind: 'passive', learned: known(true), now: TEST_NOW })
+  const gameSetup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
+  localData = addGameSetupRevision(localData, { ...gameSetup, id: undefined, label: 'Different slot context', slots: gameSetup.slots.map(slot => ({ ...slot, label: `Changed ${slot.label}` })), activate: true, now: TEST_NOW })
+  return { ...localData, changes: [] }
 }
 
-async function importProfile(page: Page, profile: Profile) {
+async function importLocalData(page: Page, localData: LocalData) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ profile, lineage: { rootProfileId: profile.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
+    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overview.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
-  await expect(panel.getByText('native-backup-1.0.0', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await page.goto('/#/characters')
 }
@@ -77,7 +78,7 @@ function field(container: Locator, label: string) {
 test('overview preserves the selected snapshot, slot context, knowledge states and independent learning records', async ({ page }, testInfo) => {
   await page.goto('/')
   const original = syntheticOverview()
-  await importProfile(page, original)
+  await importLocalData(page, original)
   await expect(page).toHaveURL(/#\/characters$/)
   const rowan = page.getByRole('article', { name: 'Rowan', exact: true })
   const stats = rowan.getByRole('region', { name: 'Rowan: recorded stats', exact: true })
@@ -111,11 +112,11 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   await expect(neri.getByText('No snapshot recorded', { exact: true })).toBeVisible()
   await expect(neri).toContainText('Learned skills: 1 confirmed')
   await page.screenshot({ path: testInfo.outputPath('overview-recorded.png'), fullPage: true })
-  const saved = await exportProfile(page)
-  expect(saved.characters).toEqual(original.characters)
-  expect(saved.inventory).toEqual(original.inventory)
+  const saved = await exportLocalData(page)
+  expect(selectedPlaythrough(saved).characters).toEqual(selectedPlaythrough(original).characters)
+  expect(selectedPlaythrough(saved).inventory).toEqual(selectedPlaythrough(original).inventory)
   expect(saved.buildRevisions).toEqual(original.buildRevisions)
-  expect(saved.scenarios).toEqual(original.scenarios)
+  expect(selectedPlaythrough(saved).scenarios).toEqual(selectedPlaythrough(original).scenarios)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
@@ -200,7 +201,7 @@ test('overview links support keyboard, history, offline reload and dirty member 
   expect(external).toEqual([])
 })
 
-test('blank profiles and new characters stay blank and the roster is independent of scenario selection', async ({ page, isMobile }) => {
+test('blank Playthroughs and new characters stay blank and the roster is independent of scenario selection', async ({ page, isMobile }) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/#/characters')
   await page.getByRole('button', { name: /^Scenario:/ }).click()

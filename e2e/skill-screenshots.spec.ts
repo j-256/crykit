@@ -5,27 +5,27 @@ import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { screenshotTestProfile, CHARACTER } from '../src/domain/skill-trees.test-helpers'
+import { screenshotTestLocalData, CHARACTER } from '../src/domain/skill-trees.test-helpers'
 import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
-import type { Profile } from '../src/domain/types'
-import { openSwitchModPacks } from './profile-helpers'
+import type { LocalData } from '../src/domain/types'
+import { selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function loadFixture(page: Page, profile: Profile = { ...screenshotTestProfile(), changes: [] }) {
+async function loadFixture(page: Page, localData: LocalData = { ...screenshotTestLocalData(), changes: [] }) {
   await page.goto('/')
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '1.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ profile, lineage: { rootProfileId: profile.id }, catalogs: [], evidence: [], history: [] }) })
+  const archive = zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], evidence: [], history: [] }) })
   const panel = await dataPanel(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-learning.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
-  await expect(panel.getByText('native-backup-1.0.0', { exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  return profile
+  return localData
 }
 
 async function syntheticScreenshot(page: Page, menu = 'Learn', name = 'Rowan', layout = 'practice', classText?: string): Promise<Buffer> {
@@ -91,32 +91,32 @@ async function mapSquares(page: Page) {
   await dialog.getByLabel('I reviewed this character, class, square states, and assigned names', { exact: true }).check()
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
   const download = page.waitForEvent('download')
   await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
   const path = await (await download).path()
-  const payload = JSON.parse(strFromU8(unzipSync(await readFile(path!))['bundle.json'])) as { profile: Profile }
+  const payload = JSON.parse(strFromU8(unzipSync(await readFile(path!))['bundle.json'])) as { localData: LocalData }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return payload.profile
+  return payload.localData
 }
 
 async function useConfirmedSwitchSetup(page: Page) {
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(panel)
-  await panel.getByRole('button', { name: 'Apply confirmed Switch defaults', exact: true }).click()
+  await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
-  await panel.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
+  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
 for (const ambiguous of [false, true]) {
   test(`class recognition ${ambiguous ? 'leaves equally close classes unselected' : 'suggests a unique OCR match'} and requires review`, async ({ page }) => {
-    const profile = ambiguous ? addTestDefinition(screenshotTestProfile(), 'Minka', { kind: 'class' }) : screenshotTestProfile()
-    await loadFixture(page, { ...profile, changes: [] })
+    const localData = ambiguous ? addTestDefinition(screenshotTestLocalData(), 'Minka', { kind: 'class' }) : screenshotTestLocalData()
+    await loadFixture(page, { ...localData, changes: [] })
     await useConfirmedSwitchSetup(page)
     const pixels = await syntheticScreenshot(page, 'Learn', 'Rowen', 'ninja', 'Min ja')
     const dialog = await openImport(page, [{ name: 'synthetic-ocr-noise.png', mimeType: 'image/png', buffer: pixels }])
@@ -148,8 +148,8 @@ for (const ambiguous of [false, true]) {
     await dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true }).click()
     await expect(dialog).not.toBeVisible()
     await page.reload()
-    const saved = await exportProfile(page)
-    const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
+    const saved = await exportLocalData(page)
+    const learned = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
     expect(learned.map(node => resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name)).toEqual(['Utsusemi', 'Dual Wield'])
   })
 }
@@ -182,14 +182,14 @@ test('screenshots compile reviewed names offline, skip duplicates, and preserve 
   await page.reload()
   await page.getByText('Imported skill screenshots', { exact: true }).click()
   await expect(page.getByText('Practice class screenshot', { exact: true })).toBeVisible()
-  const saved = await exportProfile(page)
-  const nodes = Object.values(saved.characters[CHARACTER].learnedNodes)
+  const saved = await exportLocalData(page)
+  const nodes = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes)
   expect(nodes.map(node => node.learned.state === 'known' ? node.learned.value : null)).toEqual([true, false, false])
   expect(nodes.every(node => node.actualPaidLp.state === 'unknown')).toBe(true)
-  expect(saved.characters[CHARACTER].classProgress).toEqual({})
-  expect(saved.characters[CHARACTER].snapshots).toEqual(original.characters[CHARACTER].snapshots)
-  expect(saved.progress).toEqual(original.progress)
-  expect(Object.values(saved.skillTreeCaptures!)[0].squares[3].state).toBe('unknown')
+  expect(selectedPlaythrough(saved).characters[CHARACTER].classProgress).toEqual({})
+  expect(selectedPlaythrough(saved).characters[CHARACTER].snapshots).toEqual(selectedPlaythrough(original).characters[CHARACTER].snapshots)
+  expect(selectedPlaythrough(saved).progress).toEqual(selectedPlaythrough(original).progress)
+  expect(Object.values(selectedPlaythrough(saved).skillTreeCaptures!)[0].squares[3].state).toBe('unknown')
   expect(outside).toEqual([])
   const repeated = await openImport(page, [{ name: 'same-tree.png', mimeType: 'image/png', buffer: pixels }])
   await expect(repeated.locator('.skill-compiled-list')).toContainText('Practice skill')
@@ -206,7 +206,7 @@ test('failed screenshot writes retain review and recover through Retry save', as
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'profiles') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -217,9 +217,9 @@ test('failed screenshot writes retain review and recover through Retry save', as
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
-  const saved = await exportProfile(page)
-  expect(Object.values(saved.characters[CHARACTER].learnedNodes)).toHaveLength(3)
-  expect(Object.values(saved.skillTreeCaptures!)).toHaveLength(1)
+  const saved = await exportLocalData(page)
+  expect(Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes)).toHaveLength(3)
+  expect(Object.values(selectedPlaythrough(saved).skillTreeCaptures!)).toHaveLength(1)
 })
 
 for (const fixture of [
@@ -251,13 +251,13 @@ for (const fixture of [
     await dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true }).click()
     await expect(dialog).not.toBeVisible()
     await page.reload()
-    const saved = await exportProfile(page)
-    const learned = Object.values(saved.characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
+    const saved = await exportLocalData(page)
+    const learned = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
     expect(learned.map(node => [resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
     expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(fixture.mappedCount)
-    const capture = Object.values(saved.skillTreeCaptures!)[0]
+    const capture = Object.values(selectedPlaythrough(saved).skillTreeCaptures!)[0]
     expect(capture.squares.filter(square => square.state === 'learned' && !capture.mappings.some(mapping => mapping.row === square.row && mapping.column === square.column))).toEqual(fixture.unresolvedLearned)
-    expect(saved.rulesets[saved.activeRulesetRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })
-    expect(saved.characters[CHARACTER].classProgress).toEqual({})
+    expect(saved.gameSetups[saved.planningGameSetupRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })
+    expect(selectedPlaythrough(saved).characters[CHARACTER].classProgress).toEqual({})
   })
 }

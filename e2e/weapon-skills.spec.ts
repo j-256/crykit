@@ -1,4 +1,4 @@
-import { createBlankPlaythrough, openSwitchModPacks } from './profile-helpers'
+import { createBlankPlaythrough, openSwitchModPacks } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 const card = (page: Page, name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
@@ -74,11 +74,11 @@ test('the weapon list respects the active unrestricted-skills mod setting', asyn
   await expect(card(page, 'Beat Down')).toHaveCount(0)
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
+  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(settings)
-  await settings.getByRole('textbox', { name: 'Ruleset label', exact: true }).fill('Weapon filter check')
+  await settings.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Weapon filter check')
   await settings.getByRole('combobox', { name: 'Unrestricted Weapon Skills', exact: true }).selectOption('enabled')
-  await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
+  await settings.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(card(page, 'Beat Down')).toBeVisible()

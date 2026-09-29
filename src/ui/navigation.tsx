@@ -18,7 +18,7 @@ import type {
 
 export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference'
 export type CharacterTab = 'current' | 'history'
-export type SettingsSection = 'data' | 'ruleset' | 'history' | 'storage' | 'credits'
+export type SettingsSection = 'data' | 'game-setup' | 'history' | 'storage' | 'credits'
 
 export type InventoryPageRoute =
   | { readonly page: 'inventory'; readonly view: 'list' }
@@ -287,7 +287,7 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
   }
   if (segments[0] === 'settings') {
     const section = segments[1]
-    if (section !== 'data' && section !== 'ruleset' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
+    if (section !== 'data' && section !== 'game-setup' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
     if (section === 'data' && segments[2] === 'import') {
       const previewId = decodeSegment(segments[3] ?? '')
       return previewId ? { page: { page: 'settings', section, previewId }, consumed: 4 } : bad('inventory', 'malformed-identifier')
@@ -602,10 +602,10 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | Crystal Companion`
   const page = route.page
   if (page.page === 'unresolved') return 'Page unavailable | Crystal Companion'
-  if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | Crystal Companion`
+  if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | Crystal Companion`
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | Crystal Companion`
   if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | Crystal Companion`
-  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create build' : page.view === 'revision-new' ? 'New build revision' : page.view === 'revision-edit' ? 'Edit build revision' : page.view === 'record-current' ? 'Record current build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | Crystal Companion`
+  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | Crystal Companion`
   if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : 'Progress'} | Crystal Companion`
   return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | Crystal Companion`
 }

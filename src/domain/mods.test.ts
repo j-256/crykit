@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { validateNativeProfileGraph } from '../interchange/native'
+import { validateNativeLocalDataGraph } from '../interchange/native'
 import { assertModConfiguration, modState, recordedModNames, updateModSelections } from './mods'
-import { updateRulesetRevision } from './profile'
-import { createTestProfile, known, TEST_RULESET_REVISION_ID } from './test-helpers'
+import { updateGameSetupRevision } from './local-data'
+import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
 import type { Knowledge } from './types'
 
 describe('explicit mod configuration', () => {
@@ -71,29 +71,29 @@ describe('explicit mod configuration', () => {
     expect(() => assertModConfiguration({ mods: known([' ']) })).toThrow('must not be empty')
   })
 
-  it('pins changes to a new ruleset revision and retains legacy and conflicting states', () => {
-    const original = createTestProfile()
-    const configured = updateRulesetRevision(original, { sourceRevisionId: TEST_RULESET_REVISION_ID, mods: known(['Synthetic mod']), disabledMods: known(['Synthetic disabled mod']) })
-    const revised = updateRulesetRevision(configured, { sourceRevisionId: configured.activeRulesetRevisionId!, label: 'Renamed ruleset' })
-    expect(revised.rulesets[revised.activeRulesetRevisionId!].disabledMods).toEqual(known(['Synthetic disabled mod']))
-    expect(original.rulesets[TEST_RULESET_REVISION_ID].disabledMods).toBeUndefined()
-    expect(revised.rulesets[TEST_RULESET_REVISION_ID]).toEqual(original.rulesets[TEST_RULESET_REVISION_ID])
-    expect(() => validateNativeProfileGraph(original, [])).not.toThrow()
-    expect(() => validateNativeProfileGraph(JSON.parse(JSON.stringify(revised)), [])).not.toThrow()
+  it('pins changes to a new gameSetup revision and retains legacy and conflicting states', () => {
+    const original = createTestLocalData()
+    const configured = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: known(['Synthetic mod']), disabledMods: known(['Synthetic disabled mod']) })
+    const revised = updateGameSetupRevision(configured, { sourceRevisionId: configured.planningGameSetupRevisionId!, label: 'Renamed gameSetup' })
+    expect(revised.gameSetups[revised.planningGameSetupRevisionId!].disabledMods).toEqual(known(['Synthetic disabled mod']))
+    expect(original.gameSetups[TEST_GAME_SETUP_REVISION_ID].disabledMods).toBeUndefined()
+    expect(revised.gameSetups[TEST_GAME_SETUP_REVISION_ID]).toEqual(original.gameSetups[TEST_GAME_SETUP_REVISION_ID])
+    expect(() => validateNativeLocalDataGraph(original, [])).not.toThrow()
+    expect(() => validateNativeLocalDataGraph(JSON.parse(JSON.stringify(revised)), [])).not.toThrow()
     const conflicting: Knowledge<readonly string[]> = { state: 'conflicting', claims: [{ value: ['Synthetic mod'], sources: [] }, { value: [], sources: [] }] }
-    const imported = updateRulesetRevision(original, { sourceRevisionId: TEST_RULESET_REVISION_ID, mods: conflicting, disabledMods: { state: 'notApplicable', reason: 'Unresolved source context' } })
-    const renamed = updateRulesetRevision(imported, { sourceRevisionId: imported.activeRulesetRevisionId!, label: 'Keep source claims' })
-    expect(renamed.rulesets[renamed.activeRulesetRevisionId!].mods).toBe(conflicting)
-    expect(renamed.rulesets[renamed.activeRulesetRevisionId!].disabledMods).toEqual({ state: 'notApplicable', reason: 'Unresolved source context' })
+    const imported = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: conflicting, disabledMods: { state: 'notApplicable', reason: 'Unresolved source context' } })
+    const renamed = updateGameSetupRevision(imported, { sourceRevisionId: imported.planningGameSetupRevisionId!, label: 'Keep source claims' })
+    expect(renamed.gameSetups[renamed.planningGameSetupRevisionId!].mods).toBe(conflicting)
+    expect(renamed.gameSetups[renamed.planningGameSetupRevisionId!].disabledMods).toEqual({ state: 'notApplicable', reason: 'Unresolved source context' })
   })
 
-  it('rejects contradictory ruleset writes and backups without changing the profile', () => {
-    const profile = createTestProfile()
-    const original = JSON.stringify(profile)
+  it('rejects contradictory gameSetup writes and backups without changing the localData', () => {
+    const localData = createTestLocalData()
+    const original = JSON.stringify(localData)
     const change = { mods: known(['Synthetic mod']), disabledMods: known(['Synthetic MOD']) }
-    expect(() => updateRulesetRevision(profile, { sourceRevisionId: TEST_RULESET_REVISION_ID, ...change })).toThrow('both enabled and disabled')
-    const invalid = { ...profile, rulesets: { ...profile.rulesets, [TEST_RULESET_REVISION_ID]: { ...profile.rulesets[TEST_RULESET_REVISION_ID], ...change } } }
-    expect(() => validateNativeProfileGraph(invalid, [])).toThrow('both enabled and disabled')
-    expect(JSON.stringify(profile)).toBe(original)
+    expect(() => updateGameSetupRevision(localData, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, ...change })).toThrow('both enabled and disabled')
+    const invalid = { ...localData, gameSetups: { ...localData.gameSetups, [TEST_GAME_SETUP_REVISION_ID]: { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], ...change } } }
+    expect(() => validateNativeLocalDataGraph(invalid, [])).toThrow('both enabled and disabled')
+    expect(JSON.stringify(localData)).toBe(original)
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CORRECTION_TEST_CATALOG as catalog, CORRECTION_TEST_ENTITY as entity, CORRECTION_TEST_REF as ref, CORRECTION_TEST_TIME, testCorrection } from '../domain/corrections.test-helpers'
 import { correctionKey, hiddenCorrectionKeys, historicalCatalogKeys, MAX_CORRECTIONS } from '../domain/corrections'
-import { createBlankProfile } from '../domain/profile'
+import { createBlankLocalData } from '../domain/local-data'
 import type { JsonValue } from '../domain/types'
 import { resolveDefinition } from '../domain/definitions'
 import { buildDefinitionOptions, definitionOptionsForRevisions } from '../ui/definitions'
@@ -28,9 +28,9 @@ describe('reviewed baseline promotion', () => {
     expect(promoted.applicability).toEqual(catalog.applicability)
     expect(promoted.entities[entity.id]?.listedContributions?.Attack).toMatchObject({ state: 'known', value: { value: 140 } })
     expect(promoted.entities[entity.id]?.ppCost).toMatchObject({ state: 'known', value: 2 })
-    const profile = createBlankProfile()
-    expect(resolveDefinition(profile, [catalog, promoted], ref)).toEqual(entity)
-    const options = buildDefinitionOptions(profile, [catalog, promoted])
+    const localData = createBlankLocalData()
+    expect(resolveDefinition(localData, [catalog, promoted], ref)).toEqual(entity)
+    const options = buildDefinitionOptions(localData, [catalog, promoted])
     expect(options.find(option => option.ref.kind === 'catalog' && option.ref.catalogRevisionId === 'v2')?.ppCost).toMatchObject({ value: 2 })
     expect(options.find(option => option.ref.kind === 'catalog' && option.ref.catalogRevisionId === 'v1')?.preferred).toBe(false)
     expect(definitionOptionsForRevisions(options, [catalog, promoted]).map(option => option.ref)).toEqual([{ ...ref, catalogRevisionId: promoted.revisionId }])

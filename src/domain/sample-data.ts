@@ -3,9 +3,9 @@ import { createBuild, saveBuildRevision } from './builds'
 import { captureCharacter, createCharacter, upsertCharacterClassProgress } from './characters'
 import { createId, DomainError } from './core'
 import { observeInventory } from './inventory'
-import { addRulesetRevision, createBlankProfile } from './profile'
+import { addGameSetupRevision, createBlankLocalData, createPlaythrough } from './local-data'
 import { createScenario } from './scenarios'
-import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, Profile, SourceRef, Timestamp } from './types'
+import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, LocalData, SourceRef, Timestamp } from './types'
 
 const SAMPLE_NOTE = 'Sample data for exploring the planner. Replace it with your own observations.'
 const SAMPLE_SOURCE: SourceRef = { sourceId: 'sample-starter-team', locator: 'Built-in sample playthrough', applicability: SAMPLE_NOTE }
@@ -40,12 +40,14 @@ function sampleRef(catalog: CatalogSnapshot, id: string, kind: CatalogEntityKind
   return { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: id as EntityId }
 }
 
-export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timestamp | string): Profile {
-  let profile = createBlankProfile({ label: 'Sample playthrough', now: timestamp })
-  const now = profile.createdAt
+export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Timestamp | string): LocalData {
+  let localData = createBlankLocalData({ now: timestamp })
+  const now = localData.createdAt
   const catalogLock = { [catalog.id]: catalog.revisionId }
-  profile = addRulesetRevision(profile, { label: 'Sample starter ruleset', slots: SUGGESTED_BUILD_SLOTS, catalogLock, now })
-  const rulesetRevisionId = profile.activeRulesetRevisionId!
+  localData = addGameSetupRevision(localData, { label: 'Sample starter Game Setup', slots: SUGGESTED_BUILD_SLOTS, catalogLock, now })
+  const gameSetupRevisionId = localData.planningGameSetupRevisionId!
+  const gameSetupId = localData.gameSetups[gameSetupRevisionId]!.gameSetupId
+  localData = createPlaythrough(localData, { label: 'Sample playthrough', currentGameSetupRevisionId: gameSetupRevisionId, now })
   const assignments: Record<string, BuildRevisionId> = {}
   const memberIds: CharacterId[] = []
   const stock = new Map<string, { ref: CatalogRef; quantity: number }>()
@@ -61,20 +63,20 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
       equipment[slotId] = ref
       stock.set(entityId, { ref, quantity: (stock.get(entityId)?.quantity ?? 0) + 1 })
     }
-    profile = createCharacter(profile, { id: characterId, name: member.name, appearanceLabel: 'Sample character', now })
-    profile = upsertCharacterClassProgress(profile, { characterId, classRef: primaryClass, unlocked: { state: 'known', value: true }, sources: [SAMPLE_SOURCE], now })
-    profile = captureCharacter(profile, {
-      characterId, rulesetRevisionId, level: { state: 'known', value: SAMPLE_LEVEL },
+    localData = createCharacter(localData, { id: characterId, name: member.name, appearanceLabel: 'Sample character', now })
+    localData = upsertCharacterClassProgress(localData, { characterId, classRef: primaryClass, unlocked: { state: 'known', value: true }, sources: [SAMPLE_SOURCE], now })
+    localData = captureCharacter(localData, {
+      characterId, gameSetupRevisionId, level: { state: 'known', value: SAMPLE_LEVEL },
       primaryClass: { state: 'known', value: primaryClass },
       secondaryClass: { state: 'notApplicable', reason: 'No secondary class in this sample build' },
       equipment, passives: { state: 'known', value: [] }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now,
     })
-    profile = createBuild(profile, {
-      id: buildId, characterId, title: `${member.name}: sample ${catalog.entities[member.classId]!.name}`,
-      kind: 'character', tags: ['sample'], now,
+    localData = createBuild(localData, {
+      id: buildId, gameSetupId, title: `${member.name}: sample ${catalog.entities[member.classId]!.name}`,
+      kind: 'build', tags: ['sample'], now,
     })
-    profile = saveBuildRevision(profile, {
-      buildId, id: revisionId, rulesetRevisionId, catalogLock, note: SAMPLE_NOTE, now,
+    localData = saveBuildRevision(localData, {
+      buildId, id: revisionId, gameSetupRevisionId, catalogLock, note: SAMPLE_NOTE, now,
       content: {
         primaryClass, secondaryClass: null,
         equipment: Object.fromEntries(Object.entries(equipment).map(([slotId, ref]) => [slotId, ref ? { ref } : null])),
@@ -87,8 +89,8 @@ export function createSampleProfile(catalog: CatalogSnapshot, timestamp?: Timest
   }
 
   for (const { ref, quantity } of stock.values()) {
-    profile = observeInventory(profile, { ref, possession: 'owned', quantity: { kind: 'exact', value: quantity }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now })
+    localData = observeInventory(localData, { ref, possession: 'owned', quantity: { kind: 'exact', value: quantity }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now })
   }
-  profile = createScenario(profile, { label: 'Sample starter team', memberIds, assignments, rulesetRevisionId, activate: true, now })
-  return { ...profile, revision: 0, changes: [] }
+  localData = createScenario(localData, { label: 'Sample starter team', memberIds, assignments, gameSetupRevisionId, activate: true, now })
+  return { ...localData, revision: 0, changes: [] }
 }

@@ -3,14 +3,14 @@ import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings, LEARN_NODE_TYPES, MAX
 import { estimateGrowth, GUIDE_GROWTH_SOURCE, GUIDE_LEVEL_CAP } from '../domain/growth'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, PersonalDefinition } from '../domain/types'
 import { Button, Field, InlineNotice } from './components'
-import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace } from './definitions'
+import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
 import { SourceSummary } from './KnowledgeValue'
 import './class-research.css'
 
 interface AllocationDraft { readonly id: number; readonly ref?: EntityRef; readonly levels: string }
 
 function GrowthCalculator({ entity, definitionRef }: { entity: CatalogEntity | PersonalDefinition; definitionRef: EntityRef }) {
-  const { options } = useDefinitionWorkspace()
+  const { options } = useDefinitionLibrary()
   const id = useId()
   const [level, setLevel] = useState(String(GUIDE_LEVEL_CAP))
   const [rows, setRows] = useState<readonly AllocationDraft[]>([])

@@ -8,9 +8,9 @@ import type {
   JsonValue,
   Knowledge,
   PartyProgressRecord,
-  Profile,
-  RulesetRevision,
-  RulesetRevisionId,
+  LocalData,
+  GameSetupRevision,
+  GameSetupRevisionId,
   SourceRef,
   Timestamp,
 } from '../domain/types'
@@ -31,7 +31,7 @@ import {
   asImportReceiptId,
   asInventoryEventId,
   asProgressRecordId,
-  createBlankProfile,
+  createBlankLocalData,
   nowTimestamp,
   randomId,
   sha256,
@@ -518,20 +518,20 @@ function inventoryEvents(
   return result
 }
 
-function ruleset(
+function gameSetup(
   root: { readonly [key: string]: JsonValue },
   catalog: CatalogSnapshot,
   digest: string,
   importedAt: Timestamp,
-): RulesetRevision | undefined {
+): GameSetupRevision | undefined {
   const context = root.player_context
   if (!context || !isJsonObject(context)) return undefined
   const platform = typeof context.platform === 'string' && context.platform.length > 0 ? context.platform : undefined
   const source = sourceRef(digest, '/player_context/platform')
-  const id = `ruleset-revision:${digest.slice(0, 16)}` as RulesetRevisionId
+  const id = `gameSetup-revision:${digest.slice(0, 16)}` as GameSetupRevisionId
   return {
     id,
-    rulesetId: `ruleset:${digest.slice(0, 16)}` as RulesetRevision['rulesetId'],
+    gameSetupId: `gameSetup:${digest.slice(0, 16)}` as GameSetupRevision['gameSetupId'],
     revision: 1,
     label: 'Imported playthrough context',
     platform: platform
@@ -541,7 +541,7 @@ function ruleset(
     mode: { state: 'unknown', reason: 'Standard/Vanilla mode was not supplied' },
     mods: { state: 'unknown', reason: 'Exact mod IDs, versions, and load order were not supplied' },
     ppLimit: { state: 'unknown', reason: 'No passive point limit was supplied' },
-    ppCostsNonNegative: { state: 'unknown', reason: 'No complete ruleset verification was supplied' },
+    ppCostsNonNegative: { state: 'unknown', reason: 'No complete Game Setup verification was supplied' },
     slots: [],
     catalogLock: { [catalog.id]: catalog.revisionId },
     createdAt: importedAt,
@@ -624,22 +624,30 @@ export async function previewResearchJson(
   ]
   const ambiguousEntityIds = new Set<string>()
   const catalog = buildCatalog(rootValue, digest, importedAt, warnings, ambiguousEntityIds)
-  const profile = createBlankProfile('Imported playthrough', importedAt)
-  const importedRuleset = ruleset(rootValue, catalog, digest, importedAt)
+  const localData = createBlankLocalData('Imported playthrough', importedAt)
+  const importedGameSetup = gameSetup(rootValue, catalog, digest, importedAt)
   const receiptId = asImportReceiptId(`import:${digest}`)
-  const proposedProfile: Profile = {
-    ...profile,
-    activeRulesetRevisionId: importedRuleset?.id,
-    rulesets: importedRuleset ? { [importedRuleset.id]: importedRuleset } : {},
-    progress: progressRecords(rootValue, catalog, digest, importedAt, warnings, ambiguousEntityIds),
-    inventoryEvents: inventoryEvents(rootValue, catalog, digest, importedAt, warnings, ambiguousEntityIds),
+  const playthroughId = localData.selectedPlaythroughId!
+  const playthrough = localData.playthroughs[playthroughId]!
+  const proposedLocalData: LocalData = {
+    ...localData,
+    planningGameSetupRevisionId: importedGameSetup?.id,
+    gameSetups: importedGameSetup ? { [importedGameSetup.id]: importedGameSetup } : {},
+    playthroughs: {
+      [playthroughId]: {
+        ...playthrough,
+        ...(importedGameSetup ? { currentGameSetupRevisionId: importedGameSetup.id } : {}),
+        progress: progressRecords(rootValue, catalog, digest, importedAt, warnings, ambiguousEntityIds),
+        inventoryEvents: inventoryEvents(rootValue, catalog, digest, importedAt, warnings, ambiguousEntityIds),
+      },
+    },
     importReceipts: {
       [receiptId]: {
         id: receiptId,
         sourceFormat: format,
         sourceIdentity: `sha256:${digest}`,
         importedAt,
-        profileRevision: profile.revision,
+        localDataRevision: localData.revision,
       },
     },
   }
@@ -671,10 +679,10 @@ export async function previewResearchJson(
     counts: importCounts(rootValue),
     warnings,
     errors: [],
-    profile: { label: proposedProfile.label },
+    localData: { label: playthrough.label },
     proposed: {
-      profile: proposedProfile,
-      lineage: { rootProfileId: proposedProfile.id },
+      localData: proposedLocalData,
+      lineage: { rootLocalDataId: proposedLocalData.id },
       catalogs: [catalog],
       evidence: evidenceRecords(rootValue, digest),
       sources: [source],

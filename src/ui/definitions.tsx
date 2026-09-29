@@ -4,8 +4,8 @@ import { passivePointCost } from '../domain/mechanics-facts'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
-import { entityDefinitionKey, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions } from '../domain'
-import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, JsonValue, Knowledge, PersonalDefinition, Profile } from '../domain/types'
+import { entityDefinitionKey, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions, selectedPlaythrough } from '../domain'
+import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { formatAppError } from './model'
@@ -45,14 +45,14 @@ export interface DefinitionOption {
   readonly ppCost?: Knowledge<number>
   readonly sourceLabel: string
   readonly stockLabel: string
-  readonly rulesetStatus?: string
+  readonly gameSetupStatus?: string
   readonly modAvailability?: DefinitionModAvailability
   readonly preferred: boolean
   readonly record: DefinitionRecord
 }
 
-interface DefinitionWorkspaceValue {
-  readonly profile: Profile
+interface DefinitionLibraryValue {
+  readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly options: readonly DefinitionOption[]
   readonly availableOptions: readonly DefinitionOption[]
@@ -61,15 +61,15 @@ interface DefinitionWorkspaceValue {
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
 }
 
-const DefinitionWorkspaceContext = createContext<DefinitionWorkspaceValue | undefined>(undefined)
+const DefinitionLibraryContext = createContext<DefinitionLibraryValue | undefined>(undefined)
 
 function categoryKnowledge(fields: Readonly<Record<string, Knowledge<JsonValue>>>): Knowledge<JsonValue> | undefined {
   const value = Object.entries(fields).find(([name]) => name.trim().toLocaleLowerCase() === 'category')?.[1]
   return value
 }
 
-function inventoryLabel(profile: Profile, ref: EntityRef) {
-  const positions = Object.values(profile.inventory).filter((position) => logicalEntityKey(profile, position.ref) === logicalEntityKey(profile, ref))
+function inventoryLabel(localData: LocalData, ref: EntityRef) {
+  const positions = Object.values(selectedPlaythrough(localData)?.inventory ?? {}).filter((position) => logicalEntityKey(localData, position.ref) === logicalEntityKey(localData, ref))
   if (!positions.length) return 'Stock unrecorded'
   let confirmed = 0
   let uncertain = false
@@ -90,10 +90,10 @@ function catalogProvenance(catalogs: readonly CatalogSnapshot[], ref: EntityRef 
   return entity ? starterEntitySourceLabel(entity) : undefined
 }
 
-export function buildDefinitionOptions(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly DefinitionOption[] {
-  const preferredPersonalIds = new Set(preferredPersonalDefinitions(profile).map((definition) => definition.id))
-  const activeRuleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
-  const personal = Object.values(profile.personalDefinitions).map((definition): DefinitionOption => {
+export function buildDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly DefinitionOption[] {
+  const preferredPersonalIds = new Set(preferredPersonalDefinitions(localData).map((definition) => definition.id))
+  const activeGameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
+  const personal = Object.values(localData.personalDefinitions).map((definition): DefinitionOption => {
     const ref = { kind: 'personal', definitionId: definition.id } as const
     const preferred = preferredPersonalIds.has(definition.id)
     const provenance = catalogProvenance(catalogs, definition.baseRef)
@@ -103,15 +103,15 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       ...(categoryKnowledge(definition.fields) === undefined ? {} : { category: categoryKnowledge(definition.fields) }),
       ppCost: passivePointCost(definition),
       sourceLabel: `${preferred ? `Personal revision ${definition.revision} · preferred` : `Personal revision ${definition.revision} · older exact definition`}${provenance ? ` · override of ${provenance}` : ''}`,
-      stockLabel: inventoryLabel(profile, ref), preferred, record: definition,
-      modAvailability: definitionModAvailability(profile, ref, activeRuleset),
-      ...(activeRuleset?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { rulesetStatus: activeRuleset ? 'Outside the active ruleset definition collection' : 'No active ruleset definition collection' }),
+      stockLabel: inventoryLabel(localData, ref), preferred, record: definition,
+      modAvailability: definitionModAvailability(localData, ref, activeGameSetup),
+      ...(activeGameSetup?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup definition collection' : 'No current Game Setup definition collection' }),
     }
   })
   const historical = historicalCatalogKeys(catalogs)
   const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
-    const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(profile, ref)) === entityDefinitionKey(ref)
+    const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(localData, ref)) === entityDefinitionKey(ref)
     const provenance = starterEntitySourceLabel(entity)
     return {
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
@@ -119,9 +119,9 @@ export function buildDefinitionOptions(profile: Profile, catalogs: readonly Cata
       ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
       ppCost: passivePointCost(entity),
       sourceLabel: `${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
-      stockLabel: inventoryLabel(profile, ref), preferred, record: entity,
-      modAvailability: definitionModAvailability(profile, ref, activeRuleset),
-      ...(activeRuleset?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { rulesetStatus: activeRuleset ? 'Outside the active ruleset catalog pin' : 'No active ruleset catalog pin' }),
+      stockLabel: inventoryLabel(localData, ref), preferred, record: entity,
+      modAvailability: definitionModAvailability(localData, ref, activeGameSetup),
+      ...(activeGameSetup?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
     }
   }))
   return [...personal, ...catalog].sort((left, right) => Number(right.preferred) - Number(left.preferred) || left.name.localeCompare(right.name) || left.sourceLabel.localeCompare(right.sourceLabel) || left.key.localeCompare(right.key))
@@ -136,32 +136,32 @@ export function definitionOptionsForRevisions(options: readonly DefinitionOption
   })
 }
 
-export function DefinitionProvider({ profile, catalogs, onSaveDefinition, children }: PropsWithChildren<{ profile: Profile; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
+export function DefinitionProvider({ localData, catalogs, onSaveDefinition, children }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
   const corrections = useOptionalCorrections()
   const options = useMemo(() => {
     const local = new Map(activeCorrections(corrections?.collection.entries ?? []).filter(entry => correctionStatus(entry, corrections?.baseline ?? [], corrections?.collection.entries) === 'applied').map(entry => [correctionKey(entry), entry]))
-    return buildDefinitionOptions(profile, catalogs).map(option => {
+    return buildDefinitionOptions(localData, catalogs).map(option => {
       const correction = local.get(option.key)
       return correction ? { ...option, sourceLabel: `${correction.confidence === 'tentative' ? 'Tentative correction' : 'User-confirmed correction'} · ${option.sourceLabel}` } : option
     })
-  }, [catalogs, profile, corrections?.baseline, corrections?.collection.entries])
+  }, [catalogs, localData, corrections?.baseline, corrections?.collection.entries])
   const availableOptions = useMemo(() => {
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(catalogs)
     return definitionOptionsForRevisions(options, catalogs).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
   }, [catalogs, options, corrections?.hiddenKeys])
   const baseline = corrections?.baseline ?? catalogs
-  const planningOptions = useMemo(() => buildDefinitionOptions(profile, baseline), [baseline, profile])
+  const planningOptions = useMemo(() => buildDefinitionOptions(localData, baseline), [baseline, localData])
   const availablePlanningOptions = useMemo(() => {
-    const ruleset = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
+    const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
-    return definitionOptionsForRevisions(planningOptions, baseline, ruleset?.catalogLock).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
-  }, [baseline, corrections?.hiddenKeys, planningOptions, profile])
-  const value = useMemo(() => ({ profile, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, profile])
-  return <DefinitionWorkspaceContext.Provider value={value}>{children}</DefinitionWorkspaceContext.Provider>
+    return definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+  }, [baseline, corrections?.hiddenKeys, planningOptions, localData])
+  const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
+  return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 
-export function useDefinitionWorkspace() {
-  const value = useContext(DefinitionWorkspaceContext)
+export function useDefinitionLibrary() {
+  const value = useContext(DefinitionLibraryContext)
   if (!value) throw new Error('DefinitionProvider is required for definition search and editing')
   return value
 }
@@ -177,7 +177,7 @@ export function definitionKindLabel(kind: CatalogEntityKind) {
 
 export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', routeIndex, onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; routeIndex?: number; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
   const navigation = useNavigation()
-  const { options, profile, onSaveDefinition } = useDefinitionWorkspace()
+  const { options, onSaveDefinition } = useDefinitionLibrary()
   const ownedEditorIndex = routeIndex ?? navigation.route.overlays.findLastIndex(overlay => overlay.kind === 'definition-editor')
   const routedEditor = ownedEditorIndex >= 0 ? navigation.route.overlays[ownedEditorIndex] : undefined
   const routedBaseRef = routedEditor?.kind === 'definition-editor' && routedEditor.mode === 'override' ? routedEditor.ref : undefined
@@ -221,10 +221,10 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
   const creatingPersonalVersion = editRef?.kind === 'catalog'
   const title = creatingPersonalVersion ? `Create personal version: ${base?.name ?? 'definition'}` : editRef ? `Edit personal version: ${base?.name ?? 'definition'}` : 'Create personal definition'
   const saveLabel = creatingPersonalVersion ? 'Create personal version' : editRef ? 'Save personal revision' : 'Create definition'
-  const footer = <div className="definition-editor-footer"><DefinitionDraftNotice draft={draft} formId={formId} onDiscard={close} saveDisabled={saveDisabled} title="Definition draft still open"/>{error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor. Try saving again.</InlineNotice>}<small>Only {profile.label}. Saves a new revision; recorded references stay unchanged.</small><div className="form-actions"><Button disabled={draft.busy} onClick={close} tone="quiet" type="button">{draft.dirty ? 'Discard draft' : 'Cancel'}</Button><Button disabled={draft.busy || saveDisabled} form={formId} icon="check" type="submit">{draft.busy ? 'Saving...' : saveLabel}</Button></div></div>
-  return <Sheet description={`Customize this definition for ${profile.label}.`} footer={footer} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={draft.requestClose} open={open} title={title} width="wide">
+  const footer = <div className="definition-editor-footer"><DefinitionDraftNotice draft={draft} formId={formId} onDiscard={close} saveDisabled={saveDisabled} title="Definition draft still open"/>{error && <InlineNotice title="Definition not saved" tone="danger">{error} Your entered values remain in this editor. Try saving again.</InlineNotice>}<small>Available to every Playthrough. Saves a new revision; recorded references stay unchanged.</small><div className="form-actions"><Button disabled={draft.busy} onClick={close} tone="quiet" type="button">{draft.dirty ? 'Discard draft' : 'Cancel'}</Button><Button disabled={draft.busy || saveDisabled} form={formId} icon="check" type="submit">{draft.busy ? 'Saving...' : saveLabel}</Button></div></div>
+  return <Sheet description="Customize this definition in your shared local library." footer={footer} layer={ownedEditorIndex + 1} onClose={close} onRequestClose={draft.requestClose} open={open} title={title} width="wide">
 
-    {editRef && !base ? <InlineNotice title="Definition could not be opened" tone="warning">The exact definition is unavailable in this profile and reference catalogs.</InlineNotice> : <form className="stack definition-editor" id={formId} onSubmit={submit}>
+    {editRef && !base ? <InlineNotice title="Definition could not be opened" tone="warning">The exact definition is unavailable in the local planner data and reference catalogs.</InlineNotice> : <form className="stack definition-editor" id={formId} onSubmit={submit}>
       <fieldset className="definition-editor-fields stack" disabled={draft.busy}>
         <DefinitionOverviewEditor aliases={aliases} description={description} name={name} onAliases={value => { setAliases(value); draft.markDirty() }} onDescription={value => { setDescription(value); const field = Object.keys(fields).find(field => field.toLowerCase() === 'description'); if (field) setFields(current => ({ ...current, [field]: fieldDraft(value ? { state: 'known', value } : null, true) })); draft.markDirty() }} onName={value => { setName(value); draft.markDirty() }}><Field label="Definition type"><select disabled={Boolean(editRef)} onChange={event => { setKind(event.target.value as CatalogEntityKind); draft.markDirty() }} value={kind}>{kinds.map(value => <option key={value} value={value}>{definitionKindLabel(value)}</option>)}</select></Field></DefinitionOverviewEditor>
         <DefinitionFactsEditor fields={fields} onChange={value => { setFields(value); const field = Object.keys(value).find(field => field.toLowerCase() === 'description'); if (field && value[field] !== fields[field]) setDescription(value[field]?.mode === 'keep' ? base?.description ?? '' : value[field]?.mode === 'known' && value[field]?.type === 'text' ? value[field].text : ''); draft.markDirty() }} source={base?.record.fields ?? {}}/>
@@ -260,7 +260,7 @@ export interface DefinitionDropdownProps {
 
 export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Empty', emptyDescription = 'Nothing is equipped in this slot', createLabel = 'Create personal definition', compact = false, filterOption, optionLabel = defaultOptionLabel, onInspect, query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
-  const { profile, catalogs, options, availableOptions } = useDefinitionWorkspace()
+  const { localData, catalogs, options, availableOptions } = useDefinitionLibrary()
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
@@ -324,11 +324,11 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
         {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>Unknown</strong><small>No selection has been recorded</small></span></button>}
         {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
         {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{selectedOption.name}</strong>{selectedOption.modAvailability?.requiredMod && <ModBadge name={selectedOption.modAvailability.requiredMod} state={selectedOption.modAvailability.state}/>}</span><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} profile={profile} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.rulesetStatus && <small className="picker-result__warning">{option.rulesetStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
         {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>
-      <div className="definition-dropdown__actions">{selectedOption && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(profile, selectedOption.ref) }))} tone="quiet" type="button">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet" type="button">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
+      <div className="definition-dropdown__actions">{selectedOption && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(localData, selectedOption.ref) }))} tone="quiet" type="button">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet" type="button">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
     </Dropdown>
     {editingRef && <DefinitionEditor allowedKinds={allowedKinds} baseRef={editingRef} initialName="" key={entityDefinitionKey(editingRef)} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
     {creating && <DefinitionEditor allowedKinds={allowedKinds} initialName={query.trim()} key={`create:${query.trim()}`} onClose={() => navigation.close()} onSaved={editorSaved} open routeIndex={pickerIndex + 1}/>}
@@ -337,7 +337,7 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
 
 export function DefinitionPickerField({ label, hint, allowedKinds, value, disabled = false, allowUnknown = true, allowEmpty = false, autoFocus = false, routeKey, onChange }: { label: string; hint?: string; allowedKinds: readonly CatalogEntityKind[]; value?: EntityRef | null; disabled?: boolean; allowUnknown?: boolean; allowEmpty?: boolean; autoFocus?: boolean; routeKey?: string; onChange: (ref: EntityRef | null | undefined) => void }) {
   const navigation = useNavigation()
-  const { profile, catalogs, options } = useDefinitionWorkspace()
+  const { localData, catalogs, options } = useDefinitionLibrary()
   const pickerMemoryRef = useRef({ query: '', resultLimit: DEFINITION_RESULT_PAGE_SIZE })
   const fieldKey = routeKey ?? (label.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'definition')
   const picker = navigation.route.overlays.findLast((overlay) => overlay.kind === 'definition-picker')
@@ -349,5 +349,5 @@ export function DefinitionPickerField({ label, hint, allowedKinds, value, disabl
   const selected = findDefinitionOption(options, value)
   const display = value === null ? 'Empty' : selected?.name ?? (value ? 'Unresolved exact definition' : 'Unknown')
   // Keep native autofocus available when the containing dialog opens
-  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" data-definition-trigger="true" disabled={disabled} onClick={() => open ? navigation.close() : openPicker()} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (!open) openPicker() } }} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><DefinitionArtwork catalogs={catalogs} profile={profile} value={value}/><span><span className="definition-badge-heading"><strong>{display}</strong>{selected?.modAvailability?.requiredMod && <ModBadge name={selected.modAvailability.requiredMod} state={selected.modAvailability.state}/>}</span><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="chevron-down"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionDropdown anchorRef={triggerRef} id={dropdownId} allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
+  return <div className="field definition-picker-field"><span className="field__label">{label}</span><button aria-controls={open ? dropdownId : undefined} aria-expanded={open} aria-haspopup="dialog" aria-label={`Choose ${label}`} autoFocus={autoFocus} className="definition-picker-trigger" data-definition-trigger="true" disabled={disabled} onClick={() => open ? navigation.close() : openPicker()} onKeyDown={(event) => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (!open) openPicker() } }} ref={(trigger) => { triggerRef.current = trigger; if (trigger) trigger.autofocus = autoFocus }} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={value}/><span><span className="definition-badge-heading"><strong>{display}</strong>{selected?.modAvailability?.requiredMod && <ModBadge name={selected.modAvailability.requiredMod} state={selected.modAvailability.state}/>}</span><small>{selected ? `${definitionKindLabel(selected.kind)} · ${selected.sourceLabel}` : hint}</small></span><Icon name="chevron-down"/></button>{hint && selected && <span className="field__hint">{hint}</span>}<DefinitionDropdown anchorRef={triggerRef} id={dropdownId} allowEmpty={allowEmpty} allowedKinds={allowedKinds} allowUnknown={allowUnknown} onClose={() => navigation.close()} onSelect={onChange} open={open} selected={value} title={`Choose ${label}`}/></div>
 }

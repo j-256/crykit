@@ -1,13 +1,25 @@
 import { expect, type Locator, type Page } from '@playwright/test'
+import type { LocalData, Playthrough } from '../src/domain'
+
+export function selectedPlaythrough(localData: LocalData): Playthrough {
+  const playthrough = localData.selectedPlaythroughId ? localData.playthroughs[localData.selectedPlaythroughId] : undefined
+  if (!playthrough) throw new Error('The fixture has no selected Playthrough')
+  return playthrough
+}
 
 export async function createBlankPlaythrough(page: Page): Promise<void> {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
-  await panel.getByLabel('New blank profile').fill('Blank test playthrough')
+  await panel.getByLabel('New blank Playthrough').fill('Blank test playthrough')
   await panel.getByRole('button', { name: 'Create', exact: true }).click()
-  await expect(panel.getByRole('combobox', { name: 'Active profile', exact: true }).locator('option:checked')).toContainText('Blank test playthrough')
+  await expect(panel.getByRole('combobox', { name: 'Active Playthrough', exact: true }).locator('option:checked')).toContainText('Blank test playthrough')
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+}
+
+export async function replacePlannerData(panel: Locator): Promise<void> {
+  await panel.getByRole('checkbox', { name: /Replace all local planner data after validation/ }).check()
+  await panel.getByRole('button', { name: 'Replace planner data', exact: true }).click()
 }
 
 export async function chooseFourTeamMembers(form: Locator): Promise<void> {
@@ -21,16 +33,15 @@ export async function chooseFourTeamMembers(form: Locator): Promise<void> {
   }
 }
 
-export async function openRulesetSection(panel: Locator, label: string): Promise<void> {
-  const card = panel.locator('.ruleset-summary-card').filter({ hasText: label }).first()
-  const sectionId = await card.getAttribute('aria-controls')
-  const section = panel.locator(`#${sectionId}`)
-  if (await section.getAttribute('open') === null) await card.click()
+export async function openGameSetupSection(panel: Locator, label: string): Promise<void> {
+  const advanced = panel.locator('.game-setup-advanced')
+  if (await advanced.getAttribute('open') === null) await advanced.locator(':scope > summary').click()
+  const section = advanced.locator('.game-setup-editor-section').filter({ hasText: label }).first()
+  if (await section.getAttribute('open') === null) await section.locator(':scope > summary').click()
 }
 
 export async function openSwitchModPacks(panel: Locator): Promise<void> {
-  await openRulesetSection(panel, 'Switch mods')
-  const packs = panel.locator('.ruleset-mod-pack')
+  const packs = panel.locator('.game-setup-mod-pack')
   for (let index = 0; index < await packs.count(); index += 1) {
     const pack = packs.nth(index)
     if (await pack.getAttribute('open') === null) await pack.locator(':scope > summary').click()

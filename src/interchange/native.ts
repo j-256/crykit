@@ -1,5 +1,5 @@
 import { parseCorrectionCollection } from './corrections'
-import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, Profile, ProfileId, Timestamp } from '../domain/types'
+import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { assertModConfiguration } from '../domain/mods'
 import { TEAM_SIZE } from '../domain/scenarios'
@@ -15,7 +15,7 @@ import {
   NativeHistorySchema,
   NativeManifestSchema,
   NativePayloadSchema,
-  NativeProfileSchema,
+  NativeLocalDataSchema,
 } from './native-schema'
 import { catalogSnapshotKey } from './identity'
 import type {
@@ -23,10 +23,10 @@ import type {
   ImportPreview,
   NativeBackupManifest,
   PersistedHistoryEntry,
-  ProfileLineage,
+  LocalDataLineage,
   SourceArchiveRecord,
 } from './types'
-import { asProfileId, nowTimestamp, randomId, sha256 } from './util'
+import { asLocalDataId, nowTimestamp, randomId, sha256 } from './util'
 import { safeUnzip } from './zip'
 
 const MAX_NATIVE_HISTORY = 500
@@ -159,14 +159,14 @@ function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
 }
 
 function validatePinnedReferences(
-  profile: Profile,
+  localData: LocalData,
   value: unknown,
   lock: Readonly<Record<string, unknown>>,
   label: string,
 ): void {
   if (!value || typeof value !== 'object') return
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => validatePinnedReferences(profile, entry, lock, `${label}[${index}]`))
+    value.forEach((entry, index) => validatePinnedReferences(localData, entry, lock, `${label}[${index}]`))
     return
   }
   const record = value as Readonly<Record<string, unknown>>
@@ -179,7 +179,7 @@ function validatePinnedReferences(
     return
   }
   if (record.kind === 'personal' && typeof record.definitionId === 'string') {
-    const rootRef = definitionLineageRootRef(profile, record as unknown as EntityRef)
+    const rootRef = definitionLineageRootRef(localData, record as unknown as EntityRef)
     if (rootRef.kind === 'catalog' && lock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
       schemaError('A personal override base falls outside its pinned catalog lock', {
         label,
@@ -189,16 +189,16 @@ function validatePinnedReferences(
     }
     return
   }
-  for (const [key, nested] of Object.entries(record)) validatePinnedReferences(profile, nested, lock, `${label}.${key}`)
+  for (const [key, nested] of Object.entries(record)) validatePinnedReferences(localData, nested, lock, `${label}.${key}`)
 }
 
 function validatePersonalDefinitionLineage(
-  profile: Profile,
+  localData: LocalData,
   catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind>,
 ): void {
   const successors = new Set<string>()
   const initialOverrides = new Set<string>()
-  for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+  for (const [id, definition] of Object.entries(localData.personalDefinitions)) {
     const selfRef: EntityRef = { kind: 'personal', definitionId: definition.id }
     if (definition.baseRef && entityDefinitionKey(definition.baseRef) === entityDefinitionKey(selfRef)) {
       schemaError('A personal definition cannot use itself as its lineage base', { id })
@@ -226,7 +226,7 @@ function validatePersonalDefinitionLineage(
       }
       continue
     }
-    const previous = profile.personalDefinitions[definition.previousRevision.definitionId]
+    const previous = localData.personalDefinitions[definition.previousRevision.definitionId]
     if (!previous) schemaError('A personal definition revision points to a missing predecessor', { id })
     if (successors.has(previous.id)) schemaError('A personal definition revision has multiple successors', { id })
     successors.add(previous.id)
@@ -236,69 +236,44 @@ function validatePersonalDefinitionLineage(
     if (definition.kind !== previous.kind) {
       schemaError('A personal definition revision changes its entity kind', { id })
     }
-    const expectedBase = definitionLineageRootRef(profile, definition.previousRevision)
+    const expectedBase = definitionLineageRootRef(localData, definition.previousRevision)
     if (!definition.baseRef || entityDefinitionKey(definition.baseRef) !== entityDefinitionKey(expectedBase)) {
       schemaError('A personal definition revision changes its lineage base', { id })
     }
   }
-  for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+  for (const [id, definition] of Object.entries(localData.personalDefinitions)) {
     const visited = new Set<string>([id])
     let previous = definition.previousRevision
     while (previous) {
       if (visited.has(previous.definitionId)) schemaError('Personal definition lineage contains a cycle', { id })
       visited.add(previous.definitionId)
-      previous = profile.personalDefinitions[previous.definitionId]?.previousRevision
+      previous = localData.personalDefinitions[previous.definitionId]?.previousRevision
     }
   }
 }
 
-function validateProfileEntityRefs(
-  profile: Profile,
+function validateLocalDataEntityRefs(
+  localData: LocalData,
   catalogs: ReadonlyMap<string, ReadonlySet<string>>,
   personalDefinitionIds: ReadonlySet<string>,
   label: string,
 ): void {
   const check = (ref: EntityRef, path: string): void => validateEntityRef(ref, catalogs, personalDefinitionIds, path)
-  for (const [id, definition] of Object.entries(profile.personalDefinitions)) {
+  for (const [id, definition] of Object.entries(localData.personalDefinitions)) {
     if (definition.baseRef) check(definition.baseRef, `${label}.personalDefinitions.${id}.baseRef`)
     if (definition.previousRevision) check(definition.previousRevision, `${label}.personalDefinitions.${id}.previousRevision`)
     validateDefinitionRequirements(definition.requirements, catalogs, personalDefinitionIds, `${label}.personalDefinitions.${id}.requirements`)
   }
-  for (const [id, ruleset] of Object.entries(profile.rulesets)) {
-    for (const [index, ref] of (ruleset.definitionOverrides ?? []).entries()) {
-      check(ref, `${label}.rulesets.${id}.definitionOverrides[${index}]`)
+  for (const [id, gameSetup] of Object.entries(localData.gameSetups)) {
+    for (const [index, ref] of (gameSetup.definitionOverrides ?? []).entries()) {
+      check(ref, `${label}.gameSetups.${id}.definitionOverrides[${index}]`)
     }
   }
-  for (const layout of Object.values(profile.skillTreeLayouts ?? {})) {
+  for (const layout of Object.values(localData.skillTreeLayouts ?? {})) {
     check(layout.classRef, `${label}.skillTreeLayouts.${layout.id}.classRef`)
     for (const mapping of layout.mappings) check(mapping.ref, `${label}.skillTreeLayouts.${layout.id}.mappings`)
   }
-  for (const capture of Object.values(profile.skillTreeCaptures ?? {})) {
-    check(capture.classRef, `${label}.skillTreeCaptures.${capture.id}.classRef`)
-    for (const mapping of capture.mappings) check(mapping.ref, `${label}.skillTreeCaptures.${capture.id}.mappings`)
-  }
-  for (const [id, position] of Object.entries(profile.inventory)) check(position.ref, `${label}.inventory.${id}.ref`)
-  for (const [id, event] of Object.entries(profile.inventoryEvents)) check(event.ref, `${label}.inventoryEvents.${id}.ref`)
-  for (const [characterId, character] of Object.entries(profile.characters)) {
-    for (const [snapshotId, snapshot] of Object.entries(character.snapshots)) {
-      for (const ref of knowledgeValues(snapshot.primaryClass)) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.primaryClass`)
-      for (const ref of knowledgeValues(snapshot.secondaryClass)) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.secondaryClass`)
-      for (const [slotId, ref] of Object.entries(snapshot.equipment)) {
-        if (ref) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.equipment.${slotId}`)
-      }
-      for (const [claimIndex, refs] of knowledgeValues(snapshot.passives).entries()) {
-        for (const [index, ref] of refs.entries()) check(ref, `${label}.characters.${characterId}.snapshots.${snapshotId}.passives.${claimIndex}.${index}`)
-      }
-    }
-    for (const [key, progress] of Object.entries(character.classProgress)) {
-      check(progress.classRef, `${label}.characters.${characterId}.classProgress.${key}.classRef`)
-    }
-    for (const [key, learned] of Object.entries(character.learnedNodes)) {
-      check(learned.ref, `${label}.characters.${characterId}.learnedNodes.${key}.ref`)
-    }
-  }
-  for (const [id, progress] of Object.entries(profile.progress)) check(progress.subject, `${label}.progress.${id}.subject`)
-  for (const [id, revision] of Object.entries(profile.buildRevisions)) {
+  for (const [id, revision] of Object.entries(localData.buildRevisions)) {
     if (revision.content.primaryClass) check(revision.content.primaryClass, `${label}.buildRevisions.${id}.content.primaryClass`)
     if (revision.content.secondaryClass) check(revision.content.secondaryClass, `${label}.buildRevisions.${id}.content.secondaryClass`)
     for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
@@ -309,161 +284,110 @@ function validateProfileEntityRefs(
     }
     for (const [index, selection] of revision.content.passives.entries()) check(selection.ref, `${label}.buildRevisions.${id}.content.passives.${index}.ref`)
   }
-  for (const [goalId, goal] of Object.entries(profile.goals)) {
-    for (const [index, requirement] of goal.requirements.entries()) {
-      if (requirement.target) check(requirement.target, `${label}.goals.${goalId}.requirements[${index}].target`)
+  for (const [playthroughId, playthrough] of Object.entries(localData.playthroughs)) {
+    const playthroughLabel = `${label}.playthroughs.${playthroughId}`
+    for (const capture of Object.values(playthrough.skillTreeCaptures ?? {})) {
+      check(capture.classRef, `${playthroughLabel}.skillTreeCaptures.${capture.id}.classRef`)
+      for (const mapping of capture.mappings) check(mapping.ref, `${playthroughLabel}.skillTreeCaptures.${capture.id}.mappings`)
+    }
+    for (const [id, position] of Object.entries(playthrough.inventory)) check(position.ref, `${playthroughLabel}.inventory.${id}.ref`)
+    for (const [id, event] of Object.entries(playthrough.inventoryEvents)) check(event.ref, `${playthroughLabel}.inventoryEvents.${id}.ref`)
+    for (const [characterId, character] of Object.entries(playthrough.characters)) {
+      for (const [snapshotId, snapshot] of Object.entries(character.snapshots)) {
+        for (const ref of knowledgeValues(snapshot.primaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.primaryClass`)
+        for (const ref of knowledgeValues(snapshot.secondaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.secondaryClass`)
+        for (const [slotId, ref] of Object.entries(snapshot.equipment)) {
+          if (ref) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.equipment.${slotId}`)
+        }
+        for (const [claimIndex, refs] of knowledgeValues(snapshot.passives).entries()) {
+          for (const [index, ref] of refs.entries()) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.passives.${claimIndex}.${index}`)
+        }
+      }
+      for (const [key, progress] of Object.entries(character.classProgress)) check(progress.classRef, `${playthroughLabel}.characters.${characterId}.classProgress.${key}.classRef`)
+      for (const [key, learned] of Object.entries(character.learnedNodes)) check(learned.ref, `${playthroughLabel}.characters.${characterId}.learnedNodes.${key}.ref`)
+    }
+    for (const [id, progress] of Object.entries(playthrough.progress)) check(progress.subject, `${playthroughLabel}.progress.${id}.subject`)
+    for (const [goalId, goal] of Object.entries(playthrough.goals)) {
+      for (const [index, requirement] of goal.requirements.entries()) {
+        if (requirement.target) check(requirement.target, `${playthroughLabel}.goals.${goalId}.requirements[${index}].target`)
+      }
     }
   }
 }
 
-function validateProfile(
+function validateLocalData(
   value: unknown,
   catalogs: ReadonlyMap<string, ReadonlySet<string>>,
-  label = 'profile',
+  label = 'localData',
   catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind> = new Map(),
-): Profile {
-  const profile = recordValue(value, label)
-  const typedProfile = value as Profile
+): LocalData {
+  const localData = recordValue(value, label)
+  const typedLocalData = value as LocalData
+  const personalDefinitions = assertIdMap(localData.personalDefinitions, `${label}.personalDefinitions`)
+  const gameSetups = assertIdMap(localData.gameSetups, `${label}.gameSetups`)
+  const builds = assertIdMap(localData.builds, `${label}.builds`)
+  const buildRevisions = assertIdMap(localData.buildRevisions, `${label}.buildRevisions`)
+  const playthroughs = assertIdMap(localData.playthroughs, `${label}.playthroughs`)
+  assertIdMap(localData.importReceipts, `${label}.importReceipts`)
+  validatePersonalDefinitionLineage(typedLocalData, catalogEntityKinds)
 
-  const personalDefinitions = assertIdMap(profile.personalDefinitions, `${label}.personalDefinitions`)
-  const rulesets = assertIdMap(profile.rulesets, `${label}.rulesets`)
-  for (const ruleset of Object.values(typedProfile.rulesets)) {
-    try { assertModConfiguration(ruleset) } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid mod configuration') }
+  for (const gameSetup of Object.values(typedLocalData.gameSetups)) {
+    try { assertModConfiguration(gameSetup) } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid mod configuration') }
   }
-  const inventory = assertIdMap(profile.inventory, `${label}.inventory`)
-  const events = assertIdMap(profile.inventoryEvents, `${label}.inventoryEvents`)
-  const characters = assertIdMap(profile.characters, `${label}.characters`)
-  assertIdMap(profile.progress, `${label}.progress`)
-  const builds = assertIdMap(profile.builds, `${label}.builds`)
-  const buildRevisions = assertIdMap(profile.buildRevisions, `${label}.buildRevisions`)
-  const scenarios = assertIdMap(profile.scenarios, `${label}.scenarios`)
-  assertIdMap(profile.goals, `${label}.goals`)
-  assertIdMap(profile.importReceipts, `${label}.importReceipts`)
-  validatePersonalDefinitionLineage(typedProfile, catalogEntityKinds)
-
-  if (profile.skillTreeLayouts) assertIdMap(profile.skillTreeLayouts, `${label}.skillTreeLayouts`)
-  if (profile.skillTreeCaptures) assertIdMap(profile.skillTreeCaptures, `${label}.skillTreeCaptures`)
-  const definitionKind = (ref: EntityRef) => ref.kind === 'personal' ? typedProfile.personalDefinitions[ref.definitionId]?.kind : catalogEntityKinds.get(entityDefinitionKey(ref))
-  for (const entry of [...Object.values(typedProfile.skillTreeLayouts ?? {}), ...Object.values(typedProfile.skillTreeCaptures ?? {})]) {
+  if (localData.skillTreeLayouts) assertIdMap(localData.skillTreeLayouts, `${label}.skillTreeLayouts`)
+  const definitionKind = (ref: EntityRef) => ref.kind === 'personal' ? typedLocalData.personalDefinitions[ref.definitionId]?.kind : catalogEntityKinds.get(entityDefinitionKey(ref))
+  for (const entry of Object.values(typedLocalData.skillTreeLayouts ?? {})) {
     if (definitionKind(entry.classRef) !== 'class') schemaError('A skill tree references an unavailable class')
-    if (entry.rulesetRevisionId && !rulesets[entry.rulesetRevisionId]) schemaError('A skill tree references a missing ruleset')
-    let shape: string
-    if ('squares' in entry) {
-      if (!characters[entry.characterId]) schemaError('A skill tree references a missing character')
-      try { assertSkillTreeGeometry(entry.squares) } catch { schemaError('A skill tree has invalid square positions') }
-      shape = skillTreeShape(entry.squares)
-    } else {
-      const positions = entry.shape.split(',').map(key => { const [row, column] = key.split(':').map(Number); return { row, column } })
-      try { assertSkillTreeGeometry(positions) } catch { schemaError('A skill layout has invalid square positions') }
-      shape = skillTreeShape(positions)
-      if (shape !== entry.shape) schemaError('A skill layout has an invalid shape')
-    }
+    if (entry.gameSetupRevisionId && !gameSetups[entry.gameSetupRevisionId]) schemaError('A skill tree references a missing Game Setup')
+    const positions = entry.shape.split(',').map(key => { const [row, column] = key.split(':').map(Number); return { row, column } })
+    try { assertSkillTreeGeometry(positions) } catch { schemaError('A skill layout has invalid square positions') }
+    const shape = skillTreeShape(positions)
+    if (shape !== entry.shape) schemaError('A skill layout has an invalid shape')
     const mapped = new Set<string>()
     const refs = new Set<string>()
     for (const mapping of entry.mappings) {
       const position = squareKey(mapping)
-      const key = logicalEntityKey(typedProfile, mapping.ref)
+      const key = logicalEntityKey(typedLocalData, mapping.ref)
       if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || definitionKind(mapping.ref) !== mapping.kind) schemaError('A skill tree contains an invalid or duplicate mapping')
       mapped.add(position)
       refs.add(key)
     }
   }
-
-  if (profile.activeRulesetRevisionId !== undefined && !rulesets[stringValue(profile.activeRulesetRevisionId, `${label}.activeRulesetRevisionId`)]) {
-    schemaError(`${label}.activeRulesetRevisionId references a missing ruleset`)
+  if (localData.selectedPlaythroughId !== undefined && !playthroughs[stringValue(localData.selectedPlaythroughId, `${label}.selectedPlaythroughId`)]) {
+    schemaError(`${label}.selectedPlaythroughId references a missing Playthrough`)
   }
-  if (profile.activeScenarioId !== undefined && !scenarios[stringValue(profile.activeScenarioId, `${label}.activeScenarioId`)]) {
-    schemaError(`${label}.activeScenarioId references a missing scenario`)
+  if (localData.planningGameSetupRevisionId !== undefined && !gameSetups[stringValue(localData.planningGameSetupRevisionId, `${label}.planningGameSetupRevisionId`)]) {
+    schemaError(`${label}.planningGameSetupRevisionId references a missing Game Setup`)
   }
-  for (const [id, ruleset] of Object.entries(rulesets)) {
-    const lock = recordValue(ruleset.catalogLock, `${label}.rulesets.${id}.catalogLock`)
+  for (const [id, gameSetup] of Object.entries(gameSetups)) {
+    const lock = recordValue(gameSetup.catalogLock, `${label}.gameSetups.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
       if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) {
-        schemaError('A ruleset references a missing catalog revision', { id, catalogId, revisionId })
+        schemaError('A Game Setup references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
     const overrideKeys = new Set<string>()
-    for (const ref of (ruleset.definitionOverrides ?? []) as readonly EntityRef[]) {
-      const key = logicalEntityKey(typedProfile, ref)
-      if (overrideKeys.has(key)) schemaError('A ruleset pins duplicate logical definition overrides', { id })
+    for (const ref of (gameSetup.definitionOverrides ?? []) as readonly EntityRef[]) {
+      const key = logicalEntityKey(typedLocalData, ref)
+      if (overrideKeys.has(key)) schemaError('A Game Setup pins duplicate logical definition overrides', { id })
       overrideKeys.add(key)
-      const rootRef = definitionLineageRootRef(typedProfile, ref)
+      const rootRef = definitionLineageRootRef(typedLocalData, ref)
       if (rootRef.kind === 'catalog' && lock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
-        schemaError('A ruleset definition override falls outside its catalog lock', { id })
+        schemaError('A Game Setup definition override falls outside its catalog lock', { id })
       }
     }
     const slotIds = new Set<string>()
-    for (const slotValue of ruleset.slots as readonly unknown[]) {
-      const slot = recordValue(slotValue, `${label}.rulesets.${id}.slots`)
-      const slotId = stringValue(slot.id, `${label}.rulesets.${id}.slots.id`)
-      if (slotIds.has(slotId)) schemaError('A ruleset contains duplicate slot identities', { id, slotId })
+    for (const slotValue of gameSetup.slots as readonly unknown[]) {
+      const slot = recordValue(slotValue, `${label}.gameSetups.${id}.slots`)
+      const slotId = stringValue(slot.id, `${label}.gameSetups.${id}.slots.id`)
+      if (slotIds.has(slotId)) schemaError('A Game Setup contains duplicate slot identities', { id, slotId })
       slotIds.add(slotId)
     }
   }
-  const inventoryRefKeys = new Set<string>()
-  for (const [id, position] of Object.entries(inventory)) {
-    const ref = position.ref as EntityRef
-    const refKey = logicalEntityKey(typedProfile, ref)
-    if (inventoryRefKeys.has(refKey)) schemaError('Inventory contains duplicate positions for one entity', { id })
-    inventoryRefKeys.add(refKey)
-    const possession = position.possession
-    const quantity = recordValue(position.quantity, `${label}.inventory.${id}.quantity`)
-    const protectedQuantity = position.protectedQuantity as number
-    if (possession === 'notOwned') {
-      if (quantity.kind !== 'exact' || quantity.value !== 0 || protectedQuantity !== 0) {
-        schemaError('Not-owned inventory is not normalized to exact zero stock', { id })
-      }
-    } else if (possession === 'unknown') {
-      if (quantity.kind !== 'unknown') {
-        schemaError('Unknown possession cannot assert a stock quantity', { id })
-      }
-    } else if (quantity.kind === 'unknown' || (quantity.kind === 'exact' && quantity.value === 0)) {
-      schemaError('Owned inventory must establish a positive quantity', { id })
-    }
-    if (quantity.kind === 'exact' && protectedQuantity > (quantity.value as number)) {
-      schemaError('Protected inventory exceeds exact stock', { id })
-    }
-  }
-  for (const [id, event] of Object.entries(events)) {
-    if (event.positionId !== undefined) {
-      const position = inventory[stringValue(event.positionId, `${label}.inventoryEvents.${id}.positionId`)]
-      if (!position) schemaError('An inventory event references a missing position', { id })
-      if (logicalEntityKey(typedProfile, position.ref as EntityRef) !== logicalEntityKey(typedProfile, event.ref as EntityRef)) {
-        schemaError('An inventory event does not match its linked position', { id })
-      }
-    }
-  }
-  for (const [id, character] of Object.entries(characters)) {
-    const snapshots = assertIdMap(character.snapshots, `${label}.characters.${id}.snapshots`)
-    for (const [snapshotId, snapshot] of Object.entries(snapshots)) {
-      if (snapshot.rulesetRevisionId !== undefined && !Object.hasOwn(rulesets, stringValue(snapshot.rulesetRevisionId, `${label}.characters.${id}.snapshots.${snapshotId}.rulesetRevisionId`))) {
-        schemaError('A character snapshot references a missing ruleset revision', { id, snapshotId })
-      }
-    }
-    if (
-      character.currentSnapshotId !== undefined &&
-      !snapshots[stringValue(character.currentSnapshotId, `${label}.characters.${id}.currentSnapshotId`)]
-    ) {
-      schemaError('A character references a missing current snapshot', { id })
-    }
-    const classProgress = recordValue(character.classProgress, `${label}.characters.${id}.classProgress`)
-    for (const [key, entryValue] of Object.entries(classProgress)) {
-      const entry = recordValue(entryValue, `${label}.characters.${id}.classProgress.${key}`)
-      if (key !== logicalEntityKey(typedProfile, entry.classRef as EntityRef)) {
-        schemaError('Character class progress has an unstable reference key', { id, key })
-      }
-    }
-    const learnedNodes = recordValue(character.learnedNodes, `${label}.characters.${id}.learnedNodes`)
-    for (const [key, entryValue] of Object.entries(learnedNodes)) {
-      const entry = recordValue(entryValue, `${label}.characters.${id}.learnedNodes.${key}`)
-      if (key !== logicalEntityKey(typedProfile, entry.ref as EntityRef)) {
-        schemaError('Character learning has an unstable reference key', { id, key })
-      }
-    }
-  }
   for (const [id, build] of Object.entries(builds)) {
-    if (build.characterId !== undefined && !characters[stringValue(build.characterId, `${label}.builds.${id}.characterId`)]) {
-      schemaError('A build references a missing character', { id })
+    const gameSetupId = stringValue(build.gameSetupId, `${label}.builds.${id}.gameSetupId`)
+    if (!Object.values(gameSetups).some(gameSetup => gameSetup.gameSetupId === gameSetupId)) {
+      schemaError('A Build references a missing Game Setup', { id })
     }
     if (
       build.latestRevisionId !== undefined &&
@@ -490,10 +414,13 @@ function validateProfile(
     if (revision.parentRevisionId !== undefined && buildRevisions[revision.parentRevisionId as string]?.buildId !== buildId) {
       schemaError('A build revision parent belongs to another build', { id })
     }
-    const rulesetId = stringValue(revision.rulesetRevisionId, `${label}.buildRevisions.${id}.rulesetRevisionId`)
-    const ruleset = rulesets[rulesetId]
-    if (!ruleset) {
-      schemaError('A build revision references a missing ruleset', { id })
+    const gameSetupRevisionId = stringValue(revision.gameSetupRevisionId, `${label}.buildRevisions.${id}.gameSetupRevisionId`)
+    const gameSetup = gameSetups[gameSetupRevisionId]
+    if (!gameSetup) {
+      schemaError('A Build revision references a missing Game Setup', { id })
+    }
+    if (gameSetup.gameSetupId !== builds[buildId]!.gameSetupId) {
+      schemaError('A Build revision belongs to a different Game Setup than its Build', { id })
     }
     const lock = recordValue(revision.catalogLock, `${label}.buildRevisions.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
@@ -501,76 +428,144 @@ function validateProfile(
         schemaError('A build revision references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
-    const slotIds = new Set((ruleset.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
+    const slotIds = new Set((gameSetup.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
-    validatePinnedReferences(typedProfile, content, lock, `${label}.buildRevisions.${id}.content`)
+    validatePinnedReferences(typedLocalData, content, lock, `${label}.buildRevisions.${id}.content`)
     const equipment = recordValue(content.equipment, `${label}.buildRevisions.${id}.content.equipment`)
     for (const slotId of Object.keys(equipment)) {
-      if (!slotIds.has(slotId)) schemaError('A build revision selects an unknown ruleset slot', { id, slotId })
+      if (!slotIds.has(slotId)) schemaError('A Build revision selects an unknown Game Setup slot', { id, slotId })
     }
   }
-  for (const [id, scenario] of Object.entries(scenarios)) {
-    if (!rulesets[stringValue(scenario.rulesetRevisionId, `${label}.scenarios.${id}.rulesetRevisionId`)]) {
-      schemaError('A scenario references a missing ruleset', { id })
+
+  for (const [playthroughId, playthrough] of Object.entries(playthroughs)) {
+    const playthroughLabel = `${label}.playthroughs.${playthroughId}`
+    const inventory = assertIdMap(playthrough.inventory, `${playthroughLabel}.inventory`)
+    const events = assertIdMap(playthrough.inventoryEvents, `${playthroughLabel}.inventoryEvents`)
+    const characters = assertIdMap(playthrough.characters, `${playthroughLabel}.characters`)
+    assertIdMap(playthrough.progress, `${playthroughLabel}.progress`)
+    const scenarios = assertIdMap(playthrough.scenarios, `${playthroughLabel}.scenarios`)
+    assertIdMap(playthrough.goals, `${playthroughLabel}.goals`)
+    const typedPlaythrough = typedLocalData.playthroughs[playthroughId]!
+    if (playthrough.currentGameSetupRevisionId !== undefined && !gameSetups[stringValue(playthrough.currentGameSetupRevisionId, `${playthroughLabel}.currentGameSetupRevisionId`)]) {
+      schemaError('A Playthrough references a missing current Game Setup')
     }
-    const lock = recordValue(scenario.catalogLock, `${label}.scenarios.${id}.catalogLock`)
-    for (const [catalogId, revisionId] of Object.entries(lock)) {
-      if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) {
-        schemaError('A scenario references a missing catalog revision', { id, catalogId, revisionId })
+    if (playthrough.activeScenarioId !== undefined && !scenarios[stringValue(playthrough.activeScenarioId, `${playthroughLabel}.activeScenarioId`)]) {
+      schemaError('A Playthrough references a missing active scenario')
+    }
+    const inventoryRefKeys = new Set<string>()
+    for (const [id, position] of Object.entries(inventory)) {
+      const refKey = logicalEntityKey(typedLocalData, position.ref as EntityRef)
+      if (inventoryRefKeys.has(refKey)) schemaError('Inventory contains duplicate positions for one entity', { playthroughId, id })
+      inventoryRefKeys.add(refKey)
+      const quantity = recordValue(position.quantity, `${playthroughLabel}.inventory.${id}.quantity`)
+      const protectedQuantity = position.protectedQuantity as number
+      if (position.possession === 'notOwned' && (quantity.kind !== 'exact' || quantity.value !== 0 || protectedQuantity !== 0)) {
+        schemaError('Not-owned inventory is not normalized to exact zero stock', { playthroughId, id })
+      }
+      if (position.possession === 'unknown' && quantity.kind !== 'unknown') {
+        schemaError('Unknown possession cannot assert a stock quantity', { playthroughId, id })
+      }
+      if (position.possession === 'owned' && (quantity.kind === 'unknown' || (quantity.kind === 'exact' && quantity.value === 0))) {
+        schemaError('Owned inventory must establish a positive quantity', { playthroughId, id })
+      }
+      if (quantity.kind === 'exact' && protectedQuantity > (quantity.value as number)) {
+        schemaError('Protected inventory exceeds exact stock', { playthroughId, id })
       }
     }
-    if (!Array.isArray(scenario.memberIds) || scenario.memberIds.length !== TEAM_SIZE) {
-      schemaError(`A scenario team must contain exactly ${TEAM_SIZE} characters`, { id })
-    }
-    const memberIds = scenario.memberIds.map((characterId, index) => stringValue(characterId, `${label}.scenarios.${id}.memberIds[${index}]`))
-    if (new Set(memberIds).size !== TEAM_SIZE) schemaError('A scenario team contains duplicate characters', { id })
-    for (const characterId of memberIds) {
-      if (!characters[characterId]) schemaError('A scenario team references a missing character', { id, characterId })
-    }
-    const assignments = recordValue(scenario.assignments, `${label}.scenarios.${id}.assignments`)
-    for (const [characterId, revisionId] of Object.entries(assignments)) {
-      if (!characters[characterId]) schemaError('A scenario assignment references a missing character', { id, characterId })
-      if (!memberIds.includes(characterId)) schemaError('A scenario assignment is outside its team', { id, characterId })
-      if (revisionId !== null && (typeof revisionId !== 'string' || !buildRevisions[revisionId])) {
-        schemaError('A scenario references a missing build revision', { id, revisionId })
+    for (const [id, event] of Object.entries(events)) {
+      if (event.positionId === undefined) continue
+      const position = inventory[stringValue(event.positionId, `${playthroughLabel}.inventoryEvents.${id}.positionId`)]
+      if (!position) schemaError('An inventory event references a missing position', { playthroughId, id })
+      if (logicalEntityKey(typedLocalData, position.ref as EntityRef) !== logicalEntityKey(typedLocalData, event.ref as EntityRef)) {
+        schemaError('An inventory event does not match its linked position', { playthroughId, id })
       }
     }
-    const baseline = recordValue(scenario.baseline, `${label}.scenarios.${id}.baseline`)
-    if (baseline.kind === 'recordedParty') {
-      if ((baseline.profileRevision as number) > typedProfile.revision) {
-        schemaError('A scenario baseline references a future profile revision', { id })
-      }
-      const baselineAssignments = recordValue(baseline.assignments, `${label}.scenarios.${id}.baseline.assignments`)
-      for (const [characterId, revisionId] of Object.entries(baselineAssignments)) {
-        if (!characters[characterId]) schemaError('A scenario baseline references a missing character', { id, characterId })
-        if (!memberIds.includes(characterId)) schemaError('A scenario baseline assignment is outside its team', { id, characterId })
-        if (typeof revisionId !== 'string' || !buildRevisions[revisionId]) {
-          schemaError('A scenario baseline references a missing build revision', { id, revisionId })
+    for (const [id, character] of Object.entries(characters)) {
+      const snapshots = assertIdMap(character.snapshots, `${playthroughLabel}.characters.${id}.snapshots`)
+      for (const [snapshotId, snapshot] of Object.entries(snapshots)) {
+        if (snapshot.gameSetupRevisionId !== undefined && !gameSetups[stringValue(snapshot.gameSetupRevisionId, `${playthroughLabel}.characters.${id}.snapshots.${snapshotId}.gameSetupRevisionId`)]) {
+          schemaError('A character snapshot references a missing Game Setup revision', { playthroughId, id, snapshotId })
         }
       }
+      if (character.currentSnapshotId !== undefined && !snapshots[stringValue(character.currentSnapshotId, `${playthroughLabel}.characters.${id}.currentSnapshotId`)]) {
+        schemaError('A character references a missing current snapshot', { playthroughId, id })
+      }
+      for (const [key, entryValue] of Object.entries(recordValue(character.classProgress, `${playthroughLabel}.characters.${id}.classProgress`))) {
+        const entry = recordValue(entryValue, `${playthroughLabel}.characters.${id}.classProgress.${key}`)
+        if (key !== logicalEntityKey(typedLocalData, entry.classRef as EntityRef)) schemaError('Character class progress has an unstable reference key', { playthroughId, id, key })
+      }
+      for (const [key, entryValue] of Object.entries(recordValue(character.learnedNodes, `${playthroughLabel}.characters.${id}.learnedNodes`))) {
+        const entry = recordValue(entryValue, `${playthroughLabel}.characters.${id}.learnedNodes.${key}`)
+        if (key !== logicalEntityKey(typedLocalData, entry.ref as EntityRef)) schemaError('Character learning has an unstable reference key', { playthroughId, id, key })
+      }
+    }
+    if (playthrough.skillTreeCaptures) assertIdMap(playthrough.skillTreeCaptures, `${playthroughLabel}.skillTreeCaptures`)
+    for (const capture of Object.values(typedPlaythrough.skillTreeCaptures ?? {})) {
+      if (!characters[capture.characterId]) schemaError('A skill tree references a missing character', { playthroughId, captureId: capture.id })
+      if (definitionKind(capture.classRef) !== 'class') schemaError('A skill tree references an unavailable class')
+      if (capture.gameSetupRevisionId && !gameSetups[capture.gameSetupRevisionId]) schemaError('A skill tree references a missing Game Setup')
+      try { assertSkillTreeGeometry(capture.squares) } catch { schemaError('A skill tree has invalid square positions') }
+      const shape = skillTreeShape(capture.squares)
+      const mapped = new Set<string>()
+      const refs = new Set<string>()
+      for (const mapping of capture.mappings) {
+        const position = squareKey(mapping)
+        const key = logicalEntityKey(typedLocalData, mapping.ref)
+        if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || definitionKind(mapping.ref) !== mapping.kind) schemaError('A skill tree contains an invalid or duplicate mapping')
+        mapped.add(position)
+        refs.add(key)
+      }
+    }
+    for (const [id, scenario] of Object.entries(scenarios)) {
+      if (!gameSetups[stringValue(scenario.gameSetupRevisionId, `${playthroughLabel}.scenarios.${id}.gameSetupRevisionId`)]) {
+        schemaError('A scenario references a missing Game Setup', { playthroughId, id })
+      }
+      const lock = recordValue(scenario.catalogLock, `${playthroughLabel}.scenarios.${id}.catalogLock`)
+      for (const [catalogId, revisionId] of Object.entries(lock)) {
+        if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) schemaError('A scenario references a missing catalog revision', { playthroughId, id, catalogId, revisionId })
+      }
+      if (!Array.isArray(scenario.memberIds) || scenario.memberIds.length !== TEAM_SIZE) schemaError(`A scenario team must contain exactly ${TEAM_SIZE} characters`, { playthroughId, id })
+      const memberIds = scenario.memberIds.map((characterId, index) => stringValue(characterId, `${playthroughLabel}.scenarios.${id}.memberIds[${index}]`))
+      if (new Set(memberIds).size !== TEAM_SIZE) schemaError('A scenario team contains duplicate characters', { playthroughId, id })
+      for (const characterId of memberIds) if (!characters[characterId]) schemaError('A scenario team references a missing character', { playthroughId, id, characterId })
+      const validateAssignments = (assignments: Record<string, unknown>, baseline = false) => {
+        for (const [characterId, revisionId] of Object.entries(assignments)) {
+          if (!characters[characterId]) schemaError(`A scenario${baseline ? ' baseline' : ''} assignment references a missing character`, { playthroughId, id, characterId })
+          if (!memberIds.includes(characterId)) schemaError(`A scenario${baseline ? ' baseline' : ''} assignment is outside its team`, { playthroughId, id, characterId })
+          if ((!baseline && revisionId === null)) continue
+          if (typeof revisionId !== 'string' || !buildRevisions[revisionId]) schemaError(`A scenario${baseline ? ' baseline' : ''} references a missing Build revision`, { playthroughId, id, revisionId })
+        }
+      }
+      validateAssignments(recordValue(scenario.assignments, `${playthroughLabel}.scenarios.${id}.assignments`))
+      const baseline = recordValue(scenario.baseline, `${playthroughLabel}.scenarios.${id}.baseline`)
+      if (baseline.kind === 'recordedParty') {
+        if ((baseline.playthroughRevision as number) > typedPlaythrough.revision) schemaError('A scenario baseline references a future Playthrough revision', { playthroughId, id })
+        validateAssignments(recordValue(baseline.assignments, `${playthroughLabel}.scenarios.${id}.baseline.assignments`), true)
+      }
     }
   }
+
   let priorNextRevision: number | undefined
-  for (const [index, changeValue] of typedProfile.changes.entries()) {
+  for (const [index, changeValue] of typedLocalData.changes.entries()) {
     const change = recordValue(changeValue, `${label}.changes[${index}]`)
     const previousRevision = revisionValue(change.previousRevision, `${label}.changes[${index}].previousRevision`)
     const nextRevision = revisionValue(change.nextRevision, `${label}.changes[${index}].nextRevision`)
     if (nextRevision !== previousRevision + 1 || (priorNextRevision !== undefined && previousRevision !== priorNextRevision)) {
-      schemaError('Profile change history has a discontinuous revision sequence', { index })
+      schemaError('LocalData change history has a discontinuous revision sequence', { index })
     }
     priorNextRevision = nextRevision
   }
-  if (priorNextRevision !== undefined && priorNextRevision !== typedProfile.revision) {
-    schemaError('Profile change history does not end at the profile revision')
+  if (priorNextRevision !== undefined && priorNextRevision !== typedLocalData.revision) {
+    schemaError('LocalData change history does not end at the localData revision')
   }
-  validateProfileEntityRefs(typedProfile, catalogs, new Set(Object.keys(personalDefinitions)), label)
-  return typedProfile
+  validateLocalDataEntityRefs(typedLocalData, catalogs, new Set(Object.keys(personalDefinitions)), label)
+  return typedLocalData
 }
 
-function validateLineage(value: unknown, profileId: ProfileId): ProfileLineage {
+function validateLineage(value: unknown, localDataId: LocalDataId): LocalDataLineage {
   const lineage = recordValue(value, 'lineage')
-  if (!lineage.rootProfileId) schemaError('Backup lineage is missing its root profile identity', { profileId })
-  return value as ProfileLineage
+  if (!lineage.rootLocalDataId) schemaError('Backup lineage is missing its root localData identity', { localDataId })
+  return value as LocalDataLineage
 }
 
 function validateEvidence(values: readonly unknown[]): readonly EvidenceRecord[] {
@@ -591,7 +586,7 @@ function validateEvidence(values: readonly unknown[]): readonly EvidenceRecord[]
 
 function validateHistory(
   values: readonly unknown[],
-  profile: Profile,
+  localData: LocalData,
   catalogs: ReadonlyMap<string, ReadonlySet<string>>,
   catalogEntityKinds: ReadonlyMap<string, CatalogEntityKind>,
 ): readonly PersistedHistoryEntry[] {
@@ -602,21 +597,21 @@ function validateHistory(
     const id = stringValue(record.id, `history[${index}].id`)
     if (ids.has(id)) schemaError('The backup contains duplicate history IDs', { id })
     ids.add(id)
-    if (stringValue(record.profileId, `history[${index}].profileId`) !== profile.id) {
-      schemaError('A history entry belongs to a different profile', { id })
+    if (stringValue(record.localDataId, `history[${index}].localDataId`) !== localData.id) {
+      schemaError('A history entry belongs to different planner data', { id })
     }
-    const before = validateProfile(record.before, catalogs, `history[${index}].before`, catalogEntityKinds)
-    const after = validateProfile(record.after, catalogs, `history[${index}].after`, catalogEntityKinds)
+    const before = validateLocalData(record.before, catalogs, `history[${index}].before`, catalogEntityKinds)
+    const after = validateLocalData(record.after, catalogs, `history[${index}].after`, catalogEntityKinds)
     const previousRevision = revisionValue(record.previousRevision, `history[${index}].previousRevision`)
     const nextRevision = revisionValue(record.nextRevision, `history[${index}].nextRevision`)
     if (before.revision !== previousRevision || after.revision !== nextRevision) {
       schemaError('A history entry revision does not match its snapshots', { id })
     }
-    if (before.id !== profile.id || after.id !== profile.id) {
-      schemaError('A history entry snapshot belongs to a different profile', { id })
+    if (before.id !== localData.id || after.id !== localData.id) {
+      schemaError('A history entry snapshot belongs to different planner data', { id })
     }
     if (nextRevision <= previousRevision) {
-      schemaError('A history entry must advance the profile revision', { id })
+      schemaError('A history entry must advance the localData revision', { id })
     }
     const prior = index > 0 ? values[index - 1] as PersistedHistoryEntry : undefined
     if (prior && (previousRevision !== prior.nextRevision || !jsonEqual(prior.after, before))) {
@@ -625,38 +620,38 @@ function validateHistory(
     return value as PersistedHistoryEntry
   })
   const latest = entries.at(-1)
-  if (latest && (latest.nextRevision !== profile.revision || !jsonEqual(latest.after, profile))) {
-    schemaError('Backup history does not end at the exported profile revision')
+  if (latest && (latest.nextRevision !== localData.revision || !jsonEqual(latest.after, localData))) {
+    schemaError('Backup history does not end at the exported localData revision')
   }
-  if (!latest && profile.changes.length > 0) {
-    schemaError('A profile with a change journal must include its latest undo checkpoint')
+  if (!latest && localData.changes.length > 0) {
+    schemaError('A localData with a change journal must include its latest undo checkpoint')
   }
   return entries
 }
 
-export function validateNativeProfileGraph(
-  profile: Profile,
+export function validateNativeLocalDataGraph(
+  localData: LocalData,
   catalogs: readonly CatalogSnapshot[],
   history?: readonly PersistedHistoryEntry[],
 ): void {
-  validateNativeProfileShape(profile)
+  validateNativeLocalDataShape(localData)
   for (const catalog of catalogs) {
     if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   }
   const validatedCatalogs = validateCatalogs(catalogs)
-  const validatedProfile = validateProfile(profile, validatedCatalogs.keys, 'profile', validatedCatalogs.entityKinds)
+  const validatedLocalData = validateLocalData(localData, validatedCatalogs.keys, 'localData', validatedCatalogs.entityKinds)
   if (history) {
     for (const entry of history) {
       if (!NativeHistorySchema.safeParse(entry).success) schemaError('A transformed history entry has an unsupported shape')
     }
-    validateHistory(history, validatedProfile, validatedCatalogs.keys, validatedCatalogs.entityKinds)
+    validateHistory(history, validatedLocalData, validatedCatalogs.keys, validatedCatalogs.entityKinds)
   }
 }
 
-export function validateNativeProfileShape(profile: Profile): void {
-  const result = NativeProfileSchema.safeParse(profile)
+export function validateNativeLocalDataShape(localData: LocalData): void {
+  const result = NativeLocalDataSchema.safeParse(localData)
   if (!result.success) {
-    schemaError('The transformed profile has an unsupported shape', {
+    schemaError('The transformed localData has an unsupported shape', {
       issues: result.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`),
     })
   }
@@ -711,10 +706,10 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
   }
   const corrections = payloadResult.data.corrections === undefined ? undefined : parseCorrectionCollection(JSON.stringify(payloadResult.data.corrections))
   const catalogs = validateCatalogs(payloadResult.data.catalogs)
-  const profile = validateProfile(payloadResult.data.profile, catalogs.keys, 'profile', catalogs.entityKinds)
-  const lineage = validateLineage(payloadResult.data.lineage, profile.id)
+  const localData = validateLocalData(payloadResult.data.localData, catalogs.keys, 'localData', catalogs.entityKinds)
+  const lineage = validateLineage(payloadResult.data.lineage, localData.id)
   const evidence = validateEvidence(payloadResult.data.evidence)
-  const history = validateHistory(payloadResult.data.history, profile, catalogs.keys, catalogs.entityKinds)
+  const history = validateHistory(payloadResult.data.history, localData, catalogs.keys, catalogs.entityKinds)
   const sources: SourceArchiveRecord[] = []
   for (const source of manifest.sources) {
     const sourceBytes = files.get(source.path) ?? schemaError('A source file listed by the backup is missing')
@@ -741,19 +736,18 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     }
   }
   const digest = await sha256(bytes)
-  const personalCount =
-    Object.keys(profile.inventory).length +
-    Object.keys(profile.inventoryEvents).length +
-    Object.keys(profile.characters).length +
-    Object.keys(profile.progress).length +
-    Object.keys(profile.builds).length +
-    Object.keys(profile.scenarios).length +
-    Object.keys(profile.goals).length
+  const personalCount = Object.values(localData.playthroughs).reduce((total, playthrough) => total +
+    Object.keys(playthrough.inventory).length +
+    Object.keys(playthrough.inventoryEvents).length +
+    Object.keys(playthrough.characters).length +
+    Object.keys(playthrough.progress).length +
+    Object.keys(playthrough.scenarios).length +
+    Object.keys(playthrough.goals).length, Object.keys(localData.builds).length)
   return {
     id: randomId('import-preview'),
     filename,
-    detectedFormat: 'native-backup-1.0.0',
-    detectedSchema: '1.0.0',
+    detectedFormat: 'native-backup-2.0.0',
+    detectedSchema: '2.0.0',
     sourceDigest: digest,
     counts: {
       reference: catalogs.snapshots.reduce((total, catalog) => total + Object.keys(catalog.entities).length, 0),
@@ -764,8 +758,8 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     warnings: [
       {
         severity: 'warning',
-        code: 'fork-by-default',
-        message: 'Restoring this backup creates a separate profile branch if the same identity already exists',
+        code: 'replace-local-data',
+        message: 'Restoring this backup replaces the local planner data after confirmation',
       },
       ...(manifest.history?.truncated
         ? [{
@@ -776,10 +770,16 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
         : []),
     ],
     errors: [],
-    profile: { label: profile.label, identity: profile.id, ancestry: lineage },
+    localData: {
+      label: localData.selectedPlaythroughId
+        ? localData.playthroughs[localData.selectedPlaythroughId]?.label ?? 'Imported planner data'
+        : 'Imported planner data',
+      identity: localData.id,
+      ancestry: lineage,
+    },
     proposed: {
       ...(corrections ? { corrections } : {}),
-      profile,
+      localData,
       lineage,
       catalogs: catalogs.snapshots,
       evidence,
@@ -797,4 +797,4 @@ export function isNativeManifest(value: JsonValue): boolean {
   return isJsonObject(value) && value.format === 'crystal-companion-backup'
 }
 
-export const profileIdFromNative = (value: string): ProfileId => asProfileId(value)
+export const localDataIdFromNative = (value: string): LocalDataId => asLocalDataId(value)

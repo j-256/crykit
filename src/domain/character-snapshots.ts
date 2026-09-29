@@ -1,4 +1,4 @@
-import type { CharacterSnapshot, EntityRef, Knowledge, ObservedStat, Profile, SourceRef } from './types'
+import type { CharacterSnapshot, EntityRef, Knowledge, ObservedStat, LocalData, SourceRef } from './types'
 
 export type SnapshotValue =
   | { readonly kind: 'number'; readonly value: Knowledge<number>; readonly unit: string }
@@ -6,7 +6,7 @@ export type SnapshotValue =
   | { readonly kind: 'references'; readonly value: Knowledge<readonly EntityRef[]> }
   | { readonly kind: 'selection'; readonly value: EntityRef | null | undefined }
   | { readonly kind: 'text'; readonly value: string | undefined }
-  | { readonly kind: 'ruleset'; readonly value: CharacterSnapshot['rulesetRevisionId'] }
+  | { readonly kind: 'gameSetup'; readonly value: CharacterSnapshot['gameSetupRevisionId'] }
   | { readonly kind: 'sources'; readonly value: readonly SourceRef[] }
   | { readonly kind: 'unrecorded' }
 
@@ -27,9 +27,9 @@ export interface SnapshotSlot {
   readonly selection: EntityRef | null | undefined
 }
 
-export function snapshotSlots(profile: Profile, snapshot: CharacterSnapshot): readonly SnapshotSlot[] {
-  const ruleset = snapshot.rulesetRevisionId && Object.hasOwn(profile.rulesets, snapshot.rulesetRevisionId) ? profile.rulesets[snapshot.rulesetRevisionId] : undefined
-  const slots: SnapshotSlot[] = [...(ruleset?.slots ?? [])].sort((left, right) => left.order - right.order).map((slot) => ({
+export function snapshotSlots(localData: LocalData, snapshot: CharacterSnapshot): readonly SnapshotSlot[] {
+  const gameSetup = snapshot.gameSetupRevisionId && Object.hasOwn(localData.gameSetups, snapshot.gameSetupRevisionId) ? localData.gameSetups[snapshot.gameSetupRevisionId] : undefined
+  const slots: SnapshotSlot[] = [...(gameSetup?.slots ?? [])].sort((left, right) => left.order - right.order).map((slot) => ({
     id: slot.id,
     label: slot.label,
     kind: 'equipment',
@@ -73,7 +73,7 @@ export function compareCharacterSnapshots(left: CharacterSnapshot, right: Charac
   const rightPassives = passiveRefs(right.passives)
   for (let index = 0; index < Math.max(leftPassives.length, rightPassives.length); index += 1) add(`passive:${index}`, `Equipped passive ${index + 1}`, { kind: 'selection', value: leftPassives[index] }, { kind: 'selection', value: rightPassives[index] })
   if (left.passives.state !== 'known' || right.passives.state !== 'known') add('passives', 'Equipped passives', { kind: 'references', value: left.passives }, { kind: 'references', value: right.passives })
-  add('ruleset', 'Slot context', { kind: 'ruleset', value: left.rulesetRevisionId }, { kind: 'ruleset', value: right.rulesetRevisionId })
+  add('gameSetup', 'Slot context', { kind: 'gameSetup', value: left.gameSetupRevisionId }, { kind: 'gameSetup', value: right.gameSetupRevisionId })
   add('observedAt', 'Observed on', { kind: 'text', value: left.observedAt }, { kind: 'text', value: right.observedAt })
   add('recordedAt', 'Recorded on', { kind: 'text', value: left.recordedAt }, { kind: 'text', value: right.recordedAt })
   add('note', 'Note', { kind: 'text', value: left.note }, { kind: 'text', value: right.note })

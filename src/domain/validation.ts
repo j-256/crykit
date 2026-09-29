@@ -1,4 +1,4 @@
-import { DomainError, entityDefinitionKey } from './core'
+import { DomainError, entityDefinitionKey, requirePlaythrough } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
@@ -16,8 +16,8 @@ import type {
   InventoryPosition,
   Knowledge,
   PersonalDefinition,
-  Profile,
-  RulesetRevision,
+  LocalData,
+  GameSetupRevision,
   ScenarioId,
   SlotDefinition,
   SlotId,
@@ -61,12 +61,12 @@ function definitionView(original: ResolvedDefinition, slots: readonly SlotDefini
 }
 
 function resolveDefinition(
-  profile: Profile,
+  localData: LocalData,
   catalogs: CatalogIndex,
   ref: EntityRef,
 ): ResolvedDefinition | undefined {
   if (ref.kind === 'personal') {
-    return profile.personalDefinitions[ref.definitionId]
+    return localData.personalDefinitions[ref.definitionId]
   }
   return catalogs.entitiesByRef[entityDefinitionKey(ref)]
 }
@@ -89,22 +89,22 @@ function catalogLocksEqual(
 }
 
 function refMatchesCatalogLock(
-  profile: Profile,
+  localData: LocalData,
   ref: EntityRef,
   lock: Readonly<Record<string, string>>,
 ): boolean {
-  const rootRef = definitionLineageRootRef(profile, ref)
+  const rootRef = definitionLineageRootRef(localData, ref)
   return rootRef.kind === 'personal' || lock[rootRef.catalogId] === rootRef.catalogRevisionId
 }
 
 function validateCatalogRefLock(
-  profile: Profile,
+  localData: LocalData,
   ref: EntityRef,
   revision: BuildRevision,
   characterId: CharacterId,
   accumulator: Accumulator,
 ): void {
-  const rootRef = definitionLineageRootRef(profile, ref)
+  const rootRef = definitionLineageRootRef(localData, ref)
   if (rootRef.kind === 'personal') {
     return
   }
@@ -112,7 +112,7 @@ function validateCatalogRefLock(
   if (lockedRevision === undefined) {
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_NOT_LOCKED',
-      dimension: 'rulesetCertainty',
+      dimension: 'gameSetupCertainty',
       status: 'invalid',
       message: 'A catalog selection is not covered by the build catalog lock',
       characterId,
@@ -122,7 +122,7 @@ function validateCatalogRefLock(
   } else if (lockedRevision !== rootRef.catalogRevisionId) {
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_REVISION_MISMATCH',
-      dimension: 'rulesetCertainty',
+      dimension: 'gameSetupCertainty',
       status: 'invalid',
       message: 'A catalog selection uses a different revision than the build catalog lock',
       characterId,
@@ -156,9 +156,9 @@ function effectiveInventoryQuantity(
   return { lower: Math.max(0, position.quantity.value - protectedQuantity) }
 }
 
-function findInventory(profile: Profile, ref: EntityRef): InventoryPosition | undefined {
-  const key = logicalEntityKey(profile, ref)
-  return Object.values(profile.inventory).find((position) => logicalEntityKey(profile, position.ref) === key)
+function findInventory(localData: LocalData, ref: EntityRef): InventoryPosition | undefined {
+  const key = logicalEntityKey(localData, ref)
+  return Object.values(requirePlaythrough(localData).inventory).find((position) => logicalEntityKey(localData, position.ref) === key)
 }
 
 interface SelectedEntry {
@@ -172,17 +172,17 @@ interface SelectedEntry {
 }
 
 function collectSelections(
-  profile: Profile,
+  localData: LocalData,
   catalogs: CatalogIndex,
   scenario: TeamScenario,
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   accumulator: Accumulator,
 ): SelectedEntry[] {
-  const slots = new Map(ruleset.slots.map((slot) => [slot.id as string, slot]))
+  const slots = new Map(gameSetup.slots.map((slot) => [slot.id as string, slot]))
   const selected: SelectedEntry[] = []
   for (const [characterIdValue, revisionId] of Object.entries(effectiveScenarioAssignments(scenario))) {
     const characterId = characterIdValue as CharacterId
-    const character = profile.characters[characterId]
+    const character = requirePlaythrough(localData).characters[characterId]
     if (!character) {
       issue(accumulator, {
         code: 'CHARACTER_REFERENCE_MISSING',
@@ -193,7 +193,7 @@ function collectSelections(
       })
       continue
     }
-    const revision = profile.buildRevisions[revisionId]
+    const revision = localData.buildRevisions[revisionId]
     if (!revision) {
       issue(accumulator, {
         code: 'BUILD_REVISION_REFERENCE_MISSING',
@@ -204,7 +204,7 @@ function collectSelections(
       })
       continue
     }
-    const build = profile.builds[revision.buildId]
+    const build = localData.builds[revision.buildId]
     if (!build) {
       issue(accumulator, {
         code: 'BUILD_REFERENCE_MISSING',
@@ -214,22 +214,13 @@ function collectSelections(
         characterId,
         buildRevisionId: revision.id,
       })
-    } else if (build.kind === 'character' && build.characterId !== characterId) {
-      issue(accumulator, {
-        code: 'CHARACTER_BUILD_MISMATCH',
-        dimension: 'structure',
-        status: 'invalid',
-        message: 'Character-bound build is assigned to a different character',
-        characterId,
-        buildRevisionId: revision.id,
-      })
     }
-    if (revision.rulesetRevisionId !== scenario.rulesetRevisionId) {
+    if (revision.gameSetupRevisionId !== scenario.gameSetupRevisionId) {
       issue(accumulator, {
-        code: 'RULESET_REVISION_MISMATCH',
-        dimension: 'rulesetCertainty',
+        code: 'GAME_SETUP_REVISION_MISMATCH',
+        dimension: 'gameSetupCertainty',
         status: 'invalid',
-        message: 'Build and scenario use different ruleset revisions',
+        message: 'Build and scenario use different Game Setup revisions',
         characterId,
         buildRevisionId: revision.id,
       })
@@ -237,7 +228,7 @@ function collectSelections(
     if (!catalogLocksEqual(revision.catalogLock, scenario.catalogLock)) {
       issue(accumulator, {
         code: 'CATALOG_LOCK_MISMATCH',
-        dimension: 'rulesetCertainty',
+        dimension: 'gameSetupCertainty',
         status: 'invalid',
         message: 'Build and scenario pin different catalog revisions',
         characterId,
@@ -248,14 +239,14 @@ function collectSelections(
       if (!selection) {
         continue
       }
-      validateCatalogRefLock(profile, selection.ref, revision, characterId, accumulator)
+      validateCatalogRefLock(localData, selection.ref, revision, characterId, accumulator)
       const slot = slots.get(slotIdValue)
       if (!slot) {
         issue(accumulator, {
           code: 'SLOT_REFERENCE_MISSING',
           dimension: 'structure',
           status: 'invalid',
-          message: 'Build selection references a slot outside its ruleset',
+          message: 'Build selection references a slot outside its Game Setup',
           characterId,
           buildRevisionId: revision.id,
           slotId: slotIdValue as SlotId,
@@ -263,7 +254,7 @@ function collectSelections(
         })
         continue
       }
-      const definition = resolveDefinition(profile, catalogs, selection.ref)
+      const definition = resolveDefinition(localData, catalogs, selection.ref)
       if (!definition) {
         issue(accumulator, {
           code: 'DEFINITION_UNAVAILABLE',
@@ -283,13 +274,13 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: selection.allocationId ?? slotIdValue,
-        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots) }),
+        ...(definition === undefined ? {} : { definition: definitionView(definition, gameSetup.slots) }),
       })
     }
     for (const [index, selection] of revision.content.passives.entries()) {
-      validateCatalogRefLock(profile, selection.ref, revision, characterId, accumulator)
+      validateCatalogRefLock(localData, selection.ref, revision, characterId, accumulator)
       const slot = passivePosition(index)
-      const definition = resolveDefinition(profile, catalogs, selection.ref)
+      const definition = resolveDefinition(localData, catalogs, selection.ref)
       if (!definition) {
         issue(accumulator, {
           code: 'DEFINITION_UNAVAILABLE',
@@ -309,16 +300,16 @@ function collectSelections(
         slotId: slot.id,
         ref: selection.ref,
         allocationKey: `passive:${index}`,
-        ...(definition === undefined ? {} : { definition: definitionView(definition, ruleset.slots) }),
+        ...(definition === undefined ? {} : { definition: definitionView(definition, gameSetup.slots) }),
       })
     }
-    validateClassReadiness(profile, catalogs, character, revision, accumulator)
+    validateClassReadiness(localData, catalogs, character, revision, accumulator)
   }
   return selected
 }
 
 function validateClassReadiness(
-  profile: Profile,
+  localData: LocalData,
   catalogs: CatalogIndex,
   character: Character,
   revision: BuildRevision,
@@ -332,9 +323,9 @@ function validateClassReadiness(
       continue
     }
     touch(accumulator, 'characterReadiness')
-    validateCatalogRefLock(profile, ref, revision, character.id, accumulator)
-    const progress = character.classProgress[logicalEntityKey(profile, ref)]
-    const definition = resolveDefinition(profile, catalogs, ref)
+    validateCatalogRefLock(localData, ref, revision, character.id, accumulator)
+    const progress = character.classProgress[logicalEntityKey(localData, ref)]
+    const definition = resolveDefinition(localData, catalogs, ref)
     if (!definition) {
       issue(accumulator, {
         code: 'CLASS_DEFINITION_UNAVAILABLE',
@@ -380,7 +371,7 @@ function validateClassReadiness(
   }
 }
 
-function validateSlotCompatibility(profile: Profile, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
+function validateSlotCompatibility(localData: LocalData, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
   for (const entry of selected) {
     const dimension = entry.slot.kind === 'passive' ? 'passives' : 'equipment'
     touch(accumulator, dimension)
@@ -442,10 +433,10 @@ function validateSlotCompatibility(profile: Profile, selected: readonly Selected
       })
     }
   }
-  validateAllocationGroups(profile, selected, accumulator)
+  validateAllocationGroups(localData, selected, accumulator)
 }
 
-function validateAllocationGroups(profile: Profile, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
+function validateAllocationGroups(localData: LocalData, selected: readonly SelectedEntry[], accumulator: Accumulator): void {
   const groups = new Map<string, SelectedEntry[]>()
   for (const entry of selected.filter(value => value.slot.kind === 'equipment')) {
     const key = `${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`
@@ -459,7 +450,7 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
       continue
     }
     const dimension = 'equipment'
-    const refKeys = new Set(group.map((entry) => logicalEntityKey(profile, entry.ref)))
+    const refKeys = new Set(group.map((entry) => logicalEntityKey(localData, entry.ref)))
     if (refKeys.size > 1) {
       issue(accumulator, {
         code: 'ALLOCATION_GROUP_MIXED_REFERENCES',
@@ -475,14 +466,14 @@ function validateAllocationGroups(profile: Profile, selected: readonly SelectedE
 }
 
 function validateInventory(
-  profile: Profile,
+  localData: LocalData,
   scenario: TeamScenario,
   selected: readonly SelectedEntry[],
   accumulator: Accumulator,
 ): void {
   const demands = new Map<string, { ref: EntityRef; assignments: Set<string> }>()
   for (const entry of selected.filter((value) => value.slot.kind === 'equipment')) {
-    const key = logicalEntityKey(profile, entry.ref)
+    const key = logicalEntityKey(localData, entry.ref)
     const demand = demands.get(key) ?? { ref: entry.ref, assignments: new Set<string>() }
     demand.assignments.add(`${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`)
     demands.set(key, demand)
@@ -493,7 +484,7 @@ function validateInventory(
   touch(accumulator, 'inventory')
   for (const { ref, assignments } of demands.values()) {
     const demand = assignments.size
-    const position = findInventory(profile, ref)
+    const position = findInventory(localData, ref)
     if (!position || position.possession === 'unknown') {
       issue(accumulator, {
         code: 'STOCK_UNKNOWN',
@@ -539,37 +530,37 @@ function validateInventory(
 }
 
 function classPermissionBase(
-  profile: Profile,
+  localData: LocalData,
   catalogs: CatalogIndex,
   scenario: TeamScenario,
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   characterId: CharacterId,
   revision: BuildRevision,
 ): { readonly permissions: Set<string>; readonly unresolved: boolean } {
   const permissions = new Set<string>()
   let unresolved = false
   if (
-    revision.rulesetRevisionId !== scenario.rulesetRevisionId ||
+    revision.gameSetupRevisionId !== scenario.gameSetupRevisionId ||
     !catalogLocksEqual(revision.catalogLock, scenario.catalogLock) ||
-    !catalogLocksEqual(scenario.catalogLock, ruleset.catalogLock)
+    !catalogLocksEqual(scenario.catalogLock, gameSetup.catalogLock)
   ) {
     return { permissions, unresolved }
   }
-  const character = profile.characters[characterId]
+  const character = requirePlaythrough(localData).characters[characterId]
   for (const ref of [revision.content.primaryClass]) {
-    if (!ref || !refMatchesCatalogLock(profile, ref, revision.catalogLock)) {
+    if (!ref || !refMatchesCatalogLock(localData, ref, revision.catalogLock)) {
       continue
     }
-    const original = resolveDefinition(profile, catalogs, ref)
+    const original = resolveDefinition(localData, catalogs, ref)
     if (!original) {
       unresolved = true
       continue
     }
-    const definition = definitionWithMechanics(original, ruleset.slots)
+    const definition = definitionWithMechanics(original, gameSetup.slots)
     if (definition.kind !== 'class') {
       continue
     }
-    const unlocked = character?.classProgress[logicalEntityKey(profile, ref)]?.unlocked
+    const unlocked = character?.classProgress[logicalEntityKey(localData, ref)]?.unlocked
     if (!unlocked || knowledgeUncertain(unlocked)) {
       unresolved = true
       continue
@@ -593,7 +584,7 @@ function classPermissionBase(
       for (const permission of definition.grants.value) {
         permissions.add(permission)
       }
-      for (const innate of innateEffects(revision.content, ref => resolveDefinition(profile, catalogs, ref))) {
+      for (const innate of innateEffects(revision.content, ref => resolveDefinition(localData, catalogs, ref))) {
         for (const type of permissionEffects(innate.text).equipment) permissions.add(equipmentPermission(type))
       }
     }
@@ -602,14 +593,14 @@ function classPermissionBase(
 }
 
 function validateLearning(
-  profile: Profile,
+  localData: LocalData,
   selected: readonly SelectedEntry[],
   accumulator: Accumulator,
 ): void {
   for (const entry of selected.filter((value) => value.slot.kind === 'passive')) {
     touch(accumulator, 'characterReadiness')
-    const character = profile.characters[entry.characterId]
-    const learned = character?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
+    const character = requirePlaythrough(localData).characters[entry.characterId]
+    const learned = character?.learnedNodes[logicalEntityKey(localData, entry.ref)]?.learned
     if (!learned || knowledgeUncertain(learned)) {
       issue(accumulator, {
         code: 'LEARNING_UNKNOWN',
@@ -637,7 +628,7 @@ function validateLearning(
 }
 
 function validatePp(
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   selected: readonly SelectedEntry[],
   accumulator: Accumulator,
 ): void {
@@ -649,7 +640,7 @@ function validatePp(
   }
   for (const [characterId, entries] of byCharacter) {
     touch(accumulator, 'passives')
-    const limit = effectivePpLimit(ruleset)
+    const limit = effectivePpLimit(gameSetup)
     let knownSubtotal = 0
     let unknownCost = false
     for (const entry of entries) {
@@ -665,7 +656,7 @@ function validatePp(
         code: 'PP_LIMIT_UNKNOWN',
         dimension: 'passives',
         status: 'undetermined',
-        message: 'The passive PP limit is unresolved for this ruleset',
+        message: 'The passive PP limit is unresolved for this Game Setup',
         characterId,
         inputs: { knownSubtotal },
       })
@@ -680,7 +671,7 @@ function validatePp(
           code: 'PP_LIMIT_EXCEEDED',
           dimension: 'passives',
           status: 'invalid',
-          message: 'Selected passive costs exceed the ruleset PP limit',
+          message: 'Selected passive costs exceed the Game Setup PP limit',
           characterId,
           inputs: { limit: limit.value, knownSubtotal },
         })
@@ -689,14 +680,14 @@ function validatePp(
     }
     if (
       knownSubtotal > limit.value &&
-      ruleset.ppCostsNonNegative.state === 'known' &&
-      ruleset.ppCostsNonNegative.value
+      gameSetup.ppCostsNonNegative.state === 'known' &&
+      gameSetup.ppCostsNonNegative.value
     ) {
       issue(accumulator, {
         code: 'PP_LIMIT_EXCEEDED',
         dimension: 'passives',
         status: 'invalid',
-        message: 'Known nonnegative passive costs already exceed the ruleset PP limit',
+        message: 'Known nonnegative passive costs already exceed the Game Setup PP limit',
         characterId,
         inputs: { limit: limit.value, knownSubtotal },
       })
@@ -716,8 +707,8 @@ function validatePp(
 type Eligibility = 'valid' | 'invalid' | 'unknown'
 
 function baseEligibility(
-  profile: Profile,
-  ruleset: RulesetRevision,
+  localData: LocalData,
+  gameSetup: GameSetupRevision,
   scenario: TeamScenario,
   entries: readonly SelectedEntry[],
   entry: SelectedEntry,
@@ -725,14 +716,13 @@ function baseEligibility(
   if (!entry.definition) {
     return 'unknown'
   }
-  const build = profile.builds[entry.buildRevision.buildId]
+  const build = localData.builds[entry.buildRevision.buildId]
   if (
     !build ||
-    (build.kind === 'character' && build.characterId !== entry.characterId) ||
-    entry.buildRevision.rulesetRevisionId !== scenario.rulesetRevisionId ||
+    entry.buildRevision.gameSetupRevisionId !== scenario.gameSetupRevisionId ||
     !catalogLocksEqual(entry.buildRevision.catalogLock, scenario.catalogLock) ||
-    !catalogLocksEqual(scenario.catalogLock, ruleset.catalogLock) ||
-    !refMatchesCatalogLock(profile, entry.ref, entry.buildRevision.catalogLock)
+    !catalogLocksEqual(scenario.catalogLock, gameSetup.catalogLock) ||
+    !refMatchesCatalogLock(localData, entry.ref, entry.buildRevision.catalogLock)
   ) {
     return 'invalid'
   }
@@ -744,14 +734,14 @@ function baseEligibility(
     return 'invalid'
   }
   if (entry.slot.kind === 'passive') {
-    const learned = profile.characters[entry.characterId]?.learnedNodes[logicalEntityKey(profile, entry.ref)]?.learned
+    const learned = requirePlaythrough(localData).characters[entry.characterId]?.learnedNodes[logicalEntityKey(localData, entry.ref)]?.learned
     if (!learned || knowledgeUncertain(learned)) {
       return 'unknown'
     }
     if (learned.state === 'known' && !learned.value) {
       return 'invalid'
     }
-    return passivePpEligibility(ruleset, entries, entry.characterId)
+    return passivePpEligibility(gameSetup, entries, entry.characterId)
   }
   const slotKinds = entry.definition.slotKinds
   if (!slotKinds || knowledgeUncertain(slotKinds)) {
@@ -766,18 +756,18 @@ function baseEligibility(
       candidate.buildRevision.id === entry.buildRevision.id &&
       candidate.allocationKey === entry.allocationKey,
   )
-  if (allocationGroup.some((candidate) => logicalEntityKey(profile, candidate.ref) !== logicalEntityKey(profile, entry.ref))) {
+  if (allocationGroup.some((candidate) => logicalEntityKey(localData, candidate.ref) !== logicalEntityKey(localData, entry.ref))) {
     return 'invalid'
   }
   return 'valid'
 }
 
 function passivePpEligibility(
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   entries: readonly SelectedEntry[],
   characterId: CharacterId,
 ): Eligibility {
-  const limit = effectivePpLimit(ruleset)
+  const limit = effectivePpLimit(gameSetup)
   if (knowledgeUncertain(limit)) return 'unknown'
   if (limit.state !== 'known') return 'valid'
   let knownSubtotal = 0
@@ -795,8 +785,8 @@ function passivePpEligibility(
   }
   if (
     knownSubtotal > limit.value &&
-    ruleset.ppCostsNonNegative.state === 'known' &&
-    ruleset.ppCostsNonNegative.value
+    gameSetup.ppCostsNonNegative.state === 'known' &&
+    gameSetup.ppCostsNonNegative.value
   ) {
     return 'invalid'
   }
@@ -804,15 +794,15 @@ function passivePpEligibility(
 }
 
 function validatePermissions(
-  profile: Profile,
+  localData: LocalData,
   catalogs: CatalogIndex,
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   scenario: TeamScenario,
   selected: readonly SelectedEntry[],
   accumulator: Accumulator,
 ): void {
   const entries = selected.filter((entry): entry is SelectedEntry & { readonly definition: DefinitionView } => Boolean(entry.definition))
-  const base = new Map(entries.map((entry) => [entry, baseEligibility(profile, ruleset, scenario, entries, entry)]))
+  const base = new Map(entries.map((entry) => [entry, baseEligibility(localData, gameSetup, scenario, entries, entry)]))
   const byCharacter = new Map<CharacterId, typeof entries>()
   for (const entry of entries) {
     const characterEntries = byCharacter.get(entry.characterId) ?? []
@@ -837,7 +827,7 @@ function validatePermissions(
     const eligible = new Set<SelectedEntry>()
     const revision = characterEntries[0]?.buildRevision
     const classBase = revision
-      ? classPermissionBase(profile, catalogs, scenario, ruleset, characterId, revision)
+      ? classPermissionBase(localData, catalogs, scenario, gameSetup, characterId, revision)
       : { permissions: new Set<string>(), unresolved: false }
     const permissions = classBase.permissions
     let changed = true
@@ -860,7 +850,7 @@ function validatePermissions(
           }
           return characterEntries.some(
             (candidate) =>
-              logicalEntityKey(profile, candidate.ref) === logicalEntityKey(profile, requirement.ref) && eligible.has(candidate),
+              logicalEntityKey(localData, candidate.ref) === logicalEntityKey(localData, requirement.ref) && eligible.has(candidate),
           )
         })
         if (!satisfied) {
@@ -891,7 +881,7 @@ function validatePermissions(
       for (const requirement of requirements.value) {
         if (requirement.kind === 'selected') {
           const candidates = characterEntries.filter(
-            (candidate) => logicalEntityKey(profile, candidate.ref) === logicalEntityKey(profile, requirement.ref),
+            (candidate) => logicalEntityKey(localData, candidate.ref) === logicalEntityKey(localData, requirement.ref),
           )
           if (candidates.some((candidate) => eligible.has(candidate))) {
             continue
@@ -973,18 +963,18 @@ function validatePermissions(
 }
 
 function validateCatalogLocks(
-  ruleset: RulesetRevision,
+  gameSetup: GameSetupRevision,
   scenario: TeamScenario,
   catalogs: CatalogIndex,
   accumulator: Accumulator,
 ): void {
-  touch(accumulator, 'rulesetCertainty')
-  if (!catalogLocksEqual(scenario.catalogLock, ruleset.catalogLock)) {
+  touch(accumulator, 'gameSetupCertainty')
+  if (!catalogLocksEqual(scenario.catalogLock, gameSetup.catalogLock)) {
     issue(accumulator, {
       code: 'SCENARIO_CATALOG_LOCK_MISMATCH',
-      dimension: 'rulesetCertainty',
+      dimension: 'gameSetupCertainty',
       status: 'invalid',
-      message: 'Scenario and ruleset pin different catalog revisions',
+      message: 'Scenario and Game Setup pin different catalog revisions',
     })
   }
   for (const [catalogId, revisionId] of Object.entries(scenario.catalogLock)) {
@@ -994,7 +984,7 @@ function validateCatalogLocks(
     if (!snapshot) {
       issue(accumulator, {
         code: 'CATALOG_SNAPSHOT_UNAVAILABLE',
-        dimension: 'rulesetCertainty',
+        dimension: 'gameSetupCertainty',
         status: 'undetermined',
         message: 'A catalog snapshot pinned by the scenario is unavailable',
         inputs: { catalogId, revisionId },
@@ -1004,7 +994,7 @@ function validateCatalogLocks(
     if (snapshot.applicability.state === 'notApplicable') {
       issue(accumulator, {
         code: 'CATALOG_NOT_APPLICABLE',
-        dimension: 'rulesetCertainty',
+        dimension: 'gameSetupCertainty',
         status: 'invalid',
         message: 'A pinned catalog snapshot is marked not applicable',
         inputs: { catalogId, revisionId },
@@ -1012,7 +1002,7 @@ function validateCatalogLocks(
     } else if (knowledgeUncertain(snapshot.applicability)) {
       issue(accumulator, {
         code: 'CATALOG_APPLICABILITY_UNKNOWN',
-        dimension: 'rulesetCertainty',
+        dimension: 'gameSetupCertainty',
         status: 'undetermined',
         message: 'Applicability is unresolved for a pinned catalog snapshot',
         inputs: { catalogId, revisionId },
@@ -1021,29 +1011,29 @@ function validateCatalogLocks(
   }
 }
 
-function validateRulesetCertainty(ruleset: RulesetRevision, accumulator: Accumulator): void {
-  touch(accumulator, 'rulesetCertainty')
+function validateGameSetupCertainty(gameSetup: GameSetupRevision, accumulator: Accumulator): void {
+  touch(accumulator, 'gameSetupCertainty')
   for (const [field, value] of [
-    ['platform', ruleset.platform],
-    ['game version', ruleset.gameVersion],
-    ['mode', ruleset.mode],
-    ['mods', ruleset.mods],
+    ['platform', gameSetup.platform],
+    ['game version', gameSetup.gameVersion],
+    ['mode', gameSetup.mode],
+    ['mods', gameSetup.mods],
   ] as const) {
     if (knowledgeUncertain(value)) {
       issue(accumulator, {
-        code: 'RULESET_FIELD_UNKNOWN',
-        dimension: 'rulesetCertainty',
+        code: 'GAME_SETUP_FIELD_UNKNOWN',
+        dimension: 'gameSetupCertainty',
         status: 'undetermined',
-        message: `Ruleset ${field} is unresolved`,
+        message: `Game Setup ${field} is unresolved`,
         inputs: { field },
       })
     }
   }
-  for (const slot of ruleset.slots) {
+  for (const slot of gameSetup.slots) {
     if (slot.provenance === 'suggested') {
       issue(accumulator, {
         code: 'SUGGESTED_SLOT_DEFINITION',
-        dimension: 'rulesetCertainty',
+        dimension: 'gameSetupCertainty',
         status: 'undetermined',
         message: 'A suggested slot definition is not verified game behavior',
         slotId: slot.id,
@@ -1072,63 +1062,64 @@ const DIMENSIONS: readonly ValidationDimension[] = [
   'passives',
   'characterReadiness',
   'inventory',
-  'rulesetCertainty',
+  'gameSetupCertainty',
   'calculationReadiness',
 ]
 
 export function validateScenario(
-  profile: Profile,
+  localData: LocalData,
   scenarioId: ScenarioId,
   catalogs: CatalogIndex = { snapshots: {}, entitiesByRef: {} },
 ): ValidationReport {
-  const scenario = profile.scenarios[scenarioId]
+  const scenario = requirePlaythrough(localData).scenarios[scenarioId]
+  const playthrough = requirePlaythrough(localData)
   if (!scenario) {
     throw new DomainError('MISSING_SCENARIO', `Scenario does not exist: ${scenarioId}`)
   }
-  const ruleset = profile.rulesets[scenario.rulesetRevisionId]
-  if (!ruleset) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${scenario.rulesetRevisionId}`)
+  const gameSetup = localData.gameSetups[scenario.gameSetupRevisionId]
+  if (!gameSetup) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${scenario.gameSetupRevisionId}`)
   }
   const accumulator: Accumulator = { touched: new Set(['structure']), issues: [] }
   if (
     scenario.baseline.kind === 'recordedParty' &&
-    (!Number.isSafeInteger(scenario.baseline.profileRevision) ||
-      scenario.baseline.profileRevision < 0 ||
-      scenario.baseline.profileRevision > profile.revision)
+    (!Number.isSafeInteger(scenario.baseline.playthroughRevision) ||
+      scenario.baseline.playthroughRevision < 0 ||
+      scenario.baseline.playthroughRevision > playthrough.revision)
   ) {
     issue(accumulator, {
       code: 'SCENARIO_BASELINE_REVISION_INVALID',
       dimension: 'structure',
       status: 'invalid',
-      message: 'Scenario baseline references an invalid profile revision',
-      inputs: { baselineRevision: scenario.baseline.profileRevision, profileRevision: profile.revision },
+      message: 'Scenario baseline references an invalid playthrough revision',
+      inputs: { baselineRevision: scenario.baseline.playthroughRevision, playthroughRevision: playthrough.revision },
     })
   }
-  const selected = collectSelections(profile, catalogs, scenario, ruleset, accumulator)
+  const selected = collectSelections(localData, catalogs, scenario, gameSetup, accumulator)
   for (const [characterId, revisionId] of Object.entries(effectiveScenarioAssignments(scenario))) {
-    const revision = profile.buildRevisions[revisionId]
+    const revision = localData.buildRevisions[revisionId]
     if (!revision) continue
-    const resolve = (ref: EntityRef) => resolveDefinition(profile, catalogs, ref)
+    const resolve = (ref: EntityRef) => resolveDefinition(localData, catalogs, ref)
     const primary = revision.content.primaryClass ? resolve(revision.content.primaryClass) : undefined
-    const modeled = classEquipmentTypes(primary) || ruleset.slots.some(slot => {
+    const modeled = classEquipmentTypes(primary) || gameSetup.slots.some(slot => {
       const selection = revision.content.equipment[slot.id]
       const definition = selection ? resolve(selection.ref) : undefined
       return equipmentRole(slot) && definition && equipmentFacts(definition).type
     })
     if (!modeled) continue
-    for (const finding of analyzeBuildEquipment(revision.content, ruleset.slots, resolve, ref => logicalEntityKey(profile, ref))) issue(accumulator, {
+    for (const finding of analyzeBuildEquipment(revision.content, gameSetup.slots, resolve, ref => logicalEntityKey(localData, ref))) issue(accumulator, {
       ...finding, code: `MECHANICS_${finding.code}`, dimension: finding.code.includes('PASSIVE') ? 'passives' : 'equipment', characterId: characterId as CharacterId, buildRevisionId: revision.id, slotId: finding.slotId as SlotId | undefined,
     })
   }
-  validateSlotCompatibility(profile, selected, accumulator)
+  validateSlotCompatibility(localData, selected, accumulator)
   if (scenario.inventoryPolicy.enforceStock) {
-    validateInventory(profile, scenario, selected, accumulator)
+    validateInventory(localData, scenario, selected, accumulator)
   }
-  validateLearning(profile, selected, accumulator)
-  validatePp(ruleset, selected, accumulator)
-  validatePermissions(profile, catalogs, ruleset, scenario, selected, accumulator)
-  validateCatalogLocks(ruleset, scenario, catalogs, accumulator)
-  validateRulesetCertainty(ruleset, accumulator)
+  validateLearning(localData, selected, accumulator)
+  validatePp(gameSetup, selected, accumulator)
+  validatePermissions(localData, catalogs, gameSetup, scenario, selected, accumulator)
+  validateCatalogLocks(gameSetup, scenario, catalogs, accumulator)
+  validateGameSetupCertainty(gameSetup, accumulator)
 
   const dimensions = Object.fromEntries(
     DIMENSIONS.map((dimension) => [dimension, dimensionStatus(dimension, accumulator)]),
@@ -1136,8 +1127,8 @@ export function validateScenario(
 
   return {
     scenarioId,
-    profileRevision: profile.revision,
-    rulesetRevisionId: scenario.rulesetRevisionId,
+    playthroughRevision: playthrough.revision,
+    gameSetupRevisionId: scenario.gameSetupRevisionId,
     dimensions,
     issues: accumulator.issues,
   }

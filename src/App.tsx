@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  activateRuleset,
   activateScenario,
   advanceClassSealProgress,
   asId,
@@ -13,19 +12,23 @@ import {
   createDefinitionOverride,
   createId,
   createPersonalDefinition,
-  createRulesetRevision,
+  createPlaythrough,
+  createGameSetupRevision,
   createScenario,
   effectiveScenarioAssignments,
   entityDefinitionKey,
+  forkBuildToGameSetup,
   linkInventoryPosition,
   observeInventory,
   recordInventoryEvent,
+  requirePlaythrough,
   replaceScenarioBuild,
   saveBuildRevision,
   setClassSealProgressBatch,
-  updateBuild,
-  updateRulesetRevision,
+  selectPlaythrough,
+  setPlaythroughGameSetup,
   updateScenario,
+  updateGameSetupRevision,
   upsertCharacterClassProgress,
   upsertLearnedNode,
   upsertProgress,
@@ -40,10 +43,11 @@ import {
   type JsonValue,
   type Knowledge,
   type PersonalDefinitionId,
-  type Profile,
+  type PlaythroughId,
+  type LocalData,
   type ProgressRecordId,
   type ProgressStage,
-  type RulesetRevisionId,
+  type GameSetupRevisionId,
   type ScenarioId,
   type SlotDefinition,
   type SlotId,
@@ -53,12 +57,12 @@ import {
 } from './domain'
 import type { DraftActions, DraftChangeHandler } from './ui/drafts'
 import { DEFAULT_CATALOG } from './catalog/bundled'
-import { createBuildPlan, ensureBuildPlanningRuleset } from './domain/build-planning'
-import { commitImport, createProfile, exportBackup, listProfiles, loadWorkspace, previewImport, saveProfileWithStatus, selectProfile, subscribeWorkspace, undoProfileWithStatus, validateProfileForStorage } from './persistence'
-import type { ImportCommitMode, ImportPreview, ProfileSummary, Workspace } from './interchange/types'
+import { createBuildPlan, ensureBuildPlanningGameSetup } from './domain/build-planning'
+import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
+import type { ImportCommitMode, ImportPreview, LoadedLocalData } from './interchange/types'
 import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } from './ui/BuildsView'
 import { CharactersView, type CharacterDraft, type ClassProgressDraft, type LearnedNodeDraft, type SnapshotDraft } from './ui/CharactersView'
-import { DataPanel, type RulesetDraft } from './ui/DataPanel'
+import { DataPanel, type GameSetupDraft } from './ui/DataPanel'
 import { InventoryView, type InventoryDraft, type InventoryEventDraft } from './ui/InventoryView'
 import { ProgressView, type ProgressDraft } from './ui/ProgressView'
 import { CorrectionsContext, useCorrectionStore } from './ui/corrections-context'
@@ -81,10 +85,10 @@ function nullableTimestamp(date?: string | null): Timestamp | null | undefined {
   return date === null ? null : currentTimestamp(date)
 }
 
-function addPersonalRef(profile: Profile, name: string, kind: Parameters<typeof createPersonalDefinition>[1]['kind']) {
+function addPersonalRef(localData: LocalData, name: string, kind: Parameters<typeof createPersonalDefinition>[1]['kind']) {
   const id = createId<PersonalDefinitionId>('definition')
-  const next = createPersonalDefinition(profile, { id, name, kind, expectedRevision: profile.revision })
-  return { profile: next, ref: { kind: 'personal', definitionId: id } as const }
+  const next = createPersonalDefinition(localData, { id, name, kind, expectedRevision: localData.revision })
+  return { localData: next, ref: { kind: 'personal', definitionId: id } as const }
 }
 
 function catalogIndex(catalogs: readonly CatalogSnapshot[]): CatalogIndex {
@@ -98,9 +102,9 @@ function LoadingView() {
 }
 
 export default function App() {
-  const [workspace, setWorkspace] = useState<Workspace>()
-  const corrections = useCorrectionStore(workspace?.catalogs)
-  const workspaceRef = useRef<Workspace | undefined>(undefined)
+  const [loadedData, setLoadedData] = useState<LoadedLocalData>()
+  const corrections = useCorrectionStore(loadedData?.catalogs)
+  const loadedDataRef = useRef<LoadedLocalData | undefined>(undefined)
   const commitQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingCommitCountRef = useRef(0)
   const persistedRevisionRef = useRef(0)
@@ -109,7 +113,6 @@ export default function App() {
   const draftActionsRef = useRef<DraftActions | undefined>(undefined)
   const pendingNavigationRef = useRef<AppRoute | undefined>(undefined)
   const buildDraftRouteRef = useRef<AppRoute>(undefined)
-  const [profiles, setProfiles] = useState<readonly ProfileSummary[]>([])
   const [loadingError, setLoadingError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [dirty, setDirty] = useState(false)
@@ -138,14 +141,11 @@ export default function App() {
 
   useEffect(() => {
     let live = true
-    void loadWorkspace().then((loaded) => {
+    void loadLocalData().then((loaded) => {
       if (!live) return
-      workspaceRef.current = loaded
-      persistedRevisionRef.current = loaded.profile.revision
-      setWorkspace(loaded)
-      return listProfiles()
-    }).then((summaries) => {
-      if (live && summaries) setProfiles(summaries)
+      loadedDataRef.current = loaded
+      persistedRevisionRef.current = loaded.localData.revision
+      setLoadedData(loaded)
     }).catch((error: unknown) => { if (live) setLoadingError(formatAppError(error, 'Local records could not be opened.')) })
     return () => { live = false }
   }, [])
@@ -182,48 +182,47 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!workspaceRef.current) return
-    return subscribeWorkspace((notification) => {
-      const current = workspaceRef.current
-      if (!current || notification.profileId !== current.profile.id || notification.revision <= current.profile.revision) return
+    if (!loadedDataRef.current) return
+    return subscribeLocalData((notification) => {
+      const current = loadedDataRef.current
+      if (!current || notification.localDataId !== current.localData.id || notification.revision <= current.localData.revision) return
       setExternalUpdate(true)
     })
-  }, [workspace?.profile.id])
+  }, [loadedData?.localData.id])
 
-  const commitProfile = useCallback((transform: (profile: Profile) => Profile, options: { rollbackOnFailure?: boolean; showSavingState?: boolean } = {}) => {
+  const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean } = {}) => {
     pendingCommitCountRef.current += 1
     const run = async () => {
-      const current = workspaceRef.current
-      if (!current) throw new Error('The local workspace is not ready.')
+      const current = loadedDataRef.current
+      if (!current) throw new Error('The local planner data is not ready.')
       if (dirtyRef.current) throw new Error('A previous change is retained after a failed save. Close this form, then use Retry save or export a recovery backup before making another change.')
-      let optimistic: Workspace | undefined
+      let optimistic: LoadedLocalData | undefined
       try {
-        const nextProfile = transform(current.profile)
-        if (nextProfile === current.profile) return
-        validateProfileForStorage(nextProfile, current.catalogs)
-        optimistic = { ...current, profile: nextProfile, revision: nextProfile.revision }
-        workspaceRef.current = optimistic
-        setWorkspace(optimistic)
+        const nextLocalData = transform(current.localData)
+        if (nextLocalData === current.localData) return
+        validateLocalDataForStorage(nextLocalData, current.catalogs)
+        optimistic = { ...current, localData: nextLocalData, revision: nextLocalData.revision }
+        loadedDataRef.current = optimistic
+        setLoadedData(optimistic)
         dirtyRef.current = true
         setDirty(true)
         if (options.showSavingState !== false) setSaveState('saving')
         setSaveError(undefined)
-        const write = await saveProfileWithStatus(nextProfile, persistedRevisionRef.current)
-        const saved = write.profile
-        const committed = { ...optimistic, profile: saved, revision: saved.revision, canUndo: write.canUndo }
-        workspaceRef.current = committed
+        const write = await saveLocalDataWithStatus(nextLocalData, persistedRevisionRef.current)
+        const saved = write.localData
+        const committed = { ...optimistic, localData: saved, revision: saved.revision, canUndo: write.canUndo }
+        loadedDataRef.current = committed
         persistedRevisionRef.current = saved.revision
-        setWorkspace(committed)
+        setLoadedData(committed)
         dirtyRef.current = false
         setDirty(false)
         setSaveState('saved')
-        setProfiles((entries) => entries.map((entry) => entry.id === saved.id ? { ...entry, revision: saved.revision, updatedAt: saved.updatedAt } : entry))
       } catch (error) {
         const message = formatAppError(error, 'The local transaction failed.')
         setSaveError(message)
         if (optimistic && options.rollbackOnFailure) {
-          workspaceRef.current = current
-          setWorkspace(current)
+          loadedDataRef.current = current
+          setLoadedData(current)
           dirtyRef.current = false
           setDirty(false)
         }
@@ -240,21 +239,20 @@ export default function App() {
 
   const retrySave = useCallback(() => {
     const run = async () => {
-      const current = workspaceRef.current
+      const current = loadedDataRef.current
       if (!current || !dirtyRef.current) return
       setSaveState('saving')
       setSaveError(undefined)
       try {
-        const write = await saveProfileWithStatus(current.profile, persistedRevisionRef.current)
-        const saved = write.profile
-        const committed = { ...current, profile: saved, revision: saved.revision, canUndo: write.canUndo }
-        workspaceRef.current = committed
+        const write = await saveLocalDataWithStatus(current.localData, persistedRevisionRef.current)
+        const saved = write.localData
+        const committed = { ...current, localData: saved, revision: saved.revision, canUndo: write.canUndo }
+        loadedDataRef.current = committed
         persistedRevisionRef.current = saved.revision
         dirtyRef.current = false
-        setWorkspace(committed)
+        setLoadedData(committed)
         setDirty(false)
         setSaveState('saved')
-        setProfiles((entries) => entries.map((entry) => entry.id === saved.id ? { ...entry, revision: saved.revision, updatedAt: saved.updatedAt } : entry))
       } catch (reason) {
         setSaveError(formatAppError(reason, 'The local retry failed.'))
         setSaveState('error')
@@ -266,193 +264,219 @@ export default function App() {
     return queued
   }, [])
 
-  const addInventory = useCallback(async (draft: InventoryDraft) => commitProfile((profile) => {
-    let next = profile
+  const addInventory = useCallback(async (draft: InventoryDraft) => commitLocalData((localData) => {
+    let next = localData
     let ref = draft.ref
     if (!ref) {
       const created = addPersonalRef(next, draft.name, 'item')
-      next = created.profile
+      next = created.localData
       ref = created.ref
     }
     return observeInventory(next, { ref, observedName: draft.name, possession: draft.possession, quantity: draft.quantity, favorite: draft.favorite, protectedQuantity: draft.protectedQuantity, wishlist: draft.wishlist, note: draft.note, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: next.revision })
-  }), [commitProfile])
+  }), [commitLocalData])
 
-  const updateInventory = useCallback(async (positionId: string, draft: InventoryDraft) => commitProfile((profile) => {
-    const current = profile.inventory[positionId]
+  const updateInventory = useCallback(async (positionId: string, draft: InventoryDraft) => commitLocalData((localData) => {
+    const current = requirePlaythrough(localData).inventory[positionId]
     if (!current) throw new Error('This inventory entry no longer exists.')
-    let next = profile
+    let next = localData
     let ref = draft.ref
     if (!ref) {
       const created = addPersonalRef(next, draft.name, 'item')
-      next = created.profile
+      next = created.localData
       ref = created.ref
     }
     if (entityDefinitionKey(current.ref) !== entityDefinitionKey(ref)) next = linkInventoryPosition(next, { positionId: current.id, ref, expectedRevision: next.revision })
     return observeInventory(next, { positionId: current.id, ref, observedName: draft.name, possession: draft.possession, quantity: draft.quantity, favorite: draft.favorite, protectedQuantity: draft.protectedQuantity, wishlist: draft.wishlist, note: draft.note ?? '', observedAt: nullableTimestamp(draft.observedAt), expectedRevision: next.revision })
-  }), [commitProfile])
+  }), [commitLocalData])
 
-  const addInventoryEvent = useCallback(async (draft: InventoryEventDraft) => commitProfile((profile) => {
-    const created = draft.ref ? { profile, ref: draft.ref } : addPersonalRef(profile, draft.name, 'item')
-    return recordInventoryEvent(created.profile, { ref: created.ref, observedName: draft.name, kind: draft.kind, quantity: draft.quantity, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: created.profile.revision })
-  }), [commitProfile])
+  const addInventoryEvent = useCallback(async (draft: InventoryEventDraft) => commitLocalData((localData) => {
+    const created = draft.ref ? { localData, ref: draft.ref } : addPersonalRef(localData, draft.name, 'item')
+    return recordInventoryEvent(created.localData, { ref: created.ref, observedName: draft.name, kind: draft.kind, quantity: draft.quantity, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: created.localData.revision })
+  }), [commitLocalData])
 
-  const addCharacter = useCallback(async (draft: CharacterDraft) => commitProfile((profile) => createCharacter(profile, { name: draft.name, appearanceLabel: draft.appearanceLabel, expectedRevision: profile.revision })), [commitProfile])
+  const addCharacter = useCallback(async (draft: CharacterDraft) => commitLocalData((localData) => createCharacter(localData, { name: draft.name, appearanceLabel: draft.appearanceLabel, expectedRevision: localData.revision })), [commitLocalData])
 
-  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitProfile((profile) => captureCharacter(profile, { characterId, rulesetRevisionId: draft.rulesetRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, equipment: draft.equipment, passives: draft.passives, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: profile.revision })), [commitProfile])
+  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitLocalData((localData) => captureCharacter(localData, { characterId, gameSetupRevisionId: draft.gameSetupRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, equipment: draft.equipment, passives: draft.passives, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: localData.revision })), [commitLocalData])
 
-  const upsertCharacterClass = useCallback(async (characterId: CharacterId, draft: ClassProgressDraft) => commitProfile((profile) => upsertCharacterClassProgress(profile, { characterId, ...draft, expectedRevision: profile.revision })), [commitProfile])
+  const upsertCharacterClass = useCallback(async (characterId: CharacterId, draft: ClassProgressDraft) => commitLocalData((localData) => upsertCharacterClassProgress(localData, { characterId, ...draft, expectedRevision: localData.revision })), [commitLocalData])
 
-  const importCharacterScreenshots = useCallback(async (captures: readonly ReviewedSkillTree[], expectedRevision: number) => commitProfile((profile) => importSkillTrees(profile, workspaceRef.current?.catalogs ?? [], captures, expectedRevision)), [commitProfile])
+  const importCharacterScreenshots = useCallback(async (captures: readonly ReviewedSkillTree[], expectedRevision: number) => commitLocalData((localData) => importSkillTrees(localData, loadedDataRef.current?.catalogs ?? [], captures, expectedRevision)), [commitLocalData])
 
-  const upsertCharacterLearning = useCallback(async (characterId: CharacterId, draft: LearnedNodeDraft) => commitProfile((profile) => upsertLearnedNode(profile, { characterId, ...draft, expectedRevision: profile.revision })), [commitProfile])
+  const upsertCharacterLearning = useCallback(async (characterId: CharacterId, draft: LearnedNodeDraft) => commitLocalData((localData) => upsertLearnedNode(localData, { characterId, ...draft, expectedRevision: localData.revision })), [commitLocalData])
 
   const saveDefinition = useCallback(async (draft: DefinitionEditorDraft): Promise<EntityRef> => {
     const definitionId = createId<PersonalDefinitionId>('definition')
-    await commitProfile((profile) => {
+    await commitLocalData((localData) => {
       if (draft.baseRef) {
-        return createDefinitionOverride(profile, workspaceRef.current?.catalogs ?? [], {
+        return createDefinitionOverride(localData, loadedDataRef.current?.catalogs ?? [], {
           id: definitionId,
           sourceRef: draft.baseRef,
           name: draft.name,
           aliases: draft.aliases,
           rawDescription: draft.rawDescription,
           fieldUpdates: draft.fieldUpdates,
-          expectedRevision: profile.revision,
-        }).profile
+          expectedRevision: localData.revision,
+        }).localData
       }
-      return createPersonalDefinition(profile, {
+      return createPersonalDefinition(localData, {
         id: definitionId,
         kind: draft.kind,
         name: draft.name,
         aliases: draft.aliases,
         rawDescription: draft.rawDescription ?? undefined,
         fields: Object.fromEntries(Object.entries(draft.fieldUpdates ?? {}).filter((entry): entry is [string, Knowledge<JsonValue>] => entry[1] !== null)),
-        expectedRevision: profile.revision,
+        expectedRevision: localData.revision,
       })
     }, { rollbackOnFailure: true })
     return { kind: 'personal', definitionId }
-  }, [commitProfile])
+  }, [commitLocalData])
 
-  const promoteDefinitions = useCallback(async (sourceRulesetRevisionId: RulesetRevisionId, definitionRefs: readonly EntityRef[], label: string): Promise<void> => {
+  const promoteDefinitions = useCallback(async (sourceGameSetupRevisionId: GameSetupRevisionId, definitionRefs: readonly EntityRef[], label: string): Promise<void> => {
     const personalRefs = definitionRefs.filter((ref) => ref.kind === 'personal')
-    if (personalRefs.length !== definitionRefs.length) throw new Error('Only personal definitions can be collected into a ruleset revision')
-    await commitProfile((profile) => coalesceDefinitionOverrides(profile, {
-      sourceRulesetRevisionId,
+    if (personalRefs.length !== definitionRefs.length) throw new Error('Only personal definitions can be collected into a Game Setup revision')
+    await commitLocalData((localData) => coalesceDefinitionOverrides(localData, {
+      sourceGameSetupRevisionId,
       definitionRefs: personalRefs,
       label,
       activate: false,
-      expectedRevision: profile.revision,
+      expectedRevision: localData.revision,
     }))
-  }, [commitProfile])
+  }, [commitLocalData])
 
-  const addProgress = useCallback(async (draft: ProgressDraft) => commitProfile((profile) => {
-    const created = draft.subject ? { profile, ref: draft.subject } : addPersonalRef(profile, draft.name, 'class')
-    return upsertProgress(created.profile, { id: createId<ProgressRecordId>('progress'), subject: created.ref, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: created.profile.revision })
-  }), [commitProfile])
+  const addProgress = useCallback(async (draft: ProgressDraft) => commitLocalData((localData) => {
+    const created = draft.subject ? { localData, ref: draft.subject } : addPersonalRef(localData, draft.name, 'class')
+    return upsertProgress(created.localData, { id: createId<ProgressRecordId>('progress'), subject: created.ref, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: created.localData.revision })
+  }), [commitLocalData])
 
-  const advanceProgress = useCallback(async (subject: EntityRef, displayName: string) => commitProfile((profile) => advanceClassSealProgress(profile, { subject, displayName, expectedRevision: profile.revision }), { showSavingState: false }), [commitProfile])
+  const advanceProgress = useCallback(async (subject: EntityRef, displayName: string) => commitLocalData((localData) => advanceClassSealProgress(localData, { subject, displayName, expectedRevision: localData.revision }), { showSavingState: false }), [commitLocalData])
 
-  const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitProfile((profile) => setClassSealProgressBatch(profile, { selections, stage, expectedRevision: profile.revision }), { showSavingState: false }), [commitProfile])
+  const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitLocalData((localData) => setClassSealProgressBatch(localData, { selections, stage, expectedRevision: localData.revision }), { showSavingState: false }), [commitLocalData])
 
-  const updateProgressRecord = useCallback(async (recordId: ProgressRecordId, draft: ProgressDraft) => commitProfile((profile) => {
-    const current = profile.progress[recordId]
+  const updateProgressRecord = useCallback(async (recordId: ProgressRecordId, draft: ProgressDraft) => commitLocalData((localData) => {
+    const current = requirePlaythrough(localData).progress[recordId]
     if (!current) throw new Error('This progress record no longer exists.')
-    return upsertProgress(profile, { id: current.id, subject: current.subject, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: profile.revision })
-  }), [commitProfile])
+    return upsertProgress(localData, { id: current.id, subject: current.subject, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: localData.revision })
+  }), [commitLocalData])
 
   const addBuild = useCallback(async (draft: BuildDraft, revision: RevisionDraft) => {
     const buildId = draft.id
     const revisionId = draft.revisionId
     const { note, ...content } = revision
-    await commitProfile((profile) => profile.buildRevisions[revisionId]?.buildId === buildId ? profile : createBuildPlan(profile, { id: buildId, revisionId, title: draft.title, kind: draft.kind, characterId: draft.characterId ? asId<CharacterId>(draft.characterId) : undefined, state: draft.state, tags: draft.tags, content, note, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, expectedRevision: profile.revision }))
+    await commitLocalData((current) => {
+      if (current.buildRevisions[revisionId]?.buildId === buildId) return current
+      let localData = ensureBuildPlanningGameSetup(current, { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId })
+      const playthrough = requirePlaythrough(localData)
+      if (!playthrough.currentGameSetupRevisionId && localData.planningGameSetupRevisionId) {
+        localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId, expectedRevision: localData.revision })
+      }
+      return createBuildPlan(localData, { id: buildId, revisionId, title: draft.title, kind: draft.kind, state: draft.state, tags: draft.tags, content, note, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, expectedRevision: localData.revision })
+    })
     return { buildId, revisionId }
-  }, [commitProfile])
+  }, [commitLocalData])
 
   const cloneExistingBuild = useCallback(async (buildId: string) => {
     const clonedId = createId<BuildId>('build')
     const clonedRevisionId = createId<BuildRevisionId>('buildRevision')
-    await commitProfile((profile) => cloneBuild(profile, { sourceBuildId: asId<BuildId>(buildId), id: clonedId, revisionId: clonedRevisionId, expectedRevision: profile.revision }))
+    await commitLocalData((localData) => cloneBuild(localData, { sourceBuildId: asId<BuildId>(buildId), id: clonedId, revisionId: clonedRevisionId, expectedRevision: localData.revision }))
     return clonedId
-  }, [commitProfile])
+  }, [commitLocalData])
+
+  const forkExistingBuild = useCallback(async (buildId: string) => {
+    const forkedId = createId<BuildId>('build')
+    const forkedRevisionId = createId<BuildRevisionId>('buildRevision')
+    await commitLocalData((localData) => {
+      const playthrough = requirePlaythrough(localData)
+      const targetGameSetupRevisionId = playthrough.currentGameSetupRevisionId ?? localData.planningGameSetupRevisionId
+      if (!targetGameSetupRevisionId) throw new Error('Configure a Game Setup before forking this Build.')
+      return forkBuildToGameSetup(localData, { sourceBuildId: asId<BuildId>(buildId), targetGameSetupRevisionId, id: forkedId, revisionId: forkedRevisionId, expectedRevision: localData.revision })
+    })
+    return forkedId
+  }, [commitLocalData])
 
   const saveRevision = useCallback(async (buildId: string, draft: RevisionDraft, parentRevisionId?: string): Promise<BuildRevisionId> => {
     const revisionId = createId<BuildRevisionId>('buildRevision')
-    await commitProfile((current) => {
-      const profile = ensureBuildPlanningRuleset(current, { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId })
-      const rulesetId = profile.activeRulesetRevisionId
-      if (!rulesetId) throw new Error('Configure an active ruleset before saving a build revision.')
-      const build = profile.builds[buildId]
-      return saveBuildRevision(profile, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build?.latestRevisionId, rulesetRevisionId: rulesetId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation }, note: draft.note, expectedRevision: profile.revision })
+    await commitLocalData((current) => {
+      const localData = ensureBuildPlanningGameSetup(current, { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId })
+      const build = localData.builds[buildId]
+      if (!build) throw new Error('The selected Build no longer exists.')
+      const playthrough = requirePlaythrough(localData)
+      const gameSetupRevisionId = playthrough.currentGameSetupRevisionId ?? localData.planningGameSetupRevisionId
+      if (!gameSetupRevisionId) throw new Error('Configure a Game Setup before saving a Build revision.')
+      const gameSetup = localData.gameSetups[gameSetupRevisionId]
+      if (!gameSetup || gameSetup.gameSetupId !== build.gameSetupId) throw new Error('This Build belongs to another Game Setup. Fork it into the current Game Setup before saving changes.')
+      return saveBuildRevision(localData, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build.latestRevisionId, gameSetupRevisionId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation }, note: draft.note, expectedRevision: localData.revision })
     })
     return revisionId
-  }, [commitProfile])
+  }, [commitLocalData])
 
-  const addScenario = useCallback(async (draft: ScenarioDraft) => commitProfile((profile) => {
-    const revision = draft.buildRevisionId ? profile.buildRevisions[draft.buildRevisionId] : undefined
+  const addScenario = useCallback(async (draft: ScenarioDraft) => commitLocalData((localData) => {
+    const playthrough = requirePlaythrough(localData)
+    const revision = draft.buildRevisionId ? localData.buildRevisions[draft.buildRevisionId] : undefined
     if (draft.buildRevisionId && !revision) throw new Error('The requested build revision is unavailable.')
-    const rulesetRevisionId = revision?.rulesetRevisionId ?? profile.activeRulesetRevisionId
-    if (!rulesetRevisionId) throw new Error('Configure an active ruleset before creating a team scenario.')
+    const gameSetupRevisionId = revision?.gameSetupRevisionId ?? localData.planningGameSetupRevisionId
+    if (!gameSetupRevisionId) throw new Error('Configure a Game Setup before creating a team scenario.')
     const memberIds = draft.memberIds.map(memberId => asId<CharacterId>(memberId))
     let baseline: Parameters<typeof createScenario>[1]['baseline'] = { kind: 'empty' }
     if (draft.baseline === 'recordedParty') {
-      const recorded = Object.values(profile.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
-      const ruleset = profile.rulesets[rulesetRevisionId]
-      const sameLock = recorded && ruleset && catalogLocksMatch(recorded.catalogLock, revision?.catalogLock ?? ruleset.catalogLock)
+      const recorded = Object.values(playthrough.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
+      const gameSetup = localData.gameSetups[gameSetupRevisionId]
+      const sameLock = recorded && gameSetup && catalogLocksMatch(recorded.catalogLock, revision?.catalogLock ?? gameSetup.catalogLock)
       const assignments = recorded ? effectiveScenarioAssignments(recorded) : {}
-      if (!recorded || recorded.rulesetRevisionId !== rulesetRevisionId || !sameLock || !Object.keys(assignments).length) throw new Error('The recorded current party is no longer compatible with the chosen ruleset and catalog lock.')
-      baseline = { kind: 'recordedParty', profileRevision: profile.revision, assignments }
+      if (!recorded || recorded.gameSetupRevisionId !== gameSetupRevisionId || !sameLock || !Object.keys(assignments).length) throw new Error('The recorded current party is no longer compatible with the chosen Game Setup and catalog lock.')
+      baseline = { kind: 'recordedParty', playthroughRevision: playthrough.revision, assignments }
     }
-    const revisionBuild = revision ? profile.builds[revision.buildId] : undefined
-    const assignments = revision && revisionBuild?.characterId && memberIds.includes(revisionBuild.characterId) ? { [revisionBuild.characterId]: revision.id } : undefined
-    return createScenario(profile, { label: draft.label, kind: draft.kind, memberIds, baseline, assignments, rulesetRevisionId, catalogLock: revision?.catalogLock, inventoryPolicy: { enforceStock: draft.enforceStock, includeProtected: draft.includeProtected }, activate: true, expectedRevision: profile.revision })
-  }), [commitProfile])
+    const firstMemberId = memberIds[0]
+    const assignments = revision && firstMemberId ? { [firstMemberId]: revision.id } : undefined
+    return createScenario(localData, { label: draft.label, kind: draft.kind, memberIds, baseline, assignments, gameSetupRevisionId, catalogLock: revision?.catalogLock, inventoryPolicy: { enforceStock: draft.enforceStock, includeProtected: draft.includeProtected }, activate: true, expectedRevision: localData.revision })
+  }), [commitLocalData])
 
-  const assignScenario = useCallback(async (scenarioId: string, characterId: string, revisionId: string) => commitProfile((profile) => replaceScenarioBuild(profile, { scenarioId: asId<ScenarioId>(scenarioId), characterId: asId<CharacterId>(characterId), buildRevisionId: revisionId ? asId<BuildRevisionId>(revisionId) : null, expectedRevision: profile.revision })), [commitProfile])
+  const assignScenario = useCallback(async (scenarioId: string, characterId: string, revisionId: string) => commitLocalData((localData) => replaceScenarioBuild(localData, { scenarioId: asId<ScenarioId>(scenarioId), characterId: asId<CharacterId>(characterId), buildRevisionId: revisionId ? asId<BuildRevisionId>(revisionId) : null, expectedRevision: localData.revision })), [commitLocalData])
 
-  const recordBuildCurrent = useCallback(async (buildId: string, revisionId: string) => commitProfile((profile) => {
-    const build = profile.builds[buildId]
-    if (!build?.characterId) throw new Error('Only a pinned character build can be recorded as current.')
-    const revision = profile.buildRevisions[revisionId]
+  const recordBuildCurrent = useCallback(async (buildId: string, revisionId: string, characterId: string) => commitLocalData((localData) => {
+    const playthrough = requirePlaythrough(localData)
+    const build = localData.builds[buildId]
+    if (!build) throw new Error('The selected Build is unavailable.')
+    const character = playthrough.characters[characterId]
+    if (!character) throw new Error('Choose a character from this Playthrough before recording the Build.')
+    const revision = localData.buildRevisions[revisionId]
     if (!revision || revision.buildId !== build.id) throw new Error('The selected build revision is unavailable for this build.')
     const compatibleTeam = (scenario: TeamScenario) => {
-      return scenario.rulesetRevisionId === revision.rulesetRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && scenario.memberIds.includes(build.characterId!)
+      return scenario.gameSetupRevisionId === revision.gameSetupRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && scenario.memberIds.includes(character.id)
     }
-    const recorded = Object.values(profile.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
-    const active = profile.activeScenarioId ? profile.scenarios[profile.activeScenarioId] : undefined
+    const recorded = Object.values(playthrough.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
+    const active = playthrough.activeScenarioId ? playthrough.scenarios[playthrough.activeScenarioId] : undefined
     const rosterSource = recorded && compatibleTeam(recorded) ? recorded : active && compatibleTeam(active) ? active : undefined
     if (!rosterSource) throw new Error('Select a complete four-character team containing this character before recording the build as current.')
-    let next = profile
-    for (const other of Object.values(next.builds)) {
-      if (other.id !== build.id && other.characterId === build.characterId && other.state === 'recordedCurrent') next = updateBuild(next, { buildId: other.id, state: 'draft', expectedRevision: next.revision })
-    }
-    next = updateBuild(next, { buildId: build.id, state: 'recordedCurrent', expectedRevision: next.revision })
-    if (recorded && compatibleTeam(recorded)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: build.characterId, buildRevisionId: revision.id, expectedRevision: next.revision })
+    let next = localData
+    if (recorded && compatibleTeam(recorded)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: character.id, buildRevisionId: revision.id, expectedRevision: next.revision })
     else {
       if (recorded) next = updateScenario(next, { scenarioId: recorded.id, kind: 'draft', expectedRevision: next.revision })
-      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: rosterSource.memberIds, rulesetRevisionId: revision.rulesetRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [build.characterId]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
+      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: rosterSource.memberIds, gameSetupRevisionId: revision.gameSetupRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [character.id]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
     }
-    const character = next.characters[build.characterId]
-    const currentSnapshot = character?.currentSnapshotId ? character.snapshots[character.currentSnapshotId] : undefined
+    const currentCharacter = requirePlaythrough(next).characters[character.id]
+    const currentSnapshot = currentCharacter?.currentSnapshotId ? currentCharacter.snapshots[currentCharacter.currentSnapshotId] : undefined
     const equipment = Object.fromEntries(Object.entries(revision.content.equipment).map(([slotId, selection]) => [slotId, selection?.ref ?? null]))
-    return captureCharacter(next, { characterId: build.characterId, rulesetRevisionId: revision.rulesetRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
-  }), [commitProfile])
+    return captureCharacter(next, { characterId: character.id, gameSetupRevisionId: revision.gameSetupRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
+  }), [commitLocalData])
 
-  const saveRuleset = useCallback(async (draft: RulesetDraft) => commitProfile((profile) => {
+  const saveGameSetup = useCallback(async (draft: GameSetupDraft) => commitLocalData((localData) => {
     const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: 'equipment', order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
-    const sourceRevisionId = draft.sourceRulesetRevisionId ?? profile.activeRulesetRevisionId
-    const source = sourceRevisionId ? profile.rulesets[sourceRevisionId] : undefined
+    const sourceRevisionId = draft.sourceGameSetupRevisionId ?? localData.planningGameSetupRevisionId
+    const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
     const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
-    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, activate: true, expectedRevision: profile.revision }
-    return sourceRevisionId ? updateRulesetRevision(profile, { sourceRevisionId, ...values }) : createRulesetRevision(profile, values)
-  }), [commitProfile])
+    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, activate: true, expectedRevision: localData.revision }
+    const next = sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
+    if (!next.planningGameSetupRevisionId) throw new Error('The saved Game Setup revision could not be selected.')
+    return setPlaythroughGameSetup(next, { gameSetupRevisionId: next.planningGameSetupRevisionId, expectedRevision: next.revision })
+  }), [commitLocalData])
 
-  const installWorkspace = useCallback((loaded: Workspace) => {
-    workspaceRef.current = loaded
-    persistedRevisionRef.current = loaded.profile.revision
+  const installLoadedData = useCallback((loaded: LoadedLocalData) => {
+    loadedDataRef.current = loaded
+    persistedRevisionRef.current = loaded.localData.revision
     dirtyRef.current = false
     formDirtyRef.current = false
     buildDraftRouteRef.current = undefined
-    setWorkspace(loaded)
+    setLoadedData(loaded)
     setDirty(false)
     setFormDirty(false)
     setSaveState('saved')
@@ -462,51 +486,38 @@ export default function App() {
 
   const waitForSafeTransition = useCallback(async () => {
     await commitQueueRef.current
-    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching profile, ruleset, or scenario.')
+    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching Playthrough, Game Setup, or scenario.')
   }, [navigation.hasOpenDraft])
 
-  const refreshProfiles = useCallback(async () => setProfiles(await listProfiles()), [])
-
-  const createLocalProfile = useCallback(async (label: string) => {
+  const createLocalPlaythrough = useCallback(async (label: string) => {
     await waitForSafeTransition()
-    const loaded = await createProfile(label)
-    installWorkspace(loaded)
-    await refreshProfiles()
-  }, [installWorkspace, refreshProfiles, waitForSafeTransition])
+    await commitLocalData((localData) => createPlaythrough(localData, { label, currentGameSetupRevisionId: localData.planningGameSetupRevisionId, select: true, expectedRevision: localData.revision }))
+  }, [commitLocalData, waitForSafeTransition])
 
-  const selectLocalProfile = useCallback(async (profileId: ProfileSummary['id']) => {
+  const selectContextPlaythrough = useCallback(async (playthroughId: PlaythroughId) => {
     await waitForSafeTransition()
-    const current = workspaceRef.current
-    if (current?.profile.id === profileId) return
-    const loaded = await selectProfile(profileId)
-    installWorkspace(loaded)
-    await refreshProfiles()
-  }, [installWorkspace, refreshProfiles, waitForSafeTransition])
-
-  const selectContextProfile = useCallback(async (profileId: ProfileSummary['id']) => {
-    if (workspaceRef.current?.profile.id === profileId) return
-    await selectLocalProfile(profileId)
+    if (loadedDataRef.current?.localData.selectedPlaythroughId === playthroughId) return
+    await commitLocalData((localData) => selectPlaythrough(localData, { playthroughId, expectedRevision: localData.revision }))
     navigation.navigate(routeForDestination(destination), { replace: true })
-  }, [destination, navigation, selectLocalProfile])
+  }, [commitLocalData, destination, navigation, waitForSafeTransition])
 
-  const selectRuleset = useCallback(async (rulesetRevisionId: RulesetRevisionId) => {
+  const selectGameSetup = useCallback(async (gameSetupRevisionId: GameSetupRevisionId) => {
     await waitForSafeTransition()
-    await commitProfile((profile) => activateRuleset(profile, { rulesetRevisionId, expectedRevision: profile.revision }))
-  }, [commitProfile, waitForSafeTransition])
+    await commitLocalData((localData) => setPlaythroughGameSetup(localData, { gameSetupRevisionId, expectedRevision: localData.revision }))
+  }, [commitLocalData, waitForSafeTransition])
 
   const selectScenario = useCallback(async (scenarioId: ScenarioId | null) => {
     await waitForSafeTransition()
-    await commitProfile((profile) => activateScenario(profile, { scenarioId, expectedRevision: profile.revision }))
-  }, [commitProfile, waitForSafeTransition])
+    await commitLocalData((localData) => activateScenario(localData, { scenarioId, expectedRevision: localData.revision }))
+  }, [commitLocalData, waitForSafeTransition])
 
   const undoLatestChange = useCallback(async () => {
     await waitForSafeTransition()
-    const current = workspaceRef.current
-    if (!current) throw new Error('The local workspace is not ready.')
-    const write = await undoProfileWithStatus(current.profile.id, persistedRevisionRef.current)
-    installWorkspace({ ...current, profile: write.profile, revision: write.profile.revision, canUndo: write.canUndo })
-    await refreshProfiles()
-  }, [installWorkspace, refreshProfiles, waitForSafeTransition])
+    const current = loadedDataRef.current
+    if (!current) throw new Error('The local planner data is not ready.')
+    const write = await undoLocalDataWithStatus(persistedRevisionRef.current)
+    installLoadedData({ ...current, localData: write.localData, revision: write.localData.revision, canUndo: write.canUndo })
+  }, [installLoadedData, waitForSafeTransition])
 
   const handlePreview = useCallback(async (bytes: Uint8Array, filename: string) => {
     setImportBusy(true); setImportError(undefined)
@@ -521,50 +532,47 @@ export default function App() {
     setImportBusy(true); setImportError(undefined)
     try {
       await waitForSafeTransition()
-      const current = workspaceRef.current
-      if (!current) throw new Error('The local workspace is not ready.')
-      const loaded = await commitImport(preview, { mode, restoreCorrections, ...(mode === 'new-profile' ? {} : { targetProfileId: current.profile.id, expectedRevision: persistedRevisionRef.current }) })
-      installWorkspace(loaded); setImportPreview(undefined); closeData(); await refreshProfiles()
+      const current = loadedDataRef.current
+      if (!current) throw new Error('The local planner data is not ready.')
+      const loaded = await commitImport(preview, { mode, restoreCorrections, targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
+      installLoadedData(loaded); setImportPreview(undefined); closeData()
     } catch (error) { setImportError(formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
-  }, [closeData, installWorkspace, refreshProfiles, waitForSafeTransition])
+  }, [closeData, installLoadedData, waitForSafeTransition])
 
   const validations = useMemo(() => {
-    if (!workspace) return {}
-    const index = catalogIndex(workspace.catalogs)
-    return Object.fromEntries(Object.values(workspace.profile.scenarios).map((scenario) => {
-      try { return [scenario.id, validateScenario(workspace.profile, scenario.id, index)] } catch { return [scenario.id, undefined] }
+    if (!loadedData) return {}
+    const index = catalogIndex(loadedData.catalogs)
+    return Object.fromEntries(Object.values(requirePlaythrough(loadedData.localData).scenarios).map((scenario) => {
+      try { return [scenario.id, validateScenario(loadedData.localData, scenario.id, index)] } catch { return [scenario.id, undefined] }
     })) as Readonly<Record<string, ValidationReport | undefined>>
-  }, [workspace])
+  }, [loadedData])
 
   const loadExternalUpdate = useCallback(async () => {
     await waitForSafeTransition()
-    const current = workspaceRef.current
-    if (!current) return
-    const loaded = await loadWorkspace(current.profile.id)
-    installWorkspace(loaded)
-    await refreshProfiles()
-  }, [installWorkspace, refreshProfiles, waitForSafeTransition])
+    const loaded = await loadLocalData()
+    installLoadedData(loaded)
+  }, [installLoadedData, waitForSafeTransition])
 
-  const exportCurrentProfile = useCallback(async () => {
+  const exportCurrentLocalData = useCallback(async () => {
     await commitQueueRef.current
-    const current = workspaceRef.current
-    if (!current) throw new Error('The local workspace is not ready.')
-    return exportBackup(current.profile.id, dirtyRef.current ? current.profile : undefined)
+    const current = loadedDataRef.current
+    if (!current) throw new Error('The local planner data is not ready.')
+    return exportBackup(dirtyRef.current ? current.localData : undefined)
   }, [])
 
-  if (loadingError) return <main className="error-screen panel"><div className="panel__body stack"><p className="eyebrow">Local workspace unavailable</p><h1>Your records could not be opened</h1><InlineNotice title="No data was cleared" tone="danger">{loadingError}</InlineNotice><Button icon="history" onClick={() => window.location.reload()}>Reload application</Button></div></main>
-  if (!workspace || !corrections.ready) return <LoadingView/>
+  if (loadingError) return <main className="error-screen panel"><div className="panel__body stack"><p className="eyebrow">Local planner data unavailable</p><h1>Your records could not be opened</h1><InlineNotice title="No data was cleared" tone="danger">{loadingError}</InlineNotice><Button icon="history" onClick={() => window.location.reload()}>Reload application</Button></div></main>
+  if (!loadedData || !corrections.ready) return <LoadingView/>
 
-  const profile = workspace.profile
+  const localData = loadedData.localData
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const content = unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={workspace.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} profile={profile}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={workspace.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} profile={profile}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={workspace.catalogs} key={profile.id} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord} profile={profile}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} profile={profile}/>
+    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
-  const buildContent = buildRoute && <div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView catalogs={workspace.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} profile={profile} validations={validations}/></NavigationProvider></div>
+  const buildContent = buildRoute && <div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onForkBuild={forkExistingBuild} onRecordCurrent={recordBuildCurrent} onSaveRevision={saveRevision} localData={localData} validations={validations}/></NavigationProvider></div>
   const draftReminder = destination === 'reference' && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Browse reference records, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} profile={profile}><Shell catalogs={workspace.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectProfile={selectContextProfile} onSelectRuleset={selectRuleset} onSelectScenario={selectScenario} profile={profile} profiles={profiles} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed this profile" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer profile revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={workspace.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreateProfile={createLocalProfile} onExport={exportCurrentProfile} onPreview={handlePreview} onSaveRuleset={saveRuleset} onSelectProfile={selectLocalProfile} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} profile={profile} profiles={profiles} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onSelectPlaythrough={selectContextPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, Profile } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { menuIcon, type MenuIcon } from '../catalog/sprites'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
@@ -25,9 +25,9 @@ export function GameIcon({ iconKey, placeholderKind }: { iconKey?: string; place
   return icon && iconKey ? <IconImage icon={icon} iconKey={iconKey} key={`${iconKey}:${icon.asset.file}`} placeholderKind={placeholderKind}/> : null
 }
 
-export function DefinitionArtwork({ profile, catalogs, value }: { profile: Profile; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
+export function DefinitionArtwork({ localData, catalogs, value }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
   if (!value) return null
-  const entity = resolveDefinition(profile, catalogs, value)
+  const entity = resolveDefinition(localData, catalogs, value)
   if (!entity) return <ArtworkPlaceholder compact entity={{ kind: 'other', name: 'Unresolved definition' }}/>
   const iconKey = definitionIconKey(entity)
   if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>

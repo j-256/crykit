@@ -1,8 +1,9 @@
+import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { STARTER_CATALOG } from '../src/catalog'
-import type { CatalogSnapshot, Profile } from '../src/domain/types'
+import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
 const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aassassin-seal'
 const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aadjudicator'
@@ -15,7 +16,7 @@ async function openData(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page) {
+async function exportLocalData(page: Page) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
@@ -24,7 +25,7 @@ async function exportProfile(page: Page) {
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { profile: Profile; catalogs: readonly CatalogSnapshot[] }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[] }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return { ...bundle, bytes }
 }
@@ -96,7 +97,7 @@ test('conflicting fields expose every claim and protect explicit review choices'
 
 test('a reviewed claim survives offline save recovery and a backup round trip', async ({ page, context }) => {
   await page.goto(ITEM_PATH)
-  const original = await exportProfile(page)
+  const original = await exportLocalData(page)
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
@@ -112,7 +113,7 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'profiles') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -125,23 +126,23 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await page.reload()
   await expect(locationRow(page).getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
 
-  const saved = await exportProfile(page)
-  const definitions = Object.values(saved.profile.personalDefinitions)
+  const saved = await exportLocalData(page)
+  const definitions = Object.values(saved.localData.personalDefinitions)
   expect(definitions).toHaveLength(1)
   expect(definitions[0]?.fields.Location).toEqual({ state: 'known', value: SELECTED_LOCATION, sources: [expect.objectContaining({ sourceId: TABLE_SOURCE, locator: 'Accessories/table > Assassin Seal', snapshot: 'revision 12905' })] })
   const sourceCatalog = saved.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)
   expect(sourceCatalog?.checksum).toBe(STARTER_CATALOG.checksum)
   expect(sourceCatalog?.entities['base:item:assassin-seal']).toEqual(STARTER_CATALOG.entities['base:item:assassin-seal'])
-  expect(saved.profile.inventory).toEqual(original.profile.inventory)
-  expect(saved.profile.characters).toEqual(original.profile.characters)
-  expect(saved.profile.buildRevisions).toEqual(original.profile.buildRevisions)
+  expect(selectedPlaythrough(saved.localData).inventory).toEqual(selectedPlaythrough(original.localData).inventory)
+  expect(selectedPlaythrough(saved.localData).characters).toEqual(selectedPlaythrough(original.localData).characters)
+  expect(saved.localData.buildRevisions).toEqual(original.localData.buildRevisions)
   const restore = await openData(page)
   await restore.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-claim-review.zip', mimeType: 'application/zip', buffer: saved.bytes })
-  await restore.getByRole('button', { name: 'Create profile', exact: true }).click()
+  await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
-  const restored = await exportProfile(page)
-  expect(restored.profile.personalDefinitions).toEqual(saved.profile.personalDefinitions)
+  const restored = await exportLocalData(page)
+  expect(restored.localData.personalDefinitions).toEqual(saved.localData.personalDefinitions)
   expect(restored.catalogs.map((catalog) => catalog.checksum)).toEqual(saved.catalogs.map((catalog) => catalog.checksum))
   expect(restored.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)?.entities['base:item:assassin-seal']).toEqual(sourceCatalog?.entities['base:item:assassin-seal'])
 })

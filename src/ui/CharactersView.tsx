@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { entityDefinitionKey } from '../domain'
+import { effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
 import type {
   CatalogEntityKind,
   CatalogSnapshot,
@@ -11,12 +11,12 @@ import type {
   LearnedNode,
   LearnedNodeKind,
   ObservedStat,
-  Profile,
-  RulesetRevisionId,
+  LocalData,
+  GameSetupRevisionId,
   SlotDefinition,
 } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice } from './components'
-import { activeRuleset, ownRecordValue } from './model'
+import { activeGameSetup, ownRecordValue } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField } from './definitions'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker, type CharactersPageRoute, type CharacterTab } from './navigation'
@@ -39,7 +39,7 @@ export interface CharacterDraft {
 }
 
 export interface SnapshotDraft {
-  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly gameSetupRevisionId?: GameSetupRevisionId
   readonly level: Knowledge<number>
   readonly primaryClass: Knowledge<EntityRef>
   readonly secondaryClass: Knowledge<EntityRef>
@@ -66,7 +66,7 @@ export interface LearnedNodeDraft {
 }
 
 export interface CharactersViewProps {
-  readonly profile: Profile
+  readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly hasPendingSave: boolean
   readonly onDraftChange: DraftChangeHandler
@@ -144,14 +144,14 @@ function AddCharacterForm({ onCancel, onSubmit }: { readonly onCancel: () => voi
   return <form className="stack" onSubmit={submit}><Field label="Character name" required><input autoFocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Name used in your playthrough" required value={draft.name}/></Field><Field hint="Optional visual shorthand, kept separate from identity." label="Appearance label"><input onChange={(event) => setDraft({ ...draft, appearanceLabel: event.target.value || undefined })} placeholder="For example: blue cloak" value={draft.appearanceLabel ?? ''}/></Field><InlineNotice title="Blank character record">Creating a character does not infer classes, equipment, mastery, or learned abilities.</InlineNotice>{error && <InlineNotice title="Character not added" tone="danger">{error}</InlineNotice>}<div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="plus" type="submit">{busy ? 'Adding...' : 'Add character'}</Button></div></form>
 }
 
-function snapshotDraft(rulesetRevisionId: RulesetRevisionId | undefined, initial?: CharacterSnapshot): SnapshotDraft {
+function snapshotDraft(gameSetupRevisionId: GameSetupRevisionId | undefined, initial?: CharacterSnapshot): SnapshotDraft {
   return {
-    rulesetRevisionId,
+    gameSetupRevisionId,
     level: initial?.level ?? UNKNOWN_NUMBER,
     primaryClass: initial?.primaryClass ?? UNKNOWN_REF,
     secondaryClass: initial?.secondaryClass ?? UNKNOWN_REF,
     displayedStats: initial?.displayedStats ?? {},
-    equipment: initial?.rulesetRevisionId === rulesetRevisionId ? initial?.equipment ?? {} : {},
+    equipment: initial?.gameSetupRevisionId === gameSetupRevisionId ? initial?.equipment ?? {} : {},
     passives: initial?.passives ?? { state: 'unknown' },
   }
 }
@@ -167,14 +167,14 @@ function slotEntityKinds(slot: SlotDefinition): readonly CatalogEntityKind[] {
   return ['item']
 }
 
-function SnapshotForm({ profile, initial, onSubmit }: {
-  readonly profile: Profile
+function SnapshotForm({ localData, initial, onSubmit }: {
+  readonly localData: LocalData
   readonly initial?: CharacterSnapshot
   readonly onSubmit: (draft: SnapshotDraft) => Promise<void>
 }) {
   const navigation = useNavigation()
-  const ruleset = activeRuleset(profile)
-  const [draft, setDraft] = useState<SnapshotDraft>(() => snapshotDraft(ruleset?.id, initial))
+  const gameSetup = activeGameSetup(localData)
+  const [draft, setDraft] = useState<SnapshotDraft>(() => snapshotDraft(gameSetup?.id, initial))
   const [stats, setStats] = useState<StatRow[]>(() => snapshotStatRows(initial))
   const [nextStatId, setNextStatId] = useState(stats.length)
   const [busy, setBusy] = useState(false)
@@ -203,7 +203,7 @@ function SnapshotForm({ profile, initial, onSubmit }: {
   const requestedSlot = pickerOverlay?.fieldKey.startsWith('slot:') ? pickerOverlay.fieldKey.slice(5) : undefined
   const passivePickerIndex = requestedSlot ? /^passive-(\d+)$/.exec(requestedSlot) : undefined
   const knownPassives = draft.passives.state === 'known' ? draft.passives.value : []
-  const missingPicker = Boolean(requestedSlot && !ruleset?.slots.some((slot) => slot.id === requestedSlot) && !(passivePickerIndex && Number(passivePickerIndex[1]) >= 1 && Number(passivePickerIndex[1]) <= knownPassives.length + 1))
+  const missingPicker = Boolean(requestedSlot && !gameSetup?.slots.some((slot) => slot.id === requestedSlot) && !(passivePickerIndex && Number(passivePickerIndex[1]) >= 1 && Number(passivePickerIndex[1]) <= knownPassives.length + 1))
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setError(undefined)
@@ -225,12 +225,12 @@ function SnapshotForm({ profile, initial, onSubmit }: {
   const updateStat = (id: number, patch: Partial<StatRow>) => setStats((current) => current.map((stat) => stat.id === id ? { ...stat, ...patch } : stat))
   return <Sheet description="Save your character's in-game stats and equipment. Earlier snapshots stay unchanged." onClose={() => navigation.close()} onRequestClose={requestClose} open title="Capture character snapshot" width="wide"><form className="stack" onSubmit={submit}>
     {closeWarning && <InlineNotice title="Unsaved snapshot" tone="warning">Save this snapshot or choose {error ? 'Close form' : 'Cancel and discard'} before leaving.</InlineNotice>}
-    {initial && initial.rulesetRevisionId !== ruleset?.id && <InlineNotice title="Record equipment again" tone="warning">The previous snapshot has different or unrecorded equipment-slot context. Its equipment selections have not been copied into this ruleset. The separate passive list remains carried forward.</InlineNotice>}
+    {initial && initial.gameSetupRevisionId !== gameSetup?.id && <InlineNotice title="Record equipment again" tone="warning">The previous snapshot has different or unrecorded equipment-slot context. Its equipment selections have not been copied into this Game Setup. The separate passive list remains carried forward.</InlineNotice>}
     {initial && <InlineNotice title="Starting from the latest snapshot">Review the carried-forward values before saving this snapshot. The observation date and note start blank.</InlineNotice>}
     <NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/>
     <div className="grid-2"><DefinitionPickerField allowedKinds={['class']} label="Primary class" onChange={(ref) => setDraft({ ...draft, primaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="primary-class" value={selectedRef(draft.primaryClass)}/><DefinitionPickerField allowedKinds={['class']} label="Secondary class" onChange={(ref) => setDraft({ ...draft, secondaryClass: ref ? { state: 'known', value: ref } : UNKNOWN_REF })} routeKey="secondary-class" value={selectedRef(draft.secondaryClass)}/></div>
     <div className="stack"><div className="split"><div><h3>Displayed final stats</h3><p className="settings-section__intro">Record only totals visible on the character screen.</p></div><Button onClick={() => { setStats((current) => [...current, { id: nextStatId, key: '', unit: 'displayed', value: UNKNOWN_NUMBER }]); setNextStatId((value) => value + 1) }} tone="secondary" type="button">Add stat</Button></div>{stats.length === 0 ? <InlineNotice title="No displayed stats recorded">Unlisted stats remain unrecorded and are never treated as zero.</InlineNotice> : stats.map((stat) => <div className="grid-3" key={stat.id}><Field label="Stat name" required><input onChange={(event) => updateStat(stat.id, { key: event.target.value })} placeholder="For example: Max HP" required value={stat.key}/></Field><NumberKnowledgeField label="Displayed value" min={0} onChange={(value) => updateStat(stat.id, { value })} value={stat.value}/><div className="field"><span className="field__label">Unit</span><input aria-label="Stat unit" onChange={(event) => updateStat(stat.id, { unit: event.target.value })} placeholder="displayed" value={stat.unit}/><Button onClick={() => setStats((current) => current.filter((entry) => entry.id !== stat.id))} tone="quiet" type="button">Remove stat</Button></div></div>)}</div>
-    {ruleset?.slots.length ? <div className="stack"><div><h3>Equipment</h3><p className="settings-section__intro">Each saved choice keeps its exact personal or catalog identity. Candidate lists do not assert legality.</p></div><div className="grid-2">{[...ruleset.slots].sort((left, right) => left.order - right.order).map((slot) => {
+    {gameSetup?.slots.length ? <div className="stack"><div><h3>Equipment</h3><p className="settings-section__intro">Each saved choice keeps its exact personal or catalog identity. Candidate lists do not assert legality.</p></div><div className="grid-2">{[...gameSetup.slots].sort((left, right) => left.order - right.order).map((slot) => {
       const kinds = slotEntityKinds(slot)
       const observed = Object.prototype.hasOwnProperty.call(draft.equipment, slot.id)
       const selection = draft.equipment[slot.id]
@@ -241,11 +241,11 @@ function SnapshotForm({ profile, initial, onSubmit }: {
         return { ...current, equipment }
       })
       return <DefinitionPickerField allowEmpty allowedKinds={kinds} hint="Empty means nothing is equipped. Unknown means this slot has not been recorded." key={slot.id} label={slot.label} onChange={setSelection} routeKey={`slot:${slot.id}`} value={observed ? selection : undefined}/>
-    })}</div></div> : <InlineNotice title="No equipment slots configured">Configure an active ruleset to capture ordered equipment in this snapshot.</InlineNotice>}
-    <div className="stack"><div><h3>Equipped passives</h3><p className="settings-section__intro">Record the variable-length passive list. Its PP limit comes from the selected ruleset.</p></div><Field label="Passive list certainty"><select aria-label="Passive list certainty" onChange={event => setDraft(current => ({ ...current, passives: event.target.value === 'known' ? { state: 'known', value: current.passives.state === 'known' ? current.passives.value : [] } : { state: 'unknown' } }))} value={draft.passives.state === 'known' ? 'known' : 'unknown'}><option value="unknown">Unknown</option><option value="known">Known</option></select></Field>{draft.passives.state === 'known' && <div className="grid-2">{[...draft.passives.value, undefined].map((ref, index) => <DefinitionPickerField allowedKinds={['passive', 'innate']} key={`${index}:${ref ? entityDefinitionKey(ref) : 'add'}`} label={`Equipped passive ${index + 1}`} onChange={value => setDraft(current => { const passives = current.passives.state === 'known' ? [...current.passives.value] : []; if (value) passives[index] = value; else if (index < passives.length) passives.splice(index, 1); return { ...current, passives: { state: 'known', value: passives } } })} routeKey={`slot:passive-${index + 1}`} value={ref}/>)}</div>}</div>
+    })}</div></div> : <InlineNotice title="No equipment slots configured">Configure a current Game Setup to capture ordered equipment in this snapshot.</InlineNotice>}
+    <div className="stack"><div><h3>Equipped passives</h3><p className="settings-section__intro">Record the variable-length passive list. Its PP limit comes from the selected Game Setup.</p></div><Field label="Passive list certainty"><select aria-label="Passive list certainty" onChange={event => setDraft(current => ({ ...current, passives: event.target.value === 'known' ? { state: 'known', value: current.passives.state === 'known' ? current.passives.value : [] } : { state: 'unknown' } }))} value={draft.passives.state === 'known' ? 'known' : 'unknown'}><option value="unknown">Unknown</option><option value="known">Known</option></select></Field>{draft.passives.state === 'known' && <div className="grid-2">{[...draft.passives.value, undefined].map((ref, index) => <DefinitionPickerField allowedKinds={['passive', 'innate']} key={`${index}:${ref ? entityDefinitionKey(ref) : 'add'}`} label={`Equipped passive ${index + 1}`} onChange={value => setDraft(current => { const passives = current.passives.state === 'known' ? [...current.passives.value] : []; if (value) passives[index] = value; else if (index < passives.length) passives.splice(index, 1); return { ...current, passives: { state: 'known', value: passives } } })} routeKey={`slot:passive-${index + 1}`} value={ref}/>)}</div>}</div>
     <div className="grid-2"><Field label="Observed on"><input onChange={(event) => setDraft({ ...draft, observedAt: event.target.value || undefined })} type="date" value={draft.observedAt ?? ''}/></Field><Field label="Snapshot note"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} placeholder="Optional context" value={draft.note ?? ''}/></Field></div>
     {missingPicker && <InlineNotice title="Character field unavailable" tone="warning">The requested equipment slot or passive position is unavailable. No other field was opened. <Button onClick={() => navigation.close()} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
-    <InlineNotice title="Stats are saved as entered">Changing equipment here does not recalculate stats. Use Planned builds to explore a different setup.</InlineNotice>
+    <InlineNotice title="Stats are saved as entered">Changing equipment here does not recalculate stats. Use Builds to explore a different setup.</InlineNotice>
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
     <div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">{error ? 'Close form' : dirty ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>
   </form></Sheet>
@@ -311,15 +311,15 @@ function LearnedNodeForm({ initial, defaultKind, lockedKind, onCancel, onSubmit 
   </form>
 }
 
-export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCapture, onUpsertClass, onUpsertLearned, onImportScreenshots, onDraftChange, onRetrySave }: CharactersViewProps) {
+export function CharactersView({ localData, catalogs, hasPendingSave, onAdd, onCapture, onUpsertClass, onUpsertLearned, onImportScreenshots, onDraftChange, onRetrySave }: CharactersViewProps) {
   const navigation = useNavigation()
   const [memberDirty, setMemberDirty] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(true)
   const updateMemberDirty = useCallback<DraftChangeHandler>((dirty, actions) => { setMemberDirty(dirty); onDraftChange(dirty, actions) }, [onDraftChange])
-  const characters = Object.values(profile.characters)
+  const characters = Object.values(requirePlaythrough(localData).characters)
   const page = navigation.route.page.page === 'characters' ? navigation.route.page : { page: 'characters', view: 'list' } as const
   const selectedId = 'characterId' in page ? page.characterId : undefined
-  const selected = selectedId ? ownRecordValue(profile.characters, selectedId) : undefined
+  const selected = selectedId ? ownRecordValue(requirePlaythrough(localData).characters, selectedId) : undefined
   const missingCharacter = Boolean(selectedId && !selected)
   const tab: CharacterTab = page.view === 'character' ? page.tab : page.view === 'snapshot' || page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'history' : 'current'
   const adding = page.view === 'new'
@@ -357,20 +357,20 @@ export function CharactersView({ profile, catalogs, hasPendingSave, onAdd, onCap
   return <>
     {overview ? <header className="roster-heading"><div><p className="eyebrow">Character overview</p><h1>Characters</h1><p>Your roster at a glance. Stats and equipment follow each character's current snapshot.</p></div><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add character</Button></header> : <header className="member-toolbar"><div className="member-toolbar__heading"><Button icon="arrow-left" onClick={() => navigate({ page: 'characters', view: 'list' })} tone="quiet">Overview</Button><h1>Character</h1></div><div className="member-switcher">{characters.length > 0 && <><IconButton disabled={characters.length < 2} icon="arrow-left" label="Previous member" onClick={() => selectNeighbor(-1)}/><label className="sr-only" htmlFor="member-select">Character</label><select id="member-select" onChange={event => navigate({ page: 'characters', view: 'character', characterId: event.target.value as CharacterId, tab })} value={selected?.id ?? ''}>{!selected && <option value="">Choose a character</option>}{characters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select><IconButton className="member-next" disabled={characters.length < 2} icon="arrow-left" label="Next member" onClick={() => selectNeighbor(1)}/></>}<IconButton icon="plus" label="Add character" onClick={() => navigate({ page: 'characters', view: 'new' })}/></div></header>}
     {(missingCharacter || editorRequestMissing) && <InlineNotice title={missingCharacter ? 'Character unavailable' : 'Character editor unavailable'} tone="warning">This character or observation is unavailable in the active playthrough. <Button onClick={() => navigate({ page: 'characters', view: 'list' })} tone="quiet">Return to characters</Button></InlineNotice>}
-    {characters.length === 0 ? <EmptyState description="Add a character to record your in-game sheet. Unchecked values stay unknown." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : overview ? <CharacterOverview catalogs={catalogs} profile={profile}/> : selected && <section className="member-window">
-      <MemberSummary catalogs={catalogs} character={selected} profile={profile} snapshot={page.view === 'snapshot' ? ownRecordValue(selected.snapshots, page.snapshotId) : snapshot}/>
+    {characters.length === 0 ? <EmptyState description="Add a character to record your in-game sheet. Unchecked values stay unknown." icon="user" title="Your roster is blank"><Button icon="plus" onClick={() => navigate({ page: 'characters', view: 'new' })}>Add a character</Button></EmptyState> : overview ? <CharacterOverview catalogs={catalogs} localData={localData}/> : selected && <section className="member-window">
+      <MemberSummary catalogs={catalogs} character={selected} localData={localData} snapshot={page.view === 'snapshot' ? ownRecordValue(selected.snapshots, page.snapshotId) : snapshot}/>
       <nav aria-label="Character views" className="member-navigation"><div><Button aria-current={tab !== 'history' ? 'page' : undefined} icon="user" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'current' })} tone="quiet">Character</Button><Button aria-current={tab === 'history' ? 'page' : undefined} icon="history" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'history' })} tone="quiet">History</Button><Button disabled={memberDirty} icon="edit" onClick={record} tone="quiet">Capture snapshot</Button></div></nav>
       <div className="member-window__body">
-        {tab === 'current' && <>{snapshot ? <MemberSheet catalogs={catalogs} hasPendingSave={hasPendingSave} key={selected.id} onDirtyChange={updateMemberDirty} onRetrySave={onRetrySave} onRecord={record} onSave={capture} onSkills={() => setSkillsOpen(value => !value)} profile={profile} skillsOpen={skillsOpen} snapshot={snapshot}/> : <><EmptyState description="Start with what you can see in game. Leave the rest unknown." icon="character" title="No snapshot recorded"><Button onClick={record}>Capture current sheet</Button></EmptyState><div className="member-menu__group member-skills-standalone"><MemberSkillsToggle onToggle={() => setSkillsOpen(value => !value)} open={skillsOpen}/></div></>}
-          <details className="member-record member-plans"><summary>Planned builds</summary>{Object.values(profile.builds).filter(build => build.characterId === selected.id && (build.state === 'draft' || build.state === 'hypothetical')).map(build => <div className="list-row" key={build.id}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{build.state === 'draft' ? 'Draft' : 'Hypothetical'}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds</Button></details>
+        {tab === 'current' && <>{snapshot ? <MemberSheet catalogs={catalogs} hasPendingSave={hasPendingSave} key={selected.id} onDirtyChange={updateMemberDirty} onRetrySave={onRetrySave} onRecord={record} onSave={capture} onSkills={() => setSkillsOpen(value => !value)} localData={localData} skillsOpen={skillsOpen} snapshot={snapshot}/> : <><EmptyState description="Start with what you can see in game. Leave the rest unknown." icon="character" title="No snapshot recorded"><Button onClick={record}>Capture current sheet</Button></EmptyState><div className="member-menu__group member-skills-standalone"><MemberSkillsToggle onToggle={() => setSkillsOpen(value => !value)} open={skillsOpen}/></div></>}
+          <details className="member-record member-plans"><summary>Build assignments</summary>{Object.values(requirePlaythrough(localData).scenarios).flatMap(scenario => { const revisionId = effectiveScenarioAssignments(scenario)[selected.id]; const revision = revisionId ? localData.buildRevisions[revisionId] : undefined; const build = revision ? localData.builds[revision.buildId] : undefined; return build ? [{ scenario, build }] : [] }).map(({ scenario, build }) => <div className="list-row" key={`${scenario.id}:${build.id}`}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{scenario.label}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds</Button></details>
         </>}
-        {tab === 'current' && skillsOpen && <CharacterLearning catalogs={catalogs} character={selected} initialKind={initialLearningKind} key={selected.id} profile={profile}/>}
-        {tab === 'history' && <CharacterHistory catalogs={catalogs} character={selected} key={selected.id} page={page} profile={profile}/>}
+        {tab === 'current' && skillsOpen && <CharacterLearning catalogs={catalogs} character={selected} initialKind={initialLearningKind} key={selected.id} localData={localData}/>}
+        {tab === 'history' && <CharacterHistory catalogs={catalogs} character={selected} key={selected.id} page={page} localData={localData}/>}
       </div>
     </section>}
-    {selected && page.view === 'skill-screenshots' && <SkillScreenshotImport catalogs={catalogs} onImport={onImportScreenshots} profile={profile}/>}
+    {selected && page.view === 'skill-screenshots' && <SkillScreenshotImport catalogs={catalogs} onImport={onImportScreenshots} localData={localData}/>}
     <Sheet onClose={() => navigation.close()} open={adding} title="Add character"><AddCharacterForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
-    {capturing && selected && <SnapshotForm initial={snapshot} key={selected.id} onSubmit={capture} profile={profile}/>}
+    {capturing && selected && <SnapshotForm initial={snapshot} key={selected.id} onSubmit={capture} localData={localData}/>}
     <Sheet description="Record only this character's observed class state." onClose={() => navigation.close()} open={Boolean(selected && classEditor !== undefined)} title={classEditor ? 'Edit class progress' : 'Add class progress'}>{selected && classEditor !== undefined && <ClassProgressForm initial={classEditor ?? undefined} key={`${selected.id}:${classEditor ? entityDefinitionKey(classEditor.classRef) : 'new'}`} onCancel={() => navigation.close()} onSubmit={saveClass}/>}</Sheet>
     <Sheet description="Record explicit learning without inferring it from equipment or party progress." onClose={() => navigation.close()} open={Boolean(selected && learnedEditor)} title={learnedEditor?.kind === 'monsterMagic' ? 'Record Monster Magic' : 'Record learned node'}>{selected && learnedEditor && <LearnedNodeForm defaultKind={learnedEditor.kind} initial={'node' in learnedEditor ? learnedEditor.node : undefined} key={`${selected.id}:${'node' in learnedEditor && learnedEditor.node ? entityDefinitionKey(learnedEditor.node.ref) : `new:${learnedEditor.kind}`}`} lockedKind={learnedEditor.kind === 'monsterMagic' ? 'monsterMagic' : undefined} onCancel={() => navigation.close()} onSubmit={saveLearned}/>}</Sheet>
   </>

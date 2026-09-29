@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
-import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
+import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { Profile } from '../src/domain/types'
+import type { LocalData } from '../src/domain/types'
 
 const MAX_MOBILE_EVIDENCE_GAP_PX = 30
 const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
@@ -150,7 +150,7 @@ test('build choices expose catalog facts, uncertain identities, and explicit inn
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('build edit warnings save or discard before continuing to another workspace', async ({ page }) => {
+test('build edit warnings save or discard before continuing to another section', async ({ page }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
@@ -226,7 +226,7 @@ test('readiness assigns the saved revision, groups shared causes, and opens affe
   await choose(page, 'Accessory 1', 'Crit Fang')
   await choose(page, 'Equipped passive 1', 'Attack Focus')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
-  await page.getByText('Can I use this build now?', { exact: true }).click()
+  await page.getByText('Can I use this Build now?', { exact: true }).click()
   await expect(page.getByText('Validation awaits a scenario', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Assign revision to team', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Revision assigned', exact: true })).toBeDisabled()
@@ -244,7 +244,7 @@ test('readiness assigns the saved revision, groups shared causes, and opens affe
   await expect(page.getByRole('searchbox', { name: /Search/ }).first()).toHaveValue('Muramasa')
 })
 
-test('readiness creates a team pinned to the saved build when the active ruleset changes', async ({ page }) => {
+test('readiness creates a team pinned to the saved build when the current Game Setup changes', async ({ page }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
   for (const name of ['Synthetic Rowan', 'Synthetic Mira', 'Synthetic Tavi', 'Synthetic Sol']) await addCharacter(page, name)
@@ -254,25 +254,26 @@ test('readiness creates a team pinned to the saved build when the active ruleset
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   const buildUrl = page.url()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Profile: Blank test playthrough', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Playthrough: Blank test playthrough', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await navigate(page, /^(Data & settings|Open data and settings)$/)
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await openRulesetSection(settings, 'Passive rules')
+  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openGameSetupSection(settings, 'Passive validation rules')
   await expect(settings.getByLabel('Build PP limit certainty', { exact: true })).toHaveCount(0)
   const ppLimit = settings.getByLabel('Build PP limit', { exact: true })
-  const rulesetLabel = settings.getByLabel('Ruleset label')
+  const gameSetupLabel = settings.getByLabel('Game Setup label')
   await expect(ppLimit).toHaveAttribute('required', '')
   await ppLimit.fill('10')
-  await rulesetLabel.fill('Synthetic later ruleset')
-  await expect(rulesetLabel).toHaveValue('Synthetic later ruleset')
+  await gameSetupLabel.fill('Synthetic later Game Setup')
+  await expect(gameSetupLabel).toHaveValue('Synthetic later Game Setup')
   await expect(ppLimit).toHaveValue('10')
-  await settings.getByRole('button', { name: 'Save new ruleset revision', exact: true }).click()
-  await expect(settings.getByRole('heading', { name: /^Synthetic later ruleset · revision \d+$/ })).toBeVisible()
+  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await expect(settings.getByRole('heading', { name: /^Synthetic later Game Setup · revision \d+$/ })).toBeVisible()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto(buildUrl)
-  await page.getByText('Can I use this build now?', { exact: true }).click()
+  await page.getByText('Can I use this Build now?', { exact: true }).click()
   await page.getByRole('button', { name: 'Create a team scenario', exact: true }).click()
   const scenario = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
   await expect(scenario).toContainText('Uses saved r1:')
@@ -286,14 +287,15 @@ test('readiness creates a team pinned to the saved build when the active ruleset
   const download = page.waitForEvent('download')
   await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
-  const profile = (JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }).profile
-  const revision = Object.values(profile.buildRevisions)[0]!
-  const team = Object.values(profile.scenarios)[0]!
-  expect(team.rulesetRevisionId).toBe(revision.rulesetRevisionId)
+  const localData = (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
+  const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(buildUrl)?.[1] ?? '')
+  const revision = Object.values(localData.buildRevisions).find(candidate => candidate.buildId === buildId)!
+  const team = Object.values(selectedPlaythrough(localData).scenarios).find(candidate => candidate.label === 'Synthetic pinned readiness')!
+  expect(team.gameSetupRevisionId).toBe(revision.gameSetupRevisionId)
   expect(team.catalogLock).toEqual(revision.catalogLock)
-  expect(profile.activeRulesetRevisionId).not.toBe(revision.rulesetRevisionId)
-  expect(team.assignments).toEqual({})
-  expect(profile.inventory).toEqual({})
+  expect(localData.planningGameSetupRevisionId).not.toBe(revision.gameSetupRevisionId)
+  expect(Object.values(team.assignments)).toEqual([revision.id])
+  expect(selectedPlaythrough(localData).inventory).toEqual({})
 })
 
 test('readiness and recording actions follow the displayed editor checkpoint', async ({ page }) => {
@@ -306,7 +308,6 @@ test('readiness and recording actions follow the displayed editor checkpoint', a
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await page.getByText('Build details & notes', { exact: true }).click()
   await page.getByLabel('Build title').fill('Synthetic checkpoint readiness')
-  await page.getByRole('combobox', { name: 'Character', exact: true }).selectOption({ label: 'Rowan' })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   const checkpoint = page.getByRole('combobox', { name: /^Editor checkpoint/ })
   await expect(checkpoint).toBeVisible()
@@ -340,5 +341,5 @@ test('readiness and recording actions follow the displayed editor checkpoint', a
   await expect(assignment).toContainText('Assign saved r1')
   await expect(assignment.getByRole('button', { name: 'Assign revision to team', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Record build as current', exact: true })).toContainText('Rowan · revision 1')
+  await expect(page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })).toContainText('Rowan · revision 1')
 })

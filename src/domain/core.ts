@@ -4,7 +4,9 @@ import type {
   DomainId,
   EntityRef,
   JsonValue,
-  Profile,
+  LocalData,
+  Playthrough,
+  PlaythroughId,
   Timestamp,
 } from './types'
 import { MAX_ID_LENGTH } from './limits'
@@ -19,7 +21,8 @@ export type DomainErrorCode =
   | 'MISSING_CHARACTER'
   | 'MISSING_INVENTORY_POSITION'
   | 'MISSING_PERSONAL_DEFINITION'
-  | 'MISSING_RULESET'
+  | 'MISSING_GAME_SETUP'
+  | 'MISSING_PLAYTHROUGH'
   | 'MISSING_SCENARIO'
   | 'REVISION_CONFLICT'
 
@@ -95,59 +98,105 @@ export function sameEntityRef(left: EntityRef, right: EntityRef): boolean {
   return entityRefKey(left) === entityRefKey(right)
 }
 
-export function assertExpectedRevision(profile: Profile, expectedRevision?: number): void {
-  if (expectedRevision !== undefined && expectedRevision !== profile.revision) {
-    throw new DomainError('REVISION_CONFLICT', 'Profile revision does not match the expected revision', {
-      actual: profile.revision,
+export function assertExpectedRevision(localData: LocalData, expectedRevision?: number): void {
+  if (expectedRevision !== undefined && expectedRevision !== localData.revision) {
+    throw new DomainError('REVISION_CONFLICT', 'LocalData revision does not match the expected revision', {
+      actual: localData.revision,
       expected: expectedRevision,
     })
   }
 }
 
-type ProfileUpdate = Partial<
+type LocalDataUpdate = Partial<
   Pick<
-    Profile,
-    | 'activeRulesetRevisionId'
-    | 'activeScenarioId'
+    LocalData,
+    | 'selectedPlaythroughId'
+    | 'planningGameSetupRevisionId'
     | 'personalDefinitions'
-    | 'rulesets'
-    | 'inventory'
-    | 'inventoryEvents'
-    | 'characters'
-    | 'progress'
+    | 'gameSetups'
     | 'builds'
     | 'buildRevisions'
-    | 'scenarios'
-    | 'goals'
+    | 'playthroughs'
     | 'importReceipts'
     | 'skillTreeLayouts'
-    | 'skillTreeCaptures'
   >
 >
 
-export function updateProfile(
-  profile: Profile,
-  update: ProfileUpdate,
+export function updateLocalData(
+  localData: LocalData,
+  update: LocalDataUpdate,
   command: string,
   changedPaths: readonly string[],
   recordedAt: Timestamp,
-): Profile {
-  const nextRevision = profile.revision + 1
+): LocalData {
+  const nextRevision = localData.revision + 1
   const change: ChangeEntry = {
     id: createId<ChangeId>('change'),
     command,
-    previousRevision: profile.revision,
+    previousRevision: localData.revision,
     nextRevision,
     changedPaths,
     recordedAt,
   }
   return {
-    ...profile,
+    ...localData,
     ...update,
     revision: nextRevision,
     updatedAt: recordedAt,
-    changes: [...profile.changes, change].slice(-PROFILE_CHANGE_JOURNAL_LIMIT),
+    changes: [...localData.changes, change].slice(-LOCAL_DATA_CHANGE_JOURNAL_LIMIT),
   }
+}
+
+export function selectedPlaythrough(localData: LocalData): Playthrough | undefined {
+  return localData.selectedPlaythroughId
+    ? localData.playthroughs[localData.selectedPlaythroughId]
+    : undefined
+}
+
+export function requirePlaythrough(localData: LocalData, playthroughId?: PlaythroughId): Playthrough {
+  const resolvedId = playthroughId ?? localData.selectedPlaythroughId
+  const playthrough = resolvedId ? localData.playthroughs[resolvedId] : undefined
+  if (!playthrough) throw new DomainError('MISSING_PLAYTHROUGH', 'Select a playthrough before changing tracked records')
+  return playthrough
+}
+
+type PlaythroughUpdate = Partial<
+  Pick<
+    Playthrough,
+    | 'currentGameSetupRevisionId'
+    | 'activeScenarioId'
+    | 'inventory'
+    | 'inventoryEvents'
+    | 'characters'
+    | 'progress'
+    | 'scenarios'
+    | 'goals'
+    | 'skillTreeCaptures'
+  >
+>
+
+export function updatePlaythrough(
+  localData: LocalData,
+  playthroughId: PlaythroughId,
+  update: PlaythroughUpdate,
+  command: string,
+  changedPaths: readonly string[],
+  recordedAt: Timestamp,
+): LocalData {
+  const playthrough = requirePlaythrough(localData, playthroughId)
+  const nextPlaythrough: Playthrough = {
+    ...playthrough,
+    ...update,
+    revision: playthrough.revision + 1,
+    updatedAt: recordedAt,
+  }
+  return updateLocalData(
+    localData,
+    { playthroughs: { ...localData.playthroughs, [playthroughId]: nextPlaythrough } },
+    command,
+    changedPaths.map(path => `playthroughs.${playthroughId}.${path}`),
+    recordedAt,
+  )
 }
 
 export function assertNonnegativeInteger(value: number, label: string): void {
@@ -175,17 +224,17 @@ export function assertTextLength(value: string, label: string, maximum: number):
 }
 
 export function assertPersonalDefinitionRef(
-  profile: Profile,
+  localData: LocalData,
   ref: EntityRef,
   allowedDefinitionId?: string,
 ): void {
   if (
     ref.kind === 'personal' &&
     ref.definitionId !== allowedDefinitionId &&
-    !profile.personalDefinitions[ref.definitionId]
+    !localData.personalDefinitions[ref.definitionId]
   ) {
     throw new DomainError('MISSING_PERSONAL_DEFINITION', `Personal definition does not exist: ${ref.definitionId}`)
   }
 }
 
-const PROFILE_CHANGE_JOURNAL_LIMIT = 200
+const LOCAL_DATA_CHANGE_JOURNAL_LIMIT = 200

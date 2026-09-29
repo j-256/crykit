@@ -1,59 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import { activateRuleset, activateScenario, asId, createScenario, updateRulesetRevision, validateScenario, type CharacterId, type ScenarioId } from './index'
-import { addTestCharacter, addTestTeam, createTestProfile, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
+import { activateGameSetup, activateScenario, asId, createScenario, requirePlaythrough, updateGameSetupRevision, validateScenario, type CharacterId, type ScenarioId } from './index'
+import { addTestCharacter, addTestTeam, createTestLocalData, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
 
 describe('active scenario selection', () => {
   const scenarioId = asId<ScenarioId>('alternate-team')
   const withScenario = () => {
-    const team = addTestTeam(createTestProfile())
-    return createScenario(team.profile, { id: scenarioId, label: 'Alternate team', memberIds: team.memberIds, rulesetRevisionId: TEST_RULESET_REVISION_ID, activate: false, now: TEST_NOW })
+    const team = addTestTeam(createTestLocalData())
+    return createScenario(team.localData, { id: scenarioId, label: 'Alternate team', memberIds: team.memberIds, gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID, activate: false, now: TEST_NOW })
   }
 
-  it('changes only the active selection and preserves the rulesets and scenario pins', () => {
+  it('changes only the active selection and preserves the gameSetups and scenario pins', () => {
     const original = withScenario()
-    const profile = updateRulesetRevision(original, { sourceRevisionId: TEST_RULESET_REVISION_ID, label: 'Other ruleset', activate: true, now: TEST_NOW })
-    const selected = activateScenario(profile, { scenarioId, expectedRevision: profile.revision, now: TEST_NOW })
-    expect(selected.activeScenarioId).toBe(scenarioId)
-    expect(selected.activeRulesetRevisionId).toBe(profile.activeRulesetRevisionId)
-    expect(selected.scenarios).toBe(profile.scenarios)
-    expect(selected.buildRevisions).toBe(profile.buildRevisions)
-    expect(selected.revision).toBe(profile.revision + 1)
-    expect(selected.changes.at(-1)).toMatchObject({ command: 'scenario.activate', changedPaths: ['activeScenarioId'] })
-    const switchedRuleset = activateRuleset(selected, { rulesetRevisionId: TEST_RULESET_REVISION_ID, now: TEST_NOW })
-    expect(switchedRuleset.scenarios).toBe(selected.scenarios)
-    expect(switchedRuleset.activeScenarioId).toBe(scenarioId)
-    const cleared = activateScenario(switchedRuleset, { scenarioId: null, now: TEST_NOW })
-    expect(cleared.activeScenarioId).toBeUndefined()
-    expect(cleared.scenarios).toBe(profile.scenarios)
+    const localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, label: 'Other gameSetup', activate: true, now: TEST_NOW })
+    const selected = activateScenario(localData, { scenarioId, expectedRevision: localData.revision, now: TEST_NOW })
+    expect(requirePlaythrough(selected).activeScenarioId).toBe(scenarioId)
+    expect(selected.planningGameSetupRevisionId).toBe(localData.planningGameSetupRevisionId)
+    expect(requirePlaythrough(selected).scenarios).toBe(requirePlaythrough(localData).scenarios)
+    expect(selected.buildRevisions).toBe(localData.buildRevisions)
+    expect(selected.revision).toBe(localData.revision + 1)
+    expect(selected.changes.at(-1)).toMatchObject({ command: 'scenario.activate', changedPaths: [`playthroughs.${requirePlaythrough(selected).id}.activeScenarioId`] })
+    const switchedGameSetup = activateGameSetup(selected, { gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID, now: TEST_NOW })
+    expect(requirePlaythrough(switchedGameSetup).scenarios).toBe(requirePlaythrough(selected).scenarios)
+    expect(requirePlaythrough(switchedGameSetup).activeScenarioId).toBe(scenarioId)
+    const cleared = activateScenario(switchedGameSetup, { scenarioId: null, now: TEST_NOW })
+    expect(requirePlaythrough(cleared).activeScenarioId).toBeUndefined()
+    expect(requirePlaythrough(cleared).scenarios).toBe(requirePlaythrough(localData).scenarios)
     expect(activateScenario(cleared, { scenarioId: null })).toBe(cleared)
     expect(activateScenario(selected, { scenarioId })).toBe(selected)
   })
 
-  it('rejects unknown identities and stale writes without changing the profile', () => {
-    const profile = withScenario()
+  it('rejects unknown identities and stale writes without changing the localData', () => {
+    const localData = withScenario()
     for (const id of ['missing', '__proto__', 'constructor']) {
-      expect(() => activateScenario(profile, { scenarioId: asId<ScenarioId>(id) })).toThrow('Scenario does not exist')
+      expect(() => activateScenario(localData, { scenarioId: asId<ScenarioId>(id) })).toThrow('Scenario does not exist')
     }
-    expect(() => activateScenario(profile, { scenarioId, expectedRevision: profile.revision - 1 })).toThrow('Profile revision does not match')
-    expect(profile.activeScenarioId).toBeUndefined()
+    expect(() => activateScenario(localData, { scenarioId, expectedRevision: localData.revision - 1 })).toThrow('LocalData revision does not match')
+    expect(requirePlaythrough(localData).activeScenarioId).toBeUndefined()
   })
 })
 
 describe('four-character team composition', () => {
-  const withCharacters = () => ['one', 'two', 'three', 'four', 'five'].reduce((profile, id) => addTestCharacter(profile, id), createTestProfile())
+  const withCharacters = () => ['one', 'two', 'three', 'four', 'five'].reduce((localData, id) => addTestCharacter(localData, id), createTestLocalData())
   const team = ['one', 'two', 'three', 'four'].map(id => asId<CharacterId>(id))
 
   it('requires exactly four distinct characters for an explicit team roster', () => {
-    const profile = withCharacters()
-    expect(() => createScenario(profile, { label: 'Short team', memberIds: team.slice(0, 3), rulesetRevisionId: TEST_RULESET_REVISION_ID })).toThrow('exactly 4 distinct characters')
-    expect(() => createScenario(profile, { label: 'Duplicate team', memberIds: [team[0]!, team[1]!, team[2]!, team[2]!], rulesetRevisionId: TEST_RULESET_REVISION_ID })).toThrow('exactly 4 distinct characters')
+    const localData = withCharacters()
+    expect(() => createScenario(localData, { label: 'Short team', memberIds: team.slice(0, 3), gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })).toThrow('exactly 4 distinct characters')
+    expect(() => createScenario(localData, { label: 'Duplicate team', memberIds: [team[0]!, team[1]!, team[2]!, team[2]!], gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })).toThrow('exactly 4 distinct characters')
   })
 
   it('keeps four roster slots independent from optional build assignments', () => {
-    const profile = createScenario(withCharacters(), { id: asId<ScenarioId>('team'), label: 'Four-person team', memberIds: team, rulesetRevisionId: TEST_RULESET_REVISION_ID })
-    const scenario = profile.scenarios.team!
+    const localData = createScenario(withCharacters(), { id: asId<ScenarioId>('team'), label: 'Four-person team', memberIds: team, gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })
+    const scenario = requirePlaythrough(localData).scenarios.team!
     expect(scenario.memberIds).toEqual(team)
     expect(scenario.assignments).toEqual({})
-    expect(validateScenario(profile, scenario.id).dimensions.structure.status).toBe('valid')
+    expect(validateScenario(localData, scenario.id).dimensions.structure.status).toBe('valid')
   })
 })

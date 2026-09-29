@@ -5,7 +5,7 @@ import type {
   EntityRef,
   PersonalDefinition,
   PersonalRef,
-  Profile,
+  LocalData,
 } from './types'
 
 export type ResolvedDefinition = CatalogEntity | PersonalDefinition
@@ -15,39 +15,39 @@ export function personalDefinitionRef(definition: PersonalDefinition): PersonalR
 }
 
 export function resolveDefinition(
-  profile: Profile,
+  localData: LocalData,
   catalogs: readonly CatalogSnapshot[],
   ref: EntityRef,
 ): ResolvedDefinition | undefined {
-  if (ref.kind === 'personal') return profile.personalDefinitions[ref.definitionId]
+  if (ref.kind === 'personal') return localData.personalDefinitions[ref.definitionId]
   return catalogs
     .find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
     ?.entities[ref.entityId]
 }
 
-export function definitionLineageRootRef(profile: Profile, ref: EntityRef): EntityRef {
+export function definitionLineageRootRef(localData: LocalData, ref: EntityRef): EntityRef {
   let current = ref
   const visited = new Set<string>()
   while (current.kind === 'personal') {
     if (visited.has(current.definitionId)) return current
     visited.add(current.definitionId)
-    const definition = profile.personalDefinitions[current.definitionId]
+    const definition = localData.personalDefinitions[current.definitionId]
     if (!definition?.baseRef) return current
     current = definition.baseRef
   }
   return current
 }
 
-export function logicalEntityRef(profile: Profile, ref: EntityRef): EntityRef {
-  return definitionLineageRootRef(profile, ref)
+export function logicalEntityRef(localData: LocalData, ref: EntityRef): EntityRef {
+  return definitionLineageRootRef(localData, ref)
 }
 
-export function logicalEntityKey(profile: Profile, ref: EntityRef): string {
-  return entityRefKey(logicalEntityRef(profile, ref))
+export function logicalEntityKey(localData: LocalData, ref: EntityRef): string {
+  return entityRefKey(logicalEntityRef(localData, ref))
 }
 
-export function sameLogicalEntity(profile: Profile, left: EntityRef, right: EntityRef): boolean {
-  return logicalEntityKey(profile, left) === logicalEntityKey(profile, right)
+export function sameLogicalEntity(localData: LocalData, left: EntityRef, right: EntityRef): boolean {
+  return logicalEntityKey(localData, left) === logicalEntityKey(localData, right)
 }
 
 function compareDefinitions(left: PersonalDefinition, right: PersonalDefinition): number {
@@ -56,22 +56,22 @@ function compareDefinitions(left: PersonalDefinition, right: PersonalDefinition)
     left.id.localeCompare(right.id)
 }
 
-export function preferredDefinitionRef(profile: Profile, ref: EntityRef): EntityRef {
-  const rootKey = entityDefinitionKey(definitionLineageRootRef(profile, ref))
+export function preferredDefinitionRef(localData: LocalData, ref: EntityRef): EntityRef {
+  const rootKey = entityDefinitionKey(definitionLineageRootRef(localData, ref))
   let preferred: PersonalDefinition | undefined
-  for (const definition of Object.values(profile.personalDefinitions)) {
+  for (const definition of Object.values(localData.personalDefinitions)) {
     const candidateRef = personalDefinitionRef(definition)
-    if (entityDefinitionKey(definitionLineageRootRef(profile, candidateRef)) !== rootKey) continue
+    if (entityDefinitionKey(definitionLineageRootRef(localData, candidateRef)) !== rootKey) continue
     if (!preferred || compareDefinitions(preferred, definition) < 0) preferred = definition
   }
   return preferred ? personalDefinitionRef(preferred) : ref
 }
 
-export function preferredPersonalDefinitions(profile: Profile): readonly PersonalDefinition[] {
+export function preferredPersonalDefinitions(localData: LocalData): readonly PersonalDefinition[] {
   const preferred = new Map<string, PersonalDefinition>()
-  for (const definition of Object.values(profile.personalDefinitions)) {
+  for (const definition of Object.values(localData.personalDefinitions)) {
     const ref = personalDefinitionRef(definition)
-    const rootKey = entityDefinitionKey(definitionLineageRootRef(profile, ref))
+    const rootKey = entityDefinitionKey(definitionLineageRootRef(localData, ref))
     const current = preferred.get(rootKey)
     if (!current || compareDefinitions(current, definition) < 0) preferred.set(rootKey, definition)
   }

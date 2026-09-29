@@ -24,7 +24,7 @@ export const STARTER_CATALOG_REVISION_ID = 'wiki-v1' as CatalogRevisionId
 
 const SOURCE_APPLICABILITY = 'Name evidence only; platform and enabled-mod applicability are unverified'
 const WIKI_GAP_REASON = 'No matching detail page or structured row was found in the bundled community wiki snapshot'
-const SLOT_UNKNOWN_REASON = 'The wiki does not map this definition to this planner ruleset\'s slot IDs'
+const SLOT_UNKNOWN_REASON = "The wiki does not map this definition to this Game Setup's slot IDs"
 const REQUIREMENTS_UNKNOWN_REASON = 'The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions'
 const GRANTS_UNKNOWN_REASON = 'The wiki description is preserved, but its granted permissions are not normalized for validation'
 const PP_UNKNOWN_REASON = 'The scraped wiki fields do not document a numeric PP cost'

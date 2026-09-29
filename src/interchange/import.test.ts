@@ -1,6 +1,7 @@
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { previewImport } from './import'
+import { requirePlaythrough } from '../domain'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
@@ -37,8 +38,9 @@ describe('import format detection', () => {
         { class_id: 'fixture:first', class: 'Duplicate', mastery: 'not mastered', seal: 'not collected' },
       ],
     }), 'research.json')
-    expect(Object.values(preview.proposed.profile.progress)).toHaveLength(1)
-    const record = Object.values(preview.proposed.profile.progress)[0]
+    const playthrough = requirePlaythrough(preview.proposed.localData)
+    expect(Object.values(playthrough.progress)).toHaveLength(1)
+    const record = Object.values(playthrough.progress)[0]
     expect(record?.subject).toMatchObject({ entityId: 'fixture:first' })
     expect(record?.stage).toMatchObject({ state: 'unknown' })
     expect(record?.partyMastery).toMatchObject({ state: 'unknown' })
@@ -101,7 +103,7 @@ describe('import format detection', () => {
     expect(entities.map((entity) => entity.name).sort()).toEqual(['First', 'Second', 'Third'])
     expect(new Set(entities.map((entity) => entity.id)).size).toBe(3)
     expect(preview.warnings.filter((warning) => warning.code === 'duplicate-entity-id')).toHaveLength(2)
-    expect(preview.proposed.profile.progress).toEqual({})
+    expect(requirePlaythrough(preview.proposed.localData).progress).toEqual({})
     expect(preview.proposed.catalogs[0]?.claims.some((claim) => claim.field === 'coverage.completion')).toBe(false)
     expect(preview.warnings).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'ambiguous-entity-id', locator: '/coverage/0' }),

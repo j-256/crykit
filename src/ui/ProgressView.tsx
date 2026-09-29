@@ -3,13 +3,13 @@ import classSealUrl from '../assets/class-seal.png?url&no-inline'
 import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
 import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
-import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, type ClassSealProgressSelection } from '../domain'
-import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, PartyProgressRecord, Profile, ProgressRecordId, ProgressStage } from '../domain/types'
+import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, requirePlaythrough, type ClassSealProgressSelection } from '../domain'
+import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId, ProgressStage } from '../domain/types'
 import { Badge, Button, Field, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
 import { formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
-import { DefinitionPickerField, findDefinitionOption, useDefinitionWorkspace } from './definitions'
+import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
 import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
 import { WikiSprite } from './WikiSprite'
 
@@ -38,7 +38,7 @@ export interface ProgressDraft {
 }
 
 export interface ProgressViewProps {
-  readonly profile: Profile
+  readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly onAdd: (draft: ProgressDraft) => Promise<void>
   readonly onAdvance: (subject: EntityRef, displayName: string) => Promise<void>
@@ -81,7 +81,7 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
   readonly onCancel: () => void
   readonly onSubmit: (draft: ProgressDraft) => Promise<void>
 }) {
-  const { options } = useDefinitionWorkspace()
+  const { options } = useDefinitionLibrary()
   const [draft, setDraft] = useState<ProgressDraft>(() => progressDraft(initial))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -122,27 +122,27 @@ function findTrackerCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapsh
     ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
 }
 
-function boardEntries(profile: Profile, catalogs: readonly CatalogSnapshot[]): readonly ClassSealEntry[] {
+function boardEntries(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly ClassSealEntry[] {
   const catalog = findTrackerCatalog(catalogs)
   if (!catalog) return []
-  const recordsBySubject = new Map(Object.values(profile.progress).map(record => [logicalEntityKey(profile, record.subject), record]))
+  const recordsBySubject = new Map(Object.values(requirePlaythrough(localData).progress).map(record => [logicalEntityKey(localData, record.subject), record]))
   return VANILLA_CLASS_SEAL_PAIRS.flatMap(pair => {
     const classEntity = catalog.entities[pair.classEntityId]
     const sealEntity = catalog.entities[pair.sealEntityId]
     if (classEntity?.kind !== 'class' || sealEntity?.kind !== 'item') return []
     const baseClassRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: classEntity.id } as const
     const baseSealRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: sealEntity.id } as const
-    const classRef = preferredDefinitionRef(profile, baseClassRef)
-    const sealRef = preferredDefinitionRef(profile, baseSealRef)
-    const key = logicalEntityKey(profile, classRef)
+    const classRef = preferredDefinitionRef(localData, baseClassRef)
+    const sealRef = preferredDefinitionRef(localData, baseSealRef)
+    const key = logicalEntityKey(localData, classRef)
     const record = recordsBySubject.get(key)
     return [{
       key,
       classRef,
       sealRef,
       classEntity,
-      className: resolveEntity(profile, catalogs, classRef)?.name ?? classEntity.name,
-      sealName: resolveEntity(profile, catalogs, sealRef)?.name ?? sealEntity.name,
+      className: resolveEntity(localData, catalogs, classRef)?.name ?? classEntity.name,
+      sealName: resolveEntity(localData, catalogs, sealRef)?.name ?? sealEntity.name,
       record,
       stage: classSealStage(record),
     }]
@@ -194,15 +194,16 @@ const ClassSealTile = memo(function ClassSealTile({ entry, pending, selecting, s
   && previous.onEdit === next.onEdit
   && previous.onToggleSelection === next.onToggleSelection)
 
-export function ProgressView({ profile, catalogs, onAdd, onAdvance, onSetStage, onUpdate }: ProgressViewProps) {
+export function ProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage, onUpdate }: ProgressViewProps) {
   const navigation = useNavigation()
   const [queuedAdvances, setQueuedAdvances] = useState<ReadonlyMap<string, QueuedClassSealAdvance>>(() => new Map())
   const [selecting, setSelecting] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [bulkSaving, setBulkSaving] = useState(false)
   const [saveError, setSaveError] = useState<string>()
-  const records = Object.values(profile.progress)
-  const entries = useMemo(() => boardEntries(profile, catalogs), [catalogs, profile])
+  const playthrough = requirePlaythrough(localData)
+  const records = Object.values(playthrough.progress)
+  const entries = useMemo(() => boardEntries(localData, catalogs), [catalogs, localData])
   const displayedEntries = useMemo(() => entries.map((entry) => {
     const queued = queuedAdvances.get(entry.key)
     return queued ? { ...entry, stage: queued.stage } : entry
@@ -210,11 +211,11 @@ export function ProgressView({ profile, catalogs, onAdd, onAdvance, onSetStage, 
   const queuedAdvanceCount = useMemo(() => [...queuedAdvances.values()].reduce((total, queued) => total + queued.count, 0), [queuedAdvances])
   const page = navigation.route.page.page === 'progress' ? navigation.route.page : { page: 'progress', view: 'list' } as const
   const adding = page.view === 'new'
-  const editing = page.view === 'edit' ? ownRecordValue(profile.progress, page.recordId) : undefined
+  const editing = page.view === 'edit' ? ownRecordValue(requirePlaythrough(localData).progress, page.recordId) : undefined
   const missingRecord = page.view === 'edit' && !editing
   const navigate = useCallback((next: ProgressPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }), [navigation])
-  const boardKeys = useMemo(() => new Set(entries.map(entry => logicalEntityKey(profile, entry.classRef))), [entries, profile])
-  const otherRecords = records.filter(record => !boardKeys.has(logicalEntityKey(profile, record.subject)))
+  const boardKeys = useMemo(() => new Set(entries.map(entry => logicalEntityKey(localData, entry.classRef))), [entries, localData])
+  const otherRecords = records.filter(record => !boardKeys.has(logicalEntityKey(localData, record.subject)))
   const counts = Object.fromEntries(CLASS_SEAL_STAGES.map(stage => [stage, displayedEntries.filter(entry => entry.stage === stage).length])) as Record<ProgressStage, number>
   const add = async (draft: ProgressDraft) => { await onAdd(draft); navigation.close() }
   const update = async (draft: ProgressDraft) => { if (!editing) return; await onUpdate(editing.id, draft); navigation.close() }
@@ -270,7 +271,7 @@ export function ProgressView({ profile, catalogs, onAdd, onAdvance, onSetStage, 
   }
   return <>
     <ScreenHeader actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} description="Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough." eyebrow="Class mastery seals" title="Progress"/>
-    {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another profile. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
+    {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another playthrough. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
     {saveError && <InlineNotice title="Progress not saved" tone="danger">{saveError}</InlineNotice>}
     {selecting && <section aria-busy={bulkSaving} aria-label="Bulk edit class mastery" className="class-seal-bulk" data-saving={bulkSaving || undefined}>
       <div aria-live="polite" className="class-seal-bulk__summary"><strong>{selectedKeys.size} selected</strong><small>{bulkSaving ? 'Saving selected classes...' : 'Select classes below, then set their shared state.'}</small></div>
@@ -281,7 +282,7 @@ export function ProgressView({ profile, catalogs, onAdd, onAdvance, onSetStage, 
       <div className="class-seal-summary__primary"><span className="class-seal-summary__icon"><Icon name="crystal"/></span><strong>{counts.sealAcquired}</strong><span>Seals acquired</span><small>of {entries.length} vanilla classes</small></div>
       <dl className="class-seal-summary__stages">{CLASS_SEAL_STAGES.filter(stage => stage !== 'sealAcquired').map(stage => <div data-stage={stage} key={stage}><dt>{STAGE_DETAILS[stage].counterLabel}</dt><dd>{counts[stage]}</dd></div>)}</dl>
     </section>
-    {displayedEntries.length ? <section aria-label="Vanilla class mastery board" className="class-seal-board">{displayedEntries.map(entry => <ClassSealTile entry={entry} key={entry.key} onAdvance={advance} onEdit={edit} onToggleSelection={toggleSelection} pending={queuedAdvances.has(entry.key)} selected={selectedKeys.has(entry.key)} selecting={selecting}/>)}</section> : <InlineNotice title="Vanilla class references unavailable" tone="warning">The bundled vanilla class and seal references are not available in this workspace. Import or restore the bundled catalog before recording this checklist.</InlineNotice>}
+    {displayedEntries.length ? <section aria-label="Vanilla class mastery board" className="class-seal-board">{displayedEntries.map(entry => <ClassSealTile entry={entry} key={entry.key} onAdvance={advance} onEdit={edit} onToggleSelection={toggleSelection} pending={queuedAdvances.has(entry.key)} selected={selectedKeys.has(entry.key)} selecting={selecting}/>)}</section> : <InlineNotice title="Vanilla class references unavailable" tone="warning">The bundled vanilla class and seal references are unavailable. Restore the bundled catalog before recording this checklist.</InlineNotice>}
     <section className="progress-other"><div className="split"><div><h2>Other class records</h2><p>Personal classes and imported records outside the vanilla seal board remain separate.</p></div><Button icon="plus" onClick={() => navigate({ page: 'progress', view: 'new' })} tone="secondary">Add other class</Button></div>{otherRecords.length ? <div className="progress-other__rows">{otherRecords.map(record => <article className="progress-other__row" key={record.id}><div><strong>{record.displayName}</strong><small>{record.observedAt ? `Observed ${formatRelativeDate(record.observedAt)}` : 'Observation date unknown'}</small></div><Badge tone="info">{STAGE_DETAILS[classSealStage(record)].label}</Badge><Button onClick={() => navigate({ page: 'progress', view: 'edit', recordId: record.id })} tone="quiet">Details</Button></article>)}</div> : <p className="progress-other__empty">No additional class records.</p>}</section>
     <Sheet description="Record a class that is not part of the vanilla mastery-seal board." onClose={() => navigation.close()} open={adding} title="Add other class progress"><ProgressForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
     <Sheet description="Update secondary details without changing the linked class identity." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit progress record">{editing && <ProgressForm initial={editing} key={editing.id} onCancel={() => navigation.close()} onSubmit={update}/>}</Sheet>

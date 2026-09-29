@@ -1,9 +1,9 @@
 import { useId, type ReactNode } from 'react'
-import { entityDefinitionKey } from '../domain/core'
+import { entityDefinitionKey, requirePlaythrough } from '../domain/core'
 import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
 import { equipmentFacts, equipmentRole, isWeapon } from '../domain/mechanics-facts'
 import { passivePosition } from '../domain/passive-loadout'
-import type { CatalogSnapshot, Character, EntityRef, Knowledge, LearnedNode, ObservedStat, Profile } from '../domain/types'
+import type { CatalogSnapshot, Character, EntityRef, Knowledge, LearnedNode, ObservedStat, LocalData } from '../domain/types'
 import { MemberArtwork } from './MemberSheet'
 import { Icon, type IconName } from './icons'
 import { entityName, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
@@ -79,25 +79,25 @@ function recordedSlotIcon(role: ReturnType<typeof equipmentRole>): IconName {
   return 'box'
 }
 
-function RecordedSlots({ slots, profile, catalogs, ruleset, showNames = false, slotPage }: { readonly slots: readonly SnapshotSlot[]; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[]; readonly ruleset?: Profile['rulesets'][string]; readonly showNames?: boolean; readonly slotPage?: CharactersPageRoute }) {
-  const configuredSlot = (slot: SnapshotSlot) => ruleset?.slots.find(candidate => candidate.id === slot.id)
+function RecordedSlots({ slots, localData, catalogs, gameSetup, showNames = false, slotPage }: { readonly slots: readonly SnapshotSlot[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly gameSetup?: LocalData['gameSetups'][string]; readonly showNames?: boolean; readonly slotPage?: CharactersPageRoute }) {
+  const configuredSlot = (slot: SnapshotSlot) => gameSetup?.slots.find(candidate => candidate.id === slot.id)
   const slotRole = (slot: SnapshotSlot) => {
     const configured = configuredSlot(slot)
     return configured ? equipmentRole(configured) : undefined
   }
   const mainHandSlot = slots.find(slot => slotRole(slot) === 'mainHand')
-  const mainHandDefinition = mainHandSlot?.selection ? resolveEntity(profile, catalogs, mainHandSlot.selection) : undefined
+  const mainHandDefinition = mainHandSlot?.selection ? resolveEntity(localData, catalogs, mainHandSlot.selection) : undefined
   const twoHandedMain = mainHandDefinition && mainHandSlot?.selection && equipmentFacts(mainHandDefinition).twoHanded === true ? { name: mainHandDefinition.name, value: mainHandSlot.selection } : undefined
   return <dl className="roster-slots">{slots.map(slot => {
-    const name = slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Empty' : entityName(profile, catalogs, slot.selection)
+    const name = slot.selection === undefined ? 'Unknown' : slot.selection === null ? 'Empty' : entityName(localData, catalogs, slot.selection)
     const role = slotRole(slot)
-    const definition = slot.selection ? resolveEntity(profile, catalogs, slot.selection) : undefined
+    const definition = slot.selection ? resolveEntity(localData, catalogs, slot.selection) : undefined
     const facts = definition && (role === 'mainHand' || role === 'offHand') ? equipmentFacts(definition) : undefined
     const handUse = facts?.type && isWeapon(facts.type) ? facts.twoHanded === false ? 'One-handed' : facts.twoHanded === true ? 'Two-handed' : 'Hand use unknown' : undefined
     const occupiedBy = role === 'offHand' ? twoHandedMain : undefined
     const displayName = occupiedBy && !slot.selection ? `Occupied by ${occupiedBy.name}` : name
     const title = [`${slot.label}: ${displayName}`, ...(handUse ? [handUse] : []), ...(occupiedBy ? [`Unavailable while ${occupiedBy.name} occupies both hands`] : [])].join('\n')
-    const content = <><span aria-hidden="true" className="roster-slot__art">{slot.selection ? <MemberArtwork catalogs={catalogs} profile={profile} value={slot.selection}/> : occupiedBy ? <MemberArtwork catalogs={catalogs} profile={profile} value={occupiedBy.value}/> : <Icon data-empty-slot-icon={recordedSlotIcon(role)} name={recordedSlotIcon(role)}/>}</span><span className={`${showNames ? '' : 'sr-only '}roster-slot__identity`}><span>{displayName}</span><span className="sr-only"><DefinitionModLabel profile={profile} ruleset={ruleset} value={slot.selection}/></span></span></>
+    const content = <><span aria-hidden="true" className="roster-slot__art">{slot.selection ? <MemberArtwork catalogs={catalogs} localData={localData} value={slot.selection}/> : occupiedBy ? <MemberArtwork catalogs={catalogs} localData={localData} value={occupiedBy.value}/> : <Icon data-empty-slot-icon={recordedSlotIcon(role)} name={recordedSlotIcon(role)}/>}</span><span className={`${showNames ? '' : 'sr-only '}roster-slot__identity`}><span>{displayName}</span><span className="sr-only"><DefinitionModLabel localData={localData} gameSetup={gameSetup} value={slot.selection}/></span></span></>
     return <div data-occupied-by-two-handed={occupiedBy?.name || undefined} data-state={occupiedBy && !slot.selection ? 'occupied' : slot.selection === undefined ? 'unknown' : slot.selection === null ? 'empty' : 'known'} key={slot.id} title={title}>
       <dt className="sr-only">{slot.label}</dt>
       <dd>{slotPage ? <OverviewLink ariaLabel={`Open ${slot.label}: ${displayName}`} className="roster-slot__link" page={slotPage} query={fieldFocusQuery(`slot:${slot.id}`)}>{content}</OverviewLink> : content}</dd>
@@ -105,34 +105,34 @@ function RecordedSlots({ slots, profile, catalogs, ruleset, showNames = false, s
   })}</dl>
 }
 
-function CharacterCard({ character, profile, catalogs }: { readonly character: Character; readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[] }) {
+function CharacterCard({ character, localData, catalogs }: { readonly character: Character; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }) {
   const headingId = useId()
   const snapshot = character.currentSnapshotId ? ownRecordValue(character.snapshots, character.currentSnapshotId) : undefined
   const primary = snapshot?.primaryClass.state === 'known' ? snapshot.primaryClass.value : undefined
   const progress = primary ? Object.values(character.classProgress).find(row => entityDefinitionKey(row.classRef) === entityDefinitionKey(primary)) : undefined
-  const ruleset = snapshot?.rulesetRevisionId ? ownRecordValue(profile.rulesets, snapshot.rulesetRevisionId) : undefined
-  const slots = snapshot ? snapshotSlots(profile, snapshot) : []
+  const gameSetup = snapshot?.gameSetupRevisionId ? ownRecordValue(localData.gameSetups, snapshot.gameSetupRevisionId) : undefined
+  const slots = snapshot ? snapshotSlots(localData, snapshot) : []
   const passiveSlots: readonly SnapshotSlot[] = snapshot?.passives.state === 'known' ? snapshot.passives.value.map((selection, index) => ({ ...passivePosition(index), selection })) : []
   const stats = Object.entries(snapshot?.displayedStats ?? {})
   const otherStats = stats.filter(([label]) => !vitalKind(label))
-  const className = (value: Knowledge<EntityRef> | undefined) => knowledgeLabel(value ?? UNKNOWN, ref => entityName(profile, catalogs, ref))
+  const className = (value: Knowledge<EntityRef> | undefined) => knowledgeLabel(value ?? UNKNOWN, ref => entityName(localData, catalogs, ref))
   const classRef = (value: Knowledge<EntityRef> | undefined) => value?.state === 'known' ? value.value : undefined
   const memberPage = { page: 'characters', view: 'character', characterId: character.id, tab: 'current' } as const
 
   return <article aria-labelledby={headingId} className="roster-card">
     <header className="roster-card__header">
-      <div className="roster-card__identity"><span aria-hidden="true" className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} profile={profile} value={primary}/></span><div><h2 id={headingId}><OverviewLink page={memberPage}>{character.name}</OverviewLink></h2>{character.appearanceLabel && <p>{character.appearanceLabel}</p>}</div></div>
+      <div className="roster-card__identity"><span aria-hidden="true" className="member-portrait"><Icon name="character"/><MemberArtwork catalogs={catalogs} localData={localData} value={primary}/></span><div><h2 id={headingId}><OverviewLink page={memberPage}>{character.name}</OverviewLink></h2>{character.appearanceLabel && <p>{character.appearanceLabel}</p>}</div></div>
       <dl className="roster-level"><div><dt>Lv</dt><dd><RecordedNumber value={snapshot?.level ?? UNKNOWN}/></dd></div></dl>
     </header>
     {snapshot ? <>
       <div className="roster-card__body">
-        <dl className="roster-classes"><div><dt>Primary class</dt><dd>{className(snapshot.primaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot.primaryClass)}/></dd></div><div><dt>Secondary class</dt><dd>{className(snapshot.secondaryClass)}<DefinitionModLabel profile={profile} ruleset={ruleset} value={classRef(snapshot.secondaryClass)}/></dd></div></dl>
+        <dl className="roster-classes"><div><dt>Primary class</dt><dd>{className(snapshot.primaryClass)}<DefinitionModLabel localData={localData} gameSetup={gameSetup} value={classRef(snapshot.primaryClass)}/></dd></div><div><dt>Secondary class</dt><dd>{className(snapshot.secondaryClass)}<DefinitionModLabel localData={localData} gameSetup={gameSetup} value={classRef(snapshot.secondaryClass)}/></dd></div></dl>
         <section aria-label={`${character.name}: recorded stats`} className="roster-stats"><h3>Recorded stats</h3><dl>
           <RecordedVitals stats={stats}/>
           {otherStats.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>)}
         </dl></section>
-        <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} slotPage={memberPage} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!ruleset && <p className="roster-empty">Slot context unrecorded</p>}</section>
-        <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} profile={profile} ruleset={ruleset} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty"><Icon name="warning"/>{knowledgeLabel(snapshot.passives)}</p>}</section>
+        <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} localData={localData} gameSetup={gameSetup} slotPage={memberPage} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!gameSetup && <p className="roster-empty">Slot context unrecorded</p>}</section>
+        <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} localData={localData} gameSetup={gameSetup} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty"><Icon name="warning"/>{knowledgeLabel(snapshot.passives)}</p>}</section>
         <section aria-label={`${character.name}: character learning`} className="roster-learning"><h3>Learning records</h3><dl>
           <div><dt>Primary class LP</dt><dd><RecordedNumber value={progress?.observedLp ?? UNKNOWN}/></dd></div>
           <div><dt>Primary class mastered</dt><dd data-state={progress?.mastered.state ?? 'unknown'}>{knowledgeLabel(progress?.mastered ?? UNKNOWN, mastered => mastered ? 'Yes' : 'No')}</dd></div>
@@ -144,6 +144,6 @@ function CharacterCard({ character, profile, catalogs }: { readonly character: C
   </article>
 }
 
-export function CharacterOverview({ profile, catalogs }: { readonly profile: Profile; readonly catalogs: readonly CatalogSnapshot[] }) {
-  return <section aria-label="Character overview" className="character-overview">{Object.values(profile.characters).map(character => <CharacterCard catalogs={catalogs} character={character} key={character.id} profile={profile}/>)}</section>
+export function CharacterOverview({ localData, catalogs }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }) {
+  return <section aria-label="Character overview" className="character-overview">{Object.values(requirePlaythrough(localData).characters).map(character => <CharacterCard catalogs={catalogs} character={character} key={character.id} localData={localData}/>)}</section>
 }

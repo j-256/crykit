@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createBlankPlaythrough } from './profile-helpers'
+import { createBlankPlaythrough } from './local-data-helpers'
 
 const BACKDROP_VIEWPORT = { width: 1280, height: 900 }
 

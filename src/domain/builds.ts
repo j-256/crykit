@@ -6,7 +6,7 @@ import {
   createId,
   DomainError,
   nowTimestamp,
-  updateProfile,
+  updateLocalData,
 } from './core'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import { GUIDE_LEVEL_CAP } from './growth'
@@ -21,17 +21,17 @@ import type {
   BuildRevisionId,
   BuildState,
   CatalogRevisionId,
-  CharacterId,
-  Profile,
-  RulesetRevisionId,
+  GameSetupId,
+  LocalData,
+  GameSetupRevisionId,
   Timestamp,
 } from './types'
 
 export interface CreateBuildInput {
   readonly id?: BuildId
+  readonly gameSetupId: GameSetupId
   readonly title: string
   readonly kind: BuildKind
-  readonly characterId?: CharacterId
   readonly state?: BuildState
   readonly tags?: readonly string[]
   readonly favorite?: boolean
@@ -39,23 +39,24 @@ export interface CreateBuildInput {
   readonly expectedRevision?: number
 }
 
-export function createBuild(profile: Profile, input: CreateBuildInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
+export function createBuild(localData: LocalData, input: CreateBuildInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
   const title = input.title.trim()
   if (!title) {
     throw new DomainError('INVALID_INPUT', 'Build title must not be empty')
   }
   assertTextLength(title, 'Build title', MAX_SHORT_TEXT_LENGTH)
-  if (input.characterId && !profile.characters[input.characterId]) {
-    throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
+  if (!Object.values(localData.gameSetups).some(revision => revision.gameSetupId === input.gameSetupId)) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup does not exist: ${input.gameSetupId}`)
   }
   const id = input.id ?? createId<BuildId>('build')
-  if (profile.builds[id]) {
+  if (localData.builds[id]) {
     throw new DomainError('DUPLICATE_ID', `Build already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const build: Build = {
     id,
+    gameSetupId: input.gameSetupId,
     revision: 0,
     title,
     kind: input.kind,
@@ -64,11 +65,10 @@ export function createBuild(profile: Profile, input: CreateBuildInput): Profile 
     favorite: input.favorite ?? false,
     createdAt: at,
     updatedAt: at,
-    ...(input.characterId === undefined ? {} : { characterId: input.characterId }),
   }
-  return updateProfile(
-    profile,
-    { builds: { ...profile.builds, [id]: build } },
+  return updateLocalData(
+    localData,
+    { builds: { ...localData.builds, [id]: build } },
     'build.create',
     [`builds.${id}`],
     at,
@@ -85,9 +85,9 @@ export interface UpdateBuildInput {
   readonly expectedRevision?: number
 }
 
-export function updateBuild(profile: Profile, input: UpdateBuildInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.builds[input.buildId]
+export function updateBuild(localData: LocalData, input: UpdateBuildInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const current = localData.builds[input.buildId]
   if (!current) {
     throw new DomainError('MISSING_BUILD', `Build does not exist: ${input.buildId}`)
   }
@@ -106,9 +106,9 @@ export function updateBuild(profile: Profile, input: UpdateBuildInput): Profile 
     revision: current.revision + 1,
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { builds: { ...profile.builds, [build.id]: build } },
+  return updateLocalData(
+    localData,
+    { builds: { ...localData.builds, [build.id]: build } },
     'build.update',
     [`builds.${build.id}`],
     at,
@@ -124,14 +124,14 @@ export interface CloneBuildInput {
   readonly expectedRevision?: number
 }
 
-export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const source = profile.builds[input.sourceBuildId]
+export function cloneBuild(localData: LocalData, input: CloneBuildInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const source = localData.builds[input.sourceBuildId]
   if (!source) {
     throw new DomainError('MISSING_BUILD', `Build does not exist: ${input.sourceBuildId}`)
   }
   const sourceRevision = source.latestRevisionId
-    ? profile.buildRevisions[source.latestRevisionId]
+    ? localData.buildRevisions[source.latestRevisionId]
     : undefined
   if (!sourceRevision || sourceRevision.buildId !== source.id) {
     throw new DomainError('MISSING_BUILD_REVISION', 'Build must have a latest revision before it can be cloned')
@@ -142,11 +142,11 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
   }
   assertTextLength(title, 'Build title', MAX_SHORT_TEXT_LENGTH)
   const id = input.id ?? createId<BuildId>('build')
-  if (profile.builds[id]) {
+  if (localData.builds[id]) {
     throw new DomainError('DUPLICATE_ID', `Build already exists: ${id}`)
   }
   const revisionId = input.revisionId ?? createId<BuildRevisionId>('buildRevision')
-  if (profile.buildRevisions[revisionId]) {
+  if (localData.buildRevisions[revisionId]) {
     throw new DomainError('DUPLICATE_ID', `Build revision already exists: ${revisionId}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -166,7 +166,7 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
     id: revisionId,
     buildId: id,
     revision: 1,
-    rulesetRevisionId: sourceRevision.rulesetRevisionId,
+    gameSetupRevisionId: sourceRevision.gameSetupRevisionId,
     catalogLock: { ...sourceRevision.catalogLock },
     content,
     createdAt: at,
@@ -174,6 +174,7 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
   }
   const build: Build = {
     id,
+    gameSetupId: source.gameSetupId,
     revision: 1,
     title,
     kind: source.kind,
@@ -183,13 +184,12 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
     latestRevisionId: revisionId,
     createdAt: at,
     updatedAt: at,
-    ...(source.characterId === undefined ? {} : { characterId: source.characterId }),
   }
-  return updateProfile(
-    profile,
+  return updateLocalData(
+    localData,
     {
-      builds: { ...profile.builds, [id]: build },
-      buildRevisions: { ...profile.buildRevisions, [revisionId]: revision },
+      builds: { ...localData.builds, [id]: build },
+      buildRevisions: { ...localData.buildRevisions, [revisionId]: revision },
     },
     'build.clone',
     [`builds.${id}`, `buildRevisions.${revisionId}`],
@@ -197,11 +197,96 @@ export function cloneBuild(profile: Profile, input: CloneBuildInput): Profile {
   )
 }
 
+export interface ForkBuildToGameSetupInput {
+  readonly sourceBuildId: BuildId
+  readonly targetGameSetupRevisionId: GameSetupRevisionId
+  readonly id?: BuildId
+  readonly revisionId?: BuildRevisionId
+  readonly title?: string
+  readonly content?: BuildRevisionContent
+  readonly now?: Timestamp | string
+  readonly expectedRevision?: number
+}
+
+function forkContentForGameSetup(
+  content: BuildRevisionContent,
+  sourceSetupLabel: string,
+  targetSetup: LocalData['gameSetups'][string],
+): BuildRevisionContent {
+  const targetSlotIds = new Set(targetSetup.slots.map((slot) => slot.id as string))
+  const omittedSlotIds = Object.entries(content.equipment)
+    .filter(([slotId, selection]) => !targetSlotIds.has(slotId) && selection !== null)
+    .map(([slotId]) => slotId)
+  const equipment = Object.fromEntries(
+    Object.entries(content.equipment)
+      .filter(([slotId]) => targetSlotIds.has(slotId))
+      .map(([slotId, selection]) => [slotId, selection === null ? null : { ...selection }]),
+  )
+  const omission = omittedSlotIds.length > 0
+    ? [`Fork omitted ${omittedSlotIds.length} equipped selection${omittedSlotIds.length === 1 ? '' : 's'} from slots that ${targetSetup.label} does not define. Inspect the original Build under ${sourceSetupLabel} for the retained source values.`]
+    : []
+  return {
+    primaryClass: content.primaryClass,
+    secondaryClass: content.secondaryClass,
+    equipment,
+    passives: content.passives.map((selection) => ({ ...selection })),
+    ...(content.rotationNotes === undefined ? {} : { rotationNotes: content.rotationNotes }),
+    contextAssumptions: [...content.contextAssumptions, ...omission],
+    ...(content.calculation ? { calculation: structuredClone(content.calculation) } : {}),
+  }
+}
+
+export function forkBuildToGameSetup(localData: LocalData, input: ForkBuildToGameSetupInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const source = localData.builds[input.sourceBuildId]
+  if (!source) throw new DomainError('MISSING_BUILD', `Build does not exist: ${input.sourceBuildId}`)
+  const sourceRevision = source.latestRevisionId ? localData.buildRevisions[source.latestRevisionId] : undefined
+  if (!sourceRevision || sourceRevision.buildId !== source.id) {
+    throw new DomainError('MISSING_BUILD_REVISION', 'Build must have a latest revision before it can be forked')
+  }
+  const targetSetup = localData.gameSetups[input.targetGameSetupRevisionId]
+  if (!targetSetup) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.targetGameSetupRevisionId}`)
+  }
+  if (targetSetup.gameSetupId === source.gameSetupId) {
+    throw new DomainError('INVALID_INPUT', 'Save a new Build revision when moving within the same Game Setup')
+  }
+  const sourceSetup = localData.gameSetups[sourceRevision.gameSetupRevisionId]
+  if (!sourceSetup) {
+    throw new DomainError('MISSING_GAME_SETUP', `Source Game Setup revision does not exist: ${sourceRevision.gameSetupRevisionId}`)
+  }
+  const title = input.title === undefined ? `${source.title} (${targetSetup.label})` : input.title.trim()
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  const id = input.id ?? createId<BuildId>('build')
+  const revisionId = input.revisionId ?? createId<BuildRevisionId>('buildRevision')
+  let next = createBuild(localData, {
+    id,
+    gameSetupId: targetSetup.gameSetupId,
+    title,
+    kind: source.kind,
+    state: 'draft',
+    tags: [...source.tags],
+    favorite: source.favorite,
+    now: at,
+    expectedRevision: localData.revision,
+  })
+  next = saveBuildRevision(next, {
+    buildId: id,
+    id: revisionId,
+    gameSetupRevisionId: input.targetGameSetupRevisionId,
+    content: input.content ?? forkContentForGameSetup(sourceRevision.content, sourceSetup.label, targetSetup),
+    note: `Forked from ${source.title}`,
+    now: at,
+    expectedRevision: next.revision,
+  })
+  return next
+}
+
 export interface SaveBuildRevisionInput {
   readonly buildId: BuildId
   readonly id?: BuildRevisionId
   readonly parentRevisionId?: BuildRevisionId
-  readonly rulesetRevisionId: RulesetRevisionId
+  readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock?: Readonly<Record<string, CatalogRevisionId>>
   readonly content: BuildRevisionContent
   readonly note?: string
@@ -209,31 +294,34 @@ export interface SaveBuildRevisionInput {
   readonly expectedRevision?: number
 }
 
-export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.builds[input.buildId]
+export function saveBuildRevision(localData: LocalData, input: SaveBuildRevisionInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const current = localData.builds[input.buildId]
   if (!current) {
     throw new DomainError('MISSING_BUILD', `Build does not exist: ${input.buildId}`)
   }
-  const ruleset = profile.rulesets[input.rulesetRevisionId]
-  if (!ruleset) {
-    throw new DomainError('MISSING_RULESET', `Ruleset revision does not exist: ${input.rulesetRevisionId}`)
+  const gameSetup = localData.gameSetups[input.gameSetupRevisionId]
+  if (!gameSetup) {
+    throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
+  }
+  if (gameSetup.gameSetupId !== current.gameSetupId) {
+    throw new DomainError('INVALID_INPUT', 'Fork the Build before moving it to a different Game Setup')
   }
   if (input.parentRevisionId) {
-    const parent = profile.buildRevisions[input.parentRevisionId]
+    const parent = localData.buildRevisions[input.parentRevisionId]
     if (!parent || parent.buildId !== input.buildId) {
       throw new DomainError('MISSING_BUILD_REVISION', 'Parent build revision does not belong to this build')
     }
   }
   const id = input.id ?? createId<BuildRevisionId>('buildRevision')
-  if (profile.buildRevisions[id]) {
+  if (localData.buildRevisions[id]) {
     throw new DomainError('DUPLICATE_ID', `Build revision already exists: ${id}`)
   }
-  const catalogLock = input.catalogLock ?? ruleset.catalogLock
-  const slotIds = new Set(ruleset.slots.map((slot) => slot.id as string))
+  const catalogLock = input.catalogLock ?? gameSetup.catalogLock
+  const slotIds = new Set(gameSetup.slots.map((slot) => slot.id as string))
   const assertBuildRef = (ref: import('./types').EntityRef, label: string) => {
-    assertPersonalDefinitionRef(profile, ref)
-    const rootRef = definitionLineageRootRef(profile, ref)
+    assertPersonalDefinitionRef(localData, ref)
+    const rootRef = definitionLineageRootRef(localData, ref)
     if (rootRef.kind === 'catalog' && catalogLock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
       throw new DomainError('INVALID_INPUT', `${label} falls outside the build catalog lock`)
     }
@@ -255,7 +343,7 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
   }
   for (const [slotId, selection] of Object.entries(input.content.equipment)) {
     if (!slotId.trim() || !slotIds.has(slotId)) {
-      throw new DomainError('INVALID_INPUT', `Build selection references an unknown ruleset slot: ${slotId}`)
+      throw new DomainError('INVALID_INPUT', `Build selection references an unknown Game Setup slot: ${slotId}`)
     }
     if (!selection) continue
     assertBuildRef(selection.ref, `Selection ${slotId}`)
@@ -269,7 +357,7 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
     id,
     buildId: input.buildId,
     revision: current.revision + 1,
-    rulesetRevisionId: input.rulesetRevisionId,
+    gameSetupRevisionId: input.gameSetupRevisionId,
     catalogLock,
     content: input.content,
     createdAt: at,
@@ -282,11 +370,11 @@ export function saveBuildRevision(profile: Profile, input: SaveBuildRevisionInpu
     latestRevisionId: id,
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
+  return updateLocalData(
+    localData,
     {
-      builds: { ...profile.builds, [build.id]: build },
-      buildRevisions: { ...profile.buildRevisions, [id]: revision },
+      builds: { ...localData.builds, [build.id]: build },
+      buildRevisions: { ...localData.buildRevisions, [id]: revision },
     },
     'build.saveRevision',
     [`builds.${build.id}`, `buildRevisions.${id}`],

@@ -8,7 +8,8 @@ import {
   createId,
   DomainError,
   nowTimestamp,
-  updateProfile,
+  requirePlaythrough,
+  updatePlaythrough,
 } from './core'
 import { logicalEntityKey } from './definitions'
 import { MAX_ID_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
@@ -24,10 +25,11 @@ import type {
   LearnedNodeKind,
   ObservedStat,
   PartyProgressRecord,
-  Profile,
+  LocalData,
+  PlaythroughId,
   ProgressRecordId,
   ProgressStage,
-  RulesetRevisionId,
+  GameSetupRevisionId,
   SourceRef,
   Timestamp,
 } from './types'
@@ -43,6 +45,7 @@ function validateNonnegativeKnowledge(knowledge: Knowledge<number> | undefined, 
 }
 
 export interface CreateCharacterInput {
+  readonly playthroughId?: PlaythroughId
   readonly id?: CharacterId
   readonly name: string
   readonly appearanceLabel?: string
@@ -50,14 +53,15 @@ export interface CreateCharacterInput {
   readonly expectedRevision?: number
 }
 
-export function createCharacter(profile: Profile, input: CreateCharacterInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
+export function createCharacter(localData: LocalData, input: CreateCharacterInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
   const name = input.name.trim()
   if (!name) {
     throw new DomainError('INVALID_INPUT', 'Character name must not be empty')
   }
   const id = input.id ?? createId<CharacterId>('character')
-  if (profile.characters[id]) {
+  if (playthrough.characters[id]) {
     throw new DomainError('DUPLICATE_ID', `Character already exists: ${id}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
@@ -72,9 +76,10 @@ export function createCharacter(profile: Profile, input: CreateCharacterInput): 
     updatedAt: at,
     ...(input.appearanceLabel === undefined ? {} : { appearanceLabel: input.appearanceLabel }),
   }
-  return updateProfile(
-    profile,
-    { characters: { ...profile.characters, [id]: character } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { characters: { ...playthrough.characters, [id]: character } },
     'character.create',
     [`characters.${id}`],
     at,
@@ -82,6 +87,7 @@ export function createCharacter(profile: Profile, input: CreateCharacterInput): 
 }
 
 export interface UpdateCharacterInput {
+  readonly playthroughId?: PlaythroughId
   readonly characterId: CharacterId
   readonly name?: string
   readonly appearanceLabel?: string
@@ -89,9 +95,10 @@ export interface UpdateCharacterInput {
   readonly expectedRevision?: number
 }
 
-export function updateCharacter(profile: Profile, input: UpdateCharacterInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.characters[input.characterId]
+export function updateCharacter(localData: LocalData, input: UpdateCharacterInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.characters[input.characterId]
   if (!current) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
@@ -107,9 +114,10 @@ export function updateCharacter(profile: Profile, input: UpdateCharacterInput): 
     updatedAt: at,
     ...(input.appearanceLabel === undefined ? {} : { appearanceLabel: input.appearanceLabel }),
   }
-  return updateProfile(
-    profile,
-    { characters: { ...profile.characters, [character.id]: character } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { characters: { ...playthrough.characters, [character.id]: character } },
     'character.update',
     [`characters.${character.id}`],
     at,
@@ -117,9 +125,10 @@ export function updateCharacter(profile: Profile, input: UpdateCharacterInput): 
 }
 
 export interface CaptureCharacterInput {
+  readonly playthroughId?: PlaythroughId
   readonly characterId: CharacterId
   readonly snapshotId?: CharacterSnapshotId
-  readonly rulesetRevisionId?: RulesetRevisionId
+  readonly gameSetupRevisionId?: GameSetupRevisionId
   readonly observedAt?: Timestamp | string
   readonly level?: Knowledge<number>
   readonly primaryClass?: Knowledge<EntityRef>
@@ -137,19 +146,20 @@ const UNKNOWN_NUMBER: Knowledge<number> = { state: 'unknown' }
 const UNKNOWN_REF: Knowledge<EntityRef> = { state: 'unknown' }
 const UNKNOWN_REFS: Knowledge<readonly EntityRef[]> = { state: 'unknown' }
 
-export function captureCharacter(profile: Profile, input: CaptureCharacterInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.characters[input.characterId]
+export function captureCharacter(localData: LocalData, input: CaptureCharacterInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.characters[input.characterId]
   if (!current) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
   validateNonnegativeKnowledge(input.level, 'Character level')
-  const rulesetRevisionId = input.rulesetRevisionId ?? profile.activeRulesetRevisionId
-  if (rulesetRevisionId && !Object.hasOwn(profile.rulesets, rulesetRevisionId)) {
-    throw new DomainError('MISSING_RULESET', 'The snapshot ruleset revision is unavailable')
+  const gameSetupRevisionId = input.gameSetupRevisionId ?? playthrough.currentGameSetupRevisionId
+  if (gameSetupRevisionId && !Object.hasOwn(localData.gameSetups, gameSetupRevisionId)) {
+    throw new DomainError('MISSING_GAME_SETUP', 'The snapshot Game Setup revision is unavailable')
   }
   for (const ref of [...knowledgeValues(input.primaryClass), ...knowledgeValues(input.secondaryClass)]) {
-    assertPersonalDefinitionRef(profile, ref)
+    assertPersonalDefinitionRef(localData, ref)
   }
   for (const [key, stat] of Object.entries(input.displayedStats ?? {})) {
     if (!key.trim()) throw new DomainError('INVALID_INPUT', 'Displayed stat key must not be empty')
@@ -159,9 +169,9 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     for (const value of knowledgeValues(stat.value)) assertFiniteNumber(value, `Displayed stat ${key}`)
   }
   for (const ref of Object.values(input.equipment ?? {})) {
-    if (ref) assertPersonalDefinitionRef(profile, ref)
+    if (ref) assertPersonalDefinitionRef(localData, ref)
   }
-  for (const refs of knowledgeValues(input.passives)) for (const ref of refs) assertPersonalDefinitionRef(profile, ref)
+  for (const refs of knowledgeValues(input.passives)) for (const ref of refs) assertPersonalDefinitionRef(localData, ref)
   const snapshotId = input.snapshotId ?? createId<CharacterSnapshotId>('characterSnapshot')
   if (current.snapshots[snapshotId]) {
     throw new DomainError('DUPLICATE_ID', `Character snapshot already exists: ${snapshotId}`)
@@ -169,7 +179,7 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const snapshot: CharacterSnapshot = {
     id: snapshotId,
-    ...(rulesetRevisionId === undefined ? {} : { rulesetRevisionId }),
+    ...(gameSetupRevisionId === undefined ? {} : { gameSetupRevisionId }),
     recordedAt: at,
     level: input.level ?? UNKNOWN_NUMBER,
     primaryClass: input.primaryClass ?? UNKNOWN_REF,
@@ -188,9 +198,10 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
     snapshots: { ...current.snapshots, [snapshotId]: snapshot },
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { characters: { ...profile.characters, [character.id]: character } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { characters: { ...playthrough.characters, [character.id]: character } },
     'character.capture',
     [`characters.${character.id}.snapshots.${snapshotId}`, `characters.${character.id}.currentSnapshotId`],
     at,
@@ -198,6 +209,7 @@ export function captureCharacter(profile: Profile, input: CaptureCharacterInput)
 }
 
 export interface UpsertCharacterClassProgressInput {
+  readonly playthroughId?: PlaythroughId
   readonly characterId: CharacterId
   readonly classRef: EntityRef
   readonly unlocked?: Knowledge<boolean>
@@ -212,17 +224,18 @@ export interface UpsertCharacterClassProgressInput {
 const UNKNOWN_BOOLEAN: Knowledge<boolean> = { state: 'unknown' }
 
 export function upsertCharacterClassProgress(
-  profile: Profile,
+  localData: LocalData,
   input: UpsertCharacterClassProgressInput,
-): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.characters[input.characterId]
+): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.characters[input.characterId]
   if (!current) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
-  assertPersonalDefinitionRef(profile, input.classRef)
+  assertPersonalDefinitionRef(localData, input.classRef)
   validateNonnegativeKnowledge(input.observedLp, 'Observed LP')
-  const key = logicalEntityKey(profile, input.classRef)
+  const key = logicalEntityKey(localData, input.classRef)
   const prior = current.classProgress[key]
   const classProgress: CharacterClassProgress = {
     classRef: input.classRef,
@@ -239,9 +252,10 @@ export function upsertCharacterClassProgress(
     classProgress: { ...current.classProgress, [key]: classProgress },
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { characters: { ...profile.characters, [character.id]: character } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { characters: { ...playthrough.characters, [character.id]: character } },
     'character.classProgress.upsert',
     [`characters.${character.id}.classProgress.${key}`],
     at,
@@ -249,6 +263,7 @@ export function upsertCharacterClassProgress(
 }
 
 export interface UpsertLearnedNodeInput {
+  readonly playthroughId?: PlaythroughId
   readonly characterId: CharacterId
   readonly ref: EntityRef
   readonly kind: LearnedNodeKind
@@ -259,15 +274,16 @@ export interface UpsertLearnedNodeInput {
   readonly expectedRevision?: number
 }
 
-export function upsertLearnedNode(profile: Profile, input: UpsertLearnedNodeInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  const current = profile.characters[input.characterId]
+export function upsertLearnedNode(localData: LocalData, input: UpsertLearnedNodeInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  const current = playthrough.characters[input.characterId]
   if (!current) {
     throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${input.characterId}`)
   }
-  assertPersonalDefinitionRef(profile, input.ref)
+  assertPersonalDefinitionRef(localData, input.ref)
   validateNonnegativeKnowledge(input.actualPaidLp, 'Actual paid LP')
-  const key = logicalEntityKey(profile, input.ref)
+  const key = logicalEntityKey(localData, input.ref)
   const prior = current.learnedNodes[key]
   const learnedNode: LearnedNode = {
     ref: input.ref,
@@ -283,9 +299,10 @@ export function upsertLearnedNode(profile: Profile, input: UpsertLearnedNodeInpu
     learnedNodes: { ...current.learnedNodes, [key]: learnedNode },
     updatedAt: at,
   }
-  return updateProfile(
-    profile,
-    { characters: { ...profile.characters, [character.id]: character } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { characters: { ...playthrough.characters, [character.id]: character } },
     'character.learnedNode.upsert',
     [`characters.${character.id}.learnedNodes.${key}`],
     at,
@@ -293,6 +310,7 @@ export function upsertLearnedNode(profile: Profile, input: UpsertLearnedNodeInpu
 }
 
 export interface UpsertProgressInput {
+  readonly playthroughId?: PlaythroughId
   readonly id?: ProgressRecordId
   readonly subject: EntityRef
   readonly displayName: string
@@ -310,13 +328,14 @@ export interface UpsertProgressInput {
 const UNKNOWN_PROGRESS_STAGE: Knowledge<ProgressStage> = { state: 'unknown' }
 const UNKNOWN_STRING: Knowledge<string> = { state: 'unknown' }
 
-export function upsertProgress(profile: Profile, input: UpsertProgressInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  assertPersonalDefinitionRef(profile, input.subject)
-  const matching = Object.values(profile.progress).find(
-    (record) => logicalEntityKey(profile, record.subject) === logicalEntityKey(profile, input.subject),
+export function upsertProgress(localData: LocalData, input: UpsertProgressInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  const playthrough = requirePlaythrough(localData, input.playthroughId)
+  assertPersonalDefinitionRef(localData, input.subject)
+  const matching = Object.values(playthrough.progress).find(
+    (record) => logicalEntityKey(localData, record.subject) === logicalEntityKey(localData, input.subject),
   )
-  const current = input.id === undefined ? matching : profile.progress[input.id]
+  const current = input.id === undefined ? matching : playthrough.progress[input.id]
   if (matching && matching.id !== current?.id) {
     throw new DomainError('DUPLICATE_REFERENCE', 'Another progress record already uses this subject')
   }
@@ -341,9 +360,10 @@ export function upsertProgress(profile: Profile, input: UpsertProgressInput): Pr
     updatedAt: at,
     ...(observedAt === undefined ? {} : { observedAt }),
   }
-  return updateProfile(
-    profile,
-    { progress: { ...profile.progress, [id]: record } },
+  return updatePlaythrough(
+    localData,
+    playthrough.id,
+    { progress: { ...playthrough.progress, [id]: record } },
     current ? 'progress.update' : 'progress.create',
     [`progress.${id}`],
     at,

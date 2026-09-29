@@ -1,8 +1,8 @@
-import { createBlankPlaythrough } from './profile-helpers'
+import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { Profile } from '../src/domain/types'
+import type { LocalData } from '../src/domain/types'
 
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -10,7 +10,7 @@ async function choose(page: Page, label: string, name: string) {
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
@@ -18,7 +18,7 @@ async function exportProfile(page: Page): Promise<Profile> {
   await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }).profile
+  return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
 }
 
 test.beforeEach(async ({ page }) => {
@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 test('a blank playthrough can plan unowned gear directly and reopen it offline', async ({ page, context }, testInfo) => {
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('button', { name: /^Scenario:/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeVisible()
   await expect(page.locator('dialog:modal')).toHaveCount(0)
   await expect(page.getByLabel('Build title')).not.toBeVisible()
@@ -47,12 +47,14 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.locator('.build-readiness')).not.toHaveAttribute('open')
-  const before = await exportProfile(page)
-  expect(Object.values(before.builds)).toHaveLength(1)
-  expect(Object.values(before.buildRevisions)).toHaveLength(1)
-  expect(Object.values(before.builds)[0]).toMatchObject({ title: 'Warrior build', kind: 'template' })
-  for (const key of ['inventory', 'inventoryEvents', 'characters', 'personalDefinitions', 'scenarios', 'progress'] as const) expect(before[key]).toEqual({})
-  expect(before.rulesets[before.activeRulesetRevisionId!]!.mods.state).toBe('unknown')
+  const before = await exportLocalData(page)
+  const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(page.url())?.[1] ?? '')
+  const build = before.builds[buildId]
+  expect(build).toMatchObject({ title: 'Warrior build', kind: 'build' })
+  const originalRevision = Object.values(before.buildRevisions).find(revision => revision.buildId === buildId)!
+  for (const key of ['inventory', 'inventoryEvents', 'characters', 'scenarios', 'progress'] as const) expect(selectedPlaythrough(before)[key]).toEqual({})
+  expect(before.personalDefinitions).toEqual({})
+  expect(before.gameSetups[before.planningGameSetupRevisionId!]!.mods.state).toBe('unknown')
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -66,11 +68,10 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await choose(page, 'Accessory 2', 'Acrobat Shoes')
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  const after = await exportProfile(page)
-  const originalRevision = Object.values(before.buildRevisions)[0]!
+  const after = await exportLocalData(page)
   expect(after.buildRevisions[originalRevision.id]).toEqual(originalRevision)
-  expect(Object.values(after.buildRevisions)).toHaveLength(2)
-  expect(after.inventory).toEqual({})
+  expect(Object.values(after.buildRevisions).filter(revision => revision.buildId === buildId)).toHaveLength(2)
+  expect(selectedPlaythrough(after).inventory).toEqual({})
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
@@ -128,9 +129,10 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await expect(head).toHaveValue('')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  const saved = await exportProfile(page)
+  const saved = await exportLocalData(page)
   expect(saved.personalDefinitions).toEqual({})
-  const equipment = Object.values(saved.buildRevisions)[0]!.content.equipment
+  const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(page.url())?.[1] ?? '')
+  const equipment = Object.values(saved.buildRevisions).find(revision => revision.buildId === buildId)!.content.equipment
   expect(Object.values(equipment).filter(Boolean)).toHaveLength(1)
 })
 
@@ -156,7 +158,7 @@ test('failed creation retains the sheet and retry saves one build and checkpoint
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'profiles') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed build save', 'QuotaExceededError') }
+      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed build save', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -168,10 +170,11 @@ test('failed creation retains the sheet and retry saves one build and checkpoint
   await expect(page.getByText('Local save failed', { exact: true })).not.toBeVisible()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  const saved = await exportProfile(page)
-  expect(Object.values(saved.builds)).toHaveLength(1)
-  expect(Object.values(saved.buildRevisions)).toHaveLength(1)
-  expect(saved.inventory).toEqual({})
+  const saved = await exportLocalData(page)
+  const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(page.url())?.[1] ?? '')
+  expect(saved.builds[buildId]).toBeDefined()
+  expect(Object.values(saved.buildRevisions).filter(revision => revision.buildId === buildId)).toHaveLength(1)
+  expect(selectedPlaythrough(saved).inventory).toEqual({})
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
 })

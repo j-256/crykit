@@ -2,8 +2,8 @@ import { analyzeBuildEquipment, type DefinitionResolver, type MechanicsIssue } f
 import { entityDefinitionKey } from './core'
 import { passivePointCost } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
-import { DEFAULT_PP_LIMIT } from './profile'
-import type { BuildRevisionContent, EntityRef, Knowledge, RulesetRevision, SlotDefinition } from './types'
+import { DEFAULT_PP_LIMIT } from './local-data'
+import type { BuildRevisionContent, EntityRef, Knowledge, GameSetupRevision, SlotDefinition } from './types'
 
 export type BuildValidityStatus = 'valid' | 'invalid' | 'undetermined'
 
@@ -20,13 +20,13 @@ export interface BuildValidityReport {
   readonly issues: readonly MechanicsIssue[]
 }
 
-export function effectivePpLimit(ruleset?: Pick<RulesetRevision, 'ppLimit'>): Knowledge<number> {
-  return ruleset?.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT }
+export function effectivePpLimit(gameSetup?: Pick<GameSetupRevision, 'ppLimit'>): Knowledge<number> {
+  return gameSetup?.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT }
 }
 
 export function validateBuildContent(
   content: BuildRevisionContent,
-  ruleset: Pick<RulesetRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> | undefined,
+  gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> | undefined,
   slots: readonly SlotDefinition[],
   resolve: DefinitionResolver,
   identity: (ref: EntityRef) => string = entityDefinitionKey,
@@ -35,8 +35,8 @@ export function validateBuildContent(
   const add = (code: string, status: MechanicsIssue['status'], message: string, slotId?: string) => issues.push({ code, status, message, ...(slotId ? { slotId } : {}) })
   const slotMap = new Map(slots.map(slot => [slot.id as string, slot]))
   const checkCatalogLock = (ref: EntityRef, label: string, slotId?: string) => {
-    if (ref.kind !== 'catalog' || !ruleset) return
-    const lockedRevision = ruleset.catalogLock[ref.catalogId]
+    if (ref.kind !== 'catalog' || !gameSetup) return
+    const lockedRevision = gameSetup.catalogLock[ref.catalogId]
     if (lockedRevision !== ref.catalogRevisionId) add('CATALOG_REFERENCE_MISMATCH', 'invalid', `${label} is outside the build's pinned catalog revision`, slotId)
   }
 
@@ -55,7 +55,7 @@ export function validateBuildContent(
     if (!selection) continue
     const slot = slotMap.get(slotId)
     if (!slot) {
-      add('SLOT_REFERENCE_MISSING', 'invalid', 'A selected definition uses a slot outside this ruleset', slotId)
+      add('SLOT_REFERENCE_MISSING', 'invalid', 'A selected definition uses a slot outside this Game Setup', slotId)
       continue
     }
     checkCatalogLock(selection.ref, slot.label, slotId)
@@ -83,18 +83,18 @@ export function validateBuildContent(
   }
 
   issues.push(...analyzeBuildEquipment(content, slots, resolve, identity))
-  const limit = effectivePpLimit(ruleset)
+  const limit = effectivePpLimit(gameSetup)
   let ppStatus: BuildValidityStatus = 'valid'
   if (selectedPassives > 0 && limit.state !== 'notApplicable') {
     if (limit.state !== 'known') {
       ppStatus = 'undetermined'
-      add('PP_LIMIT_UNKNOWN', 'undetermined', 'The build PP limit is unresolved for this ruleset')
+      add('PP_LIMIT_UNKNOWN', 'undetermined', 'The Build PP limit is unresolved for this Game Setup')
     } else if (unresolvedCosts === 0) {
       if (knownSubtotal > limit.value) {
         ppStatus = 'invalid'
         add('PP_LIMIT_EXCEEDED', 'invalid', `Selected passives cost ${knownSubtotal} PP, above the ${limit.value} PP limit`)
       }
-    } else if (knownSubtotal > limit.value && ruleset?.ppCostsNonNegative.state === 'known' && ruleset.ppCostsNonNegative.value) {
+    } else if (knownSubtotal > limit.value && gameSetup?.ppCostsNonNegative.state === 'known' && gameSetup.ppCostsNonNegative.value) {
       ppStatus = 'invalid'
       add('PP_LIMIT_EXCEEDED', 'invalid', `Known passive costs already exceed the ${limit.value} PP limit`)
     } else {

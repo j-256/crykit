@@ -54,7 +54,7 @@ describe('semantic navigation routes', () => {
       { page: 'reference', view: 'promote' },
       { page: 'settings', section: 'data' },
       { page: 'settings', section: 'data', previewId: 'preview / one' },
-      { page: 'settings', section: 'ruleset' },
+      { page: 'settings', section: 'game-setup' },
       { page: 'settings', section: 'history' },
       { page: 'settings', section: 'storage' },
       { page: 'settings', section: 'credits' },

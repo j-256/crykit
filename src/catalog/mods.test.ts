@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asId } from '../domain/core'
-import { createDefinitionOverride, createPersonalDefinition } from '../domain/profile'
-import { createTestProfile, known, TEST_RULESET_REVISION_ID } from '../domain/test-helpers'
+import { createDefinitionOverride, createPersonalDefinition } from '../domain/local-data'
+import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
 import type { CatalogRef, EntityId } from '../domain/types'
 import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
@@ -32,7 +32,7 @@ describe('confirmed catalog mod associations', () => {
   })
 
   it('uses exact source-backed identities for mod classes, items, and bosses', () => {
-    const profile = createTestProfile()
+    const localData = createTestLocalData()
     const cases = [
       ['mod-pack-2:class:bloodmage', 'Bloodmage'],
       ['mod-pack-2:class:tempest', 'Tempest'],
@@ -47,31 +47,31 @@ describe('confirmed catalog mod associations', () => {
     ] as const
     for (const [id, mod] of cases) {
       expect(STARTER_CATALOG.entities[id]).toBeDefined()
-      expect(definitionModAvailability(profile, ref(id))).toEqual({ requiredMod: mod, state: 'unknown' })
-      expect(definitionModAvailability(profile, ref(id), { ...profile.rulesets[TEST_RULESET_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
-      expect(definitionModAvailability(profile, ref(id), { ...profile.rulesets[TEST_RULESET_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
-      expect(definitionModAvailability(profile, { ...ref(id), catalogRevisionId: BUNDLED_CATALOG_REVISION_ID }, { ...profile.rulesets[TEST_RULESET_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, ref(id))).toEqual({ requiredMod: mod, state: 'unknown' })
+      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
     }
-    expect(definitionModAvailability(profile, ref('base:warrior:innate:fighter'))).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, ref('base:warrior:innate:fighter'))).toEqual({ state: 'unknown' })
   })
 
   it('inherits source associations through overrides without classifying unrelated same-name definitions', () => {
     const base = ref('mod-pack-2:item:doge-shield')
-    const first = createDefinitionOverride(createTestProfile(), [STARTER_CATALOG], { sourceRef: base, name: 'Personal shield' })
-    const second = createDefinitionOverride(first.profile, [STARTER_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
-    const ruleset = { ...second.profile.rulesets[TEST_RULESET_REVISION_ID], disabledMods: known(['Doge Shield']) }
-    expect(definitionModAvailability(second.profile, second.ref, ruleset).state).toBe('disabled')
-    const personal = createPersonalDefinition(second.profile, { kind: 'item', name: 'Doge Shield' })
+    const first = createDefinitionOverride(createTestLocalData(), [STARTER_CATALOG], { sourceRef: base, name: 'Personal shield' })
+    const second = createDefinitionOverride(first.localData, [STARTER_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
+    const gameSetup = { ...second.localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Doge Shield']) }
+    expect(definitionModAvailability(second.localData, second.ref, gameSetup).state).toBe('disabled')
+    const personal = createPersonalDefinition(second.localData, { kind: 'item', name: 'Doge Shield' })
     const independent = Object.values(personal.personalDefinitions).find(definition => !definition.baseRef)!
-    expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, ruleset)).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, ruleset)).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, ruleset)).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, gameSetup)).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, gameSetup)).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, gameSetup)).toEqual({ state: 'unknown' })
   })
 
-  it('retains all exact definitions while attaching the active ruleset availability to search choices', () => {
-    const original = createTestProfile()
-    const profile = { ...original, rulesets: { ...original.rulesets, [TEST_RULESET_REVISION_ID]: { ...original.rulesets[TEST_RULESET_REVISION_ID], mods: known(['Bloodmage']), disabledMods: known(['Doge Shield']) } } }
-    const options = buildDefinitionOptions(profile, [STARTER_CATALOG])
+  it('retains all exact definitions while attaching the active gameSetup availability to search choices', () => {
+    const original = createTestLocalData()
+    const localData = { ...original, gameSetups: { ...original.gameSetups, [TEST_GAME_SETUP_REVISION_ID]: { ...original.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known(['Bloodmage']), disabledMods: known(['Doge Shield']) } } }
+    const options = buildDefinitionOptions(localData, [STARTER_CATALOG])
     expect(options.find(option => option.name === 'Doge Shield')?.modAvailability?.state).toBe('disabled')
     expect(options.find(option => option.name === 'Bloodmage')?.modAvailability?.state).toBe('enabled')
     expect(options.find(option => option.name === 'Heavy Edge')?.modAvailability?.state).toBe('unknown')

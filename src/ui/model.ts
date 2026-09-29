@@ -1,4 +1,4 @@
-import type { CatalogSnapshot, EntityRef, Knowledge, Profile, Quantity, RulesetRevision } from '../domain/types'
+import type { CatalogSnapshot, EntityRef, Knowledge, LocalData, Quantity, GameSetupRevision } from '../domain/types'
 import { AppDataError } from '../interchange/errors'
 
 export function ownRecordValue<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
@@ -25,15 +25,15 @@ export function formatAppError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
 }
 
-export function resolveEntity(profile: Profile, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined) {
+export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined) {
   if (!ref) return undefined
-  if (ref.kind === 'personal') return ownRecordValue(profile.personalDefinitions, ref.definitionId)
+  if (ref.kind === 'personal') return ownRecordValue(localData.personalDefinitions, ref.definitionId)
   const snapshot = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
   return snapshot ? ownRecordValue(snapshot.entities, ref.entityId) : undefined
 }
 
-export function entityName(profile: Profile, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined, fallback = 'Unresolved entry') {
-  return resolveEntity(profile, catalogs, ref)?.name ?? fallback
+export function entityName(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined, fallback = 'Unresolved entry') {
+  return resolveEntity(localData, catalogs, ref)?.name ?? fallback
 }
 
 export function quantityLabel(quantity: Quantity) {
@@ -55,8 +55,8 @@ export function knowledgeTone<T>(knowledge: Knowledge<T>) {
   return 'warning' as const
 }
 
-export function activeRuleset(profile: Profile): RulesetRevision | undefined {
-  return profile.activeRulesetRevisionId ? ownRecordValue(profile.rulesets, profile.activeRulesetRevisionId) : undefined
+export function activeGameSetup(localData: LocalData): GameSetupRevision | undefined {
+  return localData.planningGameSetupRevisionId ? ownRecordValue(localData.gameSetups, localData.planningGameSetupRevisionId) : undefined
 }
 
 export function formatRelativeDate(value: string | undefined) {

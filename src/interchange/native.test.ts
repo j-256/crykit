@@ -1,28 +1,32 @@
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { createBlankProfile } from '../domain/profile'
-import { addTestCharacter, createTestProfile } from '../domain/test-helpers'
+import { requirePlaythrough } from '../domain'
+import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
 import { previewNativeBackup } from './native'
 import { catalogSnapshotKey } from './identity'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
+function selectedPlaythroughRecord(localData: Record<string, unknown>): Record<string, unknown> {
+  const selectedPlaythroughId = localData.selectedPlaythroughId
+  const playthroughs = localData.playthroughs as Record<string, Record<string, unknown>>
+  return playthroughs[String(selectedPlaythroughId)]!
+}
+
 function nativeFixture(options: {
   readonly version?: string
   readonly activeScenarioId?: string
   readonly includeBadSource?: boolean
-  readonly mutateProfile?: (profile: Record<string, unknown>) => void
+  readonly mutateLocalData?: (localData: Record<string, unknown>) => void
   readonly mutatePayload?: (payload: Record<string, unknown>) => void
 } = {}): Uint8Array {
-  const profile = createBlankProfile({
-    id: 'profile:synthetic' as ReturnType<typeof createBlankProfile>['id'],
-    label: 'Synthetic profile',
-    now: '2026-01-02T03:04:05.000Z',
-  })
-  const mutatedProfile = structuredClone(
-    options.activeScenarioId ? { ...profile, activeScenarioId: options.activeScenarioId } : profile,
+  const sourceLocalData = createTestLocalData()
+  const localData = { ...sourceLocalData, id: 'localData:synthetic' as typeof sourceLocalData.id, changes: [] }
+  const mutatedLocalData = structuredClone(
+    localData,
   ) as unknown as Record<string, unknown>
-  options.mutateProfile?.(mutatedProfile)
+  if (options.activeScenarioId) selectedPlaythroughRecord(mutatedLocalData).activeScenarioId = options.activeScenarioId
+  options.mutateLocalData?.(mutatedLocalData)
   const source = new TextEncoder().encode('synthetic source')
   const sources = options.includeBadSource
     ? [{
@@ -38,14 +42,14 @@ function nativeFixture(options: {
     : []
   const manifest = {
     format: 'crystal-companion-backup',
-    formatVersion: options.version ?? '1.0.0',
+    formatVersion: options.version ?? '2.0.0',
     exportedAt: '2026-01-02T03:04:05.000Z',
     payload: 'bundle.json',
     sources,
   }
   const payload = {
-    profile: mutatedProfile,
-    lineage: { rootProfileId: profile.id },
+    localData: mutatedLocalData,
+    lineage: { rootLocalDataId: localData.id },
     catalogs: [],
     evidence: [],
     history: [],
@@ -59,17 +63,20 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
-  it('accepts legacy snapshot context and retains pinned context while rejecting dangling rulesets', async () => {
-    const pinned = addTestCharacter(createTestProfile(), 'synthetic')
-    const character = Object.values(pinned.characters)[0]!
+  it('accepts legacy snapshot context and retains pinned context while rejecting dangling gameSetups', async () => {
+    const pinned = addTestCharacter(createTestLocalData(), 'synthetic')
+    const pinnedPlaythrough = requirePlaythrough(pinned)
+    const character = Object.values(pinnedPlaythrough.characters)[0]!
     const snapshot = character.snapshots[character.currentSnapshotId!]!
-    const fixture = (rulesetRevisionId: string | undefined) => nativeFixture({ mutateProfile: (profile) => {
-      Object.assign(profile, { ...pinned, changes: [], characters: { [character.id]: { ...character, snapshots: { [snapshot.id]: { ...snapshot, rulesetRevisionId } } } } })
+    const fixture = (gameSetupRevisionId: string | undefined) => nativeFixture({ mutateLocalData: (localData) => {
+      Object.assign(localData, { ...pinned, changes: [] })
+      const playthrough = selectedPlaythroughRecord(localData)
+      playthrough.characters = { [character.id]: { ...character, snapshots: { [snapshot.id]: { ...snapshot, gameSetupRevisionId } } } }
     } })
-    const imported = await previewNativeBackup(fixture(snapshot.rulesetRevisionId), 'pinned.zip')
-    expect(imported.proposed.profile.characters[character.id]?.snapshots[snapshot.id]?.rulesetRevisionId).toBe(snapshot.rulesetRevisionId)
+    const imported = await previewNativeBackup(fixture(snapshot.gameSetupRevisionId), 'pinned.zip')
+    expect(requirePlaythrough(imported.proposed.localData).characters[character.id]?.snapshots[snapshot.id]?.gameSetupRevisionId).toBe(snapshot.gameSetupRevisionId)
     const legacy = await previewNativeBackup(fixture(undefined), 'legacy.zip')
-    expect(legacy.proposed.profile.characters[character.id]?.snapshots[snapshot.id]).not.toHaveProperty('rulesetRevisionId')
+    expect(requirePlaythrough(legacy.proposed.localData).characters[character.id]?.snapshots[snapshot.id]).not.toHaveProperty('gameSetupRevisionId')
     await expect(previewNativeBackup(fixture('missing'), 'missing.zip')).rejects.toMatchObject({ code: 'schema-mismatch' })
   })
 
@@ -78,12 +85,12 @@ describe('native backup validation', () => {
   })
 
   it('rejects unknown backup format versions before applying data', async () => {
-    await expect(previewNativeBackup(nativeFixture({ version: '2.0.0' }), 'future.zip')).rejects.toMatchObject({
+    await expect(previewNativeBackup(nativeFixture({ version: '3.0.0' }), 'future.zip')).rejects.toMatchObject({
       code: 'schema-mismatch',
     })
   })
 
-  it('rejects broken profile graph references', async () => {
+  it('rejects broken localData graph references', async () => {
     await expect(previewNativeBackup(nativeFixture({ activeScenarioId: 'missing' }), 'broken.zip')).rejects.toMatchObject({
       code: 'schema-mismatch',
     })
@@ -95,16 +102,16 @@ describe('native backup validation', () => {
     })
   })
 
-  it('rejects history that does not end at the exact exported profile', async () => {
+  it('rejects history that does not end at the exact exported localData', async () => {
     const archive = nativeFixture({
       mutatePayload: (payload) => {
-        const profile = payload.profile as Record<string, unknown>
-        const before = structuredClone(profile) as Record<string, unknown>
-        const after = { ...structuredClone(profile), revision: 1, label: 'Older checkpoint' }
-        profile.revision = 2
+        const localData = payload.localData as Record<string, unknown>
+        const before = structuredClone(localData) as Record<string, unknown>
+        const after = { ...structuredClone(localData), revision: 1, label: 'Older checkpoint' }
+        localData.revision = 2
         payload.history = [{
           id: 'history:one',
-          profileId: profile.id,
+          localDataId: localData.id,
           command: 'fixture',
           previousRevision: 0,
           nextRevision: 1,
@@ -119,8 +126,8 @@ describe('native backup validation', () => {
 
   it('accepts date-only observations, signed costs, and finite raw source numbers', async () => {
     const archive = nativeFixture({
-      mutateProfile: (profile) => {
-        profile.personalDefinitions = {
+      mutateLocalData: (localData) => {
+        localData.personalDefinitions = {
           fixture: {
             id: 'fixture',
             revision: 0,
@@ -134,7 +141,7 @@ describe('native backup validation', () => {
             updatedAt: '2026-01-02T03:04:05.000Z',
           },
         }
-        profile.inventory = {
+        selectedPlaythroughRecord(localData).inventory = {
           fixture: {
             id: 'fixture',
             revision: 0,
@@ -151,15 +158,14 @@ describe('native backup validation', () => {
         }
       },
     })
-    await expect(previewNativeBackup(archive, 'supported-values.zip')).resolves.toMatchObject({
-      proposed: { profile: { inventory: { fixture: { observedAt: '2026-01-02' } } } },
-    })
+    const preview = await previewNativeBackup(archive, 'supported-values.zip')
+    expect(requirePlaythrough(preview.proposed.localData).inventory.fixture?.observedAt).toBe('2026-01-02')
   })
 
   it('retains immutable personal definition lineage while accepting old standalone definitions', async () => {
     const archive = nativeFixture({
-      mutateProfile: (profile) => {
-        profile.personalDefinitions = {
+      mutateLocalData: (localData) => {
+        localData.personalDefinitions = {
           original: {
             id: 'original',
             revision: 0,
@@ -190,7 +196,7 @@ describe('native backup validation', () => {
 
     await expect(previewNativeBackup(archive, 'lineage.zip')).resolves.toMatchObject({
       proposed: {
-        profile: {
+        localData: {
           personalDefinitions: {
             original: { revision: 0 },
             revised: {
@@ -205,7 +211,7 @@ describe('native backup validation', () => {
 
   it('rejects branched personal definition lineage', async () => {
     const archive = nativeFixture({
-      mutateProfile: (profile) => {
+      mutateLocalData: (localData) => {
         const definition = (id: string, name: string, previousRevision?: string) => ({
           id,
           revision: previousRevision ? 1 : 0,
@@ -221,7 +227,7 @@ describe('native backup validation', () => {
           createdAt: '2026-01-02T03:04:05.000Z',
           updatedAt: '2026-01-02T03:04:05.000Z',
         })
-        profile.personalDefinitions = {
+        localData.personalDefinitions = {
           original: definition('original', 'Original'),
           first: definition('first', 'First', 'original'),
           second: definition('second', 'Second', 'original'),
@@ -247,7 +253,7 @@ describe('native backup validation', () => {
     }],
   ])('rejects %s in personal definition lineage', async (_label, mutate) => {
     const archive = nativeFixture({
-      mutateProfile: (profile) => {
+      mutateLocalData: (localData) => {
         const definitions = {
           original: {
             id: 'original',
@@ -275,7 +281,7 @@ describe('native backup validation', () => {
           },
         }
         mutate(definitions)
-        profile.personalDefinitions = definitions
+        localData.personalDefinitions = definitions
       },
     })
 
@@ -284,8 +290,8 @@ describe('native backup validation', () => {
 
   it('rejects an override whose kind differs from its exact catalog base', async () => {
     const archive = nativeFixture({
-      mutateProfile: (profile) => {
-        profile.personalDefinitions = {
+      mutateLocalData: (localData) => {
+        localData.personalDefinitions = {
           override: {
             id: 'override',
             revision: 1,
@@ -333,11 +339,11 @@ describe('native backup validation', () => {
   })
 
   it.each([
-    ['an impossible calendar timestamp', (profile: Record<string, unknown>) => {
-      profile.createdAt = '2025-02-30T00:00:00.000Z'
+    ['an impossible calendar timestamp', (localData: Record<string, unknown>) => {
+      localData.createdAt = '2025-02-30T00:00:00.000Z'
     }],
-    ['a control character in an ID', (profile: Record<string, unknown>) => {
-      profile.personalDefinitions = {
+    ['a control character in an ID', (localData: Record<string, unknown>) => {
+      localData.personalDefinitions = {
         'bad\u0000id': {
           id: 'bad\u0000id',
           revision: 0,
@@ -351,8 +357,8 @@ describe('native backup validation', () => {
         },
       }
     }],
-    ['an invalid inventory quantity', (profile: Record<string, unknown>) => {
-      profile.inventory = {
+    ['an invalid inventory quantity', (localData: Record<string, unknown>) => {
+      selectedPlaythroughRecord(localData).inventory = {
         bad: {
           id: 'bad',
           revision: 0,
@@ -367,8 +373,8 @@ describe('native backup validation', () => {
         },
       }
     }],
-    ['a nonstring personal definition name', (profile: Record<string, unknown>) => {
-      profile.personalDefinitions = {
+    ['a nonstring personal definition name', (localData: Record<string, unknown>) => {
+      localData.personalDefinitions = {
         bad: {
           id: 'bad',
           revision: 0,
@@ -382,8 +388,8 @@ describe('native backup validation', () => {
         },
       }
     }],
-    ['a character missing its class progress map', (profile: Record<string, unknown>) => {
-      profile.characters = {
+    ['a character missing its class progress map', (localData: Record<string, unknown>) => {
+      selectedPlaythroughRecord(localData).characters = {
         bad: {
           id: 'bad',
           revision: 0,
@@ -395,11 +401,11 @@ describe('native backup validation', () => {
         },
       }
     }],
-    ['a ruleset with nonarray slots', (profile: Record<string, unknown>) => {
-      profile.rulesets = {
+    ['a gameSetup with nonarray slots', (localData: Record<string, unknown>) => {
+      localData.gameSetups = {
         bad: {
           id: 'bad',
-          rulesetId: 'ruleset',
+          gameSetupId: 'gameSetup',
           revision: 1,
           label: 'Fixture',
           platform: { state: 'unknown' },
@@ -413,8 +419,8 @@ describe('native backup validation', () => {
         },
       }
     }],
-  ])('rejects %s anywhere in a native profile', async (_label, mutateProfile) => {
-    await expect(previewNativeBackup(nativeFixture({ mutateProfile }), 'malformed.zip')).rejects.toMatchObject({
+  ])('rejects %s anywhere in a native localData', async (_label, mutateLocalData) => {
+    await expect(previewNativeBackup(nativeFixture({ mutateLocalData }), 'malformed.zip')).rejects.toMatchObject({
       code: 'schema-mismatch',
     })
   })

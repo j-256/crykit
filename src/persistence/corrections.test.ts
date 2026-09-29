@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadWorkspace, exportBackup, commitImport, previewImport } from './workspace'
-import { createBlankProfile } from '../domain/profile'
+import { loadLocalData, exportBackup, commitImport, previewImport } from './local-data'
+import { createBlankLocalData } from '../domain/local-data'
 import { mergeCorrections } from '../domain/corrections'
 import { testCorrection } from '../domain/corrections.test-helpers'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
@@ -44,11 +44,11 @@ describe('global correction storage', () => {
     try {
       await vi.waitFor(() => expect(revisions).toContain(0))
       const saved = await saveCorrections([testCorrection()], 0)
-      const profile = createBlankProfile()
-      await database.profiles.put({ id: profile.id, revision: 0, updatedAt: profile.updatedAt, profile, lineage: { rootProfileId: profile.id } })
+      const localData = createBlankLocalData()
+      await database.localDatas.put({ id: localData.id, revision: 0, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
       expect(await loadCorrections()).toEqual(saved)
       await vi.waitFor(() => expect(revisions).toContain(1))
-      expect((await database.profiles.get(profile.id))?.profile).toEqual(profile)
+      expect((await database.localDatas.get(localData.id))?.localData).toEqual(localData)
     } finally { stop() }
   })
   it('rejects simultaneous writes and immutable ID replacement without dropping the winner', async () => {
@@ -77,15 +77,16 @@ describe('global correction storage', () => {
     expect((await database.meta.get(CORRECTIONS_STORAGE_KEY))?.value).toBe('{broken')
   })
   it('includes global decisions in full backups and restores them only when requested', async () => {
-    const workspace = await loadWorkspace()
+    await loadLocalData()
     const correction = testCorrection()
     await saveCorrections([correction], 0)
-    const bytes = await exportBackup(workspace.profile.id)
+    const bytes = await exportBackup()
     const preview = await previewImport(bytes, 'synthetic-correction-backup.zip')
     expect(preview.proposed.corrections?.entries).toEqual([correction])
     const restoredDatabase = new CrystalCompanionDatabase(`restore-${crypto.randomUUID()}`)
     setDatabaseForTests(restoredDatabase)
     try {
+      await loadLocalData()
       await commitImport(preview)
       expect((await loadCorrections()).entries).toEqual([])
       await commitImport(preview, { restoreCorrections: true })
@@ -93,17 +94,18 @@ describe('global correction storage', () => {
     } finally { setDatabaseForTests(database); await restoredDatabase.delete() }
   })
   it('rolls back correction restoration when a full backup import fails later', async () => {
-    const workspace = await loadWorkspace()
+    await loadLocalData()
     const correction = testCorrection()
     await saveCorrections([correction], 0)
-    const preview = await previewImport(await exportBackup(workspace.profile.id), 'synthetic-backup.zip')
+    const preview = await previewImport(await exportBackup(), 'synthetic-backup.zip')
     const destination = new CrystalCompanionDatabase(`rollback-${crypto.randomUUID()}`)
     setDatabaseForTests(destination)
     try {
-      vi.spyOn(destination.profiles, 'add').mockRejectedValueOnce(new Error('Synthetic profile import failure'))
+      const original = await loadLocalData()
+      vi.spyOn(destination.localDatas, 'put').mockRejectedValueOnce(new Error('Synthetic localData import failure'))
       await expect(commitImport(preview, { restoreCorrections: true })).rejects.toThrow()
       expect((await loadCorrections()).entries).toEqual([])
-      expect(await destination.profiles.count()).toBe(0)
+      expect(await loadLocalData()).toEqual(original)
     } finally { setDatabaseForTests(database); await destination.delete() }
   })
 

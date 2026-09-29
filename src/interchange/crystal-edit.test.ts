@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { previewImport } from './import'
 import { NativeCatalogSnapshotSchema } from './native-schema'
+import { requirePlaythrough } from '../domain'
 
 import { syntheticCrystalEdit } from './crystal-edit.test-helpers'
 
@@ -23,8 +24,8 @@ describe('Crystal Edit reference import', () => {
     expect(catalog.legacy).toMatchObject({ unresolvedReferences: ['Abilities #9', 'Passives #2'] })
     expect(catalog.entities['crystal-edit:Abilities:8']?.rawDescription).toBe(input.Abilities[0]!.Description)
     expect(Array.from(preview.proposed.sources[0]!.bytes)).toEqual(Array.from(encode(input)))
-    expect(preview.proposed.profile.characters).toEqual({})
-    expect(preview.proposed.profile.inventory).toEqual({})
+    expect(requirePlaythrough(preview.proposed.localData).characters).toEqual({})
+    expect(requirePlaythrough(preview.proposed.localData).inventory).toEqual({})
   })
 
   it('retains zero ratings, missing fields, future node types, and empty explicit membership', async () => {

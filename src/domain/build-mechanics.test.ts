@@ -7,7 +7,7 @@ import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { CRYSTAL_EDIT_FIELDS, STAT_KEYS } from './crystal-edit'
 import { definitionWithMechanics, equipmentFacts, equipmentRole, passivePointCost } from './mechanics-facts'
 import { asId, upsertCharacterClassProgress, validateScenario } from './index'
-import { addTestBuild, addTestCharacter, addTestDefinition, addTestScenario, createTestProfile, HAND_SLOT, known as knowledge, personalRef, SECOND_HAND_SLOT, TEST_RULESET_REVISION_ID } from './test-helpers'
+import { addTestBuild, addTestCharacter, addTestDefinition, addTestScenario, createTestLocalData, HAND_SLOT, known as knowledge, personalRef, SECOND_HAND_SLOT, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
 import type { BuildRevisionContent, BuildRevisionId, CatalogEntity, CatalogRef, CharacterId, EntityId, EntityRef, JsonValue, ScenarioId } from './types'
 
 const known = (value: JsonValue) => ({ state: 'known' as const, value })
@@ -83,15 +83,15 @@ describe('equipment planning from source facts', () => {
   })
 
   it('feeds documented roles and handedness into scenario validation', () => {
-    let profile = addTestCharacter(createTestProfile(), 'character')
-    profile = addTestDefinition(profile, 'job', { kind: 'class', requirements: { state: 'unknown' }, grants: { state: 'unknown' } })
-    profile = addTestDefinition(profile, 'weapon', { slotKinds: { state: 'unknown' }, requirements: { state: 'unknown' } })
-    const ruleset = profile.rulesets[TEST_RULESET_REVISION_ID]!
-    profile = { ...profile, rulesets: { ...profile.rulesets, [ruleset.id]: { ...ruleset, slots: ruleset.slots.map(slot => ({ ...slot, ...(slot.id === HAND_SLOT ? { equipmentRole: 'mainHand' as const } : slot.id === SECOND_HAND_SLOT ? { equipmentRole: 'offHand' as const } : {}) })) } }, personalDefinitions: { ...profile.personalDefinitions, job: { ...profile.personalDefinitions.job!, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']) } }, weapon: { ...profile.personalDefinitions.weapon!, fields: greatsword.fields } } }
-    profile = upsertCharacterClassProgress(profile, { characterId: asId<CharacterId>('character'), classRef: personalRef('job'), unlocked: knowledge(true) })
-    profile = addTestBuild(profile, 'build', 'character', { [HAND_SLOT]: { ref: personalRef('weapon') } }, { primaryClass: personalRef('job') })
-    profile = addTestScenario(profile, { character: asId<BuildRevisionId>('build-revision') })
-    const report = validateScenario(profile, asId<ScenarioId>('scenario'))
+    let localData = addTestCharacter(createTestLocalData(), 'character')
+    localData = addTestDefinition(localData, 'job', { kind: 'class', requirements: { state: 'unknown' }, grants: { state: 'unknown' } })
+    localData = addTestDefinition(localData, 'weapon', { slotKinds: { state: 'unknown' }, requirements: { state: 'unknown' } })
+    const gameSetup = localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
+    localData = { ...localData, gameSetups: { ...localData.gameSetups, [gameSetup.id]: { ...gameSetup, slots: gameSetup.slots.map(slot => ({ ...slot, ...(slot.id === HAND_SLOT ? { equipmentRole: 'mainHand' as const } : slot.id === SECOND_HAND_SLOT ? { equipmentRole: 'offHand' as const } : {}) })) } }, personalDefinitions: { ...localData.personalDefinitions, job: { ...localData.personalDefinitions.job!, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']) } }, weapon: { ...localData.personalDefinitions.weapon!, fields: greatsword.fields } } }
+    localData = upsertCharacterClassProgress(localData, { characterId: asId<CharacterId>('character'), classRef: personalRef('job'), unlocked: knowledge(true) })
+    localData = addTestBuild(localData, 'build', 'character', { [HAND_SLOT]: { ref: personalRef('weapon') } }, { primaryClass: personalRef('job') })
+    localData = addTestScenario(localData, { character: asId<BuildRevisionId>('build-revision') })
+    const report = validateScenario(localData, asId<ScenarioId>('scenario'))
     expect(report.dimensions.equipment.status).toBe('valid')
   })
 })

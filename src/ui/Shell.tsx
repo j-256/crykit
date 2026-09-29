@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { CatalogSnapshot, Profile, ProfileId, RulesetRevisionId, ScenarioId } from '../domain/types'
-import type { ProfileSummary } from '../interchange/types'
+import type { CatalogSnapshot, LocalData, PlaythroughId, GameSetupRevisionId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
@@ -25,7 +24,7 @@ function Brand() {
   return <div className="brand"><span className="brand__mark"><Icon name="crystal" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">A Crystal Project planner</span></span></div>
 }
 
-export function Shell({ profile, profiles, catalogs, destination, saveState, contextBusy, onSelectProfile, onSelectRuleset, onSelectScenario, onOpenData, children }: { profile: Profile; profiles: readonly ProfileSummary[]; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectProfile: (id: ProfileId) => Promise<void>; onSelectRuleset: (id: RulesetRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectGameSetup, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectGameSetup: (id: GameSetupRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : destination
@@ -70,7 +69,7 @@ export function Shell({ profile, profiles, catalogs, destination, saveState, con
     <main className="main-shell">
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
-        <ContextSelectors busy={contextBusy} onSelectProfile={onSelectProfile} onSelectRuleset={onSelectRuleset} onSelectScenario={onSelectScenario} profile={profile} profiles={profiles}/>
+        <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectGameSetup={onSelectGameSetup} onSelectScenario={onSelectScenario} localData={localData}/>
         <div className="context-bar__meta">
           <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>
           {developmentPort && <span aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}

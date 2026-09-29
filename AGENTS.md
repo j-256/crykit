@@ -4,7 +4,7 @@ Build a local-first planner with explicit unknown values. Keep catalog definitio
 
 Crystal Companion is evolving rapidly and does not promise backward compatibility for development-era schemas, fixtures, or internal APIs. Prefer a clean current model over compatibility branches, inferred legacy state, or migrations. Add compatibility only when the user explicitly requests it or identifies existing data that must be preserved.
 
-Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser profiles start with labeled synthetic sample records; explicitly created profiles start blank. The application makes no runtime requests for game data.
+Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser environments start with labeled synthetic sample records; explicitly created Playthroughs start blank. The application makes no runtime requests for game data.
 
 GitHub Actions must remain disabled while the repository is private. Verify public visibility through GitHub before enabling Actions. The reviewed public deployment workflow runs local-equivalent checks and deploys only main; every job must retain its public-repository guard. Do not enable hosted runners for a private fork.
 

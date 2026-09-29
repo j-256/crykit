@@ -1,18 +1,18 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { CatalogSnapshot, Profile, ProfileId, Timestamp } from '../domain/types'
+import type { CatalogSnapshot, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import type {
   EvidenceRecord,
   PersistedHistoryEntry,
-  ProfileLineage,
+  LocalDataLineage,
   SourceArchiveRecord,
 } from '../interchange/types'
 
-export interface ProfileRecord {
+export interface LocalDataRecord {
   readonly id: string
   readonly revision: number
   readonly updatedAt: Timestamp
-  readonly profile: Profile
-  readonly lineage: ProfileLineage
+  readonly localData: LocalData
+  readonly lineage: LocalDataLineage
 }
 
 export interface CatalogRecord {
@@ -26,7 +26,7 @@ export interface CatalogRecord {
 export interface ImportRecord {
   readonly id: string
   readonly sourceDigest: string
-  readonly profileId: ProfileId
+  readonly localDataId: LocalDataId
   readonly importedAt: Timestamp
 }
 
@@ -36,7 +36,7 @@ export interface MetaRecord {
 }
 
 export class CrystalCompanionDatabase extends Dexie {
-  profiles!: EntityTable<ProfileRecord, 'id'>
+  localDatas!: EntityTable<LocalDataRecord, 'id'>
   catalogs!: EntityTable<CatalogRecord, 'key'>
   evidence!: EntityTable<EvidenceRecord, 'id'>
   sources!: EntityTable<SourceArchiveRecord, 'id'>
@@ -44,15 +44,15 @@ export class CrystalCompanionDatabase extends Dexie {
   imports!: EntityTable<ImportRecord, 'id'>
   meta!: EntityTable<MetaRecord, 'key'>
 
-  constructor(name = 'crystal-companion') {
+  constructor(name = 'crystal-companion-v2') {
     super(name)
     this.version(1).stores({
-      profiles: 'id, revision, updatedAt',
+      localDatas: 'id, revision, updatedAt',
       catalogs: 'key, id, revisionId, checksum',
       evidence: 'id, sourceDigest, group',
       sources: 'id, digest, format',
-      history: 'id, profileId, [profileId+nextRevision]',
-      imports: 'id, sourceDigest, profileId',
+      history: 'id, localDataId, [localDataId+nextRevision]',
+      imports: 'id, sourceDigest, localDataId',
       meta: 'key',
     })
   }

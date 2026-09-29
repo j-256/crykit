@@ -1,7 +1,7 @@
-import { asTimestamp, assertExpectedRevision, DomainError, nowTimestamp, updateProfile } from './core'
+import { asTimestamp, assertExpectedRevision, DomainError, nowTimestamp, requirePlaythrough, updatePlaythrough } from './core'
 import { logicalEntityKey } from './definitions'
 import { upsertProgress } from './characters'
-import type { EntityRef, Knowledge, PartyProgressRecord, Profile, ProgressStage, Timestamp } from './types'
+import type { EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressStage, Timestamp } from './types'
 
 export const CLASS_SEAL_STAGES: readonly ProgressStage[] = Object.freeze([
   'notAcquired',
@@ -63,10 +63,11 @@ export interface AdvanceClassSealProgressInput {
   readonly now?: string
 }
 
-export function advanceClassSealProgress(profile: Profile, input: AdvanceClassSealProgressInput): Profile {
-  const current = Object.values(profile.progress).find(record => logicalEntityKey(profile, record.subject) === logicalEntityKey(profile, input.subject))
+export function advanceClassSealProgress(localData: LocalData, input: AdvanceClassSealProgressInput): LocalData {
+  const playthrough = requirePlaythrough(localData)
+  const current = Object.values(playthrough.progress).find(record => logicalEntityKey(localData, record.subject) === logicalEntityKey(localData, input.subject))
   const facts = classSealStageFacts(nextClassSealStage(classSealStage(current)))
-  return upsertProgress(profile, {
+  return upsertProgress(localData, {
     ...(current ? { id: current.id, subject: current.subject } : { subject: input.subject }),
     displayName: input.displayName,
     ...facts,
@@ -87,28 +88,31 @@ export interface SetClassSealProgressBatchInput {
   readonly now?: Timestamp | string
 }
 
-export function setClassSealProgressBatch(profile: Profile, input: SetClassSealProgressBatchInput): Profile {
-  assertExpectedRevision(profile, input.expectedRevision)
-  if (input.selections.length === 0) return profile
+export function setClassSealProgressBatch(localData: LocalData, input: SetClassSealProgressBatchInput): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  if (input.selections.length === 0) return localData
+  const playthrough = requirePlaythrough(localData)
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   const facts = classSealStageFacts(input.stage)
   const seen = new Set<string>()
   const changedPaths: string[] = []
-  let staged = profile
+  let staged = localData
   for (const selection of input.selections) {
-    const key = logicalEntityKey(profile, selection.subject)
+    const key = logicalEntityKey(localData, selection.subject)
     if (seen.has(key)) throw new DomainError('DUPLICATE_REFERENCE', 'Bulk progress selection repeats a class subject')
     seen.add(key)
-    const current = Object.values(staged.progress).find(record => logicalEntityKey(staged, record.subject) === key)
+    const stagedPlaythrough = requirePlaythrough(staged, playthrough.id)
+    const current = Object.values(stagedPlaythrough.progress).find(record => logicalEntityKey(staged, record.subject) === key)
     staged = upsertProgress(staged, {
+      playthroughId: playthrough.id,
       ...(current ? { id: current.id, subject: current.subject } : { subject: selection.subject }),
       displayName: selection.displayName,
       ...facts,
       expectedRevision: staged.revision,
       now: at,
     })
-    const updated = Object.values(staged.progress).find(record => logicalEntityKey(staged, record.subject) === key)
+    const updated = Object.values(requirePlaythrough(staged, playthrough.id).progress).find(record => logicalEntityKey(staged, record.subject) === key)
     if (updated) changedPaths.push(`progress.${updated.id}`)
   }
-  return updateProfile(profile, { progress: staged.progress }, 'progress.bulkSetStage', changedPaths, at)
+  return updatePlaythrough(localData, playthrough.id, { progress: requirePlaythrough(staged, playthrough.id).progress }, 'progress.bulkSetStage', changedPaths, at)
 }

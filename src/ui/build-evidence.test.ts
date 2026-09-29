@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
-import { createBlankProfile } from '../domain'
+import { createBlankLocalData } from '../domain'
 import type { CatalogRef, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
 import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, similarNameOptions, summaryFactLines } from './build-evidence'
 
-const profile = createBlankProfile({ label: 'Synthetic build evidence' })
-const options = buildDefinitionOptions(profile, [STARTER_CATALOG])
+const localData = createBlankLocalData()
+const options = buildDefinitionOptions(localData, [STARTER_CATALOG])
 const option = (name: string) => options.find((entry) => entry.name === name)!
 
 describe('build choice evidence', () => {
   it('excludes only identified reference articles, including their personal lineage', () => {
     const article = option('Katanas')
-    expect(isReferenceArticle(profile, article.ref)).toBe(true)
-    expect(isReferenceArticle(profile, option('Muramasa').ref)).toBe(false)
-    expect(isReferenceArticle(profile, { ...(article.ref as CatalogRef), catalogId: 'unrelated-catalog' as CatalogRef['catalogId'] })).toBe(false)
+    expect(isReferenceArticle(localData, article.ref)).toBe(true)
+    expect(isReferenceArticle(localData, option('Muramasa').ref)).toBe(false)
+    expect(isReferenceArticle(localData, { ...(article.ref as CatalogRef), catalogId: 'unrelated-catalog' as CatalogRef['catalogId'] })).toBe(false)
     const personal = { kind: 'personal' as const, definitionId: 'synthetic-article' as PersonalDefinitionId }
-    const overridden = { ...profile, personalDefinitions: { [personal.definitionId]: { ...article.record, id: personal.definitionId, baseRef: article.ref } } } as unknown as typeof profile
+    const overridden = { ...localData, personalDefinitions: { [personal.definitionId]: { ...article.record, id: personal.definitionId, baseRef: article.ref } } } as unknown as typeof localData
     expect(isReferenceArticle(overridden, personal)).toBe(true)
   })
 
@@ -26,7 +26,7 @@ describe('build choice evidence', () => {
     expect(detailed.key).not.toBe(nameOnly.key)
     expect(hasNameEvidenceOnly(detailed.record)).toBe(false)
     expect(hasNameEvidenceOnly(nameOnly.record)).toBe(true)
-    expect(similarNameOptions(profile, options).get(nameOnly.key)?.map((entry) => entry.key)).toContain(detailed.key)
+    expect(similarNameOptions(localData, options).get(nameOnly.key)?.map((entry) => entry.key)).toContain(detailed.key)
   })
 
   it('exposes effects and numeric facts without duplicate stat text or invented totals', () => {

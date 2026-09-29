@@ -91,7 +91,7 @@ test('edits in place with minimal input, adds provenance later, and exports exac
   expect(active[0]?.supersedes).toEqual([exported.find(entry => entry.id !== active[0]?.id)!.id])
   expect(active[0]).toMatchObject({ confidence: 'confirmed', decision: 'refinement', evidence: VENDOR_SOURCE })
   expect(active[0]?.changes[0]).toMatchObject({ path: 'field', field: 'Location', before: STARTER_CATALOG.entities[ENTITY_ID]!.fields.Location, after: { state: 'known', value: CORRECTED_LOCATION } })
-  expect(JSON.stringify(exported)).not.toMatch(/personalDefinitions|inventory|characters|profileId/)
+  expect(JSON.stringify(exported)).not.toMatch(/personalDefinitions|inventory|characters|localDataId/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('correction-review.png') })
   await manager.getByRole('button', { name: 'Close dialog', exact: true }).click()

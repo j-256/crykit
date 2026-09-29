@@ -1,6 +1,6 @@
 import { definitionLineageRootRef } from '../domain/definitions'
 import { modState, type ModState } from '../domain/mods'
-import type { EntityRef, Profile, RulesetRevision } from '../domain/types'
+import type { EntityRef, LocalData, GameSetupRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
@@ -98,10 +98,10 @@ export interface DefinitionModAvailability {
   readonly requiredMod?: string
 }
 
-export function definitionModAvailability(profile: Profile, ref: EntityRef, ruleset?: RulesetRevision): DefinitionModAvailability {
-  const root = definitionLineageRootRef(profile, ref)
+export function definitionModAvailability(localData: LocalData, ref: EntityRef, gameSetup?: GameSetupRevision): DefinitionModAvailability {
+  const root = definitionLineageRootRef(localData, ref)
   const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (root.catalogRevisionId === STARTER_CATALOG_REVISION_ID || root.catalogRevisionId === BUNDLED_CATALOG_REVISION_ID) ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
-  return requiredMod ? { state: modState(ruleset, requiredMod), requiredMod } : { state: 'unknown' }
+  return requiredMod ? { state: modState(gameSetup, requiredMod), requiredMod } : { state: 'unknown' }
 }
 
 export function modAvailabilityLabel(availability: DefinitionModAvailability): string | undefined {

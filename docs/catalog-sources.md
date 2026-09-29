@@ -1,6 +1,6 @@
 # Built-in catalog sources
 
-Crystal Companion ships a static, revisioned reference catalog so a blank local profile can search and inspect Crystal Project definitions without importing a file or making a runtime network request. Catalog definitions remain separate from inventory, character learning, party progress, and other personal observations. Finding an entry never establishes that the player owns, learned, unlocked, or can use it.
+Crystal Companion ships a static, revisioned reference catalog so a blank Playthrough can search and inspect Crystal Project definitions without importing a file or making a runtime network request. Catalog definitions remain separate from inventory, character learning, party progress, and other personal observations. Finding an entry never establishes that the player owns, learned, unlocked, or can use it.
 
 ## Community wiki snapshot
 

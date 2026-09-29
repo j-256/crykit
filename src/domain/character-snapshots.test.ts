@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { addRulesetRevision, asId, captureCharacter, compareCharacterSnapshots, snapshotSlots } from './index'
-import { addTestCharacter, createTestProfile, HAND_SLOT, known, personalRef, TEST_NOW, TEST_RULESET_REVISION_ID } from './test-helpers'
-import type { CharacterId, CharacterSnapshot, CharacterSnapshotId, Profile, RulesetRevisionId } from './types'
+import { addGameSetupRevision, asId, captureCharacter, compareCharacterSnapshots, requirePlaythrough, setPlaythroughGameSetup, snapshotSlots } from './index'
+import { addTestCharacter, createTestLocalData, HAND_SLOT, known, personalRef, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
+import type { CharacterId, CharacterSnapshot, CharacterSnapshotId, LocalData, GameSetupRevisionId } from './types'
 
 const characterId = asId<CharacterId>('synthetic-character')
-function current(profile: Profile): CharacterSnapshot {
-  const character = profile.characters[characterId]!
+function current(localData: LocalData): CharacterSnapshot {
+  const character = requirePlaythrough(localData).characters[characterId]!
   return character.snapshots[character.currentSnapshotId!]!
 }
 function fixture(): CharacterSnapshot {
-  return current(addTestCharacter(createTestProfile(), characterId))
+  return current(addTestCharacter(createTestLocalData(), characterId))
 }
 
 describe('recorded snapshot comparison', () => {
@@ -58,30 +58,31 @@ describe('recorded snapshot comparison', () => {
 })
 
 describe('snapshot slot context', () => {
-  it('pins capture context and preserves older snapshots when a different ruleset becomes active', () => {
-    let profile = addTestCharacter(createTestProfile(), characterId)
-    const before = current(profile)
-    expect(before.rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
-    const originalRuleset = profile.rulesets[TEST_RULESET_REVISION_ID]!
-    const nextRulesetId = asId<RulesetRevisionId>('next-ruleset')
-    profile = addRulesetRevision(profile, { ...originalRuleset, id: nextRulesetId, activate: true, slots: originalRuleset.slots.map((slot) => ({ ...slot, label: `Changed ${slot.label}` })), now: TEST_NOW })
-    expect(snapshotSlots(profile, before)[0]?.label).toBe('Hand')
-    profile = captureCharacter(profile, { characterId, snapshotId: asId<CharacterSnapshotId>('next-snapshot'), now: TEST_NOW })
-    expect(current(profile).rulesetRevisionId).toBe(nextRulesetId)
-    expect(profile.characters[characterId]!.snapshots[before.id]).toEqual(before)
-    profile = captureCharacter(profile, { characterId, rulesetRevisionId: TEST_RULESET_REVISION_ID, now: TEST_NOW })
-    expect(current(profile).rulesetRevisionId).toBe(TEST_RULESET_REVISION_ID)
-    expect(() => captureCharacter(profile, { characterId, rulesetRevisionId: asId<RulesetRevisionId>('missing') })).toThrowError(expect.objectContaining({ code: 'MISSING_RULESET' }))
+  it('pins capture context and preserves older snapshots when a different gameSetup becomes active', () => {
+    let localData = addTestCharacter(createTestLocalData(), characterId)
+    const before = current(localData)
+    expect(before.gameSetupRevisionId).toBe(TEST_GAME_SETUP_REVISION_ID)
+    const originalGameSetup = localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
+    const nextGameSetupId = asId<GameSetupRevisionId>('next-gameSetup')
+    localData = addGameSetupRevision(localData, { ...originalGameSetup, id: nextGameSetupId, activate: true, slots: originalGameSetup.slots.map((slot) => ({ ...slot, label: `Changed ${slot.label}` })), now: TEST_NOW })
+    localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: nextGameSetupId, now: TEST_NOW })
+    expect(snapshotSlots(localData, before)[0]?.label).toBe('Hand')
+    localData = captureCharacter(localData, { characterId, snapshotId: asId<CharacterSnapshotId>('next-snapshot'), now: TEST_NOW })
+    expect(current(localData).gameSetupRevisionId).toBe(nextGameSetupId)
+    expect(requirePlaythrough(localData).characters[characterId]!.snapshots[before.id]).toEqual(before)
+    localData = captureCharacter(localData, { characterId, gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID, now: TEST_NOW })
+    expect(current(localData).gameSetupRevisionId).toBe(TEST_GAME_SETUP_REVISION_ID)
+    expect(() => captureCharacter(localData, { characterId, gameSetupRevisionId: asId<GameSetupRevisionId>('missing') })).toThrowError(expect.objectContaining({ code: 'MISSING_GAME_SETUP' }))
   })
 
   it('does not substitute active labels for legacy snapshots or hide unmapped selections', () => {
-    const profile = createTestProfile()
-    const { rulesetRevisionId: _context, ...legacy } = fixture()
+    const localData = createTestLocalData()
+    const { gameSetupRevisionId: _context, ...legacy } = fixture()
     const snapshot = { ...legacy, equipment: { [HAND_SLOT]: null, orphan: personalRef('unresolved') } }
-    expect(snapshotSlots(profile, snapshot)).toEqual([
+    expect(snapshotSlots(localData, snapshot)).toEqual([
       { id: HAND_SLOT, label: `Slot ${HAND_SLOT}`, kind: 'unmapped', selection: null },
       { id: 'orphan', label: 'Slot orphan', kind: 'unmapped', selection: personalRef('unresolved') },
     ])
-    expect(snapshotSlots(profile, { ...snapshot, rulesetRevisionId: TEST_RULESET_REVISION_ID }).at(-1)?.id).toBe('orphan')
+    expect(snapshotSlots(localData, { ...snapshot, gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID }).at(-1)?.id).toBe('orphan')
   })
 })

@@ -1,8 +1,8 @@
 import { createId } from './core'
 import { createBuild, saveBuildRevision, type CreateBuildInput } from './builds'
-import { createRulesetRevision, updateRulesetRevision } from './profile'
+import { createGameSetupRevision, updateGameSetupRevision } from './local-data'
 import { equipmentRole } from './mechanics-facts'
-import type { BuildId, BuildRevisionContent, BuildRevisionId, Profile, RulesetRevision, SlotDefinition, SlotId } from './types'
+import type { BuildId, BuildRevisionContent, BuildRevisionId, LocalData, GameSetupRevision, SlotDefinition, SlotId } from './types'
 
 const EQUIPMENT_LABELS = ['Main hand', 'Off hand', 'Head', 'Body', 'Accessory 1', 'Accessory 2'] as const
 export const SUGGESTED_BUILD_SLOTS: readonly SlotDefinition[] = [
@@ -14,22 +14,23 @@ export const SUGGESTED_BUILD_SLOTS: readonly SlotDefinition[] = [
   })),
 ]
 
-export function ensureBuildPlanningRuleset(profile: Profile, catalogLock: RulesetRevision['catalogLock']): Profile {
-  const current = profile.activeRulesetRevisionId ? profile.rulesets[profile.activeRulesetRevisionId] : undefined
-  if (current?.slots.length) return profile
-  const values = { slots: SUGGESTED_BUILD_SLOTS, catalogLock: { ...catalogLock, ...current?.catalogLock }, activate: true, expectedRevision: profile.revision }
+export function ensureBuildPlanningGameSetup(localData: LocalData, catalogLock: GameSetupRevision['catalogLock']): LocalData {
+  const current = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
+  if (current?.slots.length) return localData
+  const values = { slots: SUGGESTED_BUILD_SLOTS, catalogLock: { ...catalogLock, ...current?.catalogLock }, activate: true, expectedRevision: localData.revision }
   return current
-    ? updateRulesetRevision(profile, { ...values, sourceRevisionId: current.id })
-    : createRulesetRevision(profile, { ...values, label: 'Build planning' })
+    ? updateGameSetupRevision(localData, { ...values, sourceRevisionId: current.id })
+    : createGameSetupRevision(localData, { ...values, label: 'Build planning' })
 }
 
-export function createBuildPlan(profile: Profile, input: CreateBuildInput & { readonly content: BuildRevisionContent; readonly catalogLock: RulesetRevision['catalogLock']; readonly revisionId?: BuildRevisionId; readonly note?: string }): Profile {
+export function createBuildPlan(localData: LocalData, input: Omit<CreateBuildInput, 'gameSetupId'> & { readonly content: BuildRevisionContent; readonly catalogLock: GameSetupRevision['catalogLock']; readonly revisionId?: BuildRevisionId; readonly note?: string }): LocalData {
   const buildId = input.id ?? createId<BuildId>('build')
-  const created = createBuild(profile, { ...input, id: buildId })
-  const configured = ensureBuildPlanningRuleset(created, input.catalogLock)
-  return saveBuildRevision(configured, {
+  const configured = ensureBuildPlanningGameSetup(localData, input.catalogLock)
+  const setupRevision = configured.gameSetups[configured.planningGameSetupRevisionId!]!
+  const created = createBuild(configured, { ...input, id: buildId, gameSetupId: setupRevision.gameSetupId, expectedRevision: configured.revision })
+  return saveBuildRevision(created, {
     buildId, id: input.revisionId, content: input.content, note: input.note,
-    rulesetRevisionId: configured.activeRulesetRevisionId!,
-    expectedRevision: configured.revision,
+    gameSetupRevisionId: setupRevision.id,
+    expectedRevision: created.revision,
   })
 }

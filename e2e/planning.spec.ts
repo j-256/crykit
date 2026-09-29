@@ -1,8 +1,8 @@
-import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
+import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import type { Profile } from '../src/domain/types'
+import type { LocalData } from '../src/domain/types'
 
 async function navigate(page: Page, destination: string) {
   const name = destination === 'Builds' ? /^(Builds|Builds & teams)$/ : new RegExp(`^${destination}$`)
@@ -19,7 +19,7 @@ async function openData(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function exportProfile(page: Page): Promise<Profile> {
+async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const event = page.waitForEvent('download')
@@ -27,21 +27,21 @@ async function exportProfile(page: Page): Promise<Profile> {
   const file = await (await event).path()
   if (!file) throw new Error('The backup download did not complete')
   const archive = unzipSync(await readFile(file))
-  const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { profile: Profile }
+  const payload = JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }
   await panel.getByRole('button', { name: 'Close dialog' }).click()
-  return payload.profile
+  return payload.localData
 }
 
-async function configureRuleset(page: Page, slotLabels = ['Main hand']) {
+async function configureGameSetup(page: Page, slotLabels = ['Main hand']) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await panel.getByLabel('Ruleset label').fill('Synthetic configuration')
-  await openRulesetSection(panel, 'Equipment layout')
+  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await panel.getByLabel('Game Setup label').fill('Synthetic configuration')
+  await openGameSetupSection(panel, 'Equipment slot rules')
   for (const [index, label] of slotLabels.entries()) {
     await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
     await panel.getByLabel(`Equipment slot ${index + 1}`, { exact: true }).fill(label)
   }
-  await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
+  await panel.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog' }).click()
 }
@@ -76,7 +76,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('character, party progress, and historical events remain independent observations', async ({ page }) => {
-  await configureRuleset(page)
+  await configureGameSetup(page)
   await addCharacter(page, 'Synthetic Rowan')
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const snapshot = page.getByRole('dialog', { name: 'Capture character snapshot' })
@@ -122,7 +122,7 @@ test('character, party progress, and historical events remain independent observ
   await progress.getByLabel('Master location', { exact: true }).fill('Synthetic northern camp')
   await progress.getByRole('button', { name: 'Save progress', exact: true }).click()
   await expect(progress).not.toBeVisible()
-  const before = await exportProfile(page)
+  const before = await exportLocalData(page)
   await page.locator('.progress-other__row').getByRole('button', { name: 'Details', exact: true }).click()
   const edit = page.getByRole('dialog', { name: 'Edit progress record' })
   await edit.getByLabel('Mastery state').selectOption('sealAcquired')
@@ -136,17 +136,17 @@ test('character, party progress, and historical events remain independent observ
   await event.getByLabel('Item display name').fill('Synthetic past keepsake')
   await event.getByRole('button', { name: 'Save event', exact: true }).click()
   await expect(event).not.toBeVisible()
-  const after = await exportProfile(page)
-  expect(Object.keys(after.progress)).toEqual(Object.keys(before.progress))
-  const milestone = Object.values(after.progress)[0]!
+  const after = await exportLocalData(page)
+  expect(Object.keys(selectedPlaythrough(after).progress)).toEqual(Object.keys(selectedPlaythrough(before).progress))
+  const milestone = Object.values(selectedPlaythrough(after).progress)[0]!
   expect(milestone.masterLocation).toEqual({ state: 'known', value: 'Synthetic northern camp' })
   expect(milestone.unlocked).toEqual({ state: 'known', value: true })
   expect(milestone.partyMastery).toEqual({ state: 'known', value: true })
   expect(milestone.collection).toEqual({ state: 'known', value: true })
-  expect(after.inventory).toEqual({})
-  expect(Object.values(after.inventoryEvents)[0]).toMatchObject({ kind: 'acquired', quantity: { state: 'unknown' } })
-  expect(Object.values(after.inventoryEvents)[0]).not.toHaveProperty('observedAt')
-  const character = Object.values(after.characters)[0]!
+  expect(selectedPlaythrough(after).inventory).toEqual({})
+  expect(Object.values(selectedPlaythrough(after).inventoryEvents)[0]).toMatchObject({ kind: 'acquired', quantity: { state: 'unknown' } })
+  expect(Object.values(selectedPlaythrough(after).inventoryEvents)[0]).not.toHaveProperty('observedAt')
+  const character = Object.values(selectedPlaythrough(after).characters)[0]!
   const observed = character.snapshots[character.currentSnapshotId!]!
   expect(observed).toMatchObject({ level: { state: 'known', value: 20 }, observedAt: '2024-06-15' })
   expect(observed).not.toHaveProperty('ppCapacity')
@@ -156,14 +156,14 @@ test('character, party progress, and historical events remain independent observ
 })
 
 test('immutable alternatives contend only when selected together in a scenario', async ({ page }) => {
-  await configureRuleset(page)
+  await configureGameSetup(page)
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')
   await addCharacter(page, 'Synthetic Ivo')
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   const build = page.locator('.build-sheet')
   await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await build.getByText('Build details & notes', { exact: true }).click()
@@ -177,8 +177,9 @@ test('immutable alternatives contend only when selected together in a scenario',
   await picker.getByRole('option', { name: /^Synthetic shared staff / }).click()
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  const first = await exportProfile(page)
-  const firstRevision = Object.values(first.buildRevisions)[0]!
+  const first = await exportLocalData(page)
+  const sharedStaffBuild = Object.values(first.builds).find((candidate) => candidate.title === 'Shared staff template')!
+  const firstRevision = first.buildRevisions[sharedStaffBuild.latestRevisionId!]!
 
   editor = await openEditor()
   await editor.getByRole('combobox', { name: 'Main hand', exact: true }).click()
@@ -196,15 +197,15 @@ test('immutable alternatives contend only when selected together in a scenario',
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await page.getByRole('combobox', { name: 'Synthetic Vale', exact: true }).selectOption(firstRevision.id)
   await expect(page.getByText('Confirmed stock cannot cover simultaneous assignments', { exact: false }).first()).toBeVisible()
-  const simultaneous = await exportProfile(page)
+  const simultaneous = await exportLocalData(page)
   expect(simultaneous.buildRevisions[firstRevision.id]).toEqual(firstRevision)
-  expect(Object.values(simultaneous.inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 1 })
-  expect(Object.values(simultaneous.characters).every((character) => !character.currentSnapshotId)).toBe(true)
+  expect(Object.values(selectedPlaythrough(simultaneous).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 1 })
+  expect(Object.values(selectedPlaythrough(simultaneous).characters).every((character) => !character.currentSnapshotId)).toBe(true)
   await page.getByRole('combobox', { name: 'Synthetic Vale', exact: true }).selectOption('')
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await expect(page.getByText('Confirmed stock cannot cover simultaneous assignments', { exact: false })).toHaveCount(0)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
-  const secondRevision = Object.values(simultaneous.buildRevisions).find((revision) => revision.id !== firstRevision.id)!
+  const secondRevision = Object.values(simultaneous.buildRevisions).find((revision) => revision.buildId === sharedStaffBuild.id && revision.id !== firstRevision.id)!
   await page.getByLabel('Revision A').selectOption(firstRevision.id)
   await page.getByLabel('Revision B').selectOption(secondRevision.id)
   await page.getByText('Evidence and differences', { exact: true }).click()
@@ -213,7 +214,7 @@ test('immutable alternatives contend only when selected together in a scenario',
 })
 
 test('build drafts resist navigation and recording current preserves known level and party baseline', async ({ page, isMobile }) => {
-  await configureRuleset(page)
+  await configureGameSetup(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')
   await addCharacter(page, 'Synthetic Ivo')
@@ -235,13 +236,12 @@ test('build drafts resist navigation and recording current preserves known level
   await currentTeam.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(currentTeam).not.toBeVisible()
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   const build = page.locator('.build-sheet')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 / 10 PP')
   await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await build.getByText('Build details & notes', { exact: true }).click()
   await build.getByLabel('Build title').fill('Observed Rowan build')
-  await build.getByLabel('Character', { exact: true }).selectOption({ label: 'Synthetic Rowan' })
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
   const editor = page.locator('.build-sheet')
   await editor.getByLabel('Rotation or use notes').fill('Retain this unsaved draft')
@@ -259,7 +259,8 @@ test('build drafts resist navigation and recording current preserves known level
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await page.locator('.build-readiness > summary').click()
   await page.getByRole('button', { name: 'Record as current', exact: true }).click()
-  const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
+  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
+  await recording.getByRole('combobox', { name: /^Character/ }).selectOption({ label: 'Synthetic Rowan' })
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()
   await recording.getByRole('checkbox', { name: /I made these changes in game/ }).check()
   await recording.getByRole('button', { name: 'Record as current', exact: true }).click()
@@ -271,14 +272,14 @@ test('build drafts resist navigation and recording current preserves known level
   await team.getByLabel('Starting assignments').selectOption('recordedParty')
   await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await expect(team).not.toBeVisible()
-  const profile = await exportProfile(page)
-  const character = Object.values(profile.characters)[0]!
+  const localData = await exportLocalData(page)
+  const character = Object.values(selectedPlaythrough(localData).characters)[0]!
   const observed = character.snapshots[character.currentSnapshotId!]!
   expect(observed.level).toEqual({ state: 'known', value: 20 })
   expect(observed).not.toHaveProperty('ppCapacity')
-  expect(profile.inventory).toEqual({})
+  expect(selectedPlaythrough(localData).inventory).toEqual({})
   expect(character.learnedNodes).toEqual({})
-  const scenario = Object.values(profile.scenarios).find((entry) => entry.label === 'Copied recorded party')!
+  const scenario = Object.values(selectedPlaythrough(localData).scenarios).find((entry) => entry.label === 'Copied recorded party')!
   expect(scenario.baseline.kind).toBe('recordedParty')
   if (scenario.baseline.kind !== 'recordedParty') throw new Error('The recorded baseline was not preserved')
   const revisionId = scenario.baseline.assignments[character.id]!
@@ -290,14 +291,14 @@ test('build drafts resist navigation and recording current preserves known level
 })
 
 test('named shared-copy checkpoints clone independently and picker history preserves its query', async ({ page }, testInfo) => {
-  await configureRuleset(page, ['Main hand', 'Off hand'])
+  await configureGameSetup(page, ['Main hand', 'Off hand'])
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')
   await addCharacter(page, 'Synthetic Ivo')
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
@@ -325,8 +326,8 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await page.screenshot({ path: testInfo.outputPath('build-editor.png'), fullPage: true })
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  const before = await exportProfile(page)
-  const originalBuild = Object.values(before.builds)[0]!
+  const before = await exportLocalData(page)
+  const originalBuild = Object.values(before.builds).find((build) => build.title === 'Two-slot template')!
   const originalRevision = before.buildRevisions[originalBuild.latestRevisionId!]!
   const equipment = Object.values(originalRevision.content.equipment).filter((value) => value !== null)
   expect(equipment).toHaveLength(2)
@@ -334,23 +335,23 @@ test('named shared-copy checkpoints clone independently and picker history prese
   expect(equipment[0]?.allocationId).toBe(equipment[1]?.allocationId)
   expect(originalRevision.note).toBe('One physical staff')
 
-  await page.getByRole('button', { name: 'Clone build', exact: true }).click()
+  await page.getByRole('button', { name: 'Clone Build', exact: true }).click()
   await openBuildLibrary(page)
   const library = page.locator('.build-library')
   const copyButton = library.getByRole('button', { name: 'Two-slot template (copy)', exact: true })
   const copyCard = copyButton.locator('xpath=ancestor::article[1]')
   await expect(copyCard).toHaveAttribute('aria-current', 'true')
-  const after = await exportProfile(page)
-  const copy = Object.values(after.builds).find((build) => build.id !== originalBuild.id)!
+  const after = await exportLocalData(page)
+  const copy = Object.values(after.builds).find((build) => build.id !== originalBuild.id && build.title === 'Two-slot template (copy)')!
   const copiedRevision = after.buildRevisions[copy.latestRevisionId!]!
   expect(copy.state).toBe('draft')
   expect(copiedRevision.id).not.toBe(originalRevision.id)
   expect(copiedRevision.revision).toBe(1)
   expect(copiedRevision.content).toEqual(originalRevision.content)
   expect(after.buildRevisions[originalRevision.id]).toEqual(originalRevision)
-  expect(after.inventory).toEqual(before.inventory)
-  expect(after.characters).toEqual(before.characters)
-  expect(after.scenarios).toEqual(before.scenarios)
+  expect(selectedPlaythrough(after).inventory).toEqual(selectedPlaythrough(before).inventory)
+  expect(selectedPlaythrough(after).characters).toEqual(selectedPlaythrough(before).characters)
+  expect(selectedPlaythrough(after).scenarios).toEqual(selectedPlaythrough(before).scenarios)
 
   await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
   await page.getByRole('button', { name: 'New scenario', exact: true }).click()
@@ -387,7 +388,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await editor.getByLabel('Checkpoint name').fill('Separate physical copies')
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  const minimumStock = await exportProfile(page)
+  const minimumStock = await exportLocalData(page)
   expect(minimumStock.buildRevisions[originalRevision.id]).toEqual(originalRevision)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await page.getByLabel('Revision A').selectOption(originalRevision.id)
@@ -399,16 +400,16 @@ test('named shared-copy checkpoints clone independently and picker history prese
 
 test('snapshot edits reject duplicate stats and distinguish empty from unrecorded slots', async ({ page }) => {
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await settings.getByLabel('Ruleset label').fill('Synthetic validation configuration')
-  await openRulesetSection(settings, 'Equipment layout')
+  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await settings.getByLabel('Game Setup label').fill('Synthetic validation configuration')
+  await openGameSetupSection(settings, 'Equipment slot rules')
   await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  await settings.getByLabel('Accepted types').fill('item, typo')
-  await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
-  await expect(settings.getByRole('alert')).toContainText('Accepted types contain unsupported values: typo')
-  await settings.getByLabel('Accepted types').fill('item')
-  await settings.getByRole('button', { name: 'Create ruleset', exact: true }).click()
+  const acceptedTypes = settings.getByLabel('Accepted types').last()
+  await expect(acceptedTypes).toHaveJSProperty('multiple', true)
+  await expect(acceptedTypes.locator('option')).toHaveText(['Item', 'Class', 'Ability', 'Passive', 'Innate', 'Monster Magic', 'Monster', 'Status', 'Command', 'Recipe', 'Location', 'Other'])
+  await acceptedTypes.selectOption(['item'])
+  await settings.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await addCharacter(page, 'Synthetic Ash')
@@ -427,10 +428,10 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(form).not.toBeVisible()
   await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Empty')
-  const empty = await exportProfile(page)
-  const character = Object.values(empty.characters)[0]!
+  const empty = await exportLocalData(page)
+  const character = Object.values(selectedPlaythrough(empty).characters)[0]!
   const emptySnapshot = character.snapshots[character.currentSnapshotId!]!
-  const slotId = empty.rulesets[empty.activeRulesetRevisionId!]!.slots[0]!.id
+  const slotId = empty.gameSetups[empty.planningGameSetupRevisionId!]!.slots[0]!.id
   expect(emptySnapshot.equipment[slotId]).toBeNull()
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   await form.getByRole('button', { name: 'Choose Main hand', exact: true }).click()
@@ -438,8 +439,8 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await form.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(form).not.toBeVisible()
   await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText('Unknown')
-  const unrecorded = await exportProfile(page)
-  const updated = unrecorded.characters[character.id]!
+  const unrecorded = await exportLocalData(page)
+  const updated = selectedPlaythrough(unrecorded).characters[character.id]!
   expect(updated.snapshots[updated.currentSnapshotId!]!.equipment).not.toHaveProperty(slotId)
   expect(updated.snapshots[emptySnapshot.id]!.equipment[slotId]).toBeNull()
 })

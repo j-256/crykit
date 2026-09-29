@@ -1,4 +1,4 @@
-import { chooseFourTeamMembers, createBlankPlaythrough, openRulesetSection } from './profile-helpers'
+import { chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function navigate(page: Page, destination: string) {
@@ -16,14 +16,14 @@ async function setHash(page: Page, hash: string) {
   await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(hash)
 }
 
-async function configureRuleset(page: Page) {
+async function configureGameSetup(page: Page) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await panel.getByLabel('Ruleset label').fill('Synthetic navigation ruleset')
-  await openRulesetSection(panel, 'Equipment layout')
+  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await panel.getByLabel('Game Setup label').fill('Synthetic navigation Game Setup')
+  await openGameSetupSection(panel, 'Equipment slot rules')
   await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
   await panel.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  await panel.getByRole('button', { name: 'Create ruleset', exact: true }).click()
+  await panel.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
@@ -104,13 +104,13 @@ test('character learning and nested definition routes restore exact UI state', a
 test('settings routes retain dirty forms and expired previews recover explicitly', async ({ page }) => {
   const panel = await openData(page)
   await expect(page).toHaveURL(/#\/settings\/data$/)
-  await panel.getByRole('button', { name: 'Ruleset', exact: true }).click()
-  await expect(page).toHaveURL(/#\/settings\/ruleset$/)
-  await panel.getByLabel('Ruleset label').fill('Unsaved semantic route ruleset')
+  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/game-setup$/)
+  await panel.getByLabel('Game Setup label').fill('Unsaved semantic route Game Setup')
 
   await page.goBack()
-  await expect(page).toHaveURL(/#\/settings\/ruleset$/)
-  await expect(panel.getByLabel('Ruleset label')).toHaveValue('Unsaved semantic route ruleset')
+  await expect(page).toHaveURL(/#\/settings\/game-setup$/)
+  await expect(panel.getByLabel('Game Setup label')).toHaveValue('Unsaved semantic route Game Setup')
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   const reopened = await openData(page)
@@ -131,19 +131,18 @@ test('settings routes retain dirty forms and expired previews recover explicitly
 })
 
 test('build drafts, checkpoint pickers, and comparisons have restorable routes', async ({ page }) => {
-  await configureRuleset(page)
+  await configureGameSetup(page)
   await addCharacter(page, 'Synthetic routed character')
   await addCharacter(page, 'Synthetic routed companion 2')
   await addCharacter(page, 'Synthetic routed companion 3')
   await addCharacter(page, 'Synthetic routed companion 4')
   await navigate(page, 'Builds')
-  await page.getByRole('button', { name: 'New build', exact: true }).click()
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
   await creation.getByLabel('Build title').fill('Synthetic routed character build')
-  await creation.getByLabel('Character', { exact: true }).selectOption({ index: 1 })
   const editor = page.locator('.build-sheet')
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)
   await editor.getByLabel('Rotation or use notes').fill('Draft retained across nested history')
@@ -199,7 +198,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await page.getByRole('button', { name: 'Close picker route', exact: true }).click()
 
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
-  const recording = page.getByRole('dialog', { name: 'Record build as current', exact: true })
+  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
   await expect(recording.getByText(/revision 2/)).toBeVisible()
   await recording.getByRole('button', { name: 'Create four-person team', exact: true }).click()
   const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
@@ -207,6 +206,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await chooseFourTeamMembers(team)
   await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
+  await recording.getByRole('combobox', { name: /^Character/ }).selectOption({ label: 'Synthetic routed character' })
   const confirmation = recording.getByRole('checkbox', { name: /I made these changes in game/ })
   await confirmation.check()
   await setHash(page, `#/builds/library/${firstRevisionRoute![1]!}/revisions/${firstRevisionRoute![2]!}/record-current`)
