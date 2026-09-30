@@ -20,4 +20,11 @@ describe('passive capacity meter', () => {
     expect(markup).not.toContain('passive-capacity__crystals')
     expect(buildPpSummary(pp)).toBe('2 PP used / unknown shared limit')
   })
+
+  it('keeps very large imported limits as text without allocating one icon per point', () => {
+    const pp = { knownSubtotal: 2, unresolvedCosts: 0, limit: { state: 'known' as const, value: Number.MAX_SAFE_INTEGER }, status: 'valid' as const }
+    const markup = renderToStaticMarkup(<PassiveCapacityMeter pp={pp}/>)
+    expect(markup).not.toContain('passive-capacity__crystals')
+    expect(markup).toContain(`2 / ${Number.MAX_SAFE_INTEGER} PP`)
+  })
 })

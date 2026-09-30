@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 import { MAX_ID_LENGTH } from '../domain'
+import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 import type {
   BuildId,
   BuildRevisionId,
@@ -77,7 +78,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string }
 
 export interface SearchOverlay {
   readonly kind: 'search'
@@ -485,6 +486,18 @@ function legacySelectedPage(value: string): ReferencePageRoute | undefined {
 }
 
 export function parseAppRoute(hash: string): AppRoute {
+  if (hash.startsWith('#/share/')) {
+    if (!hash.startsWith(SHARE_ROUTE_PREFIX) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
+    const [rawPath, rawQuery = ''] = hash.slice(1).split('?', 2)
+    const segments = rawPath.split('/').filter(Boolean)
+    const encoded = segments[2] ?? ''
+    const page: PageRoute = { page: 'share', encoded }
+    const params = new URLSearchParams(rawQuery)
+    const overlays = parseOverlays(segments, 3, params)
+    return /^[A-Za-z0-9_-]+$/.test(encoded) && overlays && overlaysSupported(page, overlays)
+      ? { page, overlays, query: queryFromParams(params, overlays.length > 0) }
+      : { page: unresolved('/share', 'builds'), overlays: [], query: {} }
+  }
   if (!hash || hash === '#' || hash === '#/') return { ...BUILDS_ROUTE, legacy: true }
   const boundedHash = hash.length <= MAX_ROUTE_LENGTH ? hash : '#/invalid'
   const [rawPath, rawQuery = ''] = boundedHash.replace(/^#/, '').split('?', 2)
@@ -510,6 +523,10 @@ export function parseAppRoute(hash: string): AppRoute {
 }
 
 function formatPage(page: PageRoute): string {
+  if (page.page === 'share') {
+    if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
+    return `${SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
+  }
   if (page.page === 'inventory') {
     if (page.view === 'new') return '/inventory/new'
     if (page.view === 'event-new') return '/inventory/events/new'
@@ -594,6 +611,7 @@ export function formatAppRoute(route: AppRoute): string {
 }
 
 export function routeDestination(route: AppRoute): Destination {
+  if (route.page.page === 'share') return 'builds'
   if (route.page.page === 'settings') return 'builds'
   if (route.page.page === 'unresolved') return route.page.recovery
   return route.page.page
@@ -607,6 +625,7 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-picker') return 'Choose definition | Crystal Companion'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | Crystal Companion`
   const page = route.page
+  if (page.page === 'share') return 'Shared snapshot | Crystal Companion'
   if (page.page === 'unresolved') return 'Page unavailable | Crystal Companion'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | Crystal Companion`
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | Crystal Companion`
@@ -631,6 +650,7 @@ export function routeForDestination(destination: Destination): AppRoute {
 export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (route.overlays.length) return { ...route, overlays: route.overlays.slice(0, -1) }
   const page = route.page
+  if (page.page === 'share') return BUILDS_ROUTE
   if (page.page === 'inventory' && page.view !== 'list') return { ...route, page: { page: 'inventory', view: 'list' } }
   if (page.page === 'characters') {
     if (page.view === 'new') return { ...route, page: { page: 'characters', view: 'list' } }
