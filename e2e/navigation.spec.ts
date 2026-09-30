@@ -196,6 +196,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await page.evaluate(({ buildId, revisionId }) => { window.location.hash = `#/builds/library/${buildId}/revisions/${revisionId}/edit/pick/slot/synthetic-missing-slot` }, { buildId: secondRevisionRoute![1]!, revisionId: secondRevisionRoute![2]! })
   await expect(page.getByText('Build field unavailable', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close picker route', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(`#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/edit`)
 
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
   const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
