@@ -8,7 +8,7 @@ import type { CatalogRef, EntityId } from '../domain/types'
 import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
 import { DEFAULT_CATALOG } from './bundled'
-import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID } from './bundled-catalog'
+import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
 import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, SWITCH_MOD_PACKS } from './mods'
 import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
@@ -54,6 +54,7 @@ describe('confirmed catalog mod associations', () => {
       expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
       expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
       expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_V2_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
       expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_V1_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
     }
     expect(definitionModAvailability(localData, ref('base:warrior:innate:fighter'))).toEqual({ state: 'unknown' })
@@ -77,6 +78,7 @@ describe('confirmed catalog mod associations', () => {
     const currentRef: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: BUNDLED_CATALOG_REVISION_ID, entityId: asId<EntityId>('equipment-expansion:item:0-fool') }
     expect(DEFAULT_CATALOG.entities[currentRef.entityId]).toBeDefined()
     expect(definitionModAvailability(localData, currentRef)).toEqual({ requiredMod: 'Equipment Expansion', state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: BUNDLED_V2_CATALOG_REVISION_ID })).toEqual({ requiredMod: 'Equipment Expansion', state: 'unknown' })
     expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: STARTER_CATALOG_REVISION_ID })).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: BUNDLED_V1_CATALOG_REVISION_ID })).toEqual({ state: 'unknown' })
     expect(STARTER_CATALOG.entities[currentRef.entityId]).toBeUndefined()

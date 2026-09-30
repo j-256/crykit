@@ -1,6 +1,6 @@
 # Queued tile updates
 
-Use [useQueuedTileUpdates](../src/ui/useQueuedTileUpdates.ts) for tiles that save each click immediately and allow repeated clicks while earlier saves finish. Class seals and Quintar breeding share this pattern. Forms with an explicit submit action keep their own draft and submit behavior.
+Use [useQueuedTileUpdates](../src/ui/useQueuedTileUpdates.ts) for tiles that save each click immediately and allow repeated clicks while earlier saves finish. Class seals, Travel & unlocks, and Quintar breeding share this pattern. Forms with an explicit submit action keep their own draft and submit behavior.
 
 ## Display the latest requested state
 
@@ -41,6 +41,6 @@ Use `pendingCount` to guard conflicting bulk actions. Do not disable ordinary ti
 
 ## Verify the behavior
 
-The [hook tests](../src/ui/useQueuedTileUpdates.test.tsx) hold save promises open and acknowledge them individually. They check batched clicks, immediate registration, intermediate acknowledgments, independent keys, and failed operations. The [Class seals](../e2e/progress-board.spec.ts) and [Quintar breeding](../e2e/quintar-breeding.spec.ts) browser tests verify repeated clicks, persisted results, the tab-close guard, and unchanged unrelated tiles and context controls. Quintar tests also observe completion attributes and rendered frames while the queue drains.
+The [hook tests](../src/ui/useQueuedTileUpdates.test.tsx) hold save promises open and acknowledge them individually. They check batched clicks, immediate registration, intermediate acknowledgments, independent keys, and failed operations. The [Class seals](../e2e/progress-board.spec.ts), [Travel & unlocks](../e2e/travel-unlocks.spec.ts), and [Quintar breeding](../e2e/quintar-breeding.spec.ts) browser tests verify repeated clicks, persisted results, the tab-close guard, and unchanged unrelated tiles and context controls. Quintar tests also observe completion attributes and rendered frames while the queue drains.
 
 For a new board, verify an odd and even toggle sequence or a full state cycle, keep its button interactive, and confirm the final requested state stays visible through intermediate saves. Exercise save failure and recovery, reload persistence, and Playthrough switching. Check desktop and narrow layouts in the running app. Static source checks cannot establish that intermediate states never reach the screen; controlled save tests and browser observations cover that behavior.

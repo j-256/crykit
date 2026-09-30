@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPersonalDefinition, requirePlaythrough } from '../domain'
-import { BUNDLED_V1_CATALOG } from '../catalog/bundled'
+import { createPersonalDefinition, requirePlaythrough, setAcquisitionProgress } from '../domain'
+import { BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
 import { TEAM_SIZE } from '../domain/scenarios'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
@@ -30,6 +30,20 @@ describe('local planner persistence', () => {
     await database.delete()
   })
 
+  it('round-trips travel acquisitions through local persistence and native backups', async () => {
+    const loaded = await loadLocalData()
+    const entity = DEFAULT_CATALOG.entities['wiki:item:owl-drum']!
+    const subject = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id }
+    const changed = setAcquisitionProgress(loaded.localData, { subject, displayName: entity.name, acquired: true, expectedRevision: loaded.revision })
+    await saveLocalData(changed, loaded.revision)
+    const reloaded = await loadLocalData()
+    const record = Object.values(requirePlaythrough(reloaded.localData).progress).find(record => record.displayName === entity.name)!
+    expect(record.collection).toEqual({ state: 'known', value: true })
+    const preview = await previewImport(await exportBackup(), 'travel.zip')
+    expect(preview.proposed.localData.playthroughs).toEqual(reloaded.localData.playthroughs)
+    expect(preview.proposed.catalogs.some(catalog => catalog.revisionId === DEFAULT_CATALOG.revisionId && catalog.entities[entity.id]?.name === entity.name)).toBe(true)
+  })
+
   it('initializes one planner root with a selected sample Playthrough', async () => {
     const loaded = await loadLocalData()
     const playthrough = requirePlaythrough(loaded.localData)
@@ -48,13 +62,13 @@ describe('local planner persistence', () => {
     expect(await database.localDatas.count()).toBe(1)
   })
 
-  it('loads older bundled pins without stored catalogs and preserves them through save, rollback, and backup restore', async () => {
-    const previous = createSampleLocalData(BUNDLED_V1_CATALOG)
+  it.each([BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG])('loads older bundled pin $revisionId without stored catalogs and preserves it through save, rollback, and backup restore', async catalog => {
+    const previous = createSampleLocalData(catalog)
     await database.localDatas.add({ id: 'local-data-record', revision: previous.revision, updatedAt: previous.updatedAt, localData: previous, lineage: { rootLocalDataId: previous.id } })
     expect(await database.catalogs.count()).toBe(0)
     const loaded = await loadLocalData()
     expect(loaded.localData).toEqual(previous)
-    expect(loaded.catalogs).toContainEqual(BUNDLED_V1_CATALOG)
+    expect(loaded.catalogs).toContainEqual(catalog)
     expect(() => validateLocalDataForStorage(loaded.localData, loaded.catalogs)).not.toThrow()
     const changed = createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Synthetic upgrade fixture', expectedRevision: loaded.revision })
     vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic full storage', 'QuotaExceededError'))
@@ -65,12 +79,12 @@ describe('local planner persistence', () => {
     expect(saved.playthroughs).toEqual(previous.playthroughs)
     expect(saved.builds).toEqual(previous.builds)
     const preview = await previewImport(await exportBackup(), 'synthetic-upgrade-backup.zip')
-    expect(preview.proposed.catalogs).toContainEqual(BUNDLED_V1_CATALOG)
+    expect(preview.proposed.catalogs).toContainEqual(catalog)
     const restored = await commitImport(preview, { mode: 'replace', targetLocalDataId: saved.id, expectedRevision: saved.revision })
     expect(restored.localData.gameSetups).toEqual(previous.gameSetups)
     expect(restored.localData.playthroughs).toEqual(previous.playthroughs)
     expect(restored.localData.builds).toEqual(previous.builds)
-    expect(restored.catalogs).toContainEqual(BUNDLED_V1_CATALOG)
+    expect(restored.catalogs).toContainEqual(catalog)
   })
 
   it('saves domain revisions with optimistic locking', async () => {
