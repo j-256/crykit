@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CatalogEntity } from '../domain/types'
-import { catalogArtwork, type CatalogArtwork as Artwork } from '../catalog/sprites'
+import { catalogArtwork, wikiSprite, type CatalogArtwork as Artwork } from '../catalog/sprites'
 import { Icon, type IconName } from './icons'
 
 interface Props {
@@ -49,6 +49,12 @@ function ArtworkImage({ artwork, entity, detailed, compact }: { readonly artwork
 
 export function CatalogArtwork({ catalogId, entity, detailed = false, compact = false }: Props) {
   const artwork = catalogArtwork(catalogId, entity)
+  return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
+}
+
+export function ClassWorldArtwork({ catalogId, entity, detailed = false, compact = false }: Props) {
+  const sprite = entity.kind === 'class' ? wikiSprite(catalogId, entity) : undefined
+  const artwork: Artwork | undefined = sprite && { source: 'wiki', ...sprite }
   return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
 }
 
