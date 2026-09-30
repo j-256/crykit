@@ -1,3 +1,4 @@
+import { MoneyText } from './MoneyText'
 import { useId, useState, type FormEvent } from 'react'
 import { activeCorrections, bundledHiddenEntityKeys, CORRECTION_DECISIONS, correctionTargetChanged, correctedEntity, correctionKey, correctionSource, correctionStatus, type CatalogCorrection, type CorrectionChange } from '../domain/corrections'
 import type { CatalogRef } from '../domain/types'
@@ -16,7 +17,7 @@ function ChangeValue({ change, side }: { change: CorrectionChange; side: 'before
   if (value === null) return <span>{side === 'after' ? 'Hidden / removed' : 'Not supplied'}</span>
   if (change.path === 'field') return <KnowledgeValue value={change[side]!}/>
   if (change.path === 'visibility') return <span>{value ? 'Hidden from browsing and choices' : 'Visible'}</span>
-  return <span className="correction-value">{Array.isArray(value) ? value.join(', ') || 'None' : String(value)}</span>
+  return <span className="correction-value"><MoneyText>{Array.isArray(value) ? value.join(', ') || 'None' : String(value)}</MoneyText></span>
 }
 
 export function CorrectionDiff({ changes }: { changes: readonly CorrectionChange[] }) {

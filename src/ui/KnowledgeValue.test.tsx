@@ -59,3 +59,40 @@ describe('source-backed field icons', () => {
     expect(definitionIconKey({ ...entity, fields: { Category: { state: 'known', value: ['Black Magic', 'White Magic'] } } })).toBeUndefined()
   })
 })
+
+describe('coin price presentation', () => {
+  it('formats nested shop prices, mixed currencies, and description text while preserving material names', () => {
+    const value = [{ Shop: 'Synthetic shop', Cost: '1000 Copper', Recipe: { Price: '1 Gold 2 Silver 50 Copper', Materials: '3 Gold Ore' } }, { Shop: 'Other shop', Cost: 'Unknown', Recipe: 'Costs 760 Silver each' }]
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<KnowledgeValue value={{ state: 'known', value }}/>)
+    expect([...container.querySelectorAll('.money-amount')].map(element => element.getAttribute('aria-label'))).toEqual(['10 silver', '1 gold, 2 silver, 50 copper', '7 gold, 60 silver'])
+    expect(container.textContent).toContain('3 Gold Ore')
+    expect(container.textContent).toContain('Unknown')
+    expect(container.textContent).not.toContain('Copper')
+    expect(value[0].Cost).toBe('1000 Copper')
+  })
+
+  it('retains conflicting values and source evidence when equivalent amounts share the same visual price', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<KnowledgeValue field="Cost" value={{ state: 'conflicting', claims: [
+      { value: '1000 Copper', sources: [{ sourceId: 'Source A' }] },
+      { value: '10 Silver', sources: [{ sourceId: 'Source B' }] },
+    ] }}/>)
+    expect(container.querySelectorAll('.knowledge-claim')).toHaveLength(2)
+    expect(container.querySelectorAll('[aria-label="10 silver"]')).toHaveLength(2)
+    expect(container.textContent).toContain('2 differing source values')
+    expect(container.textContent).toContain('Source A')
+    expect(container.textContent).toContain('Source B')
+  })
+
+  it('keeps unitless and noncurrency costs, unsafe markup, and unknown states explicit', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<KnowledgeValue value={{ state: 'known', value: { Cost: 1000, Skill: '6 MP, 10 CT', Note: '<script>1000 Copper</script>' } }}/>)
+    expect(container.textContent).toContain('1000')
+    expect(container.textContent).toContain('6 MP, 10 CT')
+    expect(container.textContent).toContain('<script>')
+    expect(container.querySelector('script')).toBeNull()
+    expect(container.querySelectorAll('.money-amount')).toHaveLength(1)
+    expect(renderToStaticMarkup(<KnowledgeValue field="Cost" value={{ state: 'unknown' }}/>)).toBe('<span>Unknown</span>')
+  })
+})

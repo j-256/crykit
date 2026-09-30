@@ -1,3 +1,4 @@
+import { MoneyText } from './MoneyText'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { entityDefinitionKey } from '../domain'
 import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
@@ -67,7 +68,7 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
   return <div className="member-detail">
     <div className="member-detail__title">{ref.kind === 'catalog' && <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{option.name}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
     <span className="member-detail__kind">{option.kind === 'class' ? 'Class reference' : 'Definition reference'}</span>
-    {option.description && <p>{option.description}</p>}
+    {option.description && <p><MoneyText>{option.description}</MoneyText></p>}
     <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} value={value}/></dd></div>)}</dl>
     {option.ppCost && option.ppCost.state !== 'notApplicable' && <p>PP: <KnowledgeValue value={option.ppCost}/></p>}
     <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>

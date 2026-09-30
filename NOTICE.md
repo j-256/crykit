@@ -8,6 +8,8 @@ Crystal Companion is an unofficial fan planner for Crystal Project. It is indepe
 
 The wiki labels some files Fairuse and leaves others unspecified. Those labels are retained as source declarations; attribution does not turn the artwork into AGPL or CC-BY-SA material or establish a separate permission grant. For an attribution correction or rights concern, contact the maintainer through the [repository issues](https://github.com/j-256/crystal-companion/issues).
 
+The [currency icons](src/assets/coins/README.md) are isolated coin artwork from maintainer-supplied game screenshot crops, with transparency added around the original pixels. They retain the game's artwork rights and are separate from the wiki sprite manifest.
+
 ## Reference content
 
 Thanks to the [Crystal Project Wiki contributors](https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki). Wiki-derived text retains its [CC-BY-SA terms](https://www.fandom.com/licensing), page links, and source revisions. The extracted catalog reorganizes and normalizes source material for search and comparison; it preserves conflicting and unknown claims. The application license does not replace these content terms.

@@ -726,6 +726,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan-300); outli
 .game-icon { display: inline-flex; width: 24px; height: 24px; flex: 0 0 24px; align-items: center; justify-content: center; vertical-align: middle; }
 .game-icon__crop { position: relative; display: block; overflow: hidden; flex: none; }
 .game-icon img { position: absolute; display: block; max-width: none; image-rendering: pixelated; }
+.money-amount { display: inline-flex; align-items: baseline; gap: .4em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.money-coin { display: inline-flex; align-items: center; gap: 2px; }
+.money-coin img { flex: none; width: 11px; height: 14px; image-rendering: pixelated; }
+.money-coin__fallback { font-size: .85em; }
 .icon-label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
 .icon-values { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 2px; max-width: 100%; }
 .icon-values .icon-label { gap: 5px; }
