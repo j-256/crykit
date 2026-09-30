@@ -114,7 +114,7 @@ test('filters unfinished items and opens an acquisition search result on its own
   await page.keyboard.press('Control+k')
   const search = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
   await search.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true }).fill('Treasure Finder')
-  await search.getByRole('button').filter({ hasText: 'Treasure Finder' }).filter({ hasText: 'Party progress' }).click()
+  await search.getByRole('link').filter({ hasText: 'Treasure Finder' }).filter({ hasText: 'Party progress' }).click()
   await expect(search).not.toBeVisible()
   await expect(page.locator('.unlock-tile[data-focused="true"]')).toContainText('Treasure Finder')
   await expect(toggle).toBeChecked()

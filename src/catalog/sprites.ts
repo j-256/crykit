@@ -36,7 +36,8 @@ interface GameArtworkBinding {
   readonly name: string
   readonly asset: string
   readonly database: { readonly name: string; readonly id: number; readonly recordName: string }
-  readonly identity: { readonly sourceKey: string; readonly locator: string; readonly upstreamName?: string; readonly upstreamCode?: number; readonly url?: string; readonly databaseSha256?: string }
+  readonly nativeRecord?: { readonly database: string; readonly databaseId: number; readonly mode: string; readonly locator: string; readonly databaseSha256: string }
+  readonly identity?: { readonly sourceKey: string; readonly locator: string; readonly upstreamName?: string; readonly upstreamCode?: number; readonly url?: string; readonly databaseSha256?: string }
   readonly rendering: {
     readonly extraction: string
     readonly sourceTextures: readonly { readonly field?: string; readonly texturePath: string; readonly region: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } }[]
@@ -47,6 +48,7 @@ interface GameArtworkManifest {
   readonly gameInputDigest: string
   readonly sources: {
     readonly executable: { readonly path: string; readonly sha256: string }
+    readonly nativeDefinitions: { readonly platform: string; readonly gameVersion: string }
     readonly identityCrosswalk: { readonly commit: string; readonly repository: string }
   }
   readonly assets: Readonly<Record<string, GameArtworkAsset>>
@@ -96,6 +98,7 @@ export type CatalogArtwork = {
   readonly binding: GameArtworkBinding
   readonly gameInputDigest: string
   readonly executable: GameArtworkManifest['sources']['executable']
+  readonly nativeDefinitions: GameArtworkManifest['sources']['nativeDefinitions']
   readonly identityCrosswalk: GameArtworkManifest['sources']['identityCrosswalk']
   readonly url: string
 } | {
@@ -134,6 +137,7 @@ export function catalogArtwork(catalogId: string, entity: Pick<CatalogEntity, 'i
     gameInputDigest: gameArtwork.gameInputDigest,
     executable: gameArtwork.sources.executable,
     identityCrosswalk: gameArtwork.sources.identityCrosswalk,
+    nativeDefinitions: gameArtwork.sources.nativeDefinitions,
     url: nativeUrl,
   }
   const modBinding = modManifest.entities[entity.id]

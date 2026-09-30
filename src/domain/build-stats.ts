@@ -2,7 +2,7 @@ import { entityDefinitionKey } from './core'
 import { growthRatings, STAT_KEYS } from './crystal-edit'
 import { innateEffects, type DefinitionResolver } from './build-mechanics'
 import { estimateGrowth } from './growth'
-import { crystalEditRecord, effectText, equipmentFacts, equipmentRole, isWeapon, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
+import { definitionSourceRecord, effectText, equipmentFacts, equipmentRole, isWeapon, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildRevisionContent, EntityRef, SlotDefinition, SourceRef } from './types'
 
 export const DERIVED_STATS = ['ATK', 'DEF', 'RES', 'CRIT', 'CRIT_DAMAGE', 'ACC', 'EVA', 'PPEN', 'MPEN', 'TT'] as const
@@ -16,7 +16,7 @@ const DOCUMENTED_DUAL_WIELD_RATE = 0.65
 const TURN_TIME_SPEED_LIMIT = 600
 const normalizeLabel = (label: string) => label.toLowerCase().replaceAll('.', '').replace(/\s+/g, ' ').trim()
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const CRYSTAL_EDIT_DIRECT_STAT_MODS: Readonly<Record<number, readonly [CalculatedStat, 'flat' | 'percent']>> = Object.freeze({
+const DIRECT_STAT_MODS: Readonly<Record<number, readonly [CalculatedStat, 'flat' | 'percent']>> = Object.freeze({
   0: ['HP', 'flat'], 1: ['MP', 'flat'], 6: ['STR', 'flat'], 7: ['VIT', 'flat'], 8: ['DEX', 'flat'], 9: ['AGI', 'flat'], 10: ['MND', 'flat'], 11: ['SPI', 'flat'], 12: ['SPD', 'flat'], 13: ['LUK', 'flat'],
   20: ['HP', 'percent'], 21: ['MP', 'percent'], 26: ['STR', 'percent'], 27: ['VIT', 'percent'], 28: ['DEX', 'percent'], 29: ['AGI', 'percent'], 30: ['MND', 'percent'], 31: ['SPI', 'percent'], 32: ['SPD', 'percent'], 33: ['LUK', 'percent'],
   40: ['ATK', 'flat'], 41: ['PPEN', 'flat'], 42: ['DEF', 'flat'], 43: ['CRIT', 'flat'], 44: ['CRIT_DAMAGE', 'flat'], 45: ['ACC', 'flat'], 46: ['EVA', 'flat'], 47: ['MPEN', 'flat'], 48: ['RES', 'flat'],
@@ -33,26 +33,26 @@ export interface BuildStatEstimate {
   readonly issues: readonly string[]
 }
 
-function crystalEditStatContributions(definition: MechanicsDefinition, record: Readonly<Record<string, unknown>>): { readonly contributions: readonly StatContribution[]; readonly excluded: readonly string[]; readonly unknownStats: readonly CalculatedStat[] } {
+function gameStatContributions(definition: MechanicsDefinition, record: Readonly<Record<string, unknown>>): { readonly contributions: readonly StatContribution[]; readonly excluded: readonly string[]; readonly unknownStats: readonly CalculatedStat[] } {
   if (!Array.isArray(record.StatMods)) return { contributions: [], excluded: [], unknownStats: [] }
-  const field = definition.fields['Crystal Edit source record']
+  const field = definition.fields['Native source record'] ?? definition.fields['Crystal Edit source record']
   const sources = field?.state === 'known' ? field.sources ?? definition.sources : definition.sources
   const contributions = new Map<string, StatContribution>()
   const excluded: string[] = []
   for (const modifier of record.StatMods) {
     if (!modifier || typeof modifier !== 'object' || Array.isArray(modifier) || !('Tag' in modifier) || !('Value1' in modifier) || !Number.isSafeInteger(modifier.Tag) || !finite(modifier.Value1)) {
-      excluded.push(`${definition.name}: invalid Crystal Edit StatMod was not applied`)
+      excluded.push(`${definition.name}: invalid StatMod was not applied`)
       continue
     }
-    const mapped = CRYSTAL_EDIT_DIRECT_STAT_MODS[modifier.Tag as number]
+    const mapped = DIRECT_STAT_MODS[modifier.Tag as number]
     if (!mapped) {
-      excluded.push(`${definition.name}: Crystal Edit StatMod tag ${String(modifier.Tag)} is listed but not applied to the numeric estimate`)
+      excluded.push(`${definition.name}: StatMod tag ${String(modifier.Tag)} is listed but not applied to the numeric estimate`)
       continue
     }
     const [stat, kind] = mapped
     const key = `${stat}:${kind}`
     const previous = contributions.get(key)
-    contributions.set(key, { stat, kind, value: (previous?.value ?? 0) + modifier.Value1, label: `${definition.name}: Crystal Edit StatMod tag ${String(modifier.Tag)}`, sources })
+    contributions.set(key, { stat, kind, value: (previous?.value ?? 0) + modifier.Value1, label: `${definition.name}: StatMod tag ${String(modifier.Tag)}`, sources })
   }
   return { contributions: [...contributions.values()], excluded: [...new Set(excluded)], unknownStats: [] }
 }
@@ -68,8 +68,8 @@ export function statContributions(definition: MechanicsDefinition, textOverride?
   const contributions: StatContribution[] = []
   const excluded: string[] = []
   const unknownStats = new Set<CalculatedStat>()
-  const record = crystalEditRecord(definition)
-  if (record && textOverride === undefined) return crystalEditStatContributions(definition, record)
+  const record = definitionSourceRecord(definition)
+  if (record && textOverride === undefined) return gameStatContributions(definition, record)
   const candidates = new Map<string, StatContribution[]>()
   const add = (value: ReturnType<typeof parseStatLine>, label: string, sources: readonly SourceRef[]) => {
     if (!value) return
@@ -136,7 +136,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
   const innates = innateEffects(content, resolve)
   const effectTexts = innates.map(innate => innate.text)
   for (const innate of innates) {
-    const parsed = statContributions(innate.definition, crystalEditRecord(innate.definition) ? undefined : innate.text)
+    const parsed = statContributions(innate.definition, definitionSourceRecord(innate.definition) ? undefined : innate.text)
     contributions.push(...parsed.contributions.map(entry => ({ ...entry, label: `${innate.name}: ${entry.label}` })))
     excluded.push(...parsed.excluded)
     for (const stat of parsed.unknownStats) unknownStats.add(stat)
@@ -166,7 +166,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
     allocations.add(`passive:${key}`)
     if (!definition) { excluded.push(`Equipped passive ${index + 1}: definition is unavailable`); continue }
     const parsed = statContributions(definition)
-    if (!crystalEditRecord(definition)) effectTexts.push(effectText(definition) ?? '')
+    if (!definitionSourceRecord(definition)) effectTexts.push(effectText(definition) ?? '')
     contributions.push(...parsed.contributions)
     excluded.push(...parsed.excluded)
     for (const stat of parsed.unknownStats) unknownStats.add(stat)

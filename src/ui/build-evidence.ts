@@ -1,4 +1,5 @@
 import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { nativeSourceRecord } from '../domain/native-game'
 import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
 import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
@@ -19,6 +20,7 @@ export function isReferenceArticle(localData: LocalData, ref: EntityRef): boolea
 }
 
 export function hasNameEvidenceOnly(record: Definition): boolean {
+  if (nativeSourceRecord(record)) return false
   const legacy = 'legacy' in record ? record.legacy : undefined
   const wiki = legacy && typeof legacy === 'object' && !Array.isArray(legacy) ? (legacy as Record<string, JsonValue>).wiki : undefined
   return Boolean(wiki && typeof wiki === 'object' && !Array.isArray(wiki) && (wiki as Record<string, JsonValue>).missingDetailPageOrRow === true)

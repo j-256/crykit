@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { analyzeBuildEquipment } from './build-mechanics'
+import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
 import { calculateBuildStats, physicalHitChance, statContributions } from './build-stats'
 import { estimateAbility } from './ability-estimates'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
-import { CRYSTAL_EDIT_FIELDS, STAT_KEYS } from './crystal-edit'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, STAT_KEYS } from './crystal-edit'
 import { definitionWithMechanics, equipmentFacts, equipmentRole, passivePointCost } from './mechanics-facts'
 import { asId, upsertCharacterClassProgress, validateScenario } from './index'
 import { addTestBuild, addTestCharacter, addTestDefinition, addTestScenario, createTestLocalData, HAND_SLOT, known as knowledge, personalRef, SECOND_HAND_SLOT, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
@@ -22,6 +22,16 @@ const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definit
 const analyze = (content: BuildRevisionContent) => analyzeBuildEquipment(content, SUGGESTED_BUILD_SLOTS, resolve)
 
 describe('equipment planning from source facts', () => {
+  it('resolves native innates through the exact source of a personal class revision', () => {
+    const nativeJob: CatalogEntity = { ...job, legacy: { native: { database: 'job', databaseId: 1, mode: 'base' } }, fields: { ...job.fields, [CLASS_FIELDS.passives]: known([1]) } }
+    const innate: CatalogEntity = { ...passive, id: asId('native:base:passive:1'), kind: 'innate', fields: { Description: known('Synthetic native innate'), 'Native source record': known({ ID: 1, IsInnate: true }) } }
+    const data = addTestDefinition(createTestLocalData(), 'synthetic-personal-class', { kind: 'class' })
+    const personal = { ...data.personalDefinitions['synthetic-personal-class']!, fields: nativeJob.fields, baseRef: ref('job') }
+    const custom = (reference: EntityRef) => reference.kind === 'personal' ? personal : reference.entityId === job.id ? nativeJob : reference.entityId === innate.id ? innate : undefined
+    const effects = innateEffects({ ...base, primaryClass: personalRef('synthetic-personal-class') }, custom)
+    expect(effects.map(effect => effect.definition.id)).toEqual([innate.id])
+    expect(effects[0]!.text).toBe('Synthetic native innate')
+  })
   it('uses the primary class and explicit permission passives, independently of ownership', () => {
     const content = { ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }
     expect(analyze(content)).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'invalid' })]))
@@ -137,9 +147,11 @@ describe('supported build calculations', () => {
   it('reads bundled data without doubling repeated fields or hiding disagreements', () => {
     const shoes = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Acrobat Shoes' && entity.kind === 'item')!
     expect(equipmentFacts(shoes).unique).toBe(true)
-    expect(statContributions(shoes).excluded.some(message => message.includes('conflicting Dexterity'))).toBe(true)
+    expect(statContributions(shoes).contributions).toMatchObject([{ stat: 'DEX', kind: 'flat', value: 14 }, { stat: 'AGI', kind: 'flat', value: 16 }])
+    expect(statContributions(shoes).excluded).toEqual([])
     const sword = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Short Sword' && entity.kind === 'item')!
-    expect(statContributions(sword).contributions.filter(entry => entry.stat === 'ATK')).toHaveLength(1)
+    expect(statContributions(sword).contributions).toMatchObject([{ stat: 'ATK', kind: 'flat', value: 30 }])
+    expect(statContributions(sword).excluded).toEqual([])
   })
 
   it('only evaluates documented hit-rate intervals and handles boundaries', () => {

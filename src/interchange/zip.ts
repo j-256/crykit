@@ -24,6 +24,12 @@ export const DEFAULT_ARCHIVE_LIMITS: Readonly<ArchiveLimits> = Object.freeze({
   maxInflationRatio: 100,
 })
 
+export const NATIVE_BACKUP_ARCHIVE_LIMITS: Readonly<ArchiveLimits> = Object.freeze({
+  ...DEFAULT_ARCHIVE_LIMITS,
+  maxEntryUncompressedBytes: 128 * 1024 * 1024,
+  maxTotalUncompressedBytes: 256 * 1024 * 1024,
+})
+
 export interface ZipEntryMetadata {
   name: string
   compressedSize: number

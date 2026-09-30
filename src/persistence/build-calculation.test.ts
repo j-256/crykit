@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { cloneBuild, compareBuildRevisions, createId, requirePlaythrough, saveBuildRevision } from '../domain'
+import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { cloneBuild, compareBuildRevisions, createDefinitionOverride, createId, requirePlaythrough, saveBuildRevision } from '../domain'
 import { createBuildPlan } from '../domain/build-planning'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId } from '../domain/types'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
@@ -47,4 +47,18 @@ it('rejects unpinned growth references and rolls a failed calculation save back 
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
   await expect(saveLocalData(planned, before.revision)).rejects.toMatchObject({ code: 'storage-failure' })
   expect((await loadLocalData()).localData).toEqual(before.localData)
+})
+
+it('round-trips native and earlier bundled catalog revisions together without retargeting definitions', async () => {
+  const before = await loadLocalData()
+  let data = before.localData
+  for (const catalog of BUNDLED_CATALOGS) {
+    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'base:class:warrior' as EntityId }
+    data = createDefinitionOverride(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
+  }
+  await saveLocalData(data, before.revision)
+  const preview = await previewImport(await exportBackup(), 'synthetic-mixed-catalogs.zip')
+  expect(preview.proposed.catalogs.map(catalog => catalog.revisionId).sort()).toEqual(BUNDLED_CATALOGS.map(catalog => catalog.revisionId).sort())
+  const restored = await commitImport(preview)
+  expect(restored.localData.personalDefinitions).toEqual(data.personalDefinitions)
 })

@@ -23,7 +23,7 @@ const PLACEHOLDER_ICONS: Readonly<Record<CatalogEntity['kind'], IconName>> = Obj
   passive: 'spark',
   innate: 'spark',
   monsterMagic: 'spark',
-  monster: 'character',
+  monster: 'book',
   command: 'menu',
   status: 'crystal',
   recipe: 'book',
@@ -59,10 +59,34 @@ export function ClassWorldArtwork({ catalogId, entity, detailed = false, compact
   return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
 }
 
+function NativeArtworkIdentitySource({ artwork }: { readonly artwork: Extract<Artwork, { source: 'native' }> }) {
+  const identity = artwork.binding.identity
+  if (identity?.url) return <li><a href={identity.url} rel="noreferrer" target="_blank">{identity.upstreamName}</a> · pinned identity code {identity.upstreamCode}</li>
+  if (identity) return <li>Reviewed item identity · <code>{identity.locator}</code> · database fingerprint <code>{identity.databaseSha256}</code></li>
+  const record = artwork.binding.nativeRecord
+  return record ? <li>Native definition · <code>{record.locator}</code> · database fingerprint <code>{record.databaseSha256}</code></li> : null
+}
+
+function NativeArtworkSource({ artwork }: { readonly artwork: Extract<Artwork, { source: 'native' }> }) {
+  const mode = artwork.binding.nativeRecord?.mode
+  const scope = mode === undefined ? '' : ` · ${mode === 'base' ? 'base database' : `${mode} override`}`
+  return <details className="wiki-sprite-source">
+    <summary>Artwork source</summary>
+    <p>Extracted from {artwork.nativeDefinitions.platform} {artwork.nativeDefinitions.gameVersion} game files{scope}.<br/>{artwork.asset.rights}</p>
+    <ul>
+      <NativeArtworkIdentitySource artwork={artwork}/>
+      <li><code>{artwork.binding.database.name}.dat</code> record {artwork.binding.database.id} · {artwork.binding.database.recordName}</li>
+      {artwork.binding.rendering.sourceTextures.map((source, index) => <li key={`${source.texturePath}:${index}`}><code>{source.texturePath}</code> · crop {source.region.x},{source.region.y} {source.region.width}x{source.region.height}{source.field ? ` · ${source.field}` : ''}</li>)}
+    </ul>
+    <p>Installed-content fingerprint: <code>{artwork.gameInputDigest}</code><br/>Executable fingerprint: <code>{artwork.executable.sha256}</code></p>
+    <p>This reflects the inspected Windows installation. Switch and mod-pack appearance is unverified.</p>
+  </details>
+}
+
 export function CatalogArtworkSource({ catalogId, entity }: Props) {
   const artwork = catalogArtwork(catalogId, entity)
   if (!artwork) return <small className="wiki-sprite-missing">No exact artwork linked.</small>
-  if (artwork.source === 'native') return <details className="wiki-sprite-source"><summary>Artwork source</summary><p>Extracted from the installed Windows game files.<br/>{artwork.asset.rights}</p><ul>{artwork.binding.identity.url ? <li><a href={artwork.binding.identity.url} rel="noreferrer" target="_blank">{artwork.binding.identity.upstreamName}</a> · pinned identity code {artwork.binding.identity.upstreamCode}</li> : <li>Reviewed item identity · <code>{artwork.binding.identity.locator}</code> · database fingerprint <code>{artwork.binding.identity.databaseSha256}</code></li>}<li><code>{artwork.binding.database.name}.dat</code> record {artwork.binding.database.id} · {artwork.binding.database.recordName}</li>{artwork.binding.rendering.sourceTextures.map((source, index) => <li key={`${source.texturePath}:${index}`}><code>{source.texturePath}</code> · crop {source.region.x},{source.region.y} {source.region.width}x{source.region.height}{source.field ? ` · ${source.field}` : ''}</li>)}</ul><p>Installed-content fingerprint: <code>{artwork.gameInputDigest}</code><br/>Executable fingerprint: <code>{artwork.executable.sha256}</code></p><p>This reflects the inspected Windows installation. Switch and mod-pack appearance is unverified.</p></details>
+  if (artwork.source === 'native') return <NativeArtworkSource artwork={artwork}/>
   const provenance = artwork.provenance === 'community-wiki' ? 'Community wiki artwork; Switch and mod-pack appearance is unverified.' : artwork.provenance === 'base-game-archive' ? 'Extracted from the locally supplied base game; game version and Nintendo Switch appearance are unverified.' : 'Bundled from the supplied PC mod export; Nintendo Switch appearance is unverified.'
   return <details className="wiki-sprite-source"><summary>Artwork source</summary><p>{artwork.asset.descriptionUrl ? <a href={artwork.asset.descriptionUrl} rel="noreferrer" target="_blank">{artwork.asset.title.replace(/^File:/, '')}</a> : artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></details>
 }

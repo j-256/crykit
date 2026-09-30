@@ -15,7 +15,7 @@ import { Sheet } from './Sheet'
 function ChangeValue({ change, side }: { change: CorrectionChange; side: 'before' | 'after' }) {
   const value = change[side]
   if (value === null) return <span>{side === 'after' ? 'Hidden / removed' : 'Not supplied'}</span>
-  if (change.path === 'field') return <KnowledgeValue value={change[side]!}/>
+  if (change.path === 'field') return <KnowledgeValue field={change.field} value={change[side]!}/>
   if (change.path === 'visibility') return <span>{value ? 'Hidden from browsing and choices' : 'Visible'}</span>
   return <span className="correction-value"><MoneyText>{Array.isArray(value) ? value.join(', ') || 'None' : String(value)}</MoneyText></span>
 }

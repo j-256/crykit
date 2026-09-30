@@ -1,6 +1,7 @@
 import { entityDefinitionKey } from './core'
-import { CRYSTAL_EDIT_FIELDS } from './crystal-edit'
-import { classEquipmentTypes, classInnateText, crystalEditRecord, effectText, equipmentFacts, equipmentFitsRole, equipmentRole, isWeapon, knownField, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from './crystal-edit'
+import { nativeEntityId, nativeIdentity, nativeSourceRecord } from './native-game'
+import { classEquipmentTypes, classInnateText, definitionSourceRecord, definitionPermissionEffects, effectText, equipmentFacts, equipmentFitsRole, equipmentRole, isWeapon, knownField, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 
@@ -8,11 +9,27 @@ export type DefinitionResolver = (ref: EntityRef) => MechanicsDefinition | undef
 export interface MechanicsIssue { readonly code: string; readonly status: 'invalid' | 'undetermined'; readonly message: string; readonly slotId?: string }
 export interface BuildEffects { readonly text: string; readonly name: string; readonly definition: MechanicsDefinition }
 
+function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver): { ref: Extract<EntityRef, { kind: 'catalog' }>; definition: MechanicsDefinition } | undefined {
+  const visited = new Set<string>()
+  let current = ref
+  while (current.kind === 'personal') {
+    if (visited.has(current.definitionId)) return undefined
+    visited.add(current.definitionId)
+    const definition = resolve(current)
+    if (!definition || !('baseRef' in definition) || !definition.baseRef) return undefined
+    current = definition.baseRef
+  }
+  const definition = resolve(current)
+  return definition ? { ref: current, definition } : undefined
+}
+
 export function innateEffects(content: BuildRevisionContent, resolve: DefinitionResolver): readonly BuildEffects[] {
   if (!content.primaryClass) return []
   const primary = resolve(content.primaryClass)
   if (!primary) return []
-  const text = classInnateText(primary)
+  const source = catalogClassSource(content.primaryClass, resolve)
+  const native = nativeIdentity(primary) ?? (source && nativeIdentity(source.definition))
+  const text = native ? undefined : classInnateText(primary)
   if (text !== undefined) {
     if (text === "Gain the innate passive(s) of your current Sub-Command's Class." && content.secondaryClass) {
       const secondary = resolve(content.secondaryClass)
@@ -21,11 +38,11 @@ export function innateEffects(content: BuildRevisionContent, resolve: Definition
     }
     return [{ text, name: `${primary.name} innate`, definition: primary }]
   }
-  const ids = knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
-  const ref = content.primaryClass
-  return ref.kind === 'catalog' && Array.isArray(ids) ? ids.flatMap(id => {
-    const definition = typeof id === 'number' ? resolve({ ...ref, entityId: `crystal-edit:Passives:${id}` as typeof ref.entityId }) : undefined
-    return definition && crystalEditRecord(definition)?.IsInnate === true ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
+  const ids = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
+  const ref = source?.ref
+  return ref && Array.isArray(ids) ? ids.flatMap(id => {
+    const definition = typeof id === 'number' ? native ? resolve({ ...ref, entityId: nativeEntityId('passive', id, native.mode) }) ?? resolve({ ...ref, entityId: nativeEntityId('passive', id) }) : resolve({ ...ref, entityId: `crystal-edit:Passives:${id}` as typeof ref.entityId }) : undefined
+    return definition && definitionSourceRecord(definition)?.IsInnate === true ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
   }) : []
 }
 
@@ -40,7 +57,7 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
   }
   const classTypes = classEquipmentTypes(primary)
   const permissions = new Set(classTypes ?? [])
-  const effects = innateEffects(content, resolve).map(effect => permissionEffects(effect.text))
+  const effects = innateEffects(content, resolve).map(effect => nativeSourceRecord(effect.definition) ? definitionPermissionEffects(effect.definition) : permissionEffects(effect.text))
   const passiveIds = new Set<string>()
   for (const [index, selection] of content.passives.entries()) {
     const slot = passivePosition(index)
@@ -52,13 +69,16 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
       add('PASSIVE_DEFINITION', definition ? 'invalid' : 'undetermined', `${slot.label}: ${definition ? 'select a passive' : 'definition is unavailable'}`, slot.id)
       continue
     }
-    if (crystalEditRecord(definition)?.IsLearnable === false) add('PASSIVE_NOT_LEARNABLE', 'invalid', `${definition.name} is not learnable as a selectable passive in its export`, slot.id)
-    effects.push(crystalEditRecord(definition) ? { equipment: [], dualWield: false, twoHanded: false, complete: false } : permissionEffects(effectText(definition)))
+    if (definitionSourceRecord(definition)?.IsLearnable === false) {
+      const nativeInnate = Boolean(nativeSourceRecord(definition)) && definition.kind === 'innate'
+      add('PASSIVE_NOT_LEARNABLE', nativeInnate ? 'undetermined' : 'invalid', nativeInnate ? `${definition.name} is unlearnable in the native base; selectable-innate mod applicability is unresolved` : `${definition.name} is not learnable as a selectable passive in its source`, slot.id)
+    }
+    effects.push(definitionPermissionEffects(definition))
   }
   for (const effect of effects) for (const type of effect.equipment) permissions.add(type)
   const dualWield = effects.some(effect => effect.dualWield)
   const twoHanded = effects.some(effect => effect.twoHanded)
-  const passiveIdsField = knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
+  const passiveIdsField = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
   const explicitlyNoPassives = Array.isArray(passiveIdsField) && passiveIdsField.length === 0
   const unresolvedEffects = effects.some(effect => !effect.complete) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innateEffects(content, resolve).length === 0)
   const equipment = slots.flatMap(slot => {

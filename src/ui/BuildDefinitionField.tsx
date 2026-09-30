@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isPotentiallyLearnableInnate } from '../catalog/switch'
+import { nativeDefinitionLabel } from '../domain/native-game'
 import { entityDefinitionKey } from '../domain'
 import type { CatalogEntityKind, EntityRef } from '../domain/types'
 import { Dropdown } from './Dropdown'
@@ -10,6 +11,7 @@ import { commandName, matchesSlot } from './definition-fields'
 import { hasNameEvidenceOnly, isReferenceArticle, ppCostLabel, similarNameOptions } from './build-evidence'
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { LEARNABLE_INNATE_SKILLS_MOD_LABEL, ModBadge } from './DefinitionModLabel'
+import { preferredDefinitionChoices } from './definition-preferences'
 
 export const BUILD_DEFINITION_PAGE_SIZE = 100
 export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect }: {
@@ -35,12 +37,14 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const inputRef = useRef<HTMLInputElement>(null)
   const id = useId()
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [includeAlternatives, setIncludeAlternatives] = useState(false)
   const candidates = useMemo(() => {
     if (!open) return []
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-    return availableOptions.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && matchesSlot(option, label) && tokens.every((token) => `${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
+    const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selected?.key)
+    return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && matchesSlot(option, label) && tokens.every((token) => `${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
       .sort((a, b) => Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
-  }, [allowedKinds, availableOptions, includeInnates, label, open, localData, query])
+  }, [allowedKinds, availableOptions, includeAlternatives, includeInnates, label, open, localData, query, selected?.key])
   const visible = candidates.slice(0, resultLimit)
   const hasMore = candidates.length > resultLimit
   const lastIndex = hasMore ? visible.length : visible.length - 1
@@ -73,9 +77,10 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
       {value ? <button aria-label={`Clear ${label}`} onClick={() => { onInspect(undefined); onChange(null); if (open) onDismiss() }} type="button"><Icon name="close"/></button> : <Icon name="search"/>}
     </div>
     <Dropdown anchorRef={inputRef} id={`${id}-list`} initialFocusRef={inputRef} onClose={onClose} onDismiss={onDismiss} open={open} role="listbox" title={`Choose ${label}`}>
+      <label className="check-row"><input checked={includeAlternatives} onChange={event => { setIncludeAlternatives(event.target.checked); setActiveIndex(-1) }} type="checkbox"/>Include other sources and mode variants</label>
       <div className="picker-results">
         <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><strong>Leave empty</strong></span></button>
-        {visible.map((option, index) => <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerEnter={() => setActiveIndex(index)} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.kind === 'innate' && <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{['passive', 'innate'].includes(option.kind) && <small className="picker-result__cost">{ppCostLabel(option)}</small>}</span><small>{definitionKindLabel(option.kind)}{label === 'Sub-command' ? ` · ${option.name} class` : ''} · {option.ref.kind === 'personal' ? 'Personal definition' : hasNameEvidenceOnly(option.record) ? 'Name only' : 'Catalog details'}</small><small className="picker-result__description"><BuildSelectionFacts option={option}/></small>{similarNames.has(option.key) && <small className="picker-result__source">Similar spelling exists; shared identity unconfirmed</small>}</span></button>)}
+        {visible.map((option, index) => <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerEnter={() => setActiveIndex(index)} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.kind === 'innate' && <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{['passive', 'innate'].includes(option.kind) && <small className="picker-result__cost">{ppCostLabel(option)}</small>}</span><small>{definitionKindLabel(option.kind)}{label === 'Sub-command' ? ` · ${option.name} class` : ''} · {nativeDefinitionLabel(option.record) ? nativeDefinitionLabel(option.record) : option.ref.kind === 'personal' ? 'Personal definition' : hasNameEvidenceOnly(option.record) ? 'Name only' : 'Catalog details'}</small><small className="picker-result__description"><BuildSelectionFacts option={option}/></small>{similarNames.has(option.key) && <small className="picker-result__source">Similar spelling exists; shared identity unconfirmed</small>}</span></button>)}
         {!candidates.length && <div className="definition-dropdown__empty" role="presentation">No matching definitions. Try another search. Only listed selections are saved.</div>}
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>

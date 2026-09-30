@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
-import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough } from './local-data-helpers'
+import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -140,7 +140,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
   await expect(setup.locator('summary')).toHaveText('Setup needs review · 3 fields')
   await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 6 slots')
-  await expect(coverage.locator('summary')).toHaveText('Reference coverage is limited')
+  await expect(coverage).toHaveCount(0)
   await expect(team.getByText('Game Setup settings need evidence', { exact: true })).toHaveCount(0)
   await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
 
@@ -170,14 +170,46 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   expect(activeGameSetup.slots.every(slot => slot.provenance === 'userDefined')).toBe(true)
   expect(saved.gameSetups[savedTeam.gameSetupRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
 
-  await coverage.locator('summary').click()
-  await coverage.getByRole('button', { name: 'Review catalog coverage', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Wiki catalog coverage gaps', exact: true })).toBeVisible()
+  await expect(team.getByRole('button', { name: 'Review catalog coverage', exact: true })).toHaveCount(0)
+  await expect(team.getByRole('button', { name: 'Import reference data', exact: true })).toHaveCount(0)
+})
 
+test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
+  await page.goto('/#/settings/game-setup')
+  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await openGameSetupSection(panel, 'Game context')
+  await panel.getByLabel('Platform', { exact: true }).selectOption('Windows')
+  await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.9')
+  await panel.getByLabel('Game mode', { exact: true }).selectOption('Standard')
+  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto('/#/builds/teams')
-  const reopenedCoverage = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) }).locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
-  await reopenedCoverage.locator('summary').click()
-  await reopenedCoverage.getByRole('button', { name: 'Import reference data', exact: true }).click()
-  panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Import or restore', exact: true })).toBeVisible()
+
+  async function createTeam(label: string) {
+    await page.getByRole('button', { name: 'New scenario', exact: true }).click()
+    const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
+    await form.getByLabel('Scenario label').fill(label)
+    await chooseFourTeamMembers(form)
+    await form.getByRole('button', { name: 'Create scenario', exact: true }).click()
+    return page.getByRole('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) })
+  }
+
+  const windowsTeam = await createTeam('Synthetic Windows context')
+  await expect(windowsTeam.getByText('Game data parity is unresolved', { exact: true })).toHaveCount(0)
+  await page.goto('/#/settings/game-setup')
+  await openGameSetupSection(panel, 'Game context')
+  await panel.getByLabel('Platform', { exact: true }).selectOption('Nintendo Switch')
+  await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.6')
+  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.goto('/#/builds/teams')
+  const switchTeam = await createTeam('Synthetic Switch context')
+  const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Game data parity is unresolved' })
+  await scope.locator('summary').click()
+  await expect(scope).toContainText('Equivalence between Windows 1.6.9 game data and Nintendo Switch 1.6.6 is unresolved')
+  await scope.getByRole('button', { name: 'Review setup', exact: true }).click()
+  await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
+  await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
 })

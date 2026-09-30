@@ -26,6 +26,7 @@ describe('build choice evidence', () => {
     expect(detailed.key).not.toBe(nameOnly.key)
     expect(hasNameEvidenceOnly(detailed.record)).toBe(false)
     expect(hasNameEvidenceOnly(nameOnly.record)).toBe(true)
+    expect(hasNameEvidenceOnly({ ...nameOnly.record, fields: { ...nameOnly.record.fields, 'Native source record': { state: 'known', value: { ID: 7, Name: 'Synthetic native item' } } } })).toBe(false)
     expect(similarNameOptions(localData, options).get(nameOnly.key)?.map((entry) => entry.key)).toContain(detailed.key)
   })
 

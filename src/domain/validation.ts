@@ -4,6 +4,7 @@ import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
 import { effectivePpLimit } from './build-validity'
 import { jsonRecord } from './crystal-edit'
+import { nativeScopeUncertainty, NATIVE_SCOPE_UNVERIFIED } from './native-game'
 import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
 import { passivePosition, type PassivePosition } from './passive-loadout'
 import type {
@@ -1009,6 +1010,15 @@ function validateCatalogLocks(
         dimension: 'gameSetupCertainty',
         status: 'undetermined',
         message: 'Applicability is unresolved for a pinned catalog snapshot',
+        inputs: { catalogId, revisionId },
+      })
+    } else {
+      const scopeUncertainty = nativeScopeUncertainty(snapshot, gameSetup)
+      if (scopeUncertainty) issue(accumulator, {
+        code: NATIVE_SCOPE_UNVERIFIED,
+        dimension: 'gameSetupCertainty',
+        status: 'undetermined',
+        message: scopeUncertainty,
         inputs: { catalogId, revisionId },
       })
     }

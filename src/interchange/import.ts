@@ -5,7 +5,7 @@ import { previewXlsx } from './normalize-xlsx'
 import { previewResearchJson } from './research'
 import { isCrystalEdit, previewCrystalEdit } from './crystal-edit'
 import type { ImportPreview } from './types'
-import { inspectZip, safeUnzip } from './zip'
+import { inspectZip, NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
 
 export const MAX_IMPORT_BYTES = 32 * 1024 * 1024
 
@@ -44,10 +44,11 @@ export async function previewImport(bytes: Uint8Array, filename: string): Promis
     })
   }
 
-  const directory = inspectZip(bytes)
+  const directory = inspectZip(bytes, NATIVE_BACKUP_ARCHIVE_LIMITS)
   const names = new Set(directory.entries.map((entry) => entry.name))
   if (names.has('[Content_Types].xml') && names.has('_rels/.rels')) return previewXlsx(bytes, filename)
   if (names.has('manifest.json') && names.has('bundle.json')) return previewNativeBackup(bytes, filename)
+  inspectZip(bytes)
 
   const jsonEntries = directory.entries.filter(
     (entry) => !entry.isDirectory && entry.name.toLocaleLowerCase().endsWith('.json'),

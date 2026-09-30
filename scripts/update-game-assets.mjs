@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import sharp from 'sharp'
+import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage } from './native-artwork.mjs'
 import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
 import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, REVIEWED_NATIVE_IDENTITY_SOURCE, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, validateRegion, verifyReviewedNativeDatabase } from './game-assets.mjs'
 
@@ -13,6 +14,7 @@ const MANIFEST = join(ROOT, 'src', 'catalog', 'game-assets.json')
 const ARTWORK_MANIFEST = join(ROOT, 'src', 'catalog', 'game-artwork.json')
 const IDENTITIES = join(ROOT, 'src', 'catalog', 'game-identities.json')
 const REVIEWED_IDENTITIES = join(ROOT, 'src', 'catalog', 'game-travel-identities.json')
+const NATIVE_DEFINITIONS = join(ROOT, 'src', 'catalog', 'native-game-data.json')
 const STARTER_SOURCE = join(ROOT, 'src', 'catalog', 'data.ts')
 const CACHE = join(ROOT, '.game-cache')
 const EXECUTABLE_NAME = 'Crystal Project.exe'
@@ -34,12 +36,13 @@ const QUINTAR_GUIDE_ARTWORK = Object.freeze({
   brutishDesert: { label: 'Brutish Desert', texturePath: 'Monster/Z18_QuintarBrutishYellow', monsterId: 316, monsterName: 'Brutish Quintar', typeKey: 'QUINTAR_Type_Yellow', typeName: 'Desert' },
   golden: { label: 'Golden Quintar', texturePath: 'Actor/Animal_QuintarGolden', typeKey: 'QUINTAR_Type_Gold', typeName: 'Golden', region: { x: 3, y: 75, width: 40, height: 23 } },
 })
-const USAGE = `Usage: node scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
-       node scripts/update-game-assets.mjs --check [-h|--help]
+const USAGE = `Usage: node --experimental-strip-types scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
+       node --experimental-strip-types scripts/update-game-assets.mjs --check [-h|--help]
 Inventory an installed Crystal Project Windows Content directory and extract exact
 catalog and Quintar guide artwork from native database IDs and texture regions,
-including hash-pinned reviewed identities in src/catalog/game-travel-identities.json. The committed
-manifest contains hashes and provenance, never the machine-local input path.
+using the fingerprinted native gameplay snapshot and hash-pinned reviewed identities.
+The committed manifest contains hashes and provenance, never the machine-local path.
+Requires Node >=22.12 with TypeScript stripping and committed native gameplay data.
   -i, --input <Content>     Installed game's Content directory
   -u, --unpack <directory> Write every named embedded texture to a new directory
       --check               Validate committed assets and manifests without game files
@@ -238,6 +241,45 @@ async function buildBindings(identityManifest, databases, textures) {
   return { assets, outputs, entities, unmapped, nameDifferences }
 }
 
+async function buildNativeDefinitionArtwork(snapshot, textures, built) {
+  const gaps = []
+  for (const entry of nativeArtworkEntries(snapshot)) {
+    const plan = nativeArtworkPlan(entry, textures)
+    if (!plan) {
+      gaps.push({ id: entry.id, kind: entry.kind, name: entry.name, nativeRecord: entry.nativeRecord, reason: NO_NATIVE_ARTWORK })
+      continue
+    }
+    let rendered
+    if (plan.type === 'class') rendered = await renderClass(entry.record, textures)
+    else {
+      const source = plan.sourceTextures[0]
+      const texture = textures.get(source.texturePath)
+      const region = source.region
+      const bytes = plan.type === 'monster' ? texture.bytes : await sharp(texture.bytes).extract({ left: region.x, top: region.y, width: region.width, height: region.height }).png({ compressionLevel: 9 }).toBuffer()
+      rendered = { bytes, sources: plan.sourceTextures, extraction: plan.extraction }
+    }
+    const asset = await addArtwork(built.assets, built.outputs, rendered)
+    const previous = built.entities[entry.id]
+    if (previous && (previous.asset !== asset || previous.kind !== entry.kind)) throw new Error(`Native definition disagrees with reviewed artwork: ${entry.id}`)
+    built.entities[entry.id] = {
+      ...previous,
+      kind: entry.kind, name: previous?.name ?? entry.name, asset,
+      database: { name: entry.nativeRecord.database, id: entry.record.ID, recordName: entry.record.Name },
+      nativeRecord: entry.nativeRecord,
+      rendering: { extraction: rendered.extraction, sourceTextures: rendered.sources },
+    }
+  }
+  return gaps
+}
+
+function verifyNativeInputs(snapshot, files) {
+  const installed = new Map(files.map(file => [file.path, file]))
+  for (const expected of [snapshot.source.executable, ...snapshot.source.files]) {
+    const actual = installed.get(expected.path)
+    if (actual?.sha256 !== expected.sha256 || actual.size !== expected.size) throw new Error(`Native artwork input differs from the gameplay snapshot: ${expected.path}`)
+  }
+}
+
 async function buildQuintarGuideArtwork(databases, textures, assets, outputs) {
   const monsterRecords = recordIndex(databases.get('monster'), 'monster')
   const itemRecords = recordIndex(databases.get('item'), 'item')
@@ -310,6 +352,7 @@ function runtimeArtworkManifest(manifest) {
       executable: manifest.sources.executable,
       identityCrosswalk: manifest.sources.identityCrosswalk,
       reviewedIdentities: manifest.sources.reviewedIdentities,
+      nativeDefinitions: manifest.sources.nativeDefinitions,
     },
     assets: Object.fromEntries(Object.entries(manifest.assets).map(([key, asset]) => {
       const { sourceTextures: _sourceTextures, extractions: _extractions, ...runtimeAsset } = asset
@@ -330,6 +373,11 @@ async function checkManifest() {
   const mappings = { ...identityManifest.mappings, ...reviewedMappings }
   const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'))
   const artworkManifest = JSON.parse(await readFile(ARTWORK_MANIFEST, 'utf8'))
+  const nativeBytes = await readFile(NATIVE_DEFINITIONS)
+  const snapshot = JSON.parse(nativeBytes)
+  const nativeSource = { file: basename(NATIVE_DEFINITIONS), sha256: hash(nativeBytes), contentDigest: snapshot.contentDigest, platform: snapshot.source.platform, gameVersion: snapshot.source.gameVersion }
+  if (JSON.stringify(manifest.sources.nativeDefinitions) !== JSON.stringify(nativeSource)) throw new Error('Native gameplay artwork input is stale')
+  verifyNativeInputs(snapshot, [manifest.sources.executable, ...Object.values(manifest.sources.databases).map(database => database.file)])
   if (manifest.schemaVersion !== GAME_ASSET_MANIFEST_SCHEMA || manifest.sources?.identityCrosswalk?.sha256 !== hash(identityBytes) || manifest.sources?.identityCrosswalk?.commit !== identityManifest.source.commit || !/^[a-f0-9]{64}$/.test(manifest.gameInputDigest ?? '')) throw new Error('Game asset manifest schema or identity input is stale')
   if (manifest.sources.reviewedIdentities?.file !== basename(REVIEWED_IDENTITIES) || manifest.sources.reviewedIdentities.sha256 !== hash(reviewedBytes)) throw new Error('Reviewed native identity input is stale')
   for (const mapping of Object.values(reviewedMappings)) if (manifest.sources.databases[mapping.database]?.file.sha256 !== mapping.databaseSha256) throw new Error(`Reviewed native identity database pin is stale: ${mapping.database}`)
@@ -368,13 +416,15 @@ async function checkManifest() {
   for (const [id, binding] of Object.entries(manifest.entities ?? {})) {
     const record = catalogById.get(id)
     const mapping = mappings[id]
-    if (!record || !mapping || record.kind !== binding.kind || record.name !== binding.name || !manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || JSON.stringify(binding.identity) !== JSON.stringify(nativeArtworkIdentity(mapping)) || binding.database?.name !== mapping.database || binding.database.id !== mapping.databaseId) throw new Error(`Native artwork binding is invalid: ${id}`)
-    if (mapping.sourceKey === REVIEWED_NATIVE_IDENTITY_SOURCE && binding.database.recordName !== mapping.name) throw new Error(`Reviewed native identity label is invalid: ${id}`)
+    if (mapping && (!record || record.kind !== binding.kind || record.name !== binding.name || !manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || JSON.stringify(binding.identity) !== JSON.stringify(nativeArtworkIdentity(mapping)) || binding.database?.name !== mapping.database || binding.database.id !== mapping.databaseId)) throw new Error(`Native artwork binding is invalid: ${id}`)
+    if (mapping?.sourceKey === REVIEWED_NATIVE_IDENTITY_SOURCE && binding.database.recordName !== mapping.name) throw new Error(`Reviewed native identity label is invalid: ${id}`)
+    if (!manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || (!mapping && (!binding.nativeRecord || binding.identity))) throw new Error(`Native artwork binding is invalid: ${id}`)
     binding.rendering.sourceTextures.forEach(validateTextureSource)
     const assetSources = new Set(manifest.assets[binding.asset].sourceTextures.map(source => JSON.stringify(source)))
     if (binding.rendering.sourceTextures.some(source => !assetSources.has(JSON.stringify(source)))) throw new Error(`Native artwork binding sources disagree with its asset: ${id}`)
-    coveredMappings.add(id)
+    if (mapping) coveredMappings.add(id)
   }
+  validateNativeArtworkCoverage(manifest, nativeArtworkEntries(snapshot), textureByPath)
   for (const gap of manifest.coverage?.unmappedNativeIdentities ?? []) {
     if (!mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
     coveredMappings.add(gap.id)
@@ -413,12 +463,17 @@ async function update(flags) {
   checkIdentityManifest(identityManifest, starterRecords)
   const reviewedBytes = await readFile(REVIEWED_IDENTITIES)
   const reviewedMappings = reviewedNativeMappings(JSON.parse(reviewedBytes), identityManifest.mappings)
+  const nativeBytes = await readFile(NATIVE_DEFINITIONS)
+  const snapshot = JSON.parse(nativeBytes)
   console.error('Reading and validating installed game databases and texture packs')
   const game = await readInstalledGame(flags.input)
+  verifyNativeInputs(snapshot, game.files)
   const textureData = textureInventory(game.texturePacks)
   const visuals = visualReferenceInventory(game.databases, new Set(textureData.paths.keys()))
   console.error('Extracting catalog-bound native artwork from reviewed database IDs')
   const built = await buildBindings({ ...identityManifest, mappings: { ...identityManifest.mappings, ...reviewedMappings } }, game.databases, textureData.paths)
+  console.error('Extracting native catalog artwork from exact base and mode records')
+  const nativeDefinitionGaps = await buildNativeDefinitionArtwork(snapshot, textureData.paths, built)
   console.error('Extracting Quintar guide artwork from reviewed game sources')
   const quintarGuide = await buildQuintarGuideArtwork(game.databases, textureData.paths, built.assets, built.outputs)
   let total = 0
@@ -435,6 +490,7 @@ async function update(flags) {
       executable: game.files.find(file => file.path === EXECUTABLE_NAME),
       identityCrosswalk: { sha256: hash(identityBytes), commit: identityManifest.source.commit, repository: identityManifest.source.repository },
       reviewedIdentities: { file: basename(REVIEWED_IDENTITIES), sha256: hash(reviewedBytes) },
+      nativeDefinitions: { file: basename(NATIVE_DEFINITIONS), sha256: hash(nativeBytes), contentDigest: snapshot.contentDigest, platform: snapshot.source.platform, gameVersion: snapshot.source.gameVersion },
       textureCount: textureData.paths.size,
       texturePacks: Object.fromEntries(Object.entries(textureData.packs).map(([name, pack]) => [name, { file: textureFiles.get(name), ...pack }])),
       databases: Object.fromEntries(Object.entries(databaseInventory(game.databases)).map(([name, database]) => [name, { file: databaseFiles.get(name), ...database }])),
@@ -443,6 +499,7 @@ async function update(flags) {
     entities: built.entities,
     quintarGuide,
     coverage: {
+      nativeDefinitionGaps,
       identityGaps: identityManifest.unresolved,
       unmappedNativeIdentities: built.unmapped,
       identityNameDifferences: built.nameDifferences,

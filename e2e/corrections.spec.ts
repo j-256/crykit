@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { STARTER_CATALOG } from '../src/catalog'
@@ -107,7 +108,7 @@ test('keeps text on save failure, retries offline, and preserves literal pasted 
   await data.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = data.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(data.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(data)
   await data.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

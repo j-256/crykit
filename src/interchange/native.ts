@@ -10,7 +10,7 @@ import {
   logicalEntityKey,
 } from '../domain/definitions'
 import { AppDataError } from './errors'
-import { isJsonObject, parseBoundedJson } from './json'
+import { isJsonObject, NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from './json'
 import {
   NativeCatalogSnapshotSchema,
   NativeHistorySchema,
@@ -28,7 +28,7 @@ import type {
   SourceArchiveRecord,
 } from './types'
 import { asLocalDataId, nowTimestamp, randomId, sha256 } from './util'
-import { safeUnzip } from './zip'
+import { NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
 
 const MAX_NATIVE_HISTORY = 500
 
@@ -675,7 +675,7 @@ export function validateNativeLocalDataShape(localData: LocalData): void {
 }
 
 export async function previewNativeBackup(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
-  const { files } = safeUnzip(bytes)
+  const { files } = safeUnzip(bytes, { limits: NATIVE_BACKUP_ARCHIVE_LIMITS })
   const manifestValue = parseBoundedJson(
     files.get('manifest.json') ?? schemaError('The native backup is missing manifest.json'),
     'manifest.json',
@@ -713,6 +713,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
   const payloadValue = parseBoundedJson(
     files.get(manifest.payload) ?? schemaError('The native backup payload is missing'),
     manifest.payload,
+    NATIVE_BACKUP_JSON_LIMITS,
   )
   const payloadResult = NativePayloadSchema.safeParse(payloadValue)
   if (!payloadResult.success) {

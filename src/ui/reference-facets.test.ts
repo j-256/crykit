@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
-import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceFieldFacets } from './reference-facets'
+import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceCategoryKnowledge, referenceFieldFacets } from './reference-facets'
 
 describe('reference facet organization', () => {
+  it('uses native equipment codes for categories without carrying supplemental classifications', () => {
+    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 15 } }, 'Equipment type': { state: 'known', value: 'Light Armor' } } })).toEqual([{ state: 'known', value: ['Equipment', 'Heavy armor'] }])
+    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 0 } } } })).toEqual([{ state: 'known', value: ['Equipment', 'Swords'] }])
+  })
   it('groups equipment aliases and technical wiki tags without changing their values', () => {
     expect(referenceCategoryGroup('Staff', ['item'])).toBe('Weapons')
     expect(referenceCategoryGroup('Staves', ['item'])).toBe('Weapons')

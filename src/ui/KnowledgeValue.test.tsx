@@ -61,6 +61,30 @@ describe('source-backed field icons', () => {
 })
 
 describe('coin price presentation', () => {
+  it('formats numeric copper fields and native record prices without changing their values', () => {
+    const value = { Money: 20000, Cost: 10250, HP: 20000, Actions: [{ Cost: 100, Weight: 100 }] }
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<><KnowledgeValue field="Native source record" value={{ state: 'known', value }}/><KnowledgeValue field="Money (copper)" value={{ state: 'known', value: 20000 }}/><KnowledgeValue field="Cost (copper)" value={{ state: 'known', value: 0 }}/></>)
+    expect([...container.querySelectorAll('.money-amount')].map(element => element.getAttribute('aria-label'))).toEqual(['2 gold', '1 gold, 2 silver, 50 copper', '1 silver', '2 gold', '0 copper'])
+    expect(container.textContent).toContain('HP20000')
+    expect(container.querySelectorAll('td')[1]?.textContent).toBe('100')
+    expect(value.Money).toBe(20000)
+    expect(value.Cost).toBe(10250)
+  })
+
+  it('retains numeric money conflicts and unknown states without converting unsupported numbers', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'conflicting', claims: [{ value: 20000, sources: [{ sourceId: 'Source A' }] }, { value: 10250, sources: [{ sourceId: 'Source B' }] }] }}/>)
+    expect(container.querySelectorAll('.knowledge-claim')).toHaveLength(2)
+    expect([...container.querySelectorAll('.money-amount')].map(element => element.getAttribute('aria-label'))).toEqual(['2 gold', '1 gold, 2 silver, 50 copper'])
+    expect(container.textContent).toContain('Source A')
+    expect(container.textContent).toContain('Source B')
+    expect(renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'unknown' }}/>)).toBe('<span>Unknown</span>')
+    for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'known', value }}/>)).toBe(`<span>${value}</span>`)
+    }
+  })
+
   it('formats nested shop prices, mixed currencies, and description text while preserving material names', () => {
     const value = [{ Shop: 'Synthetic shop', Cost: '1000 Copper', Recipe: { Price: '1 Gold 2 Silver 50 Copper', Materials: '3 Gold Ore' } }, { Shop: 'Other shop', Cost: 'Unknown', Recipe: 'Costs 760 Silver each' }]
     const container = document.createElement('div')

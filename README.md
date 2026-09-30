@@ -26,6 +26,8 @@ You can plan with equipment or skills you have not acquired. The planner checks 
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 
+Native Windows 1.6.9 gameplay facts are the base catalog, with wiki and guide material supplementing gaps. Switch 1.6.6 observations keep their separate scope; content equivalence is unresolved. No game installation is needed to use the app.
+
 Equipment Expansion definitions and dated Learnable Innate Skills evidence are bundled with explicit version and platform limits. Reference entries prefer exact, locally extracted Windows game artwork for source-backed native database identities, use exact bundled cells for Equipment Expansion, and fall back to locally bundled wiki artwork where an explicit mapping exists. These sources retain separate [provenance, rights, and refresh instructions](docs/catalog-sources.md#native-game-artwork-snapshot).
 
 ## Track your own game when you are ready

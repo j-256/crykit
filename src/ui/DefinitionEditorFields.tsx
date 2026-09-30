@@ -25,7 +25,7 @@ export function DefinitionFactEditor({ name, draft, onChange }: { name: string; 
     {editingValue && <><Field label={`Value for ${name}`}>{shown.type === 'boolean' ? <select onChange={event => change({ mode: 'known', text: event.target.value })} value={shown.text}><option value="">Choose</option><option value="true">Yes</option><option value="false">No</option></select> : shown.type === 'number' ? <input inputMode="decimal" onChange={event => change({ mode: 'known', text: event.target.value })} step="any" type="number" value={shown.text}/> : <textarea onChange={event => change({ mode: 'known', text: event.target.value })} rows={shown.type === 'json' ? 6 : 3} value={shown.text}/>}</Field><Field label={`Value format for ${name}`}><select onChange={event => change({ mode: 'known', type: event.target.value as CorrectionFieldDraft['type'] })} value={shown.type}><option value="text">Text</option><option value="number">Number</option><option value="boolean">Yes / No</option><option value="list">List (one per line)</option><option value="json">Structured JSON</option></select></Field></>}
     {(draft.mode === 'unknown' || draft.mode === 'notApplicable') && <Field label={`Reason for ${name}`}><input onChange={event => change({ reason: event.target.value })} value={draft.reason}/></Field>}
     {draft.mode === 'hide' && <p className="settings-section__intro">This removes the fact from the edited definition. The saved source remains available.</p>}
-    {draft.mode === 'keep' && !editingValue && !claims && <KnowledgeValue value={draft.preserved ?? { state: 'unknown' }}/>}
+    {draft.mode === 'keep' && !editingValue && !claims && <KnowledgeValue field={name} value={draft.preserved ?? { state: 'unknown' }}/>}
   </div>
 }
 

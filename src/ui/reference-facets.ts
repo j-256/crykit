@@ -1,5 +1,7 @@
 import type { CatalogClaim, CatalogEntity, CatalogEntityKind, JsonValue, Knowledge, QueryValue } from '../domain/types'
 import { normalizeImportedFieldName } from '../interchange/field-names'
+import { EQUIPMENT_TYPES } from '../domain/crystal-edit'
+import { nativeSourceRecord } from '../domain/native-game'
 
 export const REFERENCE_FACETS = [
   { key: 'classes', label: 'Class', parameter: 'class', fields: ['class', 'associated class'], kinds: ['class', 'command', 'ability', 'passive', 'innate', 'monsterMagic'] },
@@ -17,6 +19,7 @@ export const OPTIONAL_REFERENCE_AUDIENCES = [
   { value: 'diagnostic', label: 'Catalog diagnostics', description: 'Catalog coverage and extraction diagnostics' },
   { value: 'about', label: 'About & history', description: 'Game, developer, release, and media articles' },
   { value: 'tooling', label: 'Tools & modding', description: 'External tools and modding articles' },
+  { value: 'alternatives', label: 'Other sources & mode variants', description: 'Overlapping supplemental definitions and native mode overrides' },
 ] as const
 
 export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[number]['value']
@@ -42,6 +45,7 @@ export function isReferenceArtifact(entity: Pick<CatalogEntity, 'id'>): boolean 
 }
 
 const CATEGORY_FIELDS = new Set(['category', 'categories', 'class category', 'equipment type', 'item type', 'type'])
+const EQUIPMENT_CATEGORY_LABELS: Readonly<Record<string, string>> = Object.freeze({ Sword: 'Swords', Axe: 'Axes', Dagger: 'Daggers', Rapier: 'Rapiers', Katana: 'Katanas', Spear: 'Spears', Scythe: 'Scythes', Bow: 'Bows', Staff: 'Staves', Wand: 'Wands', Book: 'Books', Shield: 'Shields', 'Heavy Head': 'Heavy helmets', 'Medium Head': 'Medium headgear', 'Light Head': 'Light hats', 'Heavy Body': 'Heavy armor', 'Medium Body': 'Medium armor', 'Light Body': 'Light armor', Accessory: 'Accessories' })
 
 export function facetStringValues(value: Knowledge<JsonValue>): readonly string[] {
   if (value.state === 'conflicting') return value.claims.flatMap(claim => facetStringValues({ state: 'known', value: claim.value }))
@@ -69,6 +73,12 @@ function fieldEntries(entity: FacetRecord, claims: readonly CatalogClaim[]) {
 }
 
 export function referenceCategoryKnowledge(entity: FacetRecord, claims: readonly CatalogClaim[] = []): readonly Knowledge<JsonValue>[] {
+  const record = nativeSourceRecord(entity)
+  if (record && typeof record.EquipmentType === 'number') {
+    const type = EQUIPMENT_TYPES[record.EquipmentType]
+    const category = type && EQUIPMENT_CATEGORY_LABELS[type]
+    return [{ state: 'known', value: category ? ['Equipment', category] : ['Equipment'] }]
+  }
   return fieldEntries(entity, claims).filter(([field]) => CATEGORY_FIELDS.has(field)).map(([, value]) => value)
 }
 

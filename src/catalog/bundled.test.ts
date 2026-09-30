@@ -6,6 +6,7 @@ import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../interchange/correction-promotion'
 import { sha256 } from '../interchange/util'
 import { BUNDLED_CATALOGS, BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
+import { NATIVE_BASE_CHECKSUM, NATIVE_BASE_REVISION_ID } from './native-game'
 import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_CHECKSUM, BUNDLED_V2_CATALOG_CHECKSUM } from './bundled-catalog'
 import { projectSourceSemantics } from './source-semantics'
 import { STARTER_CATALOG } from './starter'
@@ -40,12 +41,13 @@ describe('bundled catalog assembly', () => {
       JSON.stringify([STARTER_CATALOG.id, STARTER_CATALOG.revisionId]),
       JSON.stringify([BUNDLED_V1_CATALOG.id, BUNDLED_V1_CATALOG.revisionId]),
       JSON.stringify([BUNDLED_V2_CATALOG.id, BUNDLED_V2_CATALOG.revisionId]),
+      JSON.stringify([DEFAULT_CATALOG.id, BUNDLED_CATALOG_REVISION_ID]),
     ]))
-    expect(DEFAULT_CATALOG.legacy).toMatchObject({ previousRevisionId: BUNDLED_V2_CATALOG.revisionId })
+    expect(DEFAULT_CATALOG.legacy).toMatchObject({ previousRevisionId: BUNDLED_CATALOG_REVISION_ID })
   })
 
   it('combines source facts in an immutable revision while keeping prior snapshots', async () => {
-    expect(DEFAULT_CATALOG.revisionId).toBe(BUNDLED_CATALOG_REVISION_ID)
+    expect(DEFAULT_CATALOG.revisionId).toBe(NATIVE_BASE_REVISION_ID)
     expect(DEFAULT_CATALOG.revisionId).not.toBe(STARTER_CATALOG.revisionId)
     const parsed = NativeCatalogSnapshotSchema.safeParse(DEFAULT_CATALOG)
     expect(parsed.success, parsed.success ? undefined : JSON.stringify(parsed.error.issues, null, 2)).toBe(true)
@@ -56,7 +58,10 @@ describe('bundled catalog assembly', () => {
     expect(BUNDLED_CATALOGS).toContain(STARTER_CATALOG)
     expect(exportedTree(warrior).find(node => node.row === 0 && node.column === 1)).toMatchObject({ nodeType: 2, dataId: 28 })
     const { checksum: _checksum, ...content } = DEFAULT_CATALOG
-    expect(BUNDLED_CATALOG_CHECKSUM).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
+    expect(NATIVE_BASE_CHECKSUM).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
+    const archived = BUNDLED_CATALOGS.find(catalog => catalog.revisionId === BUNDLED_CATALOG_REVISION_ID)!
+    const { checksum: _archivedChecksum, ...archivedContent } = archived
+    expect(BUNDLED_CATALOG_CHECKSUM).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(archivedContent)))}`)
   })
 
   it('retains contradictory guide descriptions as competing claims', () => {

@@ -6,6 +6,7 @@ import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-
 import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, LocalData, GameSetupRevision, GameSetupRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
+import { NATIVE_BASE_REVISION_ID } from './native-game'
 
 export const SWITCH_MOD_PACKS_MAP_SET = CONFIRMED_SWITCH_MOD_SETUP.id
 export const CONFIRMED_SKILL_MAP_SETS = Object.freeze([CONFIRMED_SWITCH_MOD_SETUP])
@@ -38,7 +39,7 @@ function baseClassMap(className: string, squares: readonly (readonly [number, nu
 }
 
 // Position names checked in game on Nintendo Switch with both mod packs on 2026-09-26
-// The map set records enabled and disabled mods; the game version was not reported
+// The maintainer identifies these observations as Nintendo Switch 1.6.6
 export const CONFIRMED_SKILL_MAPS: readonly ConfirmedSkillMap[] = Object.freeze([
   baseClassMap('warrior', [
     [0, 1, 'ability', 'taunt'],
@@ -465,7 +466,7 @@ export interface SkillMapSuggestion {
 export function suggestSkillTreeMap(localData: LocalData, catalogs: readonly CatalogSnapshot[], classRef: EntityRef, squares: readonly SkillSquare[], mapSetId: string, gameSetupRevisionId?: GameSetupRevisionId, draftMappings?: readonly SkillTreeMapping[]): SkillMapSuggestion {
   const saved = draftMappings ?? findSkillTreeLayout(localData, classRef, squares, gameSetupRevisionId)?.mappings ?? []
   const root = definitionLineageRootRef(localData, classRef)
-  const mappedRoot = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (root.catalogRevisionId === BUNDLED_CATALOG_REVISION_ID || root.catalogRevisionId === BUNDLED_V2_CATALOG_REVISION_ID || root.catalogRevisionId === BUNDLED_V1_CATALOG_REVISION_ID)
+  const mappedRoot = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && [BUNDLED_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, NATIVE_BASE_REVISION_ID].includes(root.catalogRevisionId)
     ? { ...root, catalogRevisionId: STARTER_CATALOG_REVISION_ID }
     : root
   const confirmedMap = CONFIRMED_SKILL_MAPS.find(map => map.mapSetId === mapSetId && entityDefinitionKey(map.classRef) === entityDefinitionKey(mappedRoot) && skillTreeShape(map.squares) === skillTreeShape(squares))
