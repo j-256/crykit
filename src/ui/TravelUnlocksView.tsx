@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
+import { historicalCatalogKeys } from '../domain/corrections'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlocks'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
@@ -25,7 +25,8 @@ interface TravelUnlockEntry {
 }
 
 export function travelUnlockEntries(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly TravelUnlockEntry[] {
-  const catalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === BUNDLED_CATALOG_REVISION_ID)
+  const historical = historicalCatalogKeys(catalogs)
+  const catalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && !historical.has(JSON.stringify([catalog.id, catalog.revisionId])))
   if (!catalog) return []
   const records = new Map(Object.values(requirePlaythrough(localData).progress).map(record => [logicalEntityKey(localData, record.subject), record]))
   return TRAVEL_UNLOCK_GROUPS.flatMap(group => group.entityIds.flatMap(entityId => {

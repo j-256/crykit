@@ -9,6 +9,7 @@ import { DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } 
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { modState, normalizeModName, recordedModNames, updateModSelections, type ModConfiguration, type ModSelection } from '../domain/mods'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
+import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
 import type { ImportCommitMode, ImportPreview } from '../interchange/types'
 import { activateOfflineUpdate, getOfflineStatus, requestOfflineReadiness, requestPersistentStorage, subscribeOfflineStatus, type OfflineStatus } from '../offline'
@@ -23,12 +24,19 @@ import { ModLayersEditor } from './ModLayersEditor'
 
 const IMPORT_WARNING_PRIMARY_COUNT = 8
 const IMPORT_WARNING_DOM_LIMIT = 100
-const GAME_SETUP_PLATFORM = Object.freeze({ SWITCH: 'Nintendo Switch', PC: 'PC' })
+const GAME_SETUP_PLATFORM = Object.freeze({ SWITCH: 'Nintendo Switch', WINDOWS: 'Windows', PC: 'PC' })
 const GAME_SETUP_PLATFORM_OPTIONS = Object.freeze([
   { value: GAME_SETUP_PLATFORM.SWITCH, label: 'Nintendo Switch' },
+  { value: GAME_SETUP_PLATFORM.WINDOWS, label: 'Windows' },
   { value: GAME_SETUP_PLATFORM.PC, label: 'PC (Windows, macOS, or Linux)' },
 ])
 const GAME_SETUP_VERSION_OPTIONS_BY_PLATFORM: Readonly<Record<string, readonly { readonly value: string; readonly label: string }[]>> = Object.freeze({
+  [GAME_SETUP_PLATFORM.WINDOWS]: Object.freeze([
+    { value: DEFAULT_GAME_VERSION, label: DEFAULT_GAME_VERSION },
+    { value: NATIVE_GAME_DATA.source.gameVersion, label: NATIVE_GAME_DATA.source.gameVersion },
+    { value: '> 1.6.6', label: '> 1.6.6' },
+    { value: '< 1.6.6', label: '< 1.6.6' },
+  ]),
   [GAME_SETUP_PLATFORM.SWITCH]: Object.freeze([
     { value: '< 1.6.6', label: '< 1.6.6' },
     { value: DEFAULT_GAME_VERSION, label: DEFAULT_GAME_VERSION },
@@ -37,6 +45,7 @@ const GAME_SETUP_VERSION_OPTIONS_BY_PLATFORM: Readonly<Record<string, readonly {
   [GAME_SETUP_PLATFORM.PC]: Object.freeze([
     { value: '< 1.6.6', label: '< 1.6.6' },
     { value: DEFAULT_GAME_VERSION, label: DEFAULT_GAME_VERSION },
+    { value: NATIVE_GAME_DATA.source.gameVersion, label: NATIVE_GAME_DATA.source.gameVersion },
     { value: '> 1.6.6', label: '> 1.6.6' },
   ]),
 })

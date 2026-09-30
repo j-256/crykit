@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
 import type { Build, BuildRevision, CatalogRef, CatalogSnapshot, LocalData, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { groupValidationIssues } from './build-evidence'
+import { NATIVE_SCOPE_UNVERIFIED } from '../domain/native-game'
 import { Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { catalogLocksMatch, entityName, ownRecordValue } from './model'
@@ -71,7 +72,7 @@ function issueActions(issue: ValidationIssue, localData: LocalData, catalogs: re
   if (issue.code.includes('STOCK')) return [{ label: issue.ref ? `Review stock for ${entityName(localData, catalogs, issue.ref)}` : 'Review inventory', route: { page: { page: 'inventory', view: 'list' }, overlays: [], query: { v: ['1'], q: [issue.ref ? entityName(localData, catalogs, issue.ref) : ''] } } }]
   if (issue.code === VALIDATION_CODE.ppLimitUnknown) return [{ label: 'Review passive rules', route: { page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: [report.gameSetupRevisionId], focus: ['passives'] } } }]
   if (issue.characterId && (issue.code.includes('LEARN') || issue.code.startsWith('CLASS_'))) return [{ label: issue.code.startsWith('CLASS_') ? 'Review class unlocks' : 'Review learned skills', route: { page: { page: 'characters', view: 'character', characterId: issue.characterId, tab: 'current' }, overlays: [], query: {} } }]
-  if (issue.code === VALIDATION_CODE.gameSetupFieldUnknown) return [{ label: 'Review setup', route: { page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: [report.gameSetupRevisionId], focus: ['setup'] } } }]
+  if (issue.code === VALIDATION_CODE.gameSetupFieldUnknown || issue.code === NATIVE_SCOPE_UNVERIFIED) return [{ label: 'Review setup', route: { page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: [report.gameSetupRevisionId], focus: ['setup'] } } }]
   if (issue.code === VALIDATION_CODE.suggestedSlotDefinition) return [{ label: 'Review planner defaults', route: { page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: [report.gameSetupRevisionId], focus: ['slots'] } } }]
   if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) {
     const catalog = issueCatalog(issue, catalogs)
@@ -90,6 +91,7 @@ function issueGroupPresentation(issue: ValidationIssue, count: number): { readon
   if (issue.code === VALIDATION_CODE.gameSetupFieldUnknown) return { summary: `Setup needs review${count > 1 ? ` · ${count} fields` : ''}`, detail: 'Record or resolve the playthrough setup used by this pinned Game Setup. A recorded value is not an independent verification.' }
   if (issue.code === VALIDATION_CODE.suggestedSlotDefinition) return { summary: `Planner defaults in use${count > 1 ? ` · ${count} slots` : ''}`, detail: 'These slots are planner-supplied starting assumptions. Review them or explicitly accept the layout for a new Game Setup revision.' }
   if (issue.code === VALIDATION_CODE.catalogApplicabilityUnknown) return { summary: 'Reference coverage is limited', detail: 'The pinned catalog retains useful facts, but its sources do not establish exact applicability to this game setup.' }
+  if (issue.code === NATIVE_SCOPE_UNVERIFIED) return { summary: 'Game data parity is unresolved', detail: 'A different platform or version does not establish missing content or update lag. These facts remain available as scoped reference data.' }
   if (issue.code === VALIDATION_CODE.catalogSnapshotUnavailable) return { summary: 'Pinned reference is unavailable', detail: 'Import the missing reference revision before relying on checks that use it.' }
   return { summary: `${issue.status === 'invalid' ? 'Needs attention' : 'Unknown'}: ${issue.message}${count > 1 ? ` (${count} checks)` : ''}` }
 }

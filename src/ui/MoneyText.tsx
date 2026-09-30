@@ -11,7 +11,7 @@ function CoinIcon({ coin }: { coin: Coin }) {
   return failed ? <span className="money-coin__fallback">{coin}</span> : <img alt="" draggable={false} height={14} onError={() => setFailed(true)} src={COIN_URLS[coin]} width={11}/>
 }
 
-function Money({ copper }: { copper: number }) {
+export function Money({ copper }: { copper: number }) {
   const coins = coinAmounts(copper)
   const label = coins.map(({ coin, amount }) => `${amount} ${coin}`).join(', ')
   return <span aria-label={label} className="money-amount" role="img" title={label}>{coins.map(({ coin, amount }) => <span aria-hidden="true" className="money-coin" data-coin={coin} key={coin}>{amount}<CoinIcon coin={coin}/></span>)}</span>

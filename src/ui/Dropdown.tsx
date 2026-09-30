@@ -6,7 +6,7 @@ const MIN_WIDTH = 360
 const MAX_WIDTH = 480
 const MAX_HEIGHT = 440
 
-export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, role = 'dialog', children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLElement | null>; initialFocusRef: RefObject<HTMLInputElement | null>; onClose: () => void; onDismiss: () => void; role?: 'dialog' | 'listbox' }>) {
+export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, role = 'dialog', children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLElement | null>; initialFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onDismiss: () => void; role?: 'dialog' | 'listbox' }>) {
   const popupRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
   const dismissRef = useRef(onDismiss)

@@ -6,6 +6,7 @@ import { EQUIPMENT_EXPANSION_ENTITY_IDS } from './equipment-expansion'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
+import { NATIVE_BASE_REVISION_ID } from './native-game'
 
 export const SWITCH_MOD_PACKS = Object.freeze([
   {
@@ -48,7 +49,7 @@ export const CONFIRMED_SWITCH_MOD_SETUP = Object.freeze({
   id: 'switch-confirmed-mod-setup',
   label: 'Switch: confirmed mod setup',
   platform: 'Nintendo Switch',
-  gameVersion: null,
+  gameVersion: '1.6.6',
   enabledMods: Object.freeze([
     'Passive Trainer',
     'Doge Shield',
@@ -106,8 +107,8 @@ export function definitionModAvailability(localData: LocalData, ref: EntityRef, 
   const effectiveLayer = root.kind === 'catalog' ? catalog?.entities[root.entityId]?.fields['Effective mod layer'] : undefined
   if (effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string') return { requiredMod: effectiveLayer.value, state: gameSetup?.catalogLock[catalog!.id] === catalog!.revisionId ? 'enabled' : 'unknown' }
   const baselineRevision = gameSetup?.modComposition && root.kind === 'catalog' && root.catalogId === gameSetup.modComposition.baseline.catalogId && root.catalogRevisionId === gameSetup.catalogLock[root.catalogId] ? gameSetup.modComposition.baseline.catalogRevisionId : root.kind === 'catalog' ? root.catalogRevisionId : undefined
-  const validCatalog = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (baselineRevision === STARTER_CATALOG_REVISION_ID || baselineRevision === BUNDLED_V1_CATALOG_REVISION_ID || baselineRevision === BUNDLED_V2_CATALOG_REVISION_ID || baselineRevision === BUNDLED_CATALOG_REVISION_ID)
-  const equipmentExpansion = validCatalog && (baselineRevision === BUNDLED_V2_CATALOG_REVISION_ID || baselineRevision === BUNDLED_CATALOG_REVISION_ID ? CURRENT_EQUIPMENT_EXPANSION_IDS : STARTER_EQUIPMENT_EXPANSION_IDS).has(root.entityId)
+  const validCatalog = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && baselineRevision !== undefined && [STARTER_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID, BUNDLED_CATALOG_REVISION_ID, NATIVE_BASE_REVISION_ID].includes(baselineRevision)
+  const equipmentExpansion = validCatalog && ([BUNDLED_V2_CATALOG_REVISION_ID, BUNDLED_CATALOG_REVISION_ID, NATIVE_BASE_REVISION_ID].includes(baselineRevision!) ? CURRENT_EQUIPMENT_EXPANSION_IDS : STARTER_EQUIPMENT_EXPANSION_IDS).has(root.entityId)
   const requiredMod = validCatalog ? equipmentExpansion ? 'Equipment Expansion' : REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
   return requiredMod ? { state: modState(gameSetup, requiredMod), requiredMod } : { state: 'unknown' }
 }

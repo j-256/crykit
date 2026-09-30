@@ -1,30 +1,36 @@
-import { MoneyText } from './MoneyText'
+import { Money, MoneyText } from './MoneyText'
+import { NATIVE_RECORD_FIELD } from '../domain/native-game'
 import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
 import { sourceDisplay } from './source-display'
 import { fieldIconKey } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
 
+const COPPER_FIELD = /(?:^copper$|\(copper\)$)/i
+const NATIVE_COPPER_FIELDS = new Set(['Money', 'Cost'])
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function StructuredValue({ value, field }: { value: unknown; field?: string }) {
+function StructuredValue({ value, field, nativeSource = false }: { value: unknown; field?: string; nativeSource?: boolean }) {
+  const native = nativeSource || field === NATIVE_RECORD_FIELD
   if (value === null) return <span>Null</span>
   if (typeof value === 'string') {
     const parts = value.split(/(,\s*)/)
     if (field && parts.some(part => fieldIconKey(field, part))) return <span className="icon-values">{parts.map((part, index) => /^,\s*$/.test(part) ? <span key={index}>{part}</span> : <span className="icon-label" key={index}><GameIcon iconKey={fieldIconKey(field, part)}/><span><MoneyText>{part}</MoneyText></span></span>)}</span>
     return <span className="structured-value__text"><MoneyText>{value}</MoneyText></span>
   }
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && (COPPER_FIELD.test(field ?? '') || native && NATIVE_COPPER_FIELDS.has(field ?? ''))) return <Money copper={value}/>
   if (typeof value === 'number' || typeof value === 'boolean') return <span>{String(value)}</span>
   if (Array.isArray(value)) {
     if (value.length === 0) return <span>None</span>
     if (value.every(isRecord)) {
       const columns = Array.from(new Set(value.flatMap((row) => Object.keys(row))))
-      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
+      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} nativeSource={native} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
     }
-    return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} value={entry}/></li>)}</ul>
+    return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} nativeSource={native} value={entry}/></li>)}</ul>
   }
-  if (isRecord(value)) return <dl className="structured-value__record">{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} value={nested}/></dd></div>)}</dl>
+  if (isRecord(value)) return <dl className="structured-value__record">{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} nativeSource={native} value={nested}/></dd></div>)}</dl>
   return <span>{String(value)}</span>
 }
 

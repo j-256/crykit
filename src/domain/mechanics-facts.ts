@@ -1,4 +1,5 @@
-import { CRYSTAL_EDIT_FIELDS, EQUIPMENT_TYPES, jsonRecord } from './crystal-edit'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, EQUIPMENT_TYPES, jsonRecord } from './crystal-edit'
+import { nativeRecord, nativeSourceRecord } from './native-game'
 import type { CatalogEntity, EquipmentRole, JsonValue, Knowledge, PersonalDefinition, SlotDefinition, SourceRef } from './types'
 
 export type MechanicsDefinition = CatalogEntity | PersonalDefinition
@@ -14,7 +15,9 @@ export function knownField(definition: Pick<MechanicsDefinition, 'fields'> | und
   return field?.state === 'known' ? field.value : undefined
 }
 
-export function crystalEditRecord(definition: Pick<MechanicsDefinition, 'fields'> | undefined): Readonly<Record<string, JsonValue>> | undefined {
+export function definitionSourceRecord(definition: Pick<MechanicsDefinition, 'fields'> | undefined): Readonly<Record<string, JsonValue>> | undefined {
+  const native = definition && nativeSourceRecord(definition)
+  if (native) return native
   const record = knownField(definition, 'Crystal Edit source record')
   return jsonRecord(record) ? record : undefined
 }
@@ -31,7 +34,7 @@ export interface EquipmentFacts {
 }
 
 export function equipmentFacts(definition: MechanicsDefinition): EquipmentFacts {
-  const record = crystalEditRecord(definition)
+  const record = definitionSourceRecord(definition)
   if (record) return {
     ...(typeof record.EquipmentType === 'number' && EQUIPMENT_TYPES[record.EquipmentType] ? { type: EQUIPMENT_TYPES[record.EquipmentType] } : {}),
     ...(typeof record.IsTwoHanded === 'boolean' ? { twoHanded: record.IsTwoHanded } : {}),
@@ -70,7 +73,7 @@ export function equipmentFitsRole(type: string, role: EquipmentRole): boolean {
 export function classEquipmentTypes(definition: MechanicsDefinition | undefined): readonly string[] | undefined {
   if (definition?.kind !== 'class') return undefined
   if (definition.grants?.state === 'conflicting') return undefined
-  const field = definition.fields[CRYSTAL_EDIT_FIELDS.equipment]
+  const field = definition.fields[CLASS_FIELDS.equipment] ?? definition.fields[CRYSTAL_EDIT_FIELDS.equipment]
   if (field?.state !== 'known' || !Array.isArray(field.value) || !field.value.every(value => typeof value === 'string' && EQUIPMENT_TYPES.includes(value))) return undefined
   if (definition.grants?.state === 'known') return definition.grants.value.filter(value => value.startsWith('equipment:')).map(value => value.slice('equipment:'.length))
   return field.value as readonly string[]
@@ -79,11 +82,30 @@ export function classEquipmentTypes(definition: MechanicsDefinition | undefined)
 export function effectText(definition: MechanicsDefinition): string | undefined {
   const field = definition.fields[definition.kind === 'status' ? 'Effect' : 'Description']
   if (field) return field.state === 'known' && typeof field.value === 'string' ? field.value : undefined
-  const native = crystalEditRecord(definition)?.Description
+  const native = definitionSourceRecord(definition)?.Description
   return typeof native === 'string' ? native : definition.rawDescription
 }
 
 export interface PermissionEffects { readonly equipment: readonly string[]; readonly dualWield: boolean; readonly twoHanded: boolean; readonly complete: boolean }
+
+export function definitionPermissionEffects(definition: MechanicsDefinition): PermissionEffects {
+  if (!nativeSourceRecord(definition)) return definitionSourceRecord(definition) ? { equipment: [], dualWield: false, twoHanded: false, complete: false } : permissionEffects(effectText(definition))
+  const modifiers = knownField(definition, 'Stat modifiers')
+  const equipment: string[] = []
+  let dualWield = false
+  let twoHanded = false
+  let complete = Array.isArray(modifiers)
+  if (Array.isArray(modifiers)) for (const modifier of modifiers) {
+    if (!nativeRecord(modifier) || typeof modifier.Name !== 'string' || modifier.Name.startsWith('Unresolved') || modifier.Name === 'SubJobInnatePassives') { complete = false; continue }
+    if (modifier.Name === 'EnableEquipType') {
+      const type = typeof modifier.Value1 === 'number' ? EQUIPMENT_TYPES[modifier.Value1] : undefined
+      if (type) equipment.push(type)
+      else complete = false
+    } else if (modifier.Name === 'DualWield') dualWield = true
+    else if (modifier.Name === 'TwoHanded') twoHanded = true
+  }
+  return { equipment, dualWield, twoHanded, complete }
+}
 
 export function permissionEffects(text: string | undefined): PermissionEffects {
   const equipment: string[] = []
@@ -111,7 +133,7 @@ export function classInnateText(definition: MechanicsDefinition | undefined): st
 export const equipmentPermission = (type: string) => `equipment:${type}`
 
 export function passivePointCost(definition: MechanicsDefinition): Knowledge<number> | undefined {
-  const cost = crystalEditRecord(definition)?.PP
+  const cost = definitionSourceRecord(definition)?.PP
   return fillUnknown(definition.ppCost, typeof cost === 'number' && Number.isSafeInteger(cost) && cost >= 0 ? cost : undefined, definition.sources)
 }
 
@@ -122,10 +144,10 @@ function fillUnknown<T>(original: Knowledge<T> | undefined, value: T | undefined
 export function definitionWithMechanics<T extends MechanicsDefinition>(definition: T, slots: readonly SlotDefinition[]): T {
   const equipment = equipmentFacts(definition)
   const permissions = classEquipmentTypes(definition)
-  const effects = permissionEffects(effectText(definition))
+  const effects = definitionPermissionEffects(definition)
   const passive = definition.kind === 'passive' || definition.kind === 'innate'
-  const record = crystalEditRecord(definition)
-  const knownPassive = passive && !record && effects.complete
+  const record = definitionSourceRecord(definition)
+  const knownPassive = passive && (!record || Boolean(nativeSourceRecord(definition))) && effects.complete
   const mappedSlots = slots.every(slot => equipmentRole(slot) !== undefined)
   return {
     ...definition,

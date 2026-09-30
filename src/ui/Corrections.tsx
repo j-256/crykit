@@ -18,7 +18,7 @@ export function CorrectionsButton() {
 }
 
 function Provenance({ entry }: { entry: CatalogCorrection }) {
-  return <><dl className="correction-provenance">{[['Decision', CORRECTION_DECISIONS[entry.decision]], ['Why', entry.reason], ['Evidence', entry.evidence], ['Platform', entry.context.platform], ['Game version', entry.context.gameVersion], ['Mods / applicability', entry.context.mods]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Not recorded yet'}</dd></div>)}</dl>{entry.baselineClaims.length > 0 && <details><summary>Other original source claims</summary>{entry.baselineClaims.map((claim, index) => <div className="correction-baseline" key={`${claim.field}:${index}`}><strong>{claim.field}</strong><KnowledgeValue showSources value={claim.value}/><SourceReferences sources={claim.sources}/></div>)}</details>}</>
+  return <><dl className="correction-provenance">{[['Decision', CORRECTION_DECISIONS[entry.decision]], ['Why', entry.reason], ['Evidence', entry.evidence], ['Platform', entry.context.platform], ['Game version', entry.context.gameVersion], ['Mods / applicability', entry.context.mods]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Not recorded yet'}</dd></div>)}</dl>{entry.baselineClaims.length > 0 && <details><summary>Other original source claims</summary>{entry.baselineClaims.map((claim, index) => <div className="correction-baseline" key={`${claim.field}:${index}`}><strong>{claim.field}</strong><KnowledgeValue field={claim.field} showSources value={claim.value}/><SourceReferences sources={claim.sources}/></div>)}</details>}</>
 }
 
 function CorrectionsManager({ layer }: { layer: number }) {

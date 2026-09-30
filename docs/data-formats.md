@@ -8,7 +8,7 @@ Quintar breeding guide marks are optional timestamped observations in each Playt
 
 When browser storage contains no planner data, initialization creates one local data root with a labeled sample Playthrough, character observations, stocked equipment, shared Build checkpoints, an active team, and a versioned Game Setup. Sample records carry synthetic provenance and use the bundled catalog's exact references. They are written atomically and are not recreated on reload. Explicitly created blank Playthroughs are not seeded with tracked records, but they can use the same shared Builds and Game Setups. Native backups preserve sample records like other local records, without an imported source archive or an initial undo checkpoint.
 
-The built-in [public names catalog](catalog-sources.md) is installed locally without creating personal records or undo entries. No runtime request is needed. Reference imports add separate immutable catalogs; equal names across sources do not automatically merge. A backup includes the starter revision when personal records or retained history reference it, without inventing an imported source file.
+The built-in [native gameplay catalog](catalog-sources.md) is installed locally without creating personal records or undo entries. No runtime request is needed. Reference imports add separate immutable catalogs; equal names across sources do not automatically merge. A backup includes the starter revision when personal records or retained history reference it, without inventing an imported source file.
 
 Creating or saving a Game Setup in Data & settings includes the built-in catalog in the new revision's lock when it is not already pinned. Existing catalog pins remain unchanged. A Build belongs to one logical Game Setup, and each Build checkpoint pins an exact Game Setup revision and catalog lock.
 
@@ -54,6 +54,8 @@ Parsing, archive checks, and schema validation finish before an import transacti
 Native restore replaces the one local planner-data root only after explicit confirmation. Replacement checks the target revision inside the write transaction and leaves existing data intact if validation or writing fails. Automatic merging is not supported: snapshot counts are never summed, and divergent records are not silently selected by timestamp. Create and switch Playthroughs for separate save lineages within that root.
 
 ## Native backup structure
+
+Native backups allow a bounded 128 MiB uncompressed entry and 256 MiB aggregate output so native facts and earlier pinned catalog revisions can travel together. The selected file limit remains 32 MiB compressed, and other import formats retain their smaller extraction limits. Native backup payloads allow four million JSON nodes; other JSON imports retain the two million node limit. The depth limit, CRC, path, inflation-ratio, and schema checks still apply.
 
 Character snapshots carry `gameSetupRevisionId`, pinning their recorded equipment-slot labels, order, and configuration independently of the Playthrough's current Game Setup. A supplied pin must reference a retained Game Setup revision. Snapshots store equipment by slot ID and passives as a separate ordered list with explicit knowledge state. New captures pin the capture Game Setup revision, and recording a Build as current pins that Build checkpoint's Game Setup revision. Capturing under a changed or previously unrecorded slot context requires selections to be recorded again. Backups retain these pins and all earlier snapshots.
 

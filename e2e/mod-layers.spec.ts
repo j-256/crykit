@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -89,7 +90,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
   const offline = await openSettings(page, 'Offline & storage')
   await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(offline.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(offline)
   await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
