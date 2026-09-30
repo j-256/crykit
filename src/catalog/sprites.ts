@@ -51,7 +51,10 @@ interface GameArtworkManifest {
   }
   readonly assets: Readonly<Record<string, GameArtworkAsset>>
   readonly entities: Readonly<Record<string, GameArtworkBinding>>
+  readonly quintarGuide: Readonly<Record<QuintarGuideArtworkKey, { readonly label: string; readonly asset: string }>>
 }
+
+export type QuintarGuideArtworkKey = 'babel' | 'ocarina' | 'egg' | 'trustyBlue' | 'trustyRed' | 'wokeRiver' | 'brutishDesert' | 'golden'
 
 interface SpriteManifest {
   readonly assets: Readonly<Record<string, SpriteAsset>>
@@ -145,4 +148,11 @@ export function catalogArtwork(catalogId: string, entity: Pick<CatalogEntity, 'i
   }
   const wiki = wikiSprite(catalogId, entity)
   return wiki && { source: 'wiki', ...wiki }
+}
+
+export function quintarGuideArtwork(key: QuintarGuideArtworkKey): { readonly asset: GameArtworkAsset; readonly url: string } | undefined {
+  const binding = gameArtwork.quintarGuide[key]
+  const asset = binding && gameArtwork.assets[binding.asset]
+  const url = asset && gameArtworkUrls[`../assets/game-assets/${asset.file}`]
+  return asset && url ? { asset, url } : undefined
 }

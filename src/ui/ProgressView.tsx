@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useState, type FormEvent } from 'react'
 import classSealUrl from '../assets/class-seal.png?url&no-inline'
 import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
 import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
@@ -10,7 +10,8 @@ import { Icon } from './icons'
 import { formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
-import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
+import { useNavigation, type ProgressPageRoute } from './navigation'
+import { ReferenceLink } from './ReferenceLink'
 import { ClassWorldArtwork } from './WikiSprite'
 import { TravelUnlocksView, travelUnlockEntries } from './TravelUnlocksView'
 import { ProgressBoards } from './ProgressBoards'
@@ -106,16 +107,6 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
     {error && <InlineNotice title="Progress not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
     <div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="check" type="submit">{busy ? 'Saving...' : initial ? 'Save changes' : 'Save progress'}</Button></div>
   </form>
-}
-
-function ReferenceLink({ children, refValue }: { readonly children: ReactNode; readonly refValue: EntityRef }) {
-  const navigation = useNavigation()
-  const route: AppRoute = { page: { page: 'reference', view: 'detail', ref: refValue }, overlays: [], query: {} }
-  return <a href={navigation.href(route)} onClick={(event) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    event.preventDefault()
-    navigation.navigate(route)
-  }}>{children}</a>
 }
 
 function findTrackerCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
