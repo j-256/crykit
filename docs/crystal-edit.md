@@ -25,7 +25,7 @@ npm run mods:check
 
 The check mode validates committed records, source digests, exact sprite hashes, image dimensions, and the absence of private machine paths without requiring the original project files.
 
-The earlier `wiki-v1` and `bundled-v1` catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`.
+The earlier `wiki-v1` and `bundled-v1` catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`. Default Reference browsing uses the current revision, while exact historical links remain available.
 
 ## Importing custom classes and class edits
 
