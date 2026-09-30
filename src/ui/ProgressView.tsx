@@ -11,7 +11,7 @@ import { formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
 import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
-import { WikiSprite } from './WikiSprite'
+import { CatalogArtwork } from './WikiSprite'
 
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
 
@@ -166,7 +166,7 @@ const ClassSealTile = memo(function ClassSealTile({ entry, pending, selecting, s
       {selecting && <span aria-hidden="true" className="class-seal-tile__selection-mark">{selected && <Icon name="check"/>}</span>}
       <span className="class-seal-tile__art" aria-hidden="true">
         <span className="class-seal-tile__seal"><img alt="" decoding="async" src={classSealUrl}/></span>
-        <span className="class-seal-tile__portrait"><WikiSprite catalogId={STARTER_CATALOG_ID} detailed entity={entry.classEntity}/></span>
+        <span className="class-seal-tile__portrait"><CatalogArtwork catalogId={STARTER_CATALOG_ID} detailed entity={entry.classEntity}/></span>
       </span>
       <span className="class-seal-tile__copy">
         <strong>{entry.className}</strong>
