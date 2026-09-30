@@ -5,8 +5,8 @@ import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crys
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../interchange/correction-promotion'
 import { sha256 } from '../interchange/util'
-import { BUNDLED_CATALOGS, BUNDLED_V1_CATALOG, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
-import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_CHECKSUM } from './bundled-catalog'
+import { BUNDLED_CATALOGS, BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
+import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_CHECKSUM, BUNDLED_V2_CATALOG_CHECKSUM } from './bundled-catalog'
 import { projectSourceSemantics } from './source-semantics'
 import { STARTER_CATALOG } from './starter'
 import { CONFIRMED_SKILL_MAPS, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
@@ -27,12 +27,21 @@ describe('bundled catalog assembly', () => {
     expect(BUNDLED_V1_CATALOG.entities['base:warrior:innate:fighter']?.fields['Learnable Innate Skill v1.0 JP cost']).toBeUndefined()
   })
 
+  it('retains the exact bundled-v2 revision for persisted references without adding travel unlocks', async () => {
+    expect(BUNDLED_CATALOGS).toContainEqual(BUNDLED_V2_CATALOG)
+    const { checksum: _checksum, ...content } = BUNDLED_V2_CATALOG
+    expect(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`).toBe(BUNDLED_V2_CATALOG_CHECKSUM)
+    expect(BUNDLED_V2_CATALOG.entities['equipment-expansion:item:0-fool']).toBeDefined()
+    expect(BUNDLED_V2_CATALOG.entities['wiki:item:ibek-bell']).toBeUndefined()
+  })
+
   it('marks earlier revisions as historical without hiding the current bundled catalog', () => {
     expect(historicalCatalogKeys(BUNDLED_CATALOGS)).toEqual(new Set([
       JSON.stringify([STARTER_CATALOG.id, STARTER_CATALOG.revisionId]),
       JSON.stringify([BUNDLED_V1_CATALOG.id, BUNDLED_V1_CATALOG.revisionId]),
+      JSON.stringify([BUNDLED_V2_CATALOG.id, BUNDLED_V2_CATALOG.revisionId]),
     ]))
-    expect(DEFAULT_CATALOG.legacy).toMatchObject({ previousRevisionId: BUNDLED_V1_CATALOG.revisionId })
+    expect(DEFAULT_CATALOG.legacy).toMatchObject({ previousRevisionId: BUNDLED_V2_CATALOG.revisionId })
   })
 
   it('combines source facts in an immutable revision while keeping prior snapshots', async () => {
@@ -66,7 +75,7 @@ describe('bundled catalog assembly', () => {
 
   it('keeps confirmed Switch mappings available in the assembled revision', () => {
     const map = CONFIRMED_SKILL_MAPS[0]!
-    for (const catalog of [BUNDLED_V1_CATALOG, DEFAULT_CATALOG]) {
+    for (const catalog of [BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG]) {
       const result = suggestSkillTreeMap(createBlankLocalData(), BUNDLED_CATALOGS, { ...map.classRef, catalogRevisionId: catalog.revisionId }, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
       expect(result.confirmedMap).toBe(map)
       expect(result.mappings).toEqual(map.mappings)
