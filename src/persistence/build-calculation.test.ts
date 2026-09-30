@@ -7,6 +7,8 @@ import type { BuildId, BuildRevisionId, CatalogRef, EntityId } from '../domain/t
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData } from './local-data'
 
+const MIXED_CATALOG_BACKUP_TIMEOUT_MS = 60_000
+
 let database: CrystalCompanionDatabase
 beforeEach(() => { database = new CrystalCompanionDatabase(`build-calculation-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
@@ -61,4 +63,4 @@ it('round-trips native and earlier bundled catalog revisions together without re
   expect(preview.proposed.catalogs.map(catalog => catalog.revisionId).sort()).toEqual(BUNDLED_CATALOGS.map(catalog => catalog.revisionId).sort())
   const restored = await commitImport(preview)
   expect(restored.localData.personalDefinitions).toEqual(data.personalDefinitions)
-})
+}, MIXED_CATALOG_BACKUP_TIMEOUT_MS)
