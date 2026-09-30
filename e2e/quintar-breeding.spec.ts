@@ -24,6 +24,13 @@ async function waitForSaves(page: Page) {
   }), { timeout: 30_000 }).toBe(false)
 }
 
+async function expectArtLoaded(page: Page, stepId: string) {
+  const image = page.locator(`[data-step="${stepId}"] .quintar-tile__art img`)
+  await image.scrollIntoViewIfNeeded()
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
+}
+
 async function readLocalData(page: Page): Promise<LocalData> {
   return page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -54,7 +61,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('gray step tiles toggle with mouse and keyboard, persist, and keep other records independent', async ({ page }) => {
+test('step tiles toggle with mouse and keyboard, persist, and keep other records independent', async ({ page }) => {
   const before = await readLocalData(page)
   const tiles = page.locator('.quintar-tile')
   await expect(tiles).toHaveCount(QUINTAR_BREEDING_STEPS.length)
@@ -62,12 +69,12 @@ test('gray step tiles toggle with mouse and keyboard, persist, and keep other re
   const golden = tiles.filter({ has: page.getByRole('button', { name: /Hatch Golden Quintar/ }) })
   const button = golden.getByRole('button')
   const art = golden.locator('.quintar-tile__art')
-  expect(await art.evaluate(element => getComputedStyle(element).filter)).toContain('grayscale(1)')
+  expect(await art.evaluate(element => getComputedStyle(element).opacity)).toBe('0.78')
   await button.click()
   await expect(button).toHaveAttribute('aria-pressed', 'true')
   await expect(button).toBeEnabled()
   await expect(tiles.locator('button[aria-pressed="true"]')).toHaveCount(1)
-  expect(await art.evaluate(element => getComputedStyle(element).filter)).toBe('none')
+  expect(await art.evaluate(element => getComputedStyle(element).opacity)).toBe('1')
   await expect(golden).toContainText('Prerequisites not marked:')
   await expect(page.locator('.quintar-summary__next')).toContainText('Obtain Babel Quintar')
   await button.focus()
@@ -90,6 +97,23 @@ test('gray step tiles toggle with mouse and keyboard, persist, and keep other re
   await expect(page.getByRole('region', { name: 'Vanilla class mastery board', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Quintar breeding', exact: true })).toBeVisible()
+})
+
+test('step reference links open exact local details without marking progress', async ({ page }) => {
+  const examples = [
+    { step: QUINTAR_STEP.babel, name: 'Babel Quintar' },
+    { step: QUINTAR_STEP.ocarina, name: 'Quintar Ocarina' },
+    { step: QUINTAR_STEP.trustyBlue, name: 'Trusty Quintar (Blue)' },
+    { step: QUINTAR_STEP.fancyRed, name: 'Breeding method', heading: 'Quintar Breeding' },
+  ]
+  for (const example of examples) {
+    const tile = page.locator(`[data-step="${example.step}"]`)
+    await tile.getByRole('link', { name: example.name, exact: true }).click()
+    await expect(page.getByRole('heading', { name: example.heading ?? example.name, exact: true })).toBeVisible()
+    await page.goBack()
+    await expect(page.getByRole('heading', { name: 'Quintar breeding', exact: true })).toBeVisible()
+    await expect(tile.getByRole('button')).toHaveAttribute('aria-pressed', 'false')
+  }
 })
 
 test('rapid toggles hold the final requested state without flashing or changing unrelated tiles and controls', async ({ page }) => {
@@ -193,6 +217,11 @@ test('the whole guide completes offline and keeps progress separate between play
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Quintar breeding', exact: true })).toBeVisible()
+  await expectArtLoaded(page, QUINTAR_STEP.babel)
+  await expectArtLoaded(page, QUINTAR_STEP.ocarina)
+  await expectArtLoaded(page, QUINTAR_STEP.trustyBlue)
+  await expectArtLoaded(page, QUINTAR_STEP.fancyRed)
+  await expectArtLoaded(page, QUINTAR_STEP.golden)
   for (const step of QUINTAR_BREEDING_STEPS) {
     const button = page.locator(`[data-step="${step.id}"]`).getByRole('button')
     await button.click()

@@ -30539,7 +30539,8 @@
       },
       "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
       "extractions": [
-        "32x32 indexed game icon cell"
+        "32x32 indexed game icon cell",
+        "32x32 indexed game item icon cell"
       ],
       "sourceTextures": [
         {
@@ -31090,7 +31091,8 @@
       },
       "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
       "extractions": [
-        "32x32 indexed game icon cell"
+        "32x32 indexed game icon cell",
+        "32x32 indexed game item icon cell"
       ],
       "sourceTextures": [
         {
@@ -31159,6 +31161,180 @@
             "y": 206,
             "width": 32,
             "height": 32
+          }
+        }
+      ]
+    },
+    "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4": {
+      "file": "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4.png",
+      "sha256": "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4",
+      "size": 4028,
+      "width": 50,
+      "height": 63,
+      "contentBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 48,
+        "height": 61
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named monster texture"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Monster/Z15_QuintarEgg",
+          "textureSha256": "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4",
+          "region": {
+            "x": 0,
+            "y": 0,
+            "width": 50,
+            "height": 63
+          }
+        }
+      ]
+    },
+    "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b": {
+      "file": "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b.png",
+      "sha256": "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b",
+      "size": 8361,
+      "width": 175,
+      "height": 151,
+      "contentBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 173,
+        "height": 149
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named monster texture"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Monster/Z15_QuintarTrustyBlue",
+          "textureSha256": "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b",
+          "region": {
+            "x": 0,
+            "y": 0,
+            "width": 175,
+            "height": 151
+          }
+        }
+      ]
+    },
+    "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed": {
+      "file": "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed.png",
+      "sha256": "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed",
+      "size": 8352,
+      "width": 175,
+      "height": 151,
+      "contentBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 173,
+        "height": 149
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named monster texture"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Monster/Z15_QuintarTrustyRed",
+          "textureSha256": "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed",
+          "region": {
+            "x": 0,
+            "y": 0,
+            "width": 175,
+            "height": 151
+          }
+        }
+      ]
+    },
+    "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9": {
+      "file": "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9.png",
+      "sha256": "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9",
+      "size": 7705,
+      "width": 148,
+      "height": 170,
+      "contentBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 146,
+        "height": 168
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named monster texture"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Monster/Z52_QuintarWokeTeal",
+          "textureSha256": "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9",
+          "region": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 170
+          }
+        }
+      ]
+    },
+    "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5": {
+      "file": "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5.png",
+      "sha256": "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5",
+      "size": 9771,
+      "width": 196,
+      "height": 186,
+      "contentBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 194,
+        "height": 184
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named monster texture"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Monster/Z18_QuintarBrutishYellow",
+          "textureSha256": "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5",
+          "region": {
+            "x": 0,
+            "y": 0,
+            "width": 196,
+            "height": 186
+          }
+        }
+      ]
+    },
+    "5d9f0711eb94eeb3a4916783126f3f088cddd03a04bc62db5745b512fe3a7d9d": {
+      "file": "5d9f0711eb94eeb3a4916783126f3f088cddd03a04bc62db5745b512fe3a7d9d.png",
+      "sha256": "5d9f0711eb94eeb3a4916783126f3f088cddd03a04bc62db5745b512fe3a7d9d",
+      "size": 428,
+      "width": 40,
+      "height": 23,
+      "contentBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 40,
+        "height": 23
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "named golden actor-sheet frame"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Actor/Animal_QuintarGolden",
+          "textureSha256": "4af8eb5bb5dd9cc581ee5b5cafe36ecced219052b1e9e8ed94ea30768ff56b86",
+          "region": {
+            "x": 3,
+            "y": 75,
+            "width": 40,
+            "height": 23
           }
         }
       ]
@@ -53672,6 +53848,215 @@
               "y": 206,
               "width": 32,
               "height": 32
+            }
+          }
+        ]
+      }
+    }
+  },
+  "quintarGuide": {
+    "babel": {
+      "label": "Babel Quintar",
+      "asset": "ba78c77a9615859eeda7910aa8a755efa56ae431ec077bf52d9b5a18bad67e51",
+      "database": {
+        "name": "item",
+        "id": 167,
+        "recordName": "Babel Quintar"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game item icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 138,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "ocarina": {
+      "label": "Quintar Ocarina",
+      "asset": "84daa5045f485969306c66d37a32e872680c4df9156a52d53363d0bb70555f28",
+      "database": {
+        "name": "item",
+        "id": 115,
+        "recordName": "Quintar Ocarina"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game item icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 2,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "egg": {
+      "label": "Quintar egg",
+      "asset": "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4",
+      "database": {
+        "name": "monster",
+        "id": 51,
+        "recordName": "Quintar Egg"
+      },
+      "rendering": {
+        "extraction": "named monster texture",
+        "sourceTextures": [
+          {
+            "texturePath": "Monster/Z15_QuintarEgg",
+            "textureSha256": "222990c2413221f1ad1d5f1c2f6c6b82ba588f694e694aedf108140f7726fbd4",
+            "region": {
+              "x": 0,
+              "y": 0,
+              "width": 50,
+              "height": 63
+            }
+          }
+        ]
+      }
+    },
+    "trustyBlue": {
+      "label": "Trusty Blue",
+      "asset": "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b",
+      "database": {
+        "name": "monster",
+        "id": 317,
+        "recordName": "Trusty Quintar"
+      },
+      "gameType": {
+        "key": "QUINTAR_Type_Blue",
+        "name": "Blue"
+      },
+      "rendering": {
+        "extraction": "named monster texture",
+        "sourceTextures": [
+          {
+            "texturePath": "Monster/Z15_QuintarTrustyBlue",
+            "textureSha256": "6597b5366b5dac2fb3237a75c2a0e41a2707c13c46f3fa3166204ab5386fa70b",
+            "region": {
+              "x": 0,
+              "y": 0,
+              "width": 175,
+              "height": 151
+            }
+          }
+        ]
+      }
+    },
+    "trustyRed": {
+      "label": "Trusty Red",
+      "asset": "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed",
+      "database": {
+        "name": "monster",
+        "id": 304,
+        "recordName": "Trusty Quintar"
+      },
+      "gameType": {
+        "key": "QUINTAR_Type_Red",
+        "name": "Red"
+      },
+      "rendering": {
+        "extraction": "named monster texture",
+        "sourceTextures": [
+          {
+            "texturePath": "Monster/Z15_QuintarTrustyRed",
+            "textureSha256": "e46b44678b1288210d52b2889222cb7c39b721eebd696987c80bf59aad1a95ed",
+            "region": {
+              "x": 0,
+              "y": 0,
+              "width": 175,
+              "height": 151
+            }
+          }
+        ]
+      }
+    },
+    "wokeRiver": {
+      "label": "Woke River",
+      "asset": "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9",
+      "database": {
+        "name": "monster",
+        "id": 318,
+        "recordName": "Woke Quintar"
+      },
+      "gameType": {
+        "key": "QUINTAR_Type_Teal",
+        "name": "River"
+      },
+      "rendering": {
+        "extraction": "named monster texture",
+        "sourceTextures": [
+          {
+            "texturePath": "Monster/Z52_QuintarWokeTeal",
+            "textureSha256": "508ab1257e1a3a456b25601ba72def93c9f635fa9592da1b63f0d0876c2519a9",
+            "region": {
+              "x": 0,
+              "y": 0,
+              "width": 148,
+              "height": 170
+            }
+          }
+        ]
+      }
+    },
+    "brutishDesert": {
+      "label": "Brutish Desert",
+      "asset": "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5",
+      "database": {
+        "name": "monster",
+        "id": 316,
+        "recordName": "Brutish Quintar"
+      },
+      "gameType": {
+        "key": "QUINTAR_Type_Yellow",
+        "name": "Desert"
+      },
+      "rendering": {
+        "extraction": "named monster texture",
+        "sourceTextures": [
+          {
+            "texturePath": "Monster/Z18_QuintarBrutishYellow",
+            "textureSha256": "62179c8005ef761992014e080001b6202a5acf7025fdb9cc3ff64638ac1550c5",
+            "region": {
+              "x": 0,
+              "y": 0,
+              "width": 196,
+              "height": 186
+            }
+          }
+        ]
+      }
+    },
+    "golden": {
+      "label": "Golden Quintar",
+      "asset": "5d9f0711eb94eeb3a4916783126f3f088cddd03a04bc62db5745b512fe3a7d9d",
+      "gameType": {
+        "key": "QUINTAR_Type_Gold",
+        "name": "Golden"
+      },
+      "rendering": {
+        "extraction": "named golden actor-sheet frame",
+        "sourceTextures": [
+          {
+            "texturePath": "Actor/Animal_QuintarGolden",
+            "textureSha256": "4af8eb5bb5dd9cc581ee5b5cafe36ecced219052b1e9e8ed94ea30768ff56b86",
+            "region": {
+              "x": 3,
+              "y": 75,
+              "width": 40,
+              "height": 23
             }
           }
         ]
