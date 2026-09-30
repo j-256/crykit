@@ -6,6 +6,7 @@ import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../in
 import { sha256 } from '../interchange/util'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
 import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID } from './bundled-catalog'
+import { projectSourceSemantics } from './source-semantics'
 import { STARTER_CATALOG } from './starter'
 import { CONFIRMED_SKILL_MAPS, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
 
@@ -34,6 +35,14 @@ describe('bundled catalog assembly', () => {
     const entity = DEFAULT_CATALOG.entities['guide:mechanic:ability:KillsUser']!
     expect(entity.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
     expect(entity.sources[0]?.locator).not.toEqual(entity.sources[1]?.locator)
+  })
+
+  it('projects equivalent source phrasing without rewriting bundled evidence', () => {
+    const adjudicator = DEFAULT_CATALOG.entities['base:item:adjudicator']!
+    expect(adjudicator.fields.Location?.state).toBe('conflicting')
+    expect(projectSourceSemantics(adjudicator).fields.Location).toMatchObject({ state: 'known', value: 'Drop: Anubis in the Ancient Labyrinth' })
+    const assassinSeal = DEFAULT_CATALOG.entities['base:item:assassin-seal']!
+    expect(projectSourceSemantics(assassinSeal).fields.Location?.state).toBe('conflicting')
   })
 
   it('keeps confirmed Switch mappings available in the assembled revision', () => {

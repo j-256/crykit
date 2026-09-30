@@ -4,10 +4,11 @@ import { strFromU8, unzipSync } from 'fflate'
 import { STARTER_CATALOG } from '../src/catalog'
 import type { CatalogSnapshot, Profile } from '../src/domain/types'
 
-const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aartisan-rapier?v=1&category=Rapiers'
-const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aacrobat-shoes'
-const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Artisan_Rapier?oldid=11808'
-const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Rapiers/table?oldid=13313'
+const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aassassin-seal'
+const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aadjudicator'
+const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
+const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
+const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -35,13 +36,13 @@ function locationRow(page: Page) {
 test('equivalent source wording is shown as one fact with known implied', async ({ page }) => {
   await page.goto(EQUIVALENT_ITEM_PATH)
   const location = locationRow(page)
-  await expect(location.getByText('Chest: Shoudu Province', { exact: true })).toBeVisible()
+  await expect(location.getByText('Drop: Anubis in the Ancient Labyrinth', { exact: true })).toBeVisible()
   await expect(location.locator('.badge').getByText('known', { exact: true })).toHaveCount(0)
   await expect(location.getByText('differing source values')).toHaveCount(0)
   await expect(page.getByText('Source descriptions differ', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Review source differences', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Community wiki · Accessories/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905')
-  await expect(page.getByRole('link', { name: 'Community wiki · Acrobat Shoes', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Acrobat_Shoes?oldid=13120')
+  await expect(page.getByRole('link', { name: 'Community wiki · Scythes/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Scythes/table?oldid=10848')
+  await expect(page.getByRole('link', { name: 'Community wiki · Adjudicator', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Adjudicator?oldid=11911')
 })
 
 test('conflicting fields expose every claim and protect explicit review choices', async ({ page, baseURL }) => {
@@ -49,20 +50,20 @@ test('conflicting fields expose every claim and protect explicit review choices'
   page.on('request', (request) => { if (!request.url().startsWith(`${baseURL}/`)) externalRequests.push(request.url()) })
   await page.goto(ITEM_PATH)
   const location = locationRow(page)
-  await expect(location.getByText('Can be purchased from the Luxury Shops', { exact: true })).toBeVisible()
-  await expect(location.getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
-  await expect(location.getByRole('link', { name: 'Community wiki · Artisan Rapier', exact: true })).toHaveAttribute('href', ITEM_SOURCE)
-  await expect(location.getByRole('link', { name: 'Community wiki · Rapiers/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
+  await expect(location.getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
+  await expect(location.getByText(/The Assassin Master is found in Capital Sequoia/)).toBeVisible()
+  await expect(location.getByRole('link', { name: 'Community wiki · Assassin Seal', exact: true })).toHaveAttribute('href', ITEM_SOURCE)
+  await expect(location.getByRole('link', { name: 'Community wiki · Accessories/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
   await expect(location.locator('.badge').getByText('Sources differ', { exact: true })).toBeVisible()
-  await expect(location.getByText(/revision 11808/)).toBeVisible()
-  await expect(location.getByText(/revision 13313/)).toBeVisible()
+  await expect(location.getByText(/revision 12583/)).toBeVisible()
+  await expect(location.getByText(/revision 12905/)).toBeVisible()
   await expect(page.getByText('No auxiliary claims were imported. Field-level claims appear with their values above.', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
   const review = page.getByRole('button', { name: 'Review source differences', exact: true })
   await review.focus()
   await page.keyboard.press('Enter')
-  const editor = page.getByRole('dialog', { name: 'Create personal version: Artisan Rapier', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create personal version: Assassin Seal', exact: true })
   const choices = editor.getByRole('group', { name: 'Location claims', exact: true })
   await expect(choices.getByRole('radio', { name: /^Keep unresolved/ })).toBeChecked()
   await choices.getByRole('radio', { name: /^Keep unresolved/ }).focus()
@@ -76,20 +77,20 @@ test('conflicting fields expose every claim and protect explicit review choices'
   await expect(location.getByText('2 differing source values', { exact: true })).toBeVisible()
   await review.click()
   await expect(choices.getByRole('radio', { name: /^Keep unresolved/ })).toBeChecked()
-  await choices.getByRole('radio', { name: 'Use claim 2', exact: true }).check()
+  await choices.getByRole('radio', { name: 'Use claim 1', exact: true }).check()
   await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()
   await expect(editor).not.toBeVisible()
   await expect(page).toHaveURL(/#\/reference\/personal\//)
-  await expect(location.getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
+  await expect(location.getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
   await expect(location.getByText('conflicting', { exact: true })).toHaveCount(0)
   await location.locator('summary').filter({ hasText: /^Sources$/ }).click()
-  await expect(location.getByRole('link', { name: 'Community wiki · Rapiers/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
+  await expect(location.getByRole('link', { name: 'Community wiki · Accessories/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
   await page.reload()
-  await expect(location.getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
+  await expect(location.getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
   await page.goto(ITEM_PATH)
   await expect(location.getByText('2 differing source values', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'View personal version', exact: true }).click()
-  await expect(location.getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
+  await expect(location.getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
   expect(externalRequests).toEqual([])
 })
 
@@ -105,8 +106,8 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await context.setOffline(true)
   await page.reload()
   await page.getByRole('button', { name: 'Review source differences', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal version: Artisan Rapier', exact: true })
-  const choice = editor.getByRole('group', { name: 'Location claims', exact: true }).getByRole('radio', { name: 'Use claim 2', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create personal version: Assassin Seal', exact: true })
+  const choice = editor.getByRole('group', { name: 'Location claims', exact: true }).getByRole('radio', { name: 'Use claim 1', exact: true })
   await choice.check()
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
@@ -122,15 +123,15 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await expect(editor).not.toBeVisible()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
-  await expect(locationRow(page).getByText('Shop: Luxury Martial Weapon Shop', { exact: true })).toBeVisible()
+  await expect(locationRow(page).getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
 
   const saved = await exportProfile(page)
   const definitions = Object.values(saved.profile.personalDefinitions)
   expect(definitions).toHaveLength(1)
-  expect(definitions[0]?.fields.Location).toEqual({ state: 'known', value: 'Shop: Luxury Martial Weapon Shop', sources: [expect.objectContaining({ sourceId: TABLE_SOURCE, locator: 'Rapiers/table > Artisan Rapier', snapshot: 'revision 13313' })] })
+  expect(definitions[0]?.fields.Location).toEqual({ state: 'known', value: SELECTED_LOCATION, sources: [expect.objectContaining({ sourceId: TABLE_SOURCE, locator: 'Accessories/table > Assassin Seal', snapshot: 'revision 12905' })] })
   const sourceCatalog = saved.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)
   expect(sourceCatalog?.checksum).toBe(STARTER_CATALOG.checksum)
-  expect(sourceCatalog?.entities['base:item:artisan-rapier']).toEqual(STARTER_CATALOG.entities['base:item:artisan-rapier'])
+  expect(sourceCatalog?.entities['base:item:assassin-seal']).toEqual(STARTER_CATALOG.entities['base:item:assassin-seal'])
   expect(saved.profile.inventory).toEqual(original.profile.inventory)
   expect(saved.profile.characters).toEqual(original.profile.characters)
   expect(saved.profile.buildRevisions).toEqual(original.profile.buildRevisions)
@@ -142,5 +143,5 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   const restored = await exportProfile(page)
   expect(restored.profile.personalDefinitions).toEqual(saved.profile.personalDefinitions)
   expect(restored.catalogs.map((catalog) => catalog.checksum)).toEqual(saved.catalogs.map((catalog) => catalog.checksum))
-  expect(restored.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)?.entities['base:item:artisan-rapier']).toEqual(sourceCatalog?.entities['base:item:artisan-rapier'])
+  expect(restored.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)?.entities['base:item:assassin-seal']).toEqual(sourceCatalog?.entities['base:item:assassin-seal'])
 })
