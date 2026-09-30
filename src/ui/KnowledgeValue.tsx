@@ -1,7 +1,7 @@
 import { Money, MoneyText } from './MoneyText'
 import { NATIVE_RECORD_FIELD } from '../domain/native-game'
 import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
-import { sourceDisplay } from './source-display'
+import { sourceDisplay, visibleSources } from './source-display'
 import { fieldIconKey } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
 
@@ -53,8 +53,10 @@ export function SourceSummary({ source }: { source: SourceRef }) {
   return <div className="source-summary"><strong>{href ? <a href={href} rel="noreferrer noopener" target="_blank">{display.label}</a> : display.label}</strong><p>{source.locator ?? source.sourceId}</p><small>{[source.snapshot, source.checkedAt ? `Checked ${source.checkedAt}` : undefined, display.detail, source.applicability ?? 'Applicability not stated'].filter(Boolean).join(' · ')}</small></div>
 }
 
-export function SourceReferences({ sources }: { sources: readonly SourceRef[] }) {
-  return <div className="source-references">{sources.length ? sources.map((source, index) => <SourceSummary key={`${source.sourceId}:${source.locator ?? ''}:${index}`} source={source}/>) : <small>No source locator supplied</small>}</div>
+export function SourceReferences({ sources, includeGameExports = false }: { sources: readonly SourceRef[]; includeGameExports?: boolean }) {
+  const displayed = includeGameExports ? sources : visibleSources(sources)
+  if (sources.length > 0 && displayed.length === 0) return null
+  return <div className="source-references">{displayed.length ? displayed.map((source, index) => <SourceSummary key={`${source.sourceId}:${source.locator ?? ''}:${index}`} source={source}/>) : <small>No source locator supplied</small>}</div>
 }
 
 interface ClaimSelection {
@@ -68,7 +70,7 @@ export function ClaimList({ claims, selection, field }: { claims: readonly Knowl
     {selection ? <label className="check-row"><input aria-describedby={`${selection.name}-claim-${index}`} checked={selection.index === index} name={selection.name} onChange={() => selection.onChange(index)} type="radio" value={index}/><strong>Use claim {index + 1}</strong></label> : <strong className="knowledge-claim__label">Claim {index + 1}</strong>}
     <div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} value={claim.value}/></div>
     {claim.note && <p className="knowledge-claim__note"><MoneyText>{claim.note}</MoneyText></p>}
-    <SourceReferences sources={claim.sources}/>
+    <SourceReferences includeGameExports sources={claim.sources}/>
   </li>)}</ol>
 }
 

@@ -8,12 +8,10 @@ async function expectArtwork(page: Page, name: string, type: 'game' | 'mod') {
   await expect.poll(() => image.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
 }
 
-test('Equipment Expansion renders reused base-game and custom mod sprites with exact provenance', async ({ page }) => {
+test('Equipment Expansion hides base-game proof and retains custom artwork attribution', async ({ page }) => {
   await page.goto(detail('equipment-expansion:item:heavy-edge'))
   await expectArtwork(page, 'Heavy Edge', 'game')
-  await page.getByText('Artwork source', { exact: true }).click()
-  await expect(page.locator('.wiki-sprite-source')).toContainText('Content/Textures/Equipment.dat > Sword2H, cell 6')
-  await expect(page.locator('.wiki-sprite-source')).toContainText('Copyrighted third-party artwork')
+  await expect(page.getByText('Artwork source', { exact: true })).toHaveCount(0)
 
   await page.goto(detail('equipment-expansion:item:triton-s-cloak'))
   await expectArtwork(page, "Triton's Cloak", 'mod')

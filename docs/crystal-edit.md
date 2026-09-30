@@ -1,6 +1,6 @@
 # Crystal Edit data and growth estimates
 
-The application ships a normalized vanilla class baseline from the class-copy export dated 2026-09-27, made with Crystal Edit editor version 34. The maintainer identifies these as copies of the vanilla classes and assumes they match the game release available on that export date. The editor version is recorded separately from the game version, which was not supplied. No user import is required to use this baseline. Updating the baseline for a later game release is an authoring operation that requires a new immutable catalog revision.
+The application ships native vanilla growth ratings from Windows 1.6.9 and a normalized class baseline from the class-copy export dated 2026-09-27, made with Crystal Edit editor version 34. The maintainer identifies these as copies of the vanilla classes and assumes they match the game release available on that export date. The class-copy export did not identify its game version; its editor version is recorded separately. No user import is required to use this baseline. Updating the baseline for a later game release is an authoring operation that requires a new immutable catalog revision.
 
 The bundled facts include numeric growth ratings, equipment categories, class selection flags, command and crystal labels, ability and passive ID membership, learn-tree coordinates, and prerequisite connectors. The copies have new job IDs; those export-local IDs are retained as provenance and do not replace the established vanilla class identities. Existing wiki facts and saved catalog references remain available in their original revisions. Mods can edit vanilla classes but cannot delete them, so the vanilla baseline does not establish the effective values of a modded class.
 
@@ -36,7 +36,7 @@ npm run mods:check
 
 The check mode validates committed records, source digests, exact sprite hashes, image dimensions, and the absence of private machine paths without requiring the original project files.
 
-The earlier `wiki-v1` and `bundled-v1` catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`. Default Reference browsing uses the current revision, while exact historical links remain available.
+Earlier catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`. Default Reference browsing uses the current revision, while exact historical links remain available.
 
 ## Importing custom classes and class edits
 
@@ -64,7 +64,7 @@ Supported exported fields supply class ratings, equipment permissions and occupa
 
 ## Growth calculator
 
-Open a class with exported ratings in **Reference**, then expand **Growth calculator**. Enter the character level and allocate its growth levels across classes. **Use this class for all growth levels** is an explicit hypothetical allocation, not a claim about a character's history. Changing one growth class changes only that row. Clear or incomplete allocations produce unknown results rather than silently assuming the primary class's history. Imported classes work in the same calculator when their required ratings are present.
+Open a class with exported ratings in **Reference**, then expand **Growth calculator**. Native **Growth ratings** take precedence over the Crystal Edit copy within the selected definition; exact historical definitions and imported mod replacements retain their own values. See [native class growth ratings](catalog-sources.md#native-class-growth-ratings) for version scope. Enter the character level and allocate its growth levels across classes. **Use this class for all growth levels** is an explicit hypothetical allocation, not a claim about a character's history. Changing one growth class changes only that row. Clear or incomplete allocations produce unknown results rather than silently assuming the primary class's history. Imported classes work in the same calculator when their required ratings are present.
 
 The equations come from GEEF's Crystal Project modding guide, **Game synopsis > Growths**. They combine the primary class rating, level, and weighted growth history, with different coefficients for HP, MP, and the core stats. Optional stat bonuses apply the guide's gender-bonus equations only to explicitly selected stats. Appearance does not select them. Expand **Formula breakdown and scope** to see base, level, growth, and bonus contributions.
 

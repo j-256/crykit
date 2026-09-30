@@ -1,0 +1,21 @@
+import { expect, test } from '@playwright/test'
+
+test('native class facts use plain labels and leave provenance out of routine details', async ({ page }) => {
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/base%3Aclass%3Awarrior')
+  const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
+  const ratings = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Growth ratings$/ }) })
+  await expect(ratings).toHaveCount(1)
+  await expect(ratings).toContainText('80')
+  await expect(ratings.locator('summary')).toHaveCount(0)
+  await expect(ratings.locator('.badge')).toHaveCount(0)
+  await expect(facts.locator('dt', { hasText: /^Stat growth$|^Crystal Edit/ })).toHaveCount(0)
+  await expect(facts.getByText('Equipment permissions', { exact: true })).toBeVisible()
+  await expect(page.getByText('Artwork source', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/fingerprint|copied job ID|job\.dat SHA|Crystal Edit vanilla class export/)).toHaveCount(0)
+  await page.getByText('Source and version details', { exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Source trail', exact: true }).getByRole('link').first()).toBeVisible()
+  await page.getByText('Growth calculator', { exact: true }).click()
+  await page.getByRole('button', { name: 'Use Warrior for all growth levels', exact: true }).click()
+  await expect(page.getByRole('table', { name: 'Estimated base stats', exact: true })).toContainText('1,244.38')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})

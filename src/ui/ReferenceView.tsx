@@ -21,10 +21,9 @@ import { Sheet } from './Sheet'
 import { KnowledgeValue } from './KnowledgeValue'
 import { ArtworkPlaceholder, CatalogArtwork, CatalogArtworkSource } from './WikiSprite'
 import { FieldIconSources } from './GameIcon'
-import { sourceDisplay } from './source-display'
+import { sourceDisplay, visibleDefinitionFacts } from './source-display'
 import { ClassResearch } from './ClassResearch'
-import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
-import { nativeDefinitionLabel, nativeRecord, nativeSourceRecord, NATIVE_RECORD_FIELD, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeRecord, nativeSourceRecord, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 import { NativeDefinitionDetails } from './NativeDefinitionDetails'
 import { isNativeEnemy, NativeEnemyHero, NativeEnemyStats } from './NativeEnemyDetails'
 import { Dropdown } from './Dropdown'
@@ -110,7 +109,7 @@ function DetailView({ item: displayedItem, modAvailability, onBack, onEdit, pers
   const record = nativeSourceRecord(item.entity)
   const supplemental = nativeRecord(item.entity.legacy) && item.entity.legacy.supplemental === true
   const primarySourceId = nativeLabel ? item.entity.sources.find(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))?.sourceId : undefined
-  const facts = Object.entries(item.entity.fields).filter(([field]) => editing || ![CLASS_FIELDS.tree, CRYSTAL_EDIT_FIELDS.tree, NATIVE_RECORD_FIELD, 'Crystal Edit source record', ...(primarySourceId ? ['Game platform', 'Game version', 'Mode data'] : [])].includes(field))
+  const facts = [...visibleDefinitionFacts(item.entity, editing)]
   if (extraFact && !Object.hasOwn(item.entity.fields, extraFact)) facts.push([extraFact, { state: 'unknown' }])
   const actions = <><CorrectionsButton/><Button disabled={Boolean(activeEdit)} icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'correction-editor', ref: target }))} tone="secondary">Correct shared reference</Button><Button aria-pressed={editing} disabled={Boolean(activeEdit) || showOriginal} icon={editing ? "check" : "edit"} onClick={() => setEditing(value => !value)} tone={editing ? "primary" : "secondary"}>{editing ? "Done editing" : "Quick edit"}</Button>{!editing && <Button onClick={onEdit} tone="quiet">{personalOverride ? 'Edit personal version' : 'Create personal version'}</Button>}{collectionAction}</>
   return <div className={`panel__body stack reference-detail${enemy && !editing ? ' reference-detail--enemy' : ''}${editing ? ' reference-detail--editing' : ''}`}>
@@ -142,7 +141,7 @@ function PersonalDetail({ option, onBack, onEdit, onOpenDefinition, collectionAc
   const root = definitionLineageRootRef(localData, option.ref)
   const source = root.kind === 'catalog' ? correctionSource(baseline, root) : undefined
   const primarySourceId = source && nativeDefinitionLabel(source.entity) ? definition.sources.find(entry => entry.sourceId.startsWith(NATIVE_SOURCE_PREFIX))?.sourceId : undefined
-  const facts = Object.entries(definition.fields).filter(([field]) => ![CLASS_FIELDS.tree, CRYSTAL_EDIT_FIELDS.tree, NATIVE_RECORD_FIELD, 'Crystal Edit source record', ...(primarySourceId ? ['Game platform', 'Game version', 'Mode data'] : [])].includes(field))
+  const facts = visibleDefinitionFacts(definition)
   const nativeEntity = source ? { ...source.entity, name: option.name, rawDescription: option.description, aliases: definition.aliases, fields: definition.fields, sources: definition.sources } : undefined
   const enemy = nativeEntity && isNativeEnemy(nativeEntity) ? nativeEntity : undefined
   const sourcePanel = <DefinitionSourcesPanel collapsed={Boolean(primarySourceId)} sources={definition.sources}><details className="correction-disclosure"><summary>Definition history</summary><dl className="definition-list"><div className="definition-row"><dt>Revision</dt><dd>{'revision' in definition ? definition.revision : 'Catalog base'}</dd></div>{'baseRef' in definition && definition.baseRef && <div className="definition-row"><dt>Based on</dt><dd><Button onClick={() => onOpenDefinition(definition.baseRef!)} tone="quiet">View source definition</Button></dd></div>}{'previousRevision' in definition && definition.previousRevision && <div className="definition-row"><dt>Previous revision</dt><dd><Button onClick={() => onOpenDefinition(definition.previousRevision!)} tone="quiet">View previous revision</Button></dd></div>}<div className="definition-row"><dt>Exact identity</dt><dd>{option.key}</dd></div></dl></details></DefinitionSourcesPanel>
