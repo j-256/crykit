@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { NATIVE_SCOPE_UNVERIFIED } from './native-game'
 
 import {
   asId,
@@ -835,6 +836,27 @@ describe('scenario revision locks', () => {
     const report = validateScenario(localData, asId<ScenarioId>('scenario'), catalogs)
     expect(report.issues.some((entry) => entry.code === code)).toBe(true)
     expect(report.dimensions.gameSetupCertainty.status).toBe(status)
+  })
+
+  it.each([
+    ['Windows', '1.6.9', false],
+    ['Windows', '1.6.6', true],
+    ['Nintendo Switch', '1.6.6', true],
+    ['Nintendo Switch', '1.6.9', true],
+    ['PC', '1.6.9', true],
+  ])('retains native version scope uncertainty for %s %s', (platform, gameVersion, uncertain) => {
+    let localData = withCatalogLock(createTestLocalData())
+    const setup = localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
+    localData = { ...localData, gameSetups: { ...localData.gameSetups, [setup.id]: { ...setup, platform: known(platform), gameVersion: known(gameVersion) } } }
+    const team = addTestTeam(localData)
+    localData = createScenario(team.localData, { id: asId<ScenarioId>('native-scope'), label: 'Native scope', memberIds: team.memberIds, gameSetupRevisionId: setup.id, now: TEST_NOW })
+    const catalog = { ...catalogSnapshot('revision-a', known('Windows native data')), legacy: { nativeSource: { platform: 'Windows', gameVersion: '1.6.9' } } }
+    const report = validateScenario(localData, asId<ScenarioId>('native-scope'), { snapshots: { snapshot: catalog }, entitiesByRef: {} })
+    expect(report.issues.some(issue => issue.code === NATIVE_SCOPE_UNVERIFIED)).toBe(uncertain)
+    if (uncertain) {
+      expect(report.dimensions.gameSetupCertainty.status).toBe('undetermined')
+      expect(report.issues.find(issue => issue.code === NATIVE_SCOPE_UNVERIFIED)?.message).toContain(`${platform} ${gameVersion}`)
+    }
   })
 
   it('rejects future baseline revisions in commands and validation', () => {

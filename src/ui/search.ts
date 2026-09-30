@@ -1,5 +1,6 @@
 import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponType } from '../domain/skill-weapons'
 import type { ModState } from '../domain/mods'
+import { nativeIdentity, nativeRecord } from '../domain/native-game'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { projectSourceSemantics } from '../catalog/source-semantics'
@@ -208,17 +209,24 @@ export function projectReferenceEntity(
 export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]): readonly ReferenceSearchItem[] {
   return catalogs
     .flatMap((catalog) => {
+      const nativeNames = new Set(Object.values(catalog.entities).filter(entity => nativeIdentity(entity)?.mode === 'base').map(entity => `${entity.kind}:${entity.name.toLocaleLowerCase()}`))
       const claimsByEntity = new Map<string, CatalogClaim[]>()
       for (const claim of catalog.claims) {
         const claims = claimsByEntity.get(claim.entityId) ?? []
         claims.push(claim)
         claimsByEntity.set(claim.entityId, claims)
       }
-      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? []))
+      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => {
+        const item = projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? [])
+        const native = nativeIdentity(entity)
+        const alternative = native ? native.mode !== 'base' : nativeRecord(entity.legacy) && entity.legacy.supplemental === true && nativeNames.has(`${entity.kind}:${entity.name.toLocaleLowerCase()}`)
+        return alternative && item.audience === 'default' ? { ...item, audience: 'alternatives' as const } : item
+      })
     })
     .sort((left, right) => (
       compareText(left.entity.name, right.entity.name) ||
       compareText(left.entity.kind, right.entity.kind) ||
+      Number(nativeIdentity(right.entity)?.mode === 'base') - Number(nativeIdentity(left.entity)?.mode === 'base') ||
       compareText(left.catalog.id, right.catalog.id) ||
       compareText(left.catalog.revisionId, right.catalog.revisionId) ||
       compareText(left.entity.id, right.entity.id)

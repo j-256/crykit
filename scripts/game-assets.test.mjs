@@ -108,11 +108,11 @@ test('texture output paths and aggregate source digests are deterministic and tr
 test('native asset CLIs expose help on stdout and option errors on stderr', () => {
   const directory = fileURLToPath(new URL('.', import.meta.url))
   for (const script of ['update-game-identities.mjs', 'update-game-assets.mjs']) {
-    const help = spawnSync(process.execPath, [script, '--help'], { cwd: directory, encoding: 'utf8' })
+    const help = spawnSync(process.execPath, ['--experimental-strip-types', script, '--help'], { cwd: directory, encoding: 'utf8' })
     assert.equal(help.status, 0)
     assert.match(help.stdout, /^Usage:/)
     assert.equal(help.stderr, '')
-    const invalid = spawnSync(process.execPath, [script, '--not-an-option'], { cwd: directory, encoding: 'utf8' })
+    const invalid = spawnSync(process.execPath, ['--experimental-strip-types', script, '--not-an-option'], { cwd: directory, encoding: 'utf8' })
     assert.equal(invalid.status, 2)
     assert.equal(invalid.stdout, '')
     assert.match(invalid.stderr, /Unknown option/)

@@ -5,8 +5,9 @@ import { decodeUtf8 } from './xml'
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 const MAX_JSON_DEPTH = 64
 const MAX_JSON_NODES = 2_000_000
+export const NATIVE_BACKUP_JSON_LIMITS = Object.freeze({ maxNodes: 4_000_000 })
 
-export function parseBoundedJson(bytes: Uint8Array, label: string): JsonValue {
+export function parseBoundedJson(bytes: Uint8Array, label: string, limits: { readonly maxNodes: number } = { maxNodes: MAX_JSON_NODES }): JsonValue {
   let value: unknown
   try {
     const source = decodeUtf8(bytes, label).replace(/^\uFEFF/, '')
@@ -20,7 +21,7 @@ export function parseBoundedJson(bytes: Uint8Array, label: string): JsonValue {
   let nodes = 0
   const visit = (candidate: unknown, depth: number): JsonValue => {
     nodes += 1
-    if (nodes > MAX_JSON_NODES || depth > MAX_JSON_DEPTH) {
+    if (nodes > limits.maxNodes || depth > MAX_JSON_DEPTH) {
       throw new AppDataError('invalid-json', `${label} exceeds safe JSON complexity limits`, {
         recoverable: true,
       })

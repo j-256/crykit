@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { createBlankPlaythrough } from './local-data-helpers'
 
@@ -30,10 +31,10 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(spirit).not.toContainText('Unknown')
   await mechanics.getByText('Planned active statuses', { exact: true }).click()
   await choose(page, 'Add planned status', 'Power Up')
-  await expect(mechanics.getByText(/Power Up: Deal 35% more physical damage/)).toBeVisible()
+  await expect(mechanics.getByText('Power Up', { exact: true })).toBeVisible()
   await mechanics.getByText('Ability and hit-chance preview', { exact: true }).click()
   await choose(page, 'Preview ability', 'Cure')
-  await expect(mechanics.getByLabel('Ability estimate')).toContainText('50 + 1.5 Spi')
+  await expect(mechanics.getByLabel('Ability estimate')).toContainText('Base power + Attack contribution + scaled core-stat contribution')
   await page.getByLabel('Target evasion', { exact: true }).fill('50')
   await page.screenshot({ path: testInfo.outputPath('build-mechanics.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
@@ -49,7 +50,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

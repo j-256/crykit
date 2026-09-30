@@ -1,4 +1,4 @@
-import { crystalEditRecord, knownField, type MechanicsDefinition } from './mechanics-facts'
+import { definitionSourceRecord, knownField, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildStatEstimate, CalculatedStat, StatRange } from './build-stats'
 
 const JP_PER_LP = 100
@@ -43,7 +43,7 @@ function documentedCoefficients(text: string, stats: BuildStatEstimate['stats'])
 }
 
 export function estimateAbility(definition: MechanicsDefinition, stats: BuildStatEstimate['stats']): AbilityEstimate {
-  const record = crystalEditRecord(definition)
+  const record = definitionSourceRecord(definition)
   const notes: string[] = []
   const costs = Object.fromEntries(ABILITY_COSTS.map(cost => {
     const direct = record ? record[`${cost}Cost`] : knownField(definition, cost === 'CT' || cost === 'CD' ? cost : `${cost} cost`)

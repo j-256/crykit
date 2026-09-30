@@ -1,5 +1,7 @@
 import { moneyTextLabel } from '../domain/money'
 import { MoneyText } from './MoneyText'
+import { nativeDefinitionLabel, nativeIdentity } from '../domain/native-game'
+import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
@@ -113,7 +115,7 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
   const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
     const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(localData, ref)) === entityDefinitionKey(ref)
-    const provenance = starterEntitySourceLabel(entity)
+    const provenance = nativeDefinitionLabel(entity) ?? starterEntitySourceLabel(entity)
     const effectiveLayer = entity.fields['Effective mod layer']
     const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
     return {
@@ -127,7 +129,7 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
       ...(activeGameSetup?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
     }
   }))
-  return [...personal, ...catalog].sort((left, right) => Number(right.preferred) - Number(left.preferred) || left.name.localeCompare(right.name) || left.sourceLabel.localeCompare(right.sourceLabel) || left.key.localeCompare(right.key))
+  return [...personal, ...catalog].sort((left, right) => Number(right.preferred) - Number(left.preferred) || left.name.localeCompare(right.name) || Number(nativeIdentity(right.record)?.mode === 'base') - Number(nativeIdentity(left.record)?.mode === 'base') || left.sourceLabel.localeCompare(right.sourceLabel) || left.key.localeCompare(right.key))
 }
 
 export function definitionOptionsForRevisions(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], catalogLock: Readonly<Record<string, string>> = {}): readonly DefinitionOption[] {
@@ -277,6 +279,7 @@ export interface DefinitionDropdownProps {
 export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Empty', emptyDescription = 'Nothing is equipped in this slot', createLabel = 'Create personal definition', compact = false, filterOption, optionLabel = defaultOptionLabel, onInspect, query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
   const { localData, catalogs, options, availableOptions } = useDefinitionLibrary()
+  const [includeAlternatives, setIncludeAlternatives] = useState(false)
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
@@ -309,8 +312,9 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
   const candidates = useMemo(() => {
     if (!open) return []
     const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-    return availableOptions.filter((option) => allowedKinds.includes(option.kind) && (!filterOption || filterOption(option)) && (!tokens.length || tokens.every((token) => `${optionLabel(option)} ${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
-  }, [allowedKinds, availableOptions, filterOption, open, optionLabel, query])
+    const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selectedOption?.key)
+    return choices.filter((option) => allowedKinds.includes(option.kind) && (!filterOption || filterOption(option)) && (!tokens.length || tokens.every((token) => `${optionLabel(option)} ${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
+  }, [allowedKinds, availableOptions, filterOption, includeAlternatives, open, optionLabel, query, selectedOption?.key])
   const visible = candidates.slice(0, limit)
   const selectedVisible = selectedOption && allowedKinds.includes(selectedOption.kind) && visible.some((option) => option.key === selectedOption.key)
   const focusResult = (direction: 1 | -1 | 'first' | 'last', event: KeyboardEvent<HTMLElement>) => {
@@ -336,6 +340,7 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
   return <>
     <Dropdown anchorRef={anchorRef} id={id} initialFocusRef={searchRef} onClose={onClose} onDismiss={() => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }} open={open && !editorOverlay} title={title}>
       <div className="definition-dropdown__search search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Enter') event.preventDefault() }} placeholder="Search name, description, or source" ref={searchRef} type="search" value={query}/></div>
+      <label className="check-row"><input checked={includeAlternatives} onChange={event => setIncludeAlternatives(event.target.checked)} type="checkbox"/>Include other sources and mode variants</label>
       <div aria-label="Available definitions" className="picker-results" role="group" tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Home') focusResult('first', event); if (event.key === 'End') focusResult('last', event) }} ref={resultsRef}>
         {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>Unknown</strong><small>No selection has been recorded</small></span></button>}
         {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}

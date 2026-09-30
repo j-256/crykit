@@ -14,7 +14,7 @@ import { AppDataError, asAppDataError } from '../interchange/errors'
 import { previewImport as buildImportPreview } from '../interchange/import'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { composeModCatalog, compactModCatalog, expandModCatalogs, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
-import { parseBoundedJson } from '../interchange/json'
+import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json'
 import { catalogSnapshotKey } from '../interchange/identity'
 import type {
   CommitImportOptions,
@@ -38,7 +38,7 @@ import {
   getDatabase,
   type LocalDataRecord,
 } from './database'
-import { DEFAULT_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
+import { NATIVE_BACKUP_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
 
 const LOCAL_DATA_RECORD_KEY = 'local-data-record'
 const CHANNEL_NAME = 'crystal-companion-local-data'
@@ -46,7 +46,7 @@ const MAX_LOCAL_DATA_CHANGES = 500
 const MAX_HISTORY_ENTRIES = 500
 const MAX_HISTORY_BYTES = 8 * 1024 * 1024
 const BACKUP_PAYLOAD_HEADROOM_BYTES = 1024 * 1024
-const MAX_BACKUP_PAYLOAD_BYTES = DEFAULT_ARCHIVE_LIMITS.maxEntryUncompressedBytes - BACKUP_PAYLOAD_HEADROOM_BYTES
+const MAX_BACKUP_PAYLOAD_BYTES = NATIVE_BACKUP_ARCHIVE_LIMITS.maxEntryUncompressedBytes - BACKUP_PAYLOAD_HEADROOM_BYTES
 
 let channel: BroadcastChannel | undefined
 const localListeners = new Set<(notification: LocalDataNotification) => void>()
@@ -613,12 +613,12 @@ function textBytes(value: unknown): Uint8Array {
 function zipReadableByImporter(entries: Readonly<Record<string, Uint8Array>>): Uint8Array {
   const compressed = zipSync(entries)
   const directory = inspectZip(compressed, {
-    ...DEFAULT_ARCHIVE_LIMITS,
-    maxCompressedBytes: DEFAULT_ARCHIVE_LIMITS.maxTotalUncompressedBytes + BACKUP_PAYLOAD_HEADROOM_BYTES,
+    ...NATIVE_BACKUP_ARCHIVE_LIMITS,
+    maxCompressedBytes: NATIVE_BACKUP_ARCHIVE_LIMITS.maxTotalUncompressedBytes + BACKUP_PAYLOAD_HEADROOM_BYTES,
     maxInflationRatio: Number.POSITIVE_INFINITY,
   })
   const storedPaths = new Set(directory.entries
-    .filter((entry) => entry.uncompressedSize > 0 && entry.uncompressedSize / entry.compressedSize > DEFAULT_ARCHIVE_LIMITS.maxInflationRatio)
+    .filter((entry) => entry.uncompressedSize > 0 && entry.uncompressedSize / entry.compressedSize > NATIVE_BACKUP_ARCHIVE_LIMITS.maxInflationRatio)
     .map((entry) => entry.name))
   if (storedPaths.size === 0) return compressed
   const adjusted = Object.fromEntries(Object.entries(entries).map(([path, bytes]) => [
@@ -788,13 +788,13 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
     }
     const manifestBytes = textBytes(manifest)
     parseBoundedJson(manifestBytes, 'generated backup manifest')
-    parseBoundedJson(payloadBytes, 'generated backup payload')
+    parseBoundedJson(payloadBytes, 'generated backup payload', NATIVE_BACKUP_JSON_LIMITS)
     const backup = zipReadableByImporter({
       'manifest.json': manifestBytes,
       'bundle.json': payloadBytes,
       ...sourceEntries,
     })
-    inspectZip(backup)
+    inspectZip(backup, NATIVE_BACKUP_ARCHIVE_LIMITS)
     await buildImportPreview(backup, 'generated-native-backup.zip')
     return backup
   } catch (error) {

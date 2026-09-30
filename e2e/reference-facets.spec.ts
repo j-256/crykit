@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function showFilters(page: Page, isMobile: boolean) {
@@ -105,7 +106,7 @@ test('class facets combine with definition types and survive details and offline
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

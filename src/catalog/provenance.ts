@@ -30,6 +30,8 @@ const STARTER_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
 })
 
 export function starterSourceLabel(sourceId: string): string | undefined {
+  const native = /^native-game:windows:(\d+\.\d+\.\d+(?:\.\d+)?)$/.exec(sourceId)
+  if (native) return `Windows ${native[1]} game files`
   const fixed = STARTER_SOURCE_LABELS[sourceId]
   if (fixed) return fixed
   try {

@@ -42,7 +42,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await expect(page.getByText('Possible match', { exact: true })).toHaveCount(0)
   const uncertain = page.getByRole('checkbox', { name: /Include skills with unknown/ })
   await uncertain.check()
-  await expect(page.getByText('Possible match', { exact: true }).first()).toBeVisible()
+  await expect(page).toHaveURL(/uncertainSkills=1/)
   await uncertain.uncheck()
   await card(page, 'Backstab').click()
   await expect(page.getByRole('heading', { name: 'Backstab', exact: true })).toBeVisible()

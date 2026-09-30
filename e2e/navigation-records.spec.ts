@@ -163,7 +163,7 @@ test('reference source options remain readable, bounded, and exact', async ({ pa
   await page.getByRole('button', { name: 'Source', exact: true }).click()
   const sourceSearch = page.getByRole('searchbox', { name: 'Search reference sources', exact: true })
   const sources = page.getByRole('group', { name: 'Reference source filters', exact: true })
-  const aegisSource = sources.getByRole('button', { name: /^Community wiki · Aegis\. Full source: https:\/\/crystal-project\.fandom\.com\/wiki\/Aegis\. \d+ matches$/ })
+  const nativeSource = sources.getByRole('button', { name: /^Windows 1\.6\.9 game files\. Full source: native-game:windows:1\.6\.9\. \d+ matches$/ })
   if (!isMobile) {
     const viewport = page.viewportSize()!
     const facetPanel = page.locator('.facet-panel')
@@ -175,7 +175,7 @@ test('reference source options remain readable, bounded, and exact', async ({ pa
     expect(searchBox.y).toBeGreaterThanOrEqual(0)
     expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(viewport.height)
   }
-  await expect(aegisSource).toBeVisible()
+  await expect(nativeSource).toBeVisible()
   const geometry = await sources.evaluate((element) => {
     const rows = [...element.querySelectorAll('button')].map((button) => button.getBoundingClientRect())
     return {
@@ -197,6 +197,6 @@ test('reference source options remain readable, bounded, and exact', async ({ pa
 
   await sourceSearch.fill('docs.google.com')
   await expect(sources.getByRole('button', { name: /Equipment Expansion\. Full source: https:\/\/docs\.google\.com\// })).toBeVisible()
-  await sourceSearch.fill('Community wiki · Aegis')
-  await expect(aegisSource).toBeVisible()
+  await sourceSearch.fill('Windows 1.6.9')
+  await expect(nativeSource).toBeVisible()
 })
