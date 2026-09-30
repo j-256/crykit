@@ -12,6 +12,9 @@ import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
 import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
 import { ClassWorldArtwork } from './WikiSprite'
+import { ProgressBoards } from './ProgressBoards'
+import { useQueuedTileUpdates } from './useQueuedTileUpdates'
+import './quintar-breeding.css'
 
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
 
@@ -54,11 +57,6 @@ interface ClassSealEntry {
   readonly className: string
   readonly sealName: string
   readonly record?: PartyProgressRecord
-  readonly stage: ProgressStage
-}
-
-interface QueuedClassSealAdvance {
-  readonly count: number
   readonly stage: ProgressStage
 }
 
@@ -196,7 +194,7 @@ const ClassSealTile = memo(function ClassSealTile({ entry, pending, selecting, s
 
 export function ProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage, onUpdate }: ProgressViewProps) {
   const navigation = useNavigation()
-  const [queuedAdvances, setQueuedAdvances] = useState<ReadonlyMap<string, QueuedClassSealAdvance>>(() => new Map())
+  const { queuedUpdates: queuedAdvances, pendingCount: queuedAdvanceCount, enqueue } = useQueuedTileUpdates<string, ProgressStage>()
   const [selecting, setSelecting] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [bulkSaving, setBulkSaving] = useState(false)
@@ -206,9 +204,8 @@ export function ProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage
   const entries = useMemo(() => boardEntries(localData, catalogs), [catalogs, localData])
   const displayedEntries = useMemo(() => entries.map((entry) => {
     const queued = queuedAdvances.get(entry.key)
-    return queued ? { ...entry, stage: queued.stage } : entry
+    return queued ? { ...entry, stage: queued.state } : entry
   }), [entries, queuedAdvances])
-  const queuedAdvanceCount = useMemo(() => [...queuedAdvances.values()].reduce((total, queued) => total + queued.count, 0), [queuedAdvances])
   const page = navigation.route.page.page === 'progress' ? navigation.route.page : { page: 'progress', view: 'list' } as const
   const adding = page.view === 'new'
   const editing = page.view === 'edit' ? ownRecordValue(requirePlaythrough(localData).progress, page.recordId) : undefined
@@ -220,32 +217,11 @@ export function ProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage
   const add = async (draft: ProgressDraft) => { await onAdd(draft); navigation.close() }
   const update = async (draft: ProgressDraft) => { if (!editing) return; await onUpdate(editing.id, draft); navigation.close() }
   const advance = useCallback((entry: ClassSealEntry) => {
-    setQueuedAdvances((current) => {
-      const queued = current.get(entry.key)
-      const next = new Map(current)
-      next.set(entry.key, {
-        count: (queued?.count ?? 0) + 1,
-        stage: nextClassSealStage(queued?.stage ?? entry.stage),
-      })
-      return next
-    })
     setSaveError(undefined)
-    void onAdvance(entry.classRef, entry.className).catch((reason: unknown) => {
+    enqueue(entry.key, entry.stage, nextClassSealStage, () => onAdvance(entry.classRef, entry.className), (reason) => {
       setSaveError(current => current ?? (reason instanceof Error ? reason.message : `The ${entry.className} progress could not be saved.`))
-    }).finally(() => {
-      setQueuedAdvances((current) => {
-        const queued = current.get(entry.key)
-        if (!queued) return current
-        const updated = new Map(current)
-        if (queued.count === 1) {
-          updated.delete(entry.key)
-          return updated
-        }
-        updated.set(entry.key, { ...queued, count: queued.count - 1 })
-        return updated
-      })
     })
-  }, [onAdvance])
+  }, [enqueue, onAdvance])
   const edit = useCallback((recordId: ProgressRecordId) => navigate({ page: 'progress', view: 'edit', recordId }), [navigate])
   const toggleSelection = useCallback((key: string) => setSelectedKeys(current => {
     const next = new Set(current)
@@ -271,6 +247,7 @@ export function ProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage
   }
   return <>
     <ScreenHeader actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} description="Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough." eyebrow="Class mastery seals" title="Progress"/>
+    <ProgressBoards/>
     {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another playthrough. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
     {saveError && <InlineNotice title="Progress not saved" tone="danger">{saveError}</InlineNotice>}
     {selecting && <section aria-busy={bulkSaving} aria-label="Bulk edit class mastery" className="class-seal-bulk" data-saving={bulkSaving || undefined}>

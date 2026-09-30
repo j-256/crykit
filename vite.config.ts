@@ -13,6 +13,7 @@ const DOM_TEST_FILES = [
   'src/ui/components.test.tsx',
   'src/ui/navigation-controller.test.tsx',
   'src/ui/route-state.test.ts',
+  'src/ui/useQueuedTileUpdates.test.tsx',
 ]
 
 export default defineConfig({

@@ -46,6 +46,7 @@ describe('semantic navigation routes', () => {
       { page: 'builds', view: 'compare' },
       { page: 'builds', view: 'compare-pair', leftRevisionId: 'left / one', rightRevisionId: 'right / two' },
       { page: 'progress', view: 'list' },
+      { page: 'progress', view: 'quintar' },
       { page: 'progress', view: 'new' },
       { page: 'progress', view: 'edit', recordId: 'record / one' },
       { page: 'reference', view: 'list' },

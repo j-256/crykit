@@ -1,4 +1,5 @@
 import { GUIDE_LEVEL_CAP } from '../domain/growth'
+import { QUINTAR_BREEDING_STEP_IDS } from '../catalog/quintar-breeding'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { MAX_MOD_LAYERS } from '../domain/mod-layers'
 import { z } from 'zod'
@@ -406,6 +407,7 @@ const playthrough = z.object({
   inventoryEvents: z.record(id, inventoryEvent),
   characters: z.record(id, character),
   progress: z.record(id, progressRecord),
+  quintarBreeding: z.record(id.refine(value => QUINTAR_BREEDING_STEP_IDS.has(value), 'Unknown quintar guide step'), timestamp).optional(),
   scenarios: z.record(id, scenario),
   goals: z.record(id, goal),
   skillTreeCaptures: z.record(id, skillCapture).optional(),
