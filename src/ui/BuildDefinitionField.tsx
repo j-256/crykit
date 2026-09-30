@@ -2,19 +2,22 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import { isPotentiallyLearnableInnate } from '../catalog/switch'
 import { nativeDefinitionLabel, nativeDisplayName } from '../domain/native-game'
 import { entityDefinitionKey } from '../domain'
-import type { CatalogEntityKind, EntityRef } from '../domain/types'
+import type { CatalogEntityKind, EntityRef, GameSetupRevision, SlotDefinition } from '../domain/types'
+import { definitionModAvailability, modPlanningReason } from '../catalog/mods'
+import { assessEquipmentPermission, type BuildEquipmentPermissions } from '../domain/build-mechanics'
 import { Dropdown } from './Dropdown'
 import { definitionKindLabel, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
-import { Icon } from './icons'
+import { Icon, type IconName } from './icons'
 import { DefinitionArtwork } from './GameIcon'
-import { commandName, matchesSlot } from './definition-fields'
+import { commandName, matchesEquipmentSlot, matchesSlot } from './definition-fields'
 import { hasNameEvidenceOnly, isReferenceArticle, ppCostLabel, similarNameOptions } from './build-evidence'
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { LEARNABLE_INNATE_SKILLS_MOD_LABEL, ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
 
 export const BUILD_DEFINITION_PAGE_SIZE = 100
-export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect }: {
+const FIELD_ICONS: Readonly<Record<string, IconName>> = Object.freeze({ Class: 'crystal', 'Sub-command': 'tome', 'Main hand': 'sword', 'Off hand': 'shield', Head: 'character', Body: 'chest', 'Accessory 1': 'ring', 'Accessory 2': 'ring' })
+export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect }: {
   label: string
   allowedKinds: readonly CatalogEntityKind[]
   value: EntityRef | null
@@ -22,6 +25,9 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   query: string
   resultLimit: number
   includeInnates?: boolean
+  gameSetup?: GameSetupRevision
+  equipmentPermissions?: BuildEquipmentPermissions
+  equipmentSlot?: SlotDefinition
   onOpen: () => void
   onClose: () => void
   onDismiss: () => void
@@ -30,27 +36,30 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   onChange: (value: EntityRef | null) => void
   onInspect: (option: DefinitionOption | undefined) => void
 }) {
-  const { localData, catalogs, planningOptions: options, availablePlanningOptions: availableOptions } = useDefinitionLibrary()
-  const selected = findDefinitionOption(options, value)
+  const { localData, catalogs, planningOptions: options, availablePlanningOptions: libraryOptions } = useDefinitionLibrary()
+  const selectedBase = findDefinitionOption(options, value)
+  const selected = useMemo(() => selectedBase ? { ...selectedBase, modAvailability: definitionModAvailability(localData, selectedBase.ref, gameSetup, catalogs) } : undefined, [catalogs, gameSetup, localData, selectedBase])
+  const availableOptions = useMemo(() => open ? libraryOptions.map(option => ({ ...option, modAvailability: definitionModAvailability(localData, option.ref, gameSetup, catalogs) })) : [], [catalogs, gameSetup, libraryOptions, localData, open])
   const similarNames = useMemo(() => similarNameOptions(localData, availableOptions), [availableOptions, localData])
   const optionName = (option: DefinitionOption) => nativeDisplayName(option.record, label === 'Sub-command' ? commandName(option) ?? option.name : option.name)
   const inputRef = useRef<HTMLInputElement>(null)
   const id = useId()
   const [activeIndex, setActiveIndex] = useState(-1)
   const [includeAlternatives, setIncludeAlternatives] = useState(false)
+  const permissionAssessments = useMemo(() => new Map(equipmentPermissions && open ? availableOptions.map(option => [option.key, assessEquipmentPermission(option.record, equipmentPermissions)]) : []), [availableOptions, equipmentPermissions, open])
   const candidates = useMemo(() => {
     if (!open) return []
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
     const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selected?.key)
-    return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && matchesSlot(option, label) && tokens.every((token) => `${optionName(option)} ${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
-      .sort((a, b) => Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
-  }, [allowedKinds, availableOptions, includeAlternatives, includeInnates, label, open, localData, query, selected?.key])
+    return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)) && tokens.every((token) => `${optionName(option)} ${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
+      .sort((a, b) => Number(permissionAssessments.get(a.key)?.status === 'invalid') - Number(permissionAssessments.get(b.key)?.status === 'invalid') || Number(Boolean(modPlanningReason(a.modAvailability))) - Number(Boolean(modPlanningReason(b.modAvailability))) || Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
+  }, [allowedKinds, availableOptions, includeAlternatives, includeInnates, equipmentSlot, label, open, localData, permissionAssessments, query, selected?.key])
   const visible = candidates.slice(0, resultLimit)
   const hasMore = candidates.length > resultLimit
   const lastIndex = hasMore ? visible.length : visible.length - 1
-  useEffect(() => { setActiveIndex(-1) }, [query, open, includeInnates])
+  useEffect(() => { setActiveIndex(-1) }, [query, open, includeInnates, equipmentPermissions, gameSetup])
   useLayoutEffect(() => { if (open) inputRef.current?.select() }, [open])
-  const choose = (ref: EntityRef | null) => { onInspect(findDefinitionOption(options, ref)); onChange(ref); onClose() }
+  const choose = (ref: EntityRef | null) => { onInspect(findDefinitionOption(availableOptions, ref)); onChange(ref); onClose() }
   const move = (index: number) => {
     if (!visible.length) return
     const next = Math.max(0, Math.min(lastIndex, index))
@@ -61,6 +70,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   return <div className="build-field">
     <label htmlFor={id}>{label}</label>
     <div className="build-field__input">
+      <span className="build-field__artwork">{selected ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={selected.ref}/> : <Icon name={FIELD_ICONS[label] ?? (allowedKinds.includes('passive') ? 'spark' : 'box')}/>}</span>
       <input aria-activedescendant={open && activeIndex >= 0 ? `${id}-option-${activeIndex}` : undefined} aria-autocomplete="list" aria-controls={open ? `${id}-list` : undefined} aria-expanded={open} aria-haspopup="listbox" autoComplete="off" data-definition-trigger="true" id={id} onChange={(event) => onQueryChange(event.target.value)} onClick={() => { if (!open) onOpen() }} onFocus={() => { onInspect(selected); if (!open) onOpen() }} onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
@@ -80,7 +90,11 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
       <label className="check-row"><input checked={includeAlternatives} onChange={event => { setIncludeAlternatives(event.target.checked); setActiveIndex(-1) }} type="checkbox"/>Include other sources and mode variants</label>
       <div className="picker-results">
         <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><strong>Leave empty</strong></span></button>
-        {visible.map((option, index) => <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerEnter={() => setActiveIndex(index)} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.kind === 'innate' && <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{['passive', 'innate'].includes(option.kind) && <small className="picker-result__cost">{ppCostLabel(option)}</small>}</span><small>{definitionKindLabel(option.kind)}{label === 'Sub-command' ? ` · ${option.name} class` : ''} · {nativeDefinitionLabel(option.record) ? nativeDefinitionLabel(option.record) : option.ref.kind === 'personal' ? 'Personal definition' : hasNameEvidenceOnly(option.record) ? 'Name only' : 'Catalog details'}</small><small className="picker-result__description"><BuildSelectionFacts option={option}/></small>{similarNames.has(option.key) && <small className="picker-result__source">Similar spelling exists; shared identity unconfirmed</small>}</span></button>)}
+        {visible.map((option, index) => {
+          const assessment = permissionAssessments.get(option.key)
+          const modReason = modPlanningReason(option.modAvailability)
+          return <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} data-permission-state={assessment?.status} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerEnter={() => setActiveIndex(index)} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.kind === 'innate' && <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}{['passive', 'innate'].includes(option.kind) && <small className="picker-result__cost">{ppCostLabel(option)}</small>}</span><small>{definitionKindLabel(option.kind)}{label === 'Sub-command' ? ` · ${option.name} class` : ''} · {nativeDefinitionLabel(option.record) ? nativeDefinitionLabel(option.record) : option.ref.kind === 'personal' ? 'Personal definition' : hasNameEvidenceOnly(option.record) ? 'Name only' : 'Catalog details'}</small>{modReason && <small className="picker-result__mod-reason">{modReason}</small>}{assessment?.reason && <small className="picker-result__permission">{assessment.reason}</small>}<small className="picker-result__description"><BuildSelectionFacts interactiveHelp={false} option={option}/></small>{similarNames.has(option.key) && <small className="picker-result__source">Similar spelling exists; shared identity unconfirmed</small>}</span></button>
+        })}
         {!candidates.length && <div className="definition-dropdown__empty" role="presentation">No matching definitions. Try another search. Only listed selections are saved.</div>}
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>

@@ -5,6 +5,8 @@ import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
 import { sourceDisplay, visibleSources } from './source-display'
 import { fieldIconKey } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
+import { isStatRatingField } from '../domain/stat-ratings'
+import { StatRatings } from './StatRatings'
 
 const COPPER_FIELD = /(?:^copper$|\(copper\)$)/i
 const NATIVE_COPPER_FIELDS = new Set(['Money', 'Cost'])
@@ -15,6 +17,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 function StructuredValue({ value, field, nativeSource = false }: { value: unknown; field?: string; nativeSource?: boolean }) {
+  if (field && isStatRatingField(field)) return <StatRatings field={field} value={value}/>
   const native = nativeSource || field === NATIVE_RECORD_FIELD
   if (value === null) return <span>Null</span>
   if (typeof value === 'string') {
