@@ -1,6 +1,6 @@
 import { definitionLineageRootRef } from '../domain/definitions'
 import { modState, type ModState } from '../domain/mods'
-import type { EntityRef, LocalData, GameSetupRevision } from '../domain/types'
+import type { CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
@@ -98,9 +98,13 @@ export interface DefinitionModAvailability {
   readonly requiredMod?: string
 }
 
-export function definitionModAvailability(localData: LocalData, ref: EntityRef, gameSetup?: GameSetupRevision): DefinitionModAvailability {
+export function definitionModAvailability(localData: LocalData, ref: EntityRef, gameSetup?: GameSetupRevision, catalogs: readonly CatalogSnapshot[] = []): DefinitionModAvailability {
   const root = definitionLineageRootRef(localData, ref)
-  const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (root.catalogRevisionId === STARTER_CATALOG_REVISION_ID || root.catalogRevisionId === BUNDLED_CATALOG_REVISION_ID) ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
+  const catalog = root.kind === 'catalog' ? catalogs.find(value => value.id === root.catalogId && value.revisionId === root.catalogRevisionId) : undefined
+  const effectiveLayer = root.kind === 'catalog' ? catalog?.entities[root.entityId]?.fields['Effective mod layer'] : undefined
+  if (effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string') return { requiredMod: effectiveLayer.value, state: gameSetup?.catalogLock[catalog!.id] === catalog!.revisionId ? 'enabled' : 'unknown' }
+  const baselineRevision = gameSetup?.modComposition && root.kind === 'catalog' && root.catalogId === gameSetup.modComposition.baseline.catalogId && root.catalogRevisionId === gameSetup.catalogLock[root.catalogId] ? gameSetup.modComposition.baseline.catalogRevisionId : root.kind === 'catalog' ? root.catalogRevisionId : undefined
+  const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (baselineRevision === STARTER_CATALOG_REVISION_ID || baselineRevision === BUNDLED_CATALOG_REVISION_ID) ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
   return requiredMod ? { state: modState(gameSetup, requiredMod), requiredMod } : { state: 'unknown' }
 }
 

@@ -31,7 +31,7 @@ function choices(localData: LocalData, catalogs: readonly CatalogSnapshot[]): re
     const ref = preferredDefinitionRef(localData, initial)
     const entity = resolveDefinition(localData, catalogs, ref)
     if (!entity || !['class', 'ability', 'passive', 'innate', 'monsterMagic'].includes(entity.kind)) continue
-    const modAvailability = definitionModAvailability(localData, ref, gameSetup)
+    const modAvailability = definitionModAvailability(localData, ref, gameSetup, catalogs)
     if (modAvailability.state === 'disabled') continue
     const field = entity.fields.Class
     result.set(entityDefinitionKey(ref), { ref, name: entity.name, kind: entity.kind, ...(field?.state === 'known' && typeof field.value === 'string' ? { className: field.value } : {}), ...(modAvailability.requiredMod ? { requiredMod: modAvailability.requiredMod } : {}) })

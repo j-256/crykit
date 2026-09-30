@@ -77,8 +77,10 @@ export function classEquipmentTypes(definition: MechanicsDefinition | undefined)
 }
 
 export function effectText(definition: MechanicsDefinition): string | undefined {
-  const field = knownField(definition, definition.kind === 'status' ? 'Effect' : 'Description')
-  return typeof field === 'string' ? field : undefined
+  const field = definition.fields[definition.kind === 'status' ? 'Effect' : 'Description']
+  if (field) return field.state === 'known' && typeof field.value === 'string' ? field.value : undefined
+  const native = crystalEditRecord(definition)?.Description
+  return typeof native === 'string' ? native : definition.rawDescription
 }
 
 export interface PermissionEffects { readonly equipment: readonly string[]; readonly dualWield: boolean; readonly twoHanded: boolean; readonly complete: boolean }

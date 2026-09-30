@@ -198,7 +198,28 @@ export interface GameSetupRevision {
   readonly slots: readonly SlotDefinition[]
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
   readonly definitionOverrides?: readonly PersonalRef[]
+  readonly modComposition?: ModComposition
   readonly createdAt: Timestamp
+}
+
+export interface ModCatalogPin {
+  readonly catalogId: CatalogId
+  readonly catalogRevisionId: CatalogRevisionId
+}
+
+export interface ModLayer extends ModCatalogPin {
+  readonly enabled: boolean
+}
+
+export interface ModDefinitionLink {
+  readonly modelKey: string
+  readonly targetEntityId: EntityId | null
+}
+
+export interface ModComposition {
+  readonly baseline: ModCatalogPin
+  readonly layers: readonly ModLayer[]
+  readonly links: readonly ModDefinitionLink[]
 }
 
 export interface InventoryPosition {

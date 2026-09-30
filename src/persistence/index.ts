@@ -4,6 +4,7 @@ export {
   exportBackup,
   loadLocalData,
   previewImport,
+  prepareModCatalogs,
   saveLocalData,
   saveLocalDataWithStatus,
   sourceDigest,

@@ -16,6 +16,10 @@ A known source mod with an unknown or conflicting setting stays visible with tha
 
 Recorded inventory, character learning, snapshots, and plans are retained when a mod is disabled. Exact definition links still open, and a picker retains its current exact selection with its mod state. The current member sheet shows saved mod settings under **Observation details**; historical sheets show **Recorded mods**. Each uses the snapshot's pinned Game Setup revision and labels its recorded selections against that configuration. **Equipment Expansion mod: enabled status not recorded**, for example, means the snapshot does not record whether that mod was enabled in the game. Expand a character sheet's mod label for an explanation and a link to **Data & settings > Game Setup**. These labels describe recorded mod settings and do not validate slot compatibility. Changing the current Game Setup does not reinterpret the earlier sheet. Capture a new snapshot to record the new context.
 
+## Imported mod files
+
+**Imported mod layers** under Game Setup configure exact Crystal Edit source revisions separately from the starter list of named Switch mods. Enable the chosen layers, arrange their planner priority, and review bundled replacement links before saving. Later enabled records with the same native family and ID replace earlier complete records; names do not establish links to bundled definitions. The effective definitions drive planning without changing older saved configurations. See [Configuring imported mod layers](crystal-edit.md#configuring-imported-mod-layers) for version selection, precedence, source references, unresolved targets, and supported rules.
+
 ## Backup and recovery
 
 Native backups preserve enabled and disabled lists with each Game Setup revision, including unknown and conflicting imported claims. Backups without a disabled list remain readable and keep those settings unknown. Older application builds that do not support the optional disabled list cannot restore backups containing it. Restoring contradictory definite enabled and disabled lists fails validation before changing the stored planner data.

@@ -38,7 +38,7 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
 function DefinitionLink({ localData, catalogs, gameSetup, value, showIdentity }: RecordedContext & { readonly value: EntityRef; readonly showIdentity?: boolean }) {
   const navigation = useNavigation()
   const route = { page: { page: 'reference', view: 'detail', ref: value } as const, overlays: [], query: {} }
-  const availability = definitionModAvailability(localData, value, gameSetup)
+  const availability = definitionModAvailability(localData, value, gameSetup, catalogs)
   return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a><RecordedModStatus availability={availability}/>{showIdentity && <details className="recorded-sources"><summary>Definition identity</summary><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></details>}</div>
 }
 

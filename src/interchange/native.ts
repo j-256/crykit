@@ -2,6 +2,7 @@ import { parseCorrectionCollection } from './corrections'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { assertModConfiguration } from '../domain/mods'
+import { composeModCatalog, expandModCatalogs, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { TEAM_SIZE } from '../domain/scenarios'
 import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
 import {
@@ -124,7 +125,7 @@ function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
   const snapshots: CatalogSnapshot[] = []
   const keys = new Map<string, ReadonlySet<string>>()
   const entityKinds = new Map<string, CatalogEntityKind>()
-  for (const [index, value] of values.entries()) {
+  for (const [index, value] of expandModCatalogs(values as readonly CatalogSnapshot[]).entries()) {
     const record = recordValue(value, `catalogs[${index}]`)
     const id = stringValue(record.id, `catalogs[${index}].id`)
     const revisionId = stringValue(record.revisionId, `catalogs[${index}].revisionId`)
@@ -638,6 +639,22 @@ export function validateNativeLocalDataGraph(
   for (const catalog of catalogs) {
     if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   }
+  const gameSetups = [localData, ...(history ?? []).flatMap(entry => [entry.before, entry.after])].flatMap(value => Object.values(value.gameSetups))
+  const origins = new Map(gameSetups.map(value => [modCatalogRevision(value.id), value]))
+  const checkedOrigins = new Set<string>()
+  for (const gameSetup of gameSetups) {
+    if (!gameSetup.modComposition) continue
+    try {
+      const origin = origins.get(gameSetup.catalogLock[gameSetup.modComposition.baseline.catalogId]!)
+      if (!origin || !jsonEqual(gameSetup.modComposition, origin.modComposition)) schemaError('An effective mod catalog has no matching originating Game Setup')
+      if (checkedOrigins.has(origin.id)) continue
+      const expected = composeModCatalog(origin, catalogs)!
+      const actual = modCatalogForPin(catalogs, { catalogId: expected.id, catalogRevisionId: expected.revisionId })
+      const expanded = expandModCatalogs([modCatalogForPin(catalogs, gameSetup.modComposition.baseline)!, expected])[1]!
+      if (!actual || (!jsonEqual({ ...actual, checksum: expected.checksum }, expected) && !jsonEqual({ ...actual, checksum: expected.checksum }, expanded))) schemaError('An effective mod catalog does not match its pinned source layers')
+      checkedOrigins.add(origin.id)
+    } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid imported mod composition') }
+  }
   const validatedCatalogs = validateCatalogs(catalogs)
   const validatedLocalData = validateLocalData(localData, validatedCatalogs.keys, 'localData', validatedCatalogs.entityKinds)
   if (history) {
@@ -735,6 +752,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
       })
     }
   }
+  validateNativeLocalDataGraph(localData, payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[], history)
   const digest = await sha256(bytes)
   const personalCount = Object.values(localData.playthroughs).reduce((total, playthrough) => total +
     Object.keys(playthrough.inventory).length +

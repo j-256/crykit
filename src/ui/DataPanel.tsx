@@ -1,8 +1,10 @@
 import { equipmentRole, EQUIPMENT_ROLE_LABELS } from '../domain/mechanics-facts'
 import { requirePlaythrough } from '../domain'
+import { definitionLineageRootRef } from '../domain/definitions'
+import { sameCorrectionValue } from '../domain/corrections'
 import type { EquipmentRole } from '../domain/types'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import type { CatalogEntityKind, Knowledge, LocalData, PlaythroughId, GameSetupRevisionId, SlotDefinition, SlotId, SlotProvenance, SourceRef } from '../domain/types'
+import type { CatalogEntityKind, Knowledge, LocalData, ModComposition, PersonalRef, PlaythroughId, GameSetupRevisionId, SlotDefinition, SlotId, SlotProvenance, SourceRef } from '../domain/types'
 import { DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { modState, normalizeModName, recordedModNames, updateModSelections, type ModConfiguration, type ModSelection } from '../domain/mods'
@@ -17,6 +19,7 @@ import { useNavigation, useNavigationBlocker, type SettingsSection } from './nav
 import { CorrectionsButton } from './Corrections'
 import { Sheet } from './Sheet'
 import { CreditsSection } from './CreditsSection'
+import { ModLayersEditor } from './ModLayersEditor'
 
 const IMPORT_WARNING_PRIMARY_COUNT = 8
 const IMPORT_WARNING_DOM_LIMIT = 100
@@ -54,6 +57,8 @@ export interface GameSetupDraft {
   readonly mode: Knowledge<string>
   readonly mods: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly modComposition?: ModComposition
+  readonly definitionOverrides?: readonly PersonalRef[]
   readonly ppLimit: Knowledge<number>
   readonly ppCostsNonNegative: Knowledge<boolean>
   readonly slots: readonly { readonly id?: SlotId; readonly label: string; readonly equipmentRole?: EquipmentRole | null; readonly acceptedEntityKinds?: Knowledge<readonly CatalogEntityKind[]>; readonly provenance: SlotProvenance; readonly sources: readonly SourceRef[] }[]
@@ -122,6 +127,12 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
   const [version, setVersion] = useState(current?.gameVersion.state === 'known' ? current.gameVersion.value : current ? '' : DEFAULT_GAME_VERSION)
   const [mode, setMode] = useState(current?.mode.state === 'known' ? current.mode.value : '')
   const [modConfiguration, setModConfiguration] = useState<ModConfiguration>({ mods: current?.mods ?? { state: 'unknown' }, disabledMods: current?.disabledMods })
+  const [modComposition, setModComposition] = useState(current?.modComposition)
+  const [definitionOverrides, setDefinitionOverrides] = useState(current?.definitionOverrides ?? [])
+  const incompatibleOverrides = modComposition && !sameCorrectionValue(modComposition, current?.modComposition) ? definitionOverrides.filter(ref => {
+    const root = definitionLineageRootRef(localData, ref)
+    return root.kind === 'catalog' && root.catalogId === modComposition.baseline.catalogId
+  }) : []
   const [touched, setTouched] = useState({ platform: false, version: false, mode: false })
   const [ppLimit, setPpLimit] = useState<Knowledge<number>>(current?.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT })
   const [ppCostsNonNegative, setPpCostsNonNegative] = useState<Knowledge<boolean>>(current?.ppCostsNonNegative ?? { state: 'known', value: DEFAULT_PP_COSTS_NONNEGATIVE })
@@ -148,6 +159,10 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setError(undefined)
+    if (incompatibleOverrides.length) {
+      setError('Choose whether to use the layered definitions in place of the earlier personal override pins before saving.')
+      return
+    }
     if (ppLimit.state !== 'known') {
       if (advancedRef.current) advancedRef.current.open = true
       if (passivesRef.current) passivesRef.current.open = true
@@ -163,6 +178,8 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
         gameVersion: touched.version ? stringKnowledge(version) : current?.gameVersion ?? { state: 'unknown' },
         mode: touched.mode ? stringKnowledge(mode) : current?.mode ?? { state: 'unknown' },
         ...modConfiguration,
+        modComposition,
+        definitionOverrides,
         ppLimit,
         ppCostsNonNegative,
         slots: slots.filter(slot => slot.label.trim()).map(slot => ({ id: slot.id, label: slot.label, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedKindsTouched ? slot.acceptedKinds.length ? { state: 'known', value: slot.acceptedKinds } : { state: 'unknown' } : slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources })),
@@ -211,6 +228,8 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
       <div className="grid-2 game-setup-mod-packs">{SWITCH_MOD_PACKS.map(pack => { const packStates = pack.mods.map(name => modState(modConfiguration, name)); const packEnabled = packStates.filter(state => state === 'enabled').length; const packUnresolved = packStates.filter(state => state === 'unknown' || state === 'conflicting').length; return <details className="game-setup-mod-pack" key={pack.id}><summary><span><strong>{pack.name}</strong><small>{packEnabled} of {pack.mods.length} enabled · {packUnresolved} need review</small></span><Badge tone={packUnresolved ? 'warning' : 'positive'}>{packUnresolved ? 'Review' : 'Done'}</Badge></summary><div className="game-setup-mod-pack__body">{pack.mods.map(name => { const state = modState(modConfiguration, name); return <label className="game-setup-mod-choice" key={name}><span>{name}</span><select aria-label={name} data-mod-state={state} onChange={event => { setModConfiguration(value => updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }])); onDirty(true) }} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label> })}</div></details> })}</div>
       {otherMods.length > 0 && <details><summary>Other imported mod names (preserved)</summary><p className="settings-section__intro">These names are outside the supplied starter list. Their recorded states are retained when you change listed mods.</p><dl className="definition-list">{otherMods.map(name => <DefinitionRow key={name} term={name}>{modState(modConfiguration, name)}</DefinitionRow>)}</dl></details>}
     </section>
+    <ModLayersEditor composition={modComposition} onChange={value => { setModComposition(value); onDirty(true) }}/>
+    {incompatibleOverrides.length > 0 && <InlineNotice title="Review personal override pins" tone="warning"><p>These personal revisions pin an earlier catalog: {incompatibleOverrides.map(ref => localData.personalDefinitions[ref.definitionId]?.name ?? 'Unavailable definition').join(', ')}. Choose the layered definitions for this new Game Setup to continue. Personal revisions and earlier Game Setups remain available.</p><Button onClick={() => { const ids = new Set(incompatibleOverrides.map(ref => ref.definitionId)); setDefinitionOverrides(values => values.filter(ref => !ids.has(ref.definitionId))); onDirty(true) }} tone="secondary" type="button">Use layer definitions for these records</Button></InlineNotice>}
     <details className="game-setup-advanced" ref={advancedRef}>
       <summary><span><strong>Advanced Game Setup</strong><small>Platform, version, mode, validation rules, and equipment schema</small></span><Icon name="chevron-down"/></summary>
       <div className="game-setup-advanced__body stack">
@@ -221,7 +240,7 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
       </div>
     </details>
     {(error || saveError) && <InlineNotice title="Game Setup not saved" tone="danger">{error ?? saveError} Your configuration remains in this form.{saveError && ' Close this panel and use Retry save to keep the retained revision.'}</InlineNotice>}
-    <div className="form-actions game-setup-save-bar"><span>Saving creates a new active revision. Existing builds and teams keep their saved Game Setup.</span><Button disabled={busy || !label.trim()} icon="check" type="submit">{busy ? 'Saving...' : current ? 'Save new Game Setup revision' : 'Create Game Setup'}</Button></div>
+    <div className="form-actions game-setup-save-bar"><span>Saving creates a new active revision. Existing builds and teams keep their saved Game Setup.</span><Button disabled={busy || !label.trim() || incompatibleOverrides.length > 0} icon="check" type="submit">{busy ? 'Saving...' : current ? 'Save new Game Setup revision' : 'Create Game Setup'}</Button></div>
   </form>
 }
 

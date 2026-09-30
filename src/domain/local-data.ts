@@ -21,9 +21,11 @@ import {
 } from './definitions'
 import { MAX_ID_LENGTH, MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import { assertModConfiguration } from './mods'
-import { synchronizePlanningField } from './corrections'
+import { assertModComposition, modCatalogRevision } from './mod-layers'
+import { sameCorrectionValue, synchronizePlanningField } from './corrections'
 import type {
   CatalogSnapshot,
+  CatalogRevisionId,
   CatalogEntityKind,
   EntityRef,
   JsonValue,
@@ -387,6 +389,8 @@ export interface AddGameSetupRevisionInput {
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: GameSetupRevision['catalogLock']
   readonly definitionOverrides?: readonly PersonalRef[]
+  readonly modComposition?: GameSetupRevision['modComposition']
+  readonly modCatalogRevisionId?: CatalogRevisionId
   readonly activate?: boolean
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
@@ -404,6 +408,12 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
   const id = input.id ?? createId<GameSetupRevisionId>('gameSetupRevision')
   if (localData.gameSetups[id]) {
     throw new DomainError('DUPLICATE_ID', `Game Setup revision already exists: ${id}`)
+  }
+  if (input.modComposition) assertModComposition(input.modComposition)
+  const effectiveRevision = input.modComposition ? input.modCatalogRevisionId ?? modCatalogRevision(id) : undefined
+  for (const ref of input.definitionOverrides ?? []) {
+    const root = definitionLineageRootRef(localData, ref)
+    if (input.modComposition && root.kind === 'catalog' && root.catalogId === input.modComposition.baseline.catalogId && root.catalogRevisionId !== effectiveRevision) throw new DomainError('INVALID_INPUT', 'Review personal overrides before changing imported layers; their exact source revisions cannot be carried into the new effective catalog')
   }
   const revision = input.revision ?? 1
   assertNonnegativeInteger(revision, 'Game Setup revision')
@@ -445,7 +455,8 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
     ppLimit: input.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
     ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'known', value: DEFAULT_PP_COSTS_NONNEGATIVE },
     slots: [...slots].sort((left, right) => left.order - right.order),
-    catalogLock: input.catalogLock ?? {},
+    catalogLock: { ...input.catalogLock, ...(input.modComposition ? { [input.modComposition.baseline.catalogId]: effectiveRevision! } : {}) },
+    ...(input.modComposition ? { modComposition: input.modComposition } : {}),
     ...(input.definitionOverrides === undefined ? {} : { definitionOverrides: input.definitionOverrides }),
     createdAt: at,
   }
@@ -478,6 +489,7 @@ export interface UpdateGameSetupRevisionInput {
   readonly slots?: readonly SlotDefinition[]
   readonly catalogLock?: GameSetupRevision['catalogLock']
   readonly definitionOverrides?: readonly PersonalRef[]
+  readonly modComposition?: GameSetupRevision['modComposition']
   readonly activate?: boolean
   readonly now?: Timestamp | string
   readonly expectedRevision?: number
@@ -488,6 +500,8 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
   if (!source) {
     throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.sourceRevisionId}`)
   }
+  const modComposition = input.modComposition ?? source.modComposition
+  const sameComposition = modComposition && sameCorrectionValue(modComposition, source.modComposition)
   return addGameSetupRevision(localData, {
     id: input.id,
     gameSetupId: source.gameSetupId,
@@ -503,6 +517,8 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
     slots: input.slots ?? source.slots,
     catalogLock: input.catalogLock ?? source.catalogLock,
     definitionOverrides: input.definitionOverrides ?? source.definitionOverrides,
+    modComposition,
+    modCatalogRevisionId: sameComposition ? source.catalogLock[modComposition.baseline.catalogId] : undefined,
     activate: input.activate ?? true,
     now: input.now,
     expectedRevision: input.expectedRevision,
