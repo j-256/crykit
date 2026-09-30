@@ -6,7 +6,7 @@ import { STARTER_CATALOG } from '../src/catalog'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
 const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aassassin-seal'
-const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aadjudicator'
+const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aitem%3Aadjudicator'
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
 const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'

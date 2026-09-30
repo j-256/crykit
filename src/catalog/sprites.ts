@@ -1,12 +1,13 @@
 import type { CatalogEntity } from '../domain/types'
 import gameArtworkJson from './game-artwork.json'
-import manifestJson from './wiki-sprites.json'
+import modManifestJson from './mod-sprites.json'
+import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './starter'
 
 interface SpriteAsset {
   readonly file: string
   readonly title: string
-  readonly descriptionUrl: string
+  readonly descriptionUrl?: string
   readonly width: number
   readonly height: number
   readonly license: string
@@ -17,7 +18,8 @@ interface SpriteBinding {
   readonly kind: string
   readonly name: string
   readonly asset: string
-  readonly sources: readonly { readonly title: string; readonly url: string; readonly locator: string }[]
+  readonly origin?: 'mod-export' | 'base-game-archive'
+  readonly sources: readonly { readonly title: string; readonly url?: string; readonly locator: string; readonly applicability?: string }[]
 }
 
 interface GameArtworkAsset {
@@ -64,16 +66,19 @@ interface MenuIconBinding {
   readonly region?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 }
 
-const manifest: SpriteManifest = manifestJson
 const gameArtwork: GameArtworkManifest = gameArtworkJson
-export const MENU_ICON_KEYS = Object.keys(manifest.icons)
-const urls = import.meta.glob<string>('../assets/wiki-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const gameArtworkUrls = import.meta.glob<string>('../assets/game-assets/*', { eager: true, query: '?url&no-inline', import: 'default' })
+const wikiManifest: SpriteManifest = wikiManifestJson
+const modManifest: SpriteManifest = { ...(modManifestJson as unknown as Omit<SpriteManifest, 'icons'>), icons: {} }
+export const MENU_ICON_KEYS = Object.keys(wikiManifest.icons)
+const wikiUrls = import.meta.glob<string>('../assets/wiki-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
+const modUrls = import.meta.glob<string>('../assets/mod-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 
 export interface WikiSprite {
   readonly asset: SpriteAsset
   readonly binding: SpriteBinding
   readonly url: string
+  readonly provenance: 'community-wiki' | 'mod-export' | 'base-game-archive'
 }
 
 export interface MenuIcon {
@@ -91,26 +96,27 @@ export type CatalogArtwork = {
   readonly identityCrosswalk: GameArtworkManifest['sources']['identityCrosswalk']
   readonly url: string
 } | {
-  readonly source: 'wiki'
+  readonly source: 'wiki' | 'mod'
   readonly asset: SpriteAsset
   readonly binding: SpriteBinding
   readonly url: string
+  readonly provenance: WikiSprite['provenance']
 }
 
 export function menuIcon(key: string): MenuIcon | undefined {
-  const binding = manifest.icons[key]
-  const asset = binding && manifest.assets[binding.asset]
-  const url = asset && urls[`../assets/wiki-sprites/${asset.file}`]
+  const binding = wikiManifest.icons[key]
+  const asset = binding && wikiManifest.assets[binding.asset]
+  const url = asset && wikiUrls[`../assets/wiki-sprites/${asset.file}`]
   return binding && asset && url ? { asset, binding, url } : undefined
 }
 
 export function wikiSprite(catalogId: string, entity: Pick<CatalogEntity, 'id' | 'kind'>): WikiSprite | undefined {
   if (catalogId !== STARTER_CATALOG_ID) return undefined
-  const binding = manifest.entities[entity.id]
+  const binding = wikiManifest.entities[entity.id]
   if (!binding || binding.kind !== entity.kind) return undefined
-  const asset = manifest.assets[binding.asset]
-  const url = asset && urls[`../assets/wiki-sprites/${asset.file}`]
-  return asset && url ? { asset, binding, url } : undefined
+  const asset = wikiManifest.assets[binding.asset]
+  const url = asset && wikiUrls[`../assets/wiki-sprites/${asset.file}`]
+  return asset && url ? { asset, binding, url, provenance: 'community-wiki' } : undefined
 }
 
 export function catalogArtwork(catalogId: string, entity: Pick<CatalogEntity, 'id' | 'kind'>): CatalogArtwork | undefined {
@@ -126,6 +132,16 @@ export function catalogArtwork(catalogId: string, entity: Pick<CatalogEntity, 'i
     executable: gameArtwork.sources.executable,
     identityCrosswalk: gameArtwork.sources.identityCrosswalk,
     url: nativeUrl,
+  }
+  const modBinding = modManifest.entities[entity.id]
+  const modAsset = modBinding && modManifest.assets[modBinding.asset]
+  const modUrl = modAsset && modUrls[`../assets/mod-sprites/${modAsset.file}`]
+  if (modBinding?.kind === entity.kind && modAsset && modUrl) return {
+    source: 'mod',
+    asset: modAsset,
+    binding: modBinding,
+    provenance: modBinding.origin ?? 'mod-export',
+    url: modUrl,
   }
   const wiki = wikiSprite(catalogId, entity)
   return wiki && { source: 'wiki', ...wiki }

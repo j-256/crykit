@@ -16,6 +16,12 @@ const DOCUMENTED_DUAL_WIELD_RATE = 0.65
 const TURN_TIME_SPEED_LIMIT = 600
 const normalizeLabel = (label: string) => label.toLowerCase().replaceAll('.', '').replace(/\s+/g, ' ').trim()
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const CRYSTAL_EDIT_DIRECT_STAT_MODS: Readonly<Record<number, readonly [CalculatedStat, 'flat' | 'percent']>> = Object.freeze({
+  0: ['HP', 'flat'], 1: ['MP', 'flat'], 6: ['STR', 'flat'], 7: ['VIT', 'flat'], 8: ['DEX', 'flat'], 9: ['AGI', 'flat'], 10: ['MND', 'flat'], 11: ['SPI', 'flat'], 12: ['SPD', 'flat'], 13: ['LUK', 'flat'],
+  20: ['HP', 'percent'], 21: ['MP', 'percent'], 26: ['STR', 'percent'], 27: ['VIT', 'percent'], 28: ['DEX', 'percent'], 29: ['AGI', 'percent'], 30: ['MND', 'percent'], 31: ['SPI', 'percent'], 32: ['SPD', 'percent'], 33: ['LUK', 'percent'],
+  40: ['ATK', 'flat'], 41: ['PPEN', 'flat'], 42: ['DEF', 'flat'], 43: ['CRIT', 'flat'], 44: ['CRIT_DAMAGE', 'flat'], 45: ['ACC', 'flat'], 46: ['EVA', 'flat'], 47: ['MPEN', 'flat'], 48: ['RES', 'flat'],
+  60: ['ATK', 'percent'], 61: ['PPEN', 'flat'], 62: ['DEF', 'percent'], 65: ['ACC', 'percent'], 66: ['EVA', 'percent'], 67: ['MPEN', 'flat'], 68: ['RES', 'percent'],
+})
 
 export interface StatContribution { readonly stat: CalculatedStat; readonly kind: 'flat' | 'percent'; readonly value: number; readonly label: string; readonly sources: readonly SourceRef[] }
 export interface StatRange { readonly low: number; readonly high: number }
@@ -25,6 +31,30 @@ export interface BuildStatEstimate {
   readonly contributions: readonly StatContribution[]
   readonly excluded: readonly string[]
   readonly issues: readonly string[]
+}
+
+function crystalEditStatContributions(definition: MechanicsDefinition, record: Readonly<Record<string, unknown>>): { readonly contributions: readonly StatContribution[]; readonly excluded: readonly string[]; readonly unknownStats: readonly CalculatedStat[] } {
+  if (!Array.isArray(record.StatMods)) return { contributions: [], excluded: [], unknownStats: [] }
+  const field = definition.fields['Crystal Edit source record']
+  const sources = field?.state === 'known' ? field.sources ?? definition.sources : definition.sources
+  const contributions = new Map<string, StatContribution>()
+  const excluded: string[] = []
+  for (const modifier of record.StatMods) {
+    if (!modifier || typeof modifier !== 'object' || Array.isArray(modifier) || !('Tag' in modifier) || !('Value1' in modifier) || !Number.isSafeInteger(modifier.Tag) || !finite(modifier.Value1)) {
+      excluded.push(`${definition.name}: invalid Crystal Edit StatMod was not applied`)
+      continue
+    }
+    const mapped = CRYSTAL_EDIT_DIRECT_STAT_MODS[modifier.Tag as number]
+    if (!mapped) {
+      excluded.push(`${definition.name}: Crystal Edit StatMod tag ${String(modifier.Tag)} is listed but not applied to the numeric estimate`)
+      continue
+    }
+    const [stat, kind] = mapped
+    const key = `${stat}:${kind}`
+    const previous = contributions.get(key)
+    contributions.set(key, { stat, kind, value: (previous?.value ?? 0) + modifier.Value1, label: `${definition.name}: Crystal Edit StatMod tag ${String(modifier.Tag)}`, sources })
+  }
+  return { contributions: [...contributions.values()], excluded: [...new Set(excluded)], unknownStats: [] }
 }
 
 function parseStatLine(line: string): { stat: CalculatedStat; kind: 'flat' | 'percent'; value: number } | undefined {
@@ -39,10 +69,7 @@ export function statContributions(definition: MechanicsDefinition, textOverride?
   const excluded: string[] = []
   const unknownStats = new Set<CalculatedStat>()
   const record = crystalEditRecord(definition)
-  if (record && textOverride === undefined) {
-    if (!Array.isArray(record.StatMods) || record.StatMods.length) excluded.push(`${definition.name}: numeric Crystal Edit modifier tags are not mapped`)
-    return { contributions, excluded, unknownStats: [] }
-  }
+  if (record && textOverride === undefined) return crystalEditStatContributions(definition, record)
   const candidates = new Map<string, StatContribution[]>()
   const add = (value: ReturnType<typeof parseStatLine>, label: string, sources: readonly SourceRef[]) => {
     if (!value) return
