@@ -9,6 +9,7 @@ No account or installation is needed. Your saved builds and records stay in your
 ## What you can do
 
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
+- **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.
