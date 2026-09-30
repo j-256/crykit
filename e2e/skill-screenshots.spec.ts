@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
 import { STARTER_CATALOG } from '../src/catalog/starter'
@@ -161,7 +162,7 @@ test('screenshots compile reviewed names offline, skip duplicates, and preserve 
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -74,7 +75,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = settings.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

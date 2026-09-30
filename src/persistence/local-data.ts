@@ -358,7 +358,7 @@ export async function prepareModCatalogs(localData: LocalData, availableCatalogs
     const catalog = composeModCatalog(origin, availableCatalogs)!
     composed.push({ ...catalog, checksum: `composition:sha256:${await sha256(new TextEncoder().encode(canonicalJson(catalog)))}` })
   }
-  return expandModCatalogs([...availableCatalogs, ...composed])
+  return expandModCatalogs(composed.length ? [...availableCatalogs, ...composed] : availableCatalogs)
 }
 
 export async function saveLocalDataWithStatus(localData: LocalData, expectedRevision: number): Promise<LocalDataWriteResult> {
