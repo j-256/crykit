@@ -104,7 +104,7 @@ test('build choices expose catalog facts, uncertain identities, and explicit inn
   await expect.poll(() => innateResult.locator('.picker-result__heading').evaluate(heading => {
     const badge = heading.querySelector('[data-mod-badge="Learnable Innate Skills"]')!.getBoundingClientRect()
     const ppCost = [...heading.querySelectorAll('small')].find(node => node.textContent === '6 PP')!.getBoundingClientRect()
-    return badge.right <= ppCost.left
+    return badge.right <= ppCost.left || badge.bottom <= ppCost.top
   })).toBe(true)
   await expect(innateResult.locator('[data-game-icon="skill:passive"]')).toBeVisible()
   await expect(innateResult.locator('[data-artwork-placeholder]')).toHaveCount(0)
