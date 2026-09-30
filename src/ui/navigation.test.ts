@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
 import { formatAppRoute, parentRoute, parseAppRoute } from './navigation'
+import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 
 const catalogRef = { kind: 'catalog' as const, catalogId: 'pack / alpha', catalogRevisionId: 'revision:1', entityId: 'item ? one' } as EntityRef
 const personalRef = { kind: 'personal' as const, definitionId: 'personal / one' } as EntityRef
@@ -15,6 +16,15 @@ function expectRoundTrip(value: AppRoute) {
 }
 
 describe('semantic navigation routes', () => {
+  it('allows long shared snapshots and their search overlay while retaining ordinary route bounds', () => {
+    const shared = route({ page: 'share', encoded: 'a'.repeat(40_000) })
+    expectRoundTrip(shared)
+    expectRoundTrip({ ...shared, overlays: [{ kind: 'search', query: 'sword' }] })
+    expect(parentRoute(shared)?.page).toEqual({ page: 'builds', view: 'library' })
+    expect(parseAppRoute(`${SHARE_ROUTE_PREFIX}${'a'.repeat(MAX_SHARE_URL_LENGTH)}`).page.page).toBe('unresolved')
+    expect(parseAppRoute(`#/reference?q=${'a'.repeat(20_000)}`).page.page).toBe('unresolved')
+    for (const hash of ['#/share/v2/abc', '#/share/v1/', '#/share/v1/a%2Fb', '#/share/v1/abc/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+  })
   it('round-trips every page and action identity', () => {
     const pages = [
       { page: 'inventory', view: 'list' },

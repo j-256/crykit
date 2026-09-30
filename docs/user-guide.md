@@ -50,6 +50,10 @@ The build editor also checks documented equipment permissions, hand occupancy, r
 
 Class pages and build plans offer scoped estimates with explicit inputs. Full displayed-stat prediction, final enemy-damage simulation, optimization, and automatic game-state inspection require additional verified data.
 
+## Share a build or team
+
+Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a complete team scenario, then choose **Copy link**. Build cards share the latest checkpoint. A recipient can inspect the snapshot and choose **Save a copy**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies map the four slots to the recipient's own characters. Notes are optional, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
+
 ## Check a team
 
 Assign checkpoints to a team scenario under **Can I use this Build now?** to check current stock, character learning and unlocks, simultaneous party conflicts, and source applicability. Passive PP legality uses the scenario's pinned Game Setup rather than a character observation. Alternative library Builds do not reserve stock. Each dimension reports proved issues separately from facts that still need confirmation.

@@ -17,6 +17,7 @@ const EMPTY_BUILD_CONTENT: BuildRevisionContent = Object.freeze({
   passives: [],
   contextAssumptions: [],
 })
+const MAX_PASSIVE_CAPACITY_CRYSTALS = 20
 
 function equipmentIcon(role: SlotDefinition['equipmentRole']): IconName {
   if (role === 'mainHand') return 'sword'
@@ -59,7 +60,7 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
   const summary = buildPpSummary(pp)
   const compactSummary = limit === undefined ? `${pp.knownSubtotal}${pp.unresolvedCosts ? ` + ${pp.unresolvedCosts}?` : ''} PP` : `${pp.knownSubtotal}${pp.unresolvedCosts ? ` + ${pp.unresolvedCosts}?` : ''} / ${limit} PP`
   return <span aria-label={announce ? 'Build PP summary' : `Passive capacity: ${summary}`} className="passive-capacity" role={announce ? 'status' : 'img'}>
-    {limit !== undefined && <span aria-hidden="true" className="passive-capacity__crystals">{Array.from({ length: limit }, (_, index) => <Icon className={index < pp.knownSubtotal ? 'is-lit' : undefined} key={index} name="crystal"/>)}</span>}
+    {limit !== undefined && limit <= MAX_PASSIVE_CAPACITY_CRYSTALS && <span aria-hidden="true" className="passive-capacity__crystals">{Array.from({ length: limit }, (_, index) => <Icon className={index < pp.knownSubtotal ? 'is-lit' : undefined} key={index} name="crystal"/>)}</span>}
     <small aria-hidden="true">{compactSummary}</small>
   </span>
 }
