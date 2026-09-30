@@ -2,9 +2,10 @@ import { definitionLineageRootRef } from '../domain/definitions'
 import { modState, type ModState } from '../domain/mods'
 import type { CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
+import { EQUIPMENT_EXPANSION_ENTITY_IDS } from './equipment-expansion'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
-import { BUNDLED_CATALOG_REVISION_ID } from './bundled-catalog'
+import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID } from './bundled-catalog'
 
 export const SWITCH_MOD_PACKS = Object.freeze([
   {
@@ -78,8 +79,9 @@ export const CONFIRMED_SWITCH_MOD_SETUP = Object.freeze({
 
 // Associations come from the Equipment Expansion sheet, publisher descriptions, and in-game confirmation
 // Exact identities keep unrelated imports and same-name personal definitions unclassified
+const STARTER_EQUIPMENT_EXPANSION_IDS = new Set(STARTER_NAME_RECORDS.filter(record => record[3] === 'equipment-expansion-sheet').map(record => record[0]))
+const CURRENT_EQUIPMENT_EXPANSION_IDS = new Set(EQUIPMENT_EXPANSION_ENTITY_IDS)
 const REQUIRED_MOD_BY_ENTITY: ReadonlyMap<string, string> = new Map([
-  ...STARTER_NAME_RECORDS.filter(record => record[3] === 'equipment-expansion-sheet').map(record => [record[0], 'Equipment Expansion'] as const),
   ...SWITCH_CLASS_RECORDS.flatMap(record => {
     const mod = record.requiredMod
     return mod ? [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])].map(id => [id, mod] as const) : []
@@ -104,7 +106,9 @@ export function definitionModAvailability(localData: LocalData, ref: EntityRef, 
   const effectiveLayer = root.kind === 'catalog' ? catalog?.entities[root.entityId]?.fields['Effective mod layer'] : undefined
   if (effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string') return { requiredMod: effectiveLayer.value, state: gameSetup?.catalogLock[catalog!.id] === catalog!.revisionId ? 'enabled' : 'unknown' }
   const baselineRevision = gameSetup?.modComposition && root.kind === 'catalog' && root.catalogId === gameSetup.modComposition.baseline.catalogId && root.catalogRevisionId === gameSetup.catalogLock[root.catalogId] ? gameSetup.modComposition.baseline.catalogRevisionId : root.kind === 'catalog' ? root.catalogRevisionId : undefined
-  const requiredMod = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (baselineRevision === STARTER_CATALOG_REVISION_ID || baselineRevision === BUNDLED_CATALOG_REVISION_ID) ? REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
+  const validCatalog = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && (baselineRevision === STARTER_CATALOG_REVISION_ID || baselineRevision === BUNDLED_V1_CATALOG_REVISION_ID || baselineRevision === BUNDLED_CATALOG_REVISION_ID)
+  const equipmentExpansion = validCatalog && (baselineRevision === BUNDLED_CATALOG_REVISION_ID ? CURRENT_EQUIPMENT_EXPANSION_IDS : STARTER_EQUIPMENT_EXPANSION_IDS).has(root.entityId)
+  const requiredMod = validCatalog ? equipmentExpansion ? 'Equipment Expansion' : REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
   return requiredMod ? { state: modState(gameSetup, requiredMod), requiredMod } : { state: 'unknown' }
 }
 
