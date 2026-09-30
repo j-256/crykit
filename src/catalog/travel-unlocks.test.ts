@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from './bundled'
+import { BUNDLED_CATALOGS, BUNDLED_V2_CATALOG, DEFAULT_CATALOG } from './bundled'
 import { TRAVEL_UNLOCK_GROUPS } from './travel-unlocks'
 import { catalogArtwork } from './sprites'
 import { catalogContentForChecksum } from '../interchange/correction-promotion'
@@ -33,6 +33,7 @@ describe('travel unlock roster and source definitions', () => {
     const previous = BUNDLED_CATALOGS.find(catalog => catalog.revisionId === 'bundled-v1')!
     expect(previous).toBeDefined()
     expect(previous.entities['wiki:item:ibek-bell']).toBeUndefined()
+    expect(BUNDLED_V2_CATALOG.entities['wiki:item:ibek-bell']).toBeUndefined()
     const { checksum, ...content } = previous
     expect(checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
   })

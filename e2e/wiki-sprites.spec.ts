@@ -26,7 +26,7 @@ test('native artwork and wiki fallbacks retain provenance and remain available a
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

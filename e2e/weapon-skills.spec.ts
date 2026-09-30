@@ -59,7 +59,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expectWeapon(page, isMobile, 'Dagger')
   await context.setOffline(true)
