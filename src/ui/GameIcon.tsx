@@ -4,7 +4,7 @@ import { menuIcon, type MenuIcon } from '../catalog/sprites'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
-import { ArtworkPlaceholder, WikiSprite } from './WikiSprite'
+import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
 
 const ICON_SIZE = 24
 
@@ -32,7 +32,7 @@ export function DefinitionArtwork({ localData, catalogs, value }: { localData: L
   const iconKey = definitionIconKey(entity)
   if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>
   if (value.kind !== 'catalog' || value.catalogId !== STARTER_CATALOG_ID) return <ArtworkPlaceholder compact entity={entity}/>
-  return <WikiSprite catalogId={value.catalogId} compact entity={{ id: value.entityId, kind: entity.kind, name: entity.name }}/>
+  return <CatalogArtwork catalogId={value.catalogId} compact entity={{ id: value.entityId, kind: entity.kind, name: entity.name }}/>
 }
 
 export function FieldIconSources({ fields }: { fields: CatalogEntity['fields'] }) {

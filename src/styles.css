@@ -762,6 +762,7 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .wiki-sprite-source, .menu-icon-sources, .wiki-sprite-missing { color: var(--text-dim); font-size: .75rem; }
 .wiki-sprite-source summary, .menu-icon-sources summary { width: fit-content; cursor: pointer; }
 .wiki-sprite-source p, .wiki-sprite-source ul, .menu-icon-sources ul { margin-block: 8px; }
+.wiki-sprite-source code { overflow-wrap: anywhere; }
 .source-claim { min-width: 0; display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 10px; padding: 11px 0; }
 .source-claim__line { width: 2px; margin: 3px auto; background: var(--cyan-700); }
 .source-claim > div { min-width: 0; }

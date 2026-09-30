@@ -11,7 +11,7 @@ import { Icon } from './icons'
 import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { entityName, formatAppError, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
 import { routeWithOverlay, routeWithoutOverlays, useNavigation, useNavigationBlocker, type AppRoute } from './navigation'
-import { WikiSprite, WikiSpriteSource } from './WikiSprite'
+import { CatalogArtwork, CatalogArtworkSource } from './WikiSprite'
 import { DefinitionArtwork, FieldIconSources } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
 import type { SnapshotDraft } from './CharactersView'
@@ -39,7 +39,7 @@ export function MemberArtwork({ localData, catalogs, value }: { localData: Local
   const ref = value?.kind === 'personal' ? localData.personalDefinitions[value.definitionId]?.baseRef ?? value : value
   const entity = resolveEntity(localData, catalogs, ref)
   if (entity && ['ability', 'passive', 'monsterMagic', 'command'].includes(entity.kind)) return <DefinitionArtwork catalogs={catalogs} localData={localData} value={ref}/>
-  if (ref?.kind === 'catalog' && entity) return <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/>
+  if (ref?.kind === 'catalog' && entity) return <CatalogArtwork catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/>
   return ref ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={ref}/> : null
 }
 
@@ -66,12 +66,12 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
   const ref = option.ref
   const fields = Object.entries(option.record.fields).filter(([key]) => DETAIL_FIELDS.test(key))
   return <div className="member-detail">
-    <div className="member-detail__title">{ref.kind === 'catalog' && <WikiSprite catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{option.name}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
+    <div className="member-detail__title">{ref.kind === 'catalog' && <CatalogArtwork catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{option.name}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
     <span className="member-detail__kind">{option.kind === 'class' ? 'Class reference' : 'Definition reference'}</span>
     {option.description && <p><MoneyText>{option.description}</MoneyText></p>}
     <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} value={value}/></dd></div>)}</dl>
     {option.ppCost && option.ppCost.state !== 'notApplicable' && <p>PP: <KnowledgeValue value={option.ppCost}/></p>}
-    <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <WikiSpriteSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
+    <details className="member-detail__sources"><summary>Sources & definition</summary><p>{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{ref.kind === 'catalog' && <CatalogArtworkSource catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })} tone="quiet" type="button">Open full reference</Button></details>
   </div>
 }
 

@@ -1,0 +1,412 @@
+#!/usr/bin/env node
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { basename, dirname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+import sharp from 'sharp'
+import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
+import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, safeTextureRelativePath, stableSourceDigest, validateRegion } from './game-assets.mjs'
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
+const ASSETS = join(ROOT, 'src', 'assets', 'game-assets')
+const MANIFEST = join(ROOT, 'src', 'catalog', 'game-assets.json')
+const ARTWORK_MANIFEST = join(ROOT, 'src', 'catalog', 'game-artwork.json')
+const IDENTITIES = join(ROOT, 'src', 'catalog', 'game-identities.json')
+const STARTER_SOURCE = join(ROOT, 'src', 'catalog', 'data.ts')
+const CACHE = join(ROOT, '.game-cache')
+const EXECUTABLE_NAME = 'Crystal Project.exe'
+const TEXTURE_DIRECTORY = 'Textures'
+const DATABASE_DIRECTORY = 'Database'
+const OPAQUE_DATABASE_FILES = new Set(['loading.dat'])
+const FORMAT_SOURCE_COMMIT = '79320b343d603aa069aa023fd54020d36419e082'
+const FORMAT_SOURCES = Object.freeze({
+  texturePack: `https://github.com/iconmaster5326/CrystalProjector/blob/${FORMAT_SOURCE_COMMIT}/schema/ksy/texture_pack.ksy`,
+  database: `https://github.com/iconmaster5326/CrystalProjector/blob/${FORMAT_SOURCE_COMMIT}/schema/ksy/database.ksy`,
+})
+const USAGE = `Usage: node scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
+       node scripts/update-game-assets.mjs --check [-h|--help]
+Inventory an installed Crystal Project Windows Content directory and extract exact
+catalog-bound artwork from native database IDs and texture regions. The committed
+manifest contains hashes and provenance, never the machine-local input path.
+  -i, --input <Content>     Installed game's Content directory
+  -u, --unpack <directory> Write every named embedded texture to a new directory
+      --check               Validate committed assets and manifests without game files
+  -h, --help                Show this help
+The optional unpack target must not exist and must be outside the repository.
+Results go to stdout; progress and errors go to stderr.
+Exit: 0 success/help, 1 runtime or integrity failure, 2 invalid options.
+`
+
+function options() {
+  try {
+    const { values } = parseArgs({ options: { help: { type: 'boolean', short: 'h' }, input: { type: 'string', short: 'i' }, unpack: { type: 'string', short: 'u' }, check: { type: 'boolean' } }, strict: true })
+    if (values.help) { process.stdout.write(USAGE); process.exit(0) }
+    if (values.check && (values.input || values.unpack)) throw new Error('--check cannot be combined with --input or --unpack')
+    if (!values.check && !values.input) throw new Error('--input is required when extracting game assets')
+    if (values.unpack) {
+      const target = resolve(values.unpack)
+      const fromRoot = relative(ROOT, target)
+      if (!fromRoot || (!fromRoot.startsWith('..') && !fromRoot.includes(':'))) throw new Error('--unpack must point outside the repository')
+      values.unpack = target
+    }
+    return values
+  } catch (error) { console.error(error.message); process.exit(2) }
+}
+
+function sortedJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`
+}
+
+function inputDigest(entries) {
+  return stableSourceDigest(entries.map(entry => [entry.path, entry.sha256]))
+}
+
+async function readInstalledGame(contentDirectory) {
+  const input = resolve(contentDirectory)
+  const textureNames = (await readdir(join(input, TEXTURE_DIRECTORY), { withFileTypes: true })).filter(entry => entry.isFile() && entry.name.endsWith('.dat')).map(entry => entry.name).sort()
+  const databaseNames = (await readdir(join(input, DATABASE_DIRECTORY), { withFileTypes: true })).filter(entry => entry.isFile() && entry.name.endsWith('.dat')).map(entry => entry.name).sort()
+  if (!textureNames.length || !databaseNames.length) throw new Error('Input does not contain Crystal Project texture packs and databases')
+  const texturePacks = new Map()
+  const textureFiles = []
+  for (const file of textureNames) {
+    const bytes = await readFile(join(input, TEXTURE_DIRECTORY, file))
+    const name = basename(file, '.dat')
+    const parsed = parseTexturePack(bytes, name)
+    texturePacks.set(name, parsed)
+    textureFiles.push({ path: `${TEXTURE_DIRECTORY}/${file}`, sha256: hash(bytes), size: bytes.length })
+  }
+  const databases = new Map()
+  const databaseFiles = []
+  for (const file of databaseNames) {
+    const bytes = await readFile(join(input, DATABASE_DIRECTORY, file))
+    const name = basename(file, '.dat')
+    databases.set(name, OPAQUE_DATABASE_FILES.has(file) ? { format: 'opaque', records: null } : { format: 'inverted-json', ...parseGameDatabase(bytes, name) })
+    databaseFiles.push({ path: `${DATABASE_DIRECTORY}/${file}`, sha256: hash(bytes), size: bytes.length })
+  }
+  const executable = await readFile(join(input, '..', EXECUTABLE_NAME))
+  const executableFile = { path: EXECUTABLE_NAME, sha256: hash(executable), size: executable.length }
+  const files = [...textureFiles, ...databaseFiles, executableFile]
+  return { texturePacks, databases, files, inputDigest: inputDigest(files) }
+}
+
+function textureInventory(texturePacks) {
+  const paths = new Map()
+  const packs = {}
+  for (const [packName, pack] of texturePacks) {
+    packs[packName] = {
+      version: pack.version,
+      count: pack.count,
+      textures: pack.textures.map(({ bytes: _bytes, ...texture }) => texture),
+    }
+    for (const texture of pack.textures) {
+      if (paths.has(texture.path)) throw new Error(`Duplicate texture path across packs: ${texture.path}`)
+      paths.set(texture.path, texture)
+    }
+  }
+  return { packs, paths }
+}
+
+function databaseInventory(databases) {
+  return Object.fromEntries([...databases].map(([name, database]) => [name, {
+    format: database.format,
+    ...(database.version === undefined ? {} : { version: database.version }),
+    records: database.records === null ? null : Array.isArray(database.records) ? database.records.filter(Boolean).length : Object.keys(database.records ?? {}).length,
+    ...(Array.isArray(database.records) ? { slots: database.records.length } : {}),
+  }]))
+}
+
+function recordIndex(database, name) {
+  if (!database || !Array.isArray(database.records)) throw new Error(`${name} database is not a record array`)
+  const records = new Map()
+  for (const record of database.records) {
+    if (record === null) continue
+    if (!record || !Number.isInteger(record.ID) || records.has(record.ID)) throw new Error(`${name} database has an invalid or duplicate record ID`)
+    records.set(record.ID, record)
+  }
+  return records
+}
+
+function artworkGap(mapping, reason, details = {}) {
+  return { id: mapping.id, kind: mapping.kind, name: mapping.name, database: mapping.database, databaseId: mapping.databaseId, reason, ...details }
+}
+
+async function renderIcon(texture, index) {
+  const region = gameIconRegion(index, texture)
+  const bytes = await sharp(texture.bytes).extract({ left: region.x, top: region.y, width: region.width, height: region.height }).png({ compressionLevel: 9 }).toBuffer()
+  return { bytes, sources: [{ texturePath: texture.path, textureSha256: texture.sha256, region }], extraction: '32x32 indexed game icon cell' }
+}
+
+async function renderClass(record, textures) {
+  const variants = [
+    ['ActorTexturePathM', record.ActorTexturePathM],
+    ['ActorTexturePathF', record.ActorTexturePathF],
+  ]
+  if (variants.some(([, path]) => typeof path !== 'string' || !path)) throw new Error('Class record does not provide both actor texture variants')
+  const prepared = variants.map(([field, path]) => {
+    const texture = textures.get(path)
+    if (!texture) throw new Error(`Class actor texture is missing: ${path}`)
+    const region = actorIconRegion(texture)
+    return { field, texture, region }
+  })
+  const dimensions = classCompositeDimensions(prepared.map(entry => entry.region))
+  const crops = await Promise.all(prepared.map(entry => sharp(entry.texture.bytes).extract({ left: entry.region.x, top: entry.region.y, width: entry.region.width, height: entry.region.height }).png({ compressionLevel: 9 }).toBuffer()))
+  let left = 0
+  const layers = crops.map((input, index) => {
+    const layer = { input, left, top: 0 }
+    left += prepared[index].region.width + dimensions.gap
+    return layer
+  })
+  const bytes = await sharp({ create: { width: dimensions.width, height: dimensions.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers).png({ compressionLevel: 9 }).toBuffer()
+  return {
+    bytes,
+    sources: prepared.map(entry => ({ field: entry.field, texturePath: entry.texture.path, textureSha256: entry.texture.sha256, region: entry.region })),
+    extraction: 'paired actor-sheet class icons',
+  }
+}
+
+async function addArtwork(assets, outputs, rendered) {
+  const sha256 = hash(rendered.bytes)
+  const file = `${sha256}.png`
+  const dimensions = pngInfo(rendered.bytes, 'Extracted artwork')
+  const contentBounds = await visibleContentBounds(rendered.bytes)
+  const sourceKey = source => JSON.stringify(source)
+  const existing = assets[sha256]
+  if (existing) {
+    const sources = new Map(existing.sourceTextures.map(source => [sourceKey(source), source]))
+    for (const source of rendered.sources) sources.set(sourceKey(source), source)
+    existing.sourceTextures = [...sources.values()]
+    existing.extractions = [...new Set([...existing.extractions, rendered.extraction])]
+  } else {
+    assets[sha256] = { file, sha256, size: rendered.bytes.length, ...dimensions, contentBounds, rights: GAME_ARTWORK_RIGHTS, extractions: [rendered.extraction], sourceTextures: rendered.sources }
+  }
+  outputs.set(file, rendered.bytes)
+  return sha256
+}
+
+async function buildBindings(identityManifest, databases, textures) {
+  const assets = {}
+  const outputs = new Map()
+  const entities = {}
+  const unmapped = []
+  const nameDifferences = []
+  const requiredDatabases = new Set(Object.values(identityManifest.mappings).map(mapping => mapping.database))
+  const indexes = new Map([...databases].filter(([name]) => requiredDatabases.has(name)).map(([name, database]) => [name, recordIndex(database, name)]))
+  for (const [id, sourceMapping] of Object.entries(identityManifest.mappings)) {
+    const mapping = { id, ...sourceMapping }
+    const record = indexes.get(mapping.database)?.get(mapping.databaseId)
+    if (!record) {
+      unmapped.push(artworkGap(mapping, 'Pinned native database ID is absent from the installed game files'))
+      continue
+    }
+    if (record.Name !== mapping.name) nameDifferences.push({ id, kind: mapping.kind, catalogName: mapping.name, installedName: typeof record.Name === 'string' ? record.Name : null, database: mapping.database, databaseId: mapping.databaseId })
+    let rendered
+    try {
+      if (mapping.kind === 'class' && mapping.database === 'job') rendered = await renderClass(record, textures)
+      else if ((mapping.kind === 'item' && ['item', 'equipment'].includes(mapping.database)) || (mapping.kind === 'monsterMagic' && mapping.database === 'ability')) {
+        if (typeof record.TexturePath !== 'string' || !record.TexturePath || !Number.isInteger(record.TextureIndex)) throw new Error('Native database record has no direct indexed texture')
+        const texture = textures.get(record.TexturePath)
+        if (!texture) throw new Error(`Referenced texture is absent: ${record.TexturePath}`)
+        rendered = await renderIcon(texture, record.TextureIndex)
+      } else throw new Error('Native database type is not a reviewed artwork mapping')
+    } catch (error) {
+      unmapped.push(artworkGap(mapping, error.message))
+      continue
+    }
+    const asset = await addArtwork(assets, outputs, rendered)
+    entities[id] = {
+      kind: mapping.kind,
+      name: mapping.name,
+      asset,
+      database: { name: mapping.database, id: mapping.databaseId, recordName: record.Name },
+      identity: { sourceKey: mapping.sourceKey, upstreamName: mapping.upstreamName, upstreamCode: mapping.upstreamCode, url: mapping.sourceUrl, locator: mapping.locator },
+      rendering: { extraction: rendered.extraction, sourceTextures: rendered.sources },
+    }
+  }
+  return { assets, outputs, entities, unmapped, nameDifferences }
+}
+
+function visualReferenceInventory(databases, texturePaths) {
+  const references = []
+  const unresolved = []
+  for (const [name, database] of databases) {
+    if (database.records === null) continue
+    const found = databaseTextureReferences(name, database.records, texturePaths)
+    references.push(...found.references)
+    unresolved.push(...found.unresolved)
+  }
+  const order = (left, right) => left.database.localeCompare(right.database) || left.pointer.localeCompare(right.pointer)
+  return { references: references.sort(order), unresolved: unresolved.sort(order) }
+}
+
+async function unpackTextures(target, texturePacks, inventory, gameInputDigest) {
+  await mkdir(target)
+  for (const [packName, pack] of texturePacks) for (const texture of pack.textures) {
+    const output = join(target, safeTextureRelativePath(packName, texture.name))
+    await mkdir(dirname(output), { recursive: true })
+    await writeFile(output, texture.bytes)
+  }
+  await writeFile(join(target, 'inventory.json'), sortedJson({ schemaVersion: 1, gameInputDigest, texturePacks: inventory }))
+}
+
+function checkIdentityManifest(manifest, starterRecords) {
+  if (manifest.schemaVersion !== GAME_IDENTITY_MANIFEST_SCHEMA || !/^[a-f0-9]{40}$/.test(manifest.source?.commit ?? '') || !/^[a-f0-9]{64}$/.test(manifest.source?.contentDigest ?? '')) throw new Error('Game identity manifest is invalid or stale')
+  const records = new Map(starterRecords.map(record => [record.id, record]))
+  const covered = new Set()
+  for (const [id, mapping] of Object.entries(manifest.mappings ?? {})) {
+    const record = records.get(id)
+    if (!record || record.kind !== mapping.kind || record.name !== mapping.name || record.sourceKey !== mapping.sourceKey) throw new Error(`Game identity mapping disagrees with the starter catalog: ${id}`)
+    covered.add(id)
+  }
+  for (const gap of manifest.unresolved ?? []) {
+    if (!records.has(gap.id) || covered.has(gap.id) || !gap.reason) throw new Error(`Invalid game identity coverage gap: ${gap.id}`)
+    covered.add(gap.id)
+  }
+  if (covered.size !== starterRecords.length) throw new Error('Game identity manifest does not cover the starter catalog')
+}
+
+function runtimeArtworkManifest(manifest) {
+  return {
+    schemaVersion: manifest.schemaVersion,
+    gameInputDigest: manifest.gameInputDigest,
+    sources: {
+      rights: manifest.sources.rights,
+      format: manifest.sources.format,
+      executable: manifest.sources.executable,
+      identityCrosswalk: manifest.sources.identityCrosswalk,
+    },
+    assets: Object.fromEntries(Object.entries(manifest.assets).map(([key, asset]) => {
+      const { sourceTextures: _sourceTextures, extractions: _extractions, ...runtimeAsset } = asset
+      return [key, runtimeAsset]
+    })),
+    entities: manifest.entities,
+  }
+}
+
+async function checkManifest() {
+  const starterRecords = parseStarterRecords(await readFile(STARTER_SOURCE, 'utf8'))
+  const identityBytes = await readFile(IDENTITIES)
+  const identityManifest = JSON.parse(identityBytes)
+  checkIdentityManifest(identityManifest, starterRecords)
+  const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'))
+  const artworkManifest = JSON.parse(await readFile(ARTWORK_MANIFEST, 'utf8'))
+  if (manifest.schemaVersion !== GAME_ASSET_MANIFEST_SCHEMA || manifest.sources?.identityCrosswalk?.sha256 !== hash(identityBytes) || manifest.sources?.identityCrosswalk?.commit !== identityManifest.source.commit || !/^[a-f0-9]{64}$/.test(manifest.gameInputDigest ?? '')) throw new Error('Game asset manifest schema or identity input is stale')
+  if (JSON.stringify(artworkManifest) !== JSON.stringify(runtimeArtworkManifest(manifest))) throw new Error('Runtime game artwork manifest is stale')
+  const textureByPath = new Map()
+  for (const [packName, pack] of Object.entries(manifest.sources.texturePacks ?? {})) {
+    if (pack.file?.path !== `${TEXTURE_DIRECTORY}/${packName}.dat` || !/^[a-f0-9]{64}$/.test(pack.file?.sha256 ?? '') || !Number.isInteger(pack.version) || pack.count !== pack.textures?.length) throw new Error(`Texture pack inventory is invalid: ${packName}`)
+    for (const texture of pack.textures) {
+      if (texture.path !== `${packName}/${texture.name}` || textureByPath.has(texture.path) || !/^[a-f0-9]{64}$/.test(texture.sha256 ?? '') || !Number.isInteger(texture.size) || texture.size < 1 || !Number.isInteger(texture.width) || !Number.isInteger(texture.height) || texture.width < 1 || texture.height < 1) throw new Error(`Texture inventory entry is invalid: ${texture.path}`)
+      textureByPath.set(texture.path, texture)
+    }
+  }
+  if (textureByPath.size !== manifest.sources.textureCount) throw new Error('Texture inventory count does not match the manifest')
+  const validateTextureSource = source => {
+    const texture = textureByPath.get(source.texturePath)
+    if (!texture || source.textureSha256 !== texture.sha256) throw new Error(`Artwork source texture is not inventoried: ${source.texturePath}`)
+    validateRegion(source.region, texture, `Artwork source ${source.texturePath}`)
+  }
+  const checkedFiles = new Set()
+  let total = 0
+  for (const [key, asset] of Object.entries(manifest.assets ?? {})) {
+    if (key !== asset.sha256 || !GAME_ASSET_FILE_PATTERN.test(asset.file) || asset.file !== `${asset.sha256}.png` || asset.rights !== GAME_ARTWORK_RIGHTS || !asset.sourceTextures?.length || !asset.extractions?.length) throw new Error(`Invalid native artwork asset: ${key}`)
+    asset.sourceTextures.forEach(validateTextureSource)
+    const bytes = await readFile(join(ASSETS, asset.file))
+    const dimensions = pngInfo(bytes, asset.file)
+    if (hash(bytes) !== asset.sha256 || bytes.length !== asset.size || dimensions.width !== asset.width || dimensions.height !== asset.height) throw new Error(`Native artwork bytes do not match the manifest: ${asset.file}`)
+    validateContentBounds(asset.contentBounds, asset)
+    const actualBounds = await visibleContentBounds(bytes)
+    if (JSON.stringify(actualBounds) !== JSON.stringify(asset.contentBounds)) throw new Error(`Native artwork content bounds mismatch: ${asset.file}`)
+    if (!checkedFiles.has(asset.file)) total += bytes.length
+    checkedFiles.add(asset.file)
+  }
+  if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
+  const starterById = new Map(starterRecords.map(record => [record.id, record]))
+  const coveredMappings = new Set()
+  for (const [id, binding] of Object.entries(manifest.entities ?? {})) {
+    const record = starterById.get(id)
+    if (!record || record.kind !== binding.kind || record.name !== binding.name || !manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || !binding.identity?.url) throw new Error(`Native artwork binding is invalid: ${id}`)
+    binding.rendering.sourceTextures.forEach(validateTextureSource)
+    const assetSources = new Set(manifest.assets[binding.asset].sourceTextures.map(source => JSON.stringify(source)))
+    if (binding.rendering.sourceTextures.some(source => !assetSources.has(JSON.stringify(source)))) throw new Error(`Native artwork binding sources disagree with its asset: ${id}`)
+    coveredMappings.add(id)
+  }
+  for (const gap of manifest.coverage?.unmappedNativeIdentities ?? []) {
+    if (!identityManifest.mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
+    coveredMappings.add(gap.id)
+  }
+  if (coveredMappings.size !== Object.keys(identityManifest.mappings).length) throw new Error('Native artwork manifest does not cover every mapped native identity')
+  const differences = new Set()
+  for (const difference of manifest.coverage?.identityNameDifferences ?? []) {
+    const binding = manifest.entities[difference.id]
+    if (!binding || differences.has(difference.id) || difference.catalogName === difference.installedName || binding.name !== difference.catalogName || binding.database.recordName !== difference.installedName || binding.database.name !== difference.database || binding.database.id !== difference.databaseId) throw new Error(`Native identity name difference is invalid: ${difference.id}`)
+    differences.add(difference.id)
+  }
+  for (const reference of manifest.coverage?.databaseVisualReferences ?? []) if (!textureByPath.has(reference.texturePath) || typeof reference.pointer !== 'string') throw new Error(`Database texture reference is invalid: ${reference.database}${reference.pointer}`)
+  if (JSON.stringify(manifest.coverage.identityGaps) !== JSON.stringify(identityManifest.unresolved)) throw new Error('Native artwork identity gaps disagree with the crosswalk')
+  const files = (await readdir(ASSETS)).sort()
+  if (files.length !== checkedFiles.size || files.some(file => !checkedFiles.has(file))) throw new Error('Native artwork directory contains files absent from the manifest')
+  console.log(`Verified ${checkedFiles.size} native artwork files (${total} bytes), ${Object.keys(manifest.entities).length} catalog bindings, ${manifest.sources.textureCount} embedded textures, and ${manifest.coverage.databaseVisualReferences.length} database texture references`)
+}
+
+async function update(flags) {
+  const identityBytes = await readFile(IDENTITIES)
+  const identityManifest = JSON.parse(identityBytes)
+  const starterRecords = parseStarterRecords(await readFile(STARTER_SOURCE, 'utf8'))
+  checkIdentityManifest(identityManifest, starterRecords)
+  console.error('Reading and validating installed game databases and texture packs')
+  const game = await readInstalledGame(flags.input)
+  const textureData = textureInventory(game.texturePacks)
+  const visuals = visualReferenceInventory(game.databases, new Set(textureData.paths.keys()))
+  console.error('Extracting catalog-bound native artwork from reviewed database IDs')
+  const built = await buildBindings(identityManifest, game.databases, textureData.paths)
+  let total = 0
+  for (const bytes of built.outputs.values()) total += bytes.length
+  if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
+  const textureFiles = new Map(game.files.filter(file => file.path.startsWith(`${TEXTURE_DIRECTORY}/`)).map(file => [basename(file.path, '.dat'), file]))
+  const databaseFiles = new Map(game.files.filter(file => file.path.startsWith(`${DATABASE_DIRECTORY}/`)).map(file => [basename(file.path, '.dat'), file]))
+  const manifest = {
+    schemaVersion: GAME_ASSET_MANIFEST_SCHEMA,
+    gameInputDigest: game.inputDigest,
+    sources: {
+      rights: GAME_ARTWORK_RIGHTS,
+      format: { commit: FORMAT_SOURCE_COMMIT, ...FORMAT_SOURCES },
+      executable: game.files.find(file => file.path === EXECUTABLE_NAME),
+      identityCrosswalk: { sha256: hash(identityBytes), commit: identityManifest.source.commit, repository: identityManifest.source.repository },
+      textureCount: textureData.paths.size,
+      texturePacks: Object.fromEntries(Object.entries(textureData.packs).map(([name, pack]) => [name, { file: textureFiles.get(name), ...pack }])),
+      databases: Object.fromEntries(Object.entries(databaseInventory(game.databases)).map(([name, database]) => [name, { file: databaseFiles.get(name), ...database }])),
+    },
+    assets: built.assets,
+    entities: built.entities,
+    coverage: {
+      identityGaps: identityManifest.unresolved,
+      unmappedNativeIdentities: built.unmapped,
+      identityNameDifferences: built.nameDifferences,
+      databaseVisualReferences: visuals.references,
+      unresolvedTextureReferences: visuals.unresolved,
+    },
+  }
+  await mkdir(ASSETS, { recursive: true })
+  for (const [file, bytes] of built.outputs) await writeFile(join(ASSETS, file), bytes)
+  await mkdir(CACHE, { recursive: true })
+  const temporary = join(CACHE, 'game-assets.json')
+  await writeFile(temporary, sortedJson(manifest))
+  await rename(temporary, MANIFEST)
+  const temporaryArtwork = join(CACHE, 'game-artwork.json')
+  await writeFile(temporaryArtwork, sortedJson(runtimeArtworkManifest(manifest)))
+  await rename(temporaryArtwork, ARTWORK_MANIFEST)
+  if (flags.unpack) {
+    console.error(`Writing all embedded textures to ${flags.unpack}`)
+    await unpackTextures(flags.unpack, game.texturePacks, textureData.packs, game.inputDigest)
+  }
+  console.log(`Saved ${built.outputs.size} native artwork files (${total} bytes) for ${Object.keys(built.entities).length} catalog definitions; inventoried ${textureData.paths.size} embedded textures and ${visuals.references.length} database references; ${built.unmapped.length} mapped identities retain explicit artwork gaps`)
+}
+
+try {
+  const flags = options()
+  if (flags.check) await checkManifest()
+  else await update(flags)
+} catch (error) {
+  console.error(error.message)
+  process.exitCode = 1
+}
