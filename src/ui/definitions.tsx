@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef, useState,
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import { entityDefinitionKey, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions, selectedPlaythrough } from '../domain'
-import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, GameSetupRevision, JsonValue, Knowledge, PersonalDefinition, LocalData } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { formatAppError } from './model'
@@ -19,6 +19,7 @@ import { correctionDraftFields, draftFieldValue, fieldDraft, type CorrectionFiel
 import { DefinitionDraftNotice, useDefinitionDraft } from './definition-draft'
 import { DefinitionArtwork } from './GameIcon'
 import { ModBadge } from './DefinitionModLabel'
+import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const defaultOptionLabel = (option: DefinitionOption) => option.name
@@ -104,7 +105,7 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
       ppCost: passivePointCost(definition),
       sourceLabel: `${preferred ? `Personal revision ${definition.revision} · preferred` : `Personal revision ${definition.revision} · older exact definition`}${provenance ? ` · override of ${provenance}` : ''}`,
       stockLabel: inventoryLabel(localData, ref), preferred, record: definition,
-      modAvailability: definitionModAvailability(localData, ref, activeGameSetup),
+      modAvailability: definitionModAvailability(localData, ref, activeGameSetup, catalogs),
       ...(activeGameSetup?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup definition collection' : 'No current Game Setup definition collection' }),
     }
   })
@@ -113,14 +114,16 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
     const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(localData, ref)) === entityDefinitionKey(ref)
     const provenance = starterEntitySourceLabel(entity)
+    const effectiveLayer = entity.fields['Effective mod layer']
+    const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
     return {
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
       ...(entity.rawDescription === undefined ? {} : { description: entity.rawDescription }),
       ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
       ppCost: passivePointCost(entity),
-      sourceLabel: `${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
+      sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}${preferred ? '' : ' · base definition'}`,
       stockLabel: inventoryLabel(localData, ref), preferred, record: entity,
-      modAvailability: definitionModAvailability(localData, ref, activeGameSetup),
+      modAvailability: definitionModAvailability(localData, ref, activeGameSetup, catalogs),
       ...(activeGameSetup?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
     }
   }))
@@ -136,6 +139,18 @@ export function definitionOptionsForRevisions(options: readonly DefinitionOption
   })
 }
 
+function optionsForModSetup(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], gameSetup?: GameSetupRevision): readonly DefinitionOption[] {
+  const schemas = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog.schemaVersion]))
+  return options.filter(option => {
+    if (option.ref.kind !== 'catalog') return true
+    const schema = schemas.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId]))
+    if (schema === MOD_CATALOG_SCHEMA) return gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
+    if (!gameSetup?.modComposition) return true
+    if (option.ref.catalogId === gameSetup.modComposition.baseline.catalogId) return gameSetup.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
+    return schema !== CRYSTAL_EDIT_CATALOG_SCHEMA
+  })
+}
+
 export function DefinitionProvider({ localData, catalogs, onSaveDefinition, children }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
   const corrections = useOptionalCorrections()
   const options = useMemo(() => {
@@ -147,14 +162,15 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, chil
   }, [catalogs, localData, corrections?.baseline, corrections?.collection.entries])
   const availableOptions = useMemo(() => {
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(catalogs)
-    return definitionOptionsForRevisions(options, catalogs).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
-  }, [catalogs, options, corrections?.hiddenKeys])
+    const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
+    return optionsForModSetup(definitionOptionsForRevisions(options, catalogs, gameSetup?.modComposition ? gameSetup.catalogLock : undefined), catalogs, gameSetup).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+  }, [catalogs, options, corrections?.hiddenKeys, localData])
   const baseline = corrections?.baseline ?? catalogs
   const planningOptions = useMemo(() => buildDefinitionOptions(localData, baseline), [baseline, localData])
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
-    return definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
   }, [baseline, corrections?.hiddenKeys, planningOptions, localData])
   const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { classFields, jsonRecord, LAST_VANILLA_JOB_ID, LEARN_NODE_TYPES, MAX_GROWTH_RATING, MAX_TREE_COLUMNS, MAX_TREE_ROWS, RATING_FIELDS } from '../domain/crystal-edit'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityId, JsonValue, LocalData, SourceRef } from '../domain/types'
 import { AppDataError } from './errors'
@@ -6,7 +7,7 @@ import { parseBoundedJson } from './json'
 import type { ImportPreview, ImportProblem } from './types'
 import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
 
-export const CRYSTAL_EDIT_FORMAT = 'crystal-edit-json-1' as const
+export const CRYSTAL_EDIT_FORMAT = CRYSTAL_EDIT_CATALOG_SCHEMA
 const MAX_MODELS = 20_000
 const modelId = z.number().int().min(0).max(0xffffffff)
 const ids = z.array(modelId).max(MAX_MODELS)
@@ -84,7 +85,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
     checksum: `sha256:${digest}`, importedAt, entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
-    legacy: { editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing] },
+    legacy: { projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing] },
   }
   const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
   const receiptId = asImportReceiptId(`import:${digest}`)

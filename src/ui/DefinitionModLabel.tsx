@@ -1,6 +1,7 @@
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import type { EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import { Badge } from './components'
+import { useOptionalCorrections } from './corrections-context'
 
 const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], string>> = Object.freeze({
   unknown: 'Enabled status not recorded',
@@ -17,7 +18,8 @@ export function ModBadge({ name, state, className = '' }: { readonly name: strin
 }
 
 export function DefinitionModLabel({ localData, gameSetup, value, className = '' }: { readonly localData: LocalData; readonly gameSetup?: GameSetupRevision; readonly value?: EntityRef | null; readonly className?: string }) {
+  const context = useOptionalCorrections()
   if (!value) return null
-  const availability = definitionModAvailability(localData, value, gameSetup)
+  const availability = definitionModAvailability(localData, value, gameSetup, context?.baseline)
   return availability.requiredMod ? <ModBadge className={`definition-mod-label ${className}`.trim()} name={availability.requiredMod} state={availability.state}/> : null
 }

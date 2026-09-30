@@ -33,7 +33,7 @@ function SummarySelection({ label, value, localData, catalogs, gameSetup, empty,
   const facts = definition ? summaryFactLines(definition).slice(0, 5) : []
   const equipment = definition && (role === 'mainHand' || role === 'offHand') ? equipmentFacts(definition) : undefined
   const handUse = equipment?.type && isWeapon(equipment.type) ? equipment.twoHanded === false ? 'One-handed' : equipment.twoHanded === true ? 'Two-handed' : 'Hand use unknown' : undefined
-  const availability = value ? modAvailabilityLabel(definitionModAvailability(localData, value, gameSetup)) : undefined
+  const availability = value ? modAvailabilityLabel(definitionModAvailability(localData, value, gameSetup, catalogs)) : undefined
   const occupancy = occupiedBy ? `Unavailable while ${occupiedBy} occupies both hands` : undefined
   const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
   const content = <>

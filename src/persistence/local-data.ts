@@ -13,6 +13,7 @@ import type {
 import { AppDataError, asAppDataError } from '../interchange/errors'
 import { previewImport as buildImportPreview } from '../interchange/import'
 import { validateNativeLocalDataGraph } from '../interchange/native'
+import { composeModCatalog, compactModCatalog, expandModCatalogs, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { parseBoundedJson } from '../interchange/json'
 import { catalogSnapshotKey } from '../interchange/identity'
 import type {
@@ -200,6 +201,7 @@ function catalogReferences(localData: LocalData): Set<string> {
   }
   visit(localData)
   for (const gameSetup of Object.values(localData.gameSetups)) {
+    if (gameSetup.modComposition) for (const pin of [gameSetup.modComposition.baseline, ...gameSetup.modComposition.layers]) keys.add(catalogSnapshotKey(pin.catalogId, pin.catalogRevisionId))
     for (const [catalogId, revisionId] of Object.entries(gameSetup.catalogLock)) {
       keys.add(catalogSnapshotKey(catalogId, revisionId))
     }
@@ -235,7 +237,7 @@ async function loadedDataForRecord(database: CrystalCompanionDatabase, record: L
   return {
     localData: cloneJson(record.localData),
     lineage: cloneJson(record.lineage),
-    catalogs: [...BUNDLED_CATALOGS, ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))],
+    catalogs: expandModCatalogs([...BUNDLED_CATALOGS, ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))]),
     evidence: evidence.map(cloneJson),
     revision: record.revision,
     canUndo,
@@ -346,10 +348,27 @@ async function storedCatalogsForLocalData(
   return [...BUNDLED_CATALOGS.filter((catalog) => keys.has(catalogKey(catalog))), ...stored]
 }
 
+export async function prepareModCatalogs(localData: LocalData, availableCatalogs: readonly CatalogSnapshot[]): Promise<readonly CatalogSnapshot[]> {
+  const composed: CatalogSnapshot[] = []
+  for (const gameSetup of Object.values(localData.gameSetups)) {
+    if (!gameSetup.modComposition || modCatalogForPin(availableCatalogs, { catalogId: gameSetup.modComposition.baseline.catalogId, catalogRevisionId: gameSetup.catalogLock[gameSetup.modComposition.baseline.catalogId]! })) continue
+    const origin = Object.values(localData.gameSetups).find(value => modCatalogRevision(value.id) === gameSetup.catalogLock[gameSetup.modComposition!.baseline.catalogId])
+    if (!origin?.modComposition) throw new AppDataError('schema-mismatch', 'The effective mod catalog has no originating Game Setup')
+    if (composed.some(value => value.revisionId === modCatalogRevision(origin.id))) continue
+    const catalog = composeModCatalog(origin, availableCatalogs)!
+    composed.push({ ...catalog, checksum: `composition:sha256:${await sha256(new TextEncoder().encode(canonicalJson(catalog)))}` })
+  }
+  return expandModCatalogs([...availableCatalogs, ...composed])
+}
+
 export async function saveLocalDataWithStatus(localData: LocalData, expectedRevision: number): Promise<LocalDataWriteResult> {
   const database = getDatabase()
   let result: LocalDataWriteResult | undefined
   try {
+    const availableCatalogs = [...BUNDLED_CATALOGS, ...(await database.catalogs.toArray()).map(record => record.snapshot)]
+    const preparedCatalogs = await prepareModCatalogs(localData, availableCatalogs)
+    const originalKeys = new Set(availableCatalogs.map(catalogKey))
+    const composed = preparedCatalogs.filter(catalog => !originalKeys.has(catalogKey(catalog))).map(compactModCatalog)
     await database.transaction('rw', database.localDatas, database.history, database.catalogs, async () => {
       const record = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
       if (!record) throw new AppDataError('not-found', 'The planner data no longer exists', { recoverable: true })
@@ -362,6 +381,8 @@ export async function saveLocalDataWithStatus(localData: LocalData, expectedRevi
       const timestamp = nowTimestamp()
       const prepared = localDataForSave(record.localData, localData, expectedRevision, timestamp)
       const saved = prepared.localData
+      await assertCatalogsImmutable(database, composed)
+      if (composed.length) await database.catalogs.bulkPut(composed.map(toCatalogRecord))
       validateLocalDataForStorage(saved, await storedCatalogsForLocalData(database, saved))
       await database.localDatas.put({
         ...record,
@@ -390,7 +411,7 @@ export async function saveLocalData(localData: LocalData, expectedRevision: numb
 
 async function putCandidateData(database: CrystalCompanionDatabase, candidate: ImportCandidate): Promise<void> {
   assertStarterCatalogIdentity(candidate.catalogs)
-  const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog))
+  const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog)).map(compactModCatalog)
   await assertCatalogsImmutable(database, storedCatalogs)
   if (storedCatalogs.length > 0) await database.catalogs.bulkPut(storedCatalogs.map(toCatalogRecord))
   for (const evidence of candidate.evidence) {
@@ -659,10 +680,10 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
         }
       },
     )
-    const availableCatalogRecords = [
-      ...BUNDLED_CATALOGS.map(toCatalogRecord),
-      ...captured.catalogRecords.filter(record => !BUNDLED_CATALOG_KEYS.has(record.key)),
-    ]
+    const availableCatalogRecords = (await prepareModCatalogs(captured.localData, [
+      ...BUNDLED_CATALOGS,
+      ...captured.catalogRecords.filter(record => !BUNDLED_CATALOG_KEYS.has(record.key)).map(record => record.snapshot),
+    ])).map(compactModCatalog).map(toCatalogRecord)
     const payloadFor = (history: readonly PersistedHistoryEntry[]) => {
       const localData = history.length === 0 && captured.localData.changes.length > 0
         ? { ...captured.localData, changes: [] }
