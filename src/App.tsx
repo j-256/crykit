@@ -25,6 +25,7 @@ import {
   replaceScenarioBuild,
   saveBuildRevision,
   setClassSealProgressBatch,
+  toggleQuintarStep,
   selectPlaythrough,
   setPlaythroughGameSetup,
   updateScenario,
@@ -65,6 +66,8 @@ import { CharactersView, type CharacterDraft, type ClassProgressDraft, type Lear
 import { DataPanel, type GameSetupDraft } from './ui/DataPanel'
 import { InventoryView, type InventoryDraft, type InventoryEventDraft } from './ui/InventoryView'
 import { ProgressView, type ProgressDraft } from './ui/ProgressView'
+import { QuintarBreedingView } from './ui/QuintarBreedingView'
+import type { QuintarBreedingStepId } from './catalog/quintar-breeding'
 import { CorrectionsContext, useCorrectionStore } from './ui/corrections-context'
 import { CorrectionSurfaces } from './ui/Corrections'
 import { ReferenceView } from './ui/ReferenceView'
@@ -353,6 +356,12 @@ export default function App() {
 
   const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitLocalData((localData) => setClassSealProgressBatch(localData, { selections, stage, expectedRevision: localData.revision }), { showSavingState: false }), [commitLocalData])
 
+  const toggleQuintarProgress = useCallback(async (stepId: QuintarBreedingStepId) => {
+    const playthroughId = loadedDataRef.current?.localData.selectedPlaythroughId
+    if (!playthroughId) throw new Error('Select a playthrough before recording quintar progress.')
+    await commitLocalData(localData => toggleQuintarStep(localData, { stepId, playthroughId, expectedRevision: localData.revision }), { rollbackOnFailure: true, showSavingState: false })
+  }, [commitLocalData])
+
   const updateProgressRecord = useCallback(async (recordId: ProgressRecordId, draft: ProgressDraft) => commitLocalData((localData) => {
     const current = requirePlaythrough(localData).progress[recordId]
     if (!current) throw new Error('This progress record no longer exists.')
@@ -568,7 +577,7 @@ export default function App() {
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const content = unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
