@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import sharp from 'sharp'
 import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
-import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, safeTextureRelativePath, stableSourceDigest, validateRegion } from './game-assets.mjs'
+import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, REVIEWED_NATIVE_IDENTITY_SOURCE, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, validateRegion, verifyReviewedNativeDatabase } from './game-assets.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const ASSETS = join(ROOT, 'src', 'assets', 'game-assets')
 const MANIFEST = join(ROOT, 'src', 'catalog', 'game-assets.json')
 const ARTWORK_MANIFEST = join(ROOT, 'src', 'catalog', 'game-artwork.json')
 const IDENTITIES = join(ROOT, 'src', 'catalog', 'game-identities.json')
+const REVIEWED_IDENTITIES = join(ROOT, 'src', 'catalog', 'game-travel-identities.json')
 const STARTER_SOURCE = join(ROOT, 'src', 'catalog', 'data.ts')
 const CACHE = join(ROOT, '.game-cache')
 const EXECUTABLE_NAME = 'Crystal Project.exe'
@@ -26,7 +27,8 @@ const FORMAT_SOURCES = Object.freeze({
 const USAGE = `Usage: node scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
        node scripts/update-game-assets.mjs --check [-h|--help]
 Inventory an installed Crystal Project Windows Content directory and extract exact
-catalog-bound artwork from native database IDs and texture regions. The committed
+catalog-bound artwork from native database IDs and texture regions, including the
+hash-pinned reviewed identities in src/catalog/game-travel-identities.json. The committed
 manifest contains hashes and provenance, never the machine-local input path.
   -i, --input <Content>     Installed game's Content directory
   -u, --unpack <directory> Write every named embedded texture to a new directory
@@ -80,7 +82,7 @@ async function readInstalledGame(contentDirectory) {
   for (const file of databaseNames) {
     const bytes = await readFile(join(input, DATABASE_DIRECTORY, file))
     const name = basename(file, '.dat')
-    databases.set(name, OPAQUE_DATABASE_FILES.has(file) ? { format: 'opaque', records: null } : { format: 'inverted-json', ...parseGameDatabase(bytes, name) })
+    databases.set(name, OPAQUE_DATABASE_FILES.has(file) ? { format: 'opaque', records: null, bytes } : { format: 'inverted-json', ...parseGameDatabase(bytes, name), bytes })
     databaseFiles.push({ path: `${DATABASE_DIRECTORY}/${file}`, sha256: hash(bytes), size: bytes.length })
   }
   const executable = await readFile(join(input, '..', EXECUTABLE_NAME))
@@ -194,6 +196,7 @@ async function buildBindings(identityManifest, databases, textures) {
   for (const [id, sourceMapping] of Object.entries(identityManifest.mappings)) {
     const mapping = { id, ...sourceMapping }
     const record = indexes.get(mapping.database)?.get(mapping.databaseId)
+    verifyReviewedNativeDatabase(mapping, databases.get(mapping.database)?.bytes, record)
     if (!record) {
       unmapped.push(artworkGap(mapping, 'Pinned native database ID is absent from the installed game files'))
       continue
@@ -218,7 +221,7 @@ async function buildBindings(identityManifest, databases, textures) {
       name: mapping.name,
       asset,
       database: { name: mapping.database, id: mapping.databaseId, recordName: record.Name },
-      identity: { sourceKey: mapping.sourceKey, upstreamName: mapping.upstreamName, upstreamCode: mapping.upstreamCode, url: mapping.sourceUrl, locator: mapping.locator },
+      identity: nativeArtworkIdentity(mapping),
       rendering: { extraction: rendered.extraction, sourceTextures: rendered.sources },
     }
   }
@@ -273,6 +276,7 @@ function runtimeArtworkManifest(manifest) {
       format: manifest.sources.format,
       executable: manifest.sources.executable,
       identityCrosswalk: manifest.sources.identityCrosswalk,
+      reviewedIdentities: manifest.sources.reviewedIdentities,
     },
     assets: Object.fromEntries(Object.entries(manifest.assets).map(([key, asset]) => {
       const { sourceTextures: _sourceTextures, extractions: _extractions, ...runtimeAsset } = asset
@@ -287,9 +291,14 @@ async function checkManifest() {
   const identityBytes = await readFile(IDENTITIES)
   const identityManifest = JSON.parse(identityBytes)
   checkIdentityManifest(identityManifest, starterRecords)
+  const reviewedBytes = await readFile(REVIEWED_IDENTITIES)
+  const reviewedMappings = reviewedNativeMappings(JSON.parse(reviewedBytes), identityManifest.mappings)
+  const mappings = { ...identityManifest.mappings, ...reviewedMappings }
   const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'))
   const artworkManifest = JSON.parse(await readFile(ARTWORK_MANIFEST, 'utf8'))
   if (manifest.schemaVersion !== GAME_ASSET_MANIFEST_SCHEMA || manifest.sources?.identityCrosswalk?.sha256 !== hash(identityBytes) || manifest.sources?.identityCrosswalk?.commit !== identityManifest.source.commit || !/^[a-f0-9]{64}$/.test(manifest.gameInputDigest ?? '')) throw new Error('Game asset manifest schema or identity input is stale')
+  if (manifest.sources.reviewedIdentities?.file !== basename(REVIEWED_IDENTITIES) || manifest.sources.reviewedIdentities.sha256 !== hash(reviewedBytes)) throw new Error('Reviewed native identity input is stale')
+  for (const mapping of Object.values(reviewedMappings)) if (manifest.sources.databases[mapping.database]?.file.sha256 !== mapping.databaseSha256) throw new Error(`Reviewed native identity database pin is stale: ${mapping.database}`)
   if (JSON.stringify(artworkManifest) !== JSON.stringify(runtimeArtworkManifest(manifest))) throw new Error('Runtime game artwork manifest is stale')
   const textureByPath = new Map()
   for (const [packName, pack] of Object.entries(manifest.sources.texturePacks ?? {})) {
@@ -320,21 +329,23 @@ async function checkManifest() {
     checkedFiles.add(asset.file)
   }
   if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
-  const starterById = new Map(starterRecords.map(record => [record.id, record]))
+  const catalogById = new Map([...starterRecords, ...Object.entries(reviewedMappings).map(([id, mapping]) => ({ id, ...mapping }))].map(record => [record.id, record]))
   const coveredMappings = new Set()
   for (const [id, binding] of Object.entries(manifest.entities ?? {})) {
-    const record = starterById.get(id)
-    if (!record || record.kind !== binding.kind || record.name !== binding.name || !manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || !binding.identity?.url) throw new Error(`Native artwork binding is invalid: ${id}`)
+    const record = catalogById.get(id)
+    const mapping = mappings[id]
+    if (!record || !mapping || record.kind !== binding.kind || record.name !== binding.name || !manifest.assets[binding.asset] || !binding.rendering?.sourceTextures?.length || JSON.stringify(binding.identity) !== JSON.stringify(nativeArtworkIdentity(mapping)) || binding.database?.name !== mapping.database || binding.database.id !== mapping.databaseId) throw new Error(`Native artwork binding is invalid: ${id}`)
+    if (mapping.sourceKey === REVIEWED_NATIVE_IDENTITY_SOURCE && binding.database.recordName !== mapping.name) throw new Error(`Reviewed native identity label is invalid: ${id}`)
     binding.rendering.sourceTextures.forEach(validateTextureSource)
     const assetSources = new Set(manifest.assets[binding.asset].sourceTextures.map(source => JSON.stringify(source)))
     if (binding.rendering.sourceTextures.some(source => !assetSources.has(JSON.stringify(source)))) throw new Error(`Native artwork binding sources disagree with its asset: ${id}`)
     coveredMappings.add(id)
   }
   for (const gap of manifest.coverage?.unmappedNativeIdentities ?? []) {
-    if (!identityManifest.mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
+    if (!mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
     coveredMappings.add(gap.id)
   }
-  if (coveredMappings.size !== Object.keys(identityManifest.mappings).length) throw new Error('Native artwork manifest does not cover every mapped native identity')
+  if (coveredMappings.size !== Object.keys(mappings).length) throw new Error('Native artwork manifest does not cover every mapped native identity')
   const differences = new Set()
   for (const difference of manifest.coverage?.identityNameDifferences ?? []) {
     const binding = manifest.entities[difference.id]
@@ -353,12 +364,14 @@ async function update(flags) {
   const identityManifest = JSON.parse(identityBytes)
   const starterRecords = parseStarterRecords(await readFile(STARTER_SOURCE, 'utf8'))
   checkIdentityManifest(identityManifest, starterRecords)
+  const reviewedBytes = await readFile(REVIEWED_IDENTITIES)
+  const reviewedMappings = reviewedNativeMappings(JSON.parse(reviewedBytes), identityManifest.mappings)
   console.error('Reading and validating installed game databases and texture packs')
   const game = await readInstalledGame(flags.input)
   const textureData = textureInventory(game.texturePacks)
   const visuals = visualReferenceInventory(game.databases, new Set(textureData.paths.keys()))
   console.error('Extracting catalog-bound native artwork from reviewed database IDs')
-  const built = await buildBindings(identityManifest, game.databases, textureData.paths)
+  const built = await buildBindings({ ...identityManifest, mappings: { ...identityManifest.mappings, ...reviewedMappings } }, game.databases, textureData.paths)
   let total = 0
   for (const bytes of built.outputs.values()) total += bytes.length
   if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
@@ -372,6 +385,7 @@ async function update(flags) {
       format: { commit: FORMAT_SOURCE_COMMIT, ...FORMAT_SOURCES },
       executable: game.files.find(file => file.path === EXECUTABLE_NAME),
       identityCrosswalk: { sha256: hash(identityBytes), commit: identityManifest.source.commit, repository: identityManifest.source.repository },
+      reviewedIdentities: { file: basename(REVIEWED_IDENTITIES), sha256: hash(reviewedBytes) },
       textureCount: textureData.paths.size,
       texturePacks: Object.fromEntries(Object.entries(textureData.packs).map(([name, pack]) => [name, { file: textureFiles.get(name), ...pack }])),
       databases: Object.fromEntries(Object.entries(databaseInventory(game.databases)).map(([name, database]) => [name, { file: databaseFiles.get(name), ...database }])),

@@ -4,6 +4,7 @@ export const GAME_ASSET_FILE_PATTERN = /^[a-f0-9]{64}\.png$/
 export const GAME_ARTWORK_RIGHTS = 'Copyrighted Crystal Project game artwork; no separate license grant asserted'
 export const GAME_ASSET_MANIFEST_SCHEMA = 1
 export const GAME_IDENTITY_MANIFEST_SCHEMA = 1
+export const REVIEWED_NATIVE_IDENTITY_SOURCE = 'reviewed-native-item'
 export const MAX_GAME_ASSET_BYTES = 20 * 1024 * 1024
 export const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
 
@@ -24,6 +25,30 @@ const ACTOR_ICON_HEIGHT = 15
 const CLASS_ICON_GAP = 2
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
+
+export function reviewedNativeMappings(manifest, existingMappings = {}) {
+  if (manifest?.schemaVersion !== GAME_IDENTITY_MANIFEST_SCHEMA || manifest.database !== 'item' || !/^[a-f0-9]{64}$/.test(manifest.databaseSha256 ?? '') || !Array.isArray(manifest.records) || !manifest.records.length) throw new Error('Reviewed native identity manifest is invalid')
+  const mappings = {}
+  const nativeIds = new Set()
+  for (const record of manifest.records) {
+    if (typeof record.id !== 'string' || !/^wiki:item:[a-z0-9-]+$/.test(record.id) || record.kind !== 'item' || typeof record.name !== 'string' || !record.name.trim() || !Number.isInteger(record.databaseId) || record.databaseId < 0) throw new Error('Reviewed native identity record is invalid')
+    if (existingMappings[record.id] || mappings[record.id] || nativeIds.has(record.databaseId)) throw new Error(`Reviewed native identity is duplicated: ${record.id}`)
+    nativeIds.add(record.databaseId)
+    mappings[record.id] = { kind: record.kind, name: record.name, sourceKey: REVIEWED_NATIVE_IDENTITY_SOURCE, database: manifest.database, databaseId: record.databaseId, databaseSha256: manifest.databaseSha256, locator: `Database/${manifest.database}.dat record ${record.databaseId}` }
+  }
+  return mappings
+}
+
+export function nativeArtworkIdentity(mapping) {
+  if (mapping.sourceKey === REVIEWED_NATIVE_IDENTITY_SOURCE) return { sourceKey: mapping.sourceKey, databaseSha256: mapping.databaseSha256, locator: mapping.locator }
+  return { sourceKey: mapping.sourceKey, upstreamName: mapping.upstreamName, upstreamCode: mapping.upstreamCode, url: mapping.sourceUrl, locator: mapping.locator }
+}
+
+export function verifyReviewedNativeDatabase(mapping, bytes, record) {
+  if (mapping.sourceKey !== REVIEWED_NATIVE_IDENTITY_SOURCE) return
+  if (hash(bytes) !== mapping.databaseSha256) throw new Error(`Reviewed native identity needs review for changed database bytes: ${mapping.database}`)
+  if (record?.ID !== mapping.databaseId || record.Name !== mapping.name) throw new Error(`Reviewed native identity does not match the installed record: ${mapping.name}`)
+}
 
 function requireBytes(bytes, offset, length, label) {
   if (!Buffer.isBuffer(bytes) || !Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset + length > bytes.length) throw new Error(`${label} is truncated`)

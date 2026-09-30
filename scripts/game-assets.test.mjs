@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { actorIconRegion, buildGameIdentityCrosswalk, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, parseArchipelagoItems, parseGameDatabase, parsePythonStringAssignments, parseStarterRecords, parseTexturePack, safeTextureRelativePath, stableSourceDigest } from './game-assets.mjs'
+import { actorIconRegion, buildGameIdentityCrosswalk, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseArchipelagoItems, parseGameDatabase, parsePythonStringAssignments, parseStarterRecords, parseTexturePack, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, verifyReviewedNativeDatabase } from './game-assets.mjs'
 
 function encodedDatabase(records, version = 10) {
   const json = Buffer.from(JSON.stringify(records))
@@ -87,6 +87,16 @@ item_table = {
     kind: 'item', name: 'Short Sword', sourceKey: 'apworld-items', upstreamName: 'Equipment - Short Sword', upstreamCategory: 'EQUIPMENT', upstreamCode: 1005, database: 'equipment', databaseId: 4, locator: 'worlds/crystal_project/items.py:8',
   })
   assert.match(crosswalk.unresolved[0].reason, /no reviewed native database crosswalk/)
+})
+
+test('reviewed travel identities reject a changed database or mismatched record', () => {
+  const bytes = Buffer.from('synthetic item database')
+  const mapping = reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'wiki:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }] })['wiki:item:ibek-bell']
+  assert.deepEqual(nativeArtworkIdentity(mapping), { sourceKey: 'reviewed-native-item', databaseSha256: hash(bytes), locator: 'Database/item.dat record 50' })
+  assert.doesNotThrow(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Ibek Bell' }))
+  assert.throws(() => verifyReviewedNativeDatabase(mapping, Buffer.from('changed'), { ID: 50, Name: 'Ibek Bell' }), /changed database bytes/)
+  assert.throws(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Owl Drum' }), /does not match/)
+  assert.throws(() => reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'wiki:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }, { id: 'wiki:item:owl-drum', kind: 'item', name: 'Owl Drum', databaseId: 50 }] }), /duplicated/)
 })
 
 test('texture output paths and aggregate source digests are deterministic and traversal-safe', () => {
