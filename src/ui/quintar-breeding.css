@@ -40,10 +40,11 @@
 .quintar-tile[data-complete="true"] .quintar-tile__status { color: #c3df9f; }
 .quintar-tile__check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line-strong); background: rgba(23, 29, 34, .8); }
 .quintar-tile__check svg { width: 16px; height: 16px; color: #c3df9f; }
-.quintar-tile__art { display: grid; justify-items: center; align-content: center; gap: 5px; width: 94px; height: 95px; color: var(--quintar-color); filter: grayscale(1); opacity: .4; }
+.quintar-tile__art { display: grid; justify-items: center; align-content: center; gap: 5px; width: 94px; height: 95px; color: var(--quintar-color); opacity: .78; }
 .quintar-tile__art > svg { width: 55px; height: 55px; }
+.quintar-tile__art > img { width: 82px; height: 75px; object-fit: contain; image-rendering: pixelated; }
 .quintar-tile__art > span { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
-.quintar-tile[data-complete="true"] .quintar-tile__art { filter: none; opacity: 1; }
+.quintar-tile[data-complete="true"] .quintar-tile__art { opacity: 1; }
 .quintar-tile__toggle > strong { color: var(--text-dim); font-size: .9rem; line-height: 1.35; }
 .quintar-tile[data-complete="true"] .quintar-tile__toggle > strong { color: var(--ivory-100); }
 .quintar-tile__toggle > small { color: var(--text-faint); font-size: .65rem; }
@@ -59,6 +60,9 @@
 .quintar-tile__keep strong { color: #c3df9f; }
 .quintar-tile__release { color: var(--text-faint); }
 .quintar-tile__missing { color: #e7bd80; font-size: .67rem; }
+.quintar-tile__refs { display: flex; flex-wrap: wrap; gap: 4px 9px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .68rem; }
+.quintar-tile__refs > span { color: var(--text-faint); font-weight: 700; }
+.quintar-tile__refs a { color: var(--cyan-300); text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 650px) {
   .quintar-summary { grid-template-columns: minmax(0, 1fr); }
   .quintar-summary__count, .quintar-summary__next { padding: 16px; }

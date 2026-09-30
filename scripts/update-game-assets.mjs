@@ -24,11 +24,21 @@ const FORMAT_SOURCES = Object.freeze({
   texturePack: `https://github.com/iconmaster5326/CrystalProjector/blob/${FORMAT_SOURCE_COMMIT}/schema/ksy/texture_pack.ksy`,
   database: `https://github.com/iconmaster5326/CrystalProjector/blob/${FORMAT_SOURCE_COMMIT}/schema/ksy/database.ksy`,
 })
+const QUINTAR_GUIDE_ARTWORK = Object.freeze({
+  babel: { label: 'Babel Quintar', texturePath: 'Icon/ItemA', itemId: 167, itemName: 'Babel Quintar', textureIndex: 39 },
+  ocarina: { label: 'Quintar Ocarina', texturePath: 'Icon/ItemA', itemId: 115, itemName: 'Quintar Ocarina', textureIndex: 35 },
+  egg: { label: 'Quintar egg', texturePath: 'Monster/Z15_QuintarEgg', monsterId: 51, monsterName: 'Quintar Egg' },
+  trustyBlue: { label: 'Trusty Blue', texturePath: 'Monster/Z15_QuintarTrustyBlue', monsterId: 317, monsterName: 'Trusty Quintar', typeKey: 'QUINTAR_Type_Blue', typeName: 'Blue' },
+  trustyRed: { label: 'Trusty Red', texturePath: 'Monster/Z15_QuintarTrustyRed', monsterId: 304, monsterName: 'Trusty Quintar', typeKey: 'QUINTAR_Type_Red', typeName: 'Red' },
+  wokeRiver: { label: 'Woke River', texturePath: 'Monster/Z52_QuintarWokeTeal', monsterId: 318, monsterName: 'Woke Quintar', typeKey: 'QUINTAR_Type_Teal', typeName: 'River' },
+  brutishDesert: { label: 'Brutish Desert', texturePath: 'Monster/Z18_QuintarBrutishYellow', monsterId: 316, monsterName: 'Brutish Quintar', typeKey: 'QUINTAR_Type_Yellow', typeName: 'Desert' },
+  golden: { label: 'Golden Quintar', texturePath: 'Actor/Animal_QuintarGolden', typeKey: 'QUINTAR_Type_Gold', typeName: 'Golden', region: { x: 3, y: 75, width: 40, height: 23 } },
+})
 const USAGE = `Usage: node scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
        node scripts/update-game-assets.mjs --check [-h|--help]
 Inventory an installed Crystal Project Windows Content directory and extract exact
-catalog-bound artwork from native database IDs and texture regions, including the
-hash-pinned reviewed identities in src/catalog/game-travel-identities.json. The committed
+catalog and Quintar guide artwork from native database IDs and texture regions,
+including hash-pinned reviewed identities in src/catalog/game-travel-identities.json. The committed
 manifest contains hashes and provenance, never the machine-local input path.
   -i, --input <Content>     Installed game's Content directory
   -u, --unpack <directory> Write every named embedded texture to a new directory
@@ -228,6 +238,29 @@ async function buildBindings(identityManifest, databases, textures) {
   return { assets, outputs, entities, unmapped, nameDifferences }
 }
 
+async function buildQuintarGuideArtwork(databases, textures, assets, outputs) {
+  const monsterRecords = recordIndex(databases.get('monster'), 'monster')
+  const itemRecords = recordIndex(databases.get('item'), 'item')
+  const typeLabels = databases.get('system')?.records?.Vocab?.General
+  if (!typeLabels) throw new Error('Quintar guide type labels are absent from the system database')
+  const guide = {}
+  for (const [key, source] of Object.entries(QUINTAR_GUIDE_ARTWORK)) {
+    const texture = textures.get(source.texturePath)
+    if (!texture) throw new Error(`Quintar guide texture is absent: ${source.texturePath}`)
+    const record = source.monsterId !== undefined ? monsterRecords.get(source.monsterId) : source.itemId !== undefined ? itemRecords.get(source.itemId) : undefined
+    if (source.monsterId !== undefined && (record?.Name !== source.monsterName || record.TexturePath !== source.texturePath)) throw new Error(`Quintar guide monster source changed: ${key}`)
+    if (source.itemId !== undefined && (record?.Name !== source.itemName || record.TexturePath !== source.texturePath || record.TextureIndex !== source.textureIndex)) throw new Error(`Quintar guide item source changed: ${key}`)
+    if (source.typeKey && typeLabels[source.typeKey] !== source.typeName) throw new Error(`Quintar guide type label changed: ${key}`)
+    const region = source.itemId !== undefined ? gameIconRegion(record.TextureIndex, texture) : source.region ?? { x: 0, y: 0, width: texture.width, height: texture.height }
+    validateRegion(region, texture, `Quintar guide ${key}`)
+    const bytes = source.itemId !== undefined || source.region ? await sharp(texture.bytes).extract({ left: region.x, top: region.y, width: region.width, height: region.height }).png({ compressionLevel: 9 }).toBuffer() : texture.bytes
+    const rendered = { bytes, sources: [{ texturePath: texture.path, textureSha256: texture.sha256, region }], extraction: source.itemId !== undefined ? '32x32 indexed game item icon cell' : source.region ? 'named golden actor-sheet frame' : 'named monster texture' }
+    const asset = await addArtwork(assets, outputs, rendered)
+    guide[key] = { label: source.label, asset, ...(record ? { database: { name: source.itemId !== undefined ? 'item' : 'monster', id: source.itemId ?? source.monsterId, recordName: record.Name } } : {}), ...(source.typeKey ? { gameType: { key: source.typeKey, name: source.typeName } } : {}), rendering: { extraction: rendered.extraction, sourceTextures: rendered.sources } }
+  }
+  return guide
+}
+
 function visualReferenceInventory(databases, texturePaths) {
   const references = []
   const unresolved = []
@@ -283,6 +316,7 @@ function runtimeArtworkManifest(manifest) {
       return [key, runtimeAsset]
     })),
     entities: manifest.entities,
+    quintarGuide: manifest.quintarGuide,
   }
 }
 
@@ -346,6 +380,19 @@ async function checkManifest() {
     coveredMappings.add(gap.id)
   }
   if (coveredMappings.size !== Object.keys(mappings).length) throw new Error('Native artwork manifest does not cover every mapped native identity')
+  if (JSON.stringify(Object.keys(manifest.quintarGuide ?? {})) !== JSON.stringify(Object.keys(QUINTAR_GUIDE_ARTWORK))) throw new Error('Quintar guide artwork coverage is invalid')
+  for (const [key, source] of Object.entries(QUINTAR_GUIDE_ARTWORK)) {
+    const binding = manifest.quintarGuide[key]
+    const asset = binding && manifest.assets[binding.asset]
+    const texture = textureByPath.get(source.texturePath)
+    const region = source.itemId !== undefined && texture ? gameIconRegion(source.textureIndex, texture) : source.region ?? { x: 0, y: 0, width: texture?.width, height: texture?.height }
+    const extraction = source.itemId !== undefined ? '32x32 indexed game item icon cell' : source.region ? 'named golden actor-sheet frame' : 'named monster texture'
+    if (!binding || !asset || !texture || binding.label !== source.label || binding.rendering?.extraction !== extraction || JSON.stringify(binding.rendering.sourceTextures) !== JSON.stringify([{ texturePath: source.texturePath, textureSha256: texture.sha256, region }])) throw new Error(`Quintar guide artwork binding is invalid: ${key}`)
+    if (!asset.sourceTextures.some(entry => JSON.stringify(entry) === JSON.stringify(binding.rendering.sourceTextures[0]))) throw new Error(`Quintar guide artwork source disagrees with its asset: ${key}`)
+    const expectedDatabase = source.itemId !== undefined ? { name: 'item', id: source.itemId, recordName: source.itemName } : source.monsterId !== undefined ? { name: 'monster', id: source.monsterId, recordName: source.monsterName } : undefined
+    if (JSON.stringify(binding.database) !== JSON.stringify(expectedDatabase)) throw new Error(`Quintar guide database binding is invalid: ${key}`)
+    if (source.typeKey === undefined ? binding.gameType !== undefined : binding.gameType?.key !== source.typeKey || binding.gameType.name !== source.typeName) throw new Error(`Quintar guide type binding is invalid: ${key}`)
+  }
   const differences = new Set()
   for (const difference of manifest.coverage?.identityNameDifferences ?? []) {
     const binding = manifest.entities[difference.id]
@@ -372,6 +419,8 @@ async function update(flags) {
   const visuals = visualReferenceInventory(game.databases, new Set(textureData.paths.keys()))
   console.error('Extracting catalog-bound native artwork from reviewed database IDs')
   const built = await buildBindings({ ...identityManifest, mappings: { ...identityManifest.mappings, ...reviewedMappings } }, game.databases, textureData.paths)
+  console.error('Extracting Quintar guide artwork from reviewed game sources')
+  const quintarGuide = await buildQuintarGuideArtwork(game.databases, textureData.paths, built.assets, built.outputs)
   let total = 0
   for (const bytes of built.outputs.values()) total += bytes.length
   if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
@@ -392,6 +441,7 @@ async function update(flags) {
     },
     assets: built.assets,
     entities: built.entities,
+    quintarGuide,
     coverage: {
       identityGaps: identityManifest.unresolved,
       unmappedNativeIdentities: built.unmapped,
