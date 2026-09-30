@@ -206,6 +206,8 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await team.getByLabel('Scenario label').fill('Synthetic routed team')
   await chooseFourTeamMembers(team)
   await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await expect(team).not.toBeVisible()
+  await expect(page).toHaveURL(/#\/builds\/teams$/)
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
   await recording.getByRole('combobox', { name: /^Character/ }).selectOption({ label: 'Synthetic routed character' })
   const confirmation = recording.getByRole('checkbox', { name: /I made these changes in game/ })

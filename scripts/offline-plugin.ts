@@ -28,7 +28,12 @@ const CACHE_NAME = CACHE_PREFIX + encodeURIComponent(self.registration.scope) + 
 const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
 const indexUrl = new URL('index.html', self.registration.scope).href;
-const prepareCache = () => caches.open(CACHE_NAME).then(cache => cache.addAll(assetUrls.map(url => new Request(url, { cache: 'reload' }))));
+const prepareCache = async () => {
+  const cache = await caches.open(CACHE_NAME);
+  const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
+  const missing = assetUrls.filter((_, index) => !matches[index]);
+  if (missing.length) await cache.addAll(missing.map(url => new Request(url, { cache: 'reload' })));
+};
 const previousCaches = async () => {
   const names = await caches.keys();
   const currentIndex = names.indexOf(CACHE_NAME);

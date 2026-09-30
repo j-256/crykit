@@ -54,6 +54,8 @@ const reviewedBinaryAssets = new Map([
 ])
 const spriteDirectory = 'src/assets/wiki-sprites/'
 const spriteManifestPath = 'src/catalog/wiki-sprites.json'
+const gameAssetDirectory = 'src/assets/game-assets/'
+const gameAssetManifestPath = 'src/catalog/game-assets.json'
 try {
   const manifest = JSON.parse((options.staged ? git(['show', `:${spriteManifestPath}`]) : readFileSync(spriteManifestPath)).toString('utf8'))
   for (const asset of Object.values(manifest.assets)) {
@@ -61,11 +63,19 @@ try {
     reviewedBinaryAssets.set(`${spriteDirectory}${asset.file}`, asset.sha256)
   }
 } catch { findings.push('Wiki sprite manifest: unable to read reviewed asset hashes') }
+try {
+  const manifest = JSON.parse((options.staged ? git(['show', `:${gameAssetManifestPath}`]) : readFileSync(gameAssetManifestPath)).toString('utf8'))
+  for (const asset of Object.values(manifest.assets)) {
+    if (!/^[a-f0-9]{64}\.png$/.test(asset.file) || !/^[a-f0-9]{64}$/.test(asset.sha256)) throw new Error('Invalid native game artwork manifest entry')
+    reviewedBinaryAssets.set(`${gameAssetDirectory}${asset.file}`, asset.sha256)
+  }
+} catch { findings.push('Native game artwork manifest: unable to read reviewed asset hashes') }
 for (const file of new Set(files)) {
   if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact`)
   if (file.startsWith('.github/workflows/') && !reviewedWorkflows.has(file)) findings.push(`${file}: unreviewed CI workflow`)
   if (file.startsWith(spriteDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
-  if (!file.startsWith(spriteDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
+  if (file.startsWith(gameAssetDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native game artwork is absent from the reviewed manifest`)
+  if (!file.startsWith(spriteDirectory) && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }
   catch { findings.push(`${file}: unable to inspect contents`); continue }
