@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -50,7 +51,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(settings.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

@@ -4,6 +4,7 @@ import { validateReviewedCatalogBundle } from '../interchange/correction-promoti
 import { sameCorrectionValue } from '../domain/corrections'
 import { assembleBundledCatalog, assembleBundledCatalogV1, assembleBundledCatalogV2 } from './bundled-catalog'
 import { addNativeBase } from './native-game'
+import { immutableCatalogSnapshot } from '../interchange/native'
 
 export const REVIEWED_CATALOG_BUNDLE = validateReviewedCatalogBundle(reviewed)
 const revisions = new Map([[JSON.stringify([STARTER_CATALOG.id, STARTER_CATALOG.revisionId]), STARTER_CATALOG]])
@@ -21,7 +22,7 @@ for (const catalog of REVIEWED_CATALOG_BUNDLE.catalogs) {
   if (previous && !sameCorrectionValue(previous, catalog)) throw new Error('A reviewed catalog attempts to replace an immutable bundled revision')
   revisions.set(key, catalog)
 }
-export const BUNDLED_CATALOGS = [...revisions.values()]
+export const BUNDLED_CATALOGS = [...revisions.values()].map(immutableCatalogSnapshot)
 export const DEFAULT_CATALOG = REVIEWED_CATALOG_BUNDLE.current
   ? revisions.get(JSON.stringify([REVIEWED_CATALOG_BUNDLE.current.catalogId, REVIEWED_CATALOG_BUNDLE.current.revisionId]))!
   : native

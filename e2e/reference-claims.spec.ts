@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -102,7 +103,7 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
