@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain/local-data'
+import { historicalCatalogKeys } from '../domain/corrections'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../interchange/correction-promotion'
@@ -24,6 +25,14 @@ describe('bundled catalog assembly', () => {
     expect(BUNDLED_V1_CATALOG.entities['equipment-expansion:item:0-fool']).toBeUndefined()
     expect(BUNDLED_V1_CATALOG.entities['equipment-expansion:item:tarot-accessories']).toBeDefined()
     expect(BUNDLED_V1_CATALOG.entities['base:warrior:innate:fighter']?.fields['Learnable Innate Skill v1.0 JP cost']).toBeUndefined()
+  })
+
+  it('marks earlier revisions as historical without hiding the current bundled catalog', () => {
+    expect(historicalCatalogKeys(BUNDLED_CATALOGS)).toEqual(new Set([
+      JSON.stringify([STARTER_CATALOG.id, STARTER_CATALOG.revisionId]),
+      JSON.stringify([BUNDLED_V1_CATALOG.id, BUNDLED_V1_CATALOG.revisionId]),
+    ]))
+    expect(DEFAULT_CATALOG.legacy).toMatchObject({ previousRevisionId: BUNDLED_V1_CATALOG.revisionId })
   })
 
   it('combines source facts in an immutable revision while keeping prior snapshots', async () => {
