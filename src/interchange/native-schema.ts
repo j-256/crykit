@@ -1,5 +1,6 @@
 import { GUIDE_LEVEL_CAP } from '../domain/growth'
 import { STAT_KEYS } from '../domain/crystal-edit'
+import { MAX_MOD_LAYERS } from '../domain/mod-layers'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
 import { TEAM_SIZE } from '../domain/scenarios'
@@ -178,6 +179,11 @@ const gameSetupRevision = z.object({
   slots: z.array(slotDefinition).max(MAX_COLLECTION_LENGTH),
   catalogLock,
   definitionOverrides: z.array(personalRef).max(MAX_COLLECTION_LENGTH).optional(),
+  modComposition: z.object({
+    baseline: z.object({ catalogId: id, catalogRevisionId: id }).strict(),
+    layers: z.array(z.object({ catalogId: id, catalogRevisionId: id, enabled: z.boolean() }).strict()).max(MAX_MOD_LAYERS),
+    links: z.array(z.object({ modelKey: id, targetEntityId: id.nullable() }).strict()).max(MAX_COLLECTION_LENGTH),
+  }).strict().optional(),
   createdAt: timestamp,
 }).strict()
 

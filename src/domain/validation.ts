@@ -3,6 +3,7 @@ import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
 import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
 import { effectivePpLimit } from './build-validity'
+import { jsonRecord } from './crystal-edit'
 import { classEquipmentTypes, definitionWithMechanics, equipmentFacts, equipmentPermission, equipmentRole, permissionEffects } from './mechanics-facts'
 import { passivePosition, type PassivePosition } from './passive-loadout'
 import type {
@@ -68,7 +69,10 @@ function resolveDefinition(
   if (ref.kind === 'personal') {
     return localData.personalDefinitions[ref.definitionId]
   }
-  return catalogs.entitiesByRef[entityDefinitionKey(ref)]
+  const catalog = catalogs.snapshots[JSON.stringify([ref.catalogId, ref.catalogRevisionId])]
+  const identities = jsonRecord(catalog?.legacy) && jsonRecord(catalog.legacy.crystalEditIdentities) ? catalog.legacy.crystalEditIdentities : undefined
+  const target = identities?.[ref.entityId]
+  return catalogs.entitiesByRef[entityDefinitionKey(typeof target === 'string' ? { ...ref, entityId: target as typeof ref.entityId } : ref)]
 }
 
 function issue(accumulator: Accumulator, value: ValidationIssue): void {

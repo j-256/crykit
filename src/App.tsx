@@ -58,7 +58,7 @@ import {
 import type { DraftActions, DraftChangeHandler } from './ui/drafts'
 import { DEFAULT_CATALOG } from './catalog/bundled'
 import { createBuildPlan, ensureBuildPlanningGameSetup } from './domain/build-planning'
-import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
+import { commitImport, exportBackup, loadLocalData, previewImport, prepareModCatalogs, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
 import type { ImportCommitMode, ImportPreview, LoadedLocalData } from './interchange/types'
 import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } from './ui/BuildsView'
 import { CharactersView, type CharacterDraft, type ClassProgressDraft, type LearnedNodeDraft, type SnapshotDraft } from './ui/CharactersView'
@@ -200,8 +200,9 @@ export default function App() {
       try {
         const nextLocalData = transform(current.localData)
         if (nextLocalData === current.localData) return
-        validateLocalDataForStorage(nextLocalData, current.catalogs)
-        optimistic = { ...current, localData: nextLocalData, revision: nextLocalData.revision }
+        const catalogs = await prepareModCatalogs(nextLocalData, current.catalogs)
+        validateLocalDataForStorage(nextLocalData, catalogs)
+        optimistic = { ...current, catalogs, localData: nextLocalData, revision: nextLocalData.revision }
         loadedDataRef.current = optimistic
         setLoadedData(optimistic)
         dirtyRef.current = true
@@ -464,7 +465,7 @@ export default function App() {
     const sourceRevisionId = draft.sourceGameSetupRevisionId ?? localData.planningGameSetupRevisionId
     const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
     const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
-    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, activate: true, expectedRevision: localData.revision }
+    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides, activate: true, expectedRevision: localData.revision }
     const next = sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
     if (!next.planningGameSetupRevisionId) throw new Error('The saved Game Setup revision could not be selected.')
     return setPlaythroughGameSetup(next, { gameSetupRevisionId: next.planningGameSetupRevisionId, expectedRevision: next.revision })

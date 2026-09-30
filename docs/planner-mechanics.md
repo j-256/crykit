@@ -4,7 +4,7 @@ The Build editor applies supported rules from GEEF's Crystal Project modding gui
 
 ## Equipment checks
 
-Exported primary-class equipment categories provide permissions. The sub-command does not supply its class's equipment list. Supported permission descriptions such as Equip Sword and Equip All add categories. Explicit innate descriptions supply Dual Wield and Two-Handed; Shapeshift can inherit a documented sub-command innate. Custom Crystal Edit classes use their own exported fields and same-catalog passive references, without resolving IDs through similarly named vanilla records.
+Exported primary-class equipment categories provide permissions. The sub-command does not supply its class's equipment list. Supported permission descriptions such as Equip Sword and Equip All add categories. Explicit innate descriptions supply Dual Wield and Two-Handed; Shapeshift can inherit a documented sub-command innate. Custom Crystal Edit classes use their own exported fields and native passive references. A saved imported-layer configuration resolves those native references across its enabled layers through the effective catalog. Similarly named vanilla records do not establish missing identities.
 
 Equipment categories map to main hand, off hand, head, body, and accessory roles. The suggested layout has these roles; custom layouts can assign them under **Data & settings > Game Setup**. Accepted definition types use a finite multi-select rather than comma-separated identifiers. Historical suggested slots retain their established roles. Explicit custom slot and requirement rules remain available to scenario validation.
 

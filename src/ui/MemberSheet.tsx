@@ -189,7 +189,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
     const key = `slot:${slot.id}`
     const configured = gameSetup?.slots.find(entry => entry.id === slot.id)
     const allowedKinds = configured?.acceptedEntityKinds?.state === 'known' && configured.acceptedEntityKinds.value.length ? configured.acceptedEntityKinds.value : ITEM_KINDS
-    const availability = slot.selection && definitionModAvailability(localData, slot.selection, gameSetup)
+    const availability = slot.selection && definitionModAvailability(localData, slot.selection, gameSetup, catalogs)
     return <MemberChoice allowedKinds={allowedKinds} display={display(slot.selection)} editable={editable && slot.kind !== 'unmapped'} fieldKey={key} key={slot.id} label={slot.label} onChange={value => setDraft(current => {
       const equipment = { ...current.equipment }
       if (value === undefined) delete equipment[slot.id]
@@ -199,7 +199,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   }
   const passiveField = (ref: EntityRef | undefined, index: number) => {
     const key = `slot:passive-${index + 1}`
-    const availability = ref && definitionModAvailability(localData, ref, gameSetup)
+    const availability = ref && definitionModAvailability(localData, ref, gameSetup, catalogs)
     return <MemberChoice allowedKinds={PASSIVE_KINDS} display={ref ? display(ref) : 'Add passive'} editable={editable && draft.passives.state === 'known'} fieldKey={key} key={`${index}:${ref ? entityDefinitionKey(ref) : 'add'}`} label={`Equipped passive ${index + 1}`} onChange={value => setDraft(current => {
       const passives = current.passives.state === 'known' ? [...current.passives.value] : []
       if (value) passives[index] = value
