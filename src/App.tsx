@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   activateScenario,
   advanceClassSealProgress,
+  setAcquisitionProgress,
   asId,
   captureCharacter,
   importSkillTrees,
@@ -75,6 +76,23 @@ import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions
 import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
+const PAINT_WAIT_FALLBACK_MS = 250
+const INTERACTIVE_PROGRESS_COMMIT = Object.freeze({ showSavingState: false, deferUntilPaint: true })
+
+function waitForNextPaint(): Promise<void> {
+  return new Promise(resolve => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(fallback)
+      cancelAnimationFrame(frame)
+      resolve()
+    }
+    const fallback = window.setTimeout(finish, PAINT_WAIT_FALLBACK_MS)
+    const frame = requestAnimationFrame(() => window.setTimeout(finish, 0))
+  })
+}
 
 function currentTimestamp(date?: string): Timestamp | undefined {
   if (!date) return undefined
@@ -190,9 +208,10 @@ export default function App() {
     })
   }, [loadedData?.localData.id])
 
-  const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean } = {}) => {
+  const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean; deferUntilPaint?: boolean } = {}) => {
     pendingCommitCountRef.current += 1
     const run = async () => {
+      if (options.deferUntilPaint) await waitForNextPaint()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
       if (dirtyRef.current) throw new Error('A previous change is retained after a failed save. Close this form, then use Retry save or export a recovery backup before making another change.')
@@ -349,9 +368,11 @@ export default function App() {
     return upsertProgress(created.localData, { id: createId<ProgressRecordId>('progress'), subject: created.ref, displayName: draft.name, stage: draft.stage, unlocked: draft.unlocked, partyMastery: draft.partyMastery, collection: draft.collection, masterLocation: draft.masterLocation, observedAt: nullableTimestamp(draft.observedAt), expectedRevision: created.localData.revision })
   }), [commitLocalData])
 
-  const advanceProgress = useCallback(async (subject: EntityRef, displayName: string) => commitLocalData((localData) => advanceClassSealProgress(localData, { subject, displayName, expectedRevision: localData.revision }), { showSavingState: false }), [commitLocalData])
+  const advanceProgress = useCallback(async (subject: EntityRef, displayName: string) => commitLocalData((localData) => advanceClassSealProgress(localData, { subject, displayName, expectedRevision: localData.revision }), INTERACTIVE_PROGRESS_COMMIT), [commitLocalData])
 
-  const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitLocalData((localData) => setClassSealProgressBatch(localData, { selections, stage, expectedRevision: localData.revision }), { showSavingState: false }), [commitLocalData])
+  const setAcquiredProgress = useCallback(async (subject: EntityRef, displayName: string, acquired: boolean) => commitLocalData((localData) => setAcquisitionProgress(localData, { subject, displayName, acquired, expectedRevision: localData.revision }), INTERACTIVE_PROGRESS_COMMIT), [commitLocalData])
+
+  const setProgressStage = useCallback(async (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => commitLocalData((localData) => setClassSealProgressBatch(localData, { selections, stage, expectedRevision: localData.revision }), INTERACTIVE_PROGRESS_COMMIT), [commitLocalData])
 
   const updateProgressRecord = useCallback(async (recordId: ProgressRecordId, draft: ProgressDraft) => commitLocalData((localData) => {
     const current = requirePlaythrough(localData).progress[recordId]
@@ -568,7 +589,7 @@ export default function App() {
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const content = unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Companion did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current

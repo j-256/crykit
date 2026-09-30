@@ -4,12 +4,15 @@ import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import {
   advanceClassSealProgress,
+  acquisitionState,
   asId,
   classSealStage,
   classSealStageFacts,
   nextClassSealStage,
   requirePlaythrough,
   setClassSealProgressBatch,
+  setAcquisitionProgress,
+  createPlaythrough,
   upsertProgress,
 } from './index'
 import { createTestLocalData } from './test-helpers'
@@ -122,5 +125,56 @@ describe('class seal progress', () => {
       expectedRevision: localData.revision,
       now: NOW,
     })).toThrow('Bulk progress selection repeats a class subject')
+  })
+})
+
+describe('two-state acquisition progress', () => {
+  const instrument = { ...SUBJECT, entityId: asId<EntityId>('wiki:item:ibek-bell') }
+
+  it('records acquired and not acquired without altering inventory, learning, or class facts', () => {
+    const initial = createTestLocalData()
+    const playthrough = requirePlaythrough(initial)
+    let localData = initial
+    expect(acquisitionState()).toEqual({ state: 'known', value: false })
+    for (const acquired of [true, false, true]) {
+      localData = setAcquisitionProgress(localData, { subject: instrument, displayName: 'Ibek Bell', acquired, expectedRevision: localData.revision, now: NOW })
+      const records = Object.values(requirePlaythrough(localData).progress)
+      expect(records).toHaveLength(1)
+      expect(acquisitionState(records[0])).toEqual({ state: 'known', value: acquired })
+      expect(records[0]).toMatchObject({ subject: instrument, stage: { state: 'notApplicable' }, unlocked: { state: 'notApplicable' }, partyMastery: { state: 'notApplicable' } })
+    }
+    expect(requirePlaythrough(localData).inventory).toBe(playthrough.inventory)
+    expect(requirePlaythrough(localData).characters).toBe(playthrough.characters)
+    expect(localData.builds).toBe(initial.builds)
+    expect(localData.gameSetups).toBe(initial.gameSetups)
+  })
+
+  it('preserves uncertain imports until explicitly confirmed and keeps their pinned subject', () => {
+    let localData = createTestLocalData()
+    const existingInstrument = { ...SUBJECT, entityId: asId<EntityId>('wiki:item:quintar-flute') }
+    const oldRef = { ...existingInstrument, catalogRevisionId: 'bundled-v1' as typeof instrument.catalogRevisionId }
+    for (const collection of [{ state: 'unknown' }, { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] }, { state: 'notApplicable' }] as const) {
+      localData = upsertProgress(localData, { subject: oldRef, displayName: 'Imported instrument', collection, observedAt: '2026-09-28', now: NOW })
+      const record = Object.values(requirePlaythrough(localData).progress)[0]!
+      expect(acquisitionState(record)).toEqual(collection)
+      localData = setAcquisitionProgress(localData, { subject: existingInstrument, displayName: 'Quintar Flute', acquired: false, expectedRevision: localData.revision, now: NOW })
+      const updated = Object.values(requirePlaythrough(localData).progress)[0]!
+      expect(updated.id).toBe(record.id)
+      expect(updated.subject).toEqual(oldRef)
+      expect(updated.observedAt).toBe('2026-09-28')
+      expect(updated.collection).toEqual({ state: 'known', value: false })
+    }
+  })
+
+  it('keeps acquisition observations scoped to the selected Playthrough and rejects stale writes', () => {
+    let localData = createTestLocalData()
+    localData = setAcquisitionProgress(localData, { subject: instrument, displayName: 'Ibek Bell', acquired: true, now: NOW })
+    const first = requirePlaythrough(localData)
+    expect(() => setAcquisitionProgress(localData, { subject: instrument, displayName: 'Ibek Bell', acquired: false, expectedRevision: localData.revision - 1 })).toThrow('LocalData revision does not match')
+    localData = createPlaythrough(localData, { label: 'Second save', select: true, now: NOW })
+    expect(Object.values(requirePlaythrough(localData).progress)).toHaveLength(0)
+    localData = setAcquisitionProgress(localData, { subject: instrument, displayName: 'Ibek Bell', acquired: false, now: NOW })
+    expect(localData.playthroughs[first.id]?.progress).toBe(first.progress)
+    expect(Object.values(requirePlaythrough(localData).progress)[0]?.collection).toEqual({ state: 'known', value: false })
   })
 })

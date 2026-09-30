@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPersonalDefinition, requirePlaythrough } from '../domain'
+import { createPersonalDefinition, requirePlaythrough, setAcquisitionProgress } from '../domain'
 import { TEAM_SIZE } from '../domain/scenarios'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
@@ -26,6 +27,20 @@ describe('local planner persistence', () => {
     vi.restoreAllMocks()
     setDatabaseForTests(undefined)
     await database.delete()
+  })
+
+  it('round-trips travel acquisitions through local persistence and native backups', async () => {
+    const loaded = await loadLocalData()
+    const entity = DEFAULT_CATALOG.entities['wiki:item:owl-drum']!
+    const subject = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id }
+    const changed = setAcquisitionProgress(loaded.localData, { subject, displayName: entity.name, acquired: true, expectedRevision: loaded.revision })
+    await saveLocalData(changed, loaded.revision)
+    const reloaded = await loadLocalData()
+    const record = Object.values(requirePlaythrough(reloaded.localData).progress).find(record => record.displayName === entity.name)!
+    expect(record.collection).toEqual({ state: 'known', value: true })
+    const preview = await previewImport(await exportBackup(), 'travel.zip')
+    expect(preview.proposed.localData.playthroughs).toEqual(reloaded.localData.playthroughs)
+    expect(preview.proposed.catalogs.some(catalog => catalog.revisionId === DEFAULT_CATALOG.revisionId && catalog.entities[entity.id]?.name === entity.name)).toBe(true)
   })
 
   it('initializes one planner root with a selected sample Playthrough', async () => {

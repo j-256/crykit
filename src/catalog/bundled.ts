@@ -2,10 +2,12 @@ import reviewed from './reviewed-catalogs.json' with { type: 'json' }
 import { STARTER_CATALOG } from './starter'
 import { validateReviewedCatalogBundle } from '../interchange/correction-promotion'
 import { sameCorrectionValue } from '../domain/corrections'
-import { assembleBundledCatalog } from './bundled-catalog'
+import { assembleBundledCatalog, assemblePreviousBundledCatalog } from './bundled-catalog'
 
 export const REVIEWED_CATALOG_BUNDLE = validateReviewedCatalogBundle(reviewed)
 const revisions = new Map([[JSON.stringify([STARTER_CATALOG.id, STARTER_CATALOG.revisionId]), STARTER_CATALOG]])
+const previous = assemblePreviousBundledCatalog(STARTER_CATALOG)
+revisions.set(JSON.stringify([previous.id, previous.revisionId]), previous)
 const enriched = assembleBundledCatalog(STARTER_CATALOG)
 revisions.set(JSON.stringify([enriched.id, enriched.revisionId]), enriched)
 for (const catalog of REVIEWED_CATALOG_BUNDLE.catalogs) {

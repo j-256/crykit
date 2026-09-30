@@ -18,6 +18,10 @@
       "commit": "24c7bed075d5f2a2778ba8e61fd1de3774545441",
       "repository": "https://github.com/Emerassi/CrystalProjectAPWorld"
     },
+    "reviewedIdentities": {
+      "file": "game-travel-identities.json",
+      "sha256": "f6c4c63cc3d069117cbb20a9237c412d6d438f759304d2e00c82694c7bafe064"
+    },
     "textureCount": 1180,
     "texturePacks": {
       "Actor": {
@@ -30491,6 +30495,673 @@
           }
         }
       ]
+    },
+    "0a6bf3b368c0d0c3f4cb2309db7dcad5a19b90afe1bef5704ef2957e511ab281": {
+      "file": "0a6bf3b368c0d0c3f4cb2309db7dcad5a19b90afe1bef5704ef2957e511ab281.png",
+      "sha256": "0a6bf3b368c0d0c3f4cb2309db7dcad5a19b90afe1bef5704ef2957e511ab281",
+      "size": 200,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 6,
+        "width": 22,
+        "height": 22
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 138,
+            "y": 138,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "84daa5045f485969306c66d37a32e872680c4df9156a52d53363d0bb70555f28": {
+      "file": "84daa5045f485969306c66d37a32e872680c4df9156a52d53363d0bb70555f28.png",
+      "sha256": "84daa5045f485969306c66d37a32e872680c4df9156a52d53363d0bb70555f28",
+      "size": 285,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 2,
+        "y": 4,
+        "width": 26,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 2,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "bddc5396c6e9492a76885b9926e90f6218e9257f5d980ed65f7e0829a6365b8a": {
+      "file": "bddc5396c6e9492a76885b9926e90f6218e9257f5d980ed65f7e0829a6365b8a.png",
+      "sha256": "bddc5396c6e9492a76885b9926e90f6218e9257f5d980ed65f7e0829a6365b8a",
+      "size": 262,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 4,
+        "y": 4,
+        "width": 24,
+        "height": 22
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 2,
+            "y": 138,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "5fd41d12a7c4d672d0c267dad38f2c6bfba4723d7699e582e754dea7171f4da9": {
+      "file": "5fd41d12a7c4d672d0c267dad38f2c6bfba4723d7699e582e754dea7171f4da9.png",
+      "sha256": "5fd41d12a7c4d672d0c267dad38f2c6bfba4723d7699e582e754dea7171f4da9",
+      "size": 251,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 4,
+        "y": 4,
+        "width": 22,
+        "height": 24
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 104,
+            "y": 138,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "04ee293fd7d220e2a8b593d6238c88b2d2d6d53454c13cea143c6a26763230dd": {
+      "file": "04ee293fd7d220e2a8b593d6238c88b2d2d6d53454c13cea143c6a26763230dd.png",
+      "sha256": "04ee293fd7d220e2a8b593d6238c88b2d2d6d53454c13cea143c6a26763230dd",
+      "size": 270,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 2,
+        "y": 2,
+        "width": 28,
+        "height": 28
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 104,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "652e3b6a08d46f8d51d2939e4fd9b18fda48d45b08af859823b3ccc529dcda38": {
+      "file": "652e3b6a08d46f8d51d2939e4fd9b18fda48d45b08af859823b3ccc529dcda38.png",
+      "sha256": "652e3b6a08d46f8d51d2939e4fd9b18fda48d45b08af859823b3ccc529dcda38",
+      "size": 290,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 32
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 36,
+            "y": 138,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "7a64a87f8907c3ffcc9e926075588503e73f2f1e2038fe75a9432b8547451b78": {
+      "file": "7a64a87f8907c3ffcc9e926075588503e73f2f1e2038fe75a9432b8547451b78.png",
+      "sha256": "7a64a87f8907c3ffcc9e926075588503e73f2f1e2038fe75a9432b8547451b78",
+      "size": 213,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 138,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "912a9acf84e529c316248b3172641c733e6c11aa502f261b702f66f0bb8eb107": {
+      "file": "912a9acf84e529c316248b3172641c733e6c11aa502f261b702f66f0bb8eb107.png",
+      "sha256": "912a9acf84e529c316248b3172641c733e6c11aa502f261b702f66f0bb8eb107",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 70,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "893f21d6c205b1575be905adb47a985bf0ea18245e8649247ef6a08b28851c5a": {
+      "file": "893f21d6c205b1575be905adb47a985bf0ea18245e8649247ef6a08b28851c5a.png",
+      "sha256": "893f21d6c205b1575be905adb47a985bf0ea18245e8649247ef6a08b28851c5a",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 36,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "edb71702f72f1c672cc38cdcea2ca02db36d13d15877eb7e872816bdaa62d932": {
+      "file": "edb71702f72f1c672cc38cdcea2ca02db36d13d15877eb7e872816bdaa62d932.png",
+      "sha256": "edb71702f72f1c672cc38cdcea2ca02db36d13d15877eb7e872816bdaa62d932",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 36,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "b04659e50ca6b40cd603a1b5490dd85f11a67023474667af347167ae47ffaa85": {
+      "file": "b04659e50ca6b40cd603a1b5490dd85f11a67023474667af347167ae47ffaa85.png",
+      "sha256": "b04659e50ca6b40cd603a1b5490dd85f11a67023474667af347167ae47ffaa85",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 104,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "ca05cde8faa17feb4b33c8689e02976a0be8b09fefc4e9c49d11b6b64207bdc4": {
+      "file": "ca05cde8faa17feb4b33c8689e02976a0be8b09fefc4e9c49d11b6b64207bdc4.png",
+      "sha256": "ca05cde8faa17feb4b33c8689e02976a0be8b09fefc4e9c49d11b6b64207bdc4",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 70,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "5b65d234f74fe4aefaea2bb589aad5d605cf915e504ef2b808ed2b76459590ff": {
+      "file": "5b65d234f74fe4aefaea2bb589aad5d605cf915e504ef2b808ed2b76459590ff.png",
+      "sha256": "5b65d234f74fe4aefaea2bb589aad5d605cf915e504ef2b808ed2b76459590ff",
+      "size": 212,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 2,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "b9226ed16da3395c010c63b4405c5e5a54ef4f02811818dbca7ba65e2a36cc02": {
+      "file": "b9226ed16da3395c010c63b4405c5e5a54ef4f02811818dbca7ba65e2a36cc02.png",
+      "sha256": "b9226ed16da3395c010c63b4405c5e5a54ef4f02811818dbca7ba65e2a36cc02",
+      "size": 215,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 104,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "0f7f408761cf8cfd8ebdf6045ca6302f85860901fcec3882e354bfd2be0fb591": {
+      "file": "0f7f408761cf8cfd8ebdf6045ca6302f85860901fcec3882e354bfd2be0fb591.png",
+      "sha256": "0f7f408761cf8cfd8ebdf6045ca6302f85860901fcec3882e354bfd2be0fb591",
+      "size": 213,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 172,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "86da9dd3dcb3ae087de3e5d3a72f16bbe8ef8d920905286d73c08ed93d58d9c7": {
+      "file": "86da9dd3dcb3ae087de3e5d3a72f16bbe8ef8d920905286d73c08ed93d58d9c7.png",
+      "sha256": "86da9dd3dcb3ae087de3e5d3a72f16bbe8ef8d920905286d73c08ed93d58d9c7",
+      "size": 213,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 206,
+            "y": 104,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "781a1d2d3e9380bc28a51459332f2d977a5c065880f8dd5dff8ac785aeba1333": {
+      "file": "781a1d2d3e9380bc28a51459332f2d977a5c065880f8dd5dff8ac785aeba1333.png",
+      "sha256": "781a1d2d3e9380bc28a51459332f2d977a5c065880f8dd5dff8ac785aeba1333",
+      "size": 192,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 2,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "c2e3598a259e6a88f2538c7d217efd1be3caa92598e839e566c687f0799a60d8": {
+      "file": "c2e3598a259e6a88f2538c7d217efd1be3caa92598e839e566c687f0799a60d8.png",
+      "sha256": "c2e3598a259e6a88f2538c7d217efd1be3caa92598e839e566c687f0799a60d8",
+      "size": 191,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 4,
+        "width": 20,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 138,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "acb6dff2a6df2d8a90cb8e1529f38a71766175b61345453d838dd1312d1246a3": {
+      "file": "acb6dff2a6df2d8a90cb8e1529f38a71766175b61345453d838dd1312d1246a3.png",
+      "sha256": "acb6dff2a6df2d8a90cb8e1529f38a71766175b61345453d838dd1312d1246a3",
+      "size": 216,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 4,
+        "y": 6,
+        "width": 22,
+        "height": 22
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemC",
+          "textureSha256": "e5c64bf2129397a3e8897347c835b0454e920a0d163680aaad09046cb2fd326a",
+          "region": {
+            "x": 70,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "9c04026e946b19f70254a885b2bf59dc25e9bd7eacd5ba2a194b1cf14effaa42": {
+      "file": "9c04026e946b19f70254a885b2bf59dc25e9bd7eacd5ba2a194b1cf14effaa42.png",
+      "sha256": "9c04026e946b19f70254a885b2bf59dc25e9bd7eacd5ba2a194b1cf14effaa42",
+      "size": 217,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 6,
+        "y": 6,
+        "width": 20,
+        "height": 20
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemB",
+          "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+          "region": {
+            "x": 2,
+            "y": 70,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "ba78c77a9615859eeda7910aa8a755efa56ae431ec077bf52d9b5a18bad67e51": {
+      "file": "ba78c77a9615859eeda7910aa8a755efa56ae431ec077bf52d9b5a18bad67e51.png",
+      "sha256": "ba78c77a9615859eeda7910aa8a755efa56ae431ec077bf52d9b5a18bad67e51",
+      "size": 319,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 2,
+        "y": 0,
+        "width": 30,
+        "height": 32
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 138,
+            "y": 172,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "f6ff5b3992bf5dd016f78b3cd63feb8c5c837c8885caaf9af167a0428d3240a4": {
+      "file": "f6ff5b3992bf5dd016f78b3cd63feb8c5c837c8885caaf9af167a0428d3240a4.png",
+      "sha256": "f6ff5b3992bf5dd016f78b3cd63feb8c5c837c8885caaf9af167a0428d3240a4",
+      "size": 288,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 0,
+        "y": 2,
+        "width": 32,
+        "height": 28
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 206,
+            "y": 70,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
+    },
+    "2ebc53be7211d136f851c89f231b58b0276c9e50bc99250cad506b2e5603f8fa": {
+      "file": "2ebc53be7211d136f851c89f231b58b0276c9e50bc99250cad506b2e5603f8fa.png",
+      "sha256": "2ebc53be7211d136f851c89f231b58b0276c9e50bc99250cad506b2e5603f8fa",
+      "size": 241,
+      "width": 32,
+      "height": 32,
+      "contentBounds": {
+        "x": 2,
+        "y": 2,
+        "width": 30,
+        "height": 26
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "32x32 indexed game icon cell"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "Icon/ItemA",
+          "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+          "region": {
+            "x": 36,
+            "y": 206,
+            "width": 32,
+            "height": 32
+          }
+        }
+      ]
     }
   },
   "entities": {
@@ -52281,6 +52952,726 @@
               "y": 7,
               "width": 15,
               "height": 15
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:quintar-flute": {
+      "kind": "item",
+      "name": "Quintar Flute",
+      "asset": "0a6bf3b368c0d0c3f4cb2309db7dcad5a19b90afe1bef5704ef2957e511ab281",
+      "database": {
+        "name": "item",
+        "id": 39,
+        "recordName": "Quintar Flute"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 39"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 138,
+              "y": 138,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:quintar-ocarina": {
+      "kind": "item",
+      "name": "Quintar Ocarina",
+      "asset": "84daa5045f485969306c66d37a32e872680c4df9156a52d53363d0bb70555f28",
+      "database": {
+        "name": "item",
+        "id": 115,
+        "recordName": "Quintar Ocarina"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 115"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 2,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:ibek-bell": {
+      "kind": "item",
+      "name": "Ibek Bell",
+      "asset": "bddc5396c6e9492a76885b9926e90f6218e9257f5d980ed65f7e0829a6365b8a",
+      "database": {
+        "name": "item",
+        "id": 50,
+        "recordName": "Ibek Bell"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 50"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 2,
+              "y": 138,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:owl-drum": {
+      "kind": "item",
+      "name": "Owl Drum",
+      "asset": "5fd41d12a7c4d672d0c267dad38f2c6bfba4723d7699e582e754dea7171f4da9",
+      "database": {
+        "name": "item",
+        "id": 49,
+        "recordName": "Owl Drum"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 49"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 104,
+              "y": 138,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:salmon-violin": {
+      "kind": "item",
+      "name": "Salmon Violin",
+      "asset": "04ee293fd7d220e2a8b593d6238c88b2d2d6d53454c13cea143c6a26763230dd",
+      "database": {
+        "name": "item",
+        "id": 48,
+        "recordName": "Salmon Violin"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 48"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 104,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:salmon-cello": {
+      "kind": "item",
+      "name": "Salmon Cello",
+      "asset": "652e3b6a08d46f8d51d2939e4fd9b18fda48d45b08af859823b3ccc529dcda38",
+      "database": {
+        "name": "item",
+        "id": 114,
+        "recordName": "Salmon Cello"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 114"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 36,
+              "y": 138,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:gaea-stone": {
+      "kind": "item",
+      "name": "Gaea Stone",
+      "asset": "7a64a87f8907c3ffcc9e926075588503e73f2f1e2038fe75a9432b8547451b78",
+      "database": {
+        "name": "item",
+        "id": 23,
+        "recordName": "Gaea Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 23"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 138,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:mercury-stone": {
+      "kind": "item",
+      "name": "Mercury Stone",
+      "asset": "912a9acf84e529c316248b3172641c733e6c11aa502f261b702f66f0bb8eb107",
+      "database": {
+        "name": "item",
+        "id": 13,
+        "recordName": "Mercury Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 13"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 70,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:poseidon-stone": {
+      "kind": "item",
+      "name": "Poseidon Stone",
+      "asset": "893f21d6c205b1575be905adb47a985bf0ea18245e8649247ef6a08b28851c5a",
+      "database": {
+        "name": "item",
+        "id": 57,
+        "recordName": "Poseidon Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 57"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 36,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:mars-stone": {
+      "kind": "item",
+      "name": "Mars Stone",
+      "asset": "edb71702f72f1c672cc38cdcea2ca02db36d13d15877eb7e872816bdaa62d932",
+      "database": {
+        "name": "item",
+        "id": 59,
+        "recordName": "Mars Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 59"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 36,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:ganymede-stone": {
+      "kind": "item",
+      "name": "Ganymede Stone",
+      "asset": "b04659e50ca6b40cd603a1b5490dd85f11a67023474667af347167ae47ffaa85",
+      "database": {
+        "name": "item",
+        "id": 65,
+        "recordName": "Ganymede Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 65"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 104,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:triton-stone": {
+      "kind": "item",
+      "name": "Triton Stone",
+      "asset": "ca05cde8faa17feb4b33c8689e02976a0be8b09fefc4e9c49d11b6b64207bdc4",
+      "database": {
+        "name": "item",
+        "id": 66,
+        "recordName": "Triton Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 66"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 70,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:callisto-stone": {
+      "kind": "item",
+      "name": "Callisto Stone",
+      "asset": "5b65d234f74fe4aefaea2bb589aad5d605cf915e504ef2b808ed2b76459590ff",
+      "database": {
+        "name": "item",
+        "id": 155,
+        "recordName": "Callisto Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 155"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 2,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:europa-stone": {
+      "kind": "item",
+      "name": "Europa Stone",
+      "asset": "b9226ed16da3395c010c63b4405c5e5a54ef4f02811818dbca7ba65e2a36cc02",
+      "database": {
+        "name": "item",
+        "id": 64,
+        "recordName": "Europa Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 64"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 104,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:dione-stone": {
+      "kind": "item",
+      "name": "Dione Stone",
+      "asset": "0f7f408761cf8cfd8ebdf6045ca6302f85860901fcec3882e354bfd2be0fb591",
+      "database": {
+        "name": "item",
+        "id": 166,
+        "recordName": "Dione Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 166"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 172,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:neptune-stone": {
+      "kind": "item",
+      "name": "Neptune Stone",
+      "asset": "86da9dd3dcb3ae087de3e5d3a72f16bbe8ef8d920905286d73c08ed93d58d9c7",
+      "database": {
+        "name": "item",
+        "id": 208,
+        "recordName": "Neptune Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 208"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 206,
+              "y": 104,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:new-world-stone": {
+      "kind": "item",
+      "name": "New World Stone",
+      "asset": "781a1d2d3e9380bc28a51459332f2d977a5c065880f8dd5dff8ac785aeba1333",
+      "database": {
+        "name": "item",
+        "id": 140,
+        "recordName": "New World Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 140"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 2,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:old-world-stone": {
+      "kind": "item",
+      "name": "Old World Stone",
+      "asset": "c2e3598a259e6a88f2538c7d217efd1be3caa92598e839e566c687f0799a60d8",
+      "database": {
+        "name": "item",
+        "id": 253,
+        "recordName": "Old World Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 253"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 138,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:treasure-finder": {
+      "kind": "item",
+      "name": "Treasure Finder",
+      "asset": "acb6dff2a6df2d8a90cb8e1529f38a71766175b61345453d838dd1312d1246a3",
+      "database": {
+        "name": "item",
+        "id": 196,
+        "recordName": "Treasure Finder"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 196"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemC",
+            "textureSha256": "e5c64bf2129397a3e8897347c835b0454e920a0d163680aaad09046cb2fd326a",
+            "region": {
+              "x": 70,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:home-point-stone": {
+      "kind": "item",
+      "name": "Home Point Stone",
+      "asset": "9c04026e946b19f70254a885b2bf59dc25e9bd7eacd5ba2a194b1cf14effaa42",
+      "database": {
+        "name": "item",
+        "id": 19,
+        "recordName": "Home Point Stone"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 19"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemB",
+            "textureSha256": "7fe1bcfd87ffcda3a9ba661c6731f15705df737d211db80a83732c26f96b13b3",
+            "region": {
+              "x": 2,
+              "y": 70,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:babel-quintar": {
+      "kind": "item",
+      "name": "Babel Quintar",
+      "asset": "ba78c77a9615859eeda7910aa8a755efa56ae431ec077bf52d9b5a18bad67e51",
+      "database": {
+        "name": "item",
+        "id": 167,
+        "recordName": "Babel Quintar"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 167"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 138,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:skeleton-key": {
+      "kind": "item",
+      "name": "Skeleton Key",
+      "asset": "f6ff5b3992bf5dd016f78b3cd63feb8c5c837c8885caaf9af167a0428d3240a4",
+      "database": {
+        "name": "item",
+        "id": 147,
+        "recordName": "Skeleton Key"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 147"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 206,
+              "y": 70,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:luxury-pass": {
+      "kind": "item",
+      "name": "Luxury Pass",
+      "asset": "fd09143e8ce983ae3713e9726c2131202f8c4a6db4884163096c8f14797ea6c8",
+      "database": {
+        "name": "item",
+        "id": 93,
+        "recordName": "Luxury Pass"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 93"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemC",
+            "textureSha256": "e5c64bf2129397a3e8897347c835b0454e920a0d163680aaad09046cb2fd326a",
+            "region": {
+              "x": 206,
+              "y": 172,
+              "width": 32,
+              "height": 32
+            }
+          }
+        ]
+      }
+    },
+    "wiki:item:watering-can": {
+      "kind": "item",
+      "name": "Watering Can",
+      "asset": "2ebc53be7211d136f851c89f231b58b0276c9e50bc99250cad506b2e5603f8fa",
+      "database": {
+        "name": "item",
+        "id": 186,
+        "recordName": "Watering Can"
+      },
+      "identity": {
+        "sourceKey": "reviewed-native-item",
+        "databaseSha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "locator": "Database/item.dat record 186"
+      },
+      "rendering": {
+        "extraction": "32x32 indexed game icon cell",
+        "sourceTextures": [
+          {
+            "texturePath": "Icon/ItemA",
+            "textureSha256": "772b6c07b851b7c334139bc10e9fdea1223712761f1aa95ae31ab910ef196720",
+            "region": {
+              "x": 36,
+              "y": 206,
+              "width": 32,
+              "height": 32
             }
           }
         ]

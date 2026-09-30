@@ -34,7 +34,7 @@ interface GameArtworkBinding {
   readonly name: string
   readonly asset: string
   readonly database: { readonly name: string; readonly id: number; readonly recordName: string }
-  readonly identity: { readonly upstreamName: string; readonly upstreamCode: number; readonly url: string; readonly locator: string }
+  readonly identity: { readonly sourceKey: string; readonly locator: string; readonly upstreamName?: string; readonly upstreamCode?: number; readonly url?: string; readonly databaseSha256?: string }
   readonly rendering: {
     readonly extraction: string
     readonly sourceTextures: readonly { readonly field?: string; readonly texturePath: string; readonly region: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } }[]
