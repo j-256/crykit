@@ -52,17 +52,19 @@ const findings = []
 const reviewedBinaryAssets = new Map([
   ['src/assets/fonts/pixel-operator.woff2', 'fc5d6a2ee3d73d978200269354e681862e1436c3edd42235f28b87e9ca0b8afe'],
 ])
-const spriteDirectory = 'src/assets/wiki-sprites/'
-const spriteManifestPath = 'src/catalog/wiki-sprites.json'
 const gameAssetDirectory = 'src/assets/game-assets/'
 const gameAssetManifestPath = 'src/catalog/game-assets.json'
-try {
-  const manifest = JSON.parse((options.staged ? git(['show', `:${spriteManifestPath}`]) : readFileSync(spriteManifestPath)).toString('utf8'))
+const spriteSources = [
+  { directory: 'src/assets/wiki-sprites/', manifestPath: 'src/catalog/wiki-sprites.json', label: 'Wiki sprite manifest' },
+  { directory: 'src/assets/mod-sprites/', manifestPath: 'src/catalog/mod-sprites.json', label: 'Mod sprite manifest' },
+]
+for (const source of spriteSources) try {
+  const manifest = JSON.parse((options.staged ? git(['show', `:${source.manifestPath}`]) : readFileSync(source.manifestPath)).toString('utf8'))
   for (const asset of Object.values(manifest.assets)) {
     if (!/^[a-f0-9]{64}\.(?:png|gif|webp)$/.test(asset.file) || !/^[a-f0-9]{64}$/.test(asset.sha256)) throw new Error('Invalid sprite manifest entry')
-    reviewedBinaryAssets.set(`${spriteDirectory}${asset.file}`, asset.sha256)
+    reviewedBinaryAssets.set(`${source.directory}${asset.file}`, asset.sha256)
   }
-} catch { findings.push('Wiki sprite manifest: unable to read reviewed asset hashes') }
+} catch { findings.push(`${source.label}: unable to read reviewed asset hashes`) }
 try {
   const manifest = JSON.parse((options.staged ? git(['show', `:${gameAssetManifestPath}`]) : readFileSync(gameAssetManifestPath)).toString('utf8'))
   for (const asset of Object.values(manifest.assets)) {
@@ -73,9 +75,10 @@ try {
 for (const file of new Set(files)) {
   if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact`)
   if (file.startsWith('.github/workflows/') && !reviewedWorkflows.has(file)) findings.push(`${file}: unreviewed CI workflow`)
-  if (file.startsWith(spriteDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
+  const spriteDirectory = spriteSources.some(source => file.startsWith(source.directory))
+  if (spriteDirectory && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
   if (file.startsWith(gameAssetDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native game artwork is absent from the reviewed manifest`)
-  if (!file.startsWith(spriteDirectory) && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
+  if (!spriteDirectory && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }
   catch { findings.push(`${file}: unable to inspect contents`); continue }

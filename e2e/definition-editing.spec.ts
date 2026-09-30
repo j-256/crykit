@@ -80,7 +80,7 @@ test('keeps validation and close recovery beside the fixed save controls', async
 })
 
 test('keeps class research available and uses the exact personal class for growth', async ({ page }) => {
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aclass%3Awarrior')
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aclass%3Awarrior')
   const editor = await edit(page, true)
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
   await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()

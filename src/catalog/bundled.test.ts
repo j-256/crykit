@@ -4,8 +4,8 @@ import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crys
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum, verifyReviewedCatalogChecksums } from '../interchange/correction-promotion'
 import { sha256 } from '../interchange/util'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
-import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID } from './bundled-catalog'
+import { BUNDLED_CATALOGS, BUNDLED_V1_CATALOG, DEFAULT_CATALOG, REVIEWED_CATALOG_BUNDLE } from './bundled'
+import { BUNDLED_CATALOG_CHECKSUM, BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_CHECKSUM } from './bundled-catalog'
 import { projectSourceSemantics } from './source-semantics'
 import { STARTER_CATALOG } from './starter'
 import { CONFIRMED_SKILL_MAPS, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
@@ -17,10 +17,20 @@ describe('bundled catalog assembly', () => {
     await expect(verifyReviewedCatalogChecksums(REVIEWED_CATALOG_BUNDLE)).resolves.toBeUndefined()
   })
 
+  it('retains the exact bundled-v1 revision for persisted references without adding newer mod evidence', async () => {
+    expect(BUNDLED_CATALOGS).toContainEqual(BUNDLED_V1_CATALOG)
+    const { checksum: _checksum, ...content } = BUNDLED_V1_CATALOG
+    expect(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`).toBe(BUNDLED_V1_CATALOG_CHECKSUM)
+    expect(BUNDLED_V1_CATALOG.entities['equipment-expansion:item:0-fool']).toBeUndefined()
+    expect(BUNDLED_V1_CATALOG.entities['equipment-expansion:item:tarot-accessories']).toBeDefined()
+    expect(BUNDLED_V1_CATALOG.entities['base:warrior:innate:fighter']?.fields['Learnable Innate Skill v1.0 JP cost']).toBeUndefined()
+  })
+
   it('combines source facts in an immutable revision while keeping prior snapshots', async () => {
     expect(DEFAULT_CATALOG.revisionId).toBe(BUNDLED_CATALOG_REVISION_ID)
     expect(DEFAULT_CATALOG.revisionId).not.toBe(STARTER_CATALOG.revisionId)
-    expect(NativeCatalogSnapshotSchema.safeParse(DEFAULT_CATALOG).success).toBe(true)
+    const parsed = NativeCatalogSnapshotSchema.safeParse(DEFAULT_CATALOG)
+    expect(parsed.success, parsed.success ? undefined : JSON.stringify(parsed.error.issues, null, 2)).toBe(true)
     const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
     expect(growthRatings(warrior)).toMatchObject({ HP: 80, STR: 80, MND: 10 })
     expect(warrior.fields.Weapons).toEqual(STARTER_CATALOG.entities[warrior.id]!.fields.Weapons)
@@ -47,9 +57,11 @@ describe('bundled catalog assembly', () => {
 
   it('keeps confirmed Switch mappings available in the assembled revision', () => {
     const map = CONFIRMED_SKILL_MAPS[0]!
-    const result = suggestSkillTreeMap(createBlankLocalData(), BUNDLED_CATALOGS, { ...map.classRef, catalogRevisionId: DEFAULT_CATALOG.revisionId }, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
-    expect(result.confirmedMap).toBe(map)
-    expect(result.mappings).toEqual(map.mappings)
-    expect(result.mappings.some(mapping => mapping.kind === 'innate')).toBe(true)
+    for (const catalog of [BUNDLED_V1_CATALOG, DEFAULT_CATALOG]) {
+      const result = suggestSkillTreeMap(createBlankLocalData(), BUNDLED_CATALOGS, { ...map.classRef, catalogRevisionId: catalog.revisionId }, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
+      expect(result.confirmedMap).toBe(map)
+      expect(result.mappings).toEqual(map.mappings)
+      expect(result.mappings.some(mapping => mapping.kind === 'innate')).toBe(true)
+    }
   })
 })

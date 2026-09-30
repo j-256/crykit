@@ -8,6 +8,25 @@ The source export contains references to abilities and passives without their de
 
 Equipment enum meanings and the column-first tree format are documented in the [CrystalProjector job schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/job.yaml). Gate cells and prerequisite directions are retained. Empty arrays differ from omitted fields; explicit zero ratings remain zero.
 
+## Bundled mod evidence
+
+The bundled Equipment Expansion snapshot comes from a versioned Crystal Edit project export. It supplies exact equipment, ability, status, recipe, item, and monster records. Equipment details include type, handedness, capacity, price, level, texture reference, and every original StatMod value. Modifier names follow Crystal Edit's enum. Direct flat and additive stat modifiers participate in build estimates; conditional, per-level, per-turn, status, reaction, damage, cost, and other complex modifiers remain listed as excluded effects unless the planner has a separately verified rule. The [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) documents texture and equipment fields, while the community modding guide describes modifier behavior.
+
+The supplied custom texture sheets and the base game's `Content/Textures/Equipment.dat` archive are normalized into exact 34-pixel cells using Crystal Edit's seven-column indexing. Custom texture references resolve against the mod folder; reused base-game references resolve against the named, length-prefixed PNG entries in the local archive. The bundled cells remain copyrighted third-party artwork and are not covered by this project's license.
+
+Learnable Innate Skills evidence comes from a version 1.0 export dated 2023-06-04. It records each learnable innate's class, tree position, PP cost, and JP unlock cost. That export may be older than the Workshop or Nintendo Switch version. Its values are displayed under fields labeled `Learnable Innate Skill v1.0`; uniform JP values are historical evidence, not confirmation of current unlock costs. Newer in-game Switch PP and availability observations retain precedence when they overlap, and the dated class placements do not replace the vanilla class baseline or confirmed Switch skill maps. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) documents the PP and learnable flags. Neither source establishes that a character has learned an innate.
+
+Maintainers can regenerate these normalized files without committing private source paths:
+
+```sh
+npm run mods:update -- --equipment-json PATH --equipment-assets DIR --base-equipment-archive PATH --learnable-innates-json PATH
+npm run mods:check
+```
+
+The check mode validates committed records, source digests, exact sprite hashes, image dimensions, and the absence of private machine paths without requiring the original project files.
+
+The earlier `wiki-v1` and `bundled-v1` catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`.
+
 ## Importing custom classes and class edits
 
 Open **Data & settings > Import & backup**, choose a Crystal Edit project JSON file such as `mod.json`, and review the preview. **Add references** adds the catalog to the shared reference library without replacing Playthroughs, Builds, or Game Setups. Repeating the same import leaves the planner-data revision unchanged. The addition can be undone, and complete backups retain the catalog and original source bytes.
@@ -48,4 +67,4 @@ The guide's stat and ability modifier glossaries are bundled as searchable **Mec
 
 The reference entry **Growth estimates and damage formula research** records unresolved damage details. The guide reverses variance and critical-hit order between its prose and its final pipeline, and its defense denominator differs from the [developer's published explanation](https://steamcommunity.com/app/1637730/discussions/0/676199918678875437/). These local uncertainties limit damage simulation; they do not prevent using independently supported class data or growth estimates.
 
-The original guide, embedded images, and original class-copy project are not committed. Bundled normalized facts and glossary text retain their source attribution. Their content rights are separate from the application's code license; no redistribution license is established by possession of a source file. Custom project archives stay in local browser storage and backups. The application makes no runtime game-data requests.
+The original guide, embedded images, original class-copy project, and original mod project exports are not committed. Bundled normalized facts and glossary text retain their source attribution. Their content rights are separate from the application's code license; no redistribution license is established by possession of a source file. Custom project archives stay in local browser storage and backups. The application makes no runtime game-data requests.

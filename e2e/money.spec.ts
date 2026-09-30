@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-const referencePath = (entityId: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/${encodeURIComponent(entityId)}`
+const referencePath = (entityId: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/${encodeURIComponent(entityId)}`
 
 function costRow(page: Page) {
   return page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost$/ }) })

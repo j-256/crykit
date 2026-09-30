@@ -130,7 +130,7 @@ describe('supported build calculations', () => {
     expect(statContributions({ ...passive, fields: { Description: known('Crit. Chance +20%.') } }).contributions).toMatchObject([{ stat: 'CRIT', kind: 'flat', value: 20 }])
     const native = statContributions({ ...passive, fields: { 'Crystal Edit source record': known({ StatMods: [{ Tag: 999, Value1: 50 }] }) } })
     expect(native.contributions).toEqual([])
-    expect(native.excluded[0]).toContain('not mapped')
+    expect(native.excluded[0]).toContain('not applied')
     expect(passivePointCost({ ...passive, fields: { 'Crystal Edit source record': known({ PP: 0 }) } })).toMatchObject({ state: 'known', value: 0 })
   })
 

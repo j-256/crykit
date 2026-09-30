@@ -36,7 +36,7 @@ Physical hit chance uses the guide's supplied accuracy/evasion steps. Unspecifie
 
 ## Remaining limits
 
-The contribution list and exclusion list describe the scope of each estimate. Unknown numeric Crystal Edit StatMod tags, conditional triggers, reactions, status timing, damage multipliers, cost modifiers, and custom battle settings require more source data or verified rules. Selecting an active status preserves that assumption but does not simulate its lifecycle. Selecting an ability does not establish that the character has learned it or that the build can use it.
+The contribution list and exclusion list describe the scope of each estimate. Direct flat and additive Crystal Edit StatMods use their documented stat values. Conditional triggers, per-level or per-turn changes, reactions, status timing, damage multipliers, cost modifiers, and custom battle settings require more source data or verified rules and remain listed without being simulated. Selecting an active status preserves that assumption but does not simulate its lifecycle. Selecting an ability does not establish that the character has learned it or that the build can use it.
 
 Final enemy damage is not predicted: the guide and a developer explanation disagree on defense reduction, and the class exports do not include enemy definitions. Full enemy behavior, drops, encounters, project configuration, and mod-specific effects need their corresponding data. These gaps do not block the supported equipment checks, growth calculations, or coefficient previews.
 
