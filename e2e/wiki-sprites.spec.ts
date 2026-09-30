@@ -12,15 +12,13 @@ async function expectArtwork(page: Page, name: string, source: 'game' | 'wiki' =
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-test('native artwork and wiki fallbacks retain provenance and remain available after offline preparation', async ({ page, context }) => {
+test('native artwork stays quiet and wiki fallbacks retain attribution offline', async ({ page, context }) => {
   const external: string[] = []
   page.on('request', request => { if (!new URL(request.url()).hostname.match(/^(127\.0\.0\.1|localhost)$/)) external.push(request.url()) })
   await page.goto(WARRIOR)
   await expectArtwork(page, 'Warrior')
-  await page.getByText('Artwork source', { exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Job - Warrior', exact: true })).toHaveAttribute('href', /CrystalProjectAPWorld\/blob\/[0-9a-f]{40}\/worlds\/crystal_project\/items\.py#L\d+$/)
-  await expect(page.locator('.wiki-sprite-source')).toContainText('job.dat record 0 · Warrior')
-  await expect(page.locator('.wiki-sprite-source')).toContainText('Copyrighted Crystal Project game artwork')
+  await expect(page.getByText('Artwork source', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/fingerprint|job\.dat record/)).toHaveCount(0)
 
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })

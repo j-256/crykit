@@ -3,12 +3,13 @@ import type { CatalogClaim, CatalogEntity, Knowledge, PersonalDefinition, Source
 import { Badge, InlineNotice } from './components'
 import { KnowledgeValue, SourceReferences, SourceSummary } from './KnowledgeValue'
 import { knowledgeTone } from './model'
+import { definitionFactLabel, visibleSources } from './source-display'
 
 export function DefinitionFactsPanel({ facts, primarySourceId, renderValue, children }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; primarySourceId?: string; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode }) {
   return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list">{facts.map(([field, value]) => {
-    const sources = value.state === 'known' ? value.sources?.filter(source => source.sourceId !== primarySourceId) ?? [] : []
-    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>{primarySourceId ? 'Supplemental source' : 'Sources'}</summary><SourceReferences sources={sources}/></details>}</>
-    return <div className={`definition-row${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{field}</dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
+    const sources = value.state === 'known' ? visibleSources(value.sources?.filter(source => source.sourceId !== primarySourceId) ?? []) : []
+    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences sources={sources}/></details>}</>
+    return <div className={`definition-row${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{definitionFactLabel(field)}</dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
   })}</dl> : <InlineNotice title="No definition facts">Unrecorded facts remain unknown. Add a fact in the definition editor.</InlineNotice>}{children}</div></section>
 }
 
@@ -21,10 +22,12 @@ export function DefinitionPlanningPanel({ definition }: { definition: CatalogEnt
 }
 
 export function DefinitionSourcesPanel({ sources, collapsed = false, children }: { sources: readonly SourceRef[]; collapsed?: boolean; children?: ReactNode }) {
-  const content = <>{sources.length ? sources.map((source, index) => <div className="source-claim" key={`${source.sourceId}:${source.locator ?? ''}:${index}`}><span className="source-claim__line"/><SourceSummary source={source}/></div>) : <InlineNotice title="No recorded sources">Source and applicability have not been recorded.</InlineNotice>}{children}</>
+  const displayed = visibleSources(sources)
+  if (sources.length > 0 && displayed.length === 0 && !children) return null
+  const content = <>{displayed.length ? displayed.map((source, index) => <div className="source-claim" key={`${source.sourceId}:${source.locator ?? ''}:${index}`}><span className="source-claim__line"/><SourceSummary source={source}/></div>) : sources.length === 0 ? <InlineNotice title="No recorded sources">Source and applicability have not been recorded.</InlineNotice> : null}{children}</>
   return <section className="panel" aria-label="Source trail">{collapsed ? <details className="panel__body"><summary>Source and version details</summary>{content}</details> : <><div className="panel__header"><h3>Source trail</h3></div><div className="panel__body">{content}</div></>}</section>
 }
 
 export function DefinitionClaimsPanel({ claims }: { claims: readonly CatalogClaim[] }) {
-  return <section className="panel" aria-label="Imported claims"><div className="panel__header"><div><h3>Imported claims</h3><p>Original auxiliary facts from the source definition</p></div></div><div className="panel__body">{claims.length ? claims.map((claim, index) => <div className="source-claim" key={`${claim.field}:${index}`}><span className="source-claim__line"/><div><strong>{claim.field}</strong><KnowledgeValue field={claim.field} value={claim.value}/>{claim.sources.map((source, index) => <SourceSummary key={index} source={source}/>)}</div></div>) : <InlineNotice title="No separate claims">No auxiliary claims were imported. Field-level claims appear with their values above.</InlineNotice>}</div></section>
+  return <section className="panel" aria-label="Imported claims"><div className="panel__header"><div><h3>Imported claims</h3><p>Original auxiliary facts from the source definition</p></div></div><div className="panel__body">{claims.length ? claims.map((claim, index) => <div className="source-claim" key={`${claim.field}:${index}`}><span className="source-claim__line"/><div><strong>{claim.field}</strong><KnowledgeValue field={claim.field} value={claim.value}/><SourceReferences sources={claim.sources}/></div></div>) : <InlineNotice title="No separate claims">No auxiliary claims were imported. Field-level claims appear with their values above.</InlineNotice>}</div></section>
 }
