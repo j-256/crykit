@@ -79,6 +79,7 @@ test('tracks mount instruments, shrine stones, and capability items independentl
   await expect(page.getByRole('region', { name: 'Travel and unlock totals' })).toContainText('3 /')
   await page.getByRole('checkbox', { name: 'Ibek Bell: acquired', exact: true }).uncheck()
   await expect(page.getByRole('checkbox', { name: 'Ibek Bell: acquired', exact: true })).toBeEnabled()
+  await expect(page.locator('.unlock-tile[aria-busy="true"]')).toHaveCount(0)
   await page.reload()
   await expect(page.getByRole('checkbox', { name: 'Ibek Bell: acquired', exact: true })).not.toBeChecked()
   await expect(page.getByRole('checkbox', { name: 'Gaea Stone: acquired', exact: true })).toBeChecked()

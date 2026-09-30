@@ -92,6 +92,10 @@ The inventory form starts with focus on the item picker and uses the selected it
 
 Inventory records what you have observed about your current stock. A historical acquisition is kept separately from current stock. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+### Track travel and capability unlocks
+
+Open **Progress > Travel & unlocks** to mark mount instruments, reusable shrine stones, and capability items acquired or not acquired for the selected Playthrough. Each tile shows a game icon and links to its attributed location and requirements in Reference. Search and filter the checklist to review what remains. Imported values that are unknown or conflicting stay unconfirmed until you choose a state. These marks save automatically and remain separate from inventory quantities and character learning.
+
 ### Follow the Golden Quintar guide
 
 Open **Progress > Quintar breeding** for an ordered guide through nursery access, wild eggs, both breeding branches, and the Golden Quintar. Unmarked tiles have gray symbols; clicking a tile marks it complete and restores its color. Click again to undo. Instructions stay visible, and **Go to next step** takes you to the first unmarked tile. **Class seals** returns to the mastery board.
