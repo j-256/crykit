@@ -22,8 +22,9 @@ function fact(page: Page, name: string) {
 
 test('uses matching detail sections and typed editors for catalog and personal definitions', async ({ page }) => {
   await page.goto(RAPIER)
-  const sections = ['Definition facts', 'Source trail', 'Planning fields', 'Imported claims']
+  const sections = ['Definition facts', 'Source trail', 'Planning fields']
   for (const name of sections) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Imported claims', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Planning fields', exact: true }).locator('.badge').getByText('known', { exact: true })).toHaveCount(0)
   const artwork = await page.locator('.reference-title img').getAttribute('src')
   const catalog = await edit(page)
@@ -40,6 +41,8 @@ test('uses matching detail sections and typed editors for catalog and personal d
   await expect(personal).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic edited rapier', exact: true })).toBeVisible()
   for (const name of sections) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Imported claims', exact: true })).not.toBeVisible()
+  await expect(page.locator('summary').filter({ hasText: /^Supplemental claims$/ })).toHaveCount(0)
   await expect(page.locator('.reference-title img')).toHaveAttribute('src', artwork!)
   await expect(fact(page, 'Attack')).toContainText('123')
   await expect(fact(page, 'Location')).toContainText('2 differing source values')

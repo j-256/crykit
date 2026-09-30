@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -153,7 +154,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   const storage = await dataPanel(page)
   await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(storage.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(storage)
   await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

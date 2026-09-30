@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPersonalDefinition, requirePlaythrough, setAcquisitionProgress } from '../domain'
 import { BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
+import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { TEAM_SIZE } from '../domain/scenarios'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
 import {
@@ -10,6 +11,7 @@ import {
   exportBackup,
   loadLocalData,
   previewImport,
+  prepareModCatalogs,
   saveLocalData,
   saveLocalDataWithStatus,
   undoLocalDataWithStatus,
@@ -52,6 +54,36 @@ describe('local planner persistence', () => {
     expect(Object.keys(playthrough.inventory).length).toBeGreaterThan(0)
     expect(loaded.canUndo).toBe(false)
     expect(await database.localDatas.count()).toBe(1)
+  })
+
+  it('keeps catalog inputs stable across planner changes without new mod compositions', async () => {
+    const loaded = await loadLocalData()
+    const changed = createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Synthetic stable catalog fixture', expectedRevision: loaded.revision })
+
+    expect(await prepareModCatalogs(changed, loaded.catalogs)).toBe(loaded.catalogs)
+    const saved = await saveLocalData(changed, loaded.revision)
+    expect(await prepareModCatalogs(saved, loaded.catalogs)).toBe(loaded.catalogs)
+  })
+
+  it('reuses only frozen catalog shapes and checks new snapshots and references on every save', async () => {
+    const loaded = await loadLocalData()
+    const catalog = loaded.catalogs[0]!
+    const entity = Object.values(catalog.entities)[0]!
+    const parse = vi.spyOn(NativeCatalogSnapshotSchema, 'safeParse')
+
+    expect(Object.isFrozen(catalog)).toBe(true)
+    expect(Object.isFrozen(entity.fields)).toBe(true)
+    expect(Reflect.set(entity, 'name', 'Synthetic mutation')).toBe(false)
+    validateLocalDataForStorage(loaded.localData, loaded.catalogs)
+    validateLocalDataForStorage(loaded.localData, loaded.catalogs)
+    expect(parse).not.toHaveBeenCalled()
+
+    const invalidCatalog = { ...catalog, entities: { ...catalog.entities, [entity.id]: { ...entity, name: 0 as unknown as string } } }
+    expect(() => validateLocalDataForStorage(loaded.localData, [invalidCatalog, ...loaded.catalogs.slice(1)])).toThrow('unsupported shape')
+    expect(parse).toHaveBeenCalledWith(invalidCatalog)
+
+    const invalidData = { ...loaded.localData, planningGameSetupRevisionId: 'gameSetup:missing' as typeof loaded.localData.planningGameSetupRevisionId }
+    expect(() => validateLocalDataForStorage(invalidData, loaded.catalogs)).toThrow()
   })
 
   it('uses the same planner root for concurrent first loads', async () => {

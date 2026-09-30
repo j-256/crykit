@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -125,11 +126,11 @@ test('mod settings control search and choices while sheets retain recorded conte
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
   if (!await referenceSearch.isVisible()) await page.getByRole('button', { name: /Refine|Filters/ }).click()
   await referenceSearch.fill('Doge Shield')
-  await expect(page.locator('button.reference-card')).toHaveCount(0)
+  await expect(page.locator('a.reference-card')).toHaveCount(0)
   await referenceSearch.fill('Heavy Edge')
-  await expect(page.locator('button.reference-card')).toHaveCount(1)
-  await expect(page.locator('button.reference-card').getByText('Mod: Equipment Expansion', { exact: true })).toBeVisible()
-  await expect(page.locator('button.reference-card')).toContainText('Enabled status not recorded')
+  await expect(page.locator('a.reference-card')).toHaveCount(1)
+  await expect(page.locator('a.reference-card').getByText('Mod: Equipment Expansion', { exact: true })).toBeVisible()
+  await expect(page.locator('a.reference-card')).toContainText('Enabled status not recorded')
   palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(0)
   await page.keyboard.press('Escape')
@@ -184,7 +185,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(panel)
   await expect(panel.locator('textarea')).toHaveCount(0)

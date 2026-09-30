@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const referencePath = (entityId: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/${encodeURIComponent(entityId)}`
@@ -35,7 +36,7 @@ test('whole and mixed coin prices use local icons and remain available offline',
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.goto(referencePath('base:item:bronze-suit'))

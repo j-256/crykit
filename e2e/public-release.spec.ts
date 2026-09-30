@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
 
 test('credits and bundled licenses remain available offline without external requests', async ({ page, context, baseURL }) => {
@@ -13,7 +14,7 @@ test('credits and bundled licenses remain available offline without external req
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Credits & licenses', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

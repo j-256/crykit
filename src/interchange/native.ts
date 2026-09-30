@@ -31,6 +31,23 @@ import { asLocalDataId, nowTimestamp, randomId, sha256 } from './util'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
 
 const MAX_NATIVE_HISTORY = 500
+const validatedImmutableCatalogs = new WeakSet<CatalogSnapshot>()
+const frozenCatalogValues = new WeakSet<object>()
+
+function freezeCatalogValue(value: unknown): void {
+  if (!value || typeof value !== 'object' || frozenCatalogValues.has(value)) return
+  frozenCatalogValues.add(value)
+  for (const child of Object.values(value)) freezeCatalogValue(child)
+  Object.freeze(value)
+}
+
+export function immutableCatalogSnapshot(catalog: CatalogSnapshot): CatalogSnapshot {
+  if (validatedImmutableCatalogs.has(catalog)) return catalog
+  if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
+  freezeCatalogValue(catalog)
+  validatedImmutableCatalogs.add(catalog)
+  return catalog
+}
 
 function schemaError(message: string, details?: Readonly<Record<string, unknown>>): never {
   throw new AppDataError('schema-mismatch', message, { recoverable: true, details })
@@ -637,7 +654,7 @@ export function validateNativeLocalDataGraph(
 ): void {
   validateNativeLocalDataShape(localData)
   for (const catalog of catalogs) {
-    if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
+    if (!validatedImmutableCatalogs.has(catalog) && !NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   }
   const gameSetups = [localData, ...(history ?? []).flatMap(entry => [entry.before, entry.after])].flatMap(value => Object.values(value.gameSetups))
   const origins = new Map(gameSetups.map(value => [modCatalogRevision(value.id), value]))

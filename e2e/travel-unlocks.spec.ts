@@ -1,3 +1,4 @@
+import { expectOfflineReady } from './offline-helpers'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { expect, test, type Page } from '@playwright/test'
@@ -151,7 +152,7 @@ test('records and reads unlocks offline and starts a second Playthrough blank', 
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
