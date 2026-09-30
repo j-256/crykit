@@ -493,6 +493,7 @@ export interface Playthrough {
   readonly inventoryEvents: Readonly<Record<string, InventoryEvent>>
   readonly characters: Readonly<Record<string, Character>>
   readonly progress: Readonly<Record<string, PartyProgressRecord>>
+  readonly quintarBreeding?: Readonly<Record<string, Timestamp>>
   readonly scenarios: Readonly<Record<string, TeamScenario>>
   readonly goals: Readonly<Record<string, Goal>>
   readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>

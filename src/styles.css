@@ -329,8 +329,6 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { min-height: 44px; padding: 0 14px; white-space: nowrap; color: var(--text-faint); border: 0; border-bottom: 2px solid transparent; background: transparent; font-size: .76rem; font-weight: 700; }
 .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--cyan-300); }
-.progress-tabs .tab { display: inline-flex; align-items: center; text-decoration: none; }
-.progress-tabs .tab[aria-current="page"] { color: var(--text); border-bottom-color: var(--cyan-300); }
 .unlock-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 20px; }
 .unlock-summary strong { color: var(--cyan-300); font-size: var(--menu-size-large); }
 .unlock-summary span { font-weight: 700; }

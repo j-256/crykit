@@ -53,6 +53,8 @@ Use [GitHub issues](https://github.com/j-256/crystal-companion/issues) for bugs,
 
 ## Interface and artwork
 
+Immediate-save tile boards use the shared [queued tile update pattern](queued-tile-updates.md). Reuse its hook, application save queue, stable rendering, and verification approach when adding another board.
+
 The interface takes its visual cues from Crystal Project's menus: charcoal windows, silver borders, cyan dividers, blue selections, and pixel headings. [Pixel Operator](https://www.dafont.com/pixel-operator.font) by Jayvee Enaguas is a readable substitute for the game's lettering, not a verified match to its original typeface. It ships locally under [CC0](../public/pixel-operator-CC0.txt), with regular weight, disabled ligatures, and fixed type sizes. Body text and compact section headings use system fonts for readable descriptions and forms. The bundled crystal artwork and menu icons ship with the app; decorative artwork does not represent recorded inventory or game progress. Reference entries also show locally bundled wiki sprites and icons where an explicit source mapping exists, with per-file attribution and separate [artwork rights and refresh instructions](catalog-sources.md#sprite-and-icon-snapshot).
 
 ## Static hosting and deployment

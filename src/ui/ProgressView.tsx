@@ -13,7 +13,9 @@ import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } fro
 import { useNavigation, type AppRoute, type ProgressPageRoute } from './navigation'
 import { ClassWorldArtwork } from './WikiSprite'
 import { TravelUnlocksView, travelUnlockEntries } from './TravelUnlocksView'
-import { useQueuedOptimisticValues } from './useQueuedOptimisticValues'
+import { ProgressBoards } from './ProgressBoards'
+import { useQueuedTileUpdates } from './useQueuedTileUpdates'
+import './quintar-breeding.css'
 
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
 
@@ -199,20 +201,12 @@ export function ProgressView(props: ProgressViewProps) {
   const focusedRecordId = page.page === 'progress' && page.view === 'edit' ? page.recordId : undefined
   const unlocks = page.page === 'progress' && page.view === 'unlocks'
     || focusedRecordId !== undefined && travelUnlockEntries(props.localData, props.catalogs).some(entry => entry.record?.id === focusedRecordId)
-  const progressLink = (label: string, view: 'list' | 'unlocks') => {
-    const route: AppRoute = { page: { page: 'progress', view }, overlays: [], query: {} }
-    return <a aria-current={unlocks === (view === 'unlocks') ? 'page' : undefined} className="tab" href={navigation.href(route)} onClick={event => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-      event.preventDefault()
-      navigation.navigate(route)
-    }}>{label}</a>
-  }
-  return <><nav aria-label="Progress pages" className="tabs progress-tabs">{progressLink('Class seals', 'list')}{progressLink('Travel & unlocks', 'unlocks')}</nav>{unlocks ? <TravelUnlocksView catalogs={props.catalogs} focusedRecordId={focusedRecordId} key={focusedRecordId ?? 'unlocks'} localData={props.localData} onSetAcquired={props.onSetAcquired} saveBlocked={props.saveBlocked}/> : <ClassSealProgressView {...props}/>}</>
+  return unlocks ? <TravelUnlocksView catalogs={props.catalogs} focusedRecordId={focusedRecordId} key={focusedRecordId ?? 'unlocks'} localData={props.localData} onSetAcquired={props.onSetAcquired} saveBlocked={props.saveBlocked}/> : <ClassSealProgressView {...props}/>
 }
 
 function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetStage, onUpdate }: ProgressViewProps) {
   const navigation = useNavigation()
-  const { queued: queuedAdvances, enqueue: enqueueAdvance } = useQueuedOptimisticValues<ProgressStage>()
+  const { queuedUpdates: queuedAdvances, pendingCount: queuedAdvanceCount, enqueue } = useQueuedTileUpdates<string, ProgressStage>()
   const [selecting, setSelecting] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [bulkSaving, setBulkSaving] = useState(false)
@@ -222,9 +216,8 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
   const entries = useMemo(() => boardEntries(localData, catalogs), [catalogs, localData])
   const displayedEntries = useMemo(() => entries.map((entry) => {
     const queued = queuedAdvances.get(entry.key)
-    return queued ? { ...entry, stage: queued.value } : entry
+    return queued ? { ...entry, stage: queued.state } : entry
   }), [entries, queuedAdvances])
-  const queuedAdvanceCount = useMemo(() => [...queuedAdvances.values()].reduce((total, queued) => total + queued.count, 0), [queuedAdvances])
   const page = navigation.route.page.page === 'progress' ? navigation.route.page : { page: 'progress', view: 'list' } as const
   const adding = page.view === 'new'
   const editing = page.view === 'edit' ? ownRecordValue(requirePlaythrough(localData).progress, page.recordId) : undefined
@@ -238,10 +231,10 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
   const update = async (draft: ProgressDraft) => { if (!editing) return; await onUpdate(editing.id, draft); navigation.close() }
   const advance = useCallback((entry: ClassSealEntry) => {
     setSaveError(undefined)
-    void enqueueAdvance(entry.key, entry.stage, nextClassSealStage, () => onAdvance(entry.classRef, entry.className)).catch((reason: unknown) => {
+    enqueue(entry.key, entry.stage, nextClassSealStage, () => onAdvance(entry.classRef, entry.className), (reason) => {
       setSaveError(current => current ?? (reason instanceof Error ? reason.message : `The ${entry.className} progress could not be saved.`))
     })
-  }, [enqueueAdvance, onAdvance])
+  }, [enqueue, onAdvance])
   const edit = useCallback((recordId: ProgressRecordId) => navigate({ page: 'progress', view: 'edit', recordId }), [navigate])
   const toggleSelection = useCallback((key: string) => setSelectedKeys(current => {
     const next = new Set(current)
@@ -267,6 +260,7 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
   }
   return <>
     <ScreenHeader actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} description="Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough." eyebrow="Class mastery seals" title="Progress"/>
+    <ProgressBoards/>
     {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another playthrough. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
     {saveError && <InlineNotice title="Progress not saved" tone="danger">{saveError}</InlineNotice>}
     {selecting && <section aria-busy={bulkSaving} aria-label="Bulk edit class mastery" className="class-seal-bulk" data-saving={bulkSaving || undefined}>

@@ -16,6 +16,7 @@ export type IconName =
   | 'crystal'
   | 'download'
   | 'edit'
+  | 'egg'
   | 'history'
   | 'info'
   | 'layers'
@@ -52,6 +53,7 @@ const paths: Record<IconName, React.ReactNode> = {
   compass: <><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></>,
   download: <><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></>,
   edit: <><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></>,
+  egg: <><path d="M19 14c0 4.4-3.1 7-7 7s-7-2.6-7-7S8.1 3 12 3s7 6.6 7 11Z"/><path d="m6 12 3 2 3-3 3 3 3-2"/></>,
   history: <><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8"/><path d="M4 3v5h5"/><path d="M12 7v5l3 2"/></>,
   info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></>,
   layers: <><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></>,
