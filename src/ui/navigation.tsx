@@ -56,6 +56,7 @@ export type BuildsPageRoute =
 
 export type ProgressPageRoute =
   | { readonly page: 'progress'; readonly view: 'list' }
+  | { readonly page: 'progress'; readonly view: 'unlocks' }
   | { readonly page: 'progress'; readonly view: 'quintar' }
   | { readonly page: 'progress'; readonly view: 'new' }
   | { readonly page: 'progress'; readonly view: 'edit'; readonly recordId: ProgressRecordId }
@@ -276,6 +277,7 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
   }
   if (segments[0] === 'progress') {
     if (overlayStartsAt(segments, 1)) return { page: { page: 'progress', view: 'list' }, consumed: 1 }
+    if (segments[1] === 'unlocks' && overlayStartsAt(segments, 2)) return { page: { page: 'progress', view: 'unlocks' }, consumed: 2 }
     if (segments[1] === 'quintar' && overlayStartsAt(segments, 2)) return { page: { page: 'progress', view: 'quintar' }, consumed: 2 }
     if (segments[1] === 'new') return { page: { page: 'progress', view: 'new' }, consumed: 2 }
     const recordId = decodeSegment(segments[1] ?? '')
@@ -544,6 +546,7 @@ function formatPage(page: PageRoute): string {
     return '/builds/compare'
   }
   if (page.page === 'progress') {
+    if (page.view === 'unlocks') return '/progress/unlocks'
     if (page.view === 'quintar') return '/progress/quintar'
     if (page.view === 'new') return '/progress/new'
     if (page.view === 'edit') return `/progress/${encodeIdentitySegment(page.recordId, COLLECTION_ID_RESERVED_SEGMENTS)}/edit`
@@ -609,7 +612,7 @@ export function routeTitle(route: AppRoute): string {
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | Crystal Companion`
   if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | Crystal Companion`
   if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | Crystal Companion`
-  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | Crystal Companion`
+  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | Crystal Companion`
   return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | Crystal Companion`
 }
 

@@ -116,3 +116,28 @@ export function setClassSealProgressBatch(localData: LocalData, input: SetClassS
   }
   return updatePlaythrough(localData, playthrough.id, { progress: requirePlaythrough(staged, playthrough.id).progress }, 'progress.bulkSetStage', changedPaths, at)
 }
+
+export function acquisitionState(record?: PartyProgressRecord): Knowledge<boolean> {
+  return record?.collection ?? { state: 'known', value: false }
+}
+
+export interface SetAcquisitionProgressInput {
+  readonly subject: EntityRef
+  readonly displayName: string
+  readonly acquired: boolean
+  readonly expectedRevision?: number
+  readonly now?: Timestamp | string
+}
+
+export function setAcquisitionProgress(localData: LocalData, input: SetAcquisitionProgressInput): LocalData {
+  const current = Object.values(requirePlaythrough(localData).progress).find(record => logicalEntityKey(localData, record.subject) === logicalEntityKey(localData, input.subject))
+  const notApplicable = { state: 'notApplicable' } as const
+  return upsertProgress(localData, {
+    ...(current ? { id: current.id, subject: current.subject } : { subject: input.subject }),
+    displayName: input.displayName,
+    collection: { state: 'known', value: input.acquired },
+    ...(!current ? { stage: notApplicable, unlocked: notApplicable, partyMastery: notApplicable, masterLocation: notApplicable } : {}),
+    expectedRevision: input.expectedRevision,
+    now: input.now,
+  })
+}
