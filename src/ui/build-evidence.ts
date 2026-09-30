@@ -36,7 +36,7 @@ export function decisionFacts(record: Definition): readonly { readonly label: st
     if (seen.has(key)) return []
     seen.add(key)
     return [{ label, value }]
-  })
+  }).sort((left, right) => Number(/^cost$/i.test(left.label)) - Number(/^cost$/i.test(right.label)))
 }
 
 export function compactKnowledge(value?: Knowledge<unknown>): string {
@@ -79,7 +79,7 @@ export function summaryFactLines(record: Definition): readonly string[] {
       add(`${fact.label}: ${compactKnowledge(fact.value)}`)
     }
   }
-  return lines.sort((left, right) => Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
+  return lines.sort((left, right) => Number(/^cost:/i.test(left)) - Number(/^cost:/i.test(right)) || Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
 }
 
 export function ppCostLabel(option: DefinitionOption): string {

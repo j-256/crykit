@@ -9,7 +9,7 @@ import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
 import { DEFAULT_CATALOG } from './bundled'
 import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
-import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, SWITCH_MOD_PACKS } from './mods'
+import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, modDisplayName, modPlanningReason, MOONLIGHT_PROJECT_MOD, SWITCH_MOD_PACKS } from './mods'
 import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
 function ref(entityId: string): CatalogRef {
@@ -17,6 +17,17 @@ function ref(entityId: string): CatalogRef {
 }
 
 describe('confirmed catalog mod associations', () => {
+  it('displays Moonlight Project without changing saved mod keys and explains selectable planning states', () => {
+    expect(modDisplayName(MOONLIGHT_PROJECT_MOD)).toBe('Moonlight Project')
+    expect(modDisplayName('Synthetic Mod')).toBe('Synthetic Mod')
+    expect(modPlanningReason({ state: 'unknown' })).toBeUndefined()
+    expect(modPlanningReason({ state: 'enabled', requiredMod: MOONLIGHT_PROJECT_MOD })).toBeUndefined()
+    for (const state of ['disabled', 'unknown', 'conflicting'] as const) {
+      expect(modPlanningReason({ state, requiredMod: MOONLIGHT_PROJECT_MOD })).toContain("Build's Game Setup")
+      expect(modPlanningReason({ state, requiredMod: MOONLIGHT_PROJECT_MOD })).toContain('You can still select it')
+    }
+  })
+
   it('offers each supplied Switch mod once across the official packs and applies the confirmed choices', () => {
     const names = SWITCH_MOD_PACKS.flatMap(pack => pack.mods)
     const confirmedNames = [...CONFIRMED_SWITCH_MOD_SETUP.enabledMods, ...CONFIRMED_SWITCH_MOD_SETUP.disabledMods]
@@ -41,6 +52,9 @@ describe('confirmed catalog mod associations', () => {
       ['mod-pack-2:class:tempest', 'Tempest'],
       ['mod-pack-2:class:forcemage', 'Forcemage'],
       ['mod-pack-2:class:barbarian', 'Barbarian'],
+      ['switch:class:brawler', MOONLIGHT_PROJECT_MOD],
+      ['switch:brawler:ability:meditate', MOONLIGHT_PROJECT_MOD],
+      ['switch:brawler:passive:fists-of-steel', MOONLIGHT_PROJECT_MOD],
       ['mod-pack-2:item:doge-shield', 'Doge Shield'],
       ['equipment-expansion:item:heavy-edge', 'Equipment Expansion'],
       ['mod-pack-2:monster:yasha-tar', 'Additional Boss: Yasha Tar'],
@@ -71,6 +85,20 @@ describe('confirmed catalog mod associations', () => {
     expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, gameSetup)).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, gameSetup)).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, gameSetup)).toEqual({ state: 'unknown' })
+  })
+
+  it('inherits Brawler mod associations without classifying unrelated same-name definitions', () => {
+    const localData = createTestLocalData()
+    for (const id of ['switch:class:brawler', 'switch:brawler:ability:meditate', 'switch:brawler:passive:fists-of-steel']) {
+      expect(definitionModAvailability(localData, ref(id))).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_CATALOG_REVISION_ID })).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
+    }
+    const override = createDefinitionOverride(localData, [STARTER_CATALOG], { sourceRef: ref('switch:class:brawler'), name: 'Revised Brawler' })
+    expect(definitionModAvailability(override.localData, override.ref)).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
+    expect(definitionModAvailability(localData, ref('base:monk:passive:brawler'))).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, ref('switch:class:freelancer'))).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...ref('switch:class:brawler'), catalogId: asId('synthetic-foreign') })).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...ref('switch:class:brawler'), catalogRevisionId: asId('synthetic-foreign') })).toEqual({ state: 'unknown' })
   })
 
   it('classifies newly bundled Equipment Expansion definitions only by exact current identities', () => {

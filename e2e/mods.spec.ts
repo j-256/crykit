@@ -3,9 +3,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { STARTER_CATALOG } from '../src/catalog/starter'
-import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
+import { MOONLIGHT_PROJECT_MOD, modDisplayName, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
 import { asId, captureCharacter, createCharacter, setPlaythroughGameSetup, updateGameSetupRevision } from '../src/domain'
-import { createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
+import { addTestBuild, createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
 import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain/types'
 import { selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 
@@ -211,12 +211,12 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
     const group = panel.locator('.game-setup-mod-pack').filter({ hasText: pack.name })
     await expect(group.locator(':scope > summary small')).toHaveText(`0 of ${pack.mods.length} enabled · ${pack.mods.length} need review`)
     await expect(group.getByRole('combobox')).toHaveCount(pack.mods.length)
-    for (const name of pack.mods) await expect(group.getByRole('combobox', { name, exact: true })).toHaveValue('unknown')
+    for (const name of pack.mods) await expect(group.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('unknown')
   }
   await panel.getByLabel('Game Setup label', { exact: false }).fill('Synthetic Switch choices')
   await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('disabled')
   await expect(platform).toHaveValue('Nintendo Switch')
   await expect(version).toHaveValue('1.6.6')
   const shield = panel.getByRole('combobox', { name: 'Doge Shield', exact: true })
@@ -288,3 +288,34 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   expect(saved.gameSetups[saved.planningGameSetupRevisionId!].disabledMods).toEqual(known(['Synthetic disabled mod', 'Doge Shield']))
   expect(saved.gameSetups[localData.planningGameSetupRevisionId!]).toEqual(localData.gameSetups[localData.planningGameSetupRevisionId!])
 })
+
+for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) {
+  test(`build mod choices remain selectable with ${state} state from the pinned Game Setup`, async ({ page }) => {
+    const original = createTestLocalData()
+    const setup = original.gameSetups[TEST_GAME_SETUP_REVISION_ID]
+    const mods = state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : state === 'conflicting' ? { state: 'conflicting' as const, claims: [{ value: [MOONLIGHT_PROJECT_MOD], sources: [] }, { value: [], sources: [] }] } : { state: 'unknown' as const }
+    const disabledMods = state === 'disabled' ? known([MOONLIGHT_PROJECT_MOD]) : { state: 'unknown' as const }
+    let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
+    localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known([MOONLIGHT_PROJECT_MOD]), disabledMods: state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : known([]) })
+    await page.goto('/')
+    await importBackup(page, backup(localData))
+    await page.goto('/#/builds/library')
+    await page.getByRole('button', { name: 'synthetic-pinned-mod-build', exact: true }).click()
+    const picker = page.getByRole('combobox', { name: 'Class', exact: true })
+    await picker.fill('Brawler')
+    const choice = page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
+    await expect(choice).toHaveAttribute('data-mod-state', state)
+    await expect(choice).not.toContainText('Enabled status not recorded')
+    await expect(choice.locator('.mod-badge__state')).toHaveCount(0)
+    await expect(choice).toBeEnabled()
+    if (state === 'enabled') {
+      await expect(choice.locator('.picker-result__mod-reason')).toHaveCount(0)
+    } else {
+      await expect(choice).toContainText("Build's Game Setup")
+      await expect(choice).toContainText('You can still select it')
+      expect(await choice.locator(':scope > :first-child').evaluate(element => getComputedStyle(element).filter)).toBe('grayscale(1)')
+    }
+    await choice.click()
+    await expect(picker).toHaveValue('Brawler')
+  })
+}

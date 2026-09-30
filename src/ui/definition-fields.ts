@@ -1,6 +1,7 @@
+import type { SlotDefinition } from '../domain/types'
 import type { DefinitionOption } from './definitions'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
-import { equipmentFacts, equipmentFitsRole } from '../domain/mechanics-facts'
+import { equipmentFacts, equipmentFitsRole, equipmentRole } from '../domain/mechanics-facts'
 import { nativeSourceRecord } from '../domain/native-game'
 
 const WEAPON_CATEGORIES = ['Axes', 'Bows', 'Daggers', 'Katanas', 'Rapiers', 'Scythes', 'Spears', 'Staves', 'Swords', 'Wands', 'Wand', 'Two-Handed Staff']
@@ -28,4 +29,11 @@ export function matchesSlot(option: DefinitionOption, label: string) {
   const slot = label.toLowerCase()
   const expected = slot.includes('accessory') ? ['Accessories'] : slot === 'head' ? HEAD_CATEGORIES : slot === 'body' ? BODY_CATEGORIES : slot.includes('hand') ? HAND_CATEGORIES : undefined
   return !expected || known.some((category) => expected.includes(category))
+}
+
+export function matchesEquipmentSlot(option: DefinitionOption, slot: SlotDefinition): boolean {
+  if (option.record.slotKinds?.state === 'known') return option.record.slotKinds.value.includes(slot.id)
+  const role = equipmentRole(slot)
+  const type = equipmentFacts(option.record).type
+  return role && type ? equipmentFitsRole(type, role) : matchesSlot(option, slot.label)
 }

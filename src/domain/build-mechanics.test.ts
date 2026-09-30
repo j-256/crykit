@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { analyzeBuildEquipment, innateEffects } from './build-mechanics'
+import { analyzeBuildEquipment, innateEffects, assessEquipmentPermission, buildEquipmentPermissions } from './build-mechanics'
 import { calculateBuildStats, physicalHitChance, statContributions } from './build-stats'
 import { estimateAbility } from './ability-estimates'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
@@ -39,6 +39,19 @@ describe('equipment planning from source facts', () => {
     expect(analyze(allowed)).toEqual([])
     const secondaryResolver = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === 'swordsman' ? { ...job, fields: { ...job.fields, [CRYSTAL_EDIT_FIELDS.equipment]: known(['Sword']) } } : resolve(reference)
     expect(analyzeBuildEquipment({ ...content, secondaryClass: ref('swordsman') }, SUGGESTED_BUILD_SLOTS, secondaryResolver).some(issue => issue.code === 'CLASS_EQUIPMENT_PERMISSION')).toBe(true)
+  })
+
+  it('distinguishes incompatible equipment from unknown permissions and applies permission effects', () => {
+    const context = buildEquipmentPermissions(base, resolve)
+    expect(assessEquipmentPermission(sword, context)).toEqual({ status: 'invalid', reason: 'Synthetic caster cannot equip Sword' })
+    expect(assessEquipmentPermission({ ...sword, fields: { Category: known(['Staves']) } }, context)).toEqual({ status: 'valid' })
+    expect(assessEquipmentPermission({ ...sword, fields: {} }, context)).toMatchObject({ status: 'undetermined' })
+    expect(assessEquipmentPermission({ ...sword, requirements: { state: 'conflicting', claims: [{ value: [], sources: [] }, { value: [{ kind: 'permission', permission: 'equipment:Sword' }], sources: [] }] } }, context)).toMatchObject({ status: 'undetermined' })
+    expect(assessEquipmentPermission({ ...sword, requirements: { state: 'known', value: [] } }, context)).toEqual({ status: 'valid' })
+    expect(assessEquipmentPermission(sword, buildEquipmentPermissions({ ...base, primaryClass: null }, resolve))).toMatchObject({ status: 'undetermined' })
+    expect(assessEquipmentPermission(sword, buildEquipmentPermissions({ ...base, passives: [{ ref: ref('missing') }] }, resolve))).toMatchObject({ status: 'undetermined' })
+    expect(assessEquipmentPermission(sword, buildEquipmentPermissions({ ...base, passives: [{ ref: ref('permission') }] }, resolve))).toEqual({ status: 'valid' })
+    expect(analyze({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } }, passives: [{ ref: ref('missing') }] })).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined' })]))
   })
 
   it('reserves both hands for a two-handed weapon and counts an explicitly shared copy once', () => {

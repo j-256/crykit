@@ -45,6 +45,12 @@ describe('build choice evidence', () => {
     expect(summaryFactLines(option('Short Sword').record)).not.toContain('Hands: 1')
   })
 
+  it('puts monetary cost after combat and permission facts', () => {
+    const record = { ...option('Short Sword').record, listedContributions: undefined, fields: { Cost: { state: 'known' as const, value: '100 Copper' }, Weapons: { state: 'known' as const, value: 'Swords' }, Attack: { state: 'known' as const, value: 30 }, Effects: { state: 'unknown' as const } } }
+    expect(decisionFacts(record).map(fact => fact.label)).toEqual(['Weapons', 'Attack', 'Effects', 'Cost'])
+    expect(summaryFactLines(record).at(-1)).toBe('Cost: 100 Copper')
+  })
+
   it('groups shared causes without hiding invalid checks among unknown ones', () => {
     const issue: ValidationIssue = { code: 'PERMISSION_REQUIREMENTS_UNKNOWN', status: 'undetermined', dimension: 'equipment', message: 'Requirements unknown' }
     const issues = [issue, { ...issue, slotId: 'off-hand' as ValidationIssue['slotId'] }, { ...issue, status: 'invalid' as const }]

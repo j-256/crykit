@@ -26,9 +26,15 @@ Choose **Builds > New Build** to open a blank Build sheet. Type into class, sub-
 
 A new Build starts from the selected Game Setup as a preset. Choose known mods individually as Enabled, Disabled, or Unknown. Enter one custom mod name and choose **Add mod** to create a separate selection; custom choices remain available when changed to Unknown. A preset supplies rules without changing the Playthrough. A suggested equipment-slot layout is available when the preset has no configured slots; its game rules remain unknown and its slots can be adjusted in Data & settings. Passives are an ordered, variable-length list rather than configured slots. Existing configured layouts are preserved.
 
+The primary class's stat ratings appear above the loadout using the game's colored full and half stars. The same ratings appear in Reference, with source details and explicit unknown values. Class ratings describe base-stat scaling and growth; they are separate from a character's recorded stats. Set a planned level and growth history under **Checks & notes > Stats & combat estimates** to calculate numeric values. A saved calculation plan also exposes **Planned base & equipped stats** in the class stats panel; unsupported contributions and incomplete inputs remain unresolved.
+
 ### Choose equipment and passives
 
 Equipment searches exclude identified category articles. Choices show catalog stats and effects, with full reference fields and attribution available beneath each selection. Similar spellings remain separate identities and are labeled when their relationship is unconfirmed; entries supported only by name evidence sort after detailed records.
+
+Selected fields show definition artwork, and empty fields show their slot's role icon. Class summaries put the command name and icon first, followed by equipment permission icons; hover or focus an icon for its name. Monetary cost appears last in detailed facts and is omitted from compact field summaries. PP remains visible for passive planning. The desktop library keeps class names and equipment slots readable beside the editor; selection details appear beneath the loadout when a definition is inspected.
+
+Equipment searches include every available definition that fits the slot. Choices known to be incompatible with the primary class and selected permission effects appear last in gray with the reason. They remain selectable for planning. Missing or conflicting equipment types and permissions stay explicitly unknown, with their normal appearance; an unrecorded inventory item is separate from an equipment permission conflict.
 
 Passive searches label PP directly. A single default-on toggle includes innates from the Learnable Innate Skill mod across every passive search, while missing PP costs remain explicit.
 
@@ -38,7 +44,9 @@ Build validity sums the PP costs of every equipped passive against the pinned Ga
 
 **Save build** creates the Build and its first checkpoint together. Choose **Checks & notes** to find the title and notes under **Build details & notes**; an unnamed Build uses its class name. The sheet stays directly editable on desktop and mobile, and further passive rows appear as selections are added.
 
-Cloning makes a separate draft within the same Game Setup; editing creates a new immutable checkpoint. A Build from another Game Setup is inspect-only until it is forked into the current Game Setup.
+Choose **Rename** beside a saved Build's heading to change its title. **Save title** updates the library name without creating a checkpoint or saving unfinished loadout edits. Canceling leaves the saved name intact; leaving with an edited title offers **Save and continue** or **Discard and continue**.
+
+Cloning makes a separate draft within the same Game Setup; editing creates a new immutable checkpoint. Builds from another Game Setup remain directly editable using their checkpoint's pinned behavior and catalog definitions.
 
 When one equipped item occupies several slots, mark those selections as the same copy. On narrow screens the library starts collapsed and selection evidence appears directly below its field.
 
@@ -130,7 +138,9 @@ To browse weapon skills, choose **Reference > Weapon skills > Weapon skills usab
 
 Choose **Enabled**, **Disabled**, or **Unknown** for each mod in **Data & settings > Game Setup**. The fixed Switch list is grouped by the two official packs. Known mod associations control definition searches and choices; unclassified entries stay visible. Character sheets retain their pinned Game Setup revision, including mod settings. See [playthrough mods](mods.md) for supported filtering and catalog gaps.
 
-Vanilla class ratings, equipment permissions, and exported learn trees ship with the app, using a baseline assumed to match the game release at export. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Crystal Edit data and growth estimates](crystal-edit.md).
+Brawler and its class skills are associated with **Moonlight Project**. Their mod badges and availability follow that entry's recorded setting. The Monk's base-game Brawler passive is a separate definition.
+
+Vanilla class ratings, equipment permissions, and learn trees ship with the app, extracted directly from the game's database. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
 
 ### Correct or extend reference entries
 

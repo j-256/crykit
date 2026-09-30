@@ -3,6 +3,7 @@ import gameArtworkJson from './game-artwork.json'
 import modManifestJson from './mod-sprites.json'
 import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './starter'
+import { nativeMenuIcon, NATIVE_MENU_ICON_KEYS } from './native-menu-icons'
 
 interface SpriteAsset {
   readonly file: string
@@ -75,7 +76,7 @@ const gameArtwork: GameArtworkManifest = gameArtworkJson
 const gameArtworkUrls = import.meta.glob<string>('../assets/game-assets/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const wikiManifest: SpriteManifest = wikiManifestJson
 const modManifest: SpriteManifest = { ...(modManifestJson as unknown as Omit<SpriteManifest, 'icons'>), icons: {} }
-export const MENU_ICON_KEYS = Object.keys(wikiManifest.icons)
+export const MENU_ICON_KEYS = [...new Set([...Object.keys(wikiManifest.icons), ...NATIVE_MENU_ICON_KEYS])]
 const wikiUrls = import.meta.glob<string>('../assets/wiki-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const modUrls = import.meta.glob<string>('../assets/mod-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 
@@ -90,6 +91,7 @@ export interface MenuIcon {
   readonly asset: SpriteAsset
   readonly binding: MenuIconBinding
   readonly url: string
+  readonly provenance: 'community-wiki' | 'installed-game'
 }
 
 export type CatalogArtwork = {
@@ -110,10 +112,12 @@ export type CatalogArtwork = {
 }
 
 export function menuIcon(key: string): MenuIcon | undefined {
+  const native = nativeMenuIcon(key)
+  if (native) return native
   const binding = wikiManifest.icons[key]
   const asset = binding && wikiManifest.assets[binding.asset]
   const url = asset && wikiUrls[`../assets/wiki-sprites/${asset.file}`]
-  return binding && asset && url ? { asset, binding, url } : undefined
+  return binding && asset && url ? { asset, binding, url, provenance: 'community-wiki' } : undefined
 }
 
 export function wikiSprite(catalogId: string, entity: Pick<CatalogEntity, 'id' | 'kind'>): WikiSprite | undefined {

@@ -111,7 +111,11 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await hand.fill('Potion')
   await expect(results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Potion$/ }) })).toHaveCount(0)
   const head = page.getByRole('combobox', { name: 'Head', exact: true })
-  if (isMobile) await head.tap()
+  if (isMobile) {
+    await page.getByRole('heading', { name: 'Equipment', exact: true }).tap()
+    await expect(results).not.toBeVisible()
+    await head.tap()
+  }
   else await head.click()
   await head.fill('Red Hat')
   await expect(page.getByRole('listbox')).toHaveCount(1)
@@ -121,7 +125,7 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await expect(head).toHaveValue('Red Hat')
   if (isMobile) {
     await page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Red Hat$/ }) }).tap()
-    await expect(page.locator('.build-sheet__preview')).not.toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Red Hat', exact: true })).toBeVisible()
     const details = page.getByLabel('Details for Red Hat', { exact: true })
     await expect(details).toHaveText('Details')
     await expect(details).toHaveAccessibleName('Details for Red Hat')
@@ -138,7 +142,7 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
 })
 
 test('build details ignore pointer transit while keyboard inspection stays available', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'The shared build inspector is a desktop layout')
+  test.skip(isMobile, 'Pointer transit is checked on desktop')
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   const details = page.getByRole('complementary', { name: 'Selection details', exact: true })
