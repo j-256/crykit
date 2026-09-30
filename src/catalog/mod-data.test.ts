@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { statContributions } from '../domain/build-stats'
-import { exportedTree } from '../domain/crystal-edit'
+import { CLASS_FIELDS, exportedTree } from '../domain/crystal-edit'
 import { DEFAULT_CATALOG } from './bundled'
 import { EQUIPMENT_EXPANSION_ENTITY_IDS, EQUIPMENT_EXPANSION_EQUIPMENT_IDS } from './equipment-expansion'
 import { LEARNABLE_INNATES_SOURCE } from './learnable-innates'
@@ -39,6 +39,6 @@ describe('bundled mod definition evidence', () => {
     const samurai = DEFAULT_CATALOG.entities['base:class:samurai']!
     expect(samurai.fields['Learnable Innate Skill v1.0 placements']).toMatchObject({ state: 'known', value: [expect.objectContaining({ innate: 'Endless Fury' }), expect.objectContaining({ innate: 'Two-Handed' })] })
     expect(exportedTree(samurai)).not.toHaveLength(0)
-    expect(samurai.fields['Crystal Edit learn tree']?.state).toBe('known')
+    expect(samurai.fields[CLASS_FIELDS.tree]?.state).toBe('known')
   })
 })

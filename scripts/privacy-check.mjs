@@ -48,9 +48,11 @@ function git(args) {
 const deletedFiles = new Set(options.staged ? [] : git(['ls-files', '--deleted', '-z']).toString().split('\0'))
 const files = git(options.staged ? ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'] : ['ls-files', '--cached', '--others', '--exclude-standard', '-z']).toString().split('\0').filter(file => file && !deletedFiles.has(file))
 const findings = []
-// Match reviewed public font bytes exactly so replacements require another review
+// Match reviewed public asset bytes exactly so replacements require another review
 const reviewedBinaryAssets = new Map([
   ['src/assets/fonts/pixel-operator.woff2', 'fc5d6a2ee3d73d978200269354e681862e1436c3edd42235f28b87e9ca0b8afe'],
+  ['src/assets/ratings/job-rating.png', 'f5ee30139e40d1aa05677754d1bc01354703676ffcf33f6a413fe330f3321d14'],
+  ['src/assets/menu-icons/equipment-types.png', '0e2066d5776e5a23d9fb4f9291a7d8a07f22f7353ec352882fb30af2fb20ee9e'],
 ])
 const gameAssetDirectory = 'src/assets/game-assets/'
 const gameAssetManifestPath = 'src/catalog/game-assets.json'
@@ -78,7 +80,7 @@ for (const file of new Set(files)) {
   const spriteDirectory = spriteSources.some(source => file.startsWith(source.directory))
   if (spriteDirectory && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
   if (file.startsWith(gameAssetDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native game artwork is absent from the reviewed manifest`)
-  if (!spriteDirectory && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
+  if (!reviewedBinaryAssets.has(file) && !spriteDirectory && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }
   catch { findings.push(`${file}: unable to inspect contents`); continue }

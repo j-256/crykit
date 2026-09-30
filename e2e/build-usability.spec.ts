@@ -69,7 +69,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offHand.fill('Doge Shield')
   await expect(page.getByRole('listbox').getByText('Mod: Doge Shield', { exact: true })).toBeVisible()
-  await expect(page.getByRole('listbox')).toContainText('Enabled status not recorded')
+  await expect(page.getByRole('listbox')).toContainText("Mod status unknown in this Build's Game Setup")
   await offHand.press('Escape')
   await choose(page, 'Accessory 1', 'Crit Fang')
   const fang = page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Accessory 1', exact: true }) })

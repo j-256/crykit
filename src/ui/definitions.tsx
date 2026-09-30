@@ -172,7 +172,7 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, chil
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
-    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup).filter(option => !hidden.has(option.key))
   }, [baseline, corrections?.hiddenKeys, planningOptions, localData])
   const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>

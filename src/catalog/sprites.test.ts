@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
-import { catalogArtwork, wikiSprite } from './sprites'
+import { catalogArtwork, menuIcon, wikiSprite } from './sprites'
+import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
   const entity = { id: 'base:item:short-sword' as EntityId, kind: 'item' as const }
   const builtin = 'crystal-project-public-starter'
+
+  it('resolves both medium armor types to their exact native equipment-menu cells', () => {
+    for (const [name, x] of [['Medium headgear', 2], ['Medium armor', 36]] as const) {
+      const key = fieldIconKey('Armor', name)!
+      const icon = menuIcon(key)!
+      expect(icon.provenance).toBe('installed-game')
+      expect(icon.binding.region).toEqual({ x, y: 206, width: 32, height: 32 })
+      expect(icon.url).toContain('/menu-icons/equipment-types.png')
+      expect(icon.asset.descriptionUrl).toBeUndefined()
+    }
+  })
 
   it('prefers exact native artwork with database, texture, and identity provenance', () => {
     const artwork = catalogArtwork(builtin, entity)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SWITCH_MOD_PACKS } from '../catalog/mods'
+import { modDisplayName, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { assertModConfiguration, modState, normalizeModName, recordedModNames, updateModSelections, type ModConfiguration, type ModSelection } from '../domain/mods'
 import { Badge, Button, Field, InlineNotice } from './components'
 
@@ -11,7 +11,7 @@ export function ModSelections({ value, onChange }: { readonly value: ModConfigur
   const custom = recordedModNames(value).filter(name => !KNOWN_NAMES.has(normalizeModName(name)))
   const choice = (name: string) => {
     const state = modState(value, name)
-    return <label className="game-setup-mod-choice" key={normalizeModName(name)}><span>{name}</span><select aria-label={name} data-mod-state={state} onChange={event => onChange(updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }]))} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label>
+    return <label className="game-setup-mod-choice" key={normalizeModName(name)}><span>{modDisplayName(name)}</span><select aria-label={modDisplayName(name)} data-mod-state={state} onChange={event => onChange(updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }]))} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label>
   }
   const add = () => {
     try {

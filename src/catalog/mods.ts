@@ -1,5 +1,5 @@
 import { definitionLineageRootRef } from '../domain/definitions'
-import { modState, type ModState } from '../domain/mods'
+import { modState, normalizeModName, type ModState } from '../domain/mods'
 import type { CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
 import { STARTER_NAME_RECORDS } from './data'
 import { EQUIPMENT_EXPANSION_ENTITY_IDS } from './equipment-expansion'
@@ -7,6 +7,12 @@ import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
 import { NATIVE_BASE_REVISION_ID } from './native-game'
+
+export const MOONLIGHT_PROJECT_MOD = 'Moonlight Project Custom Bosses'
+
+export function modDisplayName(name: string): string {
+  return normalizeModName(name) === normalizeModName(MOONLIGHT_PROJECT_MOD) ? 'Moonlight Project' : name
+}
 
 export const SWITCH_MOD_PACKS = Object.freeze([
   {
@@ -32,7 +38,7 @@ export const SWITCH_MOD_PACKS = Object.freeze([
       'Passive Trainer',
       'Doge Shield',
       'Equipment Expansion',
-      'Moonlight Project Custom Bosses',
+      MOONLIGHT_PROJECT_MOD,
       'Bloodmage',
       'Additional Boss: Yasha Tar',
       'Additional Boss: Pinga',
@@ -54,7 +60,7 @@ export const CONFIRMED_SWITCH_MOD_SETUP = Object.freeze({
     'Passive Trainer',
     'Doge Shield',
     'Equipment Expansion',
-    'Moonlight Project Custom Bosses',
+    MOONLIGHT_PROJECT_MOD,
     'Bloodmage',
     'Additional Boss: Yasha Tar',
     'Additional Boss: Pinga',
@@ -84,7 +90,7 @@ const STARTER_EQUIPMENT_EXPANSION_IDS = new Set(STARTER_NAME_RECORDS.filter(reco
 const CURRENT_EQUIPMENT_EXPANSION_IDS = new Set(EQUIPMENT_EXPANSION_ENTITY_IDS)
 const REQUIRED_MOD_BY_ENTITY: ReadonlyMap<string, string> = new Map([
   ...SWITCH_CLASS_RECORDS.flatMap(record => {
-    const mod = record.requiredMod
+    const mod = record.id === 'switch:class:brawler' ? MOONLIGHT_PROJECT_MOD : record.requiredMod
     return mod ? [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])].map(id => [id, mod] as const) : []
   }),
   ['mod-pack-2:class:bloodmage', 'Bloodmage'],
@@ -116,5 +122,11 @@ export function definitionModAvailability(localData: LocalData, ref: EntityRef, 
 export function modAvailabilityLabel(availability: DefinitionModAvailability): string | undefined {
   if (!availability.requiredMod) return undefined
   const state = availability.state === 'unknown' ? 'enabled status not recorded' : availability.state === 'conflicting' ? 'enabled status has conflicting records' : availability.state
-  return `${availability.requiredMod} mod: ${state}`
+  return `${modDisplayName(availability.requiredMod)} mod: ${state}`
+}
+
+export function modPlanningReason(availability: DefinitionModAvailability | undefined): string | undefined {
+  if (!availability?.requiredMod || availability.state === 'enabled') return undefined
+  const reason = availability.state === 'disabled' ? "Mod disabled in this Build's Game Setup" : availability.state === 'conflicting' ? "Conflicting mod settings in this Build's Game Setup" : "Mod status unknown in this Build's Game Setup"
+  return `${reason}. You can still select it.`
 }

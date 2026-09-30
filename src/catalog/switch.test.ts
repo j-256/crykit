@@ -89,7 +89,7 @@ describe('confirmed Switch skill identities', () => {
     const gameSetup = { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Barbarian', 'Tempest', 'Moonlight Project Custom Bosses']) }
     for (const record of SWITCH_CLASS_RECORDS) {
       for (const id of [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])]) {
-        expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : { state: 'unknown' })
+        expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : record.id === 'switch:class:brawler' ? { requiredMod: 'Moonlight Project Custom Bosses', state: 'disabled' } : { state: 'unknown' })
       }
     }
     expect(STARTER_CATALOG.entities['switch:class:brawler'].fields['Source mod'].state).toBe('unknown')

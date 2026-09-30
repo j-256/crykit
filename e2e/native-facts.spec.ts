@@ -5,7 +5,7 @@ test('native class facts use plain labels and leave provenance out of routine de
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   const ratings = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Growth ratings$/ }) })
   await expect(ratings).toHaveCount(1)
-  await expect(ratings).toContainText('80')
+  await expect(ratings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^HP$/ }) }).getByRole('img', { name: '4 of 5 stars', exact: true })).toBeVisible()
   await expect(ratings.locator('summary')).toHaveCount(0)
   await expect(ratings.locator('.badge')).toHaveCount(0)
   await expect(facts.locator('dt', { hasText: /^Stat growth$|^Crystal Edit/ })).toHaveCount(0)

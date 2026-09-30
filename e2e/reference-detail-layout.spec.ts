@@ -23,25 +23,23 @@ async function checkDetailLayout(page: Page, desktop: boolean) {
   expect(geometry.factsRatio).toBeGreaterThan(.8)
   if (desktop) expect(geometry.tableOverflow).toBe(false)
   const ratings = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Growth ratings$/ }) })
-  const ratingGeometry = await ratings.locator('.structured-value__record').evaluate(record => {
+  await expect(ratings.locator('.stat-rating')).toHaveCount(10)
+  const ratingGeometry = await ratings.locator('.stat-ratings').evaluate(record => {
     const bounds = record.getBoundingClientRect()
     return [...record.children].map(pair => {
       const label = document.createRange()
-      const value = document.createRange()
       label.selectNodeContents(pair.querySelector('dt')!)
-      value.selectNodeContents(pair.querySelector('dd')!)
       const labelBounds = label.getBoundingClientRect()
-      const valueBounds = value.getBoundingClientRect()
-      return { gap: valueBounds.left - labelBounds.right, aligned: Math.abs(valueBounds.top - labelBounds.top) < 2 && labelBounds.height <= valueBounds.height + 2, fits: valueBounds.right <= bounds.right, column: Math.round(labelBounds.left) }
+      const valueBounds = pair.querySelector('dd')!.getBoundingClientRect()
+      return { gap: valueBounds.left - labelBounds.right, aligned: Math.abs(valueBounds.top + valueBounds.height / 2 - labelBounds.top - labelBounds.height / 2) < 2, fits: valueBounds.right <= bounds.right, column: Math.round(pair.getBoundingClientRect().left) }
     })
   })
   for (const pair of ratingGeometry) {
     expect(pair.gap).toBeGreaterThan(0)
-    expect(pair.gap).toBeLessThan(32)
     expect(pair.aligned).toBe(true)
     expect(pair.fits).toBe(true)
   }
-  expect(new Set(ratingGeometry.map(pair => pair.column)).size).toBeGreaterThan(1)
+  if (desktop) expect(new Set(ratingGeometry.map(pair => pair.column)).size).toBeGreaterThan(1)
   const factsBounds = (await facts.boundingBox())!
   const sourceBounds = (await page.getByRole('region', { name: 'Source trail', exact: true }).boundingBox())!
   expect(sourceBounds.y).toBeGreaterThanOrEqual(factsBounds.y + factsBounds.height)

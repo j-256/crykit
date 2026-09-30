@@ -8,6 +8,17 @@ import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 export type DefinitionResolver = (ref: EntityRef) => MechanicsDefinition | undefined
 export interface MechanicsIssue { readonly code: string; readonly status: 'invalid' | 'undetermined'; readonly message: string; readonly slotId?: string }
 export interface BuildEffects { readonly text: string; readonly name: string; readonly definition: MechanicsDefinition }
+export interface BuildEquipmentPermissions {
+  readonly primaryName?: string
+  readonly classTypes?: readonly string[]
+  readonly permissions: ReadonlySet<string>
+  readonly unresolvedEffects: boolean
+  readonly dualWield: boolean
+  readonly twoHanded: boolean
+}
+export interface EquipmentPermissionAssessment { readonly status: 'valid' | 'invalid' | 'undetermined'; readonly reason?: string }
+type EquipmentPermissionContent = Pick<BuildRevisionContent, 'primaryClass' | 'secondaryClass' | 'passives'>
+const EQUIPMENT_PERMISSION_PREFIX = 'equipment:'
 
 function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver): { ref: Extract<EntityRef, { kind: 'catalog' }>; definition: MechanicsDefinition } | undefined {
   const visited = new Set<string>()
@@ -23,7 +34,7 @@ function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver): { ref:
   return definition ? { ref: current, definition } : undefined
 }
 
-export function innateEffects(content: BuildRevisionContent, resolve: DefinitionResolver): readonly BuildEffects[] {
+export function innateEffects(content: Pick<BuildRevisionContent, 'primaryClass' | 'secondaryClass'>, resolve: DefinitionResolver): readonly BuildEffects[] {
   if (!content.primaryClass) return []
   const primary = resolve(content.primaryClass)
   if (!primary) return []
@@ -46,6 +57,49 @@ export function innateEffects(content: BuildRevisionContent, resolve: Definition
   }) : []
 }
 
+export function buildEquipmentPermissions(content: EquipmentPermissionContent, resolve: DefinitionResolver): BuildEquipmentPermissions {
+  const primary = content.primaryClass ? resolve(content.primaryClass) : undefined
+  const classTypes = classEquipmentTypes(primary)
+  const innates = innateEffects(content, resolve)
+  const effects = innates.map(effect => nativeSourceRecord(effect.definition) ? definitionPermissionEffects(effect.definition) : permissionEffects(effect.text))
+  for (const selection of content.passives) {
+    const definition = resolve(selection.ref)
+    effects.push(!definition || !['passive', 'innate'].includes(definition.kind)
+      ? { equipment: [], dualWield: false, twoHanded: false, complete: false }
+      : definitionPermissionEffects(definition))
+  }
+  const permissions = new Set(classTypes ?? [])
+  for (const effect of effects) for (const type of effect.equipment) permissions.add(type)
+  const passiveIds = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
+  const explicitlyNoPassives = Array.isArray(passiveIds) && passiveIds.length === 0
+  return {
+    primaryName: primary?.name,
+    classTypes,
+    permissions,
+    dualWield: effects.some(effect => effect.dualWield),
+    twoHanded: effects.some(effect => effect.twoHanded),
+    unresolvedEffects: effects.some(effect => !effect.complete) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innates.length === 0),
+  }
+}
+
+export function requiredEquipmentTypes(definition: MechanicsDefinition): readonly string[] | undefined {
+  const requirements = definition.requirements
+  if (requirements?.state === 'conflicting') return undefined
+  if (requirements?.state === 'known') return requirements.value.flatMap(requirement => requirement.kind === 'permission' && requirement.permission.startsWith(EQUIPMENT_PERMISSION_PREFIX) ? [requirement.permission.slice(EQUIPMENT_PERMISSION_PREFIX.length)] : [])
+  const type = equipmentFacts(definition).type
+  return type ? [type] : undefined
+}
+
+export function assessEquipmentPermission(definition: MechanicsDefinition, context: BuildEquipmentPermissions): EquipmentPermissionAssessment {
+  const types = requiredEquipmentTypes(definition)
+  if (!types) return { status: 'undetermined', reason: definition.requirements?.state === 'conflicting' ? 'Equip requirements conflict' : 'Equipment type unknown' }
+  const missing = types.filter(type => !context.permissions.has(type))
+  if (!missing.length) return { status: 'valid' }
+  return context.classTypes && !context.unresolvedEffects
+    ? { status: 'invalid', reason: `${context.primaryName} cannot equip ${missing.join(', ')}` }
+    : { status: 'undetermined', reason: 'Equip permission unknown' }
+}
+
 export function analyzeBuildEquipment(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey): readonly MechanicsIssue[] {
   const issues: MechanicsIssue[] = []
   const add = (code: string, status: MechanicsIssue['status'], message: string, slotId?: string) => issues.push({ code, status, message, ...(slotId ? { slotId } : {}) })
@@ -55,9 +109,7 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
     if (definition && definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${definition.name} is not a class`)
     if (knownField(definition, field) === true) add('CLASS_DISABLED', 'invalid', `${definition!.name} cannot be selected as the ${label} in its export`)
   }
-  const classTypes = classEquipmentTypes(primary)
-  const permissions = new Set(classTypes ?? [])
-  const effects = innateEffects(content, resolve).map(effect => nativeSourceRecord(effect.definition) ? definitionPermissionEffects(effect.definition) : permissionEffects(effect.text))
+  const { classTypes, permissions, dualWield, twoHanded, unresolvedEffects } = buildEquipmentPermissions(content, resolve)
   const passiveIds = new Set<string>()
   for (const [index, selection] of content.passives.entries()) {
     const slot = passivePosition(index)
@@ -73,14 +125,7 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
       const nativeInnate = Boolean(nativeSourceRecord(definition)) && definition.kind === 'innate'
       add('PASSIVE_NOT_LEARNABLE', nativeInnate ? 'undetermined' : 'invalid', nativeInnate ? `${definition.name} is unlearnable in the native base; selectable-innate mod applicability is unresolved` : `${definition.name} is not learnable as a selectable passive in its source`, slot.id)
     }
-    effects.push(definitionPermissionEffects(definition))
   }
-  for (const effect of effects) for (const type of effect.equipment) permissions.add(type)
-  const dualWield = effects.some(effect => effect.dualWield)
-  const twoHanded = effects.some(effect => effect.twoHanded)
-  const passiveIdsField = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
-  const explicitlyNoPassives = Array.isArray(passiveIdsField) && passiveIdsField.length === 0
-  const unresolvedEffects = effects.some(effect => !effect.complete) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innateEffects(content, resolve).length === 0)
   const equipment = slots.flatMap(slot => {
     const selection = content.equipment[slot.id]
     if (!selection) return []
@@ -98,7 +143,7 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
     else if (!role || !facts.type) add('EQUIPMENT_TYPE_UNKNOWN', 'undetermined', `${slot.label}: ${!role ? 'choose an equipment role in settings' : `${definition.name}'s equipment category is unavailable`}`, slot.id)
     else if (!equipmentFitsRole(facts.type, role)) add('EQUIPMENT_ROLE', 'invalid', `${definition.name} (${facts.type}) does not fit ${slot.label}`, slot.id)
     const requirements = definition.requirements
-    const requiredTypes = requirements?.state === 'known' ? requirements.value.flatMap(requirement => requirement.kind === 'permission' && requirement.permission.startsWith('equipment:') ? [requirement.permission.slice('equipment:'.length)] : []) : facts.type ? [facts.type] : []
+    const requiredTypes = requiredEquipmentTypes(definition) ?? []
     if (requirements?.state === 'conflicting') add('EQUIPMENT_REQUIREMENTS_CONFLICT', 'undetermined', `${definition.name}: equipment requirement claims conflict`, slot.id)
     else for (const type of requiredTypes) if (!permissions.has(type)) add('CLASS_EQUIPMENT_PERMISSION', classTypes && !unresolvedEffects ? 'invalid' : 'undetermined', classTypes && !unresolvedEffects ? `${primary!.name} cannot equip ${type}; select a permission passive or change class` : `${type} permission is unresolved for the primary class and selected passives`, slot.id)
     return [{ slot, selection, definition, role, facts, key: identity(selection.ref), allocation: selection.allocationId ?? `slot:${slot.id}` }]

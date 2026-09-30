@@ -2,7 +2,7 @@ import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
 import { STARTER_CATALOG } from '../src/catalog/starter'
-import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
+import { modDisplayName, CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -107,8 +107,8 @@ async function useConfirmedSwitchSetup(page: Page) {
   await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(panel)
   await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('enabled')
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name, exact: true })).toHaveValue('disabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('disabled')
   await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()

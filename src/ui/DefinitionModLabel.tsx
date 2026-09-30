@@ -1,4 +1,4 @@
-import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
+import { definitionModAvailability, modDisplayName, type DefinitionModAvailability } from '../catalog/mods'
 import type { EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import { Badge } from './components'
 import { useOptionalCorrections } from './corrections-context'
@@ -11,10 +11,11 @@ const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], stri
 })
 export const LEARNABLE_INNATE_SKILLS_MOD_LABEL = 'Learnable Innate Skills'
 
-export function ModBadge({ name, state, className = '' }: { readonly name: string; readonly state?: DefinitionModAvailability['state']; readonly className?: string }) {
+export function ModBadge({ name, state, className = '', showState = true }: { readonly name: string; readonly state?: DefinitionModAvailability['state']; readonly className?: string; readonly showState?: boolean }) {
   const status = state ? MOD_STATE_LABELS[state] : undefined
-  const tone = state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
-  return <span aria-label={`Mod: ${name}${status ? `. ${status}.` : ''}`} className={`mod-badge ${className}`.trim()} data-mod-badge={name} data-mod-state={state}><Badge tone={tone}>Mod: {name}</Badge>{status && <small className="mod-badge__state">{status}</small>}</span>
+  const label = modDisplayName(name)
+  const tone = !showState ? 'info' : state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
+  return <span aria-label={`Mod: ${label}${showState && status ? `. ${status}.` : ''}`} className={`mod-badge ${className}`.trim()} data-mod-badge={name} data-mod-state={state}><Badge tone={tone}>Mod: {label}</Badge>{showState && status && <small className="mod-badge__state">{status}</small>}</span>
 }
 
 export function DefinitionModLabel({ localData, gameSetup, value, className = '' }: { readonly localData: LocalData; readonly gameSetup?: GameSetupRevision; readonly value?: EntityRef | null; readonly className?: string }) {

@@ -40,6 +40,6 @@ export function FieldIconSources({ fields }: { fields: CatalogEntity['fields'] }
   if (!keys.length) return null
   return <details className="menu-icon-sources"><summary>Menu icon sources</summary><ul>{keys.map(key => {
     const icon = menuIcon(key)!
-    return <li key={key}><a href={icon.asset.descriptionUrl} rel="noreferrer" target="_blank">{icon.binding.name}</a> · {icon.asset.license}{icon.binding.region && ' · Region of a public equipment-menu image'}</li>
+    return <li key={key}>{icon.asset.descriptionUrl ? <a href={icon.asset.descriptionUrl} rel="noreferrer" target="_blank">{icon.binding.name}</a> : <span>{icon.binding.name} · {icon.binding.sources.map(source => source.locator).join('; ')}</span>} · {icon.asset.license}{icon.binding.region && (icon.provenance === 'installed-game' ? ' · Region of the original game texture' : ' · Region of a public equipment-menu image')}</li>
   })}</ul></details>
 }
