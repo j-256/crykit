@@ -2,7 +2,7 @@
 
 Build a local-first planner with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
 
-Crystal Companion is evolving rapidly and does not promise backward compatibility for development-era schemas, fixtures, or internal APIs. Prefer a clean current model over compatibility branches, inferred legacy state, or migrations. Add compatibility only when the user explicitly requests it or identifies existing data that must be preserved.
+Preserve backward compatibility for persisted user data across application versions so upgrades do not lose or silently reinterpret it. Version persisted formats explicitly, migrate older data transactionally, preserve unknown values and provenance, and verify rollback on failure. Internal APIs and synthetic fixtures may change without compatibility shims when they do not affect persisted user data.
 
 Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser environments start with labeled synthetic sample records; explicitly created Playthroughs start blank. The application makes no runtime requests for game data.
 
