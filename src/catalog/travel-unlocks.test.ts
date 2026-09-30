@@ -5,6 +5,8 @@ import { catalogArtwork } from './sprites'
 import { catalogContentForChecksum } from '../interchange/correction-promotion'
 import { sha256 } from '../interchange/util'
 
+const WIKI_SOURCE_HOST = 'crystal-project.fandom.com'
+
 describe('travel unlock roster and source definitions', () => {
   it('provides distinct item references with acquisition evidence for every group', () => {
     const seen = new Set<string>()
@@ -13,7 +15,7 @@ describe('travel unlock roster and source definitions', () => {
       seen.add(entityId)
       const entity = DEFAULT_CATALOG.entities[entityId]!
       expect(entity?.kind, entityId).toBe('item')
-      expect(entity.sources.some(source => source.sourceId.includes('crystal-project.fandom.com') && source.snapshot?.startsWith('revision ')), entityId).toBe(true)
+      expect(entity.sources.some(source => URL.canParse(source.sourceId) && new URL(source.sourceId).hostname === WIKI_SOURCE_HOST && source.snapshot?.startsWith('revision ')), entityId).toBe(true)
       expect(entity.fields.Description?.state, entityId).toBe('known')
       expect(entity.fields.Description && 'value' in entity.fields.Description ? entity.fields.Description.value : undefined, entityId).toBeTruthy()
       const artwork = catalogArtwork(DEFAULT_CATALOG.id, entity)

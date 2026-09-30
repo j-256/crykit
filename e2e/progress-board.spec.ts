@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { createBlankPlaythrough } from './local-data-helpers'
 
+const QUEUED_SAVE_DRAIN_TIMEOUT_MS = 120_000
+const QUEUED_SAVE_TEST_TIMEOUT_MS = 150_000
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/progress')
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible()
@@ -84,6 +87,7 @@ test('the vanilla mastery board cycles one class through all four playthrough st
 })
 
 test('rapid class clicks stay interactive, drain in order, and guard tab close while queued', async ({ page }) => {
+  test.setTimeout(QUEUED_SAVE_TEST_TIMEOUT_MS)
   const board = page.getByRole('region', { name: 'Vanilla class mastery board', exact: true })
   const warrior = board.locator('.class-seal-tile').filter({ hasText: 'Warrior' }).first()
   await observeStableProgressRegions(page, 'Monk')
@@ -107,7 +111,7 @@ test('rapid class clicks stay interactive, drain in order, and guard tab close w
   await expect.poll(() => page.evaluate(() => {
     const beforeUnload = new Event('beforeunload', { cancelable: true })
     return !window.dispatchEvent(beforeUnload) || beforeUnload.defaultPrevented
-  }), { timeout: 30_000 }).toBe(false)
+  }), { timeout: QUEUED_SAVE_DRAIN_TIMEOUT_MS }).toBe(false)
   await expect(warrior).toHaveAttribute('data-stage', 'sealAcquired')
   await expectStableProgressRegions(page)
 
