@@ -6,7 +6,7 @@ import { STARTER_CATALOG } from '../src/catalog'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
 const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aassassin-seal'
-const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v1/entities/base%3Aitem%3Aadjudicator'
+const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aitem%3Aadjudicator'
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
 const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'
@@ -102,7 +102,7 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()

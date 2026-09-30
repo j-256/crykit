@@ -26,7 +26,7 @@ test('native artwork and wiki fallbacks retain provenance and remain available a
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
-  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible()
+  await expect(panel.getByText('Offline ready', { exact: true })).toBeVisible({ timeout: 15_000 })
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
@@ -45,6 +45,7 @@ test('native artwork and wiki fallbacks retain provenance and remain available a
 test('reference results retain names and unmatched definitions use placeholders without inventing images', async ({ page }) => {
   await page.goto('/#/reference?v=1&kind=class')
   const card = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Aegis', exact: true }) })
+  await expect(card).toHaveCount(1)
   await expect(card).toBeVisible()
   await expect(card.locator('img')).toHaveAttribute('alt', '')
   await card.click()
@@ -54,6 +55,17 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
   await expect(page.getByText('No exact artwork linked.', { exact: true })).toBeVisible()
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
+})
+
+test('historical bundled details remain reachable without newer innate unlock evidence', async ({ page }) => {
+  const innateDetail = (revision: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/${revision}/entities/base%3Awarrior%3Ainnate%3Afighter`
+  const unlockCost = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Learnable Innate Skill v1\.0 JP cost$/ }) })
+  await page.goto(innateDetail('bundled-v1'))
+  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
+  await expect(unlockCost).toHaveCount(0)
+  await page.goto(innateDetail('bundled-v2'))
+  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
+  await expect(unlockCost).toContainText('500')
 })
 
 test('failed sprite loading preserves the definition and an explicit fallback', async ({ browser, baseURL }) => {

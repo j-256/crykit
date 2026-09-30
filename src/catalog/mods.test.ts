@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { asId } from '../domain/core'
-import { createDefinitionOverride, createPersonalDefinition } from '../domain/local-data'
+import { addGameSetupRevision, createBlankLocalData, createDefinitionOverride, createPersonalDefinition } from '../domain/local-data'
+import { composeModCatalog, expandModCatalogs } from '../domain/mod-layers'
+import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
 import type { CatalogRef, EntityId } from '../domain/types'
 import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
-import { BUNDLED_CATALOG_REVISION_ID } from './bundled-catalog'
+import { DEFAULT_CATALOG } from './bundled'
+import { BUNDLED_CATALOG_REVISION_ID, BUNDLED_V1_CATALOG_REVISION_ID, BUNDLED_V2_CATALOG_REVISION_ID } from './bundled-catalog'
 import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, SWITCH_MOD_PACKS } from './mods'
 import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
@@ -51,6 +54,8 @@ describe('confirmed catalog mod associations', () => {
       expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
       expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
       expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_V2_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: BUNDLED_V1_CATALOG_REVISION_ID }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
     }
     expect(definitionModAvailability(localData, ref('base:warrior:innate:fighter'))).toEqual({ state: 'unknown' })
   })
@@ -66,6 +71,33 @@ describe('confirmed catalog mod associations', () => {
     expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, gameSetup)).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, gameSetup)).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, gameSetup)).toEqual({ state: 'unknown' })
+  })
+
+  it('classifies newly bundled Equipment Expansion definitions only by exact current identities', () => {
+    const localData = createTestLocalData()
+    const currentRef: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: BUNDLED_CATALOG_REVISION_ID, entityId: asId<EntityId>('equipment-expansion:item:0-fool') }
+    expect(DEFAULT_CATALOG.entities[currentRef.entityId]).toBeDefined()
+    expect(definitionModAvailability(localData, currentRef)).toEqual({ requiredMod: 'Equipment Expansion', state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: BUNDLED_V2_CATALOG_REVISION_ID })).toEqual({ requiredMod: 'Equipment Expansion', state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: STARTER_CATALOG_REVISION_ID })).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: BUNDLED_V1_CATALOG_REVISION_ID })).toEqual({ state: 'unknown' })
+    expect(STARTER_CATALOG.entities[currentRef.entityId]).toBeUndefined()
+  })
+
+  it('retains bundled Equipment Expansion availability while imported replacement layers take priority', async () => {
+    const { catalogs, composition } = await syntheticModLayers()
+    const localData = addGameSetupRevision(createBlankLocalData(), {
+      label: 'Synthetic layered mod setup',
+      disabledMods: known(['Equipment Expansion']),
+      modComposition: { ...composition, links: [...composition.links, { modelKey: 'crystal-edit:Equipment:50', targetEntityId: asId<EntityId>('equipment-expansion:item:0-fool') }] },
+    })
+    const gameSetup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
+    const effectiveCatalogs = expandModCatalogs([...catalogs, composeModCatalog(gameSetup, catalogs)!])
+    const currentRef: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: gameSetup.catalogLock[STARTER_CATALOG_ID]!, entityId: asId<EntityId>('equipment-expansion:item:heavy-edge') }
+    expect(definitionModAvailability(localData, currentRef, gameSetup, effectiveCatalogs)).toEqual({ requiredMod: 'Equipment Expansion', state: 'disabled' })
+    const replacementRef = { ...currentRef, entityId: asId<EntityId>('equipment-expansion:item:0-fool') }
+    expect(definitionModAvailability(localData, replacementRef, gameSetup, effectiveCatalogs)).toEqual({ requiredMod: 'Layer A', state: 'enabled' })
+    expect(definitionModAvailability(localData, replacementRef, undefined, effectiveCatalogs)).toEqual({ requiredMod: 'Layer A', state: 'unknown' })
   })
 
   it('retains all exact definitions while attaching the active gameSetup availability to search choices', () => {
