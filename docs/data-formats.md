@@ -2,6 +2,8 @@
 
 Crystal Companion separates reference definitions, personal observations, and hypothetical plans. Importing reference material does not establish current stock or character learning. Original source bytes and unmapped fields are retained for inspection and native backup.
 
+Quintar breeding guide marks are optional timestamped observations in each Playthrough's `quintarBreeding` record, keyed by the guide's fixed step identities. An absent key means no completion was recorded. Native backups preserve these marks and their undo history; unknown step identities and invalid timestamps are rejected. Completing a guide action does not establish current nursery contents or item possession.
+
 ## Starter catalog and personal overrides
 
 When browser storage contains no planner data, initialization creates one local data root with a labeled sample Playthrough, character observations, stocked equipment, shared Build checkpoints, an active team, and a versioned Game Setup. Sample records carry synthetic provenance and use the bundled catalog's exact references. They are written atomically and are not recreated on reload. Explicitly created blank Playthroughs are not seeded with tracked records, but they can use the same shared Builds and Game Setups. Native backups preserve sample records like other local records, without an imported source archive or an initial undo checkpoint.

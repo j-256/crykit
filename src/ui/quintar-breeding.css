@@ -1,0 +1,75 @@
+.progress-boards { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.progress-boards a { padding: 9px 15px; color: var(--text-dim); border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-900); font-size: .8rem; font-weight: 700; text-decoration: none; }
+.progress-boards a[aria-current="page"] { color: var(--cyan-300); border-color: rgba(123, 216, 243, .6); background: rgba(123, 216, 243, .08); }
+.quintar-summary { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); gap: 14px; margin-bottom: 14px; }
+.quintar-summary__count, .quintar-summary__next { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(32, 39, 44, .85); box-shadow: var(--window-edge); }
+.quintar-summary__count { display: flex; align-items: center; gap: 20px; border-color: rgba(215, 167, 86, .6); background: linear-gradient(135deg, rgba(215, 167, 86, .14), rgba(32, 39, 44, .85)); }
+.quintar-summary__count > svg { width: 46px; height: 46px; }
+.quintar-summary__count strong { color: #ffe09b; font-family: var(--font-menu); font-size: 3rem; font-weight: 400; line-height: .9; }
+.quintar-summary__count strong span { color: var(--text-faint); font-size: 1.7rem; }
+.quintar-summary p { margin: 5px 0 0; color: var(--text-dim); font-size: .75rem; }
+.quintar-summary__next { display: grid; justify-items: start; gap: 6px; }
+.quintar-summary__next > span { color: var(--cyan-300); font-size: .67rem; font-weight: 700; text-transform: uppercase; }
+.quintar-summary__next > strong { color: var(--ivory-100); font-size: 1rem; }
+.quintar-summary__next .button { margin-top: 4px; }
+.quintar-tips { margin-bottom: 26px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(32, 39, 44, .6); }
+.quintar-tips summary { padding: 13px 16px; color: var(--text-dim); font-size: .78rem; font-weight: 700; cursor: pointer; }
+.quintar-tips > div { display: grid; gap: 12px; padding: 0 16px 16px; font-size: .76rem; line-height: 1.6; }
+.quintar-tips p { margin: 0; }
+.quintar-guide { display: grid; gap: 30px; }
+.quintar-phase > header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 12px; }
+.quintar-phase h2 { margin: 0; font-size: 1.05rem; }
+.quintar-phase header p { margin: 5px 0 0; color: var(--text-faint); font-size: .75rem; }
+.quintar-phase header > span { flex-shrink: 0; padding: 5px 10px; color: var(--text-dim); border: 1px solid var(--line); border-radius: var(--radius); font-size: .72rem; }
+.quintar-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.quintar-tile { --quintar-color: var(--cyan-300); min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(32, 39, 44, .8); box-shadow: var(--window-edge); }
+.quintar-tile[data-type="Red"] { --quintar-color: #f5a3a3; }
+.quintar-tile[data-type="River"] { --quintar-color: #9cd6bc; }
+.quintar-tile[data-type="Desert"] { --quintar-color: #e7bd80; }
+.quintar-tile[data-type="Highland"] { --quintar-color: #d4baf1; }
+.quintar-tile[data-type="Black"] { --quintar-color: #c6c9e9; }
+.quintar-tile[data-type="Gold"] { --quintar-color: #ffe09b; }
+.quintar-tile[data-next="true"] { border-color: rgba(123, 216, 243, .55); }
+.quintar-tile[data-complete="true"] { border-color: rgba(155, 183, 121, .75); background: linear-gradient(155deg, rgba(155, 183, 121, .1), rgba(32, 39, 44, .9) 62%); }
+.quintar-tile__toggle { width: 100%; min-height: 210px; display: grid; justify-items: center; align-content: start; gap: 6px; padding: 12px 14px 14px; color: inherit; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: center; cursor: pointer; }
+.quintar-tile__toggle:hover { background: rgba(123, 216, 243, .055); }
+.quintar-tile__top { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.quintar-tile__number { color: var(--text-faint); font-family: var(--font-menu); font-size: 1.4rem; }
+.quintar-tile__status { color: var(--text-faint); font-size: .65rem; font-weight: 700; }
+.quintar-tile[data-next="true"] .quintar-tile__status { color: var(--cyan-300); }
+.quintar-tile[data-complete="true"] .quintar-tile__status { color: #c3df9f; }
+.quintar-tile__check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line-strong); background: rgba(23, 29, 34, .8); }
+.quintar-tile__check svg { width: 16px; height: 16px; color: #c3df9f; }
+.quintar-tile__art { display: grid; justify-items: center; align-content: center; gap: 5px; width: 94px; height: 95px; color: var(--quintar-color); filter: grayscale(1); opacity: .4; }
+.quintar-tile__art > svg { width: 55px; height: 55px; }
+.quintar-tile__art > span { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.quintar-tile[data-complete="true"] .quintar-tile__art { filter: none; opacity: 1; }
+.quintar-tile__toggle > strong { color: var(--text-dim); font-size: .9rem; line-height: 1.35; }
+.quintar-tile[data-complete="true"] .quintar-tile__toggle > strong { color: var(--ivory-100); }
+.quintar-tile__toggle > small { color: var(--text-faint); font-size: .65rem; }
+.quintar-tile__guide { display: grid; align-content: start; gap: 12px; padding: 14px; color: var(--text-dim); font-size: .73rem; line-height: 1.6; }
+.quintar-tile__guide p { margin: 0; }
+.quintar-tile__pair { display: grid; gap: 0; justify-items: center; padding: 9px; border: 1px solid var(--line); background: rgba(23, 29, 34, .5); }
+.quintar-tile__pair strong { color: var(--text); }
+.quintar-tile__pair > span { color: var(--text-faint); }
+.quintar-tile__races { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--line); }
+.quintar-tile__races > span { color: var(--text-faint); font-size: .62rem; font-weight: 700; text-transform: uppercase; }
+.quintar-tile__races p { display: grid; gap: 1px; }
+.quintar-tile__races p > span { font-size: .69rem; }
+.quintar-tile__keep strong { color: #c3df9f; }
+.quintar-tile__release { color: var(--text-faint); }
+.quintar-tile__missing { color: #e7bd80; font-size: .67rem; }
+@media (max-width: 650px) {
+  .quintar-summary { grid-template-columns: minmax(0, 1fr); }
+  .quintar-summary__count, .quintar-summary__next { padding: 16px; }
+  .quintar-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .quintar-tile__toggle { min-height: 216px; padding-inline: 8px; }
+  .quintar-tile__top { gap: 4px; }
+  .quintar-tile__guide { padding: 10px; font-size: .7rem; }
+  .quintar-tile__number { font-size: 1.2rem; }
+  .quintar-tile__status { font-size: .58rem; }
+  .quintar-phase > header { align-items: flex-start; }
+}
+@media (max-width: 350px) {
+  .quintar-board { grid-template-columns: minmax(0, 1fr); }
+}

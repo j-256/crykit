@@ -10,6 +10,8 @@ GitHub Actions must remain disabled while the repository is private. Verify publ
 
 Use strict TypeScript and pure domain functions for validation. Keep React out of the domain layer. Verify save failures, import rollback, unknown quantities, simultaneous stock conflicts, backup round-trips, and offline behavior.
 
+Use the shared `useQueuedTileUpdates` hook for immediate-save tile boards. Follow [the queued tile update pattern](docs/queued-tile-updates.md): hold the latest requested state until its queue drains, keep tile clicks enabled, suppress transient saving labels, and verify stable surrounding tiles and controls.
+
 Use Conventional Commits, explicit staging paths, and inspect staged content before committing. Keep the canonical checkout on main and implementation in disposable worktrees. Do not rewrite another contributor's changes.
 
 Use straight quotes and avoid em dashes. Write paragraphs on one source line. Code comments use ASCII and no terminal period.

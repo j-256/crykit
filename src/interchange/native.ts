@@ -759,6 +759,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     Object.keys(playthrough.inventoryEvents).length +
     Object.keys(playthrough.characters).length +
     Object.keys(playthrough.progress).length +
+    Object.keys(playthrough.quintarBreeding ?? {}).length +
     Object.keys(playthrough.scenarios).length +
     Object.keys(playthrough.goals).length, Object.keys(localData.builds).length)
   return {

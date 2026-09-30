@@ -92,6 +92,14 @@ The inventory form starts with focus on the item picker and uses the selected it
 
 Inventory records what you have observed about your current stock. A historical acquisition is kept separately from current stock. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+### Follow the Golden Quintar guide
+
+Open **Progress > Quintar breeding** for an ordered guide through nursery access, wild eggs, both breeding branches, and the Golden Quintar. Unmarked tiles have gray symbols; clicking a tile marks it complete and restores its color. Click again to undo. Instructions stay visible, and **Go to next step** takes you to the first unmarked tile. **Class seals** returns to the mastery board.
+
+Each breeding tile shows its parents, cumulative wins on different race tracks, and which parents to keep or release after hatching. Release advice follows the displayed route only; retain quintars you need for another purpose. **Breeding tips & sources** explains happiness, nursery space, Incubators, and the community sources. The route and race requirements have unverified Switch and mod applicability.
+
+Completion marks belong to the selected Playthrough, save automatically, and survive reloads and native backups. You can mark steps in any order; missing prerequisite marks remain visible and are never filled in automatically. Marks record completed actions without changing your inventory, nursery roster, character learning, or class seals. A failed save restores the tile's saved state and offers **Retry step**. The guide works offline after preparing the application for offline use.
+
 ## Browse reference data
 
 A searchable, revision-attributed community reference catalog covers items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.

@@ -169,6 +169,7 @@ type PlaythroughUpdate = Partial<
     | 'inventoryEvents'
     | 'characters'
     | 'progress'
+    | 'quintarBreeding'
     | 'scenarios'
     | 'goals'
     | 'skillTreeCaptures'
