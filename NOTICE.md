@@ -16,6 +16,8 @@ The [currency icons](src/assets/coins/README.md) are isolated coin artwork from 
 
 The native gameplay snapshot is extracted from Crystal Project Windows 1.6.9. Database and executable hashes, verified version evidence, and numeric identities are retained in [the gameplay snapshot](src/catalog/native-game-data.json). Game data retains source-specific rights; the application license and wiki license do not grant rights to it.
 
+Mod Inspector's [editor schema snapshot](src/mod-inspector/reference-schema.json) records Crystal Edit enum names, model field types, and selector facts with executable fingerprints. It also includes minimal IDs and names from matching animation, voxel, and editor-folder references, each with its own source fingerprint and scope. These game and editor reference facts retain their source attribution. The snapshot does not include the editor executable or decompiled implementation.
+
 Thanks to the [Crystal Project Wiki contributors](https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki). Wiki-derived text retains its [CC-BY-SA terms](https://www.fandom.com/licensing), page links, and source revisions. The extracted catalog reorganizes and normalizes source material for search and comparison; it preserves conflicting and unknown claims. The application license does not replace these content terms.
 
 [Catalog sources](docs/catalog-sources.md) also credits the Crystal Project Archipelago identity tables, public Equipment Expansion sheet, publisher mod-pack descriptions, Crystal Edit class exports, and modding guide. These references have their own provenance and applicability boundaries.

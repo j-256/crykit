@@ -24,7 +24,7 @@ export function CreditsSection() {
     <section className="settings-section">
       <h3>Your data stays in this browser</h3>
       <p>There is no account, telemetry, or cloud sync. Imports and screenshot recognition run locally. The hosting provider receives ordinary requests for app files, but personal records and imported files are not uploaded. Source links open external sites only when you follow them.</p>
-      <p>Export a backup before clearing browser storage or moving to another device or address. Browser storage can be cleared or evicted; offline caching is not a backup. A first visit contains labeled synthetic sample records.</p>
+      <p>Export a planner backup and download Mod Inspector originals and drafts separately before clearing browser storage or moving to another device or address. Browser storage can be cleared or evicted; offline caching is not a backup. A first visit contains labeled synthetic sample records.</p>
     </section>
   </div>
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   activateScenario,
   advanceClassSealProgress,
@@ -81,6 +81,8 @@ import { Button, InlineNotice, Spinner } from './ui/components'
 import { catalogLocksMatch, formatAppError } from './ui/model'
 import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions'
 import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
+
+const ModInspectorView = lazy(() => import('./ui/ModInspectorView').then(module => ({ default: module.ModInspectorView })))
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 const PAINT_WAIT_FALLBACK_MS = 250
@@ -191,7 +193,7 @@ export default function App() {
     if (!actions || !destination) return
     setResolvingDraft(true)
     try {
-      const resolved = resolution === 'save' ? await actions.save() : (actions.discard(), true)
+      const resolved = resolution === 'save' ? await actions.save() : (await actions.discard()) !== false
       if (resolved) navigation.navigate(destination)
     } finally { setResolvingDraft(false) }
   }, [navigation])
@@ -600,7 +602,7 @@ export default function App() {
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
   const content = sharedPage ? <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Kit did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'mod-inspector' ? <Suspense fallback={<p role="status">Opening Mod Inspector...</p>}><ModInspectorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current

@@ -44,6 +44,7 @@ describe('semantic navigation routes', () => {
   })
   it('round-trips every page and action identity', () => {
     const pages = [
+      { page: 'mod-inspector' },
       { page: 'inventory', view: 'list' },
       { page: 'inventory', view: 'new' },
       { page: 'inventory', view: 'event-new' },
@@ -112,6 +113,8 @@ describe('semantic navigation routes', () => {
   })
 
   it('parses search overlays after page prefixes without accepting extra path segments', () => {
+    expect(parseAppRoute('#/mod-inspector/search?q=RevealStatsAuto')).toMatchObject({ page: { page: 'mod-inspector' }, overlays: [{ kind: 'search', query: 'RevealStatsAuto' }] })
+    expect(parseAppRoute('#/mod-inspector/unrecognized').page).toMatchObject({ page: 'unresolved', recovery: 'mod-inspector' })
     expect(parseAppRoute('#/inventory/search?q=sword')).toMatchObject({ page: { page: 'inventory', view: 'list' }, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parseAppRoute('#/reference/search?q=sword')).toMatchObject({ page: { page: 'reference', view: 'list' }, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parseAppRoute('#/characters/character-example/current/search')).toMatchObject({ page: { page: 'characters', view: 'character', characterId: 'character-example', tab: 'current' }, overlays: [{ kind: 'search' }] })

@@ -11,6 +11,7 @@ No account or installation is needed. Your saved builds and records stay in your
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
+- **Inspect and edit mods:** look up exact effect names and record IDs, edit a browser draft, and review changes before exporting standard mod JSON. See [Mod Inspector](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.
 
@@ -49,6 +50,8 @@ On a saved build, expand **Can I use this Build now?** to check it against your 
 
 Save open forms, then choose **Data & settings > Import & backup > Export backup** to download a copy of your planner data. Use that file to recover your records or move them to another browser or device.
 
+Mod Inspector originals and drafts have separate downloads and are not included in planner backups. Export them from **Tools > Mod Inspector** before clearing browser storage or moving to another browser.
+
 **Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
 
 For offline use, open **Data & settings > Offline & storage** while connected. Choose **Prepare for offline use** if needed, and wait for **Offline ready** before disconnecting.
@@ -61,6 +64,7 @@ For offline use, open **Data & settings > Offline & storage** while connected. C
 | Understand stat estimates and supported rules | [Build mechanics](docs/planner-mechanics.md) |
 | Export versioned character formulas and native numeric data | [Calculation package](docs/calculations.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
+| Decode IDs and edit mod JSON | [Mod Inspector](docs/mod-inspector.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Correct a reference entry | [Reference corrections](docs/corrections.md) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |

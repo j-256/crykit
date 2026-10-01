@@ -20,8 +20,9 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(page.getByRole('button', { name: 'Playthrough: Sample playthrough', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /^Scenario:/ })).toHaveCount(0)
   const menu = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true })
-  await expect(menu.getByRole('button')).toHaveText(['Builds', 'Characters', 'Reference', 'Inventory', 'Progress'])
+  await expect(menu.getByRole('button')).toHaveText(['Builds', 'Characters', 'Reference', 'Inventory', 'Progress', 'Mod Inspector'])
   await expect(menu.getByRole('group', { name: 'Tracking', exact: true }).getByRole('button')).toHaveText(['Inventory', 'Progress'])
+  await expect(menu.getByRole('group', { name: 'Tools', exact: true }).getByRole('button')).toHaveText(['Mod Inspector'])
   await expect(menu.getByRole('button', { name: 'Builds', exact: true })).toHaveAttribute('aria-current', 'page')
   if (isMobile) {
     const mainBounds = (await page.locator('.main-shell').boundingBox())!
@@ -56,6 +57,12 @@ test('home opens the build library and separates tracking on desktop and touch',
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await expect(reference).toHaveAttribute('aria-current', 'page')
+  const inspector = menu.getByRole('button', { name: 'Mod Inspector', exact: true })
+  if (isMobile) await inspector.tap()
+  else await inspector.press('Enter')
+  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).toBeVisible()
+  await expect(page.getByText('Mod workspace', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
 })
 
 test('direct settings return to Builds and saved build tracking requires an explicit choice', async ({ page, isMobile }) => {
