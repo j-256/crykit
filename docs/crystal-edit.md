@@ -4,9 +4,20 @@ The application ships a normalized vanilla class baseline from the class-copy ex
 
 The bundled facts include numeric growth ratings, equipment categories, class selection flags, command and crystal labels, ability and passive ID membership, learn-tree coordinates, and prerequisite connectors. The copies have new job IDs; those export-local IDs are retained as provenance and do not replace the established vanilla class identities. Existing wiki facts and saved catalog references remain available in their original revisions. Mods can edit vanilla classes but cannot delete them, so the vanilla baseline does not establish the effective values of a modded class.
 
-The source export contains references to abilities and passives without their definitions. These are displayed as numbered unresolved entries. Their names, learning costs, PP costs, and effects are not supplied by this file. The exported tree is independent of the Switch screenshot maps, which can contain additional learnable innate nodes. Neither source establishes a character's learned state.
+The class-copy export contains ability and passive IDs without their definitions. A separate identity supplement matches every exported tree exactly against the inspected PC 1.6.9.0 job database, then resolves each skill through its native ability or passive ID. Each reference link is matched to an exact name and class in the bundled catalog. The supplement records database and executable hashes in `src/catalog/class-tree-identities.json`; it supplies display names and learning costs without rewriting immutable catalog revisions or saved references. Changed or unrelated trees do not receive this mapping.
 
-Equipment enum meanings and the column-first tree format are documented in the [CrystalProjector job schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/job.yaml). Gate cells and prerequisite directions are retained. Empty arrays differ from omitted fields; explicit zero ratings remain zero.
+Class reference pages render **Learn tree** with named skill cards, type icons where the catalog establishes them, and arrows from prerequisites to the skills they unlock. Blank cells preserve the layout, and connector cells extend arrows rather than appearing as skills. Prerequisites are also named in accessible descriptions. Select a named card to open its exact reference entry. Missing definitions and costs remain explicit unknowns. Monster Magic displays **Monster learning** rather than suggesting that a zero cost grants the skill.
+
+The inspected PC `WindowLearnAbilitySelect.Draw` method displays the stored JP cost divided by 100, preserving fractional LP values. LP labels in the reference tree follow that conversion; they are learning costs, not passive equip costs. The generator rejects a changed executable until that display rule is reviewed. Native costs establish only the inspected PC baseline, not Nintendo Switch or mod parity. Native trees resolve exact skill identities and costs within their database mode, including inherited personal class versions. Imported and effective mod trees resolve definitions through their own catalog and native identity table. Missing source costs and changed numeric identities remain unknown. The reference diagram does not replace confirmed Switch screenshot maps, which can contain additional learnable innate nodes, or mark anyone's skills as learned.
+
+Maintainers can regenerate or verify the supplement without committing game files or private input paths:
+
+```sh
+npm run class-trees:update -- --input <game-content-directory>
+npm run class-trees:check
+```
+
+Equipment enum meanings and the column-first tree format are documented in the [CrystalProjector job schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/job.yaml). Connector cells and prerequisite directions are retained. Empty arrays differ from omitted fields; explicit zero ratings remain zero.
 
 ## Bundled mod evidence
 

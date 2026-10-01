@@ -92,8 +92,8 @@ test('keeps class research available and uses the exact personal class for growt
   await research.getByRole('button', { name: 'Use Synthetic personal Warrior for all growth levels', exact: true }).click()
   await expect(research.getByRole('button', { name: 'Choose Growth class 1', exact: true })).toContainText('Synthetic personal Warrior')
   await expect(research.getByRole('table', { name: 'Estimated base stats', exact: true })).toContainText('1,244.38')
-  await research.getByText('Exported learn tree', { exact: true }).click()
-  await expect(research.getByRole('list', { name: 'Exported learn tree nodes' })).toBeVisible()
+  await research.getByText('Learn tree', { exact: true }).click()
+  await expect(research.getByRole('list', { name: 'Learn tree skills' })).toBeVisible()
 })
 
 test('continues the requested navigation after saving a quick correction', async ({ page }) => {
