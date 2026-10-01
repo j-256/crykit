@@ -5,6 +5,7 @@ import { ContextSelectors } from './ContextSelectors'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
+import { ProgressBoards } from './ProgressBoards'
 import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay, useNavigation, type Destination } from './navigation'
 
 export type { Destination } from './navigation'
@@ -67,7 +68,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       <nav aria-label="Primary navigation" className="menu-window">
         <p className="nav-section__label">Planning</p>
         <ul aria-label="Builds, characters, and reference" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
-        <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul></div>
+        <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>

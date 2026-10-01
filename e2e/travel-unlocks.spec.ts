@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/#/progress')
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
-  await page.getByRole('link', { name: 'Travel & unlocks', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Progress guides', exact: true }).getByRole('link', { name: 'Travel & unlocks', exact: true }).click()
   await expect(page).toHaveURL(/#\/progress\/unlocks$/)
 })
 
@@ -95,7 +95,7 @@ test('tracks mount instruments, shrine stones, and capability items independentl
   await expect(page.getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
   await page.goBack()
   await expect(page.getByRole('checkbox', { name: 'Treasure Finder: acquired', exact: true })).toBeChecked()
-  await page.getByRole('link', { name: 'Class seals', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Progress guides', exact: true }).getByRole('link', { name: 'Class seals', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Warrior: Class not acquired/ })).toBeVisible()
   await expect(page.locator('.progress-other')).not.toContainText('Treasure Finder')
 })

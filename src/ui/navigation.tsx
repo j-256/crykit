@@ -62,6 +62,12 @@ export type ProgressPageRoute =
   | { readonly page: 'progress'; readonly view: 'new' }
   | { readonly page: 'progress'; readonly view: 'edit'; readonly recordId: ProgressRecordId }
 
+export const PROGRESS_PAGES = [
+  { label: 'Class seals', segment: 'seals', page: { page: 'progress', view: 'list' } },
+  { label: 'Travel & unlocks', segment: 'unlocks', page: { page: 'progress', view: 'unlocks' } },
+  { label: 'Quintar breeding', segment: 'quintar', page: { page: 'progress', view: 'quintar' } },
+] as const satisfies readonly { readonly label: string; readonly segment: string; readonly page: ProgressPageRoute }[]
+
 export type ReferencePageRoute =
   | { readonly page: 'reference'; readonly view: 'list' }
   | { readonly page: 'reference'; readonly view: 'detail'; readonly ref: EntityRef }
@@ -277,9 +283,9 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
     return bad('builds')
   }
   if (segments[0] === 'progress') {
-    if (overlayStartsAt(segments, 1)) return { page: { page: 'progress', view: 'list' }, consumed: 1 }
-    if (segments[1] === 'unlocks' && overlayStartsAt(segments, 2)) return { page: { page: 'progress', view: 'unlocks' }, consumed: 2 }
-    if (segments[1] === 'quintar' && overlayStartsAt(segments, 2)) return { page: { page: 'progress', view: 'quintar' }, consumed: 2 }
+    if (overlayStartsAt(segments, 1)) return { page: PROGRESS_PAGES[0].page, consumed: 1, legacy: true }
+    const progressPage = PROGRESS_PAGES.find(entry => entry.segment === segments[1])
+    if (progressPage && overlayStartsAt(segments, 2)) return { page: progressPage.page, consumed: 2 }
     if (segments[1] === 'new') return { page: { page: 'progress', view: 'new' }, consumed: 2 }
     const recordId = decodeSegment(segments[1] ?? '')
     return recordId && segments[2] === 'edit' ? { page: { page: 'progress', view: 'edit', recordId: recordId as ProgressRecordId }, consumed: 3 } : bad('progress', 'malformed-identifier')
@@ -563,11 +569,10 @@ function formatPage(page: PageRoute): string {
     return '/builds/compare'
   }
   if (page.page === 'progress') {
-    if (page.view === 'unlocks') return '/progress/unlocks'
-    if (page.view === 'quintar') return '/progress/quintar'
     if (page.view === 'new') return '/progress/new'
     if (page.view === 'edit') return `/progress/${encodeIdentitySegment(page.recordId, COLLECTION_ID_RESERVED_SEGMENTS)}/edit`
-    return '/progress'
+    const progressPage = PROGRESS_PAGES.find(entry => entry.page.view === page.view)!
+    return `/progress/${progressPage.segment}`
   }
   if (page.page === 'reference') {
     if (page.view === 'promote') return '/reference/promote'
@@ -640,7 +645,7 @@ export function routeForDestination(destination: Destination): AppRoute {
     page: destination === 'inventory' ? { page: 'inventory', view: 'list' }
       : destination === 'characters' ? { page: 'characters', view: 'list' }
       : destination === 'builds' ? { page: 'builds', view: 'library' }
-      : destination === 'progress' ? { page: 'progress', view: 'list' }
+      : destination === 'progress' ? PROGRESS_PAGES[0].page
       : { page: 'reference', view: 'list' },
     overlays: [],
     query: {},
