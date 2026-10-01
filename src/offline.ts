@@ -5,6 +5,7 @@ export interface OfflineStatus {
 }
 
 const READINESS_TIMEOUT_MS = 8_000
+const INSTALLATION_FAILURE_MESSAGE = 'Offline installation failed. Reconnect and retry.'
 let registration: ServiceWorkerRegistration | undefined
 let status: OfflineStatus = { state: 'not-ready', detail: 'Prepare the app for use without a connection.' }
 const listeners = new Set<(status: OfflineStatus) => void>()
@@ -60,11 +61,46 @@ const watchedRegistrations = new WeakSet<ServiceWorkerRegistration>()
 function watchRegistration(value: ServiceWorkerRegistration): void {
   if (watchedRegistrations.has(value)) return
   watchedRegistrations.add(value)
-  value.addEventListener('updatefound', () => {
+  const watchedWorkers = new WeakSet<ServiceWorker>()
+  const watchInstalling = () => {
     const installing = value.installing
-    installing?.addEventListener('statechange', () => {
-      if (installing.state === 'installed' || installing.state === 'activated') void inspectCache()
+    if (!installing || watchedWorkers.has(installing)) return
+    watchedWorkers.add(installing)
+    installing.addEventListener('statechange', () => {
+      if (value.active && (installing.state === 'installed' || installing.state === 'activated')) void inspectCache()
     })
+  }
+  value.addEventListener('updatefound', watchInstalling)
+  watchInstalling()
+}
+
+function waitForActiveWorker(value: ServiceWorkerRegistration): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let observedWorker: ServiceWorker | null = null
+    const cleanup = () => {
+      value.removeEventListener('updatefound', inspect)
+      observedWorker?.removeEventListener('statechange', inspect)
+    }
+    const inspect = () => {
+      if (value.active) {
+        cleanup()
+        resolve()
+        return
+      }
+      const worker = value.installing ?? value.waiting ?? observedWorker
+      if (!worker || worker.state === 'redundant') {
+        cleanup()
+        reject(new Error(INSTALLATION_FAILURE_MESSAGE))
+        return
+      }
+      if (worker !== observedWorker) {
+        observedWorker?.removeEventListener('statechange', inspect)
+        observedWorker = worker
+        observedWorker.addEventListener('statechange', inspect)
+      }
+    }
+    value.addEventListener('updatefound', inspect)
+    inspect()
   })
 }
 
@@ -85,12 +121,7 @@ async function prepareOffline(): Promise<OfflineStatus> {
   try {
     registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
     watchRegistration(registration)
-    if (!registration.active) {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Offline installation did not finish. Reconnect and retry.')), READINESS_TIMEOUT_MS)
-        void navigator.serviceWorker.ready.then(() => { clearTimeout(timer); resolve() })
-      })
-    }
+    if (!registration.active) await waitForActiveWorker(registration)
     const inspected = await inspectCache()
     return inspected.state === 'ready' ? inspected : await inspectCache(true)
   } catch (error) {

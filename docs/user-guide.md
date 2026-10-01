@@ -176,7 +176,7 @@ See [local data and interchange](data-formats.md) for supported inputs, backup s
 
 ## Use the app offline
 
-While connected, open **Data & settings > Offline & storage**. If the app is not ready, choose **Prepare for offline use** and wait for **Offline ready** before relying on it without a connection. Offline preparation caches the application and its bundled reference data. Keep exporting backups for your personal records.
+While connected, open **Data & settings > Offline & storage**. If the app is not ready, choose **Prepare for offline use** and wait for **Offline ready** before relying on it without a connection. Offline preparation caches the application and its bundled reference data. The first download can take time on a slow connection; preparation stays in progress until installation completes. If installation fails, reconnect and retry. Keep exporting backups for your personal records.
 
 When an update is available, save open drafts and choose **Apply app update** in the same section. Updates wait for your approval.
 
