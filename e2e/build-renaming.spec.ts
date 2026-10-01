@@ -57,8 +57,10 @@ test('canceling and saving an unchanged title make no local transaction', async 
   await rename(page, RENAMED_TITLE)
   await page.getByRole('button', { name: 'Cancel rename', exact: true }).click()
   await expect(page.getByRole('heading', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Rename', exact: true })).toBeFocused()
   await rename(page, ` ${ORIGINAL_TITLE} `)
   await page.getByRole('button', { name: 'Save title', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Rename', exact: true })).toBeFocused()
   expect(await exportLocalData(page)).toEqual(before)
 })
 
@@ -117,6 +119,7 @@ test('failed title persistence retains both drafts for retry without creating a 
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
   await page.getByRole('button', { name: 'Save title', exact: true }).click()
   await expect(page.getByRole('heading', { name: RENAMED_TITLE, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Rename', exact: true })).toBeFocused()
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   const after = await exportLocalData(page)
