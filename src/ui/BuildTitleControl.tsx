@@ -11,19 +11,21 @@ export function BuildTitleControl({ build, onRename, onDirtyChange }: { build: B
   const [error, setError] = useState<string>()
   const inputRef = useRef<HTMLInputElement>(null)
   const headingRef = useRef<HTMLDivElement>(null)
+  const wasEditingRef = useRef(false)
   const titleRef = useRef(title)
   const actionsRef = useRef<DraftActions | undefined>(undefined)
   const registeredActionsRef = useRef<DraftActions>({ save: () => actionsRef.current?.save() ?? Promise.resolve(false), discard: () => actionsRef.current?.discard() })
 
   useEffect(() => {
     if (editing) { inputRef.current?.focus(); inputRef.current?.select() }
+    else if (wasEditingRef.current) headingRef.current?.querySelector('button')?.focus()
+    wasEditingRef.current = editing
   }, [editing])
 
   const finish = () => {
     setEditing(false)
     setError(undefined)
     onDirtyChange(false)
-    window.requestAnimationFrame(() => headingRef.current?.querySelector('button')?.focus())
   }
   const save = async () => {
     if (busy) return false
