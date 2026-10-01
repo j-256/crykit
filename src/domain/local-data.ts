@@ -53,7 +53,7 @@ export interface CreateBlankLocalDataInput {
 export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): LocalData {
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '2.1.0',
     id: input.id ?? createId<LocalDataId>('localData'),
     revision: 0,
     createdAt: at,
@@ -384,6 +384,7 @@ export interface AddGameSetupRevisionInput {
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly customMods?: readonly string[]
   readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
@@ -404,7 +405,7 @@ export const DEFAULT_GAME_VERSION = '1.6.6'
 
 export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRevisionInput): LocalData {
   assertExpectedRevision(localData, input.expectedRevision)
-  assertModConfiguration({ mods: input.mods ?? UNKNOWN_STRINGS, disabledMods: input.disabledMods })
+  assertModConfiguration({ mods: input.mods ?? UNKNOWN_STRINGS, disabledMods: input.disabledMods, customMods: input.customMods })
   const id = input.id ?? createId<GameSetupRevisionId>('gameSetupRevision')
   if (localData.gameSetups[id]) {
     throw new DomainError('DUPLICATE_ID', `Game Setup revision already exists: ${id}`)
@@ -452,6 +453,7 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
     mode: input.mode ?? UNKNOWN_STRING,
     mods: input.mods ?? UNKNOWN_STRINGS,
     ...(input.disabledMods === undefined ? {} : { disabledMods: input.disabledMods }),
+    ...(input.customMods === undefined ? {} : { customMods: input.customMods }),
     ppLimit: input.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
     ppCostsNonNegative: input.ppCostsNonNegative ?? { state: 'known', value: DEFAULT_PP_COSTS_NONNEGATIVE },
     slots: [...slots].sort((left, right) => left.order - right.order),
@@ -484,6 +486,7 @@ export interface UpdateGameSetupRevisionInput {
   readonly mode?: Knowledge<string>
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly customMods?: readonly string[]
   readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative?: Knowledge<boolean>
   readonly slots?: readonly SlotDefinition[]
@@ -512,6 +515,7 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
     mode: input.mode ?? source.mode,
     mods: input.mods ?? source.mods,
     disabledMods: input.disabledMods ?? source.disabledMods,
+    customMods: input.customMods ?? source.customMods,
     ppLimit: input.ppLimit ?? source.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT },
     ppCostsNonNegative: input.ppCostsNonNegative ?? source.ppCostsNonNegative,
     slots: input.slots ?? source.slots,

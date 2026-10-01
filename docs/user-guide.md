@@ -16,7 +16,7 @@ Use **Playthrough** and **Game Setup** at the top to switch context. A Playthrou
 
 Game Setups describe shared, versioned game configuration such as platform, mods, slots, and PP rules. Platform and game mode use finite choices; game version reuses recorded values or accepts an explicitly entered exact version.
 
-Builds are shared across Playthroughs but belong to one logical Game Setup, and each Build checkpoint pins an exact Game Setup revision. Builds for another Game Setup remain visible at the bottom of the library in a muted group with an explanation; inspect them there or fork one into the current Game Setup.
+Builds are shared across Playthroughs. Each checkpoint owns its exact behavior: version, mods, catalog pins, equipment layout, and PP rules. Open **Build behavior** to choose a recognizable preset or customize those rules. Changes save with the new checkpoint; earlier checkpoints keep their rules. Builds with different behavior from the active Playthrough remain editable in the library, with a compatibility explanation.
 
 **Scenario** appears on tracking pages, Characters, and team views. It prioritizes a selected team for readiness checks without changing the Playthrough's current Game Setup. **None selected** clears the active scenario without deleting it. Finish open drafts or retry failed saves before switching.
 
@@ -24,7 +24,7 @@ Builds are shared across Playthroughs but belong to one logical Game Setup, and 
 
 Choose **Builds > New Build** to open a blank Build sheet. Type into class, sub-command, equipment, accessory, or passive fields and select a matching catalog or personal definition. Search text never becomes a saved selection or creates a definition. Sub-commands use documented command names while retaining the associated class identity. No recorded inventory, character, or learned skills are required.
 
-A suggested equipment-slot layout is available when the current Game Setup has no configured slots; its game rules remain unknown and its slots can be adjusted in Data & settings. Passives are an ordered, variable-length list rather than configured slots. Existing configured layouts are preserved.
+A new Build starts from the selected Game Setup as a preset. Choose known mods individually as Enabled, Disabled, or Unknown. Enter one custom mod name and choose **Add mod** to create a separate selection; custom choices remain available when changed to Unknown. A preset supplies rules without changing the Playthrough. A suggested equipment-slot layout is available when the preset has no configured slots; its game rules remain unknown and its slots can be adjusted in Data & settings. Passives are an ordered, variable-length list rather than configured slots. Existing configured layouts are preserved.
 
 ### Choose equipment and passives
 
@@ -52,7 +52,7 @@ Class pages and build plans offer scoped estimates with explicit inputs. Full di
 
 ## Share a build or team
 
-Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a complete team scenario, then choose **Copy link**. Build cards share the latest checkpoint. A recipient can inspect the snapshot and choose **Save a copy**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies map the four slots to the recipient's own characters. Notes are optional, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
+Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a complete team scenario, then choose **Copy link**. Build cards share the latest checkpoint. A recipient can inspect the snapshot and choose **Save a copy**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies map the four slots to the recipient's own characters. **Include written notes** adds rotation notes, written assumptions, and checkpoint names. Build behavior and calculation inputs are always included, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
 
 ## Check a team
 

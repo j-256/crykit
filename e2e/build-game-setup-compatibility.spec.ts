@@ -19,7 +19,7 @@ function compatibilityFixture(): LocalData {
     mode: source.mode,
     mods: source.mods,
     disabledMods: source.disabledMods,
-    ppLimit: source.ppLimit,
+    ppLimit: { state: 'known', value: 20 },
     ppCostsNonNegative: source.ppCostsNonNegative,
     slots: source.slots,
     catalogLock: source.catalogLock,
@@ -51,7 +51,7 @@ function cards(section: Locator): Locator {
   return section.locator('.build-card')
 }
 
-test('inapplicable Builds remain visible below current Builds with an explanation and fork path', async ({ page, isMobile }) => {
+test('inapplicable Builds remain visible below current Builds with an explanation and direct editing', async ({ page, isMobile }) => {
   await loadFixture(page)
   const groups = page.locator('.build-library-group')
   await expect(groups.locator('.build-library-group__header h2')).toHaveText(['Current Game Setup', 'Other Game Setups'])
@@ -68,14 +68,15 @@ test('inapplicable Builds remain visible below current Builds with an explanatio
   await expect(original).toContainText(`Uses Sample starter Game Setup. Current Playthrough uses ${ALTERNATE_GAME_SETUP}.`)
 
   await original.locator('.build-card__open').click()
-  await expect(page.getByText(`This Build belongs to Sample starter Game Setup. Use Fork to current Game Setup to create an editable copy for this Playthrough.`, { exact: true })).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeDisabled()
-
-  await page.getByRole('button', { name: 'Fork to current Game Setup', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Fork to current Game Setup', exact: true })).toHaveCount(0)
+  await page.locator('.build-behavior > summary').click()
+  const preset = page.getByRole('combobox', { name: 'Behavior preset', exact: true })
+  await preset.selectOption({ label: `${ALTERNATE_GAME_SETUP} · r1` })
+  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   if (isMobile) await page.locator('.build-library > summary').click()
   await expect(cards(current)).toHaveCount(1)
-  await expect(cards(current).first()).toContainText(`${originalTitle} (${ALTERNATE_GAME_SETUP})`)
-  await expect(cards(other)).toHaveCount(4)
-  await expect(cards(other).filter({ hasText: originalTitle }).first()).toHaveClass(/build-card--inapplicable/)
+  await expect(cards(current).first()).toContainText(originalTitle)
+  await expect(cards(other)).toHaveCount(3)
 })

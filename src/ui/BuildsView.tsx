@@ -1,13 +1,13 @@
 import { MoneyText } from './MoneyText'
 import { DefinitionArtwork } from './GameIcon'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, requirePlaythrough, sameLogicalEntity, TEAM_SIZE, validateBuildContent } from '../domain'
-import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
+import { buildBehavior, sameBuildBehavior, compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, requirePlaythrough, sameLogicalEntity, TEAM_SIZE, validateBuildContent } from '../domain'
+import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, GameSetupId, GameSetupRevision, GameSetupRevisionId, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { activeGameSetup, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
-import { findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
+import { DefinitionProvider, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
 import { BuildMechanics, formatStatRange } from './BuildMechanics'
 import { BuildValidity } from './BuildValidity'
@@ -20,9 +20,13 @@ import type { DraftActions, DraftChangeHandler } from './drafts'
 import { BuildLoadoutSummary, PassiveCapacityMeter } from './BuildLoadoutSummary'
 import { FIELD_FOCUS_QUERY_KEY, fieldFocusQuery, focusFieldElement } from './field-focus'
 import { ShareButton } from './ShareButton'
+import { BuildBehaviorEditor } from './BuildBehaviorEditor'
+import type { BuildBehavior } from '../domain/build-behavior'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { DEFAULT_PP_LIMIT } from '../domain/local-data'
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly state: BuildState; readonly tags: readonly string[] }
-export interface RevisionDraft extends BuildRevisionContent { readonly note?: string }
+export interface RevisionDraft extends BuildRevisionContent { readonly behavior: BuildBehavior; readonly note?: string }
 export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<ScenarioKind, 'recordedCurrent'>; readonly memberIds: readonly string[]; readonly baseline: 'empty' | 'recordedParty'; readonly enforceStock: boolean; readonly includeProtected: boolean; readonly buildRevisionId?: BuildRevisionId }
 
 type BuildsSection = 'library' | 'teams' | 'compare'
@@ -88,12 +92,30 @@ function detachAllocation(selections: Readonly<Record<string, BuildSelection | n
   return next
 }
 
-function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false, readOnlyReason }: { build?: Build; children?: ReactNode; locked?: boolean; readOnlyReason?: string; sourceRevision?: BuildRevision; localData: LocalData; catalogs: readonly CatalogSnapshot[]; onCancel?: () => void; onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; onSaved: (revisionId: BuildRevisionId) => void; onDirtyChange: DraftChangeHandler }) {
+interface RevisionEditorProps { readonly build?: Build; readonly children?: ReactNode; readonly locked?: boolean; readonly sourceRevision?: BuildRevision; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onCancel?: () => void; readonly onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; readonly onSaved: (revisionId: BuildRevisionId) => void; readonly onDirtyChange: DraftChangeHandler }
+
+function RevisionEditor(props: RevisionEditorProps) {
+  const library = useDefinitionLibrary()
+  const initialBehavior = () => {
+    const revision = props.sourceRevision ?? (props.build?.latestRevisionId ? props.localData.buildRevisions[props.build.latestRevisionId] : undefined)
+    const setup = revision ? props.localData.gameSetups[revision.gameSetupRevisionId] : activeGameSetup(props.localData)
+    if (setup) return { ...buildBehavior(setup), slots: setup.slots.length ? setup.slots : SUGGESTED_BUILD_SLOTS }
+    return { label: 'Build behavior', platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mode: { state: 'unknown' }, mods: { state: 'unknown' }, ppLimit: { state: 'known', value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } satisfies BuildBehavior
+  }
+  const [behavior, setBehavior] = useState<BuildBehavior>(initialBehavior)
+  const [draftIdentity] = useState(() => ({ id: createId<GameSetupRevisionId>('draftBehavior'), gameSetupId: createId<GameSetupId>('draftPreset') }))
+  const draftId = draftIdentity.id
+  const source = props.sourceRevision ? props.localData.gameSetups[props.sourceRevision.gameSetupRevisionId] : activeGameSetup(props.localData)
+  const gameSetup = useMemo(() => ({ id: draftId, gameSetupId: source?.gameSetupId ?? draftIdentity.gameSetupId, revision: source?.revision ?? 1, createdAt: source?.createdAt ?? props.localData.createdAt, ...behavior }), [behavior, draftId, draftIdentity.gameSetupId, source, props.localData.createdAt])
+  const scopedData = useMemo(() => ({ ...props.localData, planningGameSetupRevisionId: draftId, gameSetups: { ...props.localData.gameSetups, [draftId]: gameSetup } }), [props.localData, draftId, gameSetup])
+  return <DefinitionProvider catalogs={library.catalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition}><RevisionEditorBody {...props} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={setBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData}/></DefinitionProvider>
+}
+
+function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false, behavior, gameSetup, onBehaviorChange, onDiscardBehavior, presetData }: RevisionEditorProps & { readonly behavior: BuildBehavior; readonly gameSetup: GameSetupRevision; readonly onBehaviorChange: (value: BuildBehavior) => void; readonly onDiscardBehavior: () => void; readonly presetData: LocalData }) {
   const navigation = useNavigation()
   const { options, planningOptions } = useDefinitionLibrary()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
-  const gameSetup = latest ? ownRecordValue(localData.gameSetups, latest.gameSetupRevisionId) : activeGameSetup(localData)
-  const initialDraft = (): RevisionDraft => ({ primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
+  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
   const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
@@ -108,6 +130,7 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [comparedWith, setComparedWith] = useState<DefinitionOption>()
   const [includeInnates, setIncludeInnates] = useState(true)
+  const [behaviorEditorKey, setBehaviorEditorKey] = useState(0)
   const [editorView, setEditorView] = useState<'loadout' | 'checks'>('loadout')
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
   const slots = useMemo(() => [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((a, b) => a.order - b.order), [gameSetup])
@@ -119,6 +142,7 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
       ? `${equippedInnateCount} equipped ${equippedInnateCount === 1 ? 'innate remains' : 'innates remain'} selected. Innates are hidden from search results.`
       : 'Innates are hidden from search results. Existing selections are unchanged.'
   const validity = useMemo(() => validateBuildContent(draft, gameSetup, slots, ref => definitionIndex.get(entityDefinitionKey(ref)), ref => logicalEntityKey(localData, ref)), [definitionIndex, draft, localData, gameSetup, slots])
+  const retainedEquipment = Object.entries(draft.equipment).filter(([id]) => !slots.some(slot => slot.id === id))
   const equipmentSlots = slots
   const equipmentSlotIds = new Set(equipmentSlots.map((slot) => slot.id as string))
   const targetForFieldKey = (fieldKey: string): PickerTarget | undefined => {
@@ -167,7 +191,7 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
     if (pickerOverlay) pickerMemoryRef.current[pickerOverlay.fieldKey] = { query, resultLimit: candidateLimit }
   }, [candidateLimit, pickerOverlay, query])
   const editorScope: AppRoute = { ...navigation.route, overlays: [] }
-  useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'), (to) => !busy && !locked && !readOnlyReason && isReferenceResearchRoute(to))
+  useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'), (to) => !busy && !locked && isReferenceResearchRoute(to))
   const updateDirty = (value: boolean) => { dirtyRef.current = value; onDirtyChange(value, value ? registeredActionsRef.current : undefined) }
   const openPicker = (target: PickerTarget) => {
     if (picker?.fieldKey === target.fieldKey) return
@@ -193,9 +217,9 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
     })
     updateDirty(true)
   }
-  const save = async () => { setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draftRef.current, contextAssumptions: assumptionsRef.current.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId); return true } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.'); return false } finally { setBusy(false) } }
+  const save = async () => { setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draftRef.current, behavior, contextAssumptions: assumptionsRef.current.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId); return true } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.'); return false } finally { setBusy(false) } }
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
-  const discard = () => { const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
+  const discard = () => { onDiscardBehavior(); setBehaviorEditorKey(value => value + 1); const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
   actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
   const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
@@ -221,15 +245,15 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
     return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
   }
-  return <form className="stack build-sheet" data-validity={validity.status} onInput={(event) => { if (readOnlyReason) return; const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onSubmit={submit}>
+  return <form className="stack build-sheet" data-validity={validity.status} onInput={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
-    {readOnlyReason && <InlineNotice title="Build shown for another Game Setup" tone="warning">{readOnlyReason}</InlineNotice>}
+    <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity report={validity}/>
     <div className="build-sheet__view-switch"><Segmented label="Build editor view" onChange={setEditorView} options={[{ value: 'loadout', label: 'Loadout' }, { value: 'checks', label: 'Checks & notes' }]} value={editorView}/></div>
-    <fieldset className="build-sheet__fields" disabled={busy || locked || Boolean(readOnlyReason)}>{editorView === 'loadout' ? <div className="build-sheet__layout">
+    <fieldset className="build-sheet__fields" disabled={busy || locked}>{editorView === 'loadout' ? <div className="build-sheet__layout">
       <div className="build-sheet__slots">
         <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
-        <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentSlots.map(slotField)}</div></section>
+        <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentSlots.map(slotField)}</div>{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This preset has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</section>
         <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
       </div>
       <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Loadout</h3><p>Choose a slot to search the pinned catalog and inspect its details.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
@@ -239,7 +263,7 @@ function RevisionEditor({ build, sourceRevision, localData, catalogs, onCancel, 
     </section>}</fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
-    {!readOnlyReason && <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></div>}
+    <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></div>
   </form>
 }
 
@@ -249,7 +273,7 @@ function AddScenarioForm({ localData, revision, onCancel, onSubmit }: { localDat
   const sameLock = Boolean(recorded && currentGameSetup && catalogLocksMatch(recorded.catalogLock, revision?.catalogLock ?? currentGameSetup.catalogLock))
   const recordedAssignments = recorded ? effectiveScenarioAssignments(recorded) : {}
   const recordedMembers = recorded?.memberIds ?? []
-  const recordedBaselineAvailable = Boolean(recorded && currentGameSetup && recorded.gameSetupRevisionId === currentGameSetup.id && sameLock && Object.keys(recordedAssignments).length)
+  const recordedBaselineAvailable = Boolean(recorded && currentGameSetup && sameBuildBehavior(localData.gameSetups[recorded.gameSetupRevisionId], currentGameSetup) && sameLock && Object.keys(recordedAssignments).length)
   const initialMembers = Array.from({ length: TEAM_SIZE }, () => '')
   const [draft, setDraft] = useState<ScenarioDraft>({ label: '', kind: 'draft', memberIds: initialMembers, baseline: 'empty', enforceStock: true, includeProtected: false, buildRevisionId: revision?.id })
   const [busy, setBusy] = useState(false)
@@ -265,7 +289,7 @@ function ScenarioCard({ scenario, localData, catalogs, validation, onAssign, sha
   const navigation = useNavigation()
   const memberIds = scenario.memberIds
   const characters = memberIds.flatMap(characterId => ownRecordValue(requirePlaythrough(localData).characters, characterId) ?? [])
-  const revisions = Object.values(localData.buildRevisions).filter(candidate => candidate.gameSetupRevisionId === scenario.gameSetupRevisionId)
+  const revisions = Object.values(localData.buildRevisions).filter(candidate => sameBuildBehavior(localData.gameSetups[candidate.gameSetupRevisionId], localData.gameSetups[scenario.gameSetupRevisionId]))
   const effectiveAssignments = effectiveScenarioAssignments(scenario)
   const scenarioGameSetup = ownRecordValue(localData.gameSetups, scenario.gameSetupRevisionId)
   const [assignmentError, setAssignmentError] = useState<string>()
@@ -286,7 +310,7 @@ function ScenarioCard({ scenario, localData, catalogs, validation, onAssign, sha
   })}</div>{assignmentError && <InlineNotice title="Assignment not saved" tone="danger">{assignmentError} The prior pinned assignment remains active.</InlineNotice>}<ValidationPanel catalogs={catalogs} localData={localData} report={validation} scenario={scenario}/></div></article>
 }
 
-export function BuildsView({ localData, catalogs, validations, shareBlocked = false, onCreateBuild, onCloneBuild, onForkBuild, onSaveRevision, onCreateScenario, onAssign, onRecordCurrent, onDraftChange }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; validations: Readonly<Record<string, ValidationReport | undefined>>; shareBlocked?: boolean; onCreateBuild: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onCloneBuild: (buildId: string) => Promise<string>; onForkBuild: (buildId: string) => Promise<string>; onSaveRevision: (buildId: string, draft: RevisionDraft, parentRevisionId?: string) => Promise<BuildRevisionId>; onCreateScenario: (draft: ScenarioDraft) => Promise<void>; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void>; onRecordCurrent: (buildId: string, revisionId: string, characterId: string) => Promise<void>; onDraftChange: DraftChangeHandler }) {
+export function BuildsView({ localData, catalogs, validations, shareBlocked = false, onCreateBuild, onCloneBuild, onSaveRevision, onCreateScenario, onAssign, onRecordCurrent, onDraftChange }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; validations: Readonly<Record<string, ValidationReport | undefined>>; shareBlocked?: boolean; onCreateBuild: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onCloneBuild: (buildId: string) => Promise<string>; onSaveRevision: (buildId: string, draft: RevisionDraft, parentRevisionId?: string) => Promise<BuildRevisionId>; onCreateScenario: (draft: ScenarioDraft) => Promise<void>; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void>; onRecordCurrent: (buildId: string, revisionId: string, characterId: string) => Promise<void>; onDraftChange: DraftChangeHandler }) {
   const navigation = useNavigation()
   const page = navigation.route.page.page === 'builds' ? navigation.route.page : { page: 'builds', view: 'library' } as const
   const playthrough = requirePlaythrough(localData)
@@ -325,8 +349,6 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const [draftGuard, setDraftGuard] = useState<string>()
   const [cloneBusy, setCloneBusy] = useState(false)
   const [cloneError, setCloneError] = useState<string>()
-  const [forkBusy, setForkBusy] = useState(false)
-  const [forkError, setForkError] = useState<string>()
   const navigate = (next: BuildsPageRoute, replace = false, query = {}) => navigation.navigate({ ...navigation.route, page: next, overlays: [], query }, { replace })
   const editorRouteFor = (build: Build): BuildsPageRoute => build.latestRevisionId
     ? { page: 'builds', view: 'revision-edit', buildId: build.id, revisionId: build.latestRevisionId }
@@ -360,8 +382,9 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
     } finally { setResolvingDraft(false) }
   }
   const matchingBuilds = allBuilds.filter((build) => `${build.title} ${build.tags.join(' ')} ${ownRecordValue(localData.gameSetups, build.latestRevisionId ? localData.buildRevisions[build.latestRevisionId]?.gameSetupRevisionId : '')?.label ?? ''}`.toLocaleLowerCase().includes(buildQuery.trim().toLocaleLowerCase()))
-  const applicableBuilds = matchingBuilds.filter(build => build.gameSetupId === currentGameSetup?.gameSetupId)
-  const inapplicableBuilds = matchingBuilds.filter(build => build.gameSetupId !== currentGameSetup?.gameSetupId)
+  const applicable = (build: Build) => sameBuildBehavior(build.latestRevisionId ? localData.gameSetups[localData.buildRevisions[build.latestRevisionId]?.gameSetupRevisionId] : undefined, currentGameSetup)
+  const applicableBuilds = matchingBuilds.filter(applicable)
+  const inapplicableBuilds = matchingBuilds.filter(build => !applicable(build))
   const builds = [...applicableBuilds, ...inapplicableBuilds]
   const selected = selectedId ? ownRecordValue(localData.builds, selectedId) : undefined
   const requestedRevisionId = page.view === 'revision' || page.view === 'revision-edit' || page.view === 'record-current' ? page.revisionId : undefined
@@ -383,7 +406,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const activeScenario = playthrough.activeScenarioId ? ownRecordValue(playthrough.scenarios, playthrough.activeScenarioId) : undefined
   const supportsRecording = (scenario: TeamScenario | undefined) => {
     if (!scenario || !selectedRevision) return false
-    return scenario.gameSetupRevisionId === selectedRevision.gameSetupRevisionId && catalogLocksMatch(scenario.catalogLock, selectedRevision.catalogLock)
+    return sameBuildBehavior(localData.gameSetups[scenario.gameSetupRevisionId], localData.gameSetups[selectedRevision.gameSetupRevisionId]) && catalogLocksMatch(scenario.catalogLock, selectedRevision.catalogLock)
   }
   const recordRosterScenario = supportsRecording(recordedScenario) ? recordedScenario : supportsRecording(activeScenario) ? activeScenario : undefined
   const forksRecordedParty = Boolean(recordedScenario && recordRosterScenario && recordedScenario.id !== recordRosterScenario.id)
@@ -538,38 +561,25 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
       setCloneBusy(false)
     }
   }
-  const forkSelected = async () => {
-    if (!selected?.latestRevisionId) return
-    setForkBusy(true)
-    setForkError(undefined)
-    try {
-      const forkedId = await onForkBuild(selected.id)
-      navigate({ page: 'builds', view: 'build', buildId: forkedId as BuildId })
-    } catch (reason) {
-      setForkError(reason instanceof Error ? reason.message : 'The Build could not be forked.')
-    } finally {
-      setForkBusy(false)
-    }
-  }
   const updateBuildQuery = (value: string) => navigation.navigate({ ...navigation.route, query: { ...navigation.route.query, q: value ? [value] : [] } }, { replace: true })
   const chooseEditorBase = (revisionId: string) => {
     if (!selected) return
     navigate({ page: 'builds', view: 'revision-edit', buildId: selected.id, revisionId: revisionId as BuildRevisionId })
   }
 
-  const selectedInapplicable = Boolean(selected && selected.gameSetupId !== currentGameSetup?.gameSetupId)
-  const buildCard = (build: Build) => <BuildCard build={build} catalogs={catalogs} currentGameSetupLabel={currentGameSetup?.label} inapplicable={build.gameSetupId !== currentGameSetup?.gameSetupId} key={build.id} onSelect={() => selectBuild(build.id)} onSlotSelect={slotId => selectBuild(build.id, `slot:${slotId}`)} localData={localData} selected={selected?.id === build.id} showShare={page.view === 'library'} shareBlocked={editorDirty || shareBlocked}/>
-  const groupedBuildCards = <><section aria-label="Builds for current Game Setup" className="build-library-group"><header className="build-library-group__header"><h2>Current Game Setup</h2><p>{currentGameSetup ? `${currentGameSetup.label} · ${applicableBuilds.length} ${applicableBuilds.length === 1 ? 'Build' : 'Builds'}` : 'No Game Setup selected'}</p></header>{applicableBuilds.length ? <div className="build-library-grid">{applicableBuilds.map(buildCard)}</div> : <InlineNotice title="No matching Builds for this Game Setup">Create a Build here, or inspect Builds from other Game Setups below.</InlineNotice>}</section>{inapplicableBuilds.length > 0 && <section aria-label="Builds for other Game Setups" className="build-library-group build-library-group--inapplicable"><header className="build-library-group__header"><h2>Other Game Setups</h2><p>These Builds are not valid for {currentGameSetup?.label ?? 'the current Playthrough setup'}. They remain visible so you can inspect them or fork one into the current Game Setup.</p></header><div className="build-library-grid">{inapplicableBuilds.map(buildCard)}</div></section>}</>
+  const selectedInapplicable = Boolean(selectedRevision && !sameBuildBehavior(localData.gameSetups[selectedRevision.gameSetupRevisionId], currentGameSetup))
+  const buildCard = (build: Build) => <BuildCard build={build} catalogs={catalogs} currentGameSetupLabel={currentGameSetup?.label} inapplicable={!applicable(build)} key={build.id} onSelect={() => selectBuild(build.id)} onSlotSelect={slotId => selectBuild(build.id, `slot:${slotId}`)} localData={localData} selected={selected?.id === build.id} showShare={page.view === 'library'} shareBlocked={editorDirty || shareBlocked}/>
+  const groupedBuildCards = <><section aria-label="Builds for current Game Setup" className="build-library-group"><header className="build-library-group__header"><h2>Current Game Setup</h2><p>{currentGameSetup ? `${currentGameSetup.label} · ${applicableBuilds.length} ${applicableBuilds.length === 1 ? 'Build' : 'Builds'}` : 'No Game Setup selected'}</p></header>{applicableBuilds.length ? <div className="build-library-grid">{applicableBuilds.map(buildCard)}</div> : <InlineNotice title="No matching Builds for this Game Setup">Create a Build here, or inspect Builds from other Game Setups below.</InlineNotice>}</section>{inapplicableBuilds.length > 0 && <section aria-label="Builds for other Game Setups" className="build-library-group build-library-group--inapplicable"><header className="build-library-group__header"><h2>Other Game Setups</h2><p>These Builds use different behavior from {currentGameSetup?.label ?? 'the current Playthrough setup'}. You can edit their own rules directly or choose a compatible preset.</p></header><div className="build-library-grid">{inapplicableBuilds.map(buildCard)}</div></section>}</>
 
   return <div className="build-planner">
-    <ScreenHeader actions={section === 'teams' ? <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>New scenario</Button> : <>{section === 'library' && selectedRevision && <ShareButton disabled={editorDirty || shareBlocked} localData={localData} target={{ kind: 'build', revisionId: selectedRevision.id }}/>}{!addingBuild && <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New Build</Button>}{section === 'library' && selected?.latestRevisionId && (selectedInapplicable ? <Button disabled={editorDirty || forkBusy} icon="layers" onClick={() => void forkSelected()} tone="secondary">{forkBusy ? 'Forking...' : 'Fork to current Game Setup'}</Button> : <Button disabled={editorDirty || cloneBusy} icon="layers" onClick={() => void cloneSelected()} tone="secondary">{cloneBusy ? 'Cloning...' : 'Clone Build'}</Button>)}</>} description="Explore classes, equipment, and passives. No character or inventory tracking required." eyebrow="Buildcrafting" title="Builds"/>
-    <div className="toolbar"><Segmented label="Build planner" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'teams', label: 'Team scenarios' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search Build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, and Game Setups" type="search" value={buildQuery}/></div>}</div>{draftGuard && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraft('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraft('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original Build and checkpoint remain unchanged.</InlineNotice>}{forkError && <InlineNotice title="Build not forked" tone="danger">{forkError} The original Build and checkpoint remain unchanged.</InlineNotice>}
+    <ScreenHeader actions={section === 'teams' ? <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>New scenario</Button> : <>{section === 'library' && selectedRevision && <ShareButton disabled={editorDirty || shareBlocked} localData={localData} target={{ kind: 'build', revisionId: selectedRevision.id }}/>}{!addingBuild && <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New Build</Button>}{section === 'library' && selected?.latestRevisionId && <Button disabled={editorDirty || cloneBusy} icon="layers" onClick={() => void cloneSelected()} tone="secondary">{cloneBusy ? 'Cloning...' : 'Clone Build'}</Button>}</>} description="Explore classes, equipment, and passives. No character or inventory tracking required." eyebrow="Buildcrafting" title="Builds"/>
+    <div className="toolbar"><Segmented label="Build planner" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'teams', label: 'Team scenarios' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search Build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, and Game Setups" type="search" value={buildQuery}/></div>}</div>{draftGuard && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraft('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraft('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original Build and checkpoint remain unchanged.</InlineNotice>}
     {missingBuild && <InlineNotice title="Build unavailable" tone="warning">The requested Build is not available in the planner data. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to Build library</Button></InlineNotice>}
     {missingRevision && <InlineNotice title="Build checkpoint unavailable" tone="warning">The requested checkpoint is missing or belongs to another build. No other checkpoint was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
     {!missingRevision && missingEditorBase && <InlineNotice title="Checkpoint base unavailable" tone="warning">The requested editor base is missing or belongs to another build. Choose an available checkpoint from the build library; no latest revision was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
     {section === 'library' && addingBuild ? <AddBuildForm catalogs={catalogs} onCancel={() => { updateEditorDirty(false); navigation.close() }} onDirtyChange={updateEditorDirty} onSaved={(buildId, revisionId) => navigate({ page: 'builds', view: 'revision-edit', buildId, revisionId }, true)} onSubmit={onCreateBuild} localData={localData}/> : section === 'library' && (builds.length === 0 ? <EmptyState description="Start with a blank Build. Choose classes, equipment, and passives from the reference catalog. Assign it to a character in a team when you want readiness checks." icon="sword" title={allBuilds.length ? 'No Builds match this search' : 'Plan your next Build'}>{allBuilds.length ? <Button onClick={() => updateBuildQuery('')} tone="secondary">Clear search</Button> : <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>Create a Build</Button>}</EmptyState> : page.view === 'library' ? <section aria-label="Build library" className="build-library-groups">{groupedBuildCards}</section> : <div className="build-layout">
       <details className="build-column build-library" open={libraryOpen} onToggle={(event) => setLibraryOpen(event.currentTarget.open)}><summary>Library{selected ? `: ${selected.title}` : ''}</summary><header className="build-column__header"><div className="split"><div><h2>Library</h2><p>{builds.length} matching {builds.length === 1 ? 'Build' : 'Builds'}</p></div><IconButton icon="plus" label="Create Build" onClick={() => navigate({ page: 'builds', view: 'build-new' })}/></div></header><div className="build-column__body build-library-groups">{groupedBuildCards}</div></details>
-      <section className="build-column"><header className="build-column__header"><h2>{selected?.title ?? 'Build editor'}</h2><p>{selectedInapplicable ? `Inspecting a Build for another Game Setup. Fork it to ${currentGameSetup?.label ?? 'the current Game Setup'} before editing.` : selected?.latestRevisionId ? 'Changes save as a new immutable revision' : 'Create the first pinned revision'}</p>{selectedBuildRevisions.length > 0 && <Field hint={editorBaseRevision?.id !== selected?.latestRevisionId ? 'Saving creates a new latest revision using this older checkpoint as the content base.' : 'Inspect or edit the latest pinned checkpoint.'} label="Editor checkpoint"><select disabled={editorDirty} onChange={(event) => chooseEditorBase(event.target.value)} value={editorBaseRevision?.id ?? selectedRevision?.id ?? ''}>{selectedBuildRevisions.map((revision) => <option key={revision.id} value={revision.id}>r{revision.revision}{checkpointSuffix(revision)} · {formatRelativeDate(revision.createdAt)}</option>)}</select></Field>}</header><div className="build-column__body">{selected && editingRoute && !missingRevision && !missingEditorBase && <RevisionEditor build={selected} catalogs={catalogs} key={`${selected.id}:${page.view}:${editorBaseRevision?.id ?? 'new'}`} onDirtyChange={updateEditorDirty} onSaved={savedRevisionRoute} onSubmit={(draft) => onSaveRevision(selected.id, draft, editorBaseRevision?.id)} localData={localData} readOnlyReason={selectedInapplicable ? `This Build belongs to ${ownRecordValue(localData.gameSetups, editorBaseRevision?.gameSetupRevisionId ?? '')?.label ?? 'another Game Setup'}. Use Fork to current Game Setup to create an editable copy for this Playthrough.` : undefined} sourceRevision={editorBaseRevision}/>}</div></section>
+      <section className="build-column"><header className="build-column__header"><h2>{selected?.title ?? 'Build editor'}</h2><p>{selected?.latestRevisionId ? 'Changes save as a new immutable revision' : 'Create the first pinned revision'}</p>{selectedBuildRevisions.length > 0 && <Field hint={editorBaseRevision?.id !== selected?.latestRevisionId ? 'Saving creates a new latest revision using this older checkpoint as the content base.' : 'Inspect or edit the latest pinned checkpoint.'} label="Editor checkpoint"><select disabled={editorDirty} onChange={(event) => chooseEditorBase(event.target.value)} value={editorBaseRevision?.id ?? selectedRevision?.id ?? ''}>{selectedBuildRevisions.map((revision) => <option key={revision.id} value={revision.id}>r{revision.revision}{checkpointSuffix(revision)} · {formatRelativeDate(revision.createdAt)}</option>)}</select></Field>}</header><div className="build-column__body">{selected && editingRoute && !missingRevision && !missingEditorBase && <RevisionEditor build={selected} catalogs={catalogs} key={`${selected.id}:${page.view}:${editorBaseRevision?.id ?? 'new'}`} onDirtyChange={updateEditorDirty} onSaved={savedRevisionRoute} onSubmit={(draft) => onSaveRevision(selected.id, draft, editorBaseRevision?.id)} localData={localData} sourceRevision={editorBaseRevision}/>}</div></section>
       <details className="build-column build-readiness"><summary>Can I use this Build now?</summary><header className="build-column__header"><h2>Current readiness</h2><p>Check a saved Build against a character's learning, unlocks, inventory, and party conflicts.</p><p>{selectedScenario ? `Evaluated in ${selectedScenario.label}` : 'Assign this revision to a scenario'}</p></header><div className="build-column__body">{section === 'library' && selected && selectedRevision && recordRosterScenario && !selectedInapplicable && <Button disabled={editorDirty} icon="check" onClick={() => { setRecordingError(undefined); navigate({ page: 'builds', view: 'record-current', buildId: selected.id, revisionId: selectedRevision.id }) }} tone="secondary">Record as current</Button>}{selected && selectedRevision && <BuildReadinessAssignment build={selected} disabled={editorDirty} onAssign={onAssign} onScenarioChange={setReadinessScenarioId} localData={localData} revision={selectedRevision} scenarioId={readinessScenarioId ?? selectedScenario?.id}/>}<ValidationPanel catalogs={catalogs} localData={localData} report={selectedScenario ? validations[selectedScenario.id] : undefined} scenario={selectedScenario}/>{selectedRevision && <div className="settings-section"><h3>Pinned checkpoint</h3><dl className="definition-list">{selectedRevision.note?.trim() && <div className="definition-row"><dt>Name</dt><dd>{selectedRevision.note}</dd></div>}<div className="definition-row"><dt>Revision</dt><dd>{selectedRevision.revision}</dd></div><div className="definition-row"><dt>Saved</dt><dd>{formatRelativeDate(selectedRevision.createdAt)}</dd></div><div className="definition-row"><dt>Game Setup</dt><dd>{ownRecordValue(localData.gameSetups, selectedRevision.gameSetupRevisionId)?.label ?? 'Unresolved'}</dd></div></dl></div>}</div></details>
     </div>)}
     {section === 'teams' && <>{missingScenario && <InlineNotice title="Team scenario unavailable" tone="warning">The requested scenario is not available in this Playthrough. No other scenario was selected. <Button onClick={() => navigate({ page: 'builds', view: 'teams' })} tone="quiet">Show team scenarios</Button></InlineNotice>}{scenarios.length === 0 ? <EmptyState aside={<>A scenario is the boundary for simultaneous inventory use. Alternative scenarios may each use the same recorded copy.</>} description="Create a draft, hypothetical, or recorded-current team, then pin one build revision per participating character." icon="team" title="No team scenarios"><Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'scenario-new' })}>Create a scenario</Button></EmptyState> : <div className="stack">{scenarios.map((scenario) => <ScenarioCard catalogs={catalogs} shareBlocked={shareBlocked} key={scenario.id} onAssign={onAssign} localData={localData} scenario={scenario} validation={validations[scenario.id]}/>)}</div>}</>}

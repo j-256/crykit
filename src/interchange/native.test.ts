@@ -63,6 +63,13 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
+  it('migrates legacy planner payloads without changing pinned records', async () => {
+    const preview = await previewNativeBackup(nativeFixture({ mutateLocalData: data => { data.schemaVersion = '2.0.0' } }), 'legacy.zip')
+    expect(preview.proposed.localData.schemaVersion).toBe('2.1.0')
+    expect(preview.proposed.localData.gameSetups).toEqual(createTestLocalData().gameSetups)
+    expect(preview.proposed.localData.playthroughs).toEqual(createTestLocalData().playthroughs)
+  })
+
   it('accepts legacy snapshot context and retains pinned context while rejecting dangling gameSetups', async () => {
     const pinned = addTestCharacter(createTestLocalData(), 'synthetic')
     const pinnedPlaythrough = requirePlaythrough(pinned)

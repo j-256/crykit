@@ -175,6 +175,7 @@ const gameSetupRevision = z.object({
   mode: knowledge(shortText),
   mods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)),
   disabledMods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)).optional(),
+  customMods: z.array(nonemptyText).max(MAX_COLLECTION_LENGTH).optional(),
   ppLimit: knowledge(nonnegativeInteger).optional(),
   ppCostsNonNegative: knowledge(z.boolean()),
   slots: z.array(slotDefinition).max(MAX_COLLECTION_LENGTH),
@@ -414,7 +415,7 @@ const playthrough = z.object({
 }).strict()
 
 export const NativeLocalDataSchema = z.object({
-  schemaVersion: z.literal('2.0.0'),
+  schemaVersion: z.literal('2.1.0'),
   id,
   revision: nonnegativeInteger,
   createdAt: timestamp,
@@ -430,6 +431,17 @@ export const NativeLocalDataSchema = z.object({
   changes: z.array(changeEntry).max(500),
   skillTreeLayouts: z.record(id, skillLayout).optional(),
 }).strict()
+
+export const LegacyNativeLocalDataSchema = NativeLocalDataSchema.extend({
+  schemaVersion: z.literal('2.0.0'),
+  gameSetups: z.record(id, gameSetupRevision.omit({ customMods: true })),
+}).superRefine((data, context) => {
+  for (const revision of Object.values(data.buildRevisions)) {
+    if (data.gameSetups[revision.gameSetupRevisionId]?.gameSetupId !== data.builds[revision.buildId]?.gameSetupId) context.addIssue({ code: 'custom', message: 'A legacy checkpoint has inconsistent Game Setup ownership' })
+  }
+})
+
+export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => ({ ...data, schemaVersion: '2.1.0' as const }))
 
 export const NativeLineageSchema = z.object({
   rootLocalDataId: id,
@@ -456,8 +468,8 @@ export const NativeHistorySchema = z.object({
   command: nonemptyText,
   previousRevision: nonnegativeInteger,
   nextRevision: nonnegativeInteger,
-  before: NativeLocalDataSchema,
-  after: NativeLocalDataSchema,
+  before: StoredNativeLocalDataSchema,
+  after: StoredNativeLocalDataSchema,
   recordedAt: timestamp,
 }).strict()
 
@@ -495,7 +507,7 @@ export const NativeManifestSchema = z.object({
 
 export const NativePayloadSchema = z.object({
   corrections: z.unknown().optional(),
-  localData: NativeLocalDataSchema,
+  localData: StoredNativeLocalDataSchema,
   lineage: NativeLineageSchema,
   catalogs: z.array(NativeCatalogSnapshotSchema).max(MAX_COLLECTION_LENGTH),
   evidence: z.array(NativeEvidenceSchema).max(MAX_COLLECTION_LENGTH),

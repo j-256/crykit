@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
+import { sameBuildBehavior, effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
 import type { Build, BuildRevision, CatalogRef, CatalogSnapshot, LocalData, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { groupValidationIssues } from './build-evidence'
 import { NATIVE_SCOPE_UNVERIFIED } from '../domain/native-game'
@@ -118,7 +118,7 @@ export function BuildReadinessAssignment({ build, revision, localData, disabled,
   void build
   const navigation = useNavigation()
   const scenarios = Object.values(requirePlaythrough(localData).scenarios).filter((scenario) => {
-    return scenario.kind !== 'recordedCurrent' && scenario.gameSetupRevisionId === revision.gameSetupRevisionId && catalogLocksMatch(scenario.catalogLock, revision.catalogLock)
+    return scenario.kind !== 'recordedCurrent' && sameBuildBehavior(localData.gameSetups[scenario.gameSetupRevisionId], localData.gameSetups[revision.gameSetupRevisionId]) && catalogLocksMatch(scenario.catalogLock, revision.catalogLock)
   })
   const [characterChoice, setCharacterChoice] = useState('')
   const [busy, setBusy] = useState(false)
