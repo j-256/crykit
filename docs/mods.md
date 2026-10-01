@@ -20,6 +20,8 @@ Recorded inventory, character learning, snapshots, and plans are retained when a
 
 ## Imported mod files
 
+Use [Mod Inspector](mod-inspector.md) to decode identifiers, edit a mod JSON file, and review its export. Its original and draft stay separate from planner catalogs and backups.
+
 **Imported mod layers** under Game Setup configure exact Crystal Edit source revisions separately from the starter list of named Switch mods. Enable the chosen layers, arrange their planner priority, and review bundled replacement links before saving. Later enabled records with the same native family and ID replace earlier complete records; names do not establish links to bundled definitions. The effective definitions drive planning without changing older saved configurations. See [Configuring imported mod layers](crystal-edit.md#configuring-imported-mod-layers) for version selection, precedence, source references, unresolved targets, and supported rules.
 
 ## Backup and recovery

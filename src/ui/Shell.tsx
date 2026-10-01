@@ -21,6 +21,9 @@ const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'inventory', label: 'Inventory', icon: 'chest' },
   { id: 'progress', label: 'Progress', icon: 'crystal' },
 ]
+const TOOL_DESTINATIONS: readonly MenuDestination[] = [
+  { id: 'mod-inspector', label: 'Mod Inspector', icon: 'edit' },
+]
 
 function Brand() {
   return <div className="brand">
@@ -69,6 +72,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
         <p className="nav-section__label">Planning</p>
         <ul aria-label="Builds, characters, and reference" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
         <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
+        <div aria-label="Tools" className="nav-tracking nav-tools" role="group"><p className="nav-section__label">Tools</p><ul className="nav-list">{TOOL_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
@@ -80,15 +84,15 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     <main className="main-shell">
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
-        <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectGameSetup={onSelectGameSetup} onSelectScenario={onSelectScenario} localData={localData}/>
+        {destination === 'mod-inspector' ? <strong>Mod workspace</strong> : <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectGameSetup={onSelectGameSetup} onSelectScenario={onSelectScenario} localData={localData}/>}
         <div className="context-bar__meta">
-          <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>
+          {destination !== 'mod-inspector' && <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>}
           {developmentPort && <span aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
         </div>
       </header>
       <div className="content">{children}</div>
     </main>
-    <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Builds, characters, and reference" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
+    <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Builds, characters, and reference" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tools" className="bottom-nav__tools" role="group">{TOOL_DESTINATIONS.map(destinationButton)}</div></nav>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }
