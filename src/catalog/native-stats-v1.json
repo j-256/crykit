@@ -3,7 +3,7 @@
   "engine": "pc-1.6.9-v1",
   "gameVersion": "1.6.9.0",
   "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-  "nativeDataDigest": "665864f2355ef893ff190532ffed92354bd69401eeb86a4eb15f9047dccec091",
+  "nativeDataDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
   "inputs": {
     "job": "42b39e967355488775879008a7868c9bcc345e7079c92c30ace725b5cdd7787c",
     "equipment": "91fbeb8d4da59740c0addbed2faf9baa26b11d09ac421dec5f38664eeb380b84",
@@ -15,8 +15,8 @@
     "patch": "561cd7995f2f6eef4b0a7527d18b484097f270ec787ea1e8608b532a5800349e"
   },
   "crosswalkDigest": "dfa441a364838043f13764c1494dfb5528e2cfd91e7f8bde2986fb06b578c648",
-  "wikiDigest": "2743209747e2e27b7fac9abe9486491b89d617522cebaaadc6eb053f37f469fa",
-  "starterDigest": "4968f5e92e4200863b1fc6145f6968c155181b49e55dfc93b2ba7f72ea1b1278",
+  "wikiDigest": "c487a1eb3458b93c03f6ef64272bf312d777c6e2ee5b8a28c674d051c4c211a6",
+  "starterDigest": "2c75664987a26ae591663f6287f4d7c3b4cf918231b2244c3fd8bcdf7b3c7b30",
   "catalogId": "crystal-project-public-starter",
   "battleConfig": {
     "TwoHandedPAtkFlat": 50,
@@ -53322,7 +53322,7 @@
       "id": 376,
       "evidence": "Pinned native identity crosswalk: worlds/crystal_project/items.py:1079"
     },
-    "wiki:innate:ap-focus": {
+    "base:innate:ap-focus": {
       "family": "passive",
       "id": 23,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag"
@@ -53332,7 +53332,7 @@
       "id": 23,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:assassination": {
+    "base:innate:assassination": {
       "family": "passive",
       "id": 59,
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag"
@@ -53342,7 +53342,7 @@
       "id": 59,
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:aura": {
+    "base:innate:aura": {
       "family": "passive",
       "id": 80,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag"
@@ -53352,7 +53352,7 @@
       "id": 80,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:aversive": {
+    "base:innate:aversive": {
       "family": "passive",
       "id": 87,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag"
@@ -53362,7 +53362,7 @@
       "id": 87,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:brawler": {
+    "base:innate:brawler": {
       "family": "passive",
       "id": 2,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag"
@@ -53372,7 +53372,7 @@
       "id": 2,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:camouflage": {
+    "base:innate:camouflage": {
       "family": "passive",
       "id": 42,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag"
@@ -53382,7 +53382,7 @@
       "id": 42,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:chaincaster": {
+    "base:innate:chaincaster": {
       "family": "passive",
       "id": 74,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag"
@@ -53392,7 +53392,7 @@
       "id": 74,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:chrono-loop": {
+    "base:innate:chrono-loop": {
       "family": "passive",
       "id": 75,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag"
@@ -53402,7 +53402,7 @@
       "id": 75,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:dual-wield": {
+    "base:innate:dual-wield": {
       "family": "passive",
       "id": 50,
       "evidence": "Explicit Ninja wiki membership; native job 18 PassiveIDs; normalized passive label and exact innate flag"
@@ -53412,7 +53412,7 @@
       "id": 50,
       "evidence": "Explicit Ninja wiki membership; native job 18 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:eagle-talon": {
+    "base:innate:eagle-talon": {
       "family": "passive",
       "id": 20,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag"
@@ -53422,7 +53422,7 @@
       "id": 20,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:efficience": {
+    "base:innate:efficience": {
       "family": "passive",
       "id": 66,
       "evidence": "Explicit Chemist wiki membership; native job 17 PassiveIDs; normalized passive label and exact innate flag"
@@ -53432,7 +53432,7 @@
       "id": 66,
       "evidence": "Explicit Chemist wiki membership; native job 17 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:element-specialist": {
+    "base:innate:element-specialist": {
       "family": "passive",
       "id": 12,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag"
@@ -53442,7 +53442,7 @@
       "id": 12,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:endless-fury": {
+    "base:innate:endless-fury": {
       "family": "passive",
       "id": 18,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag"
@@ -53452,7 +53452,7 @@
       "id": 18,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:fighter": {
+    "base:innate:fighter": {
       "family": "passive",
       "id": 72,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag"
@@ -53462,7 +53462,7 @@
       "id": 72,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:immortal": {
+    "base:innate:immortal": {
       "family": "passive",
       "id": 25,
       "evidence": "Explicit Valkyrie wiki membership; native job 15 PassiveIDs; normalized passive label and exact innate flag"
@@ -53472,7 +53472,7 @@
       "id": 25,
       "evidence": "Explicit Valkyrie wiki membership; native job 15 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:learning": {
+    "base:innate:learning": {
       "family": "passive",
       "id": 58,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag"
@@ -53482,7 +53482,7 @@
       "id": 58,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:morphology": {
+    "base:innate:morphology": {
       "family": "passive",
       "id": 84,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag"
@@ -53492,7 +53492,7 @@
       "id": 84,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:mp-boost": {
+    "base:innate:mp-boost": {
       "family": "passive",
       "id": 63,
       "evidence": "Explicit Summoner wiki membership; native job 21 PassiveIDs; normalized passive label and exact innate flag"
@@ -53502,7 +53502,7 @@
       "id": 63,
       "evidence": "Explicit Summoner wiki membership; native job 21 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:pinch-healer": {
+    "base:innate:pinch-healer": {
       "family": "passive",
       "id": 76,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag"
@@ -53512,7 +53512,7 @@
       "id": 76,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:pinpoint": {
+    "base:innate:pinpoint": {
       "family": "passive",
       "id": 17,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag"
@@ -53522,7 +53522,7 @@
       "id": 17,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:reaping": {
+    "base:innate:reaping": {
       "family": "passive",
       "id": 30,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag"
@@ -53532,7 +53532,7 @@
       "id": 30,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:rhythm": {
+    "base:innate:rhythm": {
       "family": "passive",
       "id": 53,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag"
@@ -53542,7 +53542,7 @@
       "id": 53,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:savage": {
+    "base:innate:savage": {
       "family": "passive",
       "id": 85,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag"
@@ -53552,7 +53552,7 @@
       "id": 85,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:shapeshift": {
+    "base:innate:shapeshift": {
       "family": "passive",
       "id": 10,
       "evidence": "Explicit Mimic wiki membership; native job 22 PassiveIDs; normalized passive label and exact innate flag"
@@ -53562,7 +53562,7 @@
       "id": 10,
       "evidence": "Explicit Mimic wiki membership; native job 22 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:spell-steal": {
+    "base:innate:spell-steal": {
       "family": "passive",
       "id": 41,
       "evidence": "Explicit Shaman wiki membership; native job 8 PassiveIDs; normalized passive label and exact innate flag"
@@ -53572,7 +53572,7 @@
       "id": 41,
       "evidence": "Explicit Shaman wiki membership; native job 8 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:studious": {
+    "base:innate:studious": {
       "family": "passive",
       "id": 79,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag"
@@ -53582,7 +53582,7 @@
       "id": 79,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:two-handed": {
+    "base:innate:two-handed": {
       "family": "passive",
       "id": 43,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag"
@@ -53592,7 +53592,7 @@
       "id": 43,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:innate:white-knight": {
+    "base:innate:white-knight": {
       "family": "passive",
       "id": 26,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag"
@@ -53602,7 +53602,7 @@
       "id": 26,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:adrenaline": {
+    "base:passive:adrenaline": {
       "family": "passive",
       "id": 4,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag"
@@ -53612,7 +53612,7 @@
       "id": 4,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:attack-focus": {
+    "base:passive:attack-focus": {
       "family": "passive",
       "id": 27,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag"
@@ -53622,7 +53622,7 @@
       "id": 27,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:auto-speed": {
+    "base:passive:auto-speed": {
       "family": "passive",
       "id": 52,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag"
@@ -53632,12 +53632,12 @@
       "id": 52,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:auto-revival": {
+    "base:passive:15": {
       "family": "passive",
       "id": 15,
       "evidence": "Explicit Valkyrie wiki membership; native job 15 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:backstabber": {
+    "base:passive:backstabber": {
       "family": "passive",
       "id": 9,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag"
@@ -53647,7 +53647,7 @@
       "id": 9,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:blood-spiller": {
+    "base:passive:blood-spiller": {
       "family": "passive",
       "id": 56,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag"
@@ -53657,12 +53657,12 @@
       "id": 56,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:commander": {
+    "base:passive:28": {
       "family": "passive",
       "id": 28,
       "evidence": "Explicit Valkyrie wiki membership; native job 15 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:counter": {
+    "base:passive:counter": {
       "family": "passive",
       "id": 0,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag"
@@ -53672,7 +53672,7 @@
       "id": 0,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:covert": {
+    "base:passive:covert": {
       "family": "passive",
       "id": 82,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag"
@@ -53682,7 +53682,7 @@
       "id": 82,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:crippling-coat": {
+    "base:passive:crippling-coat": {
       "family": "passive",
       "id": 62,
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag"
@@ -53692,7 +53692,7 @@
       "id": 62,
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:critical-power": {
+    "base:passive:critical-power": {
       "family": "passive",
       "id": 70,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag"
@@ -53702,7 +53702,7 @@
       "id": 70,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:critical-turn": {
+    "base:passive:critical-turn": {
       "family": "passive",
       "id": 81,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag"
@@ -53712,7 +53712,7 @@
       "id": 81,
       "evidence": "Explicit Beatsmith wiki membership; native job 9 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:delay-20": {
+    "base:passive:delay-20": {
       "family": "passive",
       "id": 46,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag"
@@ -53722,7 +53722,7 @@
       "id": 46,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:delay-40": {
+    "base:passive:delay-40": {
       "family": "passive",
       "id": 48,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag"
@@ -53732,7 +53732,7 @@
       "id": 48,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:duel-ready": {
+    "base:passive:duel-ready": {
       "family": "passive",
       "id": 21,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag"
@@ -53742,7 +53742,7 @@
       "id": 21,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:eagle-eye": {
+    "base:passive:eagle-eye": {
       "family": "passive",
       "id": 49,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag"
@@ -53752,7 +53752,7 @@
       "id": 49,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-all": {
+    "base:passive:equip-all": {
       "family": "passive",
       "id": 68,
       "evidence": "Explicit Mimic wiki membership; native job 22 PassiveIDs; normalized passive label and exact innate flag"
@@ -53762,7 +53762,7 @@
       "id": 68,
       "evidence": "Explicit Mimic wiki membership; native job 22 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-axe": {
+    "base:passive:equip-axe": {
       "family": "passive",
       "id": 7,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag"
@@ -53772,7 +53772,7 @@
       "id": 7,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-book": {
+    "base:passive:equip-book": {
       "family": "passive",
       "id": 39,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag"
@@ -53782,7 +53782,7 @@
       "id": 39,
       "evidence": "Explicit Scholar wiki membership; native job 13 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-bow": {
+    "base:passive:equip-bow": {
       "family": "passive",
       "id": 45,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag"
@@ -53792,7 +53792,7 @@
       "id": 45,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-dagger": {
+    "base:passive:equip-dagger": {
       "family": "passive",
       "id": 11,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag"
@@ -53802,7 +53802,7 @@
       "id": 11,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-katana": {
+    "base:passive:equip-katana": {
       "family": "passive",
       "id": 57,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag"
@@ -53812,7 +53812,7 @@
       "id": 57,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-rapier": {
+    "base:passive:equip-rapier": {
       "family": "passive",
       "id": 22,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag"
@@ -53822,7 +53822,7 @@
       "id": 22,
       "evidence": "Explicit Fencer wiki membership; native job 1 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-scythe": {
+    "base:passive:equip-scythe": {
       "family": "passive",
       "id": 31,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag"
@@ -53832,7 +53832,7 @@
       "id": 31,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-shield": {
+    "base:passive:equip-shield": {
       "family": "passive",
       "id": 29,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag"
@@ -53842,12 +53842,12 @@
       "id": 29,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-spear": {
+    "base:passive:34": {
       "family": "passive",
       "id": 34,
       "evidence": "Explicit Valkyrie wiki membership; native job 15 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:equip-staff": {
+    "base:passive:equip-staff": {
       "family": "passive",
       "id": 16,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag"
@@ -53857,7 +53857,7 @@
       "id": 16,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-sword": {
+    "base:passive:equip-sword": {
       "family": "passive",
       "id": 6,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag"
@@ -53867,7 +53867,7 @@
       "id": 6,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:equip-wand": {
+    "base:passive:equip-wand": {
       "family": "passive",
       "id": 13,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag"
@@ -53877,7 +53877,7 @@
       "id": 13,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:fast-cast": {
+    "base:passive:fast-cast": {
       "family": "passive",
       "id": 47,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag"
@@ -53887,7 +53887,7 @@
       "id": 47,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:focus-shield": {
+    "base:passive:focus-shield": {
       "family": "passive",
       "id": 33,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag"
@@ -53897,7 +53897,7 @@
       "id": 33,
       "evidence": "Explicit Dervish wiki membership; native job 11 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:frenzy-stance": {
+    "base:passive:frenzy-stance": {
       "family": "passive",
       "id": 83,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag"
@@ -53907,7 +53907,7 @@
       "id": 83,
       "evidence": "Explicit Nomad wiki membership; native job 12 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:fury": {
+    "base:passive:fury": {
       "family": "passive",
       "id": 40,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag"
@@ -53917,7 +53917,7 @@
       "id": 40,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:grudge": {
+    "base:passive:grudge": {
       "family": "passive",
       "id": 5,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag"
@@ -53927,7 +53927,7 @@
       "id": 5,
       "evidence": "Explicit Warrior wiki membership; native job 0 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:hp-boost": {
+    "base:passive:hp-boost": {
       "family": "passive",
       "id": 8,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag"
@@ -53937,7 +53937,7 @@
       "id": 8,
       "evidence": "Explicit Monk wiki membership; native job 5 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:initial-focus": {
+    "base:passive:initial-focus": {
       "family": "passive",
       "id": 71,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag"
@@ -53947,7 +53947,7 @@
       "id": 71,
       "evidence": "Explicit Wizard wiki membership; native job 3 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:initial-oomph": {
+    "base:passive:initial-oomph": {
       "family": "passive",
       "id": 1,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag"
@@ -53957,7 +53957,7 @@
       "id": 1,
       "evidence": "Explicit Reaper wiki membership; native job 6 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:initial-resist": {
+    "base:passive:initial-resist": {
       "family": "passive",
       "id": 64,
       "evidence": "Explicit Summoner wiki membership; native job 21 PassiveIDs; normalized passive label and exact innate flag"
@@ -53967,7 +53967,7 @@
       "id": 64,
       "evidence": "Explicit Summoner wiki membership; native job 21 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:inner-warmth": {
+    "base:passive:inner-warmth": {
       "family": "passive",
       "id": 77,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag"
@@ -53977,12 +53977,12 @@
       "id": 77,
       "evidence": "Explicit Cleric wiki membership; native job 4 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:item-finder": {
+    "base:passive:86": {
       "family": "passive",
       "id": 86,
       "evidence": "Explicit Chemist wiki membership; native job 17 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:natural-tank": {
+    "base:passive:natural-tank": {
       "family": "passive",
       "id": 78,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag"
@@ -53992,12 +53992,12 @@
       "id": 78,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:perfect-dodge": {
+    "base:passive:19": {
       "family": "passive",
       "id": 19,
       "evidence": "Explicit Ninja wiki membership; native job 18 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:perfect-vision": {
+    "base:passive:perfect-vision": {
       "family": "passive",
       "id": 44,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag"
@@ -54007,7 +54007,7 @@
       "id": 44,
       "evidence": "Explicit Hunter wiki membership; native job 7 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:pocket-sand": {
+    "base:passive:pocket-sand": {
       "family": "passive",
       "id": 54,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag"
@@ -54017,7 +54017,7 @@
       "id": 54,
       "evidence": "Explicit Rogue wiki membership; native job 2 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:preemptive": {
+    "base:passive:preemptive": {
       "family": "passive",
       "id": 3,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag"
@@ -54027,7 +54027,7 @@
       "id": 3,
       "evidence": "Explicit Weaver wiki membership; native job 16 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:refresher": {
+    "base:passive:refresher": {
       "family": "passive",
       "id": 37,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag"
@@ -54037,7 +54037,7 @@
       "id": 37,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:regenerator": {
+    "base:passive:regenerator": {
       "family": "passive",
       "id": 32,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag"
@@ -54047,7 +54047,7 @@
       "id": 32,
       "evidence": "Explicit Warlock wiki membership; native job 14 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:safeguard": {
+    "base:passive:safeguard": {
       "family": "passive",
       "id": 35,
       "evidence": "Explicit Shaman wiki membership; native job 8 PassiveIDs; normalized passive label and exact innate flag"
@@ -54057,17 +54057,17 @@
       "id": 35,
       "evidence": "Explicit Shaman wiki membership; native job 8 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:selfless-cure": {
+    "base:passive:14": {
       "family": "passive",
       "id": 14,
       "evidence": "Explicit Chemist wiki membership; native job 17 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:smokescreen": {
+    "base:passive:51": {
       "family": "passive",
       "id": 51,
       "evidence": "Explicit Ninja wiki membership; native job 18 PassiveIDs; normalized passive label and exact innate flag"
     },
-    "wiki:passive:stalwart": {
+    "base:passive:stalwart": {
       "family": "passive",
       "id": 36,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag"
@@ -54077,7 +54077,7 @@
       "id": 36,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:stance-tank": {
+    "base:passive:stance-tank": {
       "family": "passive",
       "id": 69,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag"
@@ -54087,7 +54087,7 @@
       "id": 69,
       "evidence": "Explicit Aegis wiki membership; native job 10 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:threatening": {
+    "base:passive:threatening": {
       "family": "passive",
       "id": 67,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag"
@@ -54097,7 +54097,7 @@
       "id": 67,
       "evidence": "Explicit Beastmaster wiki membership; native job 23 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:unreactable": {
+    "base:passive:unreactable": {
       "family": "passive",
       "id": 60,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag"
@@ -54107,7 +54107,7 @@
       "id": 60,
       "evidence": "Explicit Samurai wiki membership; native job 20 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     },
-    "wiki:passive:venom-coat": {
+    "base:passive:venom-coat": {
       "family": "passive",
       "id": 61,
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag"
@@ -54118,5 +54118,5 @@
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     }
   },
-  "checksum": "876d1952a6f1016de27f2f8c3aaa696ec036863bfec8ca7299edbfdde69e9a4e"
+  "checksum": "02ca0d5bb9d1e7b26f836bddd1ab468f1c1a8b248f982fa41110321dc04c89e3"
 }

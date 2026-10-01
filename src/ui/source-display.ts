@@ -21,6 +21,7 @@ const SECONDARY_CLASS_FIELDS: Readonly<Record<string, string>> = Object.freeze({
   'Is Not Crystal Job': 'Excluded from crystal count',
 })
 const LONG_FACT_LENGTH = 160
+const EDITOR_PRESENTATION_FIELD = /^(Hide .+ From Description|Invert .+ Display)$/
 const FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   [CLASS_FIELDS.ratings]: 'Growth ratings',
   [CLASS_FIELDS.equipment]: 'Equipment permissions',
@@ -32,7 +33,7 @@ const FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
 
 export function isGameExportSource(source: SourceRef): boolean {
   const importedProject = source.snapshot?.startsWith('Crystal Edit ') && /^\/(?:Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes)\/\d+$/.test(source.locator ?? '')
-  return Boolean(importedProject) || source.sourceId.startsWith(NATIVE_SOURCE_PREFIX) || source.sourceId.startsWith('game-export:') || source.sourceId.startsWith('crystal-edit-export:') || GAME_EXPORT_SOURCE_IDS.has(source.sourceId)
+  return Boolean(importedProject) || source.sourceId.startsWith('bundled-mod:') || source.sourceId.startsWith(NATIVE_SOURCE_PREFIX) || source.sourceId.startsWith('game-export:') || source.sourceId.startsWith('crystal-edit-export:') || GAME_EXPORT_SOURCE_IDS.has(source.sourceId)
 }
 
 export function visibleSources(sources: readonly SourceRef[]): readonly SourceRef[] {
@@ -40,6 +41,7 @@ export function visibleSources(sources: readonly SourceRef[]): readonly SourceRe
 }
 
 export function definitionFactLabel(field: string, value?: Knowledge<unknown>, fields: readonly string[] = []): string {
+  if (field === 'Learning cost' && value?.state === 'known' && typeof value.value === 'number') return 'Learning cost (LP)'
   const imported = /^(Table|Section): (.+)$/.exec(field)
   if (!imported) return FACT_LABELS[field] ?? field
   const label = imported[2]!
@@ -65,9 +67,11 @@ export function definitionFactIsWide(field: string, value: Knowledge<unknown>): 
 
 export function visibleDefinitionFacts(entity: Pick<CatalogEntity, 'fields'>, editing = false): readonly (readonly [string, Knowledge<unknown>])[] {
   const nativeSource = Object.values(entity.fields).some(value => value.state === 'known' && value.sources?.some(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX)))
+  const gameRecord = entity.fields[NATIVE_RECORD_FIELD]?.state === 'known' || entity.fields['Crystal Edit source record']?.state === 'known'
   return Object.entries(entity.fields).filter(([field, value]) => {
     if (editing) return true
     if (EXPORT_INTERNAL_FIELDS.has(field) && value.state === 'known') return false
+    if (gameRecord && (EDITOR_PRESENTATION_FIELD.test(field) || field === 'JP' && entity.fields['Learning cost']?.state === 'known')) return false
     if (nativeSource && ['Game platform', 'Game version', 'Mode data'].includes(field) && value.state === 'known') return false
     const preferred = SECONDARY_CLASS_FIELDS[field]
     return !preferred || entity.fields[preferred]?.state !== 'known'

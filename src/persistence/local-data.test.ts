@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPersonalDefinition, requirePlaythrough, setAcquisitionProgress } from '../domain'
-import { BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { TEAM_SIZE } from '../domain/scenarios'
@@ -34,7 +34,7 @@ describe('local planner persistence', () => {
 
   it('round-trips travel acquisitions through local persistence and native backups', async () => {
     const loaded = await loadLocalData()
-    const entity = DEFAULT_CATALOG.entities['wiki:item:owl-drum']!
+    const entity = DEFAULT_CATALOG.entities['base:item:owl-drum']!
     const subject = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id }
     const changed = setAcquisitionProgress(loaded.localData, { subject, displayName: entity.name, acquired: true, expectedRevision: loaded.revision })
     await saveLocalData(changed, loaded.revision)
@@ -94,7 +94,8 @@ describe('local planner persistence', () => {
     expect(await database.localDatas.count()).toBe(1)
   })
 
-  it.each([BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG])('loads older bundled pin $revisionId without stored catalogs and preserves it through save, rollback, and backup restore', async catalog => {
+  it('restores the bundled baseline through save, rollback, and exact backup pins', async () => {
+    const catalog = DEFAULT_CATALOG
     const previous = createSampleLocalData(catalog)
     await database.localDatas.add({ id: 'local-data-record', revision: previous.revision, updatedAt: previous.updatedAt, localData: previous, lineage: { rootLocalDataId: previous.id } })
     expect(await database.catalogs.count()).toBe(0)
@@ -144,7 +145,7 @@ describe('local planner persistence', () => {
     const loaded = await loadLocalData()
     const preview = await previewImport(await exportBackup(), 'planner.zip')
 
-    expect(preview.detectedFormat).toBe('native-backup-2.0.0')
+    expect(preview.detectedFormat).toBe('native-backup-2.1.0')
     expect(preview.proposed.localData.playthroughs).toEqual(loaded.localData.playthroughs)
     expect(preview.proposed.localData.gameSetups).toEqual(loaded.localData.gameSetups)
     expect(preview.proposed.localData.builds).toEqual(loaded.localData.builds)

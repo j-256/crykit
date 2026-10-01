@@ -49,6 +49,9 @@ describe('build choice evidence', () => {
     const record = { ...option('Short Sword').record, listedContributions: undefined, fields: { Cost: { state: 'known' as const, value: '100 Copper' }, Weapons: { state: 'known' as const, value: 'Swords' }, Attack: { state: 'known' as const, value: 30 }, Effects: { state: 'unknown' as const } } }
     expect(decisionFacts(record).map(fact => fact.label)).toEqual(['Weapons', 'Attack', 'Effects', 'Cost'])
     expect(summaryFactLines(record).at(-1)).toBe('Cost: 100 Copper')
+    const nativeCost = { ...record, fields: { Attack: record.fields.Attack, 'Cost (copper)': { state: 'known' as const, value: 710 } } }
+    expect(decisionFacts(nativeCost)).toEqual([{ label: 'Attack', value: record.fields.Attack }, { label: 'Cost', value: { state: 'known', value: '710 Copper' } }])
+    expect(summaryFactLines(nativeCost).at(-1)).toBe('Cost: 710 Copper')
   })
 
   it('groups shared causes without hiding invalid checks among unknown ones', () => {

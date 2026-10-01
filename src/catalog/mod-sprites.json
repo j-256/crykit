@@ -1627,7 +1627,7 @@
     }
   },
   "entities": {
-    "equipment-expansion:item:shelter-dress": {
+    "mod:equipment-expansion:item:shelter-dress": {
       "kind": "item",
       "name": "Shelter Dress",
       "asset": "e4c431aa7f089dcba5d1f3a1741353aef1239bdd8077835e17dd3be41c209367",
@@ -1640,7 +1640,7 @@
         }
       ]
     },
-    "equipment-expansion:item:woodchopper": {
+    "mod:equipment-expansion:item:woodchopper": {
       "kind": "item",
       "name": "Woodchopper",
       "asset": "8cf2f6d104296beb903b0de960889d6e9ba38b310a0bc85c63f4bc3928e45fd5",
@@ -1653,7 +1653,7 @@
         }
       ]
     },
-    "equipment-expansion:item:heavy-edge": {
+    "mod:equipment-expansion:item:heavy-edge": {
       "kind": "item",
       "name": "Heavy Edge",
       "asset": "0058effd40d1e201f44fdaf405163f9934a436843f083f8a89934a7d9de1d4c9",
@@ -1666,7 +1666,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bokken": {
+    "mod:equipment-expansion:item:bokken": {
       "kind": "item",
       "name": "Bokken",
       "asset": "c83755e2c0ce4daef0b24112605c71f662553ca20f0501651922a28417c2784c",
@@ -1679,7 +1679,7 @@
         }
       ]
     },
-    "equipment-expansion:item:thin-spear": {
+    "mod:equipment-expansion:item:thin-spear": {
       "kind": "item",
       "name": "Thin Spear",
       "asset": "41b540cb4200499d430d2330219c0e238f478f7857240619d1bc6583618187aa",
@@ -1692,7 +1692,7 @@
         }
       ]
     },
-    "equipment-expansion:item:dull-scythe": {
+    "mod:equipment-expansion:item:dull-scythe": {
       "kind": "item",
       "name": "Dull Scythe",
       "asset": "639d437155f7955f60131a1d2d73d91c95e9692cb4424c2f1c85ffbaa16cc62f",
@@ -1705,7 +1705,7 @@
         }
       ]
     },
-    "equipment-expansion:item:tiny-bow": {
+    "mod:equipment-expansion:item:tiny-bow": {
       "kind": "item",
       "name": "Tiny Bow",
       "asset": "ebf83fcab90dfc4d4d631b969c79c479d966edc291b97c9028a8ded6a7b42f84",
@@ -1718,7 +1718,7 @@
         }
       ]
     },
-    "equipment-expansion:item:book-of-salads": {
+    "mod:equipment-expansion:item:book-of-salads": {
       "kind": "item",
       "name": "Book of Salads",
       "asset": "2cc6554abee69d3546cd071a1af4923609049d65168691a2cde780659d01c98f",
@@ -1731,7 +1731,7 @@
         }
       ]
     },
-    "equipment-expansion:item:primitive-axe": {
+    "mod:equipment-expansion:item:primitive-axe": {
       "kind": "item",
       "name": "Primitive Axe",
       "asset": "91d636f91c98dc8a625ce1a685a0fa28c8d7e335c8a0a01c76cb70895d249e30",
@@ -1744,7 +1744,7 @@
         }
       ]
     },
-    "equipment-expansion:item:dragonslayer": {
+    "mod:equipment-expansion:item:dragonslayer": {
       "kind": "item",
       "name": "Dragonslayer",
       "asset": "7c9fa33752a6c6e5023e7faa58b638735e812128bb2029c3599719271522c407",
@@ -1757,7 +1757,7 @@
         }
       ]
     },
-    "equipment-expansion:item:equalizer-hammer": {
+    "mod:equipment-expansion:item:equalizer-hammer": {
       "kind": "item",
       "name": "Equalizer Hammer",
       "asset": "bb8a2dbc465b92b31e841ca5e52d18bca432d0ecff722a4e023dd0f38bdd4d9a",
@@ -1770,7 +1770,7 @@
         }
       ]
     },
-    "equipment-expansion:item:shinigami-no-yokan": {
+    "mod:equipment-expansion:item:shinigami-no-yokan": {
       "kind": "item",
       "name": "Shinigami-no-yokan",
       "asset": "7f83fce237771d61d37d2410927fc8529bc99de1da129d9ce294dba926365fbe",
@@ -1783,7 +1783,7 @@
         }
       ]
     },
-    "equipment-expansion:item:piercing-bone": {
+    "mod:equipment-expansion:item:piercing-bone": {
       "kind": "item",
       "name": "Piercing Bone",
       "asset": "e85b0bc23ede8d00e7428fda4c1716921f70eaef752588b89d37a75aca6f7bd9",
@@ -1796,7 +1796,7 @@
         }
       ]
     },
-    "equipment-expansion:item:squire-of-avalon": {
+    "mod:equipment-expansion:item:squire-of-avalon": {
       "kind": "item",
       "name": "Squire of Avalon",
       "asset": "ccf2c04b4744bf09cb048da16e72dd25af4c7c7780526bac3da9f232f57cdec2",
@@ -1809,7 +1809,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sequoian-barrier": {
+    "mod:equipment-expansion:item:sequoian-barrier": {
       "kind": "item",
       "name": "Sequoian Barrier",
       "asset": "2dc56729900fcc91defa7c834a7cf6c71b00c43214726803b4cec4d1dda86800",
@@ -1822,7 +1822,7 @@
         }
       ]
     },
-    "equipment-expansion:item:twilight-s-edge": {
+    "mod:equipment-expansion:item:twilight-s-edge": {
       "kind": "item",
       "name": "Twilight's Edge",
       "asset": "b9e5f97aaa95ddfa74efa65d06057d7ad74f30d195e32bb0067b5be9d4cd981d",
@@ -1835,7 +1835,7 @@
         }
       ]
     },
-    "equipment-expansion:item:facetsplitter": {
+    "mod:equipment-expansion:item:facetsplitter": {
       "kind": "item",
       "name": "Facetsplitter",
       "asset": "47c38a464f56e6bf6a7e515938e3ce3da2fb7caf9dc7cb984c999dc60518c137",
@@ -1848,7 +1848,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bookbeater": {
+    "mod:equipment-expansion:item:bookbeater": {
       "kind": "item",
       "name": "Bookbeater",
       "asset": "b61222e0010bb7b1bbea53771988aa6c3af921bf477ab5aaffc89225e5f46df9",
@@ -1861,7 +1861,7 @@
         }
       ]
     },
-    "equipment-expansion:item:spear-of-io": {
+    "mod:equipment-expansion:item:spear-of-io": {
       "kind": "item",
       "name": "Spear of Io",
       "asset": "716e67493801964267445d9ab96760d13ebd97b6735f855902496d8902aa5a50",
@@ -1874,7 +1874,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ad-infinitum": {
+    "mod:equipment-expansion:item:ad-infinitum": {
       "kind": "item",
       "name": "Ad Infinitum",
       "asset": "b6c5e272bd818401d61265c503dfe70b2c99e71577ee7dc6379ff43e6bab13b8",
@@ -1887,7 +1887,7 @@
         }
       ]
     },
-    "equipment-expansion:item:righteous-wrath": {
+    "mod:equipment-expansion:item:righteous-wrath": {
       "kind": "item",
       "name": "Righteous Wrath",
       "asset": "5133aed5de8c46f73dd4c73e0dbffa4b93312e987538724341f7643ec7ace841",
@@ -1900,7 +1900,7 @@
         }
       ]
     },
-    "equipment-expansion:item:hihiirokane": {
+    "mod:equipment-expansion:item:hihiirokane": {
       "kind": "item",
       "name": "Hihiirokane",
       "asset": "0a34a1a95db1f64ddcf2d747ef3fcbade3549eca0135dfffb89a1b23fc3f6614",
@@ -1913,7 +1913,7 @@
         }
       ]
     },
-    "equipment-expansion:item:depth-seer-s-tome": {
+    "mod:equipment-expansion:item:depth-seer-s-tome": {
       "kind": "item",
       "name": "Depth-seer's Tome",
       "asset": "790a23e6c36144b1f0f2673948b7aec3a98dc7886e66b31ae7067d50fed86aff",
@@ -1926,7 +1926,7 @@
         }
       ]
     },
-    "equipment-expansion:item:codex-consiliarii": {
+    "mod:equipment-expansion:item:codex-consiliarii": {
       "kind": "item",
       "name": "Codex Consiliarii",
       "asset": "c3485342fc3daaf2b40118ab9b539d319d17ba55c67941fda54d1f2ea732258c",
@@ -1939,7 +1939,7 @@
         }
       ]
     },
-    "equipment-expansion:item:loyalty": {
+    "mod:equipment-expansion:item:loyalty": {
       "kind": "item",
       "name": "Loyalty",
       "asset": "6bf9fd3ea182828fa0cab01d402cebc20568ab8687b0372525fc65fb8a9e09d9",
@@ -1952,7 +1952,7 @@
         }
       ]
     },
-    "equipment-expansion:item:unbound-s-scythe": {
+    "mod:equipment-expansion:item:unbound-s-scythe": {
       "kind": "item",
       "name": "Unbound's Scythe",
       "asset": "e5fa1457ff533e252ae943464b9d1db4d92a99639c18956e1ff16bdb32bc63b8",
@@ -1965,7 +1965,7 @@
         }
       ]
     },
-    "equipment-expansion:item:runehammer": {
+    "mod:equipment-expansion:item:runehammer": {
       "kind": "item",
       "name": "Runehammer",
       "asset": "8db5f686d38717e7b53c94c63fdc838948109edd789cce7dc160c12243ff60ce",
@@ -1978,7 +1978,7 @@
         }
       ]
     },
-    "equipment-expansion:item:backbreaker": {
+    "mod:equipment-expansion:item:backbreaker": {
       "kind": "item",
       "name": "Backbreaker",
       "asset": "ca2855a5a3a1b5d237dfc1e947dac39398d56de267d636818a15a7f20686e3cb",
@@ -1991,7 +1991,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sledgehammer": {
+    "mod:equipment-expansion:item:sledgehammer": {
       "kind": "item",
       "name": "Sledgehammer",
       "asset": "357cf2a8c44b80329be529e779adc15edd536f89e569518466cdb7feb546b62d",
@@ -2004,7 +2004,7 @@
         }
       ]
     },
-    "equipment-expansion:item:woodsmacker": {
+    "mod:equipment-expansion:item:woodsmacker": {
       "kind": "item",
       "name": "Woodsmacker",
       "asset": "fd6d9b11993458f0973fcc94baacb16d8cd1aa074624862d90205bd83185fa7d",
@@ -2017,7 +2017,7 @@
         }
       ]
     },
-    "equipment-expansion:item:blue-moon-katars": {
+    "mod:equipment-expansion:item:blue-moon-katars": {
       "kind": "item",
       "name": "Blue Moon Katars",
       "asset": "812126517edfeec1428e15d2baa3cf82ec5bc1a77a79c0563263b168df5aa3e8",
@@ -2030,7 +2030,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bone-katars": {
+    "mod:equipment-expansion:item:bone-katars": {
       "kind": "item",
       "name": "Bone Katars",
       "asset": "3e8f19715aba732b1150baaa290b5e7b517e18ffd46a59d5c6bbca56ee32d20e",
@@ -2043,7 +2043,7 @@
         }
       ]
     },
-    "equipment-expansion:item:butterfly-shortspear": {
+    "mod:equipment-expansion:item:butterfly-shortspear": {
       "kind": "item",
       "name": "Butterfly Shortspear",
       "asset": "56cde4891c6a512bf2b7102352acff50e423ea3231e3c8cd02f0f7743012c5be",
@@ -2056,7 +2056,7 @@
         }
       ]
     },
-    "equipment-expansion:item:royal-dominance": {
+    "mod:equipment-expansion:item:royal-dominance": {
       "kind": "item",
       "name": "Royal Dominance",
       "asset": "b25ba1b132b285a44174b920200fe7a9b4b4e1296b33bef187f5186bf9bd0e90",
@@ -2069,7 +2069,7 @@
         }
       ]
     },
-    "equipment-expansion:item:moonchill": {
+    "mod:equipment-expansion:item:moonchill": {
       "kind": "item",
       "name": "Moonchill",
       "asset": "107c683ff270dc5fdad5ed061e1ba28aa2a692f4e301261a1e6774081495c4d0",
@@ -2082,7 +2082,7 @@
         }
       ]
     },
-    "equipment-expansion:item:concealable-knife": {
+    "mod:equipment-expansion:item:concealable-knife": {
       "kind": "item",
       "name": "Concealable Knife",
       "asset": "11347087b7b4266d0fb38a9ff4acd472c1dd951b802d35747f10e0f16b93ce3d",
@@ -2095,7 +2095,7 @@
         }
       ]
     },
-    "equipment-expansion:item:eaglesclaw": {
+    "mod:equipment-expansion:item:eaglesclaw": {
       "kind": "item",
       "name": "Eaglesclaw",
       "asset": "8824f2297b5210056d2a347ce363226c7e2da9c8100edf56bd9f06a1d8c5993e",
@@ -2108,7 +2108,7 @@
         }
       ]
     },
-    "equipment-expansion:item:desert-sickle": {
+    "mod:equipment-expansion:item:desert-sickle": {
       "kind": "item",
       "name": "Desert Sickle",
       "asset": "e469336312dc9f7093a19db69f4ae8ccca4d93bf97428adb086286cb789b6cdc",
@@ -2121,7 +2121,7 @@
         }
       ]
     },
-    "equipment-expansion:item:grand-emerald": {
+    "mod:equipment-expansion:item:grand-emerald": {
       "kind": "item",
       "name": "Grand Emerald",
       "asset": "f2295e60ebbdd772b0a612d297d9526fe9ae0607d858e947f16493b82b0127ed",
@@ -2134,7 +2134,7 @@
         }
       ]
     },
-    "equipment-expansion:item:executioner": {
+    "mod:equipment-expansion:item:executioner": {
       "kind": "item",
       "name": "Executioner",
       "asset": "5b0ba1cf3d75806e88ecf6e1dbdfefba1be6923a2aca1d0f4157148a999a150c",
@@ -2147,7 +2147,7 @@
         }
       ]
     },
-    "equipment-expansion:item:guardian-of-tharsis": {
+    "mod:equipment-expansion:item:guardian-of-tharsis": {
       "kind": "item",
       "name": "Guardian of Tharsis",
       "asset": "aa30baf20b3c883bf040b4bc1c2e17e17db8cc9a1efb0dd049836d6e0c94fe7d",
@@ -2160,7 +2160,7 @@
         }
       ]
     },
-    "equipment-expansion:item:hoplite-s-shield": {
+    "mod:equipment-expansion:item:hoplite-s-shield": {
       "kind": "item",
       "name": "Hoplite's Shield",
       "asset": "f7030cd30482cad75f0c5a05ae41da334dad6d2e8f04736ea3ec37d9b987509e",
@@ -2173,7 +2173,7 @@
         }
       ]
     },
-    "equipment-expansion:item:warding-glory": {
+    "mod:equipment-expansion:item:warding-glory": {
       "kind": "item",
       "name": "Warding Glory",
       "asset": "4bf3e3d127d200d8380b284c39bc17d6ba6e64633ef2791873be50d7f0a6c753",
@@ -2186,7 +2186,7 @@
         }
       ]
     },
-    "equipment-expansion:item:soaring-falcon": {
+    "mod:equipment-expansion:item:soaring-falcon": {
       "kind": "item",
       "name": "Soaring Falcon",
       "asset": "ab9758f2200492b543ea11938257c4ba97f74af8ae1eaac116ab307d7af39a54",
@@ -2199,7 +2199,7 @@
         }
       ]
     },
-    "equipment-expansion:item:twin-blade-staff": {
+    "mod:equipment-expansion:item:twin-blade-staff": {
       "kind": "item",
       "name": "Twin Blade Staff",
       "asset": "5dad0d0abbb7d2180495ab12b28c87d21949afc906b96105f55f0fa15bea2d3d",
@@ -2212,7 +2212,7 @@
         }
       ]
     },
-    "equipment-expansion:item:fanged-nunchaku": {
+    "mod:equipment-expansion:item:fanged-nunchaku": {
       "kind": "item",
       "name": "Fanged Nunchaku",
       "asset": "02923ad1ba8c8b33a46eedcf6aa7f975ca8b361afa17631001c652ab9c9d5e21",
@@ -2225,7 +2225,7 @@
         }
       ]
     },
-    "equipment-expansion:item:enchanted-nunchaku": {
+    "mod:equipment-expansion:item:enchanted-nunchaku": {
       "kind": "item",
       "name": "Enchanted Nunchaku",
       "asset": "4a673a95d12340513d4c2c4b3b18cf354fb5e28bfd26677b706ce1a82ec9a74b",
@@ -2238,7 +2238,7 @@
         }
       ]
     },
-    "equipment-expansion:item:steel-nunchaku": {
+    "mod:equipment-expansion:item:steel-nunchaku": {
       "kind": "item",
       "name": "Steel Nunchaku",
       "asset": "4a8c491387319ed0c485397ef82302ab92543110cf837eb5782901c1c484e36f",
@@ -2251,7 +2251,7 @@
         }
       ]
     },
-    "equipment-expansion:item:greywood-nunchaku": {
+    "mod:equipment-expansion:item:greywood-nunchaku": {
       "kind": "item",
       "name": "Greywood Nunchaku",
       "asset": "ee0dd000f746886c2a7fb53992295fb8b0b23a2314a6cd39f87f503d1deeeb5a",
@@ -2264,7 +2264,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ancient-monster-bone": {
+    "mod:equipment-expansion:item:ancient-monster-bone": {
       "kind": "item",
       "name": "Ancient Monster Bone",
       "asset": "98b705ee7b6fe5094f96efa99571e9d5b88c11beda9dac44f59de4fa42a4f5c3",
@@ -2277,7 +2277,7 @@
         }
       ]
     },
-    "equipment-expansion:item:acolyte-s-cookbook": {
+    "mod:equipment-expansion:item:acolyte-s-cookbook": {
       "kind": "item",
       "name": "Acolyte's Cookbook",
       "asset": "9f81bbafbf908e1ced69452c9eb5105e0e8727870c5c0fdc9ff813ed80b4d5d5",
@@ -2290,7 +2290,7 @@
         }
       ]
     },
-    "equipment-expansion:item:desert-ringblade": {
+    "mod:equipment-expansion:item:desert-ringblade": {
       "kind": "item",
       "name": "Desert Ringblade",
       "asset": "05887103d5d4acb19c5b2a01f2a04a10ec2f367f14fdbd633a7b0fede50692f6",
@@ -2303,7 +2303,7 @@
         }
       ]
     },
-    "equipment-expansion:item:triton-s-cloak": {
+    "mod:equipment-expansion:item:triton-s-cloak": {
       "kind": "item",
       "name": "Triton's Cloak",
       "asset": "fa400169a8e5c0251bb13a51c4afbcd10e8aba920ffd435b963d6a3e832ea875",
@@ -2316,7 +2316,7 @@
         }
       ]
     },
-    "equipment-expansion:item:mars-cloak": {
+    "mod:equipment-expansion:item:mars-cloak": {
       "kind": "item",
       "name": "Mars' Cloak",
       "asset": "2e2cd2074d9b468cd613bc11fd6d6f62cdcc5a94a910289bc91c7e14f261ad5b",
@@ -2329,7 +2329,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ganymede-s-cloak": {
+    "mod:equipment-expansion:item:ganymede-s-cloak": {
       "kind": "item",
       "name": "Ganymede's Cloak",
       "asset": "36e33c4736c875a84dfa12022550dc275618e3ff709ffcfa7bf5b575df81587e",
@@ -2342,7 +2342,7 @@
         }
       ]
     },
-    "equipment-expansion:item:gaea-s-cloak": {
+    "mod:equipment-expansion:item:gaea-s-cloak": {
       "kind": "item",
       "name": "Gaea's Cloak",
       "asset": "adbef77b4f71fac81b89e86a016aa0a373ce1368cb68e7d89b6329d6adaf0ef7",
@@ -2355,7 +2355,7 @@
         }
       ]
     },
-    "equipment-expansion:item:mercury-s-cloak": {
+    "mod:equipment-expansion:item:mercury-s-cloak": {
       "kind": "item",
       "name": "Mercury's Cloak",
       "asset": "870133b8cda9c191d5189844dd85d0899cabd3fe67e41eb23864ddb4c1b9cde4",
@@ -2368,7 +2368,7 @@
         }
       ]
     },
-    "equipment-expansion:item:kaiser-blade": {
+    "mod:equipment-expansion:item:kaiser-blade": {
       "kind": "item",
       "name": "Kaiser Blade",
       "asset": "3d40aa340e4f7c88fe98610a7d09648cedd30cac27cf8e85eee98bae6f4ff66f",
@@ -2381,7 +2381,7 @@
         }
       ]
     },
-    "equipment-expansion:item:thunderstruck-knife": {
+    "mod:equipment-expansion:item:thunderstruck-knife": {
       "kind": "item",
       "name": "Thunderstruck Knife",
       "asset": "6ac066493a15a5e809465a63e0c016d17a58ff52eaac5d79cc0a11a86e7ce70e",
@@ -2394,7 +2394,7 @@
         }
       ]
     },
-    "equipment-expansion:item:frostwing-feather": {
+    "mod:equipment-expansion:item:frostwing-feather": {
       "kind": "item",
       "name": "Frostwing Feather",
       "asset": "00debea974b59185ff2d47ba18e8322645122e0211f882ec5c753912dca1ef6c",
@@ -2407,7 +2407,7 @@
         }
       ]
     },
-    "equipment-expansion:item:blood-of-heroes": {
+    "mod:equipment-expansion:item:blood-of-heroes": {
       "kind": "item",
       "name": "Blood of Heroes",
       "asset": "770abaf8f1da16a444ec50ee735cc5644b840ac139b9fffe2a1fe0bbe9cf8ba9",
@@ -2420,7 +2420,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sacrificial-ring": {
+    "mod:equipment-expansion:item:sacrificial-ring": {
       "kind": "item",
       "name": "Sacrificial Ring",
       "asset": "b8671d9fdcee80199ed0770b9460672689bd9dd7a65787c2cdca9fe3391527be",
@@ -2433,7 +2433,7 @@
         }
       ]
     },
-    "equipment-expansion:item:trailblazer-s-coat": {
+    "mod:equipment-expansion:item:trailblazer-s-coat": {
       "kind": "item",
       "name": "Trailblazer's Coat",
       "asset": "2b5c43766202f1c30b66f40efa89f24479f44b9d50589749054aa231248ebc09",
@@ -2446,7 +2446,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bloodthirsty-vest": {
+    "mod:equipment-expansion:item:bloodthirsty-vest": {
       "kind": "item",
       "name": "Bloodthirsty Vest",
       "asset": "9c0d4a907975ba70433a1e5db6a105f382d93bd6a7df46833ed992dc4bd7c49e",
@@ -2459,7 +2459,7 @@
         }
       ]
     },
-    "equipment-expansion:item:the-impregnable": {
+    "mod:equipment-expansion:item:the-impregnable": {
       "kind": "item",
       "name": "The Impregnable",
       "asset": "8912b2d859d0fd865dde566b66087fe725ac7256b9b1ba4ce0ba23096b90ee87",
@@ -2472,7 +2472,7 @@
         }
       ]
     },
-    "equipment-expansion:item:old-reliable": {
+    "mod:equipment-expansion:item:old-reliable": {
       "kind": "item",
       "name": "Old Reliable",
       "asset": "e4df21ba42d1fb1469ee45785eb315861647b17b5d995ffbb0f8333d470d2fb4",
@@ -2485,7 +2485,7 @@
         }
       ]
     },
-    "equipment-expansion:item:the-mage-in-yellow": {
+    "mod:equipment-expansion:item:the-mage-in-yellow": {
       "kind": "item",
       "name": "The Mage in Yellow",
       "asset": "f1a9cfe0605ae1e30f11cbbc86797cdcb2a07bddbf0332a779815fe301670704",
@@ -2498,7 +2498,7 @@
         }
       ]
     },
-    "equipment-expansion:item:serrated-sickle": {
+    "mod:equipment-expansion:item:serrated-sickle": {
       "kind": "item",
       "name": "Serrated Sickle",
       "asset": "dcad6f0ae6d66cb28e09c547d39fad9f22fe407015b38075928ad8dfb47fd906",
@@ -2511,7 +2511,7 @@
         }
       ]
     },
-    "equipment-expansion:item:gilded-crescent": {
+    "mod:equipment-expansion:item:gilded-crescent": {
       "kind": "item",
       "name": "Gilded Crescent",
       "asset": "ddb395664b591be0839cce3eca0cbbb5d3f891d2f168dbd3e9a88bbae4f2bc5e",
@@ -2524,7 +2524,7 @@
         }
       ]
     },
-    "equipment-expansion:item:hooked-sickle": {
+    "mod:equipment-expansion:item:hooked-sickle": {
       "kind": "item",
       "name": "Hooked Sickle",
       "asset": "b76b3d9eb299b54f68e482eff6632e2d1cf39e864ce8f984c7e03d365bf5c0ea",
@@ -2537,7 +2537,7 @@
         }
       ]
     },
-    "equipment-expansion:item:darkwood-spear": {
+    "mod:equipment-expansion:item:darkwood-spear": {
       "kind": "item",
       "name": "Darkwood Spear",
       "asset": "354e827f9e604a91aee9fa8d36946392fcb69e96374f0f5aece846f289a6494a",
@@ -2550,7 +2550,7 @@
         }
       ]
     },
-    "equipment-expansion:item:lightforged-katars": {
+    "mod:equipment-expansion:item:lightforged-katars": {
       "kind": "item",
       "name": "Lightforged Katars",
       "asset": "29580c95749c45cda61c054ef8634cebdf5818d7fb074bd8cd7456fee4a06254",
@@ -2563,7 +2563,7 @@
         }
       ]
     },
-    "equipment-expansion:item:titanfeller": {
+    "mod:equipment-expansion:item:titanfeller": {
       "kind": "item",
       "name": "Titanfeller",
       "asset": "3d40aa340e4f7c88fe98610a7d09648cedd30cac27cf8e85eee98bae6f4ff66f",
@@ -2576,7 +2576,7 @@
         }
       ]
     },
-    "equipment-expansion:item:black-cat-s-ring": {
+    "mod:equipment-expansion:item:black-cat-s-ring": {
       "kind": "item",
       "name": "Black Cat's Ring",
       "asset": "bbe07e04d4fed53bb375b606f54c2c7cd787e19577b3b85d5c0132270a507f16",
@@ -2589,7 +2589,7 @@
         }
       ]
     },
-    "equipment-expansion:item:helm-of-the-phoenix": {
+    "mod:equipment-expansion:item:helm-of-the-phoenix": {
       "kind": "item",
       "name": "Helm of the Phoenix",
       "asset": "e279dd8bcb3b61196a2719cef12654d6bf6fd49df9ca8862e3b640aa38866bba",
@@ -2602,7 +2602,7 @@
         }
       ]
     },
-    "equipment-expansion:item:plate-of-the-phoenix": {
+    "mod:equipment-expansion:item:plate-of-the-phoenix": {
       "kind": "item",
       "name": "Plate of the Phoenix",
       "asset": "3bbbb480739dc489d0dbc14dfd05edecff91fbebf0d94527e3fac871f8f045bf",
@@ -2615,7 +2615,7 @@
         }
       ]
     },
-    "equipment-expansion:item:traveler-s-plate": {
+    "mod:equipment-expansion:item:traveler-s-plate": {
       "kind": "item",
       "name": "Traveler's Plate",
       "asset": "b91251d6e99ff9bfbd4c58ff37708cebd52929b1b6dad6770d02f146eb5fa0dc",
@@ -2628,7 +2628,7 @@
         }
       ]
     },
-    "equipment-expansion:item:hoarfrost-buckler": {
+    "mod:equipment-expansion:item:hoarfrost-buckler": {
       "kind": "item",
       "name": "Hoarfrost Buckler",
       "asset": "fb702fa9f31dc8bce3e551c198db680e5b6e6c9118ac7c2dc80bc5d0fbd0404c",
@@ -2641,7 +2641,7 @@
         }
       ]
     },
-    "equipment-expansion:item:padded-vest": {
+    "mod:equipment-expansion:item:padded-vest": {
       "kind": "item",
       "name": "Padded Vest",
       "asset": "e7c4ab57aae7ba8dd891bec7f855de0e44916b90c9f1ed1f35c6b203d2b9e965",
@@ -2654,7 +2654,7 @@
         }
       ]
     },
-    "equipment-expansion:item:soulfrost-gauntlet": {
+    "mod:equipment-expansion:item:soulfrost-gauntlet": {
       "kind": "item",
       "name": "Soulfrost Gauntlet",
       "asset": "450714f575653ea564cb51c2156ed89cc5a03293b756a8e71810fba7a8b57836",
@@ -2667,7 +2667,7 @@
         }
       ]
     },
-    "equipment-expansion:item:barrier-of-blood": {
+    "mod:equipment-expansion:item:barrier-of-blood": {
       "kind": "item",
       "name": "Barrier of Blood",
       "asset": "c8b405198459bed9c70dc69e88bc4e353ee928018d3a4a6c1ea24212d5f17313",
@@ -2680,7 +2680,7 @@
         }
       ]
     },
-    "equipment-expansion:item:potion-of-aetherbody": {
+    "mod:equipment-expansion:item:potion-of-aetherbody": {
       "kind": "item",
       "name": "Potion of Aetherbody",
       "asset": "44ea517e1632b109dfcfc9da326e9ab3a262885d3e27b145a26943bc7257dc1d",
@@ -2693,7 +2693,7 @@
         }
       ]
     },
-    "equipment-expansion:item:flask-of-heroism": {
+    "mod:equipment-expansion:item:flask-of-heroism": {
       "kind": "item",
       "name": "Flask of Heroism",
       "asset": "3424176e1c0d3a75e9b3b653b6401f56980d382e744de693b2be5e72edb62a09",
@@ -2706,7 +2706,7 @@
         }
       ]
     },
-    "equipment-expansion:item:regenerating-flask": {
+    "mod:equipment-expansion:item:regenerating-flask": {
       "kind": "item",
       "name": "Regenerating Flask",
       "asset": "ca318abafd3c67b577f0da12b8d85f429924cb5bbcd88c561d0a97cbb4e1f8d8",
@@ -2719,7 +2719,7 @@
         }
       ]
     },
-    "equipment-expansion:item:moonfrost-wand": {
+    "mod:equipment-expansion:item:moonfrost-wand": {
       "kind": "item",
       "name": "Moonfrost Wand",
       "asset": "987f135c1f2910d8fd23ea03570111b31a0695a8f1a990d0c71844ad11465ab6",
@@ -2732,7 +2732,7 @@
         }
       ]
     },
-    "equipment-expansion:item:light-crossbow": {
+    "mod:equipment-expansion:item:light-crossbow": {
       "kind": "item",
       "name": "Light Crossbow",
       "asset": "ea15c3b7f308295363595acec185ac8c64e9acf9608c2a61f5928cbe0dabc72d",
@@ -2745,7 +2745,7 @@
         }
       ]
     },
-    "equipment-expansion:item:reinforced-crossbow": {
+    "mod:equipment-expansion:item:reinforced-crossbow": {
       "kind": "item",
       "name": "Reinforced Crossbow",
       "asset": "714896a90edf7730a4b1a12192485d0970807eea3667c6c214ac50e2c9133aa7",
@@ -2758,7 +2758,7 @@
         }
       ]
     },
-    "equipment-expansion:item:twinshot-crossbow": {
+    "mod:equipment-expansion:item:twinshot-crossbow": {
       "kind": "item",
       "name": "Twinshot Crossbow",
       "asset": "b474f0ecf23193e902e1d039f39a2aa835a4f243868b9edc0936e0e8f01c6d19",
@@ -2771,7 +2771,7 @@
         }
       ]
     },
-    "equipment-expansion:item:synthesized-angel": {
+    "mod:equipment-expansion:item:synthesized-angel": {
       "kind": "item",
       "name": "Synthesized Angel",
       "asset": "c2bf7755cb7775dbef05e7e052b988d74cdf31371b78c93694b896e80c208486",
@@ -2784,7 +2784,7 @@
         }
       ]
     },
-    "equipment-expansion:item:liquidator": {
+    "mod:equipment-expansion:item:liquidator": {
       "kind": "item",
       "name": "Liquidator",
       "asset": "5995161a4b40565fd2efca5289ba3f995f7e554862951110d7c8010ed4d7ef94",
@@ -2797,7 +2797,7 @@
         }
       ]
     },
-    "equipment-expansion:item:huntsman": {
+    "mod:equipment-expansion:item:huntsman": {
       "kind": "item",
       "name": "Huntsman",
       "asset": "931b6097ccc5d54546675f12e7a4063403ff2ead2ac1472bdaaf18cca2c9c254",
@@ -2810,7 +2810,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sawn-off-rifle": {
+    "mod:equipment-expansion:item:sawn-off-rifle": {
       "kind": "item",
       "name": "Sawn-off Rifle",
       "asset": "9ebe2f927ab292318a98aefea9eaaca593ddad00f54ae4e8cfa848fafd977e56",
@@ -2823,7 +2823,7 @@
         }
       ]
     },
-    "equipment-expansion:item:longneck-rifle": {
+    "mod:equipment-expansion:item:longneck-rifle": {
       "kind": "item",
       "name": "Longneck Rifle",
       "asset": "7c10cbb5a71ad401a441aec1f8298de4cccdd18605ff44ee5853bc29bd7c4570",
@@ -2836,7 +2836,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ace-of-diamonds": {
+    "mod:equipment-expansion:item:ace-of-diamonds": {
       "kind": "item",
       "name": "Ace of Diamonds",
       "asset": "80a0a0d603e875ba60a2ed55196da23356a0c86733d666bebe13b57f3f518abd",
@@ -2849,7 +2849,7 @@
         }
       ]
     },
-    "equipment-expansion:item:stick": {
+    "mod:equipment-expansion:item:stick": {
       "kind": "item",
       "name": "Stick",
       "asset": "14ad2d3a776a48ab409666dd51dd5a47342b283c45cedb2526224d22fc63d4f1",
@@ -2862,7 +2862,7 @@
         }
       ]
     },
-    "equipment-expansion:item:dew-staff": {
+    "mod:equipment-expansion:item:dew-staff": {
       "kind": "item",
       "name": "Dew Staff",
       "asset": "d7857e5f681279247195013424cb8d27998f5208be1103d0b85fac8378414869",
@@ -2875,7 +2875,7 @@
         }
       ]
     },
-    "equipment-expansion:item:les-condamnes": {
+    "mod:equipment-expansion:item:les-condamnes": {
       "kind": "item",
       "name": "Les Condamnes",
       "asset": "4c133ff17a8695efc4befca72d1eb1147c12ed5b2e6e2ace44d5ac8c08b2b5e2",
@@ -2888,7 +2888,7 @@
         }
       ]
     },
-    "equipment-expansion:item:congealed-orb": {
+    "mod:equipment-expansion:item:congealed-orb": {
       "kind": "item",
       "name": "Congealed Orb",
       "asset": "a3d0a8a291481a92b8183be45e362cf3288746b784e0809725a3c4f0f05cd441",
@@ -2901,7 +2901,7 @@
         }
       ]
     },
-    "equipment-expansion:item:broadestsword": {
+    "mod:equipment-expansion:item:broadestsword": {
       "kind": "item",
       "name": "Broadestsword",
       "asset": "30b5426d8d3a5ed3ae49e81060f501fade015b4f0a08783f660f97b4ec3ae6c6",
@@ -2914,7 +2914,7 @@
         }
       ]
     },
-    "equipment-expansion:item:kingshammer": {
+    "mod:equipment-expansion:item:kingshammer": {
       "kind": "item",
       "name": "Kingshammer",
       "asset": "f48cd28aafd68aa9b7cd548a1310e9086a38f1d9bf658ec37093dd5ec7cb1b44",
@@ -2927,7 +2927,7 @@
         }
       ]
     },
-    "equipment-expansion:item:vampiric-wand": {
+    "mod:equipment-expansion:item:vampiric-wand": {
       "kind": "item",
       "name": "Vampiric Wand",
       "asset": "b05b9e1fa321ccd810a8777333839f7c8bdbaadd129de37b39dc0c4c595efccc",
@@ -2940,7 +2940,7 @@
         }
       ]
     },
-    "equipment-expansion:item:soul-mirror": {
+    "mod:equipment-expansion:item:soul-mirror": {
       "kind": "item",
       "name": "Soul Mirror",
       "asset": "80a915476104b2d1c1c7360bc32374f4446b18ae3d4e819e11fbebacd203ede1",
@@ -2953,7 +2953,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sunray": {
+    "mod:equipment-expansion:item:sunray": {
       "kind": "item",
       "name": "Sunray",
       "asset": "c142c26371f85c811c9cecec3479d314894739870429f7f2a90b145d80f4562a",
@@ -2966,7 +2966,7 @@
         }
       ]
     },
-    "equipment-expansion:item:wardstaff": {
+    "mod:equipment-expansion:item:wardstaff": {
       "kind": "item",
       "name": "Wardstaff",
       "asset": "8b5ca170b0684c763091d7c0df9a5c4da1a04c57d3163702c2fbd6ddad07f425",
@@ -2979,7 +2979,7 @@
         }
       ]
     },
-    "equipment-expansion:item:jade-hourglass": {
+    "mod:equipment-expansion:item:jade-hourglass": {
       "kind": "item",
       "name": "Jade Hourglass",
       "asset": "b072a8d6e8abf8f943a639a338f751e0899518f36422c6c11d713974e1d5c80e",
@@ -2992,7 +2992,7 @@
         }
       ]
     },
-    "equipment-expansion:item:titanium-shell": {
+    "mod:equipment-expansion:item:titanium-shell": {
       "kind": "item",
       "name": "Titanium Shell",
       "asset": "9f93a410ec75a86f076f3010d2ec4d502ff34df1a706a6d287b188de21b74955",
@@ -3005,7 +3005,7 @@
         }
       ]
     },
-    "equipment-expansion:item:throwing-knives": {
+    "mod:equipment-expansion:item:throwing-knives": {
       "kind": "item",
       "name": "Throwing Knives",
       "asset": "18af5bc58546ea591013df173219ac7e5d9d0e3dadb404961975f64fce51beec",
@@ -3018,7 +3018,7 @@
         }
       ]
     },
-    "equipment-expansion:item:divine-ruler-s-helmet": {
+    "mod:equipment-expansion:item:divine-ruler-s-helmet": {
       "kind": "item",
       "name": "Divine Ruler's Helmet",
       "asset": "51f550ff47d667263ac95d2ee02781b68de1b7493c722bde1563dccb327dcb24",
@@ -3031,7 +3031,7 @@
         }
       ]
     },
-    "equipment-expansion:item:woodcarved-goose": {
+    "mod:equipment-expansion:item:woodcarved-goose": {
       "kind": "item",
       "name": "Woodcarved Goose",
       "asset": "bb5b32449510456eecc3cd0a83dcbc03faf3d8c23985786847d0014f06aba3d3",
@@ -3044,7 +3044,7 @@
         }
       ]
     },
-    "equipment-expansion:item:snail-s-ring": {
+    "mod:equipment-expansion:item:snail-s-ring": {
       "kind": "item",
       "name": "Snail's Ring",
       "asset": "6548ed53a3dc468d11d2b2e56ec4afbc9778ef80bdc6b3c7ae12b11b6a50d0c2",
@@ -3057,7 +3057,7 @@
         }
       ]
     },
-    "equipment-expansion:item:divine-ruler-s-plate": {
+    "mod:equipment-expansion:item:divine-ruler-s-plate": {
       "kind": "item",
       "name": "Divine Ruler's Plate",
       "asset": "df043fb9c81240858817b7590dc3e893624d29755713b2ab0bc2bfe6b50a404a",
@@ -3070,7 +3070,7 @@
         }
       ]
     },
-    "equipment-expansion:item:alloy-helm": {
+    "mod:equipment-expansion:item:alloy-helm": {
       "kind": "item",
       "name": "Alloy Helm",
       "asset": "7a96b6ea2bd4445c1db6972824a65044ed21f465771a0c5a4ea1c5f4740f3376",
@@ -3083,7 +3083,7 @@
         }
       ]
     },
-    "equipment-expansion:item:wavelord-s-regalia": {
+    "mod:equipment-expansion:item:wavelord-s-regalia": {
       "kind": "item",
       "name": "Wavelord's Regalia",
       "asset": "f11e4f812ab7148b27738be096f5498067a69703c9aa668fe48e387da1ec61d1",
@@ -3096,7 +3096,7 @@
         }
       ]
     },
-    "equipment-expansion:item:nomad-s-bandana": {
+    "mod:equipment-expansion:item:nomad-s-bandana": {
       "kind": "item",
       "name": "Nomad's Bandana",
       "asset": "c8f9c29a4627678ffa8a1bbb3bda3b65f4a898535c2995aedfa8208ab8cccdf3",
@@ -3109,7 +3109,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bruiser-s-cleaver": {
+    "mod:equipment-expansion:item:bruiser-s-cleaver": {
       "kind": "item",
       "name": "Bruiser's Cleaver",
       "asset": "1d12f3eb68df3465620ec58b73dbfd04f9a61af7e11e6f0fdd1b0a64a8be98b7",
@@ -3122,7 +3122,7 @@
         }
       ]
     },
-    "equipment-expansion:item:galebound-tome": {
+    "mod:equipment-expansion:item:galebound-tome": {
       "kind": "item",
       "name": "Galebound Tome",
       "asset": "26b266ddd6f53750f3f125a16796e3d0e972fa55af20b42ede4ca40177d254b5",
@@ -3135,7 +3135,7 @@
         }
       ]
     },
-    "equipment-expansion:item:kamihime": {
+    "mod:equipment-expansion:item:kamihime": {
       "kind": "item",
       "name": "Kamihime",
       "asset": "c1dd0f277c536b9d406a49cd42a3fd49d7c5e27cff192b47b643f69f4cfecf6d",
@@ -3148,7 +3148,7 @@
         }
       ]
     },
-    "equipment-expansion:item:silent-judge": {
+    "mod:equipment-expansion:item:silent-judge": {
       "kind": "item",
       "name": "Silent Judge",
       "asset": "161e5e2a263b278cb199873d42d8c8d5f6567f941d2f631f8fcd6f687134a85f",
@@ -3161,7 +3161,7 @@
         }
       ]
     },
-    "equipment-expansion:item:faded-colour": {
+    "mod:equipment-expansion:item:faded-colour": {
       "kind": "item",
       "name": "Faded Colour",
       "asset": "fa51cd5e9246c70d0f36c0d828726be9a869ed0efc3b827212eb9bd5f73f4877",
@@ -3174,7 +3174,7 @@
         }
       ]
     },
-    "equipment-expansion:item:the-second-warning": {
+    "mod:equipment-expansion:item:the-second-warning": {
       "kind": "item",
       "name": "The Second Warning",
       "asset": "e387c461f24a1d52b517d9f25ad1eb7cf7f6091af218fb9358a2ce01bc614e45",
@@ -3187,7 +3187,7 @@
         }
       ]
     },
-    "equipment-expansion:item:the-wolf": {
+    "mod:equipment-expansion:item:the-wolf": {
       "kind": "item",
       "name": "The Wolf",
       "asset": "a78cdbd2fe0f664a18005a4df6a43cd4934fc635e9bf2c1720b168b460e2d7a5",
@@ -3200,7 +3200,7 @@
         }
       ]
     },
-    "equipment-expansion:item:stonechill": {
+    "mod:equipment-expansion:item:stonechill": {
       "kind": "item",
       "name": "Stonechill",
       "asset": "c5ee6fdb2383e1413ceb03213e033849a145410d1440feabb873ad30e30d6f61",
@@ -3213,7 +3213,7 @@
         }
       ]
     },
-    "equipment-expansion:item:0-fool": {
+    "mod:equipment-expansion:item:0-fool": {
       "kind": "item",
       "name": "0 - Fool",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3226,7 +3226,7 @@
         }
       ]
     },
-    "equipment-expansion:item:i-magician": {
+    "mod:equipment-expansion:item:i-magician": {
       "kind": "item",
       "name": "I - Magician",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3239,7 +3239,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ii-high-priestess": {
+    "mod:equipment-expansion:item:ii-high-priestess": {
       "kind": "item",
       "name": "II - High Priestess",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3252,7 +3252,7 @@
         }
       ]
     },
-    "equipment-expansion:item:iii-empress": {
+    "mod:equipment-expansion:item:iii-empress": {
       "kind": "item",
       "name": "III - Empress",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3265,7 +3265,7 @@
         }
       ]
     },
-    "equipment-expansion:item:iv-emperor": {
+    "mod:equipment-expansion:item:iv-emperor": {
       "kind": "item",
       "name": "IV - Emperor",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3278,7 +3278,7 @@
         }
       ]
     },
-    "equipment-expansion:item:v-hierophant": {
+    "mod:equipment-expansion:item:v-hierophant": {
       "kind": "item",
       "name": "V - Hierophant",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3291,7 +3291,7 @@
         }
       ]
     },
-    "equipment-expansion:item:vi-lovers": {
+    "mod:equipment-expansion:item:vi-lovers": {
       "kind": "item",
       "name": "VI - Lovers",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3304,7 +3304,7 @@
         }
       ]
     },
-    "equipment-expansion:item:vii-chariot": {
+    "mod:equipment-expansion:item:vii-chariot": {
       "kind": "item",
       "name": "VII - Chariot",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3317,7 +3317,7 @@
         }
       ]
     },
-    "equipment-expansion:item:viii-justice": {
+    "mod:equipment-expansion:item:viii-justice": {
       "kind": "item",
       "name": "VIII - Justice",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3330,7 +3330,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ix-hermit": {
+    "mod:equipment-expansion:item:ix-hermit": {
       "kind": "item",
       "name": "IX - Hermit",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3343,7 +3343,7 @@
         }
       ]
     },
-    "equipment-expansion:item:x-fortune": {
+    "mod:equipment-expansion:item:x-fortune": {
       "kind": "item",
       "name": "X - Fortune",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3356,7 +3356,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xi-strength": {
+    "mod:equipment-expansion:item:xi-strength": {
       "kind": "item",
       "name": "XI - Strength",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3369,7 +3369,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xii-hanged-man": {
+    "mod:equipment-expansion:item:xii-hanged-man": {
       "kind": "item",
       "name": "XII - Hanged Man",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3382,7 +3382,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xiii-death": {
+    "mod:equipment-expansion:item:xiii-death": {
       "kind": "item",
       "name": "XIII - Death",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3395,7 +3395,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xiv-temperance": {
+    "mod:equipment-expansion:item:xiv-temperance": {
       "kind": "item",
       "name": "XIV - Temperance",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3408,7 +3408,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xv-devil": {
+    "mod:equipment-expansion:item:xv-devil": {
       "kind": "item",
       "name": "XV - Devil",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3421,7 +3421,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xvi-tower": {
+    "mod:equipment-expansion:item:xvi-tower": {
       "kind": "item",
       "name": "XVI - Tower",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3434,7 +3434,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xvii-star": {
+    "mod:equipment-expansion:item:xvii-star": {
       "kind": "item",
       "name": "XVII - Star",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3447,7 +3447,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xviii-moon": {
+    "mod:equipment-expansion:item:xviii-moon": {
       "kind": "item",
       "name": "XVIII - Moon",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3460,7 +3460,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xix-sun": {
+    "mod:equipment-expansion:item:xix-sun": {
       "kind": "item",
       "name": "XIX - Sun",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3473,7 +3473,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xx-judgement": {
+    "mod:equipment-expansion:item:xx-judgement": {
       "kind": "item",
       "name": "XX - Judgement",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3486,7 +3486,7 @@
         }
       ]
     },
-    "equipment-expansion:item:xxi-world": {
+    "mod:equipment-expansion:item:xxi-world": {
       "kind": "item",
       "name": "XXI - World",
       "asset": "8457f2544f15b7ba34c92b9fc6bda27bd83ea305bef626e34355c2c6d73a06c4",
@@ -3499,7 +3499,7 @@
         }
       ]
     },
-    "equipment-expansion:item:demon-mail": {
+    "mod:equipment-expansion:item:demon-mail": {
       "kind": "item",
       "name": "Demon Mail",
       "asset": "e9d11cfc74152faa76cf0fc8fae322fb911562ff220846cae09df903a3169184",
@@ -3512,7 +3512,7 @@
         }
       ]
     },
-    "equipment-expansion:item:reaper-s-cuffs": {
+    "mod:equipment-expansion:item:reaper-s-cuffs": {
       "kind": "item",
       "name": "Reaper's Cuffs",
       "asset": "1fcca3e622db21407dc75912dd2d5d0c0039c70c51a4dd29efb0b6c23df32fe8",
@@ -3525,7 +3525,7 @@
         }
       ]
     },
-    "equipment-expansion:item:old-monk-s-cloak": {
+    "mod:equipment-expansion:item:old-monk-s-cloak": {
       "kind": "item",
       "name": "Old Monk's Cloak",
       "asset": "7479dced7b97d643711f077524faef5ef2ef53b2d455d9a1f362be951ab23a6d",
@@ -3538,7 +3538,7 @@
         }
       ]
     },
-    "equipment-expansion:item:stalactite": {
+    "mod:equipment-expansion:item:stalactite": {
       "kind": "item",
       "name": "Stalactite",
       "asset": "e1fd22aa15cdfaf104127980cd9eb934a30bf82ec8b1e4d0726dd5f84aadc526",
@@ -3551,7 +3551,7 @@
         }
       ]
     },
-    "equipment-expansion:item:quintar-pheromones": {
+    "mod:equipment-expansion:item:quintar-pheromones": {
       "kind": "item",
       "name": "Quintar Pheromones",
       "asset": "a9da63df5a9933a0283e3b273a794ea84ad178ea8f70d23c089df622603b7fa2",
@@ -3564,7 +3564,7 @@
         }
       ]
     },
-    "equipment-expansion:item:faceless-hood": {
+    "mod:equipment-expansion:item:faceless-hood": {
       "kind": "item",
       "name": "Faceless Hood",
       "asset": "16b77d0b45dcdbe3e7f7d3fdaae1ab40a7e5bcb2e2285013c38f62bf7ad7fd28",
@@ -3577,7 +3577,7 @@
         }
       ]
     },
-    "equipment-expansion:item:silenced-screams": {
+    "mod:equipment-expansion:item:silenced-screams": {
       "kind": "item",
       "name": "Silenced Screams",
       "asset": "cd38952dcea10b52b8d7d8b0cd484ca2ae9dccb0939fd6fcdc6713e9c2569791",
@@ -3590,7 +3590,7 @@
         }
       ]
     },
-    "equipment-expansion:item:shellter-gown": {
+    "mod:equipment-expansion:item:shellter-gown": {
       "kind": "item",
       "name": "Shellter Gown",
       "asset": "e4c431aa7f089dcba5d1f3a1741353aef1239bdd8077835e17dd3be41c209367",
@@ -3603,7 +3603,7 @@
         }
       ]
     },
-    "equipment-expansion:item:blue-dress": {
+    "mod:equipment-expansion:item:blue-dress": {
       "kind": "item",
       "name": "Blue Dress",
       "asset": "d86a697a5b1e392d80f4774a85ad3ace1c5b9785efadfc72d3b0f4007c76a6a3",
@@ -3616,7 +3616,7 @@
         }
       ]
     },
-    "equipment-expansion:item:feyblessed-tiara": {
+    "mod:equipment-expansion:item:feyblessed-tiara": {
       "kind": "item",
       "name": "Feyblessed Tiara",
       "asset": "5bd5f22feeb34860dc900b4b212df0cbb7e1e0b3fcdc00674d87c63e46d70d1e",
@@ -3629,7 +3629,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bloodied-hood": {
+    "mod:equipment-expansion:item:bloodied-hood": {
       "kind": "item",
       "name": "Bloodied Hood",
       "asset": "e0fcde0e26279f52bb3f7e9ddaa32f492f4205db0db7bb865cb984b1762f33d6",
@@ -3642,7 +3642,7 @@
         }
       ]
     },
-    "equipment-expansion:item:leviathan-plate": {
+    "mod:equipment-expansion:item:leviathan-plate": {
       "kind": "item",
       "name": "Leviathan Plate",
       "asset": "4b2678ee65f34127fb2b194191ea1254c2fe8629707a233e91867b8755ed585d",
@@ -3655,7 +3655,7 @@
         }
       ]
     },
-    "equipment-expansion:item:warstorm-helm": {
+    "mod:equipment-expansion:item:warstorm-helm": {
       "kind": "item",
       "name": "Warstorm Helm",
       "asset": "f3c7f8516d8a444124590ac401f88851a96da200e01d6f70e5ba67fa378f208f",
@@ -3668,7 +3668,7 @@
         }
       ]
     },
-    "equipment-expansion:item:boomer-duelist": {
+    "mod:equipment-expansion:item:boomer-duelist": {
       "kind": "item",
       "name": "Boomer Duelist",
       "asset": "d48297882c30238540f18c64cdc07395463db801e2131d87d90b04363ed1a8b8",
@@ -3681,7 +3681,7 @@
         }
       ]
     },
-    "equipment-expansion:item:squirrel-champion": {
+    "mod:equipment-expansion:item:squirrel-champion": {
       "kind": "item",
       "name": "Squirrel Champion",
       "asset": "c1c5f2748831ef8f401ff4a19e617c58196cb4a17855a6102e95d5a09f08291e",
@@ -3694,7 +3694,7 @@
         }
       ]
     },
-    "equipment-expansion:item:jadeforged-ring": {
+    "mod:equipment-expansion:item:jadeforged-ring": {
       "kind": "item",
       "name": "Jadeforged Ring",
       "asset": "48600baed255e6801d68af4ba21c0a07c7f0f7bd15411e7daf2d6362e3a87245",
@@ -3707,7 +3707,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ring-of-the-accursed": {
+    "mod:equipment-expansion:item:ring-of-the-accursed": {
       "kind": "item",
       "name": "Ring of the Accursed",
       "asset": "b8671d9fdcee80199ed0770b9460672689bd9dd7a65787c2cdca9fe3391527be",
@@ -3720,7 +3720,7 @@
         }
       ]
     },
-    "equipment-expansion:item:flood-pendant": {
+    "mod:equipment-expansion:item:flood-pendant": {
       "kind": "item",
       "name": "Flood Pendant",
       "asset": "c9b8af8007d6b496edaf4de1c509e26b67bfdebc40894c7bb28a129748ebd654",
@@ -3733,7 +3733,7 @@
         }
       ]
     },
-    "equipment-expansion:item:circle-of-ruin": {
+    "mod:equipment-expansion:item:circle-of-ruin": {
       "kind": "item",
       "name": "Circle of Ruin",
       "asset": "5415e456e81eee3a2e74c4b6d1a265f8b16092c760e4c0e3b3912d613de68802",
@@ -3746,7 +3746,7 @@
         }
       ]
     },
-    "equipment-expansion:item:ring-of-wizardry": {
+    "mod:equipment-expansion:item:ring-of-wizardry": {
       "kind": "item",
       "name": "Ring of Wizardry",
       "asset": "c40d3aa0888ad0958d3e7fc3c08716999e021a9767f036527d51f27752fb6884",
@@ -3759,7 +3759,7 @@
         }
       ]
     },
-    "equipment-expansion:item:warding-beads": {
+    "mod:equipment-expansion:item:warding-beads": {
       "kind": "item",
       "name": "Warding Beads",
       "asset": "062a3a90309ada3a79c693c1044918b4a4e8bbceb4d293d04530993fea7cd95d",
@@ -3772,7 +3772,7 @@
         }
       ]
     },
-    "equipment-expansion:item:stonecore-beads": {
+    "mod:equipment-expansion:item:stonecore-beads": {
       "kind": "item",
       "name": "Stonecore Beads",
       "asset": "062a3a90309ada3a79c693c1044918b4a4e8bbceb4d293d04530993fea7cd95d",
@@ -3785,7 +3785,7 @@
         }
       ]
     },
-    "equipment-expansion:item:mistcore-beads": {
+    "mod:equipment-expansion:item:mistcore-beads": {
       "kind": "item",
       "name": "Mistcore Beads",
       "asset": "062a3a90309ada3a79c693c1044918b4a4e8bbceb4d293d04530993fea7cd95d",
@@ -3798,7 +3798,7 @@
         }
       ]
     },
-    "equipment-expansion:item:darkspike": {
+    "mod:equipment-expansion:item:darkspike": {
       "kind": "item",
       "name": "Darkspike",
       "asset": "354e827f9e604a91aee9fa8d36946392fcb69e96374f0f5aece846f289a6494a",
@@ -3811,7 +3811,7 @@
         }
       ]
     },
-    "equipment-expansion:item:radiant-halberd": {
+    "mod:equipment-expansion:item:radiant-halberd": {
       "kind": "item",
       "name": "Radiant Halberd",
       "asset": "675ec0ea42e3d8f4435c59b2b18b6c40f18f1169c946a419dbf98c56ba889397",
@@ -3824,7 +3824,7 @@
         }
       ]
     },
-    "equipment-expansion:item:giant-boomer": {
+    "mod:equipment-expansion:item:giant-boomer": {
       "kind": "item",
       "name": "Giant Boomer",
       "asset": "b379e1d443cc5fc2d3bcff19e2361e2d7f6113bc6f3baecd8c09fca15ecd817e",
@@ -3837,7 +3837,7 @@
         }
       ]
     },
-    "equipment-expansion:item:draconic-shell": {
+    "mod:equipment-expansion:item:draconic-shell": {
       "kind": "item",
       "name": "Draconic Shell",
       "asset": "c02452a29de9a005470a50eed003d8116b75a6a7eb2b15e9553ac4dece143045",
@@ -3850,7 +3850,7 @@
         }
       ]
     },
-    "equipment-expansion:item:itemmaster-s-earrings": {
+    "mod:equipment-expansion:item:itemmaster-s-earrings": {
       "kind": "item",
       "name": "Itemmaster's Earrings",
       "asset": "6d24b3aaa33a1b9ac6dbef6cd5b121ef572fa2988e17302d57b8af7275c99707",
@@ -3863,7 +3863,7 @@
         }
       ]
     },
-    "equipment-expansion:item:false-hero-s-guise": {
+    "mod:equipment-expansion:item:false-hero-s-guise": {
       "kind": "item",
       "name": "False Hero's Guise",
       "asset": "4987170a73b20b3c246bf9aebc642e1bbcc75d7421320b0ff40b709b70c3e99a",
@@ -3876,7 +3876,7 @@
         }
       ]
     },
-    "equipment-expansion:item:the-beetle": {
+    "mod:equipment-expansion:item:the-beetle": {
       "kind": "item",
       "name": "The Beetle",
       "asset": "6d76993a162b22046d0dccefdfd7b25cb8d98d6b6d5ad52b0eb68f26aff0f629",
@@ -3889,7 +3889,7 @@
         }
       ]
     },
-    "equipment-expansion:item:aranea": {
+    "mod:equipment-expansion:item:aranea": {
       "kind": "item",
       "name": "Aranea",
       "asset": "5ff429bed08369bd009546752e8ea70362fd0a44eedaeeba73f3c9a8320e16cf",
@@ -3902,7 +3902,7 @@
         }
       ]
     },
-    "equipment-expansion:item:red-helmet": {
+    "mod:equipment-expansion:item:red-helmet": {
       "kind": "item",
       "name": "Red Helmet",
       "asset": "e437229d36b4975c5970bcee61ea479115586a15ee9c4fdd64380032ca665ef7",
@@ -3915,7 +3915,7 @@
         }
       ]
     },
-    "equipment-expansion:item:redder-coat": {
+    "mod:equipment-expansion:item:redder-coat": {
       "kind": "item",
       "name": "Redder Coat",
       "asset": "f312e34aa5274abfc6b62a06a1b121a3888fe77d0e9db1b05450711e44c094a9",
@@ -3928,7 +3928,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sea-s-katana": {
+    "mod:equipment-expansion:item:sea-s-katana": {
       "kind": "item",
       "name": "Sea's Katana",
       "asset": "6ab4fb2259c6d15d1a6ace751476c2588be4b8f9791c77997d7926e0013d0be2",
@@ -3941,7 +3941,7 @@
         }
       ]
     },
-    "equipment-expansion:item:earth-s-katana": {
+    "mod:equipment-expansion:item:earth-s-katana": {
       "kind": "item",
       "name": "Earth's Katana",
       "asset": "096f0417d6be826a5556cc90e8e87b352e8540ccdf75b13bf204ef3302af72cf",
@@ -3954,7 +3954,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sky-s-katana": {
+    "mod:equipment-expansion:item:sky-s-katana": {
       "kind": "item",
       "name": "Sky's Katana",
       "asset": "ae733640756cab91445b8af1ec3bdd27bae4c84eae8f12a97e5a65cccdf9c650",
@@ -3967,7 +3967,7 @@
         }
       ]
     },
-    "equipment-expansion:item:slimy-crown": {
+    "mod:equipment-expansion:item:slimy-crown": {
       "kind": "item",
       "name": "Slimy Crown",
       "asset": "00e7dbbde6c4cd6fecf5bd5f82835a7fde085f8d60384f6c9bd63a09411bbf08",
@@ -3980,7 +3980,7 @@
         }
       ]
     },
-    "equipment-expansion:item:temporal-robe": {
+    "mod:equipment-expansion:item:temporal-robe": {
       "kind": "item",
       "name": "Temporal Robe",
       "asset": "6aa18d7f12ede5edf3431aa8728519102dc32da3324699df6d5420cd03674bd9",
@@ -3993,7 +3993,7 @@
         }
       ]
     },
-    "equipment-expansion:item:sky-puncture": {
+    "mod:equipment-expansion:item:sky-puncture": {
       "kind": "item",
       "name": "Sky Puncture",
       "asset": "e2cb222167ebc9a35cb862fc7df2dd67fbade6a57a143c8f9d797e2b191caf86",
@@ -4006,7 +4006,7 @@
         }
       ]
     },
-    "equipment-expansion:item:superspeed-bow": {
+    "mod:equipment-expansion:item:superspeed-bow": {
       "kind": "item",
       "name": "Superspeed Bow",
       "asset": "b78f692c8eeddfe4d2a4afe61d94bdfb29ca44286d05e5a5c61ff8bee9f7fcfb",
@@ -4019,7 +4019,7 @@
         }
       ]
     },
-    "equipment-expansion:item:poison-crossbow": {
+    "mod:equipment-expansion:item:poison-crossbow": {
       "kind": "item",
       "name": "Poison Crossbow",
       "asset": "714896a90edf7730a4b1a12192485d0970807eea3667c6c214ac50e2c9133aa7",
@@ -4032,7 +4032,7 @@
         }
       ]
     },
-    "equipment-expansion:item:rapier-of-warning": {
+    "mod:equipment-expansion:item:rapier-of-warning": {
       "kind": "item",
       "name": "Rapier of Warning",
       "asset": "6a434168d69b1aad7ff98d70430ba520bdcd66ea4e511b2586bdbbbedddee8b0",
@@ -4045,7 +4045,7 @@
         }
       ]
     },
-    "equipment-expansion:item:storm-spear": {
+    "mod:equipment-expansion:item:storm-spear": {
       "kind": "item",
       "name": "Storm Spear",
       "asset": "673637066be9d4846ed8cf123ed9ea1e3826820e57a4fd2487d8adf0a13bfa21",
@@ -4058,7 +4058,7 @@
         }
       ]
     },
-    "equipment-expansion:item:echo-chamber": {
+    "mod:equipment-expansion:item:echo-chamber": {
       "kind": "item",
       "name": "Echo Chamber",
       "asset": "1cb4996d8b2ec5553d322ad19ffdde027527f0df092e938a8b5a839c891683b4",
@@ -4071,7 +4071,7 @@
         }
       ]
     },
-    "equipment-expansion:item:magic-barrier": {
+    "mod:equipment-expansion:item:magic-barrier": {
       "kind": "item",
       "name": "Magic Barrier",
       "asset": "36cfc21dda4ead33cb190e6a66c65fe074d4eadab6d3d9ced24ed716d5bdfb78",
@@ -4084,7 +4084,7 @@
         }
       ]
     },
-    "equipment-expansion:item:robust-shield": {
+    "mod:equipment-expansion:item:robust-shield": {
       "kind": "item",
       "name": "Robust Shield",
       "asset": "447b0ce274893ea5ff569ff9c149090725a8f90162705374aa8d7f784cc6e90f",
@@ -4097,7 +4097,7 @@
         }
       ]
     },
-    "equipment-expansion:item:limiter-shield": {
+    "mod:equipment-expansion:item:limiter-shield": {
       "kind": "item",
       "name": "Limiter Shield",
       "asset": "599b3d9c25a50c9d0cd715ef9664bf57e5001d84af01b050b83a40c12586db07",
@@ -4110,7 +4110,7 @@
         }
       ]
     },
-    "equipment-expansion:item:caduceus": {
+    "mod:equipment-expansion:item:caduceus": {
       "kind": "item",
       "name": "Caduceus",
       "asset": "c0d5e17933cca32a3649ec0bcf69290f2c9ad49a6170becd7457887966befcd2",
@@ -4123,7 +4123,7 @@
         }
       ]
     },
-    "equipment-expansion:item:feathered-vest": {
+    "mod:equipment-expansion:item:feathered-vest": {
       "kind": "item",
       "name": "Feathered Vest",
       "asset": "516b870b6b5ca8d6ce7423e021af5fb36ebea8530d945f72cb2875fe65ab1d49",
@@ -4136,7 +4136,7 @@
         }
       ]
     },
-    "equipment-expansion:item:frost-plate": {
+    "mod:equipment-expansion:item:frost-plate": {
       "kind": "item",
       "name": "Frost Plate",
       "asset": "866952855be33838a93b47782171a50fa2af00c6ca7bc9d04398936ed4772534",
@@ -4149,7 +4149,7 @@
         }
       ]
     },
-    "equipment-expansion:item:pincer-spear": {
+    "mod:equipment-expansion:item:pincer-spear": {
       "kind": "item",
       "name": "Pincer Spear",
       "asset": "e5ab0fa3272bb8e286a48d7629e80a95692ef9bb24cb654c1a08879fd68b2257",
@@ -4162,7 +4162,7 @@
         }
       ]
     },
-    "equipment-expansion:item:demon-scythe": {
+    "mod:equipment-expansion:item:demon-scythe": {
       "kind": "item",
       "name": "Demon Scythe",
       "asset": "944c8e20503593c2131ab7aa6bc97104708f212e7b685c754d22239922f70682",
@@ -4175,7 +4175,7 @@
         }
       ]
     },
-    "equipment-expansion:item:earth-staff": {
+    "mod:equipment-expansion:item:earth-staff": {
       "kind": "item",
       "name": "Earth Staff",
       "asset": "59d922e85c0999f37e4d841c1a809716013c1204a574769c84da6193ba987a2f",
@@ -4188,7 +4188,7 @@
         }
       ]
     },
-    "equipment-expansion:item:wailing-staff": {
+    "mod:equipment-expansion:item:wailing-staff": {
       "kind": "item",
       "name": "Wailing Staff",
       "asset": "eb7f40ca7be324f171e2cffb638c42d0761112b516d42cf1d8006eadd503fcab",
@@ -4201,7 +4201,7 @@
         }
       ]
     },
-    "equipment-expansion:item:harpy-rod": {
+    "mod:equipment-expansion:item:harpy-rod": {
       "kind": "item",
       "name": "Harpy Rod",
       "asset": "32e66528dbe0b52ef8a6cf11c06a065fc70745b86806202487fe52131818d5a4",
@@ -4214,7 +4214,7 @@
         }
       ]
     },
-    "equipment-expansion:item:breach-wand": {
+    "mod:equipment-expansion:item:breach-wand": {
       "kind": "item",
       "name": "Breach Wand",
       "asset": "0235d4af94e282bc5f179d9442587b4dd063bdef2664dbc3f257aab0412ab530",
@@ -4227,7 +4227,7 @@
         }
       ]
     },
-    "equipment-expansion:item:shroomling-suit": {
+    "mod:equipment-expansion:item:shroomling-suit": {
       "kind": "item",
       "name": "Shroomling Suit",
       "asset": "b93a0f036fab7027bfc6c3b778fdadac3c8b55e52722bac2155a474e868ab341",
@@ -4240,7 +4240,7 @@
         }
       ]
     },
-    "equipment-expansion:item:heat-bandana": {
+    "mod:equipment-expansion:item:heat-bandana": {
       "kind": "item",
       "name": "Heat Bandana",
       "asset": "69367800ea133a747c54b8aff9be4d22527d14871d0ec484061722ba265f0b91",
@@ -4253,7 +4253,7 @@
         }
       ]
     },
-    "equipment-expansion:item:poison-coat": {
+    "mod:equipment-expansion:item:poison-coat": {
       "kind": "item",
       "name": "Poison Coat",
       "asset": "abdced6c1a7c6e6b0a8eee9a631a8639e54bd9630f3140da66d8f88074a558a6",
@@ -4266,7 +4266,7 @@
         }
       ]
     },
-    "equipment-expansion:item:trench-coat": {
+    "mod:equipment-expansion:item:trench-coat": {
       "kind": "item",
       "name": "Trench Coat",
       "asset": "fa547ff857247824ca22bb5f02d8eeee148c2f24477a1551e2c3833656c698da",
@@ -4279,7 +4279,7 @@
         }
       ]
     },
-    "equipment-expansion:item:nan-s-robe": {
+    "mod:equipment-expansion:item:nan-s-robe": {
       "kind": "item",
       "name": "Nan's Robe",
       "asset": "c90d9a7f5fe3d3162bafa794c18dcef9d093b09d333de05cc4814f7cbe81e4eb",
@@ -4292,7 +4292,7 @@
         }
       ]
     },
-    "equipment-expansion:item:protective-goggles": {
+    "mod:equipment-expansion:item:protective-goggles": {
       "kind": "item",
       "name": "Protective Goggles",
       "asset": "f1878adfe52827ddce994a7c108110473878b458b093138a74c0f71b6bd72ae7",
@@ -4305,7 +4305,7 @@
         }
       ]
     },
-    "equipment-expansion:item:angel-s-blessing": {
+    "mod:equipment-expansion:item:angel-s-blessing": {
       "kind": "item",
       "name": "Angel's Blessing",
       "asset": "142727228b182716a574af5a76938cf7215e91c8aa5975ad7a609f94ce8a5b32",
@@ -4318,7 +4318,7 @@
         }
       ]
     },
-    "equipment-expansion:item:cycle-gem": {
+    "mod:equipment-expansion:item:cycle-gem": {
       "kind": "item",
       "name": "Cycle Gem",
       "asset": "002329cb3fc7f947b86fe26ee29c595a2dde36c6ab438d1d65702a7c51cd2335",
@@ -4331,7 +4331,7 @@
         }
       ]
     },
-    "equipment-expansion:item:meditate-charm": {
+    "mod:equipment-expansion:item:meditate-charm": {
       "kind": "item",
       "name": "Meditate Charm",
       "asset": "f28161507b4f53f4a17894568e8d49f9aea8bde34a8d53dd9bd8b68c6fbf704b",
@@ -4344,7 +4344,7 @@
         }
       ]
     },
-    "equipment-expansion:item:focus-charm": {
+    "mod:equipment-expansion:item:focus-charm": {
       "kind": "item",
       "name": "Focus Charm",
       "asset": "6bed92344436d71f13d3a79391a0b15c7aed30634aa42afce73e7f559378ad30",
@@ -4357,7 +4357,7 @@
         }
       ]
     },
-    "equipment-expansion:item:daredevil-boots": {
+    "mod:equipment-expansion:item:daredevil-boots": {
       "kind": "item",
       "name": "Daredevil Boots",
       "asset": "3da251f469096c88e640e2fec65e01b051c71b81d5815564697143c732b5ed0f",
@@ -4370,7 +4370,7 @@
         }
       ]
     },
-    "equipment-expansion:item:dwarven-maul": {
+    "mod:equipment-expansion:item:dwarven-maul": {
       "kind": "item",
       "name": "Dwarven Maul",
       "asset": "bc44f8bd691ed66ef1fed76cebdd73fa83c9906873fcb8df0bd858cb7cdfbe79",
@@ -4383,7 +4383,7 @@
         }
       ]
     },
-    "equipment-expansion:item:phoenix-hero-s-crown": {
+    "mod:equipment-expansion:item:phoenix-hero-s-crown": {
       "kind": "item",
       "name": "Phoenix Hero's Crown",
       "asset": "f10bf404f879563f9f5754c11788b5c14e924b2bf80515841a83f3c4f0e8543d",
@@ -4396,7 +4396,7 @@
         }
       ]
     },
-    "equipment-expansion:item:phoenix-hero-s-plate": {
+    "mod:equipment-expansion:item:phoenix-hero-s-plate": {
       "kind": "item",
       "name": "Phoenix Hero's Plate",
       "asset": "372bc14e134763c28150f9dad86141e3f88c3cab11e28248579da49077dd0254",
@@ -4409,7 +4409,7 @@
         }
       ]
     },
-    "equipment-expansion:item:gemini": {
+    "mod:equipment-expansion:item:gemini": {
       "kind": "item",
       "name": "Gemini",
       "asset": "13a4095cc80248ba563992098725f219d328d39b0e96ccdb165df9f51306afa2",
@@ -4422,7 +4422,7 @@
         }
       ]
     },
-    "equipment-expansion:item:coronacht": {
+    "mod:equipment-expansion:item:coronacht": {
       "kind": "item",
       "name": "Coronacht",
       "asset": "fa17fa25a304686f0c3044957d8cc7b2de140082d845b2ea5a9a0252bb2d9cbc",
@@ -4435,7 +4435,7 @@
         }
       ]
     },
-    "equipment-expansion:item:obsidian-staff": {
+    "mod:equipment-expansion:item:obsidian-staff": {
       "kind": "item",
       "name": "Obsidian Staff",
       "asset": "7d1c2769771fa9eaad9c23626b768592d8dd810973be4d3c9201da04034bc515",
@@ -4448,7 +4448,7 @@
         }
       ]
     },
-    "equipment-expansion:item:epetam": {
+    "mod:equipment-expansion:item:epetam": {
       "kind": "item",
       "name": "Epetam",
       "asset": "aaf3fd939afc463416166b57b1c4bbd361817d09dce96639b4e7f1986713649c",
@@ -4461,7 +4461,7 @@
         }
       ]
     },
-    "equipment-expansion:item:claimh-solais": {
+    "mod:equipment-expansion:item:claimh-solais": {
       "kind": "item",
       "name": "Claimh Solais",
       "asset": "b69f095a0c54b03ca431c306fb540854bb9d91f6caa6651920fcd35283f16a35",
@@ -4474,7 +4474,7 @@
         }
       ]
     },
-    "equipment-expansion:item:gradivus": {
+    "mod:equipment-expansion:item:gradivus": {
       "kind": "item",
       "name": "Gradivus",
       "asset": "940d5b5ccfaaf5f309bf5e0d985cec321d1accaeb3afd051814ba8aaa8e29f10",
@@ -4487,7 +4487,7 @@
         }
       ]
     },
-    "equipment-expansion:item:gaea-impact": {
+    "mod:equipment-expansion:item:gaea-impact": {
       "kind": "item",
       "name": "Gaea Impact",
       "asset": "8aec637de2389c57857533bc3dae71cd1ead8e404d5c64dc4338c6914d0992d7",
@@ -4500,7 +4500,7 @@
         }
       ]
     },
-    "equipment-expansion:item:day-s-harvest": {
+    "mod:equipment-expansion:item:day-s-harvest": {
       "kind": "item",
       "name": "Day's Harvest",
       "asset": "6ee682e995a2782315a6b912aa262c268c01fc225fb9454af7c4982141996829",
@@ -4513,7 +4513,7 @@
         }
       ]
     },
-    "equipment-expansion:item:brionac": {
+    "mod:equipment-expansion:item:brionac": {
       "kind": "item",
       "name": "Brionac",
       "asset": "6afda6bda1862e50892b6019acdfd6c7adebeb1a2d48efbd4eee492278169a51",
@@ -4526,7 +4526,7 @@
         }
       ]
     },
-    "equipment-expansion:item:tome-of-evocation": {
+    "mod:equipment-expansion:item:tome-of-evocation": {
       "kind": "item",
       "name": "Tome of Evocation",
       "asset": "4c981d6ddb24cad42790f1cf1ba9419119e712c9074595090ea8bed0122aa8c4",
@@ -4539,7 +4539,7 @@
         }
       ]
     },
-    "equipment-expansion:item:mask-of-the-timeless": {
+    "mod:equipment-expansion:item:mask-of-the-timeless": {
       "kind": "item",
       "name": "Mask of the Timeless",
       "asset": "95267fdb5488402f3df7334106513b3491c271d763d7f9d268c3936915c03495",
@@ -4552,7 +4552,7 @@
         }
       ]
     },
-    "equipment-expansion:item:bloody-murder": {
+    "mod:equipment-expansion:item:bloody-murder": {
       "kind": "item",
       "name": "Bloody Murder",
       "asset": "68365f12fa945977ed54d09725ab7b7d8ad46b9f223d3265fac5844a351552d9",
@@ -4565,7 +4565,7 @@
         }
       ]
     },
-    "equipment-expansion:item:invisible-shield": {
+    "mod:equipment-expansion:item:invisible-shield": {
       "kind": "item",
       "name": "Invisible Shield",
       "asset": "30d019019621d4723bbae04887b47495563842db88ab8c62d03d942c0f90c997",
@@ -4578,7 +4578,7 @@
         }
       ]
     },
-    "equipment-expansion:item:happy-hour": {
+    "mod:equipment-expansion:item:happy-hour": {
       "kind": "item",
       "name": "Happy Hour",
       "asset": "97f9dd6b2878c973872fac74faaa972efeb9f5248368509bd2317b1cb5a51865",
@@ -4591,7 +4591,7 @@
         }
       ]
     },
-    "equipment-expansion:item:root-of-the-brute": {
+    "mod:equipment-expansion:item:root-of-the-brute": {
       "kind": "item",
       "name": "Root of the Brute",
       "asset": "d81060b0f41e18eb3c8fbac2cf2b673922622610ba65ac79c8684b2546e2417b",

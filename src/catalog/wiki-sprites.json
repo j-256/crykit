@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "wikiContentDigest": "2743209747e2e27b7fac9abe9486491b89d617522cebaaadc6eb053f37f469fa",
+  "wikiContentDigest": "c487a1eb3458b93c03f6ef64272bf312d777c6e2ee5b8a28c674d051c4c211a6",
   "assets": {
     "file:aegis-world-sprites.webp": {
       "file": "db5362f51f31c972865fa84302175c2839fc548eaba408eb9176d5d72827fece.webp",
@@ -19509,7 +19509,7 @@
         }
       ]
     },
-    "wiki:item:captain-s-hat": {
+    "base:item:captain-s-hat": {
       "kind": "item",
       "name": "Captain's Hat",
       "asset": "file:captains-hat-icon.gif",
@@ -19652,7 +19652,7 @@
         }
       ]
     },
-    "wiki:item:cleric-s-hood": {
+    "base:item:cleric-s-hood": {
       "kind": "item",
       "name": "Cleric's Hood",
       "asset": "file:clerics-hood-icon.gif",
@@ -19808,7 +19808,7 @@
         }
       ]
     },
-    "wiki:item:crab-s-claw": {
+    "base:item:crab-s-claw": {
       "kind": "item",
       "name": "Crab's Claw",
       "asset": "file:crabs-claw-icon.gif",
@@ -20484,7 +20484,7 @@
         }
       ]
     },
-    "wiki:item:drifter-s-vest": {
+    "base:item:drifter-s-vest": {
       "kind": "item",
       "name": "Drifter's Vest",
       "asset": "file:drifters-vest-icon.gif",
@@ -20627,7 +20627,7 @@
         }
       ]
     },
-    "wiki:item:fairy-s-crown": {
+    "base:item:fairy-s-crown": {
       "kind": "item",
       "name": "Fairy's Crown",
       "asset": "file:fairys-crown-icon.gif",
@@ -21186,7 +21186,7 @@
         }
       ]
     },
-    "wiki:item:habin-s-bow": {
+    "base:item:habin-s-bow": {
       "kind": "item",
       "name": "Habin's Bow",
       "asset": "file:habins-bow-icon.gif",
@@ -21602,7 +21602,7 @@
         }
       ]
     },
-    "wiki:item:king-s-guard": {
+    "base:item:king-s-guard": {
       "kind": "item",
       "name": "King's Guard",
       "asset": "file:kings-guard-icon.webp",
@@ -21615,7 +21615,7 @@
         }
       ]
     },
-    "wiki:item:knight-s-plate": {
+    "base:item:knight-s-plate": {
       "kind": "item",
       "name": "Knight's Plate",
       "asset": "file:knights-plate-icon.gif",
@@ -21836,7 +21836,7 @@
         }
       ]
     },
-    "wiki:item:mage-s-pike": {
+    "base:item:mage-s-pike": {
       "kind": "item",
       "name": "Mage's Pike",
       "asset": "file:mages-pike-icon.gif",
@@ -21849,7 +21849,7 @@
         }
       ]
     },
-    "wiki:item:mage-s-platter": {
+    "base:item:mage-s-platter": {
       "kind": "item",
       "name": "Mage's Platter",
       "asset": "file:mages-platter-icon.gif",
@@ -22265,7 +22265,7 @@
         }
       ]
     },
-    "wiki:item:nature-s-gift": {
+    "base:item:nature-s-gift": {
       "kind": "item",
       "name": "Nature's Gift",
       "asset": "file:natures-gift-icon.gif",
@@ -22317,7 +22317,7 @@
         }
       ]
     },
-    "wiki:item:nomad-s-guard": {
+    "base:item:nomad-s-guard": {
       "kind": "item",
       "name": "Nomad's Guard",
       "asset": "file:nomads-guard-icon.gif",
@@ -22759,7 +22759,7 @@
         }
       ]
     },
-    "wiki:item:raven-s-hood": {
+    "base:item:raven-s-hood": {
       "kind": "item",
       "name": "Raven's Hood",
       "asset": "file:ravens-hood-icon.gif",
@@ -22980,7 +22980,7 @@
         }
       ]
     },
-    "wiki:item:rune-ward": {
+    "base:item:rune-ward": {
       "kind": "item",
       "name": "Rune Ward",
       "asset": "file:rune-ward-icon.webp",
@@ -22993,7 +22993,7 @@
         }
       ]
     },
-    "wiki:item:sage-s-walker": {
+    "base:item:sage-s-walker": {
       "kind": "item",
       "name": "Sage's Walker",
       "asset": "file:sages-walker-icon.gif",
@@ -23799,7 +23799,7 @@
         }
       ]
     },
-    "wiki:item:tall-tall-hat": {
+    "base:item:tall-tall-hat": {
       "kind": "item",
       "name": "Tall, Tall Hat",
       "asset": "file:tall-tall-hat-icon.gif",
@@ -24033,7 +24033,7 @@
         }
       ]
     },
-    "wiki:item:viking-s-hat": {
+    "base:item:viking-s-hat": {
       "kind": "item",
       "name": "Viking's Hat",
       "asset": "file:vikings-hat-icon.gif",
@@ -24241,7 +24241,7 @@
         }
       ]
     },
-    "wiki:item:wizard-s-hat": {
+    "base:item:wizard-s-hat": {
       "kind": "item",
       "name": "Wizard's Hat",
       "asset": "file:wizards-hat-icon.gif",
@@ -24254,7 +24254,7 @@
         }
       ]
     },
-    "wiki:item:wizard-s-wall": {
+    "base:item:wizard-s-wall": {
       "kind": "item",
       "name": "Wizard's Wall",
       "asset": "file:wizards-wall-icon.webp",
@@ -24293,7 +24293,7 @@
         }
       ]
     },
-    "wiki:monster:ancient-sword": {
+    "base:monster:ancient-sword": {
       "kind": "monster",
       "name": "Ancient Sword",
       "asset": "file:ancient sword.png",
@@ -24312,7 +24312,7 @@
         }
       ]
     },
-    "wiki:monster:anubis": {
+    "base:monster:anubis": {
       "kind": "monster",
       "name": "Anubis",
       "asset": "file:anubis.png",
@@ -24331,7 +24331,7 @@
         }
       ]
     },
-    "wiki:monster:arachlea": {
+    "base:monster:arachlea": {
       "kind": "monster",
       "name": "Arachlea",
       "asset": "file:arachlea.png",
@@ -24350,7 +24350,7 @@
         }
       ]
     },
-    "wiki:monster:arctic-rat": {
+    "base:monster:arctic-rat": {
       "kind": "monster",
       "name": "Arctic Rat",
       "asset": "file:arctic rat.png",
@@ -24369,7 +24369,7 @@
         }
       ]
     },
-    "wiki:monster:axebeak": {
+    "base:monster:axebeak": {
       "kind": "monster",
       "name": "Axebeak",
       "asset": "file:axebeak.png",
@@ -24388,7 +24388,7 @@
         }
       ]
     },
-    "wiki:monster:bandages": {
+    "base:monster:bandages": {
       "kind": "monster",
       "name": "Bandages",
       "asset": "file:bandages.png",
@@ -24407,7 +24407,7 @@
         }
       ]
     },
-    "wiki:monster:bass-hunter": {
+    "base:monster:bass-hunter": {
       "kind": "monster",
       "name": "Bass Hunter",
       "asset": "file:bass hunter.png",
@@ -24426,7 +24426,7 @@
         }
       ]
     },
-    "wiki:monster:biter": {
+    "base:monster:biter": {
       "kind": "monster",
       "name": "Biter",
       "asset": "file:biter.png",
@@ -24445,7 +24445,7 @@
         }
       ]
     },
-    "wiki:monster:blade-master": {
+    "base:monster:blade-master": {
       "kind": "monster",
       "name": "Blade Master",
       "asset": "file:blade master.png",
@@ -24464,7 +24464,7 @@
         }
       ]
     },
-    "wiki:monster:blademaster": {
+    "base:monster:blademaster": {
       "kind": "monster",
       "name": "Blademaster",
       "asset": "file:blademaster.png",
@@ -24483,7 +24483,7 @@
         }
       ]
     },
-    "wiki:monster:blood-carrot": {
+    "base:monster:blood-carrot": {
       "kind": "monster",
       "name": "Blood Carrot",
       "asset": "file:blood carrot.png",
@@ -24502,7 +24502,7 @@
         }
       ]
     },
-    "wiki:monster:blood-slop": {
+    "base:monster:blood-slop": {
       "kind": "monster",
       "name": "Blood Slop",
       "asset": "file:blood slop.png",
@@ -24521,7 +24521,7 @@
         }
       ]
     },
-    "wiki:monster:bone-thief": {
+    "base:monster:bone-thief": {
       "kind": "monster",
       "name": "Bone Thief",
       "asset": "file:bone thief.png",
@@ -24540,7 +24540,7 @@
         }
       ]
     },
-    "wiki:monster:brutish-quintar-desert": {
+    "base:monster:brutish-quintar-desert": {
       "kind": "monster",
       "name": "Brutish Quintar (Desert)",
       "asset": "file:brutish quintar (desert).png",
@@ -24559,7 +24559,7 @@
         }
       ]
     },
-    "wiki:monster:brutish-quintar-red": {
+    "base:monster:brutish-quintar-red": {
       "kind": "monster",
       "name": "Brutish Quintar (Red)",
       "asset": "file:brutish quintar (red).png",
@@ -24578,7 +24578,7 @@
         }
       ]
     },
-    "wiki:monster:burden": {
+    "base:monster:burden": {
       "kind": "monster",
       "name": "Burden",
       "asset": "file:burden.png",
@@ -24597,7 +24597,7 @@
         }
       ]
     },
-    "wiki:monster:buttermint": {
+    "base:monster:buttermint": {
       "kind": "monster",
       "name": "Buttermint",
       "asset": "file:buttermint.png",
@@ -24616,7 +24616,7 @@
         }
       ]
     },
-    "wiki:monster:cactim": {
+    "base:monster:cactim": {
       "kind": "monster",
       "name": "Cactim",
       "asset": "file:cactim.png",
@@ -24635,7 +24635,7 @@
         }
       ]
     },
-    "wiki:monster:cactooer": {
+    "base:monster:cactooer": {
       "kind": "monster",
       "name": "Cactooer",
       "asset": "file:cactooer.png",
@@ -24654,7 +24654,7 @@
         }
       ]
     },
-    "wiki:monster:canal-beast": {
+    "base:monster:canal-beast": {
       "kind": "monster",
       "name": "Canal Beast",
       "asset": "file:canal beast.png",
@@ -24673,7 +24673,7 @@
         }
       ]
     },
-    "wiki:monster:canal-rat": {
+    "base:monster:canal-rat": {
       "kind": "monster",
       "name": "Canal Rat",
       "asset": "file:canal rat.png",
@@ -24692,7 +24692,7 @@
         }
       ]
     },
-    "wiki:monster:capper": {
+    "base:monster:capper": {
       "kind": "monster",
       "name": "Capper",
       "asset": "file:capper.png",
@@ -24711,7 +24711,7 @@
         }
       ]
     },
-    "wiki:monster:carreat": {
+    "base:monster:carreat": {
       "kind": "monster",
       "name": "Carreat",
       "asset": "file:carreat.png",
@@ -24730,7 +24730,7 @@
         }
       ]
     },
-    "wiki:monster:cave-hunter": {
+    "base:monster:cave-hunter": {
       "kind": "monster",
       "name": "Cave Hunter",
       "asset": "file:cave hunter.png",
@@ -24749,7 +24749,7 @@
         }
       ]
     },
-    "wiki:monster:cave-onion": {
+    "base:monster:cave-onion": {
       "kind": "monster",
       "name": "Cave Onion",
       "asset": "file:cave onion.png",
@@ -24768,7 +24768,7 @@
         }
       ]
     },
-    "wiki:monster:charmion": {
+    "base:monster:charmion": {
       "kind": "monster",
       "name": "Charmion",
       "asset": "file:charmion.png",
@@ -24787,7 +24787,7 @@
         }
       ]
     },
-    "wiki:monster:chimera": {
+    "base:monster:chimera": {
       "kind": "monster",
       "name": "Chimera",
       "asset": "file:chimera.png",
@@ -24806,7 +24806,7 @@
         }
       ]
     },
-    "wiki:monster:chomper": {
+    "base:monster:chomper": {
       "kind": "monster",
       "name": "Chomper",
       "asset": "file:chomper.png",
@@ -24825,7 +24825,7 @@
         }
       ]
     },
-    "wiki:monster:cliffwolf": {
+    "base:monster:cliffwolf": {
       "kind": "monster",
       "name": "Cliffwolf",
       "asset": "file:cliffwolf.png",
@@ -24844,7 +24844,7 @@
         }
       ]
     },
-    "wiki:monster:cockachicken": {
+    "base:monster:cockachicken": {
       "kind": "monster",
       "name": "Cockachicken",
       "asset": "file:cockachicken.png",
@@ -24863,7 +24863,7 @@
         }
       ]
     },
-    "wiki:monster:colonizer": {
+    "base:monster:colonizer": {
       "kind": "monster",
       "name": "Colonizer",
       "asset": "file:colonizer.png",
@@ -24882,7 +24882,7 @@
         }
       ]
     },
-    "wiki:monster:coral-eater": {
+    "base:monster:coral-eater": {
       "kind": "monster",
       "name": "Coral Eater",
       "asset": "file:coral eater.png",
@@ -24901,7 +24901,7 @@
         }
       ]
     },
-    "wiki:monster:corruption": {
+    "base:monster:corruption": {
       "kind": "monster",
       "name": "Corruption",
       "asset": "file:corruption.png",
@@ -24920,7 +24920,7 @@
         }
       ]
     },
-    "wiki:monster:coyote": {
+    "base:monster:coyote": {
       "kind": "monster",
       "name": "Coyote",
       "asset": "file:coyote.png",
@@ -24939,7 +24939,7 @@
         }
       ]
     },
-    "wiki:monster:crag-demon": {
+    "base:monster:crag-demon": {
       "kind": "monster",
       "name": "Crag Demon",
       "asset": "file:crag demon.png",
@@ -24958,7 +24958,7 @@
         }
       ]
     },
-    "wiki:monster:creeper": {
+    "base:monster:creeper": {
       "kind": "monster",
       "name": "Creeper",
       "asset": "file:creeper.png",
@@ -24977,7 +24977,7 @@
         }
       ]
     },
-    "wiki:monster:cultist": {
+    "base:monster:cultist": {
       "kind": "monster",
       "name": "Cultist",
       "asset": "file:cultist.png",
@@ -24996,7 +24996,7 @@
         }
       ]
     },
-    "wiki:monster:daemon": {
+    "base:monster:daemon": {
       "kind": "monster",
       "name": "Daemon",
       "asset": "file:daemon.png",
@@ -25015,7 +25015,7 @@
         }
       ]
     },
-    "wiki:monster:dark-archer": {
+    "base:monster:dark-archer": {
       "kind": "monster",
       "name": "Dark Archer",
       "asset": "file:dark archer.png",
@@ -25034,7 +25034,7 @@
         }
       ]
     },
-    "wiki:monster:dark-mage": {
+    "base:monster:dark-mage": {
       "kind": "monster",
       "name": "Dark Mage",
       "asset": "file:dark mage.png",
@@ -25053,7 +25053,7 @@
         }
       ]
     },
-    "wiki:monster:dark-vagrant": {
+    "base:monster:dark-vagrant": {
       "kind": "monster",
       "name": "Dark Vagrant",
       "asset": "file:dark vagrant.png",
@@ -25072,7 +25072,7 @@
         }
       ]
     },
-    "wiki:monster:dead-mage": {
+    "base:monster:dead-mage": {
       "kind": "monster",
       "name": "Dead Mage",
       "asset": "file:dead mage.png",
@@ -25091,7 +25091,7 @@
         }
       ]
     },
-    "wiki:monster:dead-warrior": {
+    "base:monster:dead-warrior": {
       "kind": "monster",
       "name": "Dead Warrior",
       "asset": "file:dead warrior.png",
@@ -25110,7 +25110,7 @@
         }
       ]
     },
-    "wiki:monster:demna": {
+    "base:monster:demna": {
       "kind": "monster",
       "name": "Demna",
       "asset": "file:demna.png",
@@ -25129,7 +25129,7 @@
         }
       ]
     },
-    "wiki:monster:den-bug": {
+    "base:monster:den-bug": {
       "kind": "monster",
       "name": "Den Bug",
       "asset": "file:den bug.png",
@@ -25148,7 +25148,7 @@
         }
       ]
     },
-    "wiki:monster:devil-bomb": {
+    "base:monster:devil-bomb": {
       "kind": "monster",
       "name": "Devil Bomb",
       "asset": "file:devil bomb.png",
@@ -25167,7 +25167,7 @@
         }
       ]
     },
-    "wiki:monster:devil-worm": {
+    "base:monster:devil-worm": {
       "kind": "monster",
       "name": "Devil Worm",
       "asset": "file:devil worm.png",
@@ -25186,7 +25186,7 @@
         }
       ]
     },
-    "wiki:monster:dry-kid": {
+    "base:monster:dry-kid": {
       "kind": "monster",
       "name": "Dry Kid",
       "asset": "file:dry kid.png",
@@ -25205,7 +25205,7 @@
         }
       ]
     },
-    "wiki:monster:duel-master": {
+    "base:monster:duel-master": {
       "kind": "monster",
       "name": "Duel Master",
       "asset": "file:duel master.png",
@@ -25224,7 +25224,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l": {
+    "base:monster:dummy-l": {
       "kind": "monster",
       "name": "Dummy L??",
       "asset": "file:dummy l??.png",
@@ -25243,7 +25243,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l10": {
+    "base:monster:dummy-l10": {
       "kind": "monster",
       "name": "Dummy L10",
       "asset": "file:dummy l10.png",
@@ -25262,7 +25262,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l20": {
+    "base:monster:dummy-l20": {
       "kind": "monster",
       "name": "Dummy L20",
       "asset": "file:dummy l20.png",
@@ -25281,7 +25281,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l30": {
+    "base:monster:dummy-l30": {
       "kind": "monster",
       "name": "Dummy L30",
       "asset": "file:dummy l30.png",
@@ -25300,7 +25300,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l40": {
+    "base:monster:dummy-l40": {
       "kind": "monster",
       "name": "Dummy L40",
       "asset": "file:dummy l40.png",
@@ -25319,7 +25319,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l50": {
+    "base:monster:dummy-l50": {
       "kind": "monster",
       "name": "Dummy L50",
       "asset": "file:dummy l50.png",
@@ -25338,7 +25338,7 @@
         }
       ]
     },
-    "wiki:monster:dummy-l60": {
+    "base:monster:dummy-l60": {
       "kind": "monster",
       "name": "Dummy L60",
       "asset": "file:dummy l60.png",
@@ -25357,7 +25357,7 @@
         }
       ]
     },
-    "wiki:monster:dust-devil": {
+    "base:monster:dust-devil": {
       "kind": "monster",
       "name": "Dust Devil",
       "asset": "file:dust devil.png",
@@ -25376,7 +25376,7 @@
         }
       ]
     },
-    "wiki:monster:dye-khan": {
+    "base:monster:dye-khan": {
       "kind": "monster",
       "name": "Dye Khan",
       "asset": "file:dye khan.png",
@@ -25395,7 +25395,7 @@
         }
       ]
     },
-    "wiki:monster:earth-spirit": {
+    "base:monster:earth-spirit": {
       "kind": "monster",
       "name": "Earth Spirit",
       "asset": "file:earth spirit.png",
@@ -25414,7 +25414,7 @@
         }
       ]
     },
-    "wiki:monster:enami": {
+    "base:monster:enami": {
       "kind": "monster",
       "name": "Enami",
       "asset": "file:enami.png",
@@ -25433,7 +25433,7 @@
         }
       ]
     },
-    "wiki:monster:familiar": {
+    "base:monster:familiar": {
       "kind": "monster",
       "name": "Familiar",
       "asset": "file:familiar.png",
@@ -25452,7 +25452,7 @@
         }
       ]
     },
-    "wiki:monster:fancy-quintar": {
+    "base:monster:fancy-quintar": {
       "kind": "monster",
       "name": "Fancy Quintar",
       "asset": "file:fancy quintar.png",
@@ -25471,7 +25471,7 @@
         }
       ]
     },
-    "wiki:monster:fiendish-quintar-blue": {
+    "base:monster:fiendish-quintar-blue": {
       "kind": "monster",
       "name": "Fiendish Quintar (Blue)",
       "asset": "file:fiendish quintar (blue).png",
@@ -25490,7 +25490,7 @@
         }
       ]
     },
-    "wiki:monster:fiendish-quintar-desert": {
+    "base:monster:fiendish-quintar-desert": {
       "kind": "monster",
       "name": "Fiendish Quintar (Desert)",
       "asset": "file:fiendish quintar (desert).png",
@@ -25509,7 +25509,7 @@
         }
       ]
     },
-    "wiki:monster:fire-bug": {
+    "base:monster:fire-bug": {
       "kind": "monster",
       "name": "Fire Bug",
       "asset": "file:fire bug.png",
@@ -25528,7 +25528,7 @@
         }
       ]
     },
-    "wiki:monster:flameling": {
+    "base:monster:flameling": {
       "kind": "monster",
       "name": "Flameling",
       "asset": "file:flameling.png",
@@ -25547,7 +25547,7 @@
         }
       ]
     },
-    "wiki:monster:flesh-eater": {
+    "base:monster:flesh-eater": {
       "kind": "monster",
       "name": "Flesh Eater",
       "asset": "file:flesh eater.png",
@@ -25566,7 +25566,7 @@
         }
       ]
     },
-    "wiki:monster:floating-soul": {
+    "base:monster:floating-soul": {
       "kind": "monster",
       "name": "Floating Soul",
       "asset": "file:floating soul.png",
@@ -25585,7 +25585,7 @@
         }
       ]
     },
-    "wiki:monster:forbidden-grace": {
+    "base:monster:forbidden-grace": {
       "kind": "monster",
       "name": "Forbidden Grace",
       "asset": "file:forbidden grace.png",
@@ -25604,7 +25604,7 @@
         }
       ]
     },
-    "wiki:monster:fungers": {
+    "base:monster:fungers": {
       "kind": "monster",
       "name": "Fungers",
       "asset": "file:fungers.png",
@@ -25623,7 +25623,7 @@
         }
       ]
     },
-    "wiki:monster:funk": {
+    "base:monster:funk": {
       "kind": "monster",
       "name": "Funk",
       "asset": "file:funk.png",
@@ -25642,7 +25642,7 @@
         }
       ]
     },
-    "wiki:monster:funker": {
+    "base:monster:funker": {
       "kind": "monster",
       "name": "Funker",
       "asset": "file:funker.png",
@@ -25661,7 +25661,7 @@
         }
       ]
     },
-    "wiki:monster:gaulem": {
+    "base:monster:gaulem": {
       "kind": "monster",
       "name": "Gaulem",
       "asset": "file:gaulem.png",
@@ -25680,7 +25680,7 @@
         }
       ]
     },
-    "wiki:monster:gelid-slime": {
+    "base:monster:gelid-slime": {
       "kind": "monster",
       "name": "Gelid Slime",
       "asset": "file:gelid slime.png",
@@ -25699,7 +25699,7 @@
         }
       ]
     },
-    "wiki:monster:gourmet": {
+    "base:monster:gourmet": {
       "kind": "monster",
       "name": "Gourmet",
       "asset": "file:gourmet.png",
@@ -25718,7 +25718,7 @@
         }
       ]
     },
-    "wiki:monster:gran": {
+    "base:monster:gran": {
       "kind": "monster",
       "name": "Gran",
       "asset": "file:gran.png",
@@ -25737,7 +25737,7 @@
         }
       ]
     },
-    "wiki:monster:great-white": {
+    "base:monster:great-white": {
       "kind": "monster",
       "name": "Great White",
       "asset": "file:great white.png",
@@ -25756,7 +25756,7 @@
         }
       ]
     },
-    "wiki:monster:green-legs": {
+    "base:monster:green-legs": {
       "kind": "monster",
       "name": "Green Legs",
       "asset": "file:green legs.png",
@@ -25775,7 +25775,7 @@
         }
       ]
     },
-    "wiki:monster:greenjacket": {
+    "base:monster:greenjacket": {
       "kind": "monster",
       "name": "Greenjacket",
       "asset": "file:greenjacket.png",
@@ -25794,7 +25794,7 @@
         }
       ]
     },
-    "wiki:monster:grub": {
+    "base:monster:grub": {
       "kind": "monster",
       "name": "Grub",
       "asset": "file:grub.png",
@@ -25813,7 +25813,7 @@
         }
       ]
     },
-    "wiki:monster:guaba": {
+    "base:monster:guaba": {
       "kind": "monster",
       "name": "Guaba",
       "asset": "file:guaba.png",
@@ -25832,7 +25832,7 @@
         }
       ]
     },
-    "wiki:monster:guardian": {
+    "base:monster:guardian": {
       "kind": "monster",
       "name": "Guardian",
       "asset": "file:guardian.png",
@@ -25851,7 +25851,7 @@
         }
       ]
     },
-    "wiki:monster:hardship": {
+    "base:monster:hardship": {
       "kind": "monster",
       "name": "Hardship",
       "asset": "file:hardship.png",
@@ -25870,7 +25870,7 @@
         }
       ]
     },
-    "wiki:monster:hatchling": {
+    "base:monster:hatchling": {
       "kind": "monster",
       "name": "Hatchling",
       "asset": "file:hatchling.png",
@@ -25889,7 +25889,7 @@
         }
       ]
     },
-    "wiki:monster:hermetic": {
+    "base:monster:hermetic": {
       "kind": "monster",
       "name": "Hermetic",
       "asset": "file:hermetic.png",
@@ -25908,7 +25908,7 @@
         }
       ]
     },
-    "wiki:monster:hive-guard": {
+    "base:monster:hive-guard": {
       "kind": "monster",
       "name": "Hive Guard",
       "asset": "file:hive guard.png",
@@ -25927,7 +25927,7 @@
         }
       ]
     },
-    "wiki:monster:hobo": {
+    "base:monster:hobo": {
       "kind": "monster",
       "name": "Hobo",
       "asset": "file:hobo.png",
@@ -25946,7 +25946,7 @@
         }
       ]
     },
-    "wiki:monster:hollow-traveler": {
+    "base:monster:hollow-traveler": {
       "kind": "monster",
       "name": "Hollow Traveler",
       "asset": "file:hollow traveler.png",
@@ -25965,7 +25965,7 @@
         }
       ]
     },
-    "wiki:monster:hot-shell": {
+    "base:monster:hot-shell": {
       "kind": "monster",
       "name": "Hot Shell",
       "asset": "file:hot shell.png",
@@ -25984,7 +25984,7 @@
         }
       ]
     },
-    "wiki:monster:ice-construct": {
+    "base:monster:ice-construct": {
       "kind": "monster",
       "name": "Ice Construct",
       "asset": "file:ice construct.png",
@@ -26003,7 +26003,7 @@
         }
       ]
     },
-    "wiki:monster:ice-elemental": {
+    "base:monster:ice-elemental": {
       "kind": "monster",
       "name": "Ice Elemental",
       "asset": "file:ice elemental.png",
@@ -26022,7 +26022,7 @@
         }
       ]
     },
-    "wiki:monster:ice-muncher": {
+    "base:monster:ice-muncher": {
       "kind": "monster",
       "name": "Ice Muncher",
       "asset": "file:ice muncher.png",
@@ -26041,7 +26041,7 @@
         }
       ]
     },
-    "wiki:monster:icy-wing": {
+    "base:monster:icy-wing": {
       "kind": "monster",
       "name": "Icy Wing",
       "asset": "file:icy wing.png",
@@ -26060,7 +26060,7 @@
         }
       ]
     },
-    "wiki:monster:iguanadin": {
+    "base:monster:iguanadin": {
       "kind": "monster",
       "name": "Iguanadin",
       "asset": "file:iguanadin.png",
@@ -26079,7 +26079,7 @@
         }
       ]
     },
-    "wiki:monster:iguanadon": {
+    "base:monster:iguanadon": {
       "kind": "monster",
       "name": "Iguanadon",
       "asset": "file:iguanadon.png",
@@ -26098,7 +26098,7 @@
         }
       ]
     },
-    "wiki:monster:impaler": {
+    "base:monster:impaler": {
       "kind": "monster",
       "name": "Impaler",
       "asset": "file:impaler.png",
@@ -26117,7 +26117,7 @@
         }
       ]
     },
-    "wiki:monster:improper-imp": {
+    "base:monster:improper-imp": {
       "kind": "monster",
       "name": "Improper Imp",
       "asset": "file:improper imp.png",
@@ -26136,7 +26136,7 @@
         }
       ]
     },
-    "wiki:monster:indecent-dweller": {
+    "base:monster:indecent-dweller": {
       "kind": "monster",
       "name": "Indecent Dweller",
       "asset": "file:indecent dweller.png",
@@ -26155,7 +26155,7 @@
         }
       ]
     },
-    "wiki:monster:ioske": {
+    "base:monster:ioske": {
       "kind": "monster",
       "name": "Ioske",
       "asset": "file:ioske.png",
@@ -26174,7 +26174,7 @@
         }
       ]
     },
-    "wiki:monster:itachi": {
+    "base:monster:itachi": {
       "kind": "monster",
       "name": "Itachi",
       "asset": "file:itachi.png",
@@ -26193,7 +26193,7 @@
         }
       ]
     },
-    "wiki:monster:itachitori": {
+    "base:monster:itachitori": {
       "kind": "monster",
       "name": "Itachitori",
       "asset": "file:itachitori.png",
@@ -26212,7 +26212,7 @@
         }
       ]
     },
-    "wiki:monster:jail-breaker": {
+    "base:monster:jail-breaker": {
       "kind": "monster",
       "name": "Jail Breaker",
       "asset": "file:jail breaker.png",
@@ -26231,7 +26231,7 @@
         }
       ]
     },
-    "wiki:monster:jellyfish": {
+    "base:monster:jellyfish": {
       "kind": "monster",
       "name": "Jellyfish",
       "asset": "file:jellyfish.png",
@@ -26250,7 +26250,7 @@
         }
       ]
     },
-    "wiki:monster:jester": {
+    "base:monster:jester": {
       "kind": "monster",
       "name": "Jester",
       "asset": "file:jester.png",
@@ -26269,7 +26269,7 @@
         }
       ]
     },
-    "wiki:monster:jungle-boar": {
+    "base:monster:jungle-boar": {
       "kind": "monster",
       "name": "Jungle Boar",
       "asset": "file:jungle boar.png",
@@ -26288,7 +26288,7 @@
         }
       ]
     },
-    "wiki:monster:juses": {
+    "base:monster:juses": {
       "kind": "monster",
       "name": "Juses",
       "asset": "file:juses.png",
@@ -26307,7 +26307,7 @@
         }
       ]
     },
-    "wiki:monster:kamaitachi": {
+    "base:monster:kamaitachi": {
       "kind": "monster",
       "name": "Kamaitachi",
       "asset": "file:kamaitachi.png",
@@ -26326,7 +26326,7 @@
         }
       ]
     },
-    "wiki:monster:knight": {
+    "base:monster:knight": {
       "kind": "monster",
       "name": "Knight",
       "asset": "file:knight.png",
@@ -26345,7 +26345,7 @@
         }
       ]
     },
-    "wiki:monster:koh-mouri": {
+    "base:monster:koh-mouri": {
       "kind": "monster",
       "name": "Koh-Mouri",
       "asset": "file:koh-mouri.png",
@@ -26364,7 +26364,7 @@
         }
       ]
     },
-    "wiki:monster:kuromanto": {
+    "base:monster:kuromanto": {
       "kind": "monster",
       "name": "Kuromanto",
       "asset": "file:kuromanto.png",
@@ -26383,7 +26383,7 @@
         }
       ]
     },
-    "wiki:monster:landrunner": {
+    "base:monster:landrunner": {
       "kind": "monster",
       "name": "Landrunner",
       "asset": "file:landrunner.png",
@@ -26402,7 +26402,7 @@
         }
       ]
     },
-    "wiki:monster:mage-knight": {
+    "base:monster:mage-knight": {
       "kind": "monster",
       "name": "Mage Knight",
       "asset": "file:mage knight.png",
@@ -26421,7 +26421,7 @@
         }
       ]
     },
-    "wiki:monster:magic-well": {
+    "base:monster:magic-well": {
       "kind": "monster",
       "name": "Magic Well",
       "asset": "file:magic well.png",
@@ -26440,7 +26440,7 @@
         }
       ]
     },
-    "wiki:monster:man-of-war": {
+    "base:monster:man-of-war": {
       "kind": "monster",
       "name": "Man Of War",
       "asset": "file:man of war.png",
@@ -26459,7 +26459,7 @@
         }
       ]
     },
-    "wiki:monster:mantis-crawler": {
+    "base:monster:mantis-crawler": {
       "kind": "monster",
       "name": "Mantis Crawler",
       "asset": "file:mantis crawler.png",
@@ -26478,7 +26478,7 @@
         }
       ]
     },
-    "wiki:monster:mantis-spider": {
+    "base:monster:mantis-spider": {
       "kind": "monster",
       "name": "Mantis Spider",
       "asset": "file:mantis spider.png",
@@ -26497,7 +26497,7 @@
         }
       ]
     },
-    "wiki:monster:marionette": {
+    "base:monster:marionette": {
       "kind": "monster",
       "name": "Marionette",
       "asset": "file:marionette.png",
@@ -26516,7 +26516,7 @@
         }
       ]
     },
-    "wiki:monster:meat": {
+    "base:monster:meat": {
       "kind": "monster",
       "name": "Meat",
       "asset": "file:meat.png",
@@ -26535,7 +26535,7 @@
         }
       ]
     },
-    "wiki:monster:meat-eater": {
+    "base:monster:meat-eater": {
       "kind": "monster",
       "name": "Meat Eater",
       "asset": "file:meat eater.png",
@@ -26554,7 +26554,7 @@
         }
       ]
     },
-    "wiki:monster:medusa": {
+    "base:monster:medusa": {
       "kind": "monster",
       "name": "Medusa",
       "asset": "file:medusa.png",
@@ -26573,7 +26573,7 @@
         }
       ]
     },
-    "wiki:monster:merhorse": {
+    "base:monster:merhorse": {
       "kind": "monster",
       "name": "Merhorse",
       "asset": "file:merhorse.png",
@@ -26592,7 +26592,7 @@
         }
       ]
     },
-    "wiki:monster:mermaid": {
+    "base:monster:mermaid": {
       "kind": "monster",
       "name": "Mermaid",
       "asset": "file:mermaid.png",
@@ -26611,7 +26611,7 @@
         }
       ]
     },
-    "wiki:monster:mermaiden": {
+    "base:monster:mermaiden": {
       "kind": "monster",
       "name": "Mermaiden",
       "asset": "file:mermaiden.png",
@@ -26630,7 +26630,7 @@
         }
       ]
     },
-    "wiki:monster:merman": {
+    "base:monster:merman": {
       "kind": "monster",
       "name": "Merman",
       "asset": "file:merman.png",
@@ -26649,7 +26649,7 @@
         }
       ]
     },
-    "wiki:monster:mettal-beak": {
+    "base:monster:mettal-beak": {
       "kind": "monster",
       "name": "Mettal Beak",
       "asset": "file:mettal beak.png",
@@ -26668,7 +26668,7 @@
         }
       ]
     },
-    "wiki:monster:mettapodd": {
+    "base:monster:mettapodd": {
       "kind": "monster",
       "name": "Mettapodd",
       "asset": "file:mettapodd.png",
@@ -26687,7 +26687,7 @@
         }
       ]
     },
-    "wiki:monster:mind-s-delusion": {
+    "base:monster:mind-s-delusion": {
       "kind": "monster",
       "name": "Mind's Delusion",
       "asset": "file:mind's delusion.png",
@@ -26706,7 +26706,7 @@
         }
       ]
     },
-    "wiki:monster:moss": {
+    "base:monster:moss": {
       "kind": "monster",
       "name": "Moss",
       "asset": "file:moss.png",
@@ -26725,7 +26725,7 @@
         }
       ]
     },
-    "wiki:monster:mountain-knight": {
+    "base:monster:mountain-knight": {
       "kind": "monster",
       "name": "Mountain Knight",
       "asset": "file:mountain knight.png",
@@ -26744,7 +26744,7 @@
         }
       ]
     },
-    "wiki:monster:mountainess": {
+    "base:monster:mountainess": {
       "kind": "monster",
       "name": "Mountainess",
       "asset": "file:mountainess.png",
@@ -26763,7 +26763,7 @@
         }
       ]
     },
-    "wiki:monster:musher": {
+    "base:monster:musher": {
       "kind": "monster",
       "name": "Musher",
       "asset": "file:musher.png",
@@ -26782,7 +26782,7 @@
         }
       ]
     },
-    "wiki:monster:narco-beast": {
+    "base:monster:narco-beast": {
       "kind": "monster",
       "name": "Narco Beast",
       "asset": "file:narco beast.png",
@@ -26801,7 +26801,7 @@
         }
       ]
     },
-    "wiki:monster:niltsi": {
+    "base:monster:niltsi": {
       "kind": "monster",
       "name": "Niltsi",
       "asset": "file:niltsi.png",
@@ -26820,7 +26820,7 @@
         }
       ]
     },
-    "wiki:monster:nut-muncher": {
+    "base:monster:nut-muncher": {
       "kind": "monster",
       "name": "Nut Muncher",
       "asset": "file:nut muncher.png",
@@ -26839,7 +26839,7 @@
         }
       ]
     },
-    "wiki:monster:nut-prophet": {
+    "base:monster:nut-prophet": {
       "kind": "monster",
       "name": "Nut Prophet",
       "asset": "file:nut prophet.png",
@@ -26858,7 +26858,7 @@
         }
       ]
     },
-    "wiki:monster:nutter": {
+    "base:monster:nutter": {
       "kind": "monster",
       "name": "Nutter",
       "asset": "file:nutter.png",
@@ -26877,7 +26877,7 @@
         }
       ]
     },
-    "wiki:monster:pah": {
+    "base:monster:pah": {
       "kind": "monster",
       "name": "Pah",
       "asset": "file:pah.png",
@@ -26896,7 +26896,7 @@
         }
       ]
     },
-    "wiki:monster:pamoa": {
+    "base:monster:pamoa": {
       "kind": "monster",
       "name": "Pamoa",
       "asset": "file:pamoa.png",
@@ -26915,7 +26915,7 @@
         }
       ]
     },
-    "wiki:monster:pangolion": {
+    "base:monster:pangolion": {
       "kind": "monster",
       "name": "Pangolion",
       "asset": "file:pangolion.png",
@@ -26934,7 +26934,7 @@
         }
       ]
     },
-    "wiki:monster:parasite": {
+    "base:monster:parasite": {
       "kind": "monster",
       "name": "Parasite",
       "asset": "file:parasite.png",
@@ -26953,7 +26953,7 @@
         }
       ]
     },
-    "wiki:monster:parasite-x": {
+    "base:monster:parasite-x": {
       "kind": "monster",
       "name": "Parasite X",
       "asset": "file:parasite x.png",
@@ -26972,7 +26972,7 @@
         }
       ]
     },
-    "wiki:monster:particular-ore": {
+    "base:monster:particular-ore": {
       "kind": "monster",
       "name": "Particular Ore",
       "asset": "file:particular ore.png",
@@ -26991,7 +26991,7 @@
         }
       ]
     },
-    "wiki:monster:perennial": {
+    "base:monster:perennial": {
       "kind": "monster",
       "name": "Perennial",
       "asset": "file:perennial.png",
@@ -27010,7 +27010,7 @@
         }
       ]
     },
-    "wiki:monster:petrified-mask": {
+    "base:monster:petrified-mask": {
       "kind": "monster",
       "name": "Petrified Mask",
       "asset": "file:petrified mask.png",
@@ -27029,7 +27029,7 @@
         }
       ]
     },
-    "wiki:monster:pincing-pincer": {
+    "base:monster:pincing-pincer": {
       "kind": "monster",
       "name": "Pincing Pincer",
       "asset": "file:pincing pincer.png",
@@ -27048,7 +27048,7 @@
         }
       ]
     },
-    "wiki:monster:plague-bow": {
+    "base:monster:plague-bow": {
       "kind": "monster",
       "name": "Plague Bow",
       "asset": "file:plague bow.png",
@@ -27067,7 +27067,7 @@
         }
       ]
     },
-    "wiki:monster:polar-claw": {
+    "base:monster:polar-claw": {
       "kind": "monster",
       "name": "Polar Claw",
       "asset": "file:polar claw.png",
@@ -27086,7 +27086,7 @@
         }
       ]
     },
-    "wiki:monster:possessor": {
+    "base:monster:possessor": {
       "kind": "monster",
       "name": "Possessor",
       "asset": "file:possessor.png",
@@ -27105,7 +27105,7 @@
         }
       ]
     },
-    "wiki:monster:puppet": {
+    "base:monster:puppet": {
       "kind": "monster",
       "name": "Puppet",
       "asset": "file:puppet.png",
@@ -27124,7 +27124,7 @@
         }
       ]
     },
-    "wiki:monster:puppet-on": {
+    "base:monster:puppet-on": {
       "kind": "monster",
       "name": "Puppet (On)",
       "asset": "file:puppet (on).png",
@@ -27143,7 +27143,7 @@
         }
       ]
     },
-    "wiki:monster:puppetmaster": {
+    "base:monster:puppetmaster": {
       "kind": "monster",
       "name": "Puppetmaster",
       "asset": "file:puppetmaster.png",
@@ -27162,7 +27162,7 @@
         }
       ]
     },
-    "wiki:monster:quintar-egg": {
+    "base:monster:quintar-egg": {
       "kind": "monster",
       "name": "Quintar Egg",
       "asset": "file:quintar egg.png",
@@ -27181,7 +27181,7 @@
         }
       ]
     },
-    "wiki:monster:rabbite": {
+    "base:monster:rabbite": {
       "kind": "monster",
       "name": "Rabbite",
       "asset": "file:rabbite.png",
@@ -27200,7 +27200,7 @@
         }
       ]
     },
-    "wiki:monster:rampart-demon": {
+    "base:monster:rampart-demon": {
       "kind": "monster",
       "name": "Rampart Demon",
       "asset": "file:rampart demon.png",
@@ -27219,7 +27219,7 @@
         }
       ]
     },
-    "wiki:monster:rampart-infantry": {
+    "base:monster:rampart-infantry": {
       "kind": "monster",
       "name": "Rampart Infantry",
       "asset": "file:rampart infantry.png",
@@ -27238,7 +27238,7 @@
         }
       ]
     },
-    "wiki:monster:rampart-scout": {
+    "base:monster:rampart-scout": {
       "kind": "monster",
       "name": "Rampart Scout",
       "asset": "file:rampart scout.png",
@@ -27257,7 +27257,7 @@
         }
       ]
     },
-    "wiki:monster:rasten": {
+    "base:monster:rasten": {
       "kind": "monster",
       "name": "Rasten",
       "asset": "file:rasten.png",
@@ -27276,7 +27276,7 @@
         }
       ]
     },
-    "wiki:monster:ratatask": {
+    "base:monster:ratatask": {
       "kind": "monster",
       "name": "Ratatask",
       "asset": "file:ratatask.png",
@@ -27295,7 +27295,7 @@
         }
       ]
     },
-    "wiki:monster:red-guardian": {
+    "base:monster:red-guardian": {
       "kind": "monster",
       "name": "Red Guardian",
       "asset": "file:red guardian.png",
@@ -27314,7 +27314,7 @@
         }
       ]
     },
-    "wiki:monster:red-onion": {
+    "base:monster:red-onion": {
       "kind": "monster",
       "name": "Red Onion",
       "asset": "file:red onion.png",
@@ -27333,7 +27333,7 @@
         }
       ]
     },
-    "wiki:monster:regalis": {
+    "base:monster:regalis": {
       "kind": "monster",
       "name": "Regalis",
       "asset": "file:regalis.png",
@@ -27352,7 +27352,7 @@
         }
       ]
     },
-    "wiki:monster:reginald": {
+    "base:monster:reginald": {
       "kind": "monster",
       "name": "Reginald",
       "asset": "file:reginald.png",
@@ -27371,7 +27371,7 @@
         }
       ]
     },
-    "wiki:monster:revorb": {
+    "base:monster:revorb": {
       "kind": "monster",
       "name": "Revorb",
       "asset": "file:revorb.png",
@@ -27390,7 +27390,7 @@
         }
       ]
     },
-    "wiki:monster:rexosaur": {
+    "base:monster:rexosaur": {
       "kind": "monster",
       "name": "Rexosaur",
       "asset": "file:rexosaur.png",
@@ -27409,7 +27409,7 @@
         }
       ]
     },
-    "wiki:monster:risen": {
+    "base:monster:risen": {
       "kind": "monster",
       "name": "Risen",
       "asset": "file:risen.png",
@@ -27428,7 +27428,7 @@
         }
       ]
     },
-    "wiki:monster:robot": {
+    "base:monster:robot": {
       "kind": "monster",
       "name": "Robot",
       "asset": "file:robot.png",
@@ -27447,7 +27447,7 @@
         }
       ]
     },
-    "wiki:monster:rock-lizard": {
+    "base:monster:rock-lizard": {
       "kind": "monster",
       "name": "Rock Lizard",
       "asset": "file:rock lizard.png",
@@ -27466,7 +27466,7 @@
         }
       ]
     },
-    "wiki:monster:rogue-knight": {
+    "base:monster:rogue-knight": {
       "kind": "monster",
       "name": "Rogue Knight",
       "asset": "file:rogue knight.png",
@@ -27485,7 +27485,7 @@
         }
       ]
     },
-    "wiki:monster:root-muncher": {
+    "base:monster:root-muncher": {
       "kind": "monster",
       "name": "Root Muncher",
       "asset": "file:root muncher.png",
@@ -27504,7 +27504,7 @@
         }
       ]
     },
-    "wiki:monster:rotten-root": {
+    "base:monster:rotten-root": {
       "kind": "monster",
       "name": "Rotten Root",
       "asset": "file:rotten root.png",
@@ -27523,7 +27523,7 @@
         }
       ]
     },
-    "wiki:monster:sabertooth": {
+    "base:monster:sabertooth": {
       "kind": "monster",
       "name": "Sabertooth",
       "asset": "file:sabertooth.png",
@@ -27542,7 +27542,7 @@
         }
       ]
     },
-    "wiki:monster:salamander": {
+    "base:monster:salamander": {
       "kind": "monster",
       "name": "Salamander",
       "asset": "file:salamander.png",
@@ -27561,7 +27561,7 @@
         }
       ]
     },
-    "wiki:monster:salmon-cook": {
+    "base:monster:salmon-cook": {
       "kind": "monster",
       "name": "Salmon Cook",
       "asset": "file:salmon cook.png",
@@ -27580,7 +27580,7 @@
         }
       ]
     },
-    "wiki:monster:salmon-eater": {
+    "base:monster:salmon-eater": {
       "kind": "monster",
       "name": "Salmon Eater",
       "asset": "file:salmon eater.png",
@@ -27599,7 +27599,7 @@
         }
       ]
     },
-    "wiki:monster:sand-blaster": {
+    "base:monster:sand-blaster": {
       "kind": "monster",
       "name": "Sand Blaster",
       "asset": "file:sand blaster.png",
@@ -27618,7 +27618,7 @@
         }
       ]
     },
-    "wiki:monster:sand-bomb": {
+    "base:monster:sand-bomb": {
       "kind": "monster",
       "name": "Sand Bomb",
       "asset": "file:sand bomb.png",
@@ -27637,7 +27637,7 @@
         }
       ]
     },
-    "wiki:monster:sand-claw": {
+    "base:monster:sand-claw": {
       "kind": "monster",
       "name": "Sand Claw",
       "asset": "file:sand claw.png",
@@ -27656,7 +27656,7 @@
         }
       ]
     },
-    "wiki:monster:scavenger": {
+    "base:monster:scavenger": {
       "kind": "monster",
       "name": "Scavenger",
       "asset": "file:scavenger.png",
@@ -27675,7 +27675,7 @@
         }
       ]
     },
-    "wiki:monster:scentaur": {
+    "base:monster:scentaur": {
       "kind": "monster",
       "name": "Scentaur",
       "asset": "file:scentaur.png",
@@ -27694,7 +27694,7 @@
         }
       ]
     },
-    "wiki:monster:sea-kobra": {
+    "base:monster:sea-kobra": {
       "kind": "monster",
       "name": "Sea Kobra",
       "asset": "file:sea kobra.png",
@@ -27713,7 +27713,7 @@
         }
       ]
     },
-    "wiki:monster:sea-salamander": {
+    "base:monster:sea-salamander": {
       "kind": "monster",
       "name": "Sea Salamander",
       "asset": "file:sea salamander.png",
@@ -27732,7 +27732,7 @@
         }
       ]
     },
-    "wiki:monster:sea-skimmer": {
+    "base:monster:sea-skimmer": {
       "kind": "monster",
       "name": "Sea Skimmer",
       "asset": "file:sea skimmer.png",
@@ -27751,7 +27751,7 @@
         }
       ]
     },
-    "wiki:monster:sea-snake": {
+    "base:monster:sea-snake": {
       "kind": "monster",
       "name": "Sea Snake",
       "asset": "file:sea snake.png",
@@ -27770,7 +27770,7 @@
         }
       ]
     },
-    "wiki:monster:seafeeder": {
+    "base:monster:seafeeder": {
       "kind": "monster",
       "name": "Seafeeder",
       "asset": "file:seafeeder.png",
@@ -27789,7 +27789,7 @@
         }
       ]
     },
-    "wiki:monster:sealed-fate": {
+    "base:monster:sealed-fate": {
       "kind": "monster",
       "name": "Sealed Fate",
       "asset": "file:sealed fate.png",
@@ -27808,7 +27808,7 @@
         }
       ]
     },
-    "wiki:monster:sentry": {
+    "base:monster:sentry": {
       "kind": "monster",
       "name": "Sentry",
       "asset": "file:sentry.png",
@@ -27827,7 +27827,7 @@
         }
       ]
     },
-    "wiki:monster:sepulchra": {
+    "base:monster:sepulchra": {
       "kind": "monster",
       "name": "Sepulchra",
       "asset": "file:sepulchra.png",
@@ -27846,7 +27846,7 @@
         }
       ]
     },
-    "wiki:monster:sewer-rat": {
+    "base:monster:sewer-rat": {
       "kind": "monster",
       "name": "Sewer Rat",
       "asset": "file:sewer rat.png",
@@ -27865,7 +27865,7 @@
         }
       ]
     },
-    "wiki:monster:shadow-master": {
+    "base:monster:shadow-master": {
       "kind": "monster",
       "name": "Shadow Master",
       "asset": "file:shadow master.png",
@@ -27884,7 +27884,7 @@
         }
       ]
     },
-    "wiki:monster:shaken-root": {
+    "base:monster:shaken-root": {
       "kind": "monster",
       "name": "Shaken Root",
       "asset": "file:shaken root.png",
@@ -27903,7 +27903,7 @@
         }
       ]
     },
-    "wiki:monster:shaku": {
+    "base:monster:shaku": {
       "kind": "monster",
       "name": "Shaku",
       "asset": "file:shaku.png",
@@ -27922,7 +27922,7 @@
         }
       ]
     },
-    "wiki:monster:shallow-spear": {
+    "base:monster:shallow-spear": {
       "kind": "monster",
       "name": "Shallow Spear",
       "asset": "file:shallow spear.png",
@@ -27941,7 +27941,7 @@
         }
       ]
     },
-    "wiki:monster:shank-shark": {
+    "base:monster:shank-shark": {
       "kind": "monster",
       "name": "Shank Shark",
       "asset": "file:shank shark.png",
@@ -27960,7 +27960,7 @@
         }
       ]
     },
-    "wiki:monster:shelldin": {
+    "base:monster:shelldin": {
       "kind": "monster",
       "name": "Shelldin",
       "asset": "file:shelldin.png",
@@ -27979,7 +27979,7 @@
         }
       ]
     },
-    "wiki:monster:shrieker": {
+    "base:monster:shrieker": {
       "kind": "monster",
       "name": "Shrieker",
       "asset": "file:shrieker.png",
@@ -27998,7 +27998,7 @@
         }
       ]
     },
-    "wiki:monster:shroomer": {
+    "base:monster:shroomer": {
       "kind": "monster",
       "name": "Shroomer",
       "asset": "file:shroomer.png",
@@ -28017,7 +28017,7 @@
         }
       ]
     },
-    "wiki:monster:shroomy": {
+    "base:monster:shroomy": {
       "kind": "monster",
       "name": "Shroomy",
       "asset": "file:shroomy.png",
@@ -28036,7 +28036,7 @@
         }
       ]
     },
-    "wiki:monster:singubean": {
+    "base:monster:singubean": {
       "kind": "monster",
       "name": "Singubean",
       "asset": "file:singubean.png",
@@ -28055,7 +28055,7 @@
         }
       ]
     },
-    "wiki:monster:skimmer-boss": {
+    "base:monster:skimmer-boss": {
       "kind": "monster",
       "name": "Skimmer Boss",
       "asset": "file:skimmer boss.png",
@@ -28074,7 +28074,7 @@
         }
       ]
     },
-    "wiki:monster:slime": {
+    "base:monster:slime": {
       "kind": "monster",
       "name": "Slime",
       "asset": "file:slime.png",
@@ -28093,7 +28093,7 @@
         }
       ]
     },
-    "wiki:monster:snail": {
+    "base:monster:snail": {
       "kind": "monster",
       "name": "Snail",
       "asset": "file:snail.png",
@@ -28112,7 +28112,7 @@
         }
       ]
     },
-    "wiki:monster:snapper": {
+    "base:monster:snapper": {
       "kind": "monster",
       "name": "Snapper",
       "asset": "file:snapper.png",
@@ -28131,7 +28131,7 @@
         }
       ]
     },
-    "wiki:monster:snow-nymph": {
+    "base:monster:snow-nymph": {
       "kind": "monster",
       "name": "Snow Nymph",
       "asset": "file:snow nymph.png",
@@ -28150,7 +28150,7 @@
         }
       ]
     },
-    "wiki:monster:snowbird": {
+    "base:monster:snowbird": {
       "kind": "monster",
       "name": "Snowbird",
       "asset": "file:snowbird.png",
@@ -28169,7 +28169,7 @@
         }
       ]
     },
-    "wiki:monster:spirit-cage": {
+    "base:monster:spirit-cage": {
       "kind": "monster",
       "name": "Spirit Cage",
       "asset": "file:spirit cage.png",
@@ -28188,7 +28188,7 @@
         }
       ]
     },
-    "wiki:monster:spit-skull": {
+    "base:monster:spit-skull": {
       "kind": "monster",
       "name": "Spit Skull",
       "asset": "file:spit skull.png",
@@ -28207,7 +28207,7 @@
         }
       ]
     },
-    "wiki:monster:squealitt": {
+    "base:monster:squealitt": {
       "kind": "monster",
       "name": "Squealitt",
       "asset": "file:squealitt.png",
@@ -28226,7 +28226,7 @@
         }
       ]
     },
-    "wiki:monster:squire": {
+    "base:monster:squire": {
       "kind": "monster",
       "name": "Squire",
       "asset": "file:squire.png",
@@ -28245,7 +28245,7 @@
         }
       ]
     },
-    "wiki:monster:star-bush": {
+    "base:monster:star-bush": {
       "kind": "monster",
       "name": "Star Bush",
       "asset": "file:star bush.png",
@@ -28264,7 +28264,7 @@
         }
       ]
     },
-    "wiki:monster:star-flame": {
+    "base:monster:star-flame": {
       "kind": "monster",
       "name": "Star Flame",
       "asset": "file:star flame.png",
@@ -28283,7 +28283,7 @@
         }
       ]
     },
-    "wiki:monster:star-spark": {
+    "base:monster:star-spark": {
       "kind": "monster",
       "name": "Star Spark",
       "asset": "file:star spark.png",
@@ -28302,7 +28302,7 @@
         }
       ]
     },
-    "wiki:monster:sting-jelly": {
+    "base:monster:sting-jelly": {
       "kind": "monster",
       "name": "Sting Jelly",
       "asset": "file:sting jelly.png",
@@ -28321,7 +28321,7 @@
         }
       ]
     },
-    "wiki:monster:storm-stalker": {
+    "base:monster:storm-stalker": {
       "kind": "monster",
       "name": "Storm Stalker",
       "asset": "file:storm stalker.png",
@@ -28340,7 +28340,7 @@
         }
       ]
     },
-    "wiki:monster:swamp-kid": {
+    "base:monster:swamp-kid": {
       "kind": "monster",
       "name": "Swamp Kid",
       "asset": "file:swamp kid.png",
@@ -28359,7 +28359,7 @@
         }
       ]
     },
-    "wiki:monster:temple-snake": {
+    "base:monster:temple-snake": {
       "kind": "monster",
       "name": "Temple Snake",
       "asset": "file:temple snake.png",
@@ -28378,7 +28378,7 @@
         }
       ]
     },
-    "wiki:monster:temple-spider": {
+    "base:monster:temple-spider": {
       "kind": "monster",
       "name": "Temple Spider",
       "asset": "file:temple spider.png",
@@ -28397,7 +28397,7 @@
         }
       ]
     },
-    "wiki:monster:the-devourer": {
+    "base:monster:the-devourer": {
       "kind": "monster",
       "name": "The Devourer",
       "asset": "file:the devourer.png",
@@ -28416,7 +28416,7 @@
         }
       ]
     },
-    "wiki:monster:the-enforcer": {
+    "base:monster:the-enforcer": {
       "kind": "monster",
       "name": "The Enforcer",
       "asset": "file:the enforcer.png",
@@ -28435,7 +28435,7 @@
         }
       ]
     },
-    "wiki:monster:the-old-one": {
+    "base:monster:the-old-one": {
       "kind": "monster",
       "name": "The Old One",
       "asset": "file:the old one.png",
@@ -28454,7 +28454,7 @@
         }
       ]
     },
-    "wiki:monster:the-owlbear": {
+    "base:monster:the-owlbear": {
       "kind": "monster",
       "name": "The Owlbear",
       "asset": "file:the owlbear.png",
@@ -28473,7 +28473,7 @@
         }
       ]
     },
-    "wiki:monster:the-peacekeeper": {
+    "base:monster:the-peacekeeper": {
       "kind": "monster",
       "name": "The Peacekeeper",
       "asset": "file:the peacekeeper.png",
@@ -28492,7 +28492,7 @@
         }
       ]
     },
-    "wiki:monster:tira": {
+    "base:monster:tira": {
       "kind": "monster",
       "name": "Tira",
       "asset": "file:tira.png",
@@ -28511,7 +28511,7 @@
         }
       ]
     },
-    "wiki:monster:tomb-gaze": {
+    "base:monster:tomb-gaze": {
       "kind": "monster",
       "name": "Tomb Gaze",
       "asset": "file:tomb gaze.png",
@@ -28530,7 +28530,7 @@
         }
       ]
     },
-    "wiki:monster:tomb-guard": {
+    "base:monster:tomb-guard": {
       "kind": "monster",
       "name": "Tomb Guard",
       "asset": "file:tomb guard.png",
@@ -28549,7 +28549,7 @@
         }
       ]
     },
-    "wiki:monster:tomb-invader": {
+    "base:monster:tomb-invader": {
       "kind": "monster",
       "name": "Tomb Invader",
       "asset": "file:tomb invader.png",
@@ -28568,7 +28568,7 @@
         }
       ]
     },
-    "wiki:monster:torpedo": {
+    "base:monster:torpedo": {
       "kind": "monster",
       "name": "Torpedo",
       "asset": "file:torpedo.png",
@@ -28587,7 +28587,7 @@
         }
       ]
     },
-    "wiki:monster:troll": {
+    "base:monster:troll": {
       "kind": "monster",
       "name": "Troll",
       "asset": "file:troll.png",
@@ -28606,7 +28606,7 @@
         }
       ]
     },
-    "wiki:monster:trusty-quintar-blue": {
+    "base:monster:trusty-quintar-blue": {
       "kind": "monster",
       "name": "Trusty Quintar (Blue)",
       "asset": "file:trusty quintar (blue).png",
@@ -28625,7 +28625,7 @@
         }
       ]
     },
-    "wiki:monster:trusty-quintar-red": {
+    "base:monster:trusty-quintar-red": {
       "kind": "monster",
       "name": "Trusty Quintar (Red)",
       "asset": "file:trusty quintar (red).png",
@@ -28644,7 +28644,7 @@
         }
       ]
     },
-    "wiki:monster:tusk-thruster": {
+    "base:monster:tusk-thruster": {
       "kind": "monster",
       "name": "Tusk Thruster",
       "asset": "file:tusk thruster.png",
@@ -28663,7 +28663,7 @@
         }
       ]
     },
-    "wiki:monster:undergrowth": {
+    "base:monster:undergrowth": {
       "kind": "monster",
       "name": "Undergrowth",
       "asset": "file:undergrowth.png",
@@ -28682,7 +28682,7 @@
         }
       ]
     },
-    "wiki:monster:uniranha": {
+    "base:monster:uniranha": {
       "kind": "monster",
       "name": "Uniranha",
       "asset": "file:uniranha.png",
@@ -28701,7 +28701,7 @@
         }
       ]
     },
-    "wiki:monster:unrooted": {
+    "base:monster:unrooted": {
       "kind": "monster",
       "name": "Unrooted",
       "asset": "file:unrooted.png",
@@ -28720,7 +28720,7 @@
         }
       ]
     },
-    "wiki:monster:veil": {
+    "base:monster:veil": {
       "kind": "monster",
       "name": "Veil",
       "asset": "file:veil.png",
@@ -28739,7 +28739,7 @@
         }
       ]
     },
-    "wiki:monster:venus-mantrap": {
+    "base:monster:venus-mantrap": {
       "kind": "monster",
       "name": "Venus Mantrap",
       "asset": "file:venus mantrap.png",
@@ -28758,7 +28758,7 @@
         }
       ]
     },
-    "wiki:monster:vermage": {
+    "base:monster:vermage": {
       "kind": "monster",
       "name": "Vermage",
       "asset": "file:vermage.png",
@@ -28777,7 +28777,7 @@
         }
       ]
     },
-    "wiki:monster:wai-fu": {
+    "base:monster:wai-fu": {
       "kind": "monster",
       "name": "Wai-fu",
       "asset": "file:wai-fu.png",
@@ -28796,7 +28796,7 @@
         }
       ]
     },
-    "wiki:monster:warden": {
+    "base:monster:warden": {
       "kind": "monster",
       "name": "Warden",
       "asset": "file:warden.png",
@@ -28815,7 +28815,7 @@
         }
       ]
     },
-    "wiki:monster:watchman": {
+    "base:monster:watchman": {
       "kind": "monster",
       "name": "Watchman",
       "asset": "file:watchman.png",
@@ -28834,7 +28834,7 @@
         }
       ]
     },
-    "wiki:monster:watchman-on": {
+    "base:monster:watchman-on": {
       "kind": "monster",
       "name": "Watchman (On)",
       "asset": "file:watchman (on).png",
@@ -28853,7 +28853,7 @@
         }
       ]
     },
-    "wiki:monster:water-carrot": {
+    "base:monster:water-carrot": {
       "kind": "monster",
       "name": "Water Carrot",
       "asset": "file:water carrot.png",
@@ -28872,7 +28872,7 @@
         }
       ]
     },
-    "wiki:monster:wave-hunter": {
+    "base:monster:wave-hunter": {
       "kind": "monster",
       "name": "Wave Hunter",
       "asset": "file:wave hunter.png",
@@ -28891,7 +28891,7 @@
         }
       ]
     },
-    "wiki:monster:weed": {
+    "base:monster:weed": {
       "kind": "monster",
       "name": "Weed",
       "asset": "file:weed.png",
@@ -28910,7 +28910,7 @@
         }
       ]
     },
-    "wiki:monster:wing-worm": {
+    "base:monster:wing-worm": {
       "kind": "monster",
       "name": "Wing Worm",
       "asset": "file:wing worm.png",
@@ -28929,7 +28929,7 @@
         }
       ]
     },
-    "wiki:monster:winged-rancher": {
+    "base:monster:winged-rancher": {
       "kind": "monster",
       "name": "Winged Rancher",
       "asset": "file:winged rancher.png",
@@ -28948,7 +28948,7 @@
         }
       ]
     },
-    "wiki:monster:wisp": {
+    "base:monster:wisp": {
       "kind": "monster",
       "name": "Wisp",
       "asset": "file:wisp.png",
@@ -28967,7 +28967,7 @@
         }
       ]
     },
-    "wiki:monster:wispette": {
+    "base:monster:wispette": {
       "kind": "monster",
       "name": "Wispette",
       "asset": "file:wispette.png",
@@ -28986,7 +28986,7 @@
         }
       ]
     },
-    "wiki:monster:witchling": {
+    "base:monster:witchling": {
       "kind": "monster",
       "name": "Witchling",
       "asset": "file:witchling.png",
@@ -29005,7 +29005,7 @@
         }
       ]
     },
-    "wiki:monster:woke-egg": {
+    "base:monster:woke-egg": {
       "kind": "monster",
       "name": "Woke Egg",
       "asset": "file:woke egg.png",
@@ -29024,7 +29024,7 @@
         }
       ]
     },
-    "wiki:monster:woke-quintar-red": {
+    "base:monster:woke-quintar-red": {
       "kind": "monster",
       "name": "Woke Quintar (Red)",
       "asset": "file:woke quintar (red).png",
@@ -29043,7 +29043,7 @@
         }
       ]
     },
-    "wiki:monster:woke-quintar-river": {
+    "base:monster:woke-quintar-river": {
       "kind": "monster",
       "name": "Woke Quintar (River)",
       "asset": "file:woke quintar (river).png",
@@ -29062,7 +29062,7 @@
         }
       ]
     },
-    "wiki:monster:wrensoul": {
+    "base:monster:wrensoul": {
       "kind": "monster",
       "name": "Wrensoul",
       "asset": "file:wrensoul.png",
@@ -29081,7 +29081,7 @@
         }
       ]
     },
-    "wiki:monster:yamma": {
+    "base:monster:yamma": {
       "kind": "monster",
       "name": "Yamma",
       "asset": "file:yamma.png",
@@ -29100,7 +29100,7 @@
         }
       ]
     },
-    "wiki:monster:young-one": {
+    "base:monster:young-one": {
       "kind": "monster",
       "name": "Young One",
       "asset": "file:young one.png",
@@ -29119,7 +29119,7 @@
         }
       ]
     },
-    "wiki:monster:zombie": {
+    "base:monster:zombie": {
       "kind": "monster",
       "name": "Zombie",
       "asset": "file:zombie.png",
@@ -29138,7 +29138,7 @@
         }
       ]
     },
-    "wiki:monster:zoo-bat": {
+    "base:monster:zoo-bat": {
       "kind": "monster",
       "name": "Zoo Bat",
       "asset": "file:zoo bat.png",
@@ -29157,7 +29157,7 @@
         }
       ]
     },
-    "wiki:status:ambush": {
+    "base:status:ambush": {
       "kind": "status",
       "name": "Ambush",
       "asset": "file:ambush-icon.gif",
@@ -29170,7 +29170,7 @@
         }
       ]
     },
-    "wiki:status:armor-boost": {
+    "base:status:armor-boost": {
       "kind": "status",
       "name": "Armor Boost",
       "asset": "file:armor-boost-icon.gif",
@@ -29183,7 +29183,7 @@
         }
       ]
     },
-    "wiki:status:armor-down": {
+    "base:status:armor-down": {
       "kind": "status",
       "name": "Armor Down",
       "asset": "file:armor-down-icon.gif",
@@ -29196,7 +29196,7 @@
         }
       ]
     },
-    "wiki:status:armor-up": {
+    "base:status:armor-up": {
       "kind": "status",
       "name": "Armor Up",
       "asset": "file:armor-up-icon.gif",
@@ -29209,7 +29209,7 @@
         }
       ]
     },
-    "wiki:status:attack-style": {
+    "base:status:attack-style": {
       "kind": "status",
       "name": "Attack Style",
       "asset": "file:attack-style-stance-icon.gif",
@@ -29222,7 +29222,7 @@
         }
       ]
     },
-    "wiki:status:balm": {
+    "base:status:balm": {
       "kind": "status",
       "name": "Balm",
       "asset": "file:balm-icon.gif",
@@ -29235,7 +29235,7 @@
         }
       ]
     },
-    "wiki:status:berserker": {
+    "base:status:berserker": {
       "kind": "status",
       "name": "Berserker",
       "asset": "file:berserker-stance-icon.gif",
@@ -29248,7 +29248,7 @@
         }
       ]
     },
-    "wiki:status:blackout": {
+    "base:status:blackout": {
       "kind": "status",
       "name": "Blackout",
       "asset": "file:blackout-icon.gif",
@@ -29261,7 +29261,7 @@
         }
       ]
     },
-    "wiki:status:bleed": {
+    "base:status:bleed": {
       "kind": "status",
       "name": "Bleed",
       "asset": "file:bleed-icon.gif",
@@ -29274,7 +29274,7 @@
         }
       ]
     },
-    "wiki:status:blind": {
+    "base:status:blind": {
       "kind": "status",
       "name": "Blind",
       "asset": "file:blind-icon.gif",
@@ -29287,7 +29287,7 @@
         }
       ]
     },
-    "wiki:status:blink": {
+    "base:status:blink": {
       "kind": "status",
       "name": "Blink",
       "asset": "file:blink-mist-core-icon.gif",
@@ -29300,7 +29300,7 @@
         }
       ]
     },
-    "wiki:status:burn": {
+    "base:status:burn": {
       "kind": "status",
       "name": "Burn",
       "asset": "file:burn-icon.gif",
@@ -29313,7 +29313,7 @@
         }
       ]
     },
-    "wiki:status:chakra": {
+    "base:status:chakra": {
       "kind": "status",
       "name": "Chakra",
       "asset": "file:chakra-icon.gif",
@@ -29326,7 +29326,7 @@
         }
       ]
     },
-    "wiki:status:chilled": {
+    "base:status:chilled": {
       "kind": "status",
       "name": "Chilled",
       "asset": "file:chilled-icon.gif",
@@ -29339,7 +29339,7 @@
         }
       ]
     },
-    "wiki:status:clarity": {
+    "base:status:clarity": {
       "kind": "status",
       "name": "Clarity",
       "asset": "file:clarity-icon.gif",
@@ -29352,7 +29352,7 @@
         }
       ]
     },
-    "wiki:status:combo": {
+    "base:status:combo": {
       "kind": "status",
       "name": "Combo",
       "asset": "file:combo-icon.gif",
@@ -29365,7 +29365,7 @@
         }
       ]
     },
-    "wiki:status:confusion": {
+    "base:status:confusion": {
       "kind": "status",
       "name": "Confusion",
       "asset": "file:confusion-icon.gif",
@@ -29378,7 +29378,7 @@
         }
       ]
     },
-    "wiki:status:cover": {
+    "base:status:cover": {
       "kind": "status",
       "name": "Cover",
       "asset": "file:cover-icon.gif",
@@ -29391,7 +29391,7 @@
         }
       ]
     },
-    "wiki:status:crystal-form": {
+    "base:status:crystal-form": {
       "kind": "status",
       "name": "Crystal Form",
       "asset": "file:crystal-form-icon.gif",
@@ -29404,7 +29404,7 @@
         }
       ]
     },
-    "wiki:status:daze": {
+    "base:status:daze": {
       "kind": "status",
       "name": "Daze",
       "asset": "file:daze-icon.gif",
@@ -29417,7 +29417,7 @@
         }
       ]
     },
-    "wiki:status:death-sentence": {
+    "base:status:death-sentence": {
       "kind": "status",
       "name": "Death Sentence",
       "asset": "file:death-sentence-icon.gif",
@@ -29430,7 +29430,7 @@
         }
       ]
     },
-    "wiki:status:debuffer": {
+    "base:status:debuffer": {
       "kind": "status",
       "name": "Debuffer",
       "asset": "file:debuffer-icon.gif",
@@ -29443,7 +29443,7 @@
         }
       ]
     },
-    "wiki:status:defense-style": {
+    "base:status:defense-style": {
       "kind": "status",
       "name": "Defense Style",
       "asset": "file:defense-style-stance-icon.gif",
@@ -29456,7 +29456,7 @@
         }
       ]
     },
-    "wiki:status:defense-style-vanilla": {
+    "base:status:defense-style-vanilla": {
       "kind": "status",
       "name": "Defense Style (vanilla)",
       "asset": "file:defense-style-vanilla-stance-icon.gif",
@@ -29469,7 +29469,7 @@
         }
       ]
     },
-    "wiki:status:disappear": {
+    "base:status:disappear": {
       "kind": "status",
       "name": "Disappear",
       "asset": "file:disappear-icon.gif",
@@ -29482,7 +29482,7 @@
         }
       ]
     },
-    "wiki:status:duel-ready": {
+    "base:status:duel-ready": {
       "kind": "status",
       "name": "Duel Ready",
       "asset": "file:duel-ready-focus-energy-icon.gif",
@@ -29495,7 +29495,7 @@
         }
       ]
     },
-    "wiki:status:eagle-stance": {
+    "base:status:eagle-stance": {
       "kind": "status",
       "name": "Eagle Stance",
       "asset": "file:eagle-stance-icon.gif",
@@ -29508,7 +29508,7 @@
         }
       ]
     },
-    "wiki:status:earth-seal": {
+    "base:status:earth-seal": {
       "kind": "status",
       "name": "Earth Seal",
       "asset": "file:earth-seal-icon.gif",
@@ -29521,7 +29521,7 @@
         }
       ]
     },
-    "wiki:status:en-ice": {
+    "base:status:en-ice": {
       "kind": "status",
       "name": "En-Ice",
       "asset": "file:en-ice-stance-icon.gif",
@@ -29534,7 +29534,7 @@
         }
       ]
     },
-    "wiki:status:en-water": {
+    "base:status:en-water": {
       "kind": "status",
       "name": "En-Water",
       "asset": "file:en-water-stance-icon.webp",
@@ -29547,7 +29547,7 @@
         }
       ]
     },
-    "wiki:status:encore": {
+    "base:status:encore": {
       "kind": "status",
       "name": "Encore",
       "asset": "file:encore-icon.gif",
@@ -29560,7 +29560,7 @@
         }
       ]
     },
-    "wiki:status:evasion-down": {
+    "base:status:evasion-down": {
       "kind": "status",
       "name": "Evasion Down",
       "asset": "file:evasion-down-icon.gif",
@@ -29573,7 +29573,7 @@
         }
       ]
     },
-    "wiki:status:evasion-up": {
+    "base:status:evasion-up": {
       "kind": "status",
       "name": "Evasion Up",
       "asset": "file:evasion-up-icon.gif",
@@ -29586,7 +29586,7 @@
         }
       ]
     },
-    "wiki:status:expertise": {
+    "base:status:expertise": {
       "kind": "status",
       "name": "Expertise",
       "asset": "file:expertise-icon.webp",
@@ -29599,7 +29599,7 @@
         }
       ]
     },
-    "wiki:status:fatigue": {
+    "base:status:fatigue": {
       "kind": "status",
       "name": "Fatigue",
       "asset": "file:fatigue-icon.gif",
@@ -29612,7 +29612,7 @@
         }
       ]
     },
-    "wiki:status:feral-stance": {
+    "base:status:feral-stance": {
       "kind": "status",
       "name": "Feral Stance",
       "asset": "file:feral-stance-icon.gif",
@@ -29625,7 +29625,7 @@
         }
       ]
     },
-    "wiki:status:fierce-stance": {
+    "base:status:fierce-stance": {
       "kind": "status",
       "name": "Fierce Stance",
       "asset": "file:fierce-stance-icon.gif",
@@ -29638,7 +29638,7 @@
         }
       ]
     },
-    "wiki:status:fire-seal": {
+    "base:status:fire-seal": {
       "kind": "status",
       "name": "Fire Seal",
       "asset": "file:fire-seal-icon.gif",
@@ -29651,7 +29651,7 @@
         }
       ]
     },
-    "wiki:status:float": {
+    "base:status:float": {
       "kind": "status",
       "name": "Float",
       "asset": "file:float-icon.gif",
@@ -29664,7 +29664,7 @@
         }
       ]
     },
-    "wiki:status:focus-energy": {
+    "base:status:focus-energy": {
       "kind": "status",
       "name": "Focus Energy",
       "asset": "file:duel-ready-focus-energy-icon.gif",
@@ -29677,7 +29677,7 @@
         }
       ]
     },
-    "wiki:status:frenzy": {
+    "base:status:frenzy": {
       "kind": "status",
       "name": "Frenzy",
       "asset": "file:frenzy-icon.gif",
@@ -29690,7 +29690,7 @@
         }
       ]
     },
-    "wiki:status:frostbite": {
+    "base:status:frostbite": {
       "kind": "status",
       "name": "Frostbite",
       "asset": "file:frostbite-icon.gif",
@@ -29703,7 +29703,7 @@
         }
       ]
     },
-    "wiki:status:haste": {
+    "base:status:haste": {
       "kind": "status",
       "name": "Haste",
       "asset": "file:haste-icon.gif",
@@ -29716,7 +29716,7 @@
         }
       ]
     },
-    "wiki:status:hawk-stance": {
+    "base:status:hawk-stance": {
       "kind": "status",
       "name": "Hawk Stance",
       "asset": "file:hawk-stance-icon.gif",
@@ -29729,7 +29729,7 @@
         }
       ]
     },
-    "wiki:status:hunter-s-mark": {
+    "base:status:hunter-s-mark": {
       "kind": "status",
       "name": "Hunter's Mark",
       "asset": "file:hunters-mark-icon.gif",
@@ -29742,7 +29742,7 @@
         }
       ]
     },
-    "wiki:status:ice-seal": {
+    "base:status:ice-seal": {
       "kind": "status",
       "name": "Ice Seal",
       "asset": "file:ice-seal-icon.gif",
@@ -29755,7 +29755,7 @@
         }
       ]
     },
-    "wiki:status:immortal": {
+    "base:status:immortal": {
       "kind": "status",
       "name": "Immortal",
       "asset": "file:immortal-re-raise-icon.gif",
@@ -29768,7 +29768,7 @@
         }
       ]
     },
-    "wiki:status:instability": {
+    "base:status:instability": {
       "kind": "status",
       "name": "Instability",
       "asset": "file:instability-icon.gif",
@@ -29781,7 +29781,7 @@
         }
       ]
     },
-    "wiki:status:instant-kill": {
+    "base:status:instant-kill": {
       "kind": "status",
       "name": "Instant Kill",
       "asset": "file:instant-kill-icon.gif",
@@ -29794,7 +29794,7 @@
         }
       ]
     },
-    "wiki:status:invisigel": {
+    "base:status:invisigel": {
       "kind": "status",
       "name": "Invisigel",
       "asset": "file:invisigel-icon.webp",
@@ -29807,7 +29807,7 @@
         }
       ]
     },
-    "wiki:status:kawakage": {
+    "base:status:kawakage": {
       "kind": "status",
       "name": "Kawakage",
       "asset": "file:kawakage-icon.gif",
@@ -29820,7 +29820,7 @@
         }
       ]
     },
-    "wiki:status:lightning-rod": {
+    "base:status:lightning-rod": {
       "kind": "status",
       "name": "Lightning Rod",
       "asset": "file:lightning-rod-icon.gif",
@@ -29833,7 +29833,7 @@
         }
       ]
     },
-    "wiki:status:magic-down": {
+    "base:status:magic-down": {
       "kind": "status",
       "name": "Magic Down",
       "asset": "file:magic-down-icon.gif",
@@ -29846,7 +29846,7 @@
         }
       ]
     },
-    "wiki:status:magic-magnet": {
+    "base:status:magic-magnet": {
       "kind": "status",
       "name": "Magic Magnet",
       "asset": "file:magic-magnet-icon.gif",
@@ -29859,7 +29859,7 @@
         }
       ]
     },
-    "wiki:status:magic-prayer": {
+    "base:status:magic-prayer": {
       "kind": "status",
       "name": "Magic Prayer",
       "asset": "file:magic-prayer-icon.gif",
@@ -29872,7 +29872,7 @@
         }
       ]
     },
-    "wiki:status:magic-up": {
+    "base:status:magic-up": {
       "kind": "status",
       "name": "Magic Up",
       "asset": "file:magic-up-icon.gif",
@@ -29885,7 +29885,7 @@
         }
       ]
     },
-    "wiki:status:magic-wall": {
+    "base:status:magic-wall": {
       "kind": "status",
       "name": "Magic Wall",
       "asset": "file:magic-wall-icon.gif",
@@ -29898,7 +29898,7 @@
         }
       ]
     },
-    "wiki:status:mind-stance": {
+    "base:status:mind-stance": {
       "kind": "status",
       "name": "Mind Stance",
       "asset": "file:mind-stance-icon.gif",
@@ -29911,7 +29911,7 @@
         }
       ]
     },
-    "wiki:status:mist-core": {
+    "base:status:mist-core": {
       "kind": "status",
       "name": "Mist Core",
       "asset": "file:blink-mist-core-icon.gif",
@@ -29924,7 +29924,7 @@
         }
       ]
     },
-    "wiki:status:mute-sentence": {
+    "base:status:mute-sentence": {
       "kind": "status",
       "name": "Mute Sentence",
       "asset": "file:mute-sentence-icon.gif",
@@ -29937,7 +29937,7 @@
         }
       ]
     },
-    "wiki:status:no-cooldowns": {
+    "base:status:no-cooldowns": {
       "kind": "status",
       "name": "No Cooldowns",
       "asset": "file:no-cooldowns-icon.gif",
@@ -29950,7 +29950,7 @@
         }
       ]
     },
-    "wiki:status:oily": {
+    "base:status:oily": {
       "kind": "status",
       "name": "Oily",
       "asset": "file:oily-icon.gif",
@@ -29963,7 +29963,7 @@
         }
       ]
     },
-    "wiki:status:paralyze": {
+    "base:status:paralyze": {
       "kind": "status",
       "name": "Paralyze",
       "asset": "file:paralyze-icon.gif",
@@ -29976,7 +29976,7 @@
         }
       ]
     },
-    "wiki:status:poison": {
+    "base:status:poison": {
       "kind": "status",
       "name": "Poison",
       "asset": "file:poison-icon.gif",
@@ -29989,7 +29989,7 @@
         }
       ]
     },
-    "wiki:status:power-down": {
+    "base:status:power-down": {
       "kind": "status",
       "name": "Power Down",
       "asset": "file:power-down-icon.gif",
@@ -30002,7 +30002,7 @@
         }
       ]
     },
-    "wiki:status:power-up": {
+    "base:status:power-up": {
       "kind": "status",
       "name": "Power Up",
       "asset": "file:power-up-icon.gif",
@@ -30015,7 +30015,7 @@
         }
       ]
     },
-    "wiki:status:power-wall": {
+    "base:status:power-wall": {
       "kind": "status",
       "name": "Power Wall",
       "asset": "file:power-wall-icon.gif",
@@ -30028,7 +30028,7 @@
         }
       ]
     },
-    "wiki:status:re-raise": {
+    "base:status:re-raise": {
       "kind": "status",
       "name": "Re-Raise",
       "asset": "file:immortal-re-raise-icon.gif",
@@ -30041,7 +30041,7 @@
         }
       ]
     },
-    "wiki:status:recovery-up": {
+    "base:status:recovery-up": {
       "kind": "status",
       "name": "Recovery Up",
       "asset": "file:recovery-up-icon.gif",
@@ -30054,7 +30054,7 @@
         }
       ]
     },
-    "wiki:status:reflect": {
+    "base:status:reflect": {
       "kind": "status",
       "name": "Reflect",
       "asset": "file:reflect-icon.gif",
@@ -30067,7 +30067,7 @@
         }
       ]
     },
-    "wiki:status:reflex-stance": {
+    "base:status:reflex-stance": {
       "kind": "status",
       "name": "Reflex Stance",
       "asset": "file:reflex-stance-icon.gif",
@@ -30080,7 +30080,7 @@
         }
       ]
     },
-    "wiki:status:refresh": {
+    "base:status:refresh": {
       "kind": "status",
       "name": "Refresh",
       "asset": "file:refresh-icon.gif",
@@ -30093,7 +30093,7 @@
         }
       ]
     },
-    "wiki:status:regen": {
+    "base:status:regen": {
       "kind": "status",
       "name": "Regen",
       "asset": "file:regen-icon.gif",
@@ -30106,7 +30106,7 @@
         }
       ]
     },
-    "wiki:status:rend": {
+    "base:status:rend": {
       "kind": "status",
       "name": "Rend",
       "asset": "file:rend-icon.gif",
@@ -30119,7 +30119,7 @@
         }
       ]
     },
-    "wiki:status:reprisal": {
+    "base:status:reprisal": {
       "kind": "status",
       "name": "Reprisal",
       "asset": "file:reprisal-icon.gif",
@@ -30132,7 +30132,7 @@
         }
       ]
     },
-    "wiki:status:resist-boost": {
+    "base:status:resist-boost": {
       "kind": "status",
       "name": "Resist Boost",
       "asset": "file:resist-boost-icon.gif",
@@ -30145,7 +30145,7 @@
         }
       ]
     },
-    "wiki:status:resist-down": {
+    "base:status:resist-down": {
       "kind": "status",
       "name": "Resist Down",
       "asset": "file:resist-down-icon.gif",
@@ -30158,7 +30158,7 @@
         }
       ]
     },
-    "wiki:status:resist-up": {
+    "base:status:resist-up": {
       "kind": "status",
       "name": "Resist Up",
       "asset": "file:resist-up-icon.gif",
@@ -30171,7 +30171,7 @@
         }
       ]
     },
-    "wiki:status:resistance-style": {
+    "base:status:resistance-style": {
       "kind": "status",
       "name": "Resistance Style",
       "asset": "file:resistance-style-stance-icon.gif",
@@ -30184,7 +30184,7 @@
         }
       ]
     },
-    "wiki:status:rhythm-break": {
+    "base:status:rhythm-break": {
       "kind": "status",
       "name": "Rhythm Break",
       "asset": "file:rhythm-break-icon.webp",
@@ -30197,7 +30197,7 @@
         }
       ]
     },
-    "wiki:status:rigid-stance": {
+    "base:status:rigid-stance": {
       "kind": "status",
       "name": "Rigid Stance",
       "asset": "file:rigid-stance-icon.gif",
@@ -30210,7 +30210,7 @@
         }
       ]
     },
-    "wiki:status:shrapnel-armor": {
+    "base:status:shrapnel-armor": {
       "kind": "status",
       "name": "Shrapnel Armor",
       "asset": "file:shrapnel-armor-stance-icon.gif",
@@ -30223,7 +30223,7 @@
         }
       ]
     },
-    "wiki:status:silence": {
+    "base:status:silence": {
       "kind": "status",
       "name": "Silence",
       "asset": "file:silence-icon.gif",
@@ -30236,7 +30236,7 @@
         }
       ]
     },
-    "wiki:status:sleep": {
+    "base:status:sleep": {
       "kind": "status",
       "name": "Sleep",
       "asset": "file:sleep-icon.gif",
@@ -30249,7 +30249,7 @@
         }
       ]
     },
-    "wiki:status:slimy": {
+    "base:status:slimy": {
       "kind": "status",
       "name": "Slimy",
       "asset": "file:slimy-icon.gif",
@@ -30262,7 +30262,7 @@
         }
       ]
     },
-    "wiki:status:slow": {
+    "base:status:slow": {
       "kind": "status",
       "name": "Slow",
       "asset": "file:slow-slowish-icon.gif",
@@ -30275,7 +30275,7 @@
         }
       ]
     },
-    "wiki:status:slowish": {
+    "base:status:slowish": {
       "kind": "status",
       "name": "Slowish",
       "asset": "file:slow-slowish-icon.gif",
@@ -30288,7 +30288,7 @@
         }
       ]
     },
-    "wiki:status:smokescreen": {
+    "base:status:smokescreen": {
       "kind": "status",
       "name": "Smokescreen",
       "asset": "file:smokescreen-icon.gif",
@@ -30301,7 +30301,7 @@
         }
       ]
     },
-    "wiki:status:spotlight": {
+    "base:status:spotlight": {
       "kind": "status",
       "name": "Spotlight",
       "asset": "file:spotlight-icon.gif",
@@ -30314,7 +30314,7 @@
         }
       ]
     },
-    "wiki:status:stability": {
+    "base:status:stability": {
       "kind": "status",
       "name": "Stability",
       "asset": "file:stability-icon.gif",
@@ -30327,7 +30327,7 @@
         }
       ]
     },
-    "wiki:status:steel-heart": {
+    "base:status:steel-heart": {
       "kind": "status",
       "name": "Steel Heart",
       "asset": "file:steel-heart-stance-icon.gif",
@@ -30340,7 +30340,7 @@
         }
       ]
     },
-    "wiki:status:stone-core": {
+    "base:status:stone-core": {
       "kind": "status",
       "name": "Stone Core",
       "asset": "file:stone-core-icon.gif",
@@ -30353,7 +30353,7 @@
         }
       ]
     },
-    "wiki:status:storm-stance": {
+    "base:status:storm-stance": {
       "kind": "status",
       "name": "Storm Stance",
       "asset": "file:storm-stance-icon.gif",
@@ -30366,7 +30366,7 @@
         }
       ]
     },
-    "wiki:status:thawed-heart": {
+    "base:status:thawed-heart": {
       "kind": "status",
       "name": "Thawed Heart",
       "asset": "file:thawed-heart-stance-icon.gif",
@@ -30379,7 +30379,7 @@
         }
       ]
     },
-    "wiki:status:therapy-stance": {
+    "base:status:therapy-stance": {
       "kind": "status",
       "name": "Therapy Stance",
       "asset": "file:therapy-stance-icon.gif",
@@ -30392,7 +30392,7 @@
         }
       ]
     },
-    "wiki:status:thick-armor": {
+    "base:status:thick-armor": {
       "kind": "status",
       "name": "Thick Armor",
       "asset": "file:thick-armor-icon.gif",
@@ -30405,7 +30405,7 @@
         }
       ]
     },
-    "wiki:status:thick-shell": {
+    "base:status:thick-shell": {
       "kind": "status",
       "name": "Thick Shell",
       "asset": "file:thick-shell-icon.gif",
@@ -30418,7 +30418,7 @@
         }
       ]
     },
-    "wiki:status:thunder-seal": {
+    "base:status:thunder-seal": {
       "kind": "status",
       "name": "Thunder Seal",
       "asset": "file:thunder-seal-icon.gif",
@@ -30431,7 +30431,7 @@
         }
       ]
     },
-    "wiki:status:undead": {
+    "base:status:undead": {
       "kind": "status",
       "name": "Undead",
       "asset": "file:undead-icon.gif",
@@ -30444,7 +30444,7 @@
         }
       ]
     },
-    "wiki:status:unguent": {
+    "base:status:unguent": {
       "kind": "status",
       "name": "Unguent",
       "asset": "file:unguent-icon.gif",
@@ -30457,7 +30457,7 @@
         }
       ]
     },
-    "wiki:status:utsusemi": {
+    "base:status:utsusemi": {
       "kind": "status",
       "name": "Utsusemi",
       "asset": "file:utsusemi-icon.gif",
@@ -30470,7 +30470,7 @@
         }
       ]
     },
-    "wiki:status:water-seal": {
+    "base:status:water-seal": {
       "kind": "status",
       "name": "Water Seal",
       "asset": "file:water-seal-icon.gif",
@@ -30483,7 +30483,7 @@
         }
       ]
     },
-    "wiki:status:wave-armor": {
+    "base:status:wave-armor": {
       "kind": "status",
       "name": "Wave Armor",
       "asset": "file:wave-armor-stance-icon.gif",
@@ -30496,7 +30496,7 @@
         }
       ]
     },
-    "wiki:status:weep": {
+    "base:status:weep": {
       "kind": "status",
       "name": "Weep",
       "asset": "file:weep-icon.gif",
@@ -30509,7 +30509,7 @@
         }
       ]
     },
-    "wiki:status:wild-stance": {
+    "base:status:wild-stance": {
       "kind": "status",
       "name": "Wild Stance",
       "asset": "file:wild-stance-icon.gif",
@@ -30522,7 +30522,7 @@
         }
       ]
     },
-    "wiki:status:wind-seal": {
+    "base:status:wind-seal": {
       "kind": "status",
       "name": "Wind Seal",
       "asset": "file:wind-seal-icon.gif",
@@ -31417,31 +31417,31 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ancient-labyrinth-map",
+        "id": "base:item:ancient-labyrinth-map",
         "kind": "item",
         "name": "Ancient Labyrinth Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ancient-reservoir-map",
+        "id": "base:item:ancient-reservoir-map",
         "kind": "item",
         "name": "Ancient Reservoir Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ancient-tablet-a",
+        "id": "base:item:ancient-tablet-a",
         "kind": "item",
         "name": "Ancient Tablet A",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ancient-tablet-b",
+        "id": "base:item:ancient-tablet-b",
         "kind": "item",
         "name": "Ancient Tablet B",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ancient-tablet-c",
+        "id": "base:item:ancient-tablet-c",
         "kind": "item",
         "name": "Ancient Tablet C",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31465,13 +31465,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:assassin-s-cloak",
+        "id": "base:item:assassin-s-cloak",
         "kind": "item",
         "name": "Assassin's Cloak",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:autumn-s-oath",
+        "id": "base:item:autumn-s-oath",
         "kind": "item",
         "name": "Autumn's Oath",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31483,19 +31483,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:axes",
+        "id": "base:item:axes",
         "kind": "item",
         "name": "Axes",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:babel-quintar",
+        "id": "base:item:babel-quintar",
         "kind": "item",
         "name": "Babel Quintar",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:basement-map",
+        "id": "base:item:basement-map",
         "kind": "item",
         "name": "Basement Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31519,13 +31519,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:beaurior-rock-map",
+        "id": "base:item:beaurior-rock-map",
         "kind": "item",
         "name": "Beaurior Rock Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:beaurior-volcano-map",
+        "id": "base:item:beaurior-volcano-map",
         "kind": "item",
         "name": "Beaurior Volcano Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31537,7 +31537,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:black-squirrel",
+        "id": "base:item:black-squirrel",
         "kind": "item",
         "name": "Black Squirrel",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31561,19 +31561,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:books",
+        "id": "base:item:books",
         "kind": "item",
         "name": "Books",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:boomer-society-map",
+        "id": "base:item:boomer-society-map",
         "kind": "item",
         "name": "Boomer Society Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:bows",
+        "id": "base:item:bows",
         "kind": "item",
         "name": "Bows",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31585,7 +31585,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:brutish-quintar-eye",
+        "id": "base:item:brutish-quintar-eye",
         "kind": "item",
         "name": "Brutish Quintar Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31597,7 +31597,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:burglar-s-glove",
+        "id": "base:item:burglar-s-glove",
         "kind": "item",
         "name": "Burglar's Glove",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31609,43 +31609,43 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:callisto-stone",
+        "id": "base:item:callisto-stone",
         "kind": "item",
         "name": "Callisto Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:capital-jail-map",
+        "id": "base:item:capital-jail-map",
         "kind": "item",
         "name": "Capital Jail Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:capital-pipeline-map",
+        "id": "base:item:capital-pipeline-map",
         "kind": "item",
         "name": "Capital Pipeline Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:caster-s-ring",
+        "id": "base:item:caster-s-ring",
         "kind": "item",
         "name": "Caster's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:castle-ramparts-map",
+        "id": "base:item:castle-ramparts-map",
         "kind": "item",
         "name": "Castle Ramparts Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:castle-sequoia-map",
+        "id": "base:item:castle-sequoia-map",
         "kind": "item",
         "name": "Castle Sequoia Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:cerulean-book",
+        "id": "base:item:cerulean-book",
         "kind": "item",
         "name": "Cerulean Book",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31663,7 +31663,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:clamshell",
+        "id": "base:item:clamshell",
         "kind": "item",
         "name": "Clamshell",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31681,7 +31681,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:cleric-s-robe",
+        "id": "base:item:cleric-s-robe",
         "kind": "item",
         "name": "Cleric's Robe",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31693,7 +31693,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:continental-tram-map",
+        "id": "base:item:continental-tram-map",
         "kind": "item",
         "name": "Continental Tram Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31711,7 +31711,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:courtyard-key",
+        "id": "base:item:courtyard-key",
         "kind": "item",
         "name": "Courtyard Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31723,7 +31723,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:crag-demon-horn",
+        "id": "base:item:crag-demon-horn",
         "kind": "item",
         "name": "Crag Demon Horn",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31735,7 +31735,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:daggers",
+        "id": "base:item:daggers",
         "kind": "item",
         "name": "Daggers",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31765,7 +31765,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:deep-sea-scrap",
+        "id": "base:item:deep-sea-scrap",
         "kind": "item",
         "name": "Deep Sea Scrap",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31777,13 +31777,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:deity-eye",
+        "id": "base:item:deity-eye",
         "kind": "item",
         "name": "Deity Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:delende-map",
+        "id": "base:item:delende-map",
         "kind": "item",
         "name": "Delende Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31825,7 +31825,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:digested-head",
+        "id": "base:item:digested-head",
         "kind": "item",
         "name": "Digested Head",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31837,7 +31837,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:dione-stone",
+        "id": "base:item:dione-stone",
         "kind": "item",
         "name": "Dione Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31849,13 +31849,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:dog-bone",
+        "id": "base:item:dog-bone",
         "kind": "item",
         "name": "Dog Bone",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:draft-shaft-conduit-map",
+        "id": "base:item:draft-shaft-conduit-map",
         "kind": "item",
         "name": "Draft Shaft Conduit Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31879,7 +31879,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:eastern-chasm-map",
+        "id": "base:item:eastern-chasm-map",
         "kind": "item",
         "name": "Eastern Chasm Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31903,19 +31903,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:europa-stone",
+        "id": "base:item:europa-stone",
         "kind": "item",
         "name": "Europa Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:fairy-s-ring",
+        "id": "base:item:fairy-s-ring",
         "kind": "item",
         "name": "Fairy's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:fancy-quintar-eye",
+        "id": "base:item:fancy-quintar-eye",
         "kind": "item",
         "name": "Fancy Quintar Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -31975,7 +31975,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:fiendish-quintar-eye",
+        "id": "base:item:fiendish-quintar-eye",
         "kind": "item",
         "name": "Fiendish Quintar Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32005,13 +32005,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:flyer-s-crag-map",
+        "id": "base:item:flyer-s-crag-map",
         "kind": "item",
         "name": "Flyer's Crag Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:forgotten-key",
+        "id": "base:item:forgotten-key",
         "kind": "item",
         "name": "Forgotten Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32035,7 +32035,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:gaea-stone",
+        "id": "base:item:gaea-stone",
         "kind": "item",
         "name": "Gaea Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32047,19 +32047,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ganymede-shrine-map",
+        "id": "base:item:ganymede-shrine-map",
         "kind": "item",
         "name": "Ganymede Shrine Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ganymede-stone",
+        "id": "base:item:ganymede-stone",
         "kind": "item",
         "name": "Ganymede Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:gardener-s-key",
+        "id": "base:item:gardener-s-key",
         "kind": "item",
         "name": "Gardener's Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32071,13 +32071,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ghendolf-s-ring",
+        "id": "base:item:ghendolf-s-ring",
         "kind": "item",
         "name": "Ghendolf's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:giver-s-ring",
+        "id": "base:item:giver-s-ring",
         "kind": "item",
         "name": "Giver's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32137,13 +32137,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:heavy-armor",
+        "id": "base:item:heavy-armor",
         "kind": "item",
         "name": "Heavy armor",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:heavy-helmets",
+        "id": "base:item:heavy-helmets",
         "kind": "item",
         "name": "Heavy helmets",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32161,7 +32161,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:home-point-stone",
+        "id": "base:item:home-point-stone",
         "kind": "item",
         "name": "Home Point Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32179,19 +32179,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ice-cell-key",
+        "id": "base:item:ice-cell-key",
         "kind": "item",
         "name": "Ice Cell Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:ice-puzzle-key",
+        "id": "base:item:ice-puzzle-key",
         "kind": "item",
         "name": "Ice Puzzle Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:jade-cavern-map",
+        "id": "base:item:jade-cavern-map",
         "kind": "item",
         "name": "Jade Cavern Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32203,25 +32203,25 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:jidamba-eaclaneya-map",
+        "id": "base:item:jidamba-eaclaneya-map",
         "kind": "item",
         "name": "Jidamba Eaclaneya Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:jidamba-tangle-map",
+        "id": "base:item:jidamba-tangle-map",
         "kind": "item",
         "name": "Jidamba Tangle Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:jiggling-lure",
+        "id": "base:item:jiggling-lure",
         "kind": "item",
         "name": "Jiggling Lure",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:katanas",
+        "id": "base:item:katanas",
         "kind": "item",
         "name": "Katanas",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32239,25 +32239,25 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:lake-delende-map",
+        "id": "base:item:lake-delende-map",
         "kind": "item",
         "name": "Lake Delende Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:learner-s-pin",
+        "id": "base:item:learner-s-pin",
         "kind": "item",
         "name": "Learner's Pin",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:light-armor",
+        "id": "base:item:light-armor",
         "kind": "item",
         "name": "Light armor",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:light-hats",
+        "id": "base:item:light-hats",
         "kind": "item",
         "name": "Light hats",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32275,19 +32275,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:looter-s-pin",
+        "id": "base:item:looter-s-pin",
         "kind": "item",
         "name": "Looter's Pin",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:looter-s-ring",
+        "id": "base:item:looter-s-ring",
         "kind": "item",
         "name": "Looter's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:lost-penguin",
+        "id": "base:item:lost-penguin",
         "kind": "item",
         "name": "Lost Penguin",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32305,13 +32305,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:luxury-key",
+        "id": "base:item:luxury-key",
         "kind": "item",
         "name": "Luxury Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:luxury-pass",
+        "id": "base:item:luxury-pass",
         "kind": "item",
         "name": "Luxury Pass",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32323,7 +32323,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mage-s-robe",
+        "id": "base:item:mage-s-robe",
         "kind": "item",
         "name": "Mage's Robe",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32347,7 +32347,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mars-stone",
+        "id": "base:item:mars-stone",
         "kind": "item",
         "name": "Mars Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32365,19 +32365,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:medium-armor",
+        "id": "base:item:medium-armor",
         "kind": "item",
         "name": "Medium armor",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:medium-headgear",
+        "id": "base:item:medium-headgear",
         "kind": "item",
         "name": "Medium headgear",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mender-s-ring",
+        "id": "base:item:mender-s-ring",
         "kind": "item",
         "name": "Mender's Ring",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32389,13 +32389,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mercury-shrine-map",
+        "id": "base:item:mercury-shrine-map",
         "kind": "item",
         "name": "Mercury Shrine Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mercury-stone",
+        "id": "base:item:mercury-stone",
         "kind": "item",
         "name": "Mercury Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32425,25 +32425,25 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:mugger-s-glove",
+        "id": "base:item:mugger-s-glove",
         "kind": "item",
         "name": "Mugger's Glove",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:nan-s-cocoa",
+        "id": "base:item:nan-s-cocoa",
         "kind": "item",
         "name": "Nan's Cocoa",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:nan-s-secret-recipe",
+        "id": "base:item:nan-s-secret-recipe",
         "kind": "item",
         "name": "Nan's Secret Recipe",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:nan-s-stew",
+        "id": "base:item:nan-s-stew",
         "kind": "item",
         "name": "Nan's Stew",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32455,13 +32455,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:neptune-shrine-map",
+        "id": "base:item:neptune-shrine-map",
         "kind": "item",
         "name": "Neptune Shrine Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:neptune-stone",
+        "id": "base:item:neptune-stone",
         "kind": "item",
         "name": "Neptune Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32479,13 +32479,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:nomad-s-emblem",
+        "id": "base:item:nomad-s-emblem",
         "kind": "item",
         "name": "Nomad's Emblem",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:northern-stretch-map",
+        "id": "base:item:northern-stretch-map",
         "kind": "item",
         "name": "Northern Stretch Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32515,7 +32515,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:overpass-scrap",
+        "id": "base:item:overpass-scrap",
         "kind": "item",
         "name": "Overpass Scrap",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32539,7 +32539,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:poko-poko-desert-map",
+        "id": "base:item:poko-poko-desert-map",
         "kind": "item",
         "name": "Poko Poko Desert Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32551,13 +32551,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:poseidon-shrine-map",
+        "id": "base:item:poseidon-shrine-map",
         "kind": "item",
         "name": "Poseidon Shrine Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:poseidon-stone",
+        "id": "base:item:poseidon-stone",
         "kind": "item",
         "name": "Poseidon Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32593,13 +32593,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:proving-meadows-map",
+        "id": "base:item:proving-meadows-map",
         "kind": "item",
         "name": "Proving Meadows Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:pyramid-key",
+        "id": "base:item:pyramid-key",
         "kind": "item",
         "name": "Pyramid Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32611,19 +32611,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:quintar-flute",
+        "id": "base:item:quintar-flute",
         "kind": "item",
         "name": "Quintar Flute",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:quintar-mausoleum-map",
+        "id": "base:item:quintar-mausoleum-map",
         "kind": "item",
         "name": "Quintar Mausoleum Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:quintar-ocarina",
+        "id": "base:item:quintar-ocarina",
         "kind": "item",
         "name": "Quintar Ocarina",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32635,13 +32635,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:quintar-reserve-map",
+        "id": "base:item:quintar-reserve-map",
         "kind": "item",
         "name": "Quintar Reserve Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:quintar-sanctum-map",
+        "id": "base:item:quintar-sanctum-map",
         "kind": "item",
         "name": "Quintar Sanctum Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32653,25 +32653,25 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:rabbit-s-claw",
+        "id": "base:item:rabbit-s-claw",
         "kind": "item",
         "name": "Rabbit's Claw",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:rampart-key",
+        "id": "base:item:rampart-key",
         "kind": "item",
         "name": "Rampart Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:rapiers",
+        "id": "base:item:rapiers",
         "kind": "item",
         "name": "Rapiers",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:raven-s-cloak",
+        "id": "base:item:raven-s-cloak",
         "kind": "item",
         "name": "Raven's Cloak",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32701,7 +32701,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:river-cat-s-ego-map",
+        "id": "base:item:river-cat-s-ego-map",
         "kind": "item",
         "name": "River Cat's Ego Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32719,19 +32719,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:salmon-bay-map",
+        "id": "base:item:salmon-bay-map",
         "kind": "item",
         "name": "Salmon Bay Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:salmon-river-map",
+        "id": "base:item:salmon-river-map",
         "kind": "item",
         "name": "Salmon River Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:salmon-violin",
+        "id": "base:item:salmon-violin",
         "kind": "item",
         "name": "Salmon Violin",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32743,7 +32743,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:samurai-s-glove",
+        "id": "base:item:samurai-s-glove",
         "kind": "item",
         "name": "Samurai's Glove",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32755,19 +32755,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:sara-sara-bazaar-map",
+        "id": "base:item:sara-sara-bazaar-map",
         "kind": "item",
         "name": "Sara Sara Bazaar Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:sara-sara-beach-map",
+        "id": "base:item:sara-sara-beach-map",
         "kind": "item",
         "name": "Sara Sara Beach Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:savior-s-cape",
+        "id": "base:item:savior-s-cape",
         "kind": "item",
         "name": "Savior's Cape",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32803,37 +32803,37 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:scythes",
+        "id": "base:item:scythes",
         "kind": "item",
         "name": "Scythes",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:seaside-cliffs-map",
+        "id": "base:item:seaside-cliffs-map",
         "kind": "item",
         "name": "Seaside Cliffs Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:secret-herb",
+        "id": "base:item:secret-herb",
         "kind": "item",
         "name": "Secret Herb",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:secret-meat",
+        "id": "base:item:secret-meat",
         "kind": "item",
         "name": "Secret Meat",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:secret-veggie",
+        "id": "base:item:secret-veggie",
         "kind": "item",
         "name": "Secret Veggie",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:seeker-s-garb",
+        "id": "base:item:seeker-s-garb",
         "kind": "item",
         "name": "Seeker's Garb",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32869,13 +32869,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:shields",
+        "id": "base:item:shields",
         "kind": "item",
         "name": "Shields",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:shoudu-province-map",
+        "id": "base:item:shoudu-province-map",
         "kind": "item",
         "name": "Shoudu Province Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32917,7 +32917,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:skeleton-key",
+        "id": "base:item:skeleton-key",
         "kind": "item",
         "name": "Skeleton Key",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32935,7 +32935,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:soiled-den-map",
+        "id": "base:item:soiled-den-map",
         "kind": "item",
         "name": "Soiled Den Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32947,13 +32947,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:spawning-meadows-map",
+        "id": "base:item:spawning-meadows-map",
         "kind": "item",
         "name": "Spawning Meadows Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:spears",
+        "id": "base:item:spears",
         "kind": "item",
         "name": "Spears",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32965,7 +32965,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:spring-s-oath",
+        "id": "base:item:spring-s-oath",
         "kind": "item",
         "name": "Spring's Oath",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32977,7 +32977,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:staves",
+        "id": "base:item:staves",
         "kind": "item",
         "name": "Staves",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -32989,7 +32989,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:stem-ward",
+        "id": "base:item:stem-ward",
         "kind": "item",
         "name": "STEM WARD",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33031,13 +33031,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:swimmer-s-top",
+        "id": "base:item:swimmer-s-top",
         "kind": "item",
         "name": "Swimmer's Top",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:swords",
+        "id": "base:item:swords",
         "kind": "item",
         "name": "Swords",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33049,7 +33049,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:tall-tall-heights-map",
+        "id": "base:item:tall-tall-heights-map",
         "kind": "item",
         "name": "Tall, Tall Heights Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33061,49 +33061,49 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-chalice-of-tar-map",
+        "id": "base:item:the-chalice-of-tar-map",
         "kind": "item",
         "name": "The Chalice of Tar Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-depths-map",
+        "id": "base:item:the-depths-map",
         "kind": "item",
         "name": "The Depths Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-new-world-map",
+        "id": "base:item:the-new-world-map",
         "kind": "item",
         "name": "The New World Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-old-world-map",
+        "id": "base:item:the-old-world-map",
         "kind": "item",
         "name": "The Old World Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-open-sea-map",
+        "id": "base:item:the-open-sea-map",
         "kind": "item",
         "name": "The Open Sea Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-pale-grotto-map",
+        "id": "base:item:the-pale-grotto-map",
         "kind": "item",
         "name": "The Pale Grotto Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-sequoia-map",
+        "id": "base:item:the-sequoia-map",
         "kind": "item",
         "name": "The Sequoia Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:the-undercity-map",
+        "id": "base:item:the-undercity-map",
         "kind": "item",
         "name": "The Undercity Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33145,13 +33145,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:treasure-finder",
+        "id": "base:item:treasure-finder",
         "kind": "item",
         "name": "Treasure Finder",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:trial-caves-map",
+        "id": "base:item:trial-caves-map",
         "kind": "item",
         "name": "Trial Caves Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33163,13 +33163,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:triton-stone",
+        "id": "base:item:triton-stone",
         "kind": "item",
         "name": "Triton Stone",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:trusty-quintar-eye",
+        "id": "base:item:trusty-quintar-eye",
         "kind": "item",
         "name": "Trusty Quintar Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33187,7 +33187,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:underpass-scrap",
+        "id": "base:item:underpass-scrap",
         "kind": "item",
         "name": "Underpass Scrap",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33199,19 +33199,19 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:vermillion-book",
+        "id": "base:item:vermillion-book",
         "kind": "item",
         "name": "Vermillion Book",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:viridian-book",
+        "id": "base:item:viridian-book",
         "kind": "item",
         "name": "Viridian Book",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:wands",
+        "id": "base:item:wands",
         "kind": "item",
         "name": "Wands",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33229,7 +33229,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:wasp-s-singer",
+        "id": "base:item:wasp-s-singer",
         "kind": "item",
         "name": "Wasp's Singer",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33241,7 +33241,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:watering-can",
+        "id": "base:item:watering-can",
         "kind": "item",
         "name": "Watering Can",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33289,13 +33289,13 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:wizard-s-robe",
+        "id": "base:item:wizard-s-robe",
         "kind": "item",
         "name": "Wizard's Robe",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:woke-quintar-eye",
+        "id": "base:item:woke-quintar-eye",
         "kind": "item",
         "name": "Woke Quintar Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33307,7 +33307,7 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:item:yamagawa-m-a-map",
+        "id": "base:item:yamagawa-m-a-map",
         "kind": "item",
         "name": "Yamagawa M.A. Map",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33337,55 +33337,55 @@
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:defender-stance",
+        "id": "base:status:defender-stance",
         "kind": "status",
         "name": "Defender (stance)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:eagle-eye",
+        "id": "base:status:eagle-eye",
         "kind": "status",
         "name": "Eagle Eye",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:pep-talk-buff",
+        "id": "base:status:pep-talk-buff",
         "kind": "status",
         "name": "Pep Talk (buff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:reverse-polarity-buff",
+        "id": "base:status:reverse-polarity-buff",
         "kind": "status",
         "name": "Reverse Polarity (buff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:roost-buff",
+        "id": "base:status:roost-buff",
         "kind": "status",
         "name": "Roost (buff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:stalwart",
+        "id": "base:status:stalwart",
         "kind": "status",
         "name": "Stalwart",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:stone-skin-buff",
+        "id": "base:status:stone-skin-buff",
         "kind": "status",
         "name": "Stone Skin (buff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:veil-buff",
+        "id": "base:status:veil-buff",
         "kind": "status",
         "name": "Veil (buff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
       },
       {
-        "id": "wiki:status:wither-debuff",
+        "id": "base:status:wither-debuff",
         "kind": "status",
         "name": "Wither (debuff)",
         "reason": "No explicit sprite mapping in supported wiki sources"
@@ -33393,7 +33393,7 @@
     ],
     "missingFiles": [
       {
-        "id": "wiki:monster:akamanto",
+        "id": "base:monster:akamanto",
         "title": "File:Akamanto.png",
         "sources": [
           {
@@ -33411,7 +33411,7 @@
         ]
       },
       {
-        "id": "wiki:monster:conscript",
+        "id": "base:monster:conscript",
         "title": "File:Conscript.png",
         "sources": [
           {
@@ -33429,7 +33429,7 @@
         ]
       },
       {
-        "id": "wiki:monster:death-spear",
+        "id": "base:monster:death-spear",
         "title": "File:Death Spear.png",
         "sources": [
           {
@@ -33447,7 +33447,7 @@
         ]
       },
       {
-        "id": "wiki:monster:doom-spike",
+        "id": "base:monster:doom-spike",
         "title": "File:Doom Spike.png",
         "sources": [
           {
@@ -33465,7 +33465,7 @@
         ]
       },
       {
-        "id": "wiki:monster:dread-seeker",
+        "id": "base:monster:dread-seeker",
         "title": "File:Dread Seeker.png",
         "sources": [
           {
@@ -33483,7 +33483,7 @@
         ]
       },
       {
-        "id": "wiki:monster:gabriel",
+        "id": "base:monster:gabriel",
         "title": "File:Gabriel.png",
         "sources": [
           {
@@ -33501,7 +33501,7 @@
         ]
       },
       {
-        "id": "wiki:monster:neo-warden",
+        "id": "base:monster:neo-warden",
         "title": "File:Neo Warden.png",
         "sources": [
           {
@@ -33519,7 +33519,7 @@
         ]
       },
       {
-        "id": "wiki:monster:periculum",
+        "id": "base:monster:periculum",
         "title": "File:Periculum.png",
         "sources": [
           {
@@ -33537,7 +33537,7 @@
         ]
       },
       {
-        "id": "wiki:monster:tentamouth",
+        "id": "base:monster:tentamouth",
         "title": "File:Tentamouth.png",
         "sources": [
           {

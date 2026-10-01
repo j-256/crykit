@@ -1,10 +1,9 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-const referencePath = (entityId: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/${encodeURIComponent(entityId)}`
-
 function costRow(page: Page) {
-  return page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost$/ }) })
+  return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
 }
 
 async function loadedCoins(container: Locator, count: number) {
@@ -47,7 +46,7 @@ test('whole and mixed coin prices use local icons and remain available offline',
 })
 
 test('shop tables and descriptions show coins while editing retains the original source value', async ({ page }) => {
-  await page.goto(referencePath('wiki:location:delende-camp-armor-shop'))
+  await page.goto(referencePath('base:location:delende-camp-armor-shop'))
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Stout Shield', exact: true }) })
   await expect(row.getByRole('img', { name: '30 copper', exact: true })).toBeVisible()
   await loadedCoins(row, 1)
@@ -60,8 +59,8 @@ test('shop tables and descriptions show coins while editing retains the original
 
   await page.goto(referencePath('base:item:cosplay-garb'))
   await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
-  await page.getByRole('button', { name: 'Edit Cost', exact: true }).getByRole('img', { name: '10 silver', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'New Cost', exact: true })).toHaveText('1000 Copper')
+  await page.getByRole('button', { name: 'Edit Cost (copper)', exact: true }).getByRole('img', { name: '10 silver', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'New Cost (copper)', exact: true })).toHaveText('1000')
 })
 
 test('definition picker descriptions use the same coin display', async ({ page }) => {

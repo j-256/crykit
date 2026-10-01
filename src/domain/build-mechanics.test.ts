@@ -24,7 +24,7 @@ const analyze = (content: BuildRevisionContent) => analyzeBuildEquipment(content
 describe('equipment planning from source facts', () => {
   it('resolves native innates through the exact source of a personal class revision', () => {
     const nativeJob: CatalogEntity = { ...job, legacy: { native: { database: 'job', databaseId: 1, mode: 'base' } }, fields: { ...job.fields, [CLASS_FIELDS.passives]: known([1]) } }
-    const innate: CatalogEntity = { ...passive, id: asId('native:base:passive:1'), kind: 'innate', fields: { Description: known('Synthetic native innate'), 'Native source record': known({ ID: 1, IsInnate: true }) } }
+    const innate: CatalogEntity = { ...passive, id: asId('base:passive:1'), kind: 'innate', fields: { Description: known('Synthetic native innate'), 'Native source record': known({ ID: 1, IsInnate: true }) } }
     const data = addTestDefinition(createTestLocalData(), 'synthetic-personal-class', { kind: 'class' })
     const personal = { ...data.personalDefinitions['synthetic-personal-class']!, fields: nativeJob.fields, baseRef: ref('job') }
     const custom = (reference: EntityRef) => reference.kind === 'personal' ? personal : reference.entityId === job.id ? nativeJob : reference.entityId === innate.id ? innate : undefined

@@ -67,7 +67,7 @@ test('supplemental reference audiences stay hidden by default and remain directl
   await expect(technical).toHaveCount(0)
   await expect(page).not.toHaveURL(/audience=technical/)
 
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/guide%3Amechanic%3Astat%3AAbilityItemConsumptionDown?v=1')
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/mechanic/stat/AbilityItemConsumptionDown?v=1')
   await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
   await expect(page).not.toHaveURL(/audience=technical/)
 

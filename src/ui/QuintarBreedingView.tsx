@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react'
-import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
+import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY, QUINTAR_PHASES, QUINTAR_RACING_SOURCE, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements, type QuintarBreedingStep, type QuintarBreedingStepId } from '../catalog/quintar-breeding'
 import { QUINTAR_STEP_REFERENCES } from '../catalog/quintar-references'
 import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/sprites'
@@ -74,7 +74,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
   readonly onToggle: (stepId: QuintarBreedingStepId) => Promise<void>
 }) {
   const playthrough = requirePlaythrough(localData)
-  const referenceCatalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === BUNDLED_CATALOG_REVISION_ID)
+  const referenceCatalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === CERTAINTY_CATALOG_REVISION_ID)
     ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
   const completed = playthrough.quintarBreeding
   const { queuedUpdates, enqueue } = useQueuedTileUpdates<QuintarBreedingStepId, boolean>()

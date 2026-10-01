@@ -38,7 +38,7 @@ function normalizedSlug(value: string): string {
 }
 
 function entityId(family: string, name: string): EntityId {
-  return `equipment-expansion:${FAMILY_KINDS[family]}:${normalizedSlug(name)}` as EntityId
+  return `mod:equipment-expansion:${FAMILY_KINDS[family]}:${normalizedSlug(name)}` as EntityId
 }
 
 function uniqueSources(sources: readonly SourceRef[]): readonly SourceRef[] {
@@ -186,12 +186,12 @@ export const EQUIPMENT_EXPANSION_EQUIPMENT_IDS: readonly string[] = Object.freez
 
 export function addEquipmentExpansionFacts(base: CatalogSnapshot): CatalogSnapshot {
   const entities = { ...base.entities }
-  delete entities['equipment-expansion:item:tarot-accessories']
+  delete entities['mod:equipment-expansion:item:tarot-accessories']
   for (const [family, records] of Object.entries(DATA.families)) for (const [index, record] of records.entries()) {
     const id = entityId(family, recordName(record))
     entities[id] = addRecord(entities[id], family, record, index)
   }
-  const coverage = entities['wiki:other:catalog-coverage-gaps']
+  const coverage = entities['base:other:catalog-coverage-gaps']
   const gaps = coverage?.fields['Known catalog families without full details']
   if (coverage && gaps?.state === 'known' && Array.isArray(gaps.value)) {
     const value = gaps.value.map(gap => gap && typeof gap === 'object' && !Array.isArray(gap) && gap.subject === 'Equipment Expansion' ? { ...gap, missing: 'Verification against the Switch-bundled revision' } : gap)

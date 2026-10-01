@@ -5,6 +5,8 @@ import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './starter'
 import { nativeMenuIcon, NATIVE_MENU_ICON_KEYS } from './native-menu-icons'
 
+type ArtworkIdentity = Pick<CatalogEntity, 'id' | 'kind'>
+
 interface SpriteAsset {
   readonly file: string
   readonly title: string
@@ -120,7 +122,7 @@ export function menuIcon(key: string): MenuIcon | undefined {
   return binding && asset && url ? { asset, binding, url, provenance: 'community-wiki' } : undefined
 }
 
-export function wikiSprite(catalogId: string, entity: Pick<CatalogEntity, 'id' | 'kind'>): WikiSprite | undefined {
+export function wikiSprite(catalogId: string, entity: ArtworkIdentity): WikiSprite | undefined {
   if (catalogId !== STARTER_CATALOG_ID) return undefined
   const binding = wikiManifest.entities[entity.id]
   if (!binding || binding.kind !== entity.kind) return undefined
@@ -129,7 +131,7 @@ export function wikiSprite(catalogId: string, entity: Pick<CatalogEntity, 'id' |
   return asset && url ? { asset, binding, url, provenance: 'community-wiki' } : undefined
 }
 
-export function catalogArtwork(catalogId: string, entity: Pick<CatalogEntity, 'id' | 'kind'>): CatalogArtwork | undefined {
+export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): CatalogArtwork | undefined {
   if (catalogId !== STARTER_CATALOG_ID) return undefined
   const nativeBinding = gameArtwork.entities[entity.id]
   const nativeAsset = nativeBinding && gameArtwork.assets[nativeBinding.asset]

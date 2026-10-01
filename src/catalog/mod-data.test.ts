@@ -1,3 +1,4 @@
+import { catalogEntity } from '../domain/entity-identities'
 import { describe, expect, it } from 'vitest'
 import { statContributions } from '../domain/build-stats'
 import { CLASS_FIELDS, exportedTree } from '../domain/crystal-edit'
@@ -10,16 +11,16 @@ describe('bundled mod definition evidence', () => {
   it('replaces the name-only equipment set with exact versioned definitions and supporting records', () => {
     expect(EQUIPMENT_EXPANSION_EQUIPMENT_IDS).toHaveLength(229)
     expect(EQUIPMENT_EXPANSION_ENTITY_IDS).toHaveLength(396)
-    for (const id of EQUIPMENT_EXPANSION_ENTITY_IDS) expect(DEFAULT_CATALOG.entities[id], id).toBeDefined()
-    const heavyEdge = DEFAULT_CATALOG.entities['equipment-expansion:item:heavy-edge']!
+    for (const id of EQUIPMENT_EXPANSION_ENTITY_IDS) expect(catalogEntity(DEFAULT_CATALOG, id), id).toBeDefined()
+    const heavyEdge = catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:heavy-edge')!
     expect(heavyEdge.fields['Equipment type']).toMatchObject({ state: 'known', value: 'Sword' })
-    expect(heavyEdge.fields['Stat modifiers']).toMatchObject({ state: 'known', value: expect.arrayContaining([expect.objectContaining({ Modifier: 'Flat_PAtk', Tag: 40, 'Value 1': 45 })]) })
+    expect(heavyEdge.fields['Stat modifiers']).toMatchObject({ state: 'known', value: expect.arrayContaining([expect.objectContaining({ Name: 'Flat_PAtk', Tag: 40, Value1: 45 })]) })
     expect(heavyEdge.listedContributions?.Attack).toMatchObject({ state: 'known', value: { value: 45, unit: 'listed flat value' } })
     expect(statContributions(heavyEdge).contributions).toContainEqual(expect.objectContaining({ stat: 'ATK', kind: 'flat', value: 45 }))
     expect(heavyEdge.sources.some(source => source.snapshot?.includes('Version 1.3'))).toBe(true)
-    expect(DEFAULT_CATALOG.entities['equipment-expansion:item:tarot-accessories']).toBeUndefined()
-    expect(DEFAULT_CATALOG.entities['equipment-expansion:item:0-fool']).toBeDefined()
-    expect(DEFAULT_CATALOG.entities['equipment-expansion:ability:reckless-charge']).toBeDefined()
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:tarot-accessories')).toBeUndefined()
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:0-fool')).toBeDefined()
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:ability:reckless-charge')).toBeDefined()
   })
 
   it('keeps dated innate unlock evidence separate while retaining newer Switch PP authority', () => {

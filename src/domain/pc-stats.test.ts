@@ -5,6 +5,8 @@ import { calculateFormula, calculationPackage, evaluateExpression, PC_RULES } fr
 import { calculatePCStats, nativeStatRecord } from './pc-stats'
 import { changeCalculationLevel, changeGrowthLevels, defaultCalculation, followPrimary, growthAllowance } from './calculation-plan'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
+import { previewImport } from '../interchange/import'
+import { addTestDefinition, createTestLocalData, personalRef } from './test-helpers'
 import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef } from './types'
 
 const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
@@ -91,6 +93,22 @@ describe('native sheet calculations', () => {
     const estimate = calculatePCStats(content(), SUGGESTED_BUILD_SLOTS, resolver)
     expect(estimate.issues).toEqual([])
     expect(estimate.neutral.HP).toBe(calculateFormula('memberHP', [60, 10, 600, 0]))
+  })
+  it('resolves imported innates by exact model mapping, including personal class revisions', async () => {
+    const imported = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'stat-fixture', EditorVersion: 34, Jobs: [{ ...nativeStatRecord(warrior, 'job', resolve), ID: 40, Name: 'Imported fighter', PassiveIDs: [8] }], Passives: [{ ID: 8, Name: 'Imported vitality', IsInnate: true, StatMods: [{ Tag: 0, Value1: 100, Value2: 0 }] }] })), 'fixture.json')
+    const catalog = imported.proposed.catalogs[0]!
+    const primary: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'mod:stat-fixture:class:40' as EntityId }
+    const passive = catalog.entities['mod:stat-fixture:passive:8']!
+    const resolver = (value: EntityRef) => value.kind === 'catalog' && value.catalogId === catalog.id ? catalog.entities[value.entityId] : resolve(value)
+    const estimate = calculatePCStats(content(primary), SUGGESTED_BUILD_SLOTS, resolver)
+    const without = calculatePCStats(content(primary), SUGGESTED_BUILD_SLOTS, value => value.kind === 'catalog' && value.entityId === passive.id ? { ...passive, fields: { ...passive.fields, 'Crystal Edit source record': { state: 'known', value: { ID: 8, IsInnate: false } } } } : resolver(value))
+    expect(estimate.issues).toEqual([])
+    expect(estimate.neutral.HP).toBe(without.neutral.HP! + 100)
+    const local = addTestDefinition(createTestLocalData(), 'personal-import', { kind: 'class' })
+    const personal = { ...local.personalDefinitions['personal-import']!, baseRef: primary, fields: catalog.entities[primary.entityId]!.fields }
+    const plan = content(primary)
+    const edited = calculatePCStats({ ...plan, primaryClass: personalRef('personal-import') }, SUGGESTED_BUILD_SLOTS, value => value.kind === 'personal' ? personal : resolver(value))
+    expect(edited).toEqual(estimate)
   })
   it('applies integer flat-before-percent, per-level scaling, caps, and post-percentage Two-Handed bonuses', () => {
     const item = ref('synthetic-native-item'), passive = ref('synthetic-native-passive')

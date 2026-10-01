@@ -2,10 +2,29 @@ import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { requirePlaythrough } from '../domain'
 import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
-import { previewNativeBackup } from './native'
+import { previewNativeBackup, resolveBundledCatalogPins } from './native'
+import { STARTER_CATALOG } from '../catalog/starter'
 import { catalogSnapshotKey } from './identity'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
+
+describe('exact bundled catalog backup pins', () => {
+  const pin = { id: STARTER_CATALOG.id, revisionId: STARTER_CATALOG.revisionId, checksum: STARTER_CATALOG.checksum }
+  it('resolves the complete offline revision and rejects unavailable, mismatched, or duplicate pins', () => {
+    expect(resolveBundledCatalogPins([pin], [STARTER_CATALOG])).toEqual([STARTER_CATALOG])
+    expect(() => resolveBundledCatalogPins([pin], [])).toThrow(/exact bundled catalog revision/)
+    expect(() => resolveBundledCatalogPins([{ ...pin, checksum: 'synthetic-mismatch' }], [STARTER_CATALOG])).toThrow(/different checksum/)
+    expect(() => resolveBundledCatalogPins([pin, pin], [STARTER_CATALOG])).toThrow(/duplicate bundled catalog pin/)
+  })
+  it('requires the explicit new format and validates pins before proposing a restore', async () => {
+    const mutatePayload = (payload: Record<string, unknown>) => { payload.bundledCatalogs = [pin] }
+    await expect(previewNativeBackup(nativeFixture({ mutatePayload }), 'old-format.zip', [STARTER_CATALOG])).rejects.toThrow(/require backup format 2.1.0/)
+    await expect(previewNativeBackup(nativeFixture({ version: '2.1.0', mutatePayload }), 'missing-revision.zip')).rejects.toThrow(/exact bundled catalog revision/)
+    const preview = await previewNativeBackup(nativeFixture({ version: '2.1.0', mutatePayload }), 'new-format.zip', [STARTER_CATALOG])
+    expect(preview.detectedFormat).toBe('native-backup-2.1.0')
+    expect(preview.proposed.catalogs).toEqual([STARTER_CATALOG])
+  })
+})
 
 function selectedPlaythroughRecord(localData: Record<string, unknown>): Record<string, unknown> {
   const selectedPlaythroughId = localData.selectedPlaythroughId

@@ -8,7 +8,7 @@ import type { Knowledge, LocalData } from '../domain/types'
 import { NavigationProvider, useNavigationController } from './navigation'
 import { TravelUnlocksView, travelUnlockEntries, type TravelUnlocksViewProps } from './TravelUnlocksView'
 
-const SUBJECT = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities['wiki:item:treasure-finder']!.id }
+const SUBJECT = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities['base:item:treasure-finder']!.id }
 
 function Harness(props: TravelUnlocksViewProps) {
   const navigation = useNavigationController()
@@ -36,6 +36,17 @@ async function render(localData: LocalData, onSetAcquired: TravelUnlocksViewProp
 }
 
 describe('travel acquisition certainty and identity', () => {
+  it('keeps acquisition records attached to their exact catalog revision', () => {
+    const other = { ...SUBJECT, catalogRevisionId: 'synthetic-other-revision' as typeof SUBJECT.catalogRevisionId }
+    const catalog = { ...DEFAULT_CATALOG, revisionId: other.catalogRevisionId }
+    let localData = setAcquisitionProgress(createTestLocalData(), { subject: other, displayName: 'Treasure Finder', acquired: true })
+    localData = setAcquisitionProgress(localData, { subject: SUBJECT, displayName: 'Treasure Finder', acquired: false })
+    const before = JSON.stringify(localData)
+    const entries = travelUnlockEntries(localData, [...BUNDLED_CATALOGS, catalog]).filter(entry => entry.name === 'Treasure Finder')
+    expect(entries).toEqual([expect.objectContaining({ subject: SUBJECT, state: { state: 'known', value: false } })])
+    expect(JSON.stringify(localData)).toBe(before)
+  })
+
   it.each<Knowledge<boolean>>([
     { state: 'unknown' },
     { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] },
