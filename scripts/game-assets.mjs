@@ -31,7 +31,7 @@ export function reviewedNativeMappings(manifest, existingMappings = {}) {
   const mappings = {}
   const nativeIds = new Set()
   for (const record of manifest.records) {
-    if (typeof record.id !== 'string' || !/^wiki:item:[a-z0-9-]+$/.test(record.id) || record.kind !== 'item' || typeof record.name !== 'string' || !record.name.trim() || !Number.isInteger(record.databaseId) || record.databaseId < 0) throw new Error('Reviewed native identity record is invalid')
+    if (typeof record.id !== 'string' || !/^base:item:[a-z0-9-]+$/.test(record.id) || record.kind !== 'item' || typeof record.name !== 'string' || !record.name.trim() || !Number.isInteger(record.databaseId) || record.databaseId < 0) throw new Error('Reviewed native identity record is invalid')
     if (existingMappings[record.id] || mappings[record.id] || nativeIds.has(record.databaseId)) throw new Error(`Reviewed native identity is duplicated: ${record.id}`)
     nativeIds.add(record.databaseId)
     mappings[record.id] = { kind: record.kind, name: record.name, sourceKey: REVIEWED_NATIVE_IDENTITY_SOURCE, database: manifest.database, databaseId: record.databaseId, databaseSha256: manifest.databaseSha256, locator: `Database/${manifest.database}.dat record ${record.databaseId}` }

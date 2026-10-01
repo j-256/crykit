@@ -100,7 +100,7 @@ test('class choices show medium armor icons and identify Brawler as Moonlight Pr
   await expect(assassin.locator('.build-class-facts')).not.toContainText('Medium')
   await classPicker.fill('Brawler')
   const brawler = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
-  const modBadge = '[data-mod-badge="Moonlight Project Custom Bosses"]'
+  const modBadge = '[data-mod-badge="Moonlight Project"]'
   await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project')
   await expect(brawler).toHaveAttribute('data-mod-state', 'unknown')
   await expect(brawler).toContainText("Mod status unknown in this Build's Game Setup. You can still select it.")

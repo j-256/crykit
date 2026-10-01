@@ -2312,7 +2312,7 @@
     }
   },
   "mechanics": {
-    "guide:mechanic:stat:Flat%20%7BSTAT%7D%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Flat%20%7BSTAT%7D%20%5BX%5D%20%5BY%5D": {
       "description": "Increases X stat by Y\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2320,7 +2320,7 @@
         "guide-entry-0"
       ]
     },
-    "guide:mechanic:stat:Addi%20%7BSTAT%7D%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20%7BSTAT%7D%20%5BX%5D%20%5BY%5D": {
       "description": "Increases X stat by Y%; multiple sources are additive\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2328,7 +2328,7 @@
         "guide-entry-1"
       ]
     },
-    "guide:mechanic:stat:Mult%20BasicAttack%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20BasicAttack%20100%20%5BX%5D": {
       "description": "Multiplies the damage/healing of abilities flagged as Basic by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2336,7 +2336,7 @@
         "guide-entry-2"
       ]
     },
-    "guide:mechanic:stat:Mult%20PHitChance%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PHitChance%20Given%20100%20%5BX%5D": {
       "description": "Multiplies the chance to hit with abilities Physical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2344,7 +2344,7 @@
         "guide-entry-3"
       ]
     },
-    "guide:mechanic:stat:Mult%20PHitChance%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PHitChance%20Taken%20100%20%5BX%5D": {
       "description": "Multiplies the chance to be hit with Physical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2352,7 +2352,7 @@
         "guide-entry-4"
       ]
     },
-    "guide:mechanic:stat:Flat%20TTAtBattleStart%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20TTAtBattleStart%20%5BX%5D": {
       "description": "Adds X amount of TT at combat start",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2360,7 +2360,7 @@
         "guide-entry-5"
       ]
     },
-    "guide:mechanic:stat:Flat%20CritResist%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20CritResist%20%5BX%5D": {
       "description": "Increases Crit. Resist by X%.\n- Note: Crit. Resist explicitly reduces the extra damage granted by Critical Hits by its percentage; it does not affect the non-Critical portion of damage",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2368,7 +2368,7 @@
         "guide-entry-6"
       ]
     },
-    "guide:mechanic:stat:Addi%20PHitChance%20Given%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20PHitChance%20Given%20%5BX%5D": {
       "description": "Additively increases the chance to hit with Physical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2376,7 +2376,7 @@
         "guide-entry-7"
       ]
     },
-    "guide:mechanic:stat:Addi%20PHitChance%20Taken%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20PHitChance%20Taken%20%5BX%5D": {
       "description": "Additively increase the chance to be hit with Physical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2384,7 +2384,7 @@
         "guide-entry-8"
       ]
     },
-    "guide:mechanic:stat:Addi%20MHitChance%20Given%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20MHitChance%20Given%20%5BX%5D": {
       "description": "Additively increases the chance to hit with Magical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2392,7 +2392,7 @@
         "guide-entry-9"
       ]
     },
-    "guide:mechanic:stat:Addi%20MHitChance%20Taken%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20MHitChance%20Taken%20%5BX%5D": {
       "description": "Additively increase the chance to be hit with Magical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2400,7 +2400,7 @@
         "guide-entry-10"
       ]
     },
-    "guide:mechanic:stat:Addi%20PVariance%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20PVariance%20%5BX%5D": {
       "description": "Additively increases the Variance of Physical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2408,7 +2408,7 @@
         "guide-entry-11"
       ]
     },
-    "guide:mechanic:stat:PElement%20%5BX%5D": {
+    "base:mechanic:stat:PElement%20%5BX%5D": {
       "description": "Asserts X element to Physical abilities",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2416,7 +2416,7 @@
         "guide-entry-12"
       ]
     },
-    "guide:mechanic:stat:PStatusApply%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
+    "base:mechanic:stat:PStatusApply%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
       "description": "Physical abilities carry an X% chance to apply Y status for Z turns",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2424,7 +2424,7 @@
         "guide-entry-13"
       ]
     },
-    "guide:mechanic:stat:Mult%20MVariance%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20MVariance%20%5BX%5D": {
       "description": "Multiplies Variance for Magical abilities by X%",
       "status": "partial",
       "reason": "The engine multiplies by (100 + X) / 100; the guide does not state that offset",
@@ -2432,7 +2432,7 @@
         "guide-entry-14"
       ]
     },
-    "guide:mechanic:stat:Addi%20MVariance%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20MVariance%20%5BX%5D": {
       "description": "Additively increases the Variance of Magical abilities by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2440,7 +2440,7 @@
         "guide-entry-15"
       ]
     },
-    "guide:mechanic:stat:Flat%20%7BSTAT%7D%20Per%20Level%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
+    "base:mechanic:stat:Flat%20%7BSTAT%7D%20Per%20Level%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
       "description": "Increases X stat by Y every Z Level(s).\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased\n* Note: The name of this is not a literal - rather than getting a fixed increase of Y every Z Level(s), the total increase is interpolated and evenly distributed across each individual Level. As an example, adding 15 PAtk per 3 Levels would give you 5 PAtk every Level up to 20 times (presuming your max level per-character is 60), for a total of 300.",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2448,7 +2448,7 @@
         "guide-entry-16"
       ]
     },
-    "guide:mechanic:stat:Flat%20%2F%20Addi%20%7BSTAT%7D%20Per%20Turn%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
+    "base:mechanic:stat:Flat%20%2F%20Addi%20%7BSTAT%7D%20Per%20Turn%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
       "description": "Increases X stat by Y / Y% per-turn for Z turns\n- Core stat options are HP, MP, AP, STR, VIT, DEX, AGI, MND, SPI, SPD, LUK\n- Derived stat options are PAtk, PDef, MDef, PPen, MPen, PAccRating, PEvaRating, PCritChance, PCritDamage\n- For resource stats, the maximum is what gets increased",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2456,7 +2456,7 @@
         "guide-entry-17"
       ]
     },
-    "guide:mechanic:stat:Mult%20PDmg%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PDmg%20Given%20100%20%5BX%5D": {
       "description": "Multiply Physical damage dealt by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2464,7 +2464,7 @@
         "guide-entry-18"
       ]
     },
-    "guide:mechanic:stat:Mult%20PDmg%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PDmg%20Taken%20100%20%5BX%5D": {
       "description": "Multiply Physical damage taken by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2472,7 +2472,7 @@
         "guide-entry-19"
       ]
     },
-    "guide:mechanic:stat:Mult%20MDmg%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20MDmg%20Given%20100%20%5BX%5D": {
       "description": "Multiply Magical damage dealt by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2480,7 +2480,7 @@
         "guide-entry-20"
       ]
     },
-    "guide:mechanic:stat:Mult%20MDmg%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20MDmg%20Taken%20100%20%5BX%5D": {
       "description": "Multiply Magical damage taken by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2488,7 +2488,7 @@
         "guide-entry-21"
       ]
     },
-    "guide:mechanic:stat:PHit%20Always": {
+    "base:mechanic:stat:PHit%20Always": {
       "description": "Physical abilities always hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2496,7 +2496,7 @@
         "guide-entry-22"
       ]
     },
-    "guide:mechanic:stat:PHit%20Never": {
+    "base:mechanic:stat:PHit%20Never": {
       "description": "Physical abilities never hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2504,7 +2504,7 @@
         "guide-entry-23"
       ]
     },
-    "guide:mechanic:stat:PEva%20Always": {
+    "base:mechanic:stat:PEva%20Always": {
       "description": "Physical abilities are always evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2512,7 +2512,7 @@
         "guide-entry-24"
       ]
     },
-    "guide:mechanic:stat:PEva%20Never": {
+    "base:mechanic:stat:PEva%20Never": {
       "description": "Physical abilities are never evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2520,7 +2520,7 @@
         "guide-entry-25"
       ]
     },
-    "guide:mechanic:stat:Mute": {
+    "base:mechanic:stat:Mute": {
       "description": "Abilities flagged as Magical cannot be casted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2528,7 +2528,7 @@
         "guide-entry-26"
       ]
     },
-    "guide:mechanic:stat:Mult%20PCritDmg%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PCritDmg%20Given%20100%20%5BX%5D": {
       "description": "Multiply Physical Critical Hit Damage dealt by X%\n- Note: This affects the entire damage total, not just the Critical portion",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2536,7 +2536,7 @@
         "guide-entry-27"
       ]
     },
-    "guide:mechanic:stat:Mult%20PCritDmg%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PCritDmg%20Taken%20100%20%5BX%5D": {
       "description": "Multiply Physical Critical Hit Damage taken by X%\n- Note: This affects the entire damage total, not just the Critical portion",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2544,7 +2544,7 @@
         "guide-entry-28"
       ]
     },
-    "guide:mechanic:stat:Mult%20PCritChance%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PCritChance%20Given%20100%20%5BX%5D": {
       "description": "Multiplies the odds of dealing a Critical Hit by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2552,7 +2552,7 @@
         "guide-entry-29"
       ]
     },
-    "guide:mechanic:stat:Mult%20PCritChance%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PCritChance%20Taken%20100%20%5BX%5D": {
       "description": "Multiplies the odds of receiving a Critical Hit by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2560,7 +2560,7 @@
         "guide-entry-30"
       ]
     },
-    "guide:mechanic:stat:Flat%20PCritDmg%20Given%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20PCritDmg%20Given%20%5BX%5D": {
       "description": "Increases Physical Critical Hit Damage dealt by X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2568,7 +2568,7 @@
         "guide-entry-31"
       ]
     },
-    "guide:mechanic:stat:Flat%20PCritDmg%20Taken%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20PCritDmg%20Taken%20%5BX%5D": {
       "description": "Increases Physical Critical Hit Damage taken by X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2576,7 +2576,7 @@
         "guide-entry-32"
       ]
     },
-    "guide:mechanic:stat:Mult%20Healing%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20Healing%20Given%20100%20%5BX%5D": {
       "description": "Multiply healing given by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2584,7 +2584,7 @@
         "guide-entry-33"
       ]
     },
-    "guide:mechanic:stat:Mult%20Healing%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20Healing%20Taken%20100%20%5BX%5D": {
       "description": "Multiply healing received by X%\n- Note: Does not affect sources of \"lifesteal\" (negative DmgReturn modifiers)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2592,7 +2592,7 @@
         "guide-entry-34"
       ]
     },
-    "guide:mechanic:stat:Mult%20MPCosts%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20MPCosts%20%5BX%5D": {
       "description": "Multiply the MP cost of abilities by X%",
       "status": "partial",
       "reason": "The engine multiplies MP costs by (100 + X) / 100",
@@ -2600,7 +2600,7 @@
         "guide-entry-35"
       ]
     },
-    "guide:mechanic:stat:MEva%20Always": {
+    "base:mechanic:stat:MEva%20Always": {
       "description": "Magical abilities are always evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2608,7 +2608,7 @@
         "guide-entry-36"
       ]
     },
-    "guide:mechanic:stat:MEva%20Never": {
+    "base:mechanic:stat:MEva%20Never": {
       "description": "Magical abilities are never evaded\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2616,7 +2616,7 @@
         "guide-entry-37"
       ]
     },
-    "guide:mechanic:stat:Mult%20RepeatActionDmg%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Mult%20RepeatActionDmg%20%5BX%5D%20%5BY%5D": {
       "description": "Multiplies damage dealt when an ability is repeatedly used by X% for each subsequent cast after the first, up to Y times; stacks additively",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2624,7 +2624,7 @@
         "guide-entry-38"
       ]
     },
-    "guide:mechanic:stat:Flat%20MPCosts%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20MPCosts%20%5BX%5D": {
       "description": "Increases MP cost of abilities by X\n- Note: This can give MP costs to abilities that did not originally have one",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2632,7 +2632,7 @@
         "guide-entry-39"
       ]
     },
-    "guide:mechanic:stat:NoPhysical": {
+    "base:mechanic:stat:NoPhysical": {
       "description": "Abilities flagged as Physical cannot be casted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2640,7 +2640,7 @@
         "guide-entry-40"
       ]
     },
-    "guide:mechanic:stat:CantAttack": {
+    "base:mechanic:stat:CantAttack": {
       "description": "Damaging abilities flagged as Physical cannot be casted\n- Note: Abilities flagged as Physical that deal no damage are not restricted by this effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2648,7 +2648,7 @@
         "guide-entry-41"
       ]
     },
-    "guide:mechanic:stat:MHit%20Always": {
+    "base:mechanic:stat:MHit%20Always": {
       "description": "Magical abilities always hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2656,7 +2656,7 @@
         "guide-entry-42"
       ]
     },
-    "guide:mechanic:stat:MHit%20Never": {
+    "base:mechanic:stat:MHit%20Never": {
       "description": "Magical abilities never hit\n- Note: \"Most restrictive\" wins as a generality; 'Never' beats 'Always'\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2664,7 +2664,7 @@
         "guide-entry-43"
       ]
     },
-    "guide:mechanic:stat:Mult%20PercentDmg%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PercentDmg%20Taken%20100%20%5BX%5D": {
       "description": "Multiplies 'percentual' damage taken (such as fractional-damage abilities or effects like Poison) by X%\n- Note: Most bosses use this to mitigate being cheapened by DOTs\n- Note: This has a knock-on effect of reducing HP costs for abilities that have them",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2672,7 +2672,7 @@
         "guide-entry-44"
       ]
     },
-    "guide:mechanic:stat:MagicOnly": {
+    "base:mechanic:stat:MagicOnly": {
       "description": "Only abilities flagged as Magical can be casted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2680,7 +2680,7 @@
         "guide-entry-45"
       ]
     },
-    "guide:mechanic:stat:Mult%20PNonCritDmg%20Given%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PNonCritDmg%20Given%20100%20%5BX%5D": {
       "description": "Multiply Physical non-Critical damage dealt by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2688,7 +2688,7 @@
         "guide-entry-46"
       ]
     },
-    "guide:mechanic:stat:Mult%20PNonCritDmg%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PNonCritDmg%20Taken%20100%20%5BX%5D": {
       "description": "Multiply Physical non-Critical damage taken by X%",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2696,7 +2696,7 @@
         "guide-entry-47"
       ]
     },
-    "guide:mechanic:stat:Mult%20APCosts%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20APCosts%20%5BX%5D": {
       "description": "Multiply the AP cost of skills by X%",
       "status": "partial",
       "reason": "The engine multiplies AP costs by (100 + X) / 100",
@@ -2704,7 +2704,7 @@
         "guide-entry-48"
       ]
     },
-    "guide:mechanic:stat:Flat%20APCosts%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20APCosts%20%5BX%5D": {
       "description": "Increase AP cost of abilities by X\n- Note: This can give AP costs to abilities that did not originally have one",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2712,7 +2712,7 @@
         "guide-entry-49"
       ]
     },
-    "guide:mechanic:stat:Flat%20DamagePerTurnHP%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20DamagePerTurnHP%20%5BX%5D": {
       "description": "Take X damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2720,7 +2720,7 @@
         "guide-entry-50"
       ]
     },
-    "guide:mechanic:stat:Addi%20DamagePerTurnHP%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20DamagePerTurnHP%20%5BX%5D": {
       "description": "Take X% damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2728,7 +2728,7 @@
         "guide-entry-51"
       ]
     },
-    "guide:mechanic:stat:Flat%20DamagePerTurnMP%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20DamagePerTurnMP%20%5BX%5D": {
       "description": "Take X MP damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2736,7 +2736,7 @@
         "guide-entry-52"
       ]
     },
-    "guide:mechanic:stat:Addi%20DamagePerTurnMP%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20DamagePerTurnMP%20%5BX%5D": {
       "description": "Take X% MP damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2744,7 +2744,7 @@
         "guide-entry-53"
       ]
     },
-    "guide:mechanic:stat:Flat%20DamagePerTurnAP%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20DamagePerTurnAP%20%5BX%5D": {
       "description": "Take X AP damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2752,7 +2752,7 @@
         "guide-entry-54"
       ]
     },
-    "guide:mechanic:stat:Addi%20DamagePerTurnAP%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20DamagePerTurnAP%20%5BX%5D": {
       "description": "Take X% AP damage at the start of the turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2760,7 +2760,7 @@
         "guide-entry-55"
       ]
     },
-    "guide:mechanic:stat:Mult%20DamagePerTurn%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20DamagePerTurn%20Taken%20100%20%5BX%5D": {
       "description": "Multiply damage dealt by DOTs by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2768,7 +2768,7 @@
         "guide-entry-56"
       ]
     },
-    "guide:mechanic:stat:Mult%20HealingPerTurn%20Taken%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20HealingPerTurn%20Taken%20100%20%5BX%5D": {
       "description": "Multiply healing given by HOTs by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2776,7 +2776,7 @@
         "guide-entry-57"
       ]
     },
-    "guide:mechanic:stat:APBonus%20OnBattleStart%20%5BX%5D": {
+    "base:mechanic:stat:APBonus%20OnBattleStart%20%5BX%5D": {
       "description": "Start combat with X AP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2784,7 +2784,7 @@
         "guide-entry-58"
       ]
     },
-    "guide:mechanic:stat:APBonus%20OnTurn%20%5BX%5D": {
+    "base:mechanic:stat:APBonus%20OnTurn%20%5BX%5D": {
       "description": "Get an additional X AP on the start of the turn (base 6 per turn + X)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2792,7 +2792,7 @@
         "guide-entry-59"
       ]
     },
-    "guide:mechanic:stat:APBonus%20OnAttack%20%5BX%5D": {
+    "base:mechanic:stat:APBonus%20OnAttack%20%5BX%5D": {
       "description": "Get X AP when casting a Physical ability\n- Note: The ability does not need to be flagged as Basic",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2800,7 +2800,7 @@
         "guide-entry-60"
       ]
     },
-    "guide:mechanic:stat:APBonus%20OnDamaged%20%5BX%5D": {
+    "base:mechanic:stat:APBonus%20OnDamaged%20%5BX%5D": {
       "description": "Get X AP when taking damage",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2808,7 +2808,7 @@
         "guide-entry-61"
       ]
     },
-    "guide:mechanic:stat:APBonus%20OnMagic%20%5BX%5D": {
+    "base:mechanic:stat:APBonus%20OnMagic%20%5BX%5D": {
       "description": "Get X AP when casting a Magical ability",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2816,7 +2816,7 @@
         "guide-entry-62"
       ]
     },
-    "guide:mechanic:stat:Mult%20ThreatGain%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20ThreatGain%20%5BX%5D": {
       "description": "Multiply Threat gained by X%",
       "status": "partial",
       "reason": "The engine multiplies threat gain by (100 + X) / 100",
@@ -2824,7 +2824,7 @@
         "guide-entry-63"
       ]
     },
-    "guide:mechanic:stat:Mult%20ThreatDecay%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20ThreatDecay%20%5BX%5D": {
       "description": "Multiply Threat lost per-turn by X%",
       "status": "partial",
       "reason": "The engine multiplies threat decay by (100 + X) / 100",
@@ -2832,7 +2832,7 @@
         "guide-entry-64"
       ]
     },
-    "guide:mechanic:stat:Mult%20CT%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20CT%20100%20%5BX%5D": {
       "description": "Multiply ability CT by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2840,7 +2840,7 @@
         "guide-entry-65"
       ]
     },
-    "guide:mechanic:stat:Mult%20TT%20NextTurn%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20TT%20NextTurn%20100%20%5BX%5D": {
       "description": "Multiply TT by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2848,7 +2848,7 @@
         "guide-entry-66"
       ]
     },
-    "guide:mechanic:stat:Addi%20PDmgReturn%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20PDmgReturn%20%5BX%5D%20%5BY%5D": {
       "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'lifesteal'",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2856,7 +2856,7 @@
         "guide-entry-67"
       ]
     },
-    "guide:mechanic:stat:Addi%20PDmgReturn%20OnKill%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20PDmgReturn%20OnKill%20%5BX%5D%20%5BY%5D": {
       "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP) when dealing a lethal blow\n- Note: Negative values allow for 'lifesteal'",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2864,7 +2864,7 @@
         "guide-entry-68"
       ]
     },
-    "guide:mechanic:stat:Addi%20MDmgReturn%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20MDmgReturn%20%5BX%5D%20%5BY%5D": {
       "description": "Y% of Magical damage dealt is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'lifesteal'",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2872,7 +2872,7 @@
         "guide-entry-69"
       ]
     },
-    "guide:mechanic:stat:Addi%20MDmgReturn%20OnKill%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20MDmgReturn%20OnKill%20%5BX%5D%20%5BY%5D": {
       "description": "Y% of Physical damage dealt is returned as recoil to X resource stat (HP, MP, AP) when dealing a lethal blow\n- Note: Negative values allow for 'lifesteal'",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2880,7 +2880,7 @@
         "guide-entry-70"
       ]
     },
-    "guide:mechanic:stat:Flat%20PDmgReturn%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Flat%20PDmgReturn%20%5BX%5D%20%5BY%5D": {
       "description": "Y recoil is returned to X resource stat (HP, MP, AP) when dealing Physical damage\n- Note: Negative values allow for 'lifesteal'",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2888,7 +2888,7 @@
         "guide-entry-71"
       ]
     },
-    "guide:mechanic:stat:Addi%20HealingReturn%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Addi%20HealingReturn%20%5BX%5D%20%5BY%5D": {
       "description": "Y% of healing given is returned as recoil to X resource stat (HP, MP, AP)\n- Note: Negative values allow for 'heal steal'..?",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2896,7 +2896,7 @@
         "guide-entry-72"
       ]
     },
-    "guide:mechanic:stat:Mult%20HP%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20HP%20%5BX%5D": {
       "description": "Multiply HP (max) by X%",
       "status": "partial",
       "reason": "The engine accumulates BonusHPMult; complete multiplier and stacking semantics are not established by the guide phrase",
@@ -2904,7 +2904,7 @@
         "guide-entry-73"
       ]
     },
-    "guide:mechanic:stat:MaxDamageTaken%20%5BX%5D": {
+    "base:mechanic:stat:MaxDamageTaken%20%5BX%5D": {
       "description": "All damage received cannot exceed X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2912,7 +2912,7 @@
         "guide-entry-74"
       ]
     },
-    "guide:mechanic:stat:MaxDamageGiven%20%5BX%5D": {
+    "base:mechanic:stat:MaxDamageGiven%20%5BX%5D": {
       "description": "All damage given cannot exceed X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2920,7 +2920,7 @@
         "guide-entry-75"
       ]
     },
-    "guide:mechanic:stat:ExpBoost%20%5BX%5D": {
+    "base:mechanic:stat:ExpBoost%20%5BX%5D": {
       "description": "Boost EXP gain by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2928,7 +2928,7 @@
         "guide-entry-76"
       ]
     },
-    "guide:mechanic:stat:JPBoostAll%20%5BX%5D": {
+    "base:mechanic:stat:JPBoostAll%20%5BX%5D": {
       "description": "Boost JP gain by X% for all Jobs",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2936,7 +2936,7 @@
         "guide-entry-77"
       ]
     },
-    "guide:mechanic:stat:Mult%20ElementDmg%20Taken%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Mult%20ElementDmg%20Taken%20%5BX%5D%20%5BY%5D": {
       "description": "Multiply damage taken from X element by Y%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2944,7 +2944,7 @@
         "guide-entry-78"
       ]
     },
-    "guide:mechanic:stat:StatusImmunity%20%5BX%5D": {
+    "base:mechanic:stat:StatusImmunity%20%5BX%5D": {
       "description": "Cannot receive X status effect\n- Note: Does not retroactively remove X status effect; only prevents new instances",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2952,7 +2952,7 @@
         "guide-entry-79"
       ]
     },
-    "guide:mechanic:stat:StatusAuto%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
+    "base:mechanic:stat:StatusAuto%20%5BX%5D%20%5BY%5D%20%5BZ%5D": {
       "description": "The character starts combat with a X status effect Y% of the time for Z turns",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2960,7 +2960,7 @@
         "guide-entry-80"
       ]
     },
-    "guide:mechanic:stat:Reaction%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Reaction%20%5BX%5D%20%5BY%5D": {
       "description": "When specific trigger X has been met, perform Y ability immediately after the resolution of the triggering ability\n- Note: The trigger types are as follows:\n* On PDamage Taken - Triggers when taking Physical damage\n* On MDamage Taken - Triggers when taking Magical damage\n* On Near Death - Triggers when dropping to/below 25% of max HP\n* On PHit Dodged - Triggers when evading a Physical ability\n* On PCrit Taken - Triggers when taking a Critical Hit from a Physical ability\n* On Each Turn - Triggers at the combatant's start-of-turn\n* On Killed - Triggers when the combatant is reduced to 0 HP\n* On Damage Taken - Triggers when taking any ability damage\n* On Skip Turn - Triggers when choosing the Skip Turn command\n* On Healing Taken - Triggers when receiving healing from an ability\n* On PAbility Used - Triggers after the resolution of any Physical ability used by the combatant\n* On MAbility Used - Triggers after the resolution of any Magical ability used by the combatant\n* On Healing Used - Triggers after the resolution of any ability that resulted in healing used by the combatant\n* On PCritGiven - Triggers when dealing a Critical hit with a Physical ability\n* On Basic Ability Used - Triggers after the resolution of any ability flagged as Basic used by the combatant\n- Note: Reactions that happen simultaneously form a queue per-combatant per-trigger; the order in which queues execute is the same as the order of the triggers they follow (generally, this order is informed by turn \\> hit effect \\> ability resolution).\nOn Killed is special in this regard in that it skips the line - it gets shoved to the front of the queues for processing before other queues are evaluated. The intended use case is for combatants revived with Re-Raise to use reactions that would require them to be alive.\nFor simultaneous Reactions with the same trigger (in one queue), the order is first determined by the ID of the model in which those Reactions originate, then the order in which they appear in that model.\nWhen multiple queues from different combatants are asserted in response to any particular action, the priority layer looks like this:\n* The player party always gets first priority for queue processing, even if the triggering ability originated from a player. This means that for each trigger, all player combatants process their queues first - then enemies process theirs.\n* Within each party, the index order of its combatants determine who processes their reactions first; for the player party, member 1 goes first, then member 2, etc. For the enemy party, enemy 1 goes first, then enemy 2, etc.\n- Note: The following Reactions (the abilities they respond with) do not trigger other Reactions:\n* OnPDamageTaken\n* OnMDamageTaken\n* OnPHitDodged\n* OnPCritTaken\n* OnDamageTaken\n* OnAbilityUsed\n* OnHealingTaken\n* OnPAbilityUsed\n* OnMAbilityUsed\n* OnHealingUsed",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2968,7 +2968,7 @@
         "guide-entry-81"
       ]
     },
-    "guide:mechanic:stat:JPBoost%20%5BX%5D%20%5BY%5D%20": {
+    "base:mechanic:stat:JPBoost%20%5BX%5D%20%5BY%5D%20": {
       "description": "Boost JP gain for X Job by Y%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2976,7 +2976,7 @@
         "guide-entry-82"
       ]
     },
-    "guide:mechanic:stat:Mult%20ElementDmg%20Given%20%5BX%5D%20%5BY%5D%20": {
+    "base:mechanic:stat:Mult%20ElementDmg%20Given%20%5BX%5D%20%5BY%5D%20": {
       "description": "Multiply damage dealt with X element by Y%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -2984,7 +2984,7 @@
         "guide-entry-83"
       ]
     },
-    "guide:mechanic:stat:EnableEquipType%20%5BX%5D": {
+    "base:mechanic:stat:EnableEquipType%20%5BX%5D": {
       "description": "Enables X equipment type to be slotted",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -2992,7 +2992,7 @@
         "guide-entry-84"
       ]
     },
-    "guide:mechanic:stat:Addi%20BuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20BuffDuration%20%5BX%5D": {
       "description": "Received buffs last X% longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3000,7 +3000,7 @@
         "guide-entry-85"
       ]
     },
-    "guide:mechanic:stat:Addi%20DebuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20DebuffDuration%20%5BX%5D": {
       "description": "Received debuffs last X% longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3008,7 +3008,7 @@
         "guide-entry-86"
       ]
     },
-    "guide:mechanic:stat:Addi%20ApplyBuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20ApplyBuffDuration%20%5BX%5D": {
       "description": "Applied buffs last X% longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3016,7 +3016,7 @@
         "guide-entry-87"
       ]
     },
-    "guide:mechanic:stat:Addi%20ApplyDebuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Addi%20ApplyDebuffDuration%20%5BX%5D": {
       "description": "Applied debuffs last X% longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3024,7 +3024,7 @@
         "guide-entry-88"
       ]
     },
-    "guide:mechanic:stat:Flat%20BuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20BuffDuration%20%5BX%5D": {
       "description": "Received buffs last X turns longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3032,7 +3032,7 @@
         "guide-entry-89"
       ]
     },
-    "guide:mechanic:stat:Flat%20DebuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20DebuffDuration%20%5BX%5D": {
       "description": "Received debuffs last X turns longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3040,7 +3040,7 @@
         "guide-entry-90"
       ]
     },
-    "guide:mechanic:stat:Flat%20ApplyBuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20ApplyBuffDuration%20%5BX%5D": {
       "description": "Applied buffs last X turns longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3048,7 +3048,7 @@
         "guide-entry-91"
       ]
     },
-    "guide:mechanic:stat:Flat%20ApplyDebuffDuration%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20ApplyDebuffDuration%20%5BX%5D": {
       "description": "Applied debuffs last X turns longer",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3056,7 +3056,7 @@
         "guide-entry-92"
       ]
     },
-    "guide:mechanic:stat:AppliedBuffsArePerma": {
+    "base:mechanic:stat:AppliedBuffsArePerma": {
       "description": "Applied buffs are permanent",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3064,7 +3064,7 @@
         "guide-entry-93"
       ]
     },
-    "guide:mechanic:stat:AppliedDebuffsArePerma": {
+    "base:mechanic:stat:AppliedDebuffsArePerma": {
       "description": "Applied debuffs are permanent",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3072,7 +3072,7 @@
         "guide-entry-94"
       ]
     },
-    "guide:mechanic:stat:MaxBuffCount%20%5BX%5D": {
+    "base:mechanic:stat:MaxBuffCount%20%5BX%5D": {
       "description": "Cannot have more than X statuses of the Buff category\n- Note: Does not retroactively remove status effects; only prevents new instances",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3080,7 +3080,7 @@
         "guide-entry-95"
       ]
     },
-    "guide:mechanic:stat:MaxDebuffCount%20%5BX%5D": {
+    "base:mechanic:stat:MaxDebuffCount%20%5BX%5D": {
       "description": "Cannot have more than X statuses of the Debuff category\n- Note: Does not retroactively remove status effects; only prevents new instances",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3088,7 +3088,7 @@
         "guide-entry-96"
       ]
     },
-    "guide:mechanic:stat:ImmuneToStatusCategory%20%5BX%5D": {
+    "base:mechanic:stat:ImmuneToStatusCategory%20%5BX%5D": {
       "description": "The character cannot gain statuses of the X category\n- Note: Does not retroactively remove status effects; only prevents new instances",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3096,7 +3096,7 @@
         "guide-entry-97"
       ]
     },
-    "guide:mechanic:stat:NoInput": {
+    "base:mechanic:stat:NoInput": {
       "description": "The character cannot input a command, but can still perform Reactions",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3104,7 +3104,7 @@
         "guide-entry-98"
       ]
     },
-    "guide:mechanic:stat:OnStanceChange%20GetMPRate%20%5BX%5D": {
+    "base:mechanic:stat:OnStanceChange%20GetMPRate%20%5BX%5D": {
       "description": "Upon entering a Stance, recover X% max MP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3112,7 +3112,7 @@
         "guide-entry-99"
       ]
     },
-    "guide:mechanic:stat:DamageOnApply%20%5BX%5D": {
+    "base:mechanic:stat:DamageOnApply%20%5BX%5D": {
       "description": "X damage (HP, MP, or AP) damage is dealt upon status application",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3120,7 +3120,7 @@
         "guide-entry-100"
       ]
     },
-    "guide:mechanic:stat:DamageRateOnApply%20%5BX%5D": {
+    "base:mechanic:stat:DamageRateOnApply%20%5BX%5D": {
       "description": "X% damage (HP, MP, or AP) damage is dealt upon status application\n- Note: This is the only percentual damage source that ignores MultPercentDamageTaken",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3128,7 +3128,7 @@
         "guide-entry-101"
       ]
     },
-    "guide:mechanic:stat:Flat%20AbilityAPCost%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Flat%20AbilityAPCost%20%5BX%5D%20%5BY%5D": {
       "description": "Increases the AP cost of ability Y by X\n- Note: This can give AP costs to abilities that did not originally have one",
       "status": "partial",
       "reason": "Parameter order disagrees: Value1 identifies the ability and Value2 supplies the AP adjustment",
@@ -3136,7 +3136,7 @@
         "guide-entry-102"
       ]
     },
-    "guide:mechanic:stat:InstantTurnOnApplication": {
+    "base:mechanic:stat:InstantTurnOnApplication": {
       "description": "The combatant immediately gets a turn after the resolution of the ability that applied this effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3144,7 +3144,7 @@
         "guide-entry-103"
       ]
     },
-    "guide:mechanic:stat:RemoveStatusOnApply%20%5BX%5D": {
+    "base:mechanic:stat:RemoveStatusOnApply%20%5BX%5D": {
       "description": "Removes X status effect on application",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -3152,7 +3152,7 @@
         "guide-entry-104"
       ]
     },
-    "guide:mechanic:stat:MDmgCannotKill": {
+    "base:mechanic:stat:MDmgCannotKill": {
       "description": "Magical damage dealt by the user leaves targets at 1 HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3160,7 +3160,7 @@
         "guide-entry-105"
       ]
     },
-    "guide:mechanic:stat:SetStatusAfterRemoval%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:SetStatusAfterRemoval%20%5BX%5D%20%5BY%5D": {
       "description": "When the status effect that applied this is prematurely removed, the combatant gains X status effect for Y turns",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3168,7 +3168,7 @@
         "guide-entry-106"
       ]
     },
-    "guide:mechanic:stat:LootConsumableChanceUp%20%5BX%5D": {
+    "base:mechanic:stat:LootConsumableChanceUp%20%5BX%5D": {
       "description": "The chance for consumables to drop on battle victory is increased by X%\n- Note: Only affects enemies that have at least one consumable in their drop table with a non-zero drop rate",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3176,7 +3176,7 @@
         "guide-entry-107"
       ]
     },
-    "guide:mechanic:stat:AbilityItemConsumptionDown": {
+    "base:mechanic:stat:AbilityItemConsumptionDown": {
       "description": "Abilities that consume items in order to be casted consume half the normal amount, rounded up",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3184,7 +3184,7 @@
         "guide-entry-108"
       ]
     },
-    "guide:mechanic:stat:StrBonusWhileUnarmed": {
+    "base:mechanic:stat:StrBonusWhileUnarmed": {
       "description": "Receive flat PAtk while unarmed\n- Note: Amount received = the Str While Unarmed Bonus Flat setting in your Project Model (default: 30)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3192,7 +3192,7 @@
         "guide-entry-109"
       ]
     },
-    "guide:mechanic:stat:DisableLifestealAndRegen": {
+    "base:mechanic:stat:DisableLifestealAndRegen": {
       "description": "Healing granted by negative PDmgReturn / MDmgReturn and/or negative DamagePerTurnHP modifiers is negated",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3200,7 +3200,7 @@
         "guide-entry-110"
       ]
     },
-    "guide:mechanic:stat:Mult%20AbilityDmg%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Mult%20AbilityDmg%20%5BX%5D%20%5BY%5D": {
       "description": "Multiply the damage dealt by X ability by Y%\n- Note: Does not affect abilities that heal",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3208,7 +3208,7 @@
         "guide-entry-111"
       ]
     },
-    "guide:mechanic:stat:RevealStatsAuto": {
+    "base:mechanic:stat:RevealStatsAuto": {
       "description": "Enemy metrics are automatically revealed rather than requiring defeating that enemy prior",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3216,7 +3216,7 @@
         "guide-entry-112"
       ]
     },
-    "guide:mechanic:stat:MinAggro": {
+    "base:mechanic:stat:MinAggro": {
       "description": "When applied by a player character to an enemy via status effect, forces the applier to become the target's bottom Threat while the status remains",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3224,7 +3224,7 @@
         "guide-entry-113"
       ]
     },
-    "guide:mechanic:stat:Frostbite": {
+    "base:mechanic:stat:Frostbite": {
       "description": "The next instance of Ice elemental damage against the combatant inflicts Instant Kill",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3232,7 +3232,7 @@
         "guide-entry-114"
       ]
     },
-    "guide:mechanic:stat:InstantBuff": {
+    "base:mechanic:stat:InstantBuff": {
       "description": "Abilities that grant at least one buff and deal no damage do not consume the turn when casted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3240,7 +3240,7 @@
         "guide-entry-115"
       ]
     },
-    "guide:mechanic:stat:InstantDebuff": {
+    "base:mechanic:stat:InstantDebuff": {
       "description": "Abilities that inflict at least one debuff and deal no damage do not consume the turn when casted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3248,7 +3248,7 @@
         "guide-entry-116"
       ]
     },
-    "guide:mechanic:stat:Flat%20Cooldowns%20%5BX%5D": {
+    "base:mechanic:stat:Flat%20Cooldowns%20%5BX%5D": {
       "description": "Increase all ability Cooldowns by X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3256,7 +3256,7 @@
         "guide-entry-117"
       ]
     },
-    "guide:mechanic:stat:Flat%20AbilityMPCost%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:Flat%20AbilityMPCost%20%5BX%5D%20%5BY%5D": {
       "description": "Increases X ability's MP cost by Y\n- Note: This can give MP costs to abilities that did not originally have one",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3264,7 +3264,7 @@
         "guide-entry-118"
       ]
     },
-    "guide:mechanic:stat:SetAppearanceToJob": {
+    "base:mechanic:stat:SetAppearanceToJob": {
       "description": "Set the appearance of a character to a specific Job",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3272,7 +3272,7 @@
         "guide-entry-119"
       ]
     },
-    "guide:mechanic:stat:OnStanceChange%20GetHPRate%20%5BX%5D": {
+    "base:mechanic:stat:OnStanceChange%20GetHPRate%20%5BX%5D": {
       "description": "Upon entering a stance, recover X% max HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3280,7 +3280,7 @@
         "guide-entry-120"
       ]
     },
-    "guide:mechanic:stat:OnStanceChange%20GetAPFlat%20%5BX%5D": {
+    "base:mechanic:stat:OnStanceChange%20GetAPFlat%20%5BX%5D": {
       "description": "Upon entering a stance, gain X AP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3288,7 +3288,7 @@
         "guide-entry-121"
       ]
     },
-    "guide:mechanic:stat:ReplaceAttackWith%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:ReplaceAttackWith%20%5BX%5D%20%5BY%5D": {
       "description": "Replace the default Attack command with ability X at priority Y\n- Note: Multiple instances of this effect decide by priority which replacement is adhered to; ties go to latest application",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3296,7 +3296,7 @@
         "guide-entry-122"
       ]
     },
-    "guide:mechanic:stat:CooldownsTo1": {
+    "base:mechanic:stat:CooldownsTo1": {
       "description": "All ability Cooldowns are set to 1",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3304,7 +3304,7 @@
         "guide-entry-123"
       ]
     },
-    "guide:mechanic:stat:PDmgDoesntWakeTarget": {
+    "base:mechanic:stat:PDmgDoesntWakeTarget": {
       "description": "Physical damage the combatant deals does not remove status effects with 'Cleared By Any Dmg' toggled",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3312,7 +3312,7 @@
         "guide-entry-124"
       ]
     },
-    "guide:mechanic:stat:HealSingleToMulti": {
+    "base:mechanic:stat:HealSingleToMulti": {
       "description": "Single-target healing abilities instead heal multiple targets, but their total healing given is reduced by X%, where X is the Heal Multi With Penalty Rate setting in your Project Model (default: 35%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3320,7 +3320,7 @@
         "guide-entry-125"
       ]
     },
-    "guide:mechanic:stat:MaxAggro": {
+    "base:mechanic:stat:MaxAggro": {
       "description": "When applied by a player character to an enemy via status effect, forces the applier to become the target's top Threat while the status remains",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3328,7 +3328,7 @@
         "guide-entry-126"
       ]
     },
-    "guide:mechanic:stat:Possessed": {
+    "base:mechanic:stat:Possessed": {
       "description": "When applied via a status effect, it prevents the status from being removed until the applicant is KO'd and causes the status to remain until such occurs; additionally, it prevents the applicant from applying the status a separate time to any target",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3336,7 +3336,7 @@
         "guide-entry-127"
       ]
     },
-    "guide:mechanic:stat:EscapeCostDown": {
+    "base:mechanic:stat:EscapeCostDown": {
       "description": "The ability \"Run Away\" costs nothing to use\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 45, which is Rogue's 'Run Away' in Vanilla",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3344,7 +3344,7 @@
         "guide-entry-128"
       ]
     },
-    "guide:mechanic:stat:LuckyDiceRandomMultitarget": {
+    "base:mechanic:stat:LuckyDiceRandomMultitarget": {
       "description": "The ability \"Lucky Dice\" randomly targets enemies, and can sometimes hit multiple enemies\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 70, which is Scholar's 'Lucky Dice' in Vanilla",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3352,7 +3352,7 @@
         "guide-entry-129"
       ]
     },
-    "guide:mechanic:stat:APGainsRecoverMP": {
+    "base:mechanic:stat:APGainsRecoverMP": {
       "description": "Gaining AP recovers the same amount of MP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3360,7 +3360,7 @@
         "guide-entry-130"
       ]
     },
-    "guide:mechanic:stat:PerfectRunAway": {
+    "base:mechanic:stat:PerfectRunAway": {
       "description": "Attempting to escape a battle is always successful",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3368,7 +3368,7 @@
         "guide-entry-131"
       ]
     },
-    "guide:mechanic:stat:GoldGainUp%20%5BX%5D": {
+    "base:mechanic:stat:GoldGainUp%20%5BX%5D": {
       "description": "Increase gold gain by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3376,7 +3376,7 @@
         "guide-entry-132"
       ]
     },
-    "guide:mechanic:stat:PerfectHit": {
+    "base:mechanic:stat:PerfectHit": {
       "description": "Damaging abilities with at least X% Accuracy are guaranteed to hit, where X = the Perfect Hit At Chance Or Higher setting in your Project Model",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3384,7 +3384,7 @@
         "guide-entry-133"
       ]
     },
-    "guide:mechanic:stat:GetNextTurnWhenCritical": {
+    "base:mechanic:stat:GetNextTurnWhenCritical": {
       "description": "The combatant immediately receives a turn when reduced to 25% or less of max HP, after the responsible ability resolves",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3392,7 +3392,7 @@
         "guide-entry-134"
       ]
     },
-    "guide:mechanic:stat:Cover": {
+    "base:mechanic:stat:Cover": {
       "description": "When applied via a status effect, direct single-target damage the combatant would receive is instead taken by the applier, provided the applier is not currently KO'd",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3400,7 +3400,7 @@
         "guide-entry-135"
       ]
     },
-    "guide:mechanic:stat:PdmgIncreasesMaxHP": {
+    "base:mechanic:stat:PdmgIncreasesMaxHP": {
       "description": "Physical damage increases max hp by X% of damage dealt, which decays Y% every turn for 3 turns; X = the PDmg Increases Max HP Absorb Rate setting in your Project Model, Y = PDmg Increases Max HP Decay Rate setting in your Project Model (default: 40% / 50%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3408,7 +3408,7 @@
         "guide-entry-136"
       ]
     },
-    "guide:mechanic:stat:Mult%20PPmgWithBottomThreat%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PPmgWithBottomThreat%20%5BX%5D": {
       "description": "Multiply Physical damage dealt by X% if the combatant is the target's bottom Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3416,7 +3416,7 @@
         "guide-entry-137"
       ]
     },
-    "guide:mechanic:stat:DodgeIndirectPAoe": {
+    "base:mechanic:stat:DodgeIndirectPAoe": {
       "description": "Always dodge multi-target Physical abilities if the combatant is not the attacker's Top threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3424,7 +3424,7 @@
         "guide-entry-138"
       ]
     },
-    "guide:mechanic:stat:CritImmunity": {
+    "base:mechanic:stat:CritImmunity": {
       "description": "Cannot receive Critical Hits",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3432,7 +3432,7 @@
         "guide-entry-139"
       ]
     },
-    "guide:mechanic:stat:UnarmedPAtk": {
+    "base:mechanic:stat:UnarmedPAtk": {
       "description": "Gain PAtk when unarmed equal to the combatant's STR * 2",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3440,7 +3440,7 @@
         "guide-entry-140"
       ]
     },
-    "guide:mechanic:stat:IgnoreReaction": {
+    "base:mechanic:stat:IgnoreReaction": {
       "description": "The combatant's abilities do not trigger enemy Reactions\n- Note: This differs from the NoReaction ability mod in that a combatant affected by this stat mod will not trigger targets' OnKilled reactions if the ability the target responds with has a Target value of Enemy",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3448,7 +3448,7 @@
         "guide-entry-141"
       ]
     },
-    "guide:mechanic:stat:PDefAsMDef": {
+    "base:mechanic:stat:PDefAsMDef": {
       "description": "Resistance is used in place of Defense when mitigating Physical damage taken",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3456,7 +3456,7 @@
         "guide-entry-142"
       ]
     },
-    "guide:mechanic:stat:MPShield": {
+    "base:mechanic:stat:MPShield": {
       "description": "Reduces direct damage taken by 25%, and restores the combatant's MP by the amount mitigated",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3464,7 +3464,7 @@
         "guide-entry-143"
       ]
     },
-    "guide:mechanic:stat:APGainsRecoverHP": {
+    "base:mechanic:stat:APGainsRecoverHP": {
       "description": "AP gains recover X% HP, where X is the amount of AP gained",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3472,7 +3472,7 @@
         "guide-entry-144"
       ]
     },
-    "guide:mechanic:stat:TwoHanded": {
+    "base:mechanic:stat:TwoHanded": {
       "description": "One-handed weapons can be equipped as though two-handed weapons, and gain a flat bonus to PAtk equal to the Two-Handed PAtk Flat setting in your Project Model.",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3480,7 +3480,7 @@
         "guide-entry-145"
       ]
     },
-    "guide:mechanic:stat:DualWield": {
+    "base:mechanic:stat:DualWield": {
       "description": "Two one-handed weapons can be equipped simultaneously, but the combatant's total PAtk is lowered by X%, where X = the Dual-Wield PAtk Rate setting in your Project Model (default: 65%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3488,7 +3488,7 @@
         "guide-entry-146"
       ]
     },
-    "guide:mechanic:stat:Mult%20SelflessCure%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20SelflessCure%20%5BX%5D": {
       "description": "Multiply healing given by X% when the recipient's HP percentage is higher than the combatant's",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3496,7 +3496,7 @@
         "guide-entry-147"
       ]
     },
-    "guide:mechanic:stat:MPLock": {
+    "base:mechanic:stat:MPLock": {
       "description": "The combatant's MP value cannot change",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3504,7 +3504,7 @@
         "guide-entry-148"
       ]
     },
-    "guide:mechanic:stat:Learning": {
+    "base:mechanic:stat:Learning": {
       "description": "Abilities with 'Sight Learned' toggled can be unlocked / learned by the combatant if the ability is used by an enemy, the combatant is not currently KO'd, the combatant survives the ability's execution, and the battle ends in escape / victory",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3512,7 +3512,7 @@
         "guide-entry-149"
       ]
     },
-    "guide:mechanic:stat:Mult%20PDefAtFullHP%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PDefAtFullHP%20%5BX%5D": {
       "description": "Multiply Defense by X% when the combatant's HP is full",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3520,7 +3520,7 @@
         "guide-entry-150"
       ]
     },
-    "guide:mechanic:stat:ImmuneToInterrupt": {
+    "base:mechanic:stat:ImmuneToInterrupt": {
       "description": "The combatant cannot have their TT or CT reset / interrupted",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3528,7 +3528,7 @@
         "guide-entry-151"
       ]
     },
-    "guide:mechanic:stat:ImmuneToMPDmg": {
+    "base:mechanic:stat:ImmuneToMPDmg": {
       "description": "The combatant's MP cannot be damaged",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3536,7 +3536,7 @@
         "guide-entry-152"
       ]
     },
-    "guide:mechanic:stat:InstantKill": {
+    "base:mechanic:stat:InstantKill": {
       "description": "The combatant is immediately KO'd\n- Note: Most bosses have contractual immunity to the Instant Kill status, which is the only player-accessible source of this stat mod in Vanilla",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3544,7 +3544,7 @@
         "guide-entry-153"
       ]
     },
-    "guide:mechanic:stat:ResetTurnOnApplication": {
+    "base:mechanic:stat:ResetTurnOnApplication": {
       "description": "The combatant's TT is reset on application, functionally delaying their next turn",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3552,7 +3552,7 @@
         "guide-entry-154"
       ]
     },
-    "guide:mechanic:stat:InitialThreat%20%5BX%5D": {
+    "base:mechanic:stat:InitialThreat%20%5BX%5D": {
       "description": "The combatant has X Threat generated for all enemies at combat start",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3560,7 +3560,7 @@
         "guide-entry-155"
       ]
     },
-    "guide:mechanic:stat:PDefMax": {
+    "base:mechanic:stat:PDefMax": {
       "description": "The combatant's Defense is set to 9999",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3568,7 +3568,7 @@
         "guide-entry-156"
       ]
     },
-    "guide:mechanic:stat:MDefMax": {
+    "base:mechanic:stat:MDefMax": {
       "description": "The combatant's Resistance is set to 9999",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3576,7 +3576,7 @@
         "guide-entry-157"
       ]
     },
-    "guide:mechanic:stat:NoMP": {
+    "base:mechanic:stat:NoMP": {
       "description": "The combatant's Max MP is locked to 0",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3584,7 +3584,7 @@
         "guide-entry-158"
       ]
     },
-    "guide:mechanic:stat:SetActorTexture%20%5BX%5D": {
+    "base:mechanic:stat:SetActorTexture%20%5BX%5D": {
       "description": "The combatant's overworld texture becomes a penguin if set to 1, a quintar if set to 2, and otherwise it overrides party member 1's texture with the texture of whoever has the status",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3592,7 +3592,7 @@
         "guide-entry-159"
       ]
     },
-    "guide:mechanic:stat:LootChanceUp%20%5BX%5D": {
+    "base:mechanic:stat:LootChanceUp%20%5BX%5D": {
       "description": "Increase enemy loot-drop chance by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3600,7 +3600,7 @@
         "guide-entry-160"
       ]
     },
-    "guide:mechanic:stat:StealChanceUp%20%5BX%5D": {
+    "base:mechanic:stat:StealChanceUp%20%5BX%5D": {
       "description": "Increase steal success chance by X%",
       "status": "partial",
       "reason": "Increase is nonlinear: chance = 100 * (baseChance + X) / (100 + X), rather than a direct percentage-point increase",
@@ -3608,7 +3608,7 @@
         "guide-entry-161"
       ]
     },
-    "guide:mechanic:stat:Mult%20PDmgOnKill%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PDmgOnKill%20%5BX%5D": {
       "description": "Multiplies Physical damage dealt by X% if doing so would result in the target being KO'd",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3616,7 +3616,7 @@
         "guide-entry-162"
       ]
     },
-    "guide:mechanic:stat:CritAlways": {
+    "base:mechanic:stat:CritAlways": {
       "description": "The combatant always deals Critical Hits on crit-capable abilities",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3624,7 +3624,7 @@
         "guide-entry-163"
       ]
     },
-    "guide:mechanic:stat:RandomizeTarget": {
+    "base:mechanic:stat:RandomizeTarget": {
       "description": "The combatant's casted single-target abilities choose targets at random within their Scope",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3632,7 +3632,7 @@
         "guide-entry-164"
       ]
     },
-    "guide:mechanic:stat:SkipTurn": {
+    "base:mechanic:stat:SkipTurn": {
       "description": "The combatant's turn is skipped, and their Reactions cannot be triggered",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3640,7 +3640,7 @@
         "guide-entry-165"
       ]
     },
-    "guide:mechanic:stat:Float": {
+    "base:mechanic:stat:Float": {
       "description": "The combatant is immune to Earth damage\n- Note: A small misnomer / exception case exists - this immunity only triggers for abilities that deal Earth-elemental damage by default; elements asserted by Stat Mods bypass this immunity",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3648,7 +3648,7 @@
         "guide-entry-166"
       ]
     },
-    "guide:mechanic:stat:InstantTT": {
+    "base:mechanic:stat:InstantTT": {
       "description": "The combatant's TT is functionally 0",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3656,7 +3656,7 @@
         "guide-entry-167"
       ]
     },
-    "guide:mechanic:stat:InstantCT": {
+    "base:mechanic:stat:InstantCT": {
       "description": "The combatant's ability CT is functionally 0",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3664,7 +3664,7 @@
         "guide-entry-168"
       ]
     },
-    "guide:mechanic:stat:RestrictCommandTo%20%5BX%5D": {
+    "base:mechanic:stat:RestrictCommandTo%20%5BX%5D": {
       "description": "Restrict the combatant's commands to X Job\n- Note: This effect cannot grant the combatant commands from a Job they do not currently have equipped / do not have access to\n- Note: This effect can stack; if the combatant is restricted to two or more command sets, both / all can be used",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3672,7 +3672,7 @@
         "guide-entry-169"
       ]
     },
-    "guide:mechanic:stat:HideStats": {
+    "base:mechanic:stat:HideStats": {
       "description": "When applied to an enemy, their stats cannot be viewed in the combat info panels",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3680,7 +3680,7 @@
         "guide-entry-170"
       ]
     },
-    "guide:mechanic:stat:InvertDamage": {
+    "base:mechanic:stat:InvertDamage": {
       "description": "Applies damage / healing given by -1",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3688,7 +3688,7 @@
         "guide-entry-171"
       ]
     },
-    "guide:mechanic:stat:ChainCast": {
+    "base:mechanic:stat:ChainCast": {
       "description": "The ability \"Doublecast\" can be used multiple times in the same turn\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Ability ID 233, which is Warlock's 'Doublecast' in Vanilla",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3696,7 +3696,7 @@
         "guide-entry-172"
       ]
     },
-    "guide:mechanic:stat:AutoCover": {
+    "base:mechanic:stat:AutoCover": {
       "description": "The combatant will automatically intercept single-target direct damage being dealt to allies with 25% HP or less, as if they had applied Cover",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3704,7 +3704,7 @@
         "guide-entry-173"
       ]
     },
-    "guide:mechanic:stat:TargetMulti": {
+    "base:mechanic:stat:TargetMulti": {
       "description": "Single-target abilities the combatant casts become multi-target abilities",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3712,7 +3712,7 @@
         "guide-entry-174"
       ]
     },
-    "guide:mechanic:stat:DamageHitsMDef": {
+    "base:mechanic:stat:DamageHitsMDef": {
       "description": "Damage the combatant deals that would be mitigated by targets' Defense is instead mitigated by targets' Resistance",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3720,7 +3720,7 @@
         "guide-entry-175"
       ]
     },
-    "guide:mechanic:stat:PDmgBonusVsSleep%20%5BX%5D": {
+    "base:mechanic:stat:PDmgBonusVsSleep%20%5BX%5D": {
       "description": "The combatant deals X% more Physical damage to targets affected by the Sleep status\n- Note: This is janky; the mechanics of this are explicitly hard-coded to Status ID 11, which is 'Sleep' in Vanilla",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3728,7 +3728,7 @@
         "guide-entry-176"
       ]
     },
-    "guide:mechanic:stat:BlockAPGains%20%5BX%5D": {
+    "base:mechanic:stat:BlockAPGains%20%5BX%5D": {
       "description": "Multiplies the combatant's AP gains by (100 + X)%\n- Note: The name of this one seems to imply that it negates X% of AP gains, but this isn't actually how it works; it defaults to 0, but values greater than 0 increase AP gained",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3736,7 +3736,7 @@
         "guide-entry-177"
       ]
     },
-    "guide:mechanic:stat:PDmgCannotKill": {
+    "base:mechanic:stat:PDmgCannotKill": {
       "description": "Physical damage the combatant deals leaves targets with 1 HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3744,7 +3744,7 @@
         "guide-entry-178"
       ]
     },
-    "guide:mechanic:stat:ZeroTTAtBattleStart": {
+    "base:mechanic:stat:ZeroTTAtBattleStart": {
       "description": "The combatant's TT is set to 0 at combat start",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3752,7 +3752,7 @@
         "guide-entry-179"
       ]
     },
-    "guide:mechanic:stat:SetStatusAfterExpiry%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:stat:SetStatusAfterExpiry%20%5BX%5D%20%5BY%5D": {
       "description": "When the status effect that applied this expires naturally, the combatant gains X status for Y turns",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3760,7 +3760,7 @@
         "guide-entry-180"
       ]
     },
-    "guide:mechanic:stat:CritNever": {
+    "base:mechanic:stat:CritNever": {
       "description": "The combatant's crit-capable abilities will never Critically Hit",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3768,7 +3768,7 @@
         "guide-entry-181"
       ]
     },
-    "guide:mechanic:stat:InstantStance": {
+    "base:mechanic:stat:InstantStance": {
       "description": "Entering a Stance does not consume a turn\n- Note: This is likely a relic of old design, as this is currently base behavior for Stances",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3776,7 +3776,7 @@
         "guide-entry-182"
       ]
     },
-    "guide:mechanic:stat:NoCooldowns": {
+    "base:mechanic:stat:NoCooldowns": {
       "description": "Character has no cooldowns",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3784,7 +3784,7 @@
         "guide-entry-183"
       ]
     },
-    "guide:mechanic:stat:FreeTurn": {
+    "base:mechanic:stat:FreeTurn": {
       "description": "The combatant instantly receives a turn following the resolution of the ability that applied this effect. Unlike InstantTT, the combatant's start-of-turn effects do not trigger - AP upkeep, start-of-turn Reactions, turn-based status ticks, DOTs, HOTs, and ability Cooldown timers are not processed",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3792,7 +3792,7 @@
         "guide-entry-184"
       ]
     },
-    "guide:mechanic:stat:PerfectDodge": {
+    "base:mechanic:stat:PerfectDodge": {
       "description": "The combatant evades all abilities that have X% or less chance to hit, where X = the Perfect Dodge At Chance Or Lower setting in your Project Model (default: 30%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3800,7 +3800,7 @@
         "guide-entry-185"
       ]
     },
-    "guide:mechanic:stat:HalfCooldowns": {
+    "base:mechanic:stat:HalfCooldowns": {
       "description": "The combatant's ability Cooldowns are halved (not retroactively)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3808,7 +3808,7 @@
         "guide-entry-186"
       ]
     },
-    "guide:mechanic:stat:CantBeOneHitKOd": {
+    "base:mechanic:stat:CantBeOneHitKOd": {
       "description": "The character will survive lethal damage at full HP with 1 HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3816,7 +3816,7 @@
         "guide-entry-187"
       ]
     },
-    "guide:mechanic:stat:Encore": {
+    "base:mechanic:stat:Encore": {
       "description": "The combatant forcibly repeats its previous ability, provided it meets all costs / casting requirements\n- Note: Does not reliably work on enemies",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3824,7 +3824,7 @@
         "guide-entry-188"
       ]
     },
-    "guide:mechanic:stat:SubJobInnatePassives": {
+    "base:mechanic:stat:SubJobInnatePassives": {
       "description": "Ordinarily, player-controlled combatants do not receive the Innate Passives of their currently equipped Sub-Job; while under this effect, they do",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3832,7 +3832,7 @@
         "guide-entry-189"
       ]
     },
-    "guide:mechanic:stat:DamageBonusFromAPCost": {
+    "base:mechanic:stat:DamageBonusFromAPCost": {
       "description": "Damaging abilities that require AP deal X% more damage per AP spent to cast the ability, where X = [the Damage Bonus From AP Cost Rate setting in your Project Model] / 100 (default: 150%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3840,7 +3840,7 @@
         "guide-entry-190"
       ]
     },
-    "guide:mechanic:stat:TargetSingleWithBonus": {
+    "base:mechanic:stat:TargetSingleWithBonus": {
       "description": "Multi-target abilities are converted to single-target abilities but deal X% more damage/healing, where X = the Target Single With Bonus Rate setting in your Project Model (default: 35%)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3848,7 +3848,7 @@
         "guide-entry-191"
       ]
     },
-    "guide:mechanic:stat:Reflect": {
+    "base:mechanic:stat:Reflect": {
       "description": "Single-target Magical abilities casted on the combatant are reflected back towards the caster\n- Note: Scope-Locked abilities bypass this modifier",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3856,7 +3856,7 @@
         "guide-entry-192"
       ]
     },
-    "guide:mechanic:stat:BonusDoubledWhenPaired": {
+    "base:mechanic:stat:BonusDoubledWhenPaired": {
       "description": "Stat increases granted by the equipment are doubled when two are equipped at once on the combatant\n- Note: Only works for Accessories",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3864,7 +3864,7 @@
         "guide-entry-193"
       ]
     },
-    "guide:mechanic:stat:Mult%20CriticalCure%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20CriticalCure%20%5BX%5D": {
       "description": "Multiplies healing given by X% to targets with 25% or less of max HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3872,7 +3872,7 @@
         "guide-entry-194"
       ]
     },
-    "guide:mechanic:stat:Mult%20PDmg%20GivenWhenCritical%20100%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20PDmg%20GivenWhenCritical%20100%20%5BX%5D": {
       "description": "Multiplies Physical damage dealt by X% when the combatant has 25% or less of max HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3880,7 +3880,7 @@
         "guide-entry-195"
       ]
     },
-    "guide:mechanic:stat:Mult%20MDefAtFullHP%20%5BX%5D": {
+    "base:mechanic:stat:Mult%20MDefAtFullHP%20%5BX%5D": {
       "description": "Multiplies the combatant's Resistance by X% while at full HP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3888,7 +3888,7 @@
         "guide-entry-196"
       ]
     },
-    "guide:mechanic:stat:LearnAll": {
+    "base:mechanic:stat:LearnAll": {
       "description": "All abilities, locked or otherwise, on the combatant's Job / Sub-Job are considered unlocked / learned for the purpose of access while in combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3896,7 +3896,7 @@
         "guide-entry-197"
       ]
     },
-    "guide:mechanic:stat:DmgTakenWhileCharging%20%5BX%5D": {
+    "base:mechanic:stat:DmgTakenWhileCharging%20%5BX%5D": {
       "description": "Increases damage the combatant receives while channelling the CT of an ability by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3904,7 +3904,7 @@
         "guide-entry-198"
       ]
     },
-    "guide:mechanic:stat:CritFromMndAndSpi": {
+    "base:mechanic:stat:CritFromMndAndSpi": {
       "description": "The combatant's Critical Hit / Damage derived stats are calculated using an average of their MND & SPI, rather than DEX",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3912,7 +3912,7 @@
         "guide-entry-199"
       ]
     },
-    "guide:mechanic:stat:HiddenIntent": {
+    "base:mechanic:stat:HiddenIntent": {
       "description": "When applied to an enemy, their next intended action cannot be previewed using the info panels in combat\n---",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3920,7 +3920,7 @@
         "guide-entry-200"
       ]
     },
-    "guide:mechanic:ability:Steal": {
+    "base:mechanic:ability:Steal": {
       "description": "This ability will attempt to steal an item after damage resolution. Has no effect on player combatants. Odds of success are based on the steal rates of the target's available-for-theft items, the user's LUK, and other independent factors\n- Note: This does work on multi-target abilities, but only the first combatant in the ability's targeting queue will push their own steal attempt result to the overhead display; the rest are skipped, though their stolen items are still visible in the end-of-battle summary\n- Note: Steal Rate boosts work by adding their rate increase to both the numerator and denominator of the fraction representing the odds of stealing any particular item; as an example, an accessory that boosts Steal Rate by 25% would raise the odds of an item with a rate of 1 in 100 to 26 in 125. This allows for Steal Rate boosts to dramatically affect the odds of obtaining rarer Steals, while having a smaller impact on the odds of obtaining more common Steals",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3928,7 +3928,7 @@
         "guide-entry-201"
       ]
     },
-    "guide:mechanic:ability:Escape": {
+    "base:mechanic:ability:Escape": {
       "description": "Attempts to escape battle. Odds of success are based on the relative difference between the party's average Level and the average Level of living enemy combatants. The user's LUK is also considered, among other independent factors",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3936,7 +3936,7 @@
         "guide-entry-202"
       ]
     },
-    "guide:mechanic:ability:AttributeDamageRate%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:AttributeDamageRate%20%5BX%5D%20%5BY%5D": {
       "description": "X% of this ability's total damage is also dealt to the target's Y attribute, where Y is the target's HP, AP, or MP. Useful when creating abilities intended to damage more than one resource at once",
       "status": "partial",
       "reason": "Parameter order disagrees: Value1 identifies the attribute and Value2 supplies the damage rate",
@@ -3944,7 +3944,7 @@
         "guide-entry-203"
       ]
     },
-    "guide:mechanic:ability:NeverMiss": {
+    "base:mechanic:ability:NeverMiss": {
       "description": "This ability cannot miss\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to always evade the ability's damage type or if the user is under any effect that causes them to always miss with the ability's damage type, the ability will still miss\n- Note: This is a hard override; the game will display 100% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3952,7 +3952,7 @@
         "guide-entry-204"
       ]
     },
-    "guide:mechanic:ability:FixedHitRate_100%20%5BX%5D": {
+    "base:mechanic:ability:FixedHitRate_100%20%5BX%5D": {
       "description": "This ability will always have an X% chance to hit, ignoring external modifiers",
       "status": "partial",
       "reason": "Fixed hit rate is evaluated after earlier immunity and miss overrides, so the unconditional wording is incomplete",
@@ -3960,7 +3960,7 @@
         "guide-entry-205"
       ]
     },
-    "guide:mechanic:ability:NoReaction": {
+    "base:mechanic:ability:NoReaction": {
       "description": "Other combatants cannot process Reactions to this ability\n- Note: This differs from the IgnoreReaction stat mod in that a combatant affected by IgnoreReaction will not trigger targets' OnKilled reactions if the ability the target responds with has a Target value of Enemy",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3968,7 +3968,7 @@
         "guide-entry-206"
       ]
     },
-    "guide:mechanic:ability:StatusRequiredTarget%20%5BX%5D": {
+    "base:mechanic:ability:StatusRequiredTarget%20%5BX%5D": {
       "description": "This ability will always miss unless the target has at least 1 tick of X status effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3976,7 +3976,7 @@
         "guide-entry-207"
       ]
     },
-    "guide:mechanic:ability:NeverCrit": {
+    "base:mechanic:ability:NeverCrit": {
       "description": "This ability will never deal a Critical Hit\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never receive Critical Hits of the ability's damage type or if the user is under any effect that causes them to always critically with the ability's damage type, the ability will still fail to crit",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3984,7 +3984,7 @@
         "guide-entry-208"
       ]
     },
-    "guide:mechanic:ability:AlwaysCrit": {
+    "base:mechanic:ability:AlwaysCrit": {
       "description": "This ability will always deal a Critical Hit\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never receive Critical Hits of the ability's damage type or if the user is under any effect that causes them to always critically with the ability's damage type, the ability will still fail to crit",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -3992,7 +3992,7 @@
         "guide-entry-209"
       ]
     },
-    "guide:mechanic:ability:StatusRequiredUser%20%5BX%5D%20%5BBool%3A%20Always%20Enabled%5D%20": {
+    "base:mechanic:ability:StatusRequiredUser%20%5BX%5D%20%5BBool%3A%20Always%20Enabled%5D%20": {
       "description": "The user cannot activate this ability unless they have at least 1 tick of X status effect. If Always Enabled is toggled, the ability can still be activated, but will always miss provided the aforementioned condition has not been fulfilled",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4000,7 +4000,7 @@
         "guide-entry-210"
       ]
     },
-    "guide:mechanic:ability:StatusRestrictedTarget%20%5BX%5D": {
+    "base:mechanic:ability:StatusRestrictedTarget%20%5BX%5D": {
       "description": "This ability will always miss if the target has at least 1 tick of X status effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4008,7 +4008,7 @@
         "guide-entry-211"
       ]
     },
-    "guide:mechanic:ability:StatusRestrictedUser%20%5BX%5D%20%5BBool%3A%20Always%20Enabled%5D": {
+    "base:mechanic:ability:StatusRestrictedUser%20%5BX%5D%20%5BBool%3A%20Always%20Enabled%5D": {
       "description": "The user cannot activate this ability if they have at least 1 tick of X status effect. If Always Enabled is toggled, the ability can still be activated, but will always miss provided the aforementioned condition has been fulfilled",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4016,7 +4016,7 @@
         "guide-entry-212"
       ]
     },
-    "guide:mechanic:ability:ItemRequired%20%20%5BX%5D": {
+    "base:mechanic:ability:ItemRequired%20%20%5BX%5D": {
       "description": "Requires at least 1 copy of X item in the player's inventory (any category) to activate this ability. It is not consumed; simply checked for presence",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4024,7 +4024,7 @@
         "guide-entry-213"
       ]
     },
-    "guide:mechanic:ability:NoDualWield": {
+    "base:mechanic:ability:NoDualWield": {
       "description": "This ability will not oblige the mechanics imposed by the Duel Wield stat mod (no hit-double or reduced damage)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4032,7 +4032,7 @@
         "guide-entry-214"
       ]
     },
-    "guide:mechanic:ability:DamageRateUserCurrent_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateUserCurrent_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the user's current Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4040,7 +4040,7 @@
         "guide-entry-215"
       ]
     },
-    "guide:mechanic:ability:DamageRateUserMissing_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateUserMissing_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the user's missing Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4048,7 +4048,7 @@
         "guide-entry-216"
       ]
     },
-    "guide:mechanic:ability:DamageRateUserMax_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateUserMax_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the user's max Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4056,7 +4056,7 @@
         "guide-entry-217"
       ]
     },
-    "guide:mechanic:ability:DamageReturnRateOverflow_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageReturnRateOverflow_100%20%5BX%5D%20%5BY%5D": {
       "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP). Uses the totality of the final damage even if the ability's damage was fatal. Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4064,7 +4064,7 @@
         "guide-entry-218"
       ]
     },
-    "guide:mechanic:ability:DamageReturnRateOnKill_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageReturnRateOnKill_100%20%5BX%5D%20%5BY%5D": {
       "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP) if the ability's damage was fatal.",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4072,7 +4072,7 @@
         "guide-entry-219"
       ]
     },
-    "guide:mechanic:ability:DamageRateCurrent_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateCurrent_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the target's current Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4080,7 +4080,7 @@
         "guide-entry-220"
       ]
     },
-    "guide:mechanic:ability:DamageRateMissing_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateMissing_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the target's missing Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4088,7 +4088,7 @@
         "guide-entry-221"
       ]
     },
-    "guide:mechanic:ability:DamageRateMax_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateMax_100%20%5BX%5D%20%5BY%5D": {
       "description": "This ability gains damage equal to X% of the target's max Y resource attribute (HP, AP, or MP). Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4096,7 +4096,7 @@
         "guide-entry-222"
       ]
     },
-    "guide:mechanic:ability:KillsUser": {
+    "base:mechanic:ability:KillsUser": {
       "description": "The user is instantly KO'd when the ability resolves",
       "status": "partial",
       "reason": "The source contains competing descriptions under the same modifier name",
@@ -4104,7 +4104,7 @@
         "guide-entry-223"
       ]
     },
-    "guide:mechanic:ability:DamageReturnRateNoOverflow_100%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageReturnRateNoOverflow_100%20%5BX%5D%20%5BY%5D": {
       "description": "Returns X% of the ability's final damage dealt as recoil to the user's Y resource attribute (HP, AP, or MP). If the ability's damage was fatal, excess damage is discarded and only the remainder is used to calculate the recoil amount. Will convert to healing if given a negative X value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4112,7 +4112,7 @@
         "guide-entry-224"
       ]
     },
-    "guide:mechanic:ability:MaxDamageGiven%20%5BX%5D": {
+    "base:mechanic:ability:MaxDamageGiven%20%5BX%5D": {
       "description": "This ability can deal no more than X damage",
       "status": "partial",
       "reason": "The damage cap precedes the conditional on-kill multiplier; an unconditional final cap is not established",
@@ -4120,7 +4120,7 @@
         "guide-entry-226"
       ]
     },
-    "guide:mechanic:ability:NextTurnTTMult_100%20%5BX%5D": {
+    "base:mechanic:ability:NextTurnTTMult_100%20%5BX%5D": {
       "description": "The TT between the user's current and next turn is multiplied by X%",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4128,7 +4128,7 @@
         "guide-entry-227"
       ]
     },
-    "guide:mechanic:ability:NextTurnComesImmediately%20": {
+    "base:mechanic:ability:NextTurnComesImmediately%20": {
       "description": "The user's next turn arrives instantly. This is considered a 'free' turn that does not trigger On Each Turn reactions, does not tick down status effects with the On Each User Turn flag toggled, and does not generate AP in the same way a normal turn does",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4136,7 +4136,7 @@
         "guide-entry-228"
       ]
     },
-    "guide:mechanic:ability:ForceRepeatAction%20%5BX%5D": {
+    "base:mechanic:ability:ForceRepeatAction%20%5BX%5D": {
       "description": "The user is forced to repeatedly use this ability for the next X turns, provided all costs and casting requirements are met. If any particular repetition fails to meet costs or requirements, the chain is broken and the user is allowed to select commands as normal",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4144,7 +4144,7 @@
         "guide-entry-229"
       ]
     },
-    "guide:mechanic:ability:NextTurnComesAfterNextAction": {
+    "base:mechanic:ability:NextTurnComesAfterNextAction": {
       "description": "The user's next turn will arrive after the next combatant in turn order resolves an ability",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4152,7 +4152,7 @@
         "guide-entry-230"
       ]
     },
-    "guide:mechanic:ability:NextTurnComesAfterTarget": {
+    "base:mechanic:ability:NextTurnComesAfterTarget": {
       "description": "The user's next turn will arrive after the target combatant next resolves an ability\n- Note: Vanilla has no examples of this, but if you use this on a multiple-target ability, only the first combatant in the ability's targeting queue is considered for the purpose of this modifier",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4160,7 +4160,7 @@
         "guide-entry-231"
       ]
     },
-    "guide:mechanic:ability:Multihit%20%5BX%5D": {
+    "base:mechanic:ability:Multihit%20%5BX%5D": {
       "description": "The ability will repeat X times within one casting. On-hit effects (status effects, AP generation, etc.) will only process on the first hit / repetition",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4168,7 +4168,7 @@
         "guide-entry-232"
       ]
     },
-    "guide:mechanic:ability:AccumulateAP%20%5BX%5D": {
+    "base:mechanic:ability:AccumulateAP%20%5BX%5D": {
       "description": "The user gains X AP. The ability is not required to 'hit' to trigger this modifier",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4176,7 +4176,7 @@
         "guide-entry-233"
       ]
     },
-    "guide:mechanic:ability:AddCooldownCountTarget%20%5BX%5D": {
+    "base:mechanic:ability:AddCooldownCountTarget%20%5BX%5D": {
       "description": "Adds X to all of the target's active cooldowns",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -4184,7 +4184,7 @@
         "guide-entry-234"
       ]
     },
-    "guide:mechanic:ability:ResetCooldownsTarget": {
+    "base:mechanic:ability:ResetCooldownsTarget": {
       "description": "The target's active cooldowns are set to 0",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -4192,7 +4192,7 @@
         "guide-entry-235"
       ]
     },
-    "guide:mechanic:ability:ResetCooldownsUser": {
+    "base:mechanic:ability:ResetCooldownsUser": {
       "description": "The user's active cooldowns are set to 0",
       "status": "corroborated",
       "reason": "The modifier implementation and consumer support the complete description",
@@ -4200,7 +4200,7 @@
         "guide-entry-236"
       ]
     },
-    "guide:mechanic:ability:IgnoreReflect": {
+    "base:mechanic:ability:IgnoreReflect": {
       "description": "This ability, if toggled as Magical, does not trigger the Reflect stat mod",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4208,7 +4208,7 @@
         "guide-entry-237"
       ]
     },
-    "guide:mechanic:ability:RandomTarget": {
+    "base:mechanic:ability:RandomTarget": {
       "description": "This ability targets a random, valid combatant within its Target pool\n- Note: This modifier has no effect if the ability's Scope is any value other than 'Single'. Like a normal ability, this modifier cannot target dead combatants unless the ability's Target explicitly contains 'dead' in its value",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4216,7 +4216,7 @@
         "guide-entry-238"
       ]
     },
-    "guide:mechanic:ability:RandomStatusUser": {
+    "base:mechanic:ability:RandomStatusUser": {
       "description": "On resolution, this ability grants the user one status effect from the available pool listed in the User Statuses pane",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4224,7 +4224,7 @@
         "guide-entry-239"
       ]
     },
-    "guide:mechanic:ability:AddAllStatusCount%20%5BX%5D": {
+    "base:mechanic:ability:AddAllStatusCount%20%5BX%5D": {
       "description": "Adds X ticks to all current status effects applied to the target",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4232,7 +4232,7 @@
         "guide-entry-240"
       ]
     },
-    "guide:mechanic:ability:RemoveAllStatus": {
+    "base:mechanic:ability:RemoveAllStatus": {
       "description": "Removes all status effects from the target",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4240,7 +4240,7 @@
         "guide-entry-241"
       ]
     },
-    "guide:mechanic:ability:DamagePerTargetDebuff%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
+    "base:mechanic:ability:DamagePerTargetDebuff%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
       "description": "Adds X% PAtkRate or a flat X Power to the ability's damage calculation per debuff-type status effect the target currently suffers",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4248,7 +4248,7 @@
         "guide-entry-242"
       ]
     },
-    "guide:mechanic:ability:RandomStatusTarget": {
+    "base:mechanic:ability:RandomStatusTarget": {
       "description": "Inflicts one status effect from the available pool listed in the Target Statuses pane",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4256,7 +4256,7 @@
         "guide-entry-243"
       ]
     },
-    "guide:mechanic:ability:DamagePerUserBuff%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
+    "base:mechanic:ability:DamagePerUserBuff%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
       "description": "Adds X% PAtkRate or a flat X Power to the ability's damage calculation per buff-type status effect applied to the user",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4264,7 +4264,7 @@
         "guide-entry-244"
       ]
     },
-    "guide:mechanic:ability:RemoveAllStatusCategory%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
+    "base:mechanic:ability:RemoveAllStatusCategory%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
       "description": "Removes all status effects of the chosen category from the target",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4272,7 +4272,7 @@
         "guide-entry-245"
       ]
     },
-    "guide:mechanic:ability:CopyAllStatusToSelf": {
+    "base:mechanic:ability:CopyAllStatusToSelf": {
       "description": "Copies all status effects applied to the target to the user, at the same number of remaining ticks per effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4280,7 +4280,7 @@
         "guide-entry-246"
       ]
     },
-    "guide:mechanic:ability:RemoveOneFromStatusCategory%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
+    "base:mechanic:ability:RemoveOneFromStatusCategory%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
       "description": "Removes one status effect of the chosen category from the target (priority given to oldest applied)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4288,7 +4288,7 @@
         "guide-entry-247"
       ]
     },
-    "guide:mechanic:ability:DamageRateVsStatus%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:DamageRateVsStatus%20%5BX%5D%20%5BY%5D": {
       "description": "The ability deals X% more damage if the target has Y status effect applied",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4296,7 +4296,7 @@
         "guide-entry-248"
       ]
     },
-    "guide:mechanic:ability:DoesntWakeTarget": {
+    "base:mechanic:ability:DoesntWakeTarget": {
       "description": "If this ability deals damage, it will not remove status effects that have the Cleared By Any Dmg flag toggled\n- Note: Despite the name, this modifier is not hard-coded to only work with Sleep (status ID 11). RiverRunning is aware this is a bug, but has chosen to leave it as-is",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4304,7 +4304,7 @@
         "guide-entry-249"
       ]
     },
-    "guide:mechanic:ability:AddSpecificStatusCountTarget%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:AddSpecificStatusCountTarget%20%5BX%5D%20%5BY%5D": {
       "description": "Applies X ticks of Y status effect to the target, giving them the status effect if it wasn't already applied",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4312,7 +4312,7 @@
         "guide-entry-250"
       ]
     },
-    "guide:mechanic:ability:ThreatGainMult%20%5BX%5D": {
+    "base:mechanic:ability:ThreatGainMult%20%5BX%5D": {
       "description": "Increases the ability's Threat generation by X%\n- Note: The ability needs to generate more than 0 Threat for this modifier to have an effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4320,7 +4320,7 @@
         "guide-entry-251"
       ]
     },
-    "guide:mechanic:ability:ThreatGainFlat%20%5BX%5D": {
+    "base:mechanic:ability:ThreatGainFlat%20%5BX%5D": {
       "description": "The ability generates X more / less Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4328,7 +4328,7 @@
         "guide-entry-252"
       ]
     },
-    "guide:mechanic:ability:BottomThreatDamageMult%20%5BX%5D": {
+    "base:mechanic:ability:BottomThreatDamageMult%20%5BX%5D": {
       "description": "The ability deals X% more damage / healing if the user is the target's bottom Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4336,7 +4336,7 @@
         "guide-entry-253"
       ]
     },
-    "guide:mechanic:ability:NotBottomThreatDamageMult%20%5BX%5D": {
+    "base:mechanic:ability:NotBottomThreatDamageMult%20%5BX%5D": {
       "description": "The ability deals X% more damage / healing if the user is not the target's bottom Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4344,7 +4344,7 @@
         "guide-entry-254"
       ]
     },
-    "guide:mechanic:ability:ThreatCurrentChangeRate%20%5BX%5D": {
+    "base:mechanic:ability:ThreatCurrentChangeRate%20%5BX%5D": {
       "description": "Increases the target's total generated Threat towards the user by X%\n- Note: As an example, an X of -50 will cut the target's generated Threat against the user in half",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4352,7 +4352,7 @@
         "guide-entry-255"
       ]
     },
-    "guide:mechanic:ability:ThreatCurrentChangeFlat%20%5BX%5D": {
+    "base:mechanic:ability:ThreatCurrentChangeFlat%20%5BX%5D": {
       "description": "Increases the target's total generated Threat towards the user by X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4360,7 +4360,7 @@
         "guide-entry-256"
       ]
     },
-    "guide:mechanic:ability:TopThreatDamageMult%20%5BX%5D": {
+    "base:mechanic:ability:TopThreatDamageMult%20%5BX%5D": {
       "description": "The ability deals X% more damage / healing if the user is the target's top Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4368,7 +4368,7 @@
         "guide-entry-257"
       ]
     },
-    "guide:mechanic:ability:NotTopThreatDamageMult%20%5BX%5D": {
+    "base:mechanic:ability:NotTopThreatDamageMult%20%5BX%5D": {
       "description": "The ability deals X% more damage / healing if the user is not the target's top Threat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4376,7 +4376,7 @@
         "guide-entry-258"
       ]
     },
-    "guide:mechanic:ability:NotBottomThreatAlwaysMiss": {
+    "base:mechanic:ability:NotBottomThreatAlwaysMiss": {
       "description": "The ability will always miss if the user is not the target's bottom Threat\n- Note: \"Most restrictive\" wins as a generality; if the target is under any effect that causes them to never evade the ability's damage type or if the user is under any effect that causes them to always hit with the ability's damage type, the ability will still miss\n- Note: This is a hard override; the game will display 0% Accuracy on the damage preview, but this effect bypasses the accuracy check",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4384,7 +4384,7 @@
         "guide-entry-259"
       ]
     },
-    "guide:mechanic:ability:ResetThreat": {
+    "base:mechanic:ability:ResetThreat": {
       "description": "The target's Threat is reset to 0 for all combatants on ability resolution",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4392,7 +4392,7 @@
         "guide-entry-260"
       ]
     },
-    "guide:mechanic:ability:AddSpecificStatusCountUser%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:AddSpecificStatusCountUser%20%5BX%5D%20%5BY%5D": {
       "description": "Applies X ticks of Y status effect to the user, giving them the status effect if it wasn't already applied\n- Note: If the ability's Scope targets multiple combatants, this modifier is run once per each combatant affected by the ability",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4400,7 +4400,7 @@
         "guide-entry-261"
       ]
     },
-    "guide:mechanic:ability:AddToSpecificStatusCountTarget%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:AddToSpecificStatusCountTarget%20%5BX%5D%20%5BY%5D": {
       "description": "Applies X ticks of Y status effect to the target; the status effect must already exist on the target for this modifier to have an effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4408,7 +4408,7 @@
         "guide-entry-262"
       ]
     },
-    "guide:mechanic:ability:AddToSpecificStatusCountUser%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:AddToSpecificStatusCountUser%20%5BX%5D%20%5BY%5D": {
       "description": "Applies X ticks of Y status effect to the user; the status effect must already exist on the user for this modifier to have an effect\n- Note: If the ability's Scope targets multiple combatants, this modifier is run once per each combatant affected by the ability",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4416,7 +4416,7 @@
         "guide-entry-263"
       ]
     },
-    "guide:mechanic:ability:HealingRateVsStatus%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:HealingRateVsStatus%20%5BX%5D%20%5BY%5D": {
       "description": "The ability's healing is increased by X% if the target has Y status effect applied",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4424,7 +4424,7 @@
         "guide-entry-264"
       ]
     },
-    "guide:mechanic:ability:CopyAllStatusCategoryToSelf%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
+    "base:mechanic:ability:CopyAllStatusCategoryToSelf%20%5BType%3A%20Buff%20%2F%20Debuff%20%2F%20Strict%5D": {
       "description": "Copies all status effects of the specified type applied to the target to the user, at the same number of remaining ticks per effect",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4432,7 +4432,7 @@
         "guide-entry-265"
       ]
     },
-    "guide:mechanic:ability:InterruptTT": {
+    "base:mechanic:ability:InterruptTT": {
       "description": "Resets the target's TT to its default wait value",
       "status": "partial",
       "reason": "Interrupt is conditional on turn state and absence of ImmuneToInterrupt",
@@ -4440,7 +4440,7 @@
         "guide-entry-266"
       ]
     },
-    "guide:mechanic:ability:InterruptCT": {
+    "base:mechanic:ability:InterruptCT": {
       "description": "If the target is charging an ability, it is cancelled and the target's TT is reset to its default wait value",
       "status": "partial",
       "reason": "Interrupt is conditional on turn state and absence of ImmuneToInterrupt",
@@ -4448,7 +4448,7 @@
         "guide-entry-267"
       ]
     },
-    "guide:mechanic:ability:InstantTurnCharge": {
+    "base:mechanic:ability:InstantTurnCharge": {
       "description": "The target immediately gets a turn when this ability resolves",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4456,7 +4456,7 @@
         "guide-entry-268"
       ]
     },
-    "guide:mechanic:ability:ConvertMPToHP": {
+    "base:mechanic:ability:ConvertMPToHP": {
       "description": "The target's MP is converted to HP until either MP is empty or HP is full",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4464,7 +4464,7 @@
         "guide-entry-269"
       ]
     },
-    "guide:mechanic:ability:ConvertMPToAP": {
+    "base:mechanic:ability:ConvertMPToAP": {
       "description": "The target's MP is converted to AP until either MP is empty or AP is full",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4472,7 +4472,7 @@
         "guide-entry-270"
       ]
     },
-    "guide:mechanic:ability:ConvertAPToMP": {
+    "base:mechanic:ability:ConvertAPToMP": {
       "description": "The target's AP is converted to MP until either AP is empty or MP is full",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4480,7 +4480,7 @@
         "guide-entry-271"
       ]
     },
-    "guide:mechanic:ability:ResetSubJob": {
+    "base:mechanic:ability:ResetSubJob": {
       "description": "If the target's Subclass Commands were changed during combat, they are reverted to their state when combat started",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4488,7 +4488,7 @@
         "guide-entry-272"
       ]
     },
-    "guide:mechanic:ability:LuckUp%20%5BX%5D": {
+    "base:mechanic:ability:LuckUp%20%5BX%5D": {
       "description": "The user's LUK stat is treated as X% higher during the ability's processing",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4496,7 +4496,7 @@
         "guide-entry-273"
       ]
     },
-    "guide:mechanic:ability:ChanceForDamageMult%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:ChanceForDamageMult%20%5BX%5D%20%5BY%5D": {
       "description": "This ability has an X% chance to do Y% more damage",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4504,7 +4504,7 @@
         "guide-entry-274"
       ]
     },
-    "guide:mechanic:ability:TransferThreat": {
+    "base:mechanic:ability:TransferThreat": {
       "description": "Transfers the user's Threat to the target",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4512,7 +4512,7 @@
         "guide-entry-275"
       ]
     },
-    "guide:mechanic:ability:RemoveFromBattle": {
+    "base:mechanic:ability:RemoveFromBattle": {
       "description": "The target is permanently removed from combat (deleted, not simply dead)\n- Note: In Vanilla, this modifier is only used by Astley during the hard-mode variation of the final boss battle. It *can* be used against enemies, but they will not have been considered 'defeated' for the purpose of money / experience / drops",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4520,7 +4520,7 @@
         "guide-entry-276"
       ]
     },
-    "guide:mechanic:ability:OncePerTurn": {
+    "base:mechanic:ability:OncePerTurn": {
       "description": "This ability can only be used once per turn per combatant",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4528,7 +4528,7 @@
         "guide-entry-277"
       ]
     },
-    "guide:mechanic:ability:OncePerFight": {
+    "base:mechanic:ability:OncePerFight": {
       "description": "This ability can only be used once per combat\n- Note: Unlike OncePerTurn, this restriction is shared across -all- combatants of a particular side; if one party member uses an ability with this modifier, no other party member may use that same ability for the remainder of combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4536,7 +4536,7 @@
         "guide-entry-278"
       ]
     },
-    "guide:mechanic:ability:SetSubJob%20%5BX%5D": {
+    "base:mechanic:ability:SetSubJob%20%5BX%5D": {
       "description": "Sets the target party member's Subclass Command to X job for the remainder of combat; only works if the target has an existing Subclass set",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4544,7 +4544,7 @@
         "guide-entry-279"
       ]
     },
-    "guide:mechanic:ability:Rewind": {
+    "base:mechanic:ability:Rewind": {
       "description": "Reverts the target's HP, MP, AP, and status effect values to what they were at the end of the target's last turn\n- Note: Cannot revive dead allies\n- Note: The way this works is described as utilizing a per-combatant 'save state' that is updated at battle start, at the end of the combatant's turn, and when the combatant dies; this modifier loads that save state when called",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4552,7 +4552,7 @@
         "guide-entry-280"
       ]
     },
-    "guide:mechanic:ability:ConsumeItem%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:ConsumeItem%20%5BX%5D%20%5BY%5D": {
       "description": "Requires and consumes X of Y item to use this ability.\n- Note: If X is negative, the item is given to the player instead\n- Note: Enemies ignore and do not trigger this modifier",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4560,7 +4560,7 @@
         "guide-entry-281"
       ]
     },
-    "guide:mechanic:ability:Teleport%20%5BX%5D": {
+    "base:mechanic:ability:Teleport%20%5BX%5D": {
       "description": "Teleports a player to X predetermined teleport locations; only works outside of combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4568,7 +4568,7 @@
         "guide-entry-282"
       ]
     },
-    "guide:mechanic:ability:CanUsewhileDead": {
+    "base:mechanic:ability:CanUsewhileDead": {
       "description": "This ability can be activated by a dead combatant\n- Note: KO'd combatants are hard-coded to skip turns / command input; this modifier is only useful on abilities the user is forced to cast automatically via an external modifier, such as a status effect or reaction",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4576,7 +4576,7 @@
         "guide-entry-283"
       ]
     },
-    "guide:mechanic:ability:RevealStats": {
+    "base:mechanic:ability:RevealStats": {
       "description": "The target's stats are permanently revealed to the player\n- Note: Has no effect on player-controlled combatants",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4584,7 +4584,7 @@
         "guide-entry-284"
       ]
     },
-    "guide:mechanic:ability:SetMountType%20%5BX%5D": {
+    "base:mechanic:ability:SetMountType%20%5BX%5D": {
       "description": "Changes the player's movement mode to one of several options; only works outside of combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4592,7 +4592,7 @@
         "guide-entry-285"
       ]
     },
-    "guide:mechanic:ability:AddComboToken%20%5BX%5D": {
+    "base:mechanic:ability:AddComboToken%20%5BX%5D": {
       "description": "The ability grants the user X Combo Token(s) after resolving; Combo Tokens are removed if a subsequent ability that does not grant Combo Tokens is used, or if the user passes their turn\n- Note: Although more than one token can be generated at once by this modifier, the automatically-generated text does not account for this and will only state \"generates a combo token\" regardless of how many are created\n- Note: Combo Tokens are technically hard-coded, invisible status effects that cannot be interacted with by mechanics that normally target status effects",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4600,7 +4600,7 @@
         "guide-entry-286"
       ]
     },
-    "guide:mechanic:ability:ConsumeComboTokens%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
+    "base:mechanic:ability:ConsumeComboTokens%20%5BX%5D%20%5BType%3A%20PAtkRate%20%2F%20Power%5D": {
       "description": "The ability consumes all  Combo Token(s) the user has generated, adding X% PAtkRate or X Power to the ability's damage calculation per token consumed",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4608,7 +4608,7 @@
         "guide-entry-287"
       ]
     },
-    "guide:mechanic:ability:SetSubJobToTargetsSubJob": {
+    "base:mechanic:ability:SetSubJobToTargetsSubJob": {
       "description": "The user's Subclass Commands become the target's Subclass Commands\n- Note: Only works on player-controlled combatants",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4616,7 +4616,7 @@
         "guide-entry-288"
       ]
     },
-    "guide:mechanic:ability:MimicLastSeenAbility": {
+    "base:mechanic:ability:MimicLastSeenAbility": {
       "description": "The user performs the last used ability by any combatant, paying none of the ability's associated costs and ignoring its cast requirements",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4624,7 +4624,7 @@
         "guide-entry-289"
       ]
     },
-    "guide:mechanic:ability:MimicLastTargetedByAbility": {
+    "base:mechanic:ability:MimicLastTargetedByAbility": {
       "description": "Copies the last ability that targeted the user; associated costs must be paid and cast requirements must be met",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4632,7 +4632,7 @@
         "guide-entry-290"
       ]
     },
-    "guide:mechanic:ability:ChangeMonster%20%5BX%5D": {
+    "base:mechanic:ability:ChangeMonster%20%5BX%5D": {
       "description": "Changes an enemy combatant into the specified enemy\n- Note: Only works on enemy-controlled combatants\n- Note: The combatant will retain its current HP / MP / AP values (unless the new monster's maximum values are lower, in which case they will be synced downwards) but will remove all status effects",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4640,7 +4640,7 @@
         "guide-entry-291"
       ]
     },
-    "guide:mechanic:ability:SummonMinion": {
+    "base:mechanic:ability:SummonMinion": {
       "description": "Revives the target at max HP / MP",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4648,7 +4648,7 @@
         "guide-entry-292"
       ]
     },
-    "guide:mechanic:ability:SetMountToMyQuintar": {
+    "base:mechanic:ability:SetMountToMyQuintar": {
       "description": "Sets the player's Quintar mount type to the current favorite Quintar, if one exists; only works outside combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4656,7 +4656,7 @@
         "guide-entry-293"
       ]
     },
-    "guide:mechanic:ability:GetEXP%20%5BX%5D%20": {
+    "base:mechanic:ability:GetEXP%20%5BX%5D%20": {
       "description": "The target gains X Experience Points",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4664,7 +4664,7 @@
         "guide-entry-294"
       ]
     },
-    "guide:mechanic:ability:GetJXP%20%5BX%5D%20": {
+    "base:mechanic:ability:GetJXP%20%5BX%5D%20": {
       "description": "The target gains X Job Experience Points (100 JXP = 1 LP)",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4672,7 +4672,7 @@
         "guide-entry-295"
       ]
     },
-    "guide:mechanic:ability:GetLevel%20%5BX%5D%20": {
+    "base:mechanic:ability:GetLevel%20%5BX%5D%20": {
       "description": "The target's Level increases by X",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4680,7 +4680,7 @@
         "guide-entry-296"
       ]
     },
-    "guide:mechanic:ability:GetJP%20%5BX%5D%20": {
+    "base:mechanic:ability:GetJP%20%5BX%5D%20": {
       "description": "The target gains X Learn Points",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4688,7 +4688,7 @@
         "guide-entry-297"
       ]
     },
-    "guide:mechanic:ability:TriggerNPC%20%5BX%5D%20%5BY%5D": {
+    "base:mechanic:ability:TriggerNPC%20%5BX%5D%20%5BY%5D": {
       "description": "Trigger a specific NPC's Trigger page(s) based on X ID and within Y units Radius; only works outside combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4696,7 +4696,7 @@
         "guide-entry-298"
       ]
     },
-    "guide:mechanic:ability:SpawnAndTriggerModdedNPC%20%5BX%5D": {
+    "base:mechanic:ability:SpawnAndTriggerModdedNPC%20%5BX%5D": {
       "description": "Teleport a specific NPC to the player and trigger their Trigger page(s) based on X ID; only works outside combat",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",
@@ -4704,7 +4704,7 @@
         "guide-entry-299"
       ]
     },
-    "guide:mechanic:ability:ServiceShortcut%20%5BX%5D": {
+    "base:mechanic:ability:ServiceShortcut%20%5BX%5D": {
       "description": "Shortcuts to the Gender Change, Atlas Registrar, Growth Reallocation, Lost & Found, Sadist, or Rename services; only works outside combat\n---",
       "status": "partial",
       "reason": "Candidate implementation locator; the complete description and its qualifications are not corroborated",

@@ -131,11 +131,11 @@ describe('reference search projection', () => {
 
   it('projects reference audiences and suppresses explicit extraction artifacts', () => {
     const records = [
-      entity('guide:mechanic:stat:Synthetic', { kind: 'other', name: 'Technical' }),
-      entity('wiki:other:catalog-coverage-gaps', { kind: 'other', name: 'Diagnostic' }),
-      entity('wiki:other:patch-notes', { kind: 'other', name: 'History' }),
-      entity('wiki:other:cheat-engine', { kind: 'other', name: 'Tooling' }),
-      entity('wiki:other:bgtest', { kind: 'other', name: 'Artifact' }),
+      entity('base:mechanic:stat:Synthetic', { kind: 'other', name: 'Technical' }),
+      entity('base:other:catalog-coverage-gaps', { kind: 'other', name: 'Diagnostic' }),
+      entity('base:other:patch-notes', { kind: 'other', name: 'History' }),
+      entity('base:other:cheat-engine', { kind: 'other', name: 'Tooling' }),
+      entity('base:other:bgtest', { kind: 'other', name: 'Artifact' }),
       entity('imported:other:technical-looking', { kind: 'other', name: 'Imported technical-looking record' }),
     ]
     const projected = buildReferenceSearchItems([catalog(records)])

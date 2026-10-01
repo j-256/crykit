@@ -12,7 +12,7 @@ import { STARTER_CATALOG, STARTER_CATALOG_COUNTS, STARTER_CATALOG_GAPS } from '.
 import { SWITCH_CLASS_SOURCE, SWITCH_PASSIVE_PP_SOURCE } from './switch'
 
 const EXPECTED_COUNTS = {
-  item: 959,
+  item: 958,
   class: 30,
   ability: 305,
   passive: 69,
@@ -38,7 +38,7 @@ const RANDOMIZER_ONLY_LABELS = [
 describe('built-in starter catalog', () => {
   it('contains the revision-pinned community reference coverage', () => {
     expect(STARTER_CATALOG_COUNTS).toEqual(EXPECTED_COUNTS)
-    expect(Object.keys(STARTER_CATALOG.entities)).toHaveLength(1_962)
+    expect(Object.keys(STARTER_CATALOG.entities)).toHaveLength(Object.values(EXPECTED_COUNTS).reduce((sum, count) => sum + count, 0))
     expect(STARTER_CATALOG.applicability.state).toBe('unknown')
     expect(STARTER_CATALOG.rights.state).toBe('unknown')
   })

@@ -15,6 +15,15 @@ test('identity links use reviewed numeric IDs without matching display names', (
   assert.equal(canonicalJson({ b: [0, null, false], a: '' }), '{"a":"","b":[0,null,false]}')
 })
 
+test('class-tree bindings require exact skill records and agree with other reviewed numeric links', () => {
+  const databases = { ability: [{ ID: 8, Name: 'Spark' }], passive: [{ ID: 8, Name: 'Vitality' }] }
+  const manifest = { mappings: { 'base:ability:spark': { database: 'ability', databaseId: 8 } } }
+  const trees = { classes: { 'base:class:fixture': { nodes: [{ nodeType: 2, dataId: 8, name: 'Spark', entityId: 'base:ability:spark' }, { nodeType: 3, dataId: 8, name: 'Vitality', entityId: 'base:passive:vitality' }] } } }
+  assert.deepEqual(identityBindingsFor(manifest, databases, trees), { 'ability:8': 'base:ability:spark', 'passive:8': 'base:passive:vitality' })
+  assert.throws(() => identityBindingsFor({ mappings: { 'base:ability:other': { database: 'ability', databaseId: 8 } } }, databases, trees), /conflicts/)
+  assert.throws(() => identityBindingsFor(manifest, { ...databases, passive: [{ ID: 8, Name: 'Changed passive' }] }, trees), /missing or changed/)
+})
+
 test('CLI distinguishes help, usage errors, and offline integrity verification', () => {
   const script = new URL('./update-game-data.mjs', import.meta.url)
   assert.match(execFileSync(process.execPath, ['--experimental-strip-types', script.pathname, '--help'], { encoding: 'utf8' }), /Usage:/)

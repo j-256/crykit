@@ -483,6 +483,7 @@ export const ImportFormatSchema = z.enum([
   'research-zip-1.1.0',
   'xlsx-v2',
   'native-backup-2.0.0',
+  'native-backup-2.1.0',
   'crystal-edit-json-1',
 ])
 
@@ -497,9 +498,10 @@ export const NativeSourceManifestSchema = z.object({
   size: nonnegativeInteger,
 }).strict()
 
+export const NATIVE_BACKUP_FORMAT_VERSION = '2.1.0'
 export const NativeManifestSchema = z.object({
   format: z.literal('crykit-backup'),
-  formatVersion: z.literal('2.0.0'),
+  formatVersion: z.enum(['2.0.0', NATIVE_BACKUP_FORMAT_VERSION]),
   exportedAt: timestamp,
   payload: z.literal('bundle.json'),
   sources: z.array(NativeSourceManifestSchema).max(510),
@@ -515,6 +517,7 @@ export const NativePayloadSchema = z.object({
   localData: StoredNativeLocalDataSchema,
   lineage: NativeLineageSchema,
   catalogs: z.array(NativeCatalogSnapshotSchema).max(MAX_COLLECTION_LENGTH),
+  bundledCatalogs: z.array(z.object({ id, revisionId: id, checksum: nonemptyText }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
   evidence: z.array(NativeEvidenceSchema).max(MAX_COLLECTION_LENGTH),
   history: z.array(NativeHistorySchema).max(500),
 }).strict()

@@ -91,12 +91,12 @@ item_table = {
 
 test('reviewed travel identities reject a changed database or mismatched record', () => {
   const bytes = Buffer.from('synthetic item database')
-  const mapping = reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'wiki:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }] })['wiki:item:ibek-bell']
+  const mapping = reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'base:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }] })['base:item:ibek-bell']
   assert.deepEqual(nativeArtworkIdentity(mapping), { sourceKey: 'reviewed-native-item', databaseSha256: hash(bytes), locator: 'Database/item.dat record 50' })
   assert.doesNotThrow(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Ibek Bell' }))
   assert.throws(() => verifyReviewedNativeDatabase(mapping, Buffer.from('changed'), { ID: 50, Name: 'Ibek Bell' }), /changed database bytes/)
   assert.throws(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Owl Drum' }), /does not match/)
-  assert.throws(() => reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'wiki:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }, { id: 'wiki:item:owl-drum', kind: 'item', name: 'Owl Drum', databaseId: 50 }] }), /duplicated/)
+  assert.throws(() => reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'base:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }, { id: 'base:item:owl-drum', kind: 'item', name: 'Owl Drum', databaseId: 50 }] }), /duplicated/)
 })
 
 test('texture output paths and aggregate source digests are deterministic and traversal-safe', () => {

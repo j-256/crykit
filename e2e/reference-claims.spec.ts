@@ -1,13 +1,15 @@
+import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
+import { resolveBundledCatalogPins } from '../src/interchange/native'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import { STARTER_CATALOG } from '../src/catalog'
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
-const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/base%3Aitem%3Aassassin-seal'
-const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aitem%3Aadjudicator'
+const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/assassin-seal'
+const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/adjudicator'
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
 const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'
@@ -26,9 +28,10 @@ async function exportLocalData(page: Page) {
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[] }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[]; bundledCatalogs?: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[] }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return { ...bundle, bytes }
+  expect(JSON.parse(strFromU8(entries['manifest.json']!)).formatVersion).toBe('2.1.0')
+  return { ...bundle, catalogs: [...bundle.catalogs, ...resolveBundledCatalogPins(bundle.bundledCatalogs ?? [], BUNDLED_CATALOGS)], bytes }
 }
 
 function locationRow(page: Page) {
@@ -43,6 +46,7 @@ test('equivalent source wording is shown as one fact with known implied', async 
   await expect(location.getByText('differing source values')).toHaveCount(0)
   await expect(page.getByText('Source descriptions differ', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Review source differences', exact: true })).toHaveCount(0)
+  await page.getByRole('region', { name: 'Source trail', exact: true }).locator('summary').filter({ hasText: /^Source and version details$/ }).click()
   await expect(page.getByRole('link', { name: 'Community wiki · Scythes/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Scythes/table?oldid=10848')
   await expect(page.getByRole('link', { name: 'Community wiki · Adjudicator', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Adjudicator?oldid=11911')
 })
@@ -59,7 +63,7 @@ test('conflicting fields expose every claim and protect explicit review choices'
   await expect(location.locator('.badge').getByText('Sources differ', { exact: true })).toBeVisible()
   await expect(location.getByText(/revision 12583/)).toBeVisible()
   await expect(location.getByText(/revision 12905/)).toBeVisible()
-  await expect(page.getByText('No auxiliary claims were imported. Field-level claims appear with their values above.', { exact: true })).toBeVisible()
+  await expect(page.getByText('Windows 1.6.9 · base database', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
   const review = page.getByRole('button', { name: 'Review source differences', exact: true })
@@ -131,9 +135,9 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   const definitions = Object.values(saved.localData.personalDefinitions)
   expect(definitions).toHaveLength(1)
   expect(definitions[0]?.fields.Location).toEqual({ state: 'known', value: SELECTED_LOCATION, sources: [expect.objectContaining({ sourceId: TABLE_SOURCE, locator: 'Accessories/table > Assassin Seal', snapshot: 'revision 12905' })] })
-  const sourceCatalog = saved.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)
-  expect(sourceCatalog?.checksum).toBe(STARTER_CATALOG.checksum)
-  expect(sourceCatalog?.entities['base:item:assassin-seal']).toEqual(STARTER_CATALOG.entities['base:item:assassin-seal'])
+  const sourceCatalog = saved.catalogs.find((catalog) => catalog.id === DEFAULT_CATALOG.id && catalog.revisionId === DEFAULT_CATALOG.revisionId)
+  expect(sourceCatalog?.checksum).toBe(DEFAULT_CATALOG.checksum)
+  expect(sourceCatalog?.entities['base:item:assassin-seal']).toEqual(DEFAULT_CATALOG.entities['base:item:assassin-seal'])
   expect(selectedPlaythrough(saved.localData).inventory).toEqual(selectedPlaythrough(original.localData).inventory)
   expect(selectedPlaythrough(saved.localData).characters).toEqual(selectedPlaythrough(original.localData).characters)
   expect(saved.localData.buildRevisions).toEqual(original.localData.buildRevisions)
@@ -145,5 +149,5 @@ test('a reviewed claim survives offline save recovery and a backup round trip', 
   const restored = await exportLocalData(page)
   expect(restored.localData.personalDefinitions).toEqual(saved.localData.personalDefinitions)
   expect(restored.catalogs.map((catalog) => catalog.checksum)).toEqual(saved.catalogs.map((catalog) => catalog.checksum))
-  expect(restored.catalogs.find((catalog) => catalog.id === STARTER_CATALOG.id && catalog.revisionId === STARTER_CATALOG.revisionId)?.entities['base:item:assassin-seal']).toEqual(sourceCatalog?.entities['base:item:assassin-seal'])
+  expect(restored.catalogs.find((catalog) => catalog.id === DEFAULT_CATALOG.id && catalog.revisionId === DEFAULT_CATALOG.revisionId)?.entities['base:item:assassin-seal']).toEqual(sourceCatalog?.entities['base:item:assassin-seal'])
 })

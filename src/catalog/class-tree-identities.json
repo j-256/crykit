@@ -312,7 +312,7 @@
           "name": "Eye Gouge",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:eye-gouge"
+          "entityId": "base:ability:43"
         },
         {
           "row": 1,
@@ -322,7 +322,7 @@
           "name": "Backstab",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:backstab"
+          "entityId": "base:ability:38"
         },
         {
           "row": 1,
@@ -332,7 +332,7 @@
           "name": "Sleep Bomb",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:sleep-bomb"
+          "entityId": "base:ability:44"
         },
         {
           "row": 2,
@@ -372,7 +372,7 @@
           "name": "Run Away",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:run-away"
+          "entityId": "base:ability:45"
         },
         {
           "row": 3,
@@ -382,7 +382,7 @@
           "name": "Sneak Attack",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:sneak-attack"
+          "entityId": "base:ability:9"
         },
         {
           "row": 3,
@@ -392,7 +392,7 @@
           "name": "Reflex Stance",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:reflex-stance"
+          "entityId": "base:ability:112"
         },
         {
           "row": 4,
@@ -412,7 +412,7 @@
           "name": "Trick Slash",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:trick-slash"
+          "entityId": "base:ability:39"
         },
         {
           "row": 5,
@@ -422,7 +422,7 @@
           "name": "Rupture",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:rupture"
+          "entityId": "base:ability:41"
         }
       ]
     },
@@ -1012,7 +1012,7 @@
           "name": "Acid II",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:acid-ii"
+          "entityId": "base:ability:321"
         },
         {
           "row": 2,
@@ -1022,7 +1022,7 @@
           "name": "Bio II",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:bio-ii"
+          "entityId": "base:ability:320"
         },
         {
           "row": 2,
@@ -1052,7 +1052,7 @@
           "name": "Epidemic",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:epidemic"
+          "entityId": "base:ability:121"
         },
         {
           "row": 5,
@@ -1646,7 +1646,7 @@
           "name": "Selfless Cure",
           "kind": "passive",
           "jp": 200,
-          "entityId": "wiki:passive:selfless-cure"
+          "entityId": "base:passive:14"
         },
         {
           "row": 2,
@@ -1686,7 +1686,7 @@
           "name": "Item Finder",
           "kind": "passive",
           "jp": 200,
-          "entityId": "wiki:passive:item-finder"
+          "entityId": "base:passive:86"
         },
         {
           "row": 3,
@@ -1918,7 +1918,7 @@
           "name": "Utsusemi",
           "kind": "ability",
           "jp": 0,
-          "entityId": "wiki:ability:utsusemi"
+          "entityId": "base:ability:165"
         },
         {
           "row": 0,
@@ -1928,7 +1928,7 @@
           "name": "Fuzake",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:fuzake"
+          "entityId": "base:ability:412"
         },
         {
           "row": 1,
@@ -1938,7 +1938,7 @@
           "name": "Smokescreen",
           "kind": "passive",
           "jp": 300,
-          "entityId": "wiki:passive:smokescreen"
+          "entityId": "base:passive:51"
         },
         {
           "row": 1,
@@ -1948,7 +1948,7 @@
           "name": "Perfect Dodge",
           "kind": "passive",
           "jp": 300,
-          "entityId": "wiki:passive:perfect-dodge"
+          "entityId": "base:passive:19"
         },
         {
           "row": 2,
@@ -1958,7 +1958,7 @@
           "name": "Fire Seal",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:fire-seal"
+          "entityId": "base:ability:166"
         },
         {
           "row": 2,
@@ -1968,7 +1968,7 @@
           "name": "Ice Seal",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:ice-seal"
+          "entityId": "base:ability:167"
         },
         {
           "row": 3,
@@ -1978,7 +1978,7 @@
           "name": "Wind Seal",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:wind-seal"
+          "entityId": "base:ability:169"
         },
         {
           "row": 3,
@@ -1988,7 +1988,7 @@
           "name": "Earth Seal",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:earth-seal"
+          "entityId": "base:ability:170"
         },
         {
           "row": 4,
@@ -1998,7 +1998,7 @@
           "name": "Kawakage",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:kawakage"
+          "entityId": "base:ability:470"
         },
         {
           "row": 4,
@@ -2008,7 +2008,7 @@
           "name": "Vanish",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:vanish"
+          "entityId": "base:ability:475"
         },
         {
           "row": 5,
@@ -2018,7 +2018,7 @@
           "name": "Thunder Seal",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:thunder-seal"
+          "entityId": "base:ability:168"
         },
         {
           "row": 5,
@@ -2028,7 +2028,7 @@
           "name": "Water Seal",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:water-seal"
+          "entityId": "base:ability:171"
         }
       ]
     },
@@ -2054,7 +2054,7 @@
           "name": "Water Blast",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:water-blast"
+          "entityId": "base:ability:81"
         },
         {
           "row": 1,
@@ -2064,7 +2064,7 @@
           "name": "Chill Blast",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:chill-blast"
+          "entityId": "base:ability:84"
         },
         {
           "row": 2,
@@ -2074,7 +2074,7 @@
           "name": "Therapy Stance",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:therapy-stance"
+          "entityId": "base:ability:241"
         },
         {
           "row": 3,
@@ -2084,7 +2084,7 @@
           "name": "En-Water",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:en-water"
+          "entityId": "base:ability:87"
         },
         {
           "row": 3,
@@ -2104,7 +2104,7 @@
           "name": "En-Ice",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:en-ice"
+          "entityId": "base:ability:88"
         },
         {
           "row": 3,
@@ -2124,7 +2124,7 @@
           "name": "Wave Armor",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:wave-armor"
+          "entityId": "base:ability:91"
         },
         {
           "row": 4,
@@ -2134,7 +2134,7 @@
           "name": "Shrapnel Armor",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:shrapnel-armor"
+          "entityId": "base:ability:90"
         },
         {
           "row": 5,
@@ -2144,7 +2144,7 @@
           "name": "Drown",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:drown"
+          "entityId": "base:ability:83"
         },
         {
           "row": 5,
@@ -2164,7 +2164,7 @@
           "name": "Icicle Barrage",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:icicle-barrage"
+          "entityId": "base:ability:82"
         }
       ]
     },
@@ -2190,7 +2190,7 @@
           "name": "Tornado",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:tornado"
+          "entityId": "base:ability:135"
         },
         {
           "row": 1,
@@ -2210,7 +2210,7 @@
           "name": "Cyclone",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:cyclone"
+          "entityId": "base:ability:136"
         },
         {
           "row": 2,
@@ -2220,7 +2220,7 @@
           "name": "Magic Prayer",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:magic-prayer"
+          "entityId": "base:ability:237"
         },
         {
           "row": 2,
@@ -2240,7 +2240,7 @@
           "name": "Rockslide",
           "kind": "ability",
           "jp": 500,
-          "entityId": "wiki:ability:rockslide"
+          "entityId": "base:ability:134"
         },
         {
           "row": 3,
@@ -2250,7 +2250,7 @@
           "name": "Soul Prayer",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:soul-prayer"
+          "entityId": "base:ability:140"
         },
         {
           "row": 4,
@@ -2260,7 +2260,7 @@
           "name": "Vigor Drain",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:vigor-drain"
+          "entityId": "base:ability:139"
         },
         {
           "row": 4,
@@ -2280,7 +2280,7 @@
           "name": "Typhoon",
           "kind": "ability",
           "jp": 500,
-          "entityId": "wiki:ability:typhoon"
+          "entityId": "base:ability:137"
         },
         {
           "row": 5,
@@ -2290,7 +2290,7 @@
           "name": "Meteor",
           "kind": "ability",
           "jp": 600,
-          "entityId": "wiki:ability:meteor"
+          "entityId": "base:ability:138"
         }
       ]
     },
@@ -2432,7 +2432,7 @@
           "name": "Swift Wind",
           "kind": "ability",
           "jp": 0,
-          "entityId": "wiki:ability:swift-wind"
+          "entityId": "base:ability:189"
         },
         {
           "row": 0,
@@ -2442,7 +2442,7 @@
           "name": "Swift Ember",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:swift-ember"
+          "entityId": "base:ability:190"
         },
         {
           "row": 1,
@@ -2472,7 +2472,7 @@
           "name": "Fierce Wind",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:fierce-wind"
+          "entityId": "base:ability:191"
         },
         {
           "row": 2,
@@ -2492,7 +2492,7 @@
           "name": "Blade Song",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:blade-song"
+          "entityId": "base:ability:192"
         },
         {
           "row": 3,
@@ -2502,7 +2502,7 @@
           "name": "Fierce Ember",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:fierce-ember"
+          "entityId": "base:ability:193"
         },
         {
           "row": 4,
@@ -2568,7 +2568,7 @@
           "name": "Avid Assault",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:avid-assault"
+          "entityId": "base:ability:219"
         },
         {
           "row": 1,
@@ -2588,7 +2588,7 @@
           "name": "Harm Magic",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:harm-magic"
+          "entityId": "base:ability:335"
         },
         {
           "row": 2,
@@ -2608,7 +2608,7 @@
           "name": "Voracity",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:voracity"
+          "entityId": "base:ability:217"
         },
         {
           "row": 3,
@@ -2618,7 +2618,7 @@
           "name": "Harm Memory",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:harm-memory"
+          "entityId": "base:ability:216"
         },
         {
           "row": 3,
@@ -2628,7 +2628,7 @@
           "name": "Executioner",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:executioner"
+          "entityId": "base:ability:332"
         },
         {
           "row": 4,
@@ -2684,7 +2684,7 @@
           "name": "Healing Breeze",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:healing-breeze"
+          "entityId": "base:ability:109"
         },
         {
           "row": 2,
@@ -2704,7 +2704,7 @@
           "name": "Steel Heart",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:steel-heart"
+          "entityId": "base:ability:117"
         },
         {
           "row": 2,
@@ -2714,7 +2714,7 @@
           "name": "Auto-Revival",
           "kind": "passive",
           "jp": 200,
-          "entityId": "wiki:passive:auto-revival"
+          "entityId": "base:passive:15"
         },
         {
           "row": 3,
@@ -2724,7 +2724,7 @@
           "name": "Steeling Strike",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:steeling-strike"
+          "entityId": "base:ability:115"
         },
         {
           "row": 3,
@@ -2734,7 +2734,7 @@
           "name": "Equip Spear",
           "kind": "passive",
           "jp": 200,
-          "entityId": "wiki:passive:equip-spear"
+          "entityId": "base:passive:34"
         },
         {
           "row": 3,
@@ -2744,7 +2744,7 @@
           "name": "Thawed Heart",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:thawed-heart"
+          "entityId": "base:ability:334"
         },
         {
           "row": 3,
@@ -2754,7 +2754,7 @@
           "name": "Steeling Wind",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:steeling-wind"
+          "entityId": "base:ability:110"
         },
         {
           "row": 4,
@@ -2764,7 +2764,7 @@
           "name": "Commander",
           "kind": "passive",
           "jp": 400,
-          "entityId": "wiki:passive:commander"
+          "entityId": "base:passive:28"
         },
         {
           "row": 4,
@@ -2774,7 +2774,7 @@
           "name": "AP Transfer",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:ap-transfer"
+          "entityId": "base:ability:113"
         },
         {
           "row": 4,
@@ -2784,7 +2784,7 @@
           "name": "Re-Raise",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:re-raise"
+          "entityId": "base:ability:116"
         },
         {
           "row": 5,
@@ -2794,7 +2794,7 @@
           "name": "Call to Arms",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:call-to-arms"
+          "entityId": "base:ability:118"
         }
       ]
     },
@@ -2956,7 +2956,7 @@
           "name": "Wild Stance",
           "kind": "ability",
           "jp": 100,
-          "entityId": "wiki:ability:wild-stance"
+          "entityId": "base:ability:343"
         },
         {
           "row": 1,
@@ -2966,7 +2966,7 @@
           "name": "Furrow",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:furrow"
+          "entityId": "base:ability:220"
         },
         {
           "row": 2,
@@ -2986,7 +2986,7 @@
           "name": "Balm",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:balm"
+          "entityId": "base:ability:300"
         },
         {
           "row": 3,
@@ -2996,7 +2996,7 @@
           "name": "Feral Stance",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:feral-stance"
+          "entityId": "base:ability:318"
         },
         {
           "row": 3,
@@ -3006,7 +3006,7 @@
           "name": "Hew",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:hew"
+          "entityId": "base:ability:214"
         },
         {
           "row": 3,
@@ -3036,7 +3036,7 @@
           "name": "Jugular",
           "kind": "ability",
           "jp": 300,
-          "entityId": "wiki:ability:jugular"
+          "entityId": "base:ability:345"
         },
         {
           "row": 5,
@@ -3046,7 +3046,7 @@
           "name": "Odor Deposit",
           "kind": "ability",
           "jp": 400,
-          "entityId": "wiki:ability:odor-deposit"
+          "entityId": "base:ability:211"
         },
         {
           "row": 5,
@@ -3056,7 +3056,7 @@
           "name": "Rigid Stance",
           "kind": "ability",
           "jp": 200,
-          "entityId": "wiki:ability:rigid-stance"
+          "entityId": "base:ability:209"
         }
       ]
     },

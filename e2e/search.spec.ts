@@ -1,3 +1,5 @@
+import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
+import { resolveBundledCatalogPins } from '../src/interchange/native'
 import { selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -18,9 +20,10 @@ async function exportLocalData(page: Page) {
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[] }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[]; bundledCatalogs?: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[] }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  return { ...bundle, bytes }
+  expect(JSON.parse(strFromU8(entries['manifest.json']!)).formatVersion).toBe('2.1.0')
+  return { ...bundle, catalogs: [...bundle.catalogs, ...resolveBundledCatalogPins(bundle.bundledCatalogs ?? [], BUNDLED_CATALOGS)], bytes }
 }
 
 async function search(page: Page, query: string, shortcut = 'Control+k') {

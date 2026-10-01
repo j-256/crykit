@@ -1,6 +1,7 @@
 import { mergeCorrections } from '../domain/corrections'
 import { loadCorrections, saveCorrections } from './corrections'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
 import { createSampleLocalData } from '../domain/sample-data'
 import { zipSync, type Zippable } from 'fflate'
 import type {
@@ -736,7 +737,8 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
           ...(captured.corrections.entries.length ? { corrections: captured.corrections } : {}),
           localData,
           lineage: captured.lineage,
-          catalogs,
+          catalogs: catalogs.filter(catalog => !isBundledCatalog(catalog)),
+          bundledCatalogs: catalogs.filter(isBundledCatalog).map(catalog => ({ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })),
           evidence,
           history,
         },
@@ -776,7 +778,7 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
     const exportedAt = nowTimestamp()
     const manifest: NativeBackupManifest = {
       format: 'crykit-backup',
-      formatVersion: '2.0.0',
+      formatVersion: NATIVE_BACKUP_FORMAT_VERSION,
       exportedAt,
       payload: 'bundle.json',
       sources: sourceManifest,

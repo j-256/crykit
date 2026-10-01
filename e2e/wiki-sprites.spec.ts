@@ -1,7 +1,7 @@
+import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
-const detail = (id: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/${encodeURIComponent(id)}`
 const WARRIOR = detail('base:class:warrior')
 
 async function expectArtwork(page: Page, name: string, source: 'game' | 'wiki' = 'game') {
@@ -30,7 +30,7 @@ test('native artwork stays quiet and wiki fallbacks retain attribution offline',
   await context.setOffline(true)
   await page.reload()
   await expectArtwork(page, 'Warrior')
-  for (const [id, name, source] of [['base:item:short-sword', 'Short Sword', 'game'], ['wiki:monster:slime', 'Slime', 'wiki']] as const) {
+  for (const [id, name, source] of [['base:item:short-sword', 'Short Sword', 'game'], ['base:monster:slime', 'Slime', 'wiki']] as const) {
     await page.goto(detail(id))
     await expectArtwork(page, name, source)
     if (source === 'wiki') {
@@ -49,21 +49,17 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(card.locator('img')).toHaveAttribute('alt', '')
   await card.click()
   await expectArtwork(page, 'Aegis')
-  await page.goto(detail('mod-pack-2:class:barbarian'))
+  await page.goto(detail('mod:barbarian:class:barbarian'))
   await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
   await expect(page.getByText('No exact artwork linked.', { exact: true })).toBeVisible()
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
 
-test('historical bundled details remain reachable without newer innate unlock evidence', async ({ page }) => {
-  const innateDetail = (revision: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/${revision}/entities/base%3Awarrior%3Ainnate%3Afighter`
+test('the baseline includes the versioned innate unlock evidence', async ({ page }) => {
+  await page.goto(detail('base:warrior:innate:fighter'))
+  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
   const unlockCost = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Learnable Innate Skill v1\.0 JP cost$/ }) })
-  await page.goto(innateDetail('bundled-v1'))
-  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
-  await expect(unlockCost).toHaveCount(0)
-  await page.goto(innateDetail('bundled-v2'))
-  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
   await expect(unlockCost).toContainText('500')
 })
 

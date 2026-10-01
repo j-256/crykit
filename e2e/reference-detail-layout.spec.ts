@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR = '/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/base%3Aclass%3Awarrior'
+const WARRIOR = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior'
 
 async function checkDetailLayout(page: Page, desktop: boolean) {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)

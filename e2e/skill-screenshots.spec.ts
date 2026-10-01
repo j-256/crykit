@@ -1,8 +1,8 @@
 import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
-import { STARTER_CATALOG } from '../src/catalog/starter'
-import { modDisplayName, CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -107,8 +107,8 @@ async function useConfirmedSwitchSetup(page: Page) {
   await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(panel)
   await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('enabled')
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('disabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
   await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -151,7 +151,7 @@ for (const ambiguous of [false, true]) {
     await page.reload()
     const saved = await exportLocalData(page)
     const learned = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
-    expect(learned.map(node => resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name)).toEqual(['Utsusemi', 'Dual Wield'])
+    expect(learned.map(node => resolveDefinition(saved, [DEFAULT_CATALOG], node.ref)?.name)).toEqual(['Utsusemi', 'Dual Wield'])
   })
 }
 
@@ -254,7 +254,7 @@ for (const fixture of [
     await page.reload()
     const saved = await exportLocalData(page)
     const learned = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
-    expect(learned.map(node => [resolveDefinition(saved, [STARTER_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
+    expect(learned.map(node => [resolveDefinition(saved, [DEFAULT_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
     expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(fixture.mappedCount)
     const capture = Object.values(selectedPlaythrough(saved).skillTreeCaptures!)[0]
     expect(capture.squares.filter(square => square.state === 'learned' && !capture.mappings.some(mapping => mapping.row === square.row && mapping.column === square.column))).toEqual(fixture.unresolvedLearned)

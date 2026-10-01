@@ -89,14 +89,14 @@ export function effectText(definition: MechanicsDefinition): string | undefined 
 export interface PermissionEffects { readonly equipment: readonly string[]; readonly dualWield: boolean; readonly twoHanded: boolean; readonly complete: boolean }
 
 export function definitionPermissionEffects(definition: MechanicsDefinition): PermissionEffects {
-  if (!nativeSourceRecord(definition)) return definitionSourceRecord(definition) ? { equipment: [], dualWield: false, twoHanded: false, complete: false } : permissionEffects(effectText(definition))
+  if (!definitionSourceRecord(definition)) return permissionEffects(effectText(definition))
   const modifiers = knownField(definition, 'Stat modifiers')
   const equipment: string[] = []
   let dualWield = false
   let twoHanded = false
   let complete = Array.isArray(modifiers)
   if (Array.isArray(modifiers)) for (const modifier of modifiers) {
-    if (!nativeRecord(modifier) || typeof modifier.Name !== 'string' || modifier.Name.startsWith('Unresolved') || modifier.Name === 'SubJobInnatePassives') { complete = false; continue }
+    if (!nativeRecord(modifier) || typeof modifier.Name !== 'string' || /^(Unresolved|Unsupported)/.test(modifier.Name) || modifier.Name === 'SubJobInnatePassives') { complete = false; continue }
     if (modifier.Name === 'EnableEquipType') {
       const type = typeof modifier.Value1 === 'number' ? EQUIPMENT_TYPES[modifier.Value1] : undefined
       if (type) equipment.push(type)
@@ -146,8 +146,7 @@ export function definitionWithMechanics<T extends MechanicsDefinition>(definitio
   const permissions = classEquipmentTypes(definition)
   const effects = definitionPermissionEffects(definition)
   const passive = definition.kind === 'passive' || definition.kind === 'innate'
-  const record = definitionSourceRecord(definition)
-  const knownPassive = passive && (!record || Boolean(nativeSourceRecord(definition))) && effects.complete
+  const knownPassive = passive && effects.complete
   const mappedSlots = slots.every(slot => equipmentRole(slot) !== undefined)
   return {
     ...definition,

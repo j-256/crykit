@@ -8,9 +8,9 @@ export interface TravelUnlockGroup {
 }
 
 export const TRAVEL_UNLOCK_GROUPS: readonly TravelUnlockGroup[] = Object.freeze([
-  { id: 'mounts', label: 'Mount instruments', description: 'Permanent mount instruments, including the upgraded Quintar and Salmon calls.', entityIds: ['wiki:item:quintar-flute', 'wiki:item:quintar-ocarina', 'wiki:item:ibek-bell', 'wiki:item:owl-drum', 'wiki:item:salmon-violin', 'wiki:item:salmon-cello'] as EntityId[] },
-  { id: 'stones', label: 'Shrine stones', description: 'Reusable travel stones. Single-use shards are separate inventory items.', entityIds: ['wiki:item:gaea-stone', 'wiki:item:mercury-stone', 'wiki:item:poseidon-stone', 'wiki:item:mars-stone', 'wiki:item:ganymede-stone', 'wiki:item:triton-stone', 'wiki:item:callisto-stone', 'wiki:item:europa-stone', 'wiki:item:dione-stone', 'wiki:item:neptune-stone', 'wiki:item:new-world-stone', 'wiki:item:old-world-stone'] as EntityId[] },
-  { id: 'capabilities', label: 'Capability items', description: 'Exploration tools, fishing rods, and passes that open up more of the game.', entityIds: ['wiki:item:treasure-finder', 'wiki:item:home-point-stone', 'wiki:item:babel-quintar', 'base:item:quintar-pass', 'wiki:item:skeleton-key', 'wiki:item:luxury-pass', 'base:item:luxury-pass-v2', 'wiki:item:watering-can', 'base:item:flimsy-rod', 'base:item:tough-rod', 'base:item:super-rod'] as EntityId[] },
+  { id: 'mounts', label: 'Mount instruments', description: 'Permanent mount instruments, including the upgraded Quintar and Salmon calls.', entityIds: ['base:item:quintar-flute', 'base:item:quintar-ocarina', 'base:item:ibek-bell', 'base:item:owl-drum', 'base:item:salmon-violin', 'base:item:salmon-cello'] as EntityId[] },
+  { id: 'stones', label: 'Shrine stones', description: 'Reusable travel stones. Single-use shards are separate inventory items.', entityIds: ['base:item:gaea-stone', 'base:item:mercury-stone', 'base:item:poseidon-stone', 'base:item:mars-stone', 'base:item:ganymede-stone', 'base:item:triton-stone', 'base:item:callisto-stone', 'base:item:europa-stone', 'base:item:dione-stone', 'base:item:neptune-stone', 'base:item:new-world-stone', 'base:item:old-world-stone'] as EntityId[] },
+  { id: 'capabilities', label: 'Capability items', description: 'Exploration tools, fishing rods, and passes that open up more of the game.', entityIds: ['base:item:treasure-finder', 'base:item:home-point-stone', 'base:item:babel-quintar', 'base:item:quintar-pass', 'base:item:skeleton-key', 'base:item:luxury-pass', 'base:item:luxury-pass-v2', 'base:item:watering-can', 'base:item:flimsy-rod', 'base:item:tough-rod', 'base:item:super-rod'] as EntityId[] },
 ])
 
 const APPLICABILITY = 'Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified'
@@ -27,7 +27,7 @@ interface ItemSupplement {
 function itemDefinition(item: ItemSupplement): CatalogEntity {
   const known = (value: JsonValue): Knowledge<JsonValue> => ({ state: 'known', value, sources: [item.source] })
   return {
-    id: `wiki:item:${item.slug}` as EntityId,
+    id: `base:item:${item.slug}` as EntityId,
     kind: 'item',
     name: item.name,
     aliases: [],
@@ -42,7 +42,7 @@ function itemDefinition(item: ItemSupplement): CatalogEntity {
 }
 
 export function addTravelUnlockDefinitions(base: CatalogSnapshot): CatalogSnapshot {
-  const mounts = base.entities['wiki:other:mounts']
+  const mounts = base.entities['base:other:mounts']
   const mountSource = (section: string): SourceRef => {
     const field = mounts?.fields[`Section: ${section}`]
     const source = field?.state === 'known' ? field.sources?.[0] : undefined

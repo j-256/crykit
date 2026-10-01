@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { composeModLayers, CRYSTAL_EDIT_CATALOG_SCHEMA, MAX_MOD_LAYERS, modCatalogForPin, modCatalogTitle } from '../domain/mod-layers'
+import { composeModLayers, CRYSTAL_EDIT_CATALOG_SCHEMA, MAX_MOD_LAYERS, modCatalogForPin, modCatalogTitle, modModelRecords } from '../domain/mod-layers'
+import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogEntity, CatalogSnapshot, EntityId, ModComposition } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Dropdown } from './Dropdown'
@@ -29,7 +30,7 @@ function TargetPicker({ entity, baseline, target, occupied, onChange }: { entity
   }, [baseline, entity.kind, query])
   const choose = (id: EntityId | null | undefined) => { onChange(id); setOpen(false); setQuery('') }
   return <div className="mod-target-picker">
-    <button aria-controls={id} aria-expanded={open} aria-haspopup="dialog" aria-label={`Bundled target for ${entity.name}`} className="button button--secondary" onClick={() => setOpen(true)} ref={anchor} type="button">{target ? `Replaces ${baseline.entities[target]?.name ?? 'unavailable target'}` : target === null ? 'Keep as a separate definition' : 'Bundled target unresolved'}</button>
+    <button aria-controls={id} aria-expanded={open} aria-haspopup="dialog" aria-label={`Bundled target for ${entity.name}`} className="button button--secondary" onClick={() => setOpen(true)} ref={anchor} type="button">{target ? `Replaces ${catalogEntity(baseline, target)?.name ?? 'unavailable target'}` : target === null ? 'Keep as a separate definition' : 'Bundled target unresolved'}</button>
     <Dropdown id={id} onDismiss={() => setOpen(false)} anchorRef={anchor} initialFocusRef={input} onClose={() => setOpen(false)} open={open} title={`Link ${entity.name}`}>
       <Field label="Search bundled replacements"><input onChange={event => setQuery(event.target.value)} ref={input} value={query}/></Field>
       <div className="mod-target-picker__choices"><Button onClick={() => choose(null)} tone="quiet" type="button">Keep as a separate definition</Button><Button onClick={() => choose(undefined)} tone="quiet" type="button">Leave bundled target unresolved</Button>{targets.slice(0, TARGET_PAGE_SIZE).map(value => <Button disabled={occupied.includes(value.id)} key={value.id} onClick={() => choose(value.id)} tone="quiet" type="button">{value.name}{occupied.includes(value.id) ? ' (already linked)' : ''}</Button>)}</div>
@@ -54,7 +55,10 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
   }, [catalogs, current])
   const baseline = modCatalogForPin(catalogs, current.baseline)
   const change = (value: ModComposition) => {
-    const availableKeys = new Set(value.layers.flatMap(layer => Object.keys(modCatalogForPin(catalogs, layer)?.entities ?? {})))
+    const availableKeys = new Set(value.layers.flatMap(layer => {
+      const catalog = modCatalogForPin(catalogs, layer)
+      return catalog ? [...modModelRecords(catalog).keys()] : []
+    }))
     onChange({ ...value, links: value.links.filter(link => availableKeys.has(link.modelKey)) })
   }
   const add = () => {
@@ -92,7 +96,7 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
       <details><summary>Review effective records and replacement links</summary><div className="stack">
         <Field label="Search effective mod records"><input onChange={event => { setQuery(event.target.value); setLimit(RECORD_PAGE_SIZE) }} value={query}/></Field>
         <ul className="mod-layers__records">{records.slice(0, limit).map(record => <li key={record.modelKey}>
-          <div><strong>{record.entity.name}</strong><small>{record.modelKey} · {record.sourceTitle}</small><p>{record.superseded.length ? `Replaces ${record.superseded.join(', ')}` : 'No earlier enabled record with this native identity'}</p></div>
+          <div><strong>{record.entity.name}</strong><small>{record.entity.id} · {record.sourceTitle}</small><p>{record.superseded.length ? `Replaces ${record.superseded.join(', ')}` : 'No earlier enabled record with this native identity'}</p></div>
           {baseline && <TargetPicker occupied={current.links.filter(link => link.modelKey !== record.modelKey && link.targetEntityId !== null).map(link => link.targetEntityId!)} baseline={baseline} entity={record.entity} onChange={id => change({ ...current, links: [...current.links.filter(link => link.modelKey !== record.modelKey), ...(id === undefined ? [] : [{ modelKey: record.modelKey, targetEntityId: id }])] })} target={current.links.find(link => link.modelKey === record.modelKey)?.targetEntityId}/>}<details><summary>Winning source record</summary><pre>{JSON.stringify(record.entity.fields['Crystal Edit source record'], null, 2)}</pre></details>
         </li>)}</ul>{records.length > limit && <Button onClick={() => setLimit(value => value + RECORD_PAGE_SIZE)} tone="secondary" type="button">Show more effective records</Button>}{records.length === 0 && <p>No effective imported records match this search.</p>}
       </div></details>

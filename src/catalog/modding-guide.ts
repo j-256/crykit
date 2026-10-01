@@ -6,7 +6,7 @@ export const MODDING_GUIDE_SOURCE: SourceRef = guide.source
 export function addModdingGuideFacts(base: CatalogSnapshot): CatalogSnapshot {
   const entities = { ...base.entities }
   for (const entry of guide.entries) {
-    const id = `guide:mechanic:${entry.category === 'Stat modifiers' ? 'stat' : 'ability'}:${encodeURIComponent(entry.name)}` as EntityId
+    const id = `base:mechanic:${entry.category === 'Stat modifiers' ? 'stat' : 'ability'}:${encodeURIComponent(entry.name)}` as EntityId
     const source = { ...MODDING_GUIDE_SOURCE, locator: entry.locator }
     const previous = entities[id]
     if (previous) {
@@ -21,7 +21,7 @@ export function addModdingGuideFacts(base: CatalogSnapshot): CatalogSnapshot {
       sources: [source],
     }
   }
-  const caveatId = 'guide:mechanic:growth-and-damage' as EntityId
+  const caveatId = 'base:mechanic:growth-and-damage' as EntityId
   const source = { ...MODDING_GUIDE_SOURCE, locator: 'Game synopsis > Growths; Abilities > Formula construction' }
   const formulaEntity: CatalogEntity = {
     id: caveatId, kind: 'other', name: 'Growth estimates and damage formula research', aliases: ['Stat calculator', 'Damage calculation', 'Growth formula'],

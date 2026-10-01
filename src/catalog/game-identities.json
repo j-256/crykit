@@ -8381,1036 +8381,1036 @@
   },
   "unresolved": [
     {
-      "id": "equipment-expansion:item:heavy-edge",
+      "id": "mod:equipment-expansion:item:heavy-edge",
       "kind": "item",
       "name": "Heavy Edge",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:woodchopper",
+      "id": "mod:equipment-expansion:item:woodchopper",
       "kind": "item",
       "name": "Woodchopper",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:primitive-axe",
+      "id": "mod:equipment-expansion:item:primitive-axe",
       "kind": "item",
       "name": "Primitive Axe",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bokken",
+      "id": "mod:equipment-expansion:item:bokken",
       "kind": "item",
       "name": "Bokken",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:thin-spear",
+      "id": "mod:equipment-expansion:item:thin-spear",
       "kind": "item",
       "name": "Thin Spear",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:dull-scythe",
+      "id": "mod:equipment-expansion:item:dull-scythe",
       "kind": "item",
       "name": "Dull Scythe",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:tiny-bow",
+      "id": "mod:equipment-expansion:item:tiny-bow",
       "kind": "item",
       "name": "Tiny Bow",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:book-of-salads",
+      "id": "mod:equipment-expansion:item:book-of-salads",
       "kind": "item",
       "name": "Book of Salads",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:loyalty",
+      "id": "mod:equipment-expansion:item:loyalty",
       "kind": "item",
       "name": "Loyalty",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:kaiser-blade",
+      "id": "mod:equipment-expansion:item:kaiser-blade",
       "kind": "item",
       "name": "Kaiser Blade",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:squire-of-avalon",
+      "id": "mod:equipment-expansion:item:squire-of-avalon",
       "kind": "item",
       "name": "Squire of Avalon",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:spear-of-io",
+      "id": "mod:equipment-expansion:item:spear-of-io",
       "kind": "item",
       "name": "Spear of Io",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:unbound-s-scythe",
+      "id": "mod:equipment-expansion:item:unbound-s-scythe",
       "kind": "item",
       "name": "Unbound's Scythe",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:codex-consiliarii",
+      "id": "mod:equipment-expansion:item:codex-consiliarii",
       "kind": "item",
       "name": "Codex Consiliarii",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:twilight-s-edge",
+      "id": "mod:equipment-expansion:item:twilight-s-edge",
       "kind": "item",
       "name": "Twilight's Edge",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:facetsplitter",
+      "id": "mod:equipment-expansion:item:facetsplitter",
       "kind": "item",
       "name": "Facetsplitter",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:guardian-of-tharsis",
+      "id": "mod:equipment-expansion:item:guardian-of-tharsis",
       "kind": "item",
       "name": "Guardian of Tharsis",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bookbeater",
+      "id": "mod:equipment-expansion:item:bookbeater",
       "kind": "item",
       "name": "Bookbeater",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:depth-seer-s-tome",
+      "id": "mod:equipment-expansion:item:depth-seer-s-tome",
       "kind": "item",
       "name": "Depth-seer's Tome",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:the-mage-in-yellow",
+      "id": "mod:equipment-expansion:item:the-mage-in-yellow",
       "kind": "item",
       "name": "The Mage in Yellow",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:sequoian-barrier",
+      "id": "mod:equipment-expansion:item:sequoian-barrier",
       "kind": "item",
       "name": "Sequoian Barrier",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:titanfeller",
+      "id": "mod:equipment-expansion:item:titanfeller",
       "kind": "item",
       "name": "Titanfeller",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:triton-s-cloak",
+      "id": "mod:equipment-expansion:item:triton-s-cloak",
       "kind": "item",
       "name": "Triton's Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:blood-of-heroes",
+      "id": "mod:equipment-expansion:item:blood-of-heroes",
       "kind": "item",
       "name": "Blood of Heroes",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:frostwing-feather",
+      "id": "mod:equipment-expansion:item:frostwing-feather",
       "kind": "item",
       "name": "Frostwing Feather",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:moonchill",
+      "id": "mod:equipment-expansion:item:moonchill",
       "kind": "item",
       "name": "Moonchill",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:equalizer-hammer",
+      "id": "mod:equipment-expansion:item:equalizer-hammer",
       "kind": "item",
       "name": "Equalizer Hammer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:sledgehammer",
+      "id": "mod:equipment-expansion:item:sledgehammer",
       "kind": "item",
       "name": "Sledgehammer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:woodsmacker",
+      "id": "mod:equipment-expansion:item:woodsmacker",
       "kind": "item",
       "name": "Woodsmacker",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:desert-ringblade",
+      "id": "mod:equipment-expansion:item:desert-ringblade",
       "kind": "item",
       "name": "Desert Ringblade",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:darkwood-spear",
+      "id": "mod:equipment-expansion:item:darkwood-spear",
       "kind": "item",
       "name": "Darkwood Spear",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:warding-glory",
+      "id": "mod:equipment-expansion:item:warding-glory",
       "kind": "item",
       "name": "Warding Glory",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:royal-dominance",
+      "id": "mod:equipment-expansion:item:royal-dominance",
       "kind": "item",
       "name": "Royal Dominance",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:hooked-sickle",
+      "id": "mod:equipment-expansion:item:hooked-sickle",
       "kind": "item",
       "name": "Hooked Sickle",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:dragonslayer",
+      "id": "mod:equipment-expansion:item:dragonslayer",
       "kind": "item",
       "name": "Dragonslayer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:executioner",
+      "id": "mod:equipment-expansion:item:executioner",
       "kind": "item",
       "name": "Executioner",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:grand-emerald",
+      "id": "mod:equipment-expansion:item:grand-emerald",
       "kind": "item",
       "name": "Grand Emerald",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:runehammer",
+      "id": "mod:equipment-expansion:item:runehammer",
       "kind": "item",
       "name": "Runehammer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:backbreaker",
+      "id": "mod:equipment-expansion:item:backbreaker",
       "kind": "item",
       "name": "Backbreaker",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:butterfly-shortspear",
+      "id": "mod:equipment-expansion:item:butterfly-shortspear",
       "kind": "item",
       "name": "Butterfly Shortspear",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:acolyte-s-cookbook",
+      "id": "mod:equipment-expansion:item:acolyte-s-cookbook",
       "kind": "item",
       "name": "Acolyte's Cookbook",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:sacrificial-ring",
+      "id": "mod:equipment-expansion:item:sacrificial-ring",
       "kind": "item",
       "name": "Sacrificial Ring",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bloodthirsty-vest",
+      "id": "mod:equipment-expansion:item:bloodthirsty-vest",
       "kind": "item",
       "name": "Bloodthirsty Vest",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:the-impregnable",
+      "id": "mod:equipment-expansion:item:the-impregnable",
       "kind": "item",
       "name": "The Impregnable",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:gilded-crescent",
+      "id": "mod:equipment-expansion:item:gilded-crescent",
       "kind": "item",
       "name": "Gilded Crescent",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:hihiirokane",
+      "id": "mod:equipment-expansion:item:hihiirokane",
       "kind": "item",
       "name": "Hihiirokane",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:thunderstruck-knife",
+      "id": "mod:equipment-expansion:item:thunderstruck-knife",
       "kind": "item",
       "name": "Thunderstruck Knife",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bone-katars",
+      "id": "mod:equipment-expansion:item:bone-katars",
       "kind": "item",
       "name": "Bone Katars",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:old-reliable",
+      "id": "mod:equipment-expansion:item:old-reliable",
       "kind": "item",
       "name": "Old Reliable",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:hoplite-s-shield",
+      "id": "mod:equipment-expansion:item:hoplite-s-shield",
       "kind": "item",
       "name": "Hoplite's Shield",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:piercing-bone",
+      "id": "mod:equipment-expansion:item:piercing-bone",
       "kind": "item",
       "name": "Piercing Bone",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:mercury-s-cloak",
+      "id": "mod:equipment-expansion:item:mercury-s-cloak",
       "kind": "item",
       "name": "Mercury's Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:trailblazer-s-coat",
+      "id": "mod:equipment-expansion:item:trailblazer-s-coat",
       "kind": "item",
       "name": "Trailblazer's Coat",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:soaring-falcon",
+      "id": "mod:equipment-expansion:item:soaring-falcon",
       "kind": "item",
       "name": "Soaring Falcon",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:shinigami-no-yokan",
+      "id": "mod:equipment-expansion:item:shinigami-no-yokan",
       "kind": "item",
       "name": "Shinigami-no-yokan",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:lightforged-katars",
+      "id": "mod:equipment-expansion:item:lightforged-katars",
       "kind": "item",
       "name": "Lightforged Katars",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:concealable-knife",
+      "id": "mod:equipment-expansion:item:concealable-knife",
       "kind": "item",
       "name": "Concealable Knife",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:blue-moon-katars",
+      "id": "mod:equipment-expansion:item:blue-moon-katars",
       "kind": "item",
       "name": "Blue Moon Katars",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:greywood-nunchaku",
+      "id": "mod:equipment-expansion:item:greywood-nunchaku",
       "kind": "item",
       "name": "Greywood Nunchaku",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:serrated-sickle",
+      "id": "mod:equipment-expansion:item:serrated-sickle",
       "kind": "item",
       "name": "Serrated Sickle",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:ancient-monster-bone",
+      "id": "mod:equipment-expansion:item:ancient-monster-bone",
       "kind": "item",
       "name": "Ancient Monster Bone",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:gaea-s-cloak",
+      "id": "mod:equipment-expansion:item:gaea-s-cloak",
       "kind": "item",
       "name": "Gaea's Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:fanged-nunchaku",
+      "id": "mod:equipment-expansion:item:fanged-nunchaku",
       "kind": "item",
       "name": "Fanged Nunchaku",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:desert-sickle",
+      "id": "mod:equipment-expansion:item:desert-sickle",
       "kind": "item",
       "name": "Desert Sickle",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:mars-cloak",
+      "id": "mod:equipment-expansion:item:mars-cloak",
       "kind": "item",
       "name": "Mars' Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:ganymede-s-cloak",
+      "id": "mod:equipment-expansion:item:ganymede-s-cloak",
       "kind": "item",
       "name": "Ganymede's Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:eaglesclaw",
+      "id": "mod:equipment-expansion:item:eaglesclaw",
       "kind": "item",
       "name": "Eaglesclaw",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:twin-blade-staff",
+      "id": "mod:equipment-expansion:item:twin-blade-staff",
       "kind": "item",
       "name": "Twin Blade Staff",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:enchanted-nunchaku",
+      "id": "mod:equipment-expansion:item:enchanted-nunchaku",
       "kind": "item",
       "name": "Enchanted Nunchaku",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:steel-nunchaku",
+      "id": "mod:equipment-expansion:item:steel-nunchaku",
       "kind": "item",
       "name": "Steel Nunchaku",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:soulfrost-gauntlet",
+      "id": "mod:equipment-expansion:item:soulfrost-gauntlet",
       "kind": "item",
       "name": "Soulfrost Gauntlet",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:moonfrost-wand",
+      "id": "mod:equipment-expansion:item:moonfrost-wand",
       "kind": "item",
       "name": "Moonfrost Wand",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:traveler-s-plate",
+      "id": "mod:equipment-expansion:item:traveler-s-plate",
       "kind": "item",
       "name": "Traveler's Plate",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:hoarfrost-buckler",
+      "id": "mod:equipment-expansion:item:hoarfrost-buckler",
       "kind": "item",
       "name": "Hoarfrost Buckler",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:black-cat-s-ring",
+      "id": "mod:equipment-expansion:item:black-cat-s-ring",
       "kind": "item",
       "name": "Black Cat's Ring",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:les-condamnes",
+      "id": "mod:equipment-expansion:item:les-condamnes",
       "kind": "item",
       "name": "Les Condamnes",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:light-crossbow",
+      "id": "mod:equipment-expansion:item:light-crossbow",
       "kind": "item",
       "name": "Light Crossbow",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:regenerating-flask",
+      "id": "mod:equipment-expansion:item:regenerating-flask",
       "kind": "item",
       "name": "Regenerating Flask",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:sawn-off-rifle",
+      "id": "mod:equipment-expansion:item:sawn-off-rifle",
       "kind": "item",
       "name": "Sawn-off Rifle",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:longneck-rifle",
+      "id": "mod:equipment-expansion:item:longneck-rifle",
       "kind": "item",
       "name": "Longneck Rifle",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:synthesized-angel",
+      "id": "mod:equipment-expansion:item:synthesized-angel",
       "kind": "item",
       "name": "Synthesized Angel",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:sunray",
+      "id": "mod:equipment-expansion:item:sunray",
       "kind": "item",
       "name": "Sunray",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:dew-staff",
+      "id": "mod:equipment-expansion:item:dew-staff",
       "kind": "item",
       "name": "Dew Staff",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:ace-of-diamonds",
+      "id": "mod:equipment-expansion:item:ace-of-diamonds",
       "kind": "item",
       "name": "Ace of Diamonds",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:flask-of-heroism",
+      "id": "mod:equipment-expansion:item:flask-of-heroism",
       "kind": "item",
       "name": "Flask of Heroism",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:soul-mirror",
+      "id": "mod:equipment-expansion:item:soul-mirror",
       "kind": "item",
       "name": "Soul Mirror",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:congealed-orb",
+      "id": "mod:equipment-expansion:item:congealed-orb",
       "kind": "item",
       "name": "Congealed Orb",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:barrier-of-blood",
+      "id": "mod:equipment-expansion:item:barrier-of-blood",
       "kind": "item",
       "name": "Barrier of Blood",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:vampiric-wand",
+      "id": "mod:equipment-expansion:item:vampiric-wand",
       "kind": "item",
       "name": "Vampiric Wand",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:liquidator",
+      "id": "mod:equipment-expansion:item:liquidator",
       "kind": "item",
       "name": "Liquidator",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:kingshammer",
+      "id": "mod:equipment-expansion:item:kingshammer",
       "kind": "item",
       "name": "Kingshammer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:wardstaff",
+      "id": "mod:equipment-expansion:item:wardstaff",
       "kind": "item",
       "name": "Wardstaff",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:broadestsword",
+      "id": "mod:equipment-expansion:item:broadestsword",
       "kind": "item",
       "name": "Broadestsword",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:plate-of-the-phoenix",
+      "id": "mod:equipment-expansion:item:plate-of-the-phoenix",
       "kind": "item",
       "name": "Plate of the Phoenix",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:helm-of-the-phoenix",
+      "id": "mod:equipment-expansion:item:helm-of-the-phoenix",
       "kind": "item",
       "name": "Helm of the Phoenix",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:padded-vest",
+      "id": "mod:equipment-expansion:item:padded-vest",
       "kind": "item",
       "name": "Padded Vest",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:reinforced-crossbow",
+      "id": "mod:equipment-expansion:item:reinforced-crossbow",
       "kind": "item",
       "name": "Reinforced Crossbow",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:huntsman",
+      "id": "mod:equipment-expansion:item:huntsman",
       "kind": "item",
       "name": "Huntsman",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:twinshot-crossbow",
+      "id": "mod:equipment-expansion:item:twinshot-crossbow",
       "kind": "item",
       "name": "Twinshot Crossbow",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:potion-of-aetherbody",
+      "id": "mod:equipment-expansion:item:potion-of-aetherbody",
       "kind": "item",
       "name": "Potion of Aetherbody",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:jade-hourglass",
+      "id": "mod:equipment-expansion:item:jade-hourglass",
       "kind": "item",
       "name": "Jade Hourglass",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:titanium-shell",
+      "id": "mod:equipment-expansion:item:titanium-shell",
       "kind": "item",
       "name": "Titanium Shell",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:throwing-knives",
+      "id": "mod:equipment-expansion:item:throwing-knives",
       "kind": "item",
       "name": "Throwing Knives",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:divine-ruler-s-helmet",
+      "id": "mod:equipment-expansion:item:divine-ruler-s-helmet",
       "kind": "item",
       "name": "Divine Ruler's Helmet",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:woodcarved-goose",
+      "id": "mod:equipment-expansion:item:woodcarved-goose",
       "kind": "item",
       "name": "Woodcarved Goose",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:snail-s-ring",
+      "id": "mod:equipment-expansion:item:snail-s-ring",
       "kind": "item",
       "name": "Snail's Ring",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:divine-ruler-s-plate",
+      "id": "mod:equipment-expansion:item:divine-ruler-s-plate",
       "kind": "item",
       "name": "Divine Ruler's Plate",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:alloy-helm",
+      "id": "mod:equipment-expansion:item:alloy-helm",
       "kind": "item",
       "name": "Alloy Helm",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:wavelord-s-regalia",
+      "id": "mod:equipment-expansion:item:wavelord-s-regalia",
       "kind": "item",
       "name": "Wavelord's Regalia",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:nomad-s-bandana",
+      "id": "mod:equipment-expansion:item:nomad-s-bandana",
       "kind": "item",
       "name": "Nomad's Bandana",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bruiser-s-cleaver",
+      "id": "mod:equipment-expansion:item:bruiser-s-cleaver",
       "kind": "item",
       "name": "Bruiser's Cleaver",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:galebound-tome",
+      "id": "mod:equipment-expansion:item:galebound-tome",
       "kind": "item",
       "name": "Galebound Tome",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:kamihime",
+      "id": "mod:equipment-expansion:item:kamihime",
       "kind": "item",
       "name": "Kamihime",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:silent-judge",
+      "id": "mod:equipment-expansion:item:silent-judge",
       "kind": "item",
       "name": "Silent Judge",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:faded-colour",
+      "id": "mod:equipment-expansion:item:faded-colour",
       "kind": "item",
       "name": "Faded Colour",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:the-second-warning",
+      "id": "mod:equipment-expansion:item:the-second-warning",
       "kind": "item",
       "name": "The Second Warning",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:the-wolf",
+      "id": "mod:equipment-expansion:item:the-wolf",
       "kind": "item",
       "name": "The Wolf",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:stonechill",
+      "id": "mod:equipment-expansion:item:stonechill",
       "kind": "item",
       "name": "Stonechill",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:demon-mail",
+      "id": "mod:equipment-expansion:item:demon-mail",
       "kind": "item",
       "name": "Demon Mail",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:reaper-s-cuffs",
+      "id": "mod:equipment-expansion:item:reaper-s-cuffs",
       "kind": "item",
       "name": "Reaper's Cuffs",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:old-monk-s-cloak",
+      "id": "mod:equipment-expansion:item:old-monk-s-cloak",
       "kind": "item",
       "name": "Old Monk's Cloak",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:stalactite",
+      "id": "mod:equipment-expansion:item:stalactite",
       "kind": "item",
       "name": "Stalactite",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:quintar-pheromones",
+      "id": "mod:equipment-expansion:item:quintar-pheromones",
       "kind": "item",
       "name": "Quintar Pheromones",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:faceless-hood",
+      "id": "mod:equipment-expansion:item:faceless-hood",
       "kind": "item",
       "name": "Faceless Hood",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:silenced-screams",
+      "id": "mod:equipment-expansion:item:silenced-screams",
       "kind": "item",
       "name": "Silenced Screams",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:shellter-gown",
+      "id": "mod:equipment-expansion:item:shellter-gown",
       "kind": "item",
       "name": "Shellter Gown",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:blue-dress",
+      "id": "mod:equipment-expansion:item:blue-dress",
       "kind": "item",
       "name": "Blue Dress",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:feyblessed-tiara",
+      "id": "mod:equipment-expansion:item:feyblessed-tiara",
       "kind": "item",
       "name": "Feyblessed Tiara",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:bloodied-hood",
+      "id": "mod:equipment-expansion:item:bloodied-hood",
       "kind": "item",
       "name": "Bloodied Hood",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:leviathan-plate",
+      "id": "mod:equipment-expansion:item:leviathan-plate",
       "kind": "item",
       "name": "Leviathan Plate",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:warstorm-helm",
+      "id": "mod:equipment-expansion:item:warstorm-helm",
       "kind": "item",
       "name": "Warstorm Helm",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:boomer-duelist",
+      "id": "mod:equipment-expansion:item:boomer-duelist",
       "kind": "item",
       "name": "Boomer Duelist",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:squirrel-champion",
+      "id": "mod:equipment-expansion:item:squirrel-champion",
       "kind": "item",
       "name": "Squirrel Champion",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:jadeforged-ring",
+      "id": "mod:equipment-expansion:item:jadeforged-ring",
       "kind": "item",
       "name": "Jadeforged Ring",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:ring-of-the-accursed",
+      "id": "mod:equipment-expansion:item:ring-of-the-accursed",
       "kind": "item",
       "name": "Ring of the Accursed",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:flood-pendant",
+      "id": "mod:equipment-expansion:item:flood-pendant",
       "kind": "item",
       "name": "Flood Pendant",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:circle-of-ruin",
+      "id": "mod:equipment-expansion:item:circle-of-ruin",
       "kind": "item",
       "name": "Circle of Ruin",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:ring-of-wizardry",
+      "id": "mod:equipment-expansion:item:ring-of-wizardry",
       "kind": "item",
       "name": "Ring of Wizardry",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:warding-beads",
+      "id": "mod:equipment-expansion:item:warding-beads",
       "kind": "item",
       "name": "Warding Beads",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:stonecore-beads",
+      "id": "mod:equipment-expansion:item:stonecore-beads",
       "kind": "item",
       "name": "Stonecore Beads",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:mistcore-beads",
+      "id": "mod:equipment-expansion:item:mistcore-beads",
       "kind": "item",
       "name": "Mistcore Beads",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:darkspike",
+      "id": "mod:equipment-expansion:item:darkspike",
       "kind": "item",
       "name": "Darkspike",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:giant-boomer",
+      "id": "mod:equipment-expansion:item:giant-boomer",
       "kind": "item",
       "name": "Giant Boomer",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "equipment-expansion:item:tarot-accessories",
+      "id": "mod:equipment-expansion:item:tarot-accessories",
       "kind": "item",
       "name": "Tarot Accessories",
       "sourceKey": "equipment-expansion-sheet",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "mod-pack-2:class:bloodmage",
+      "id": "mod:bloodmage:class:bloodmage",
       "kind": "class",
       "name": "Bloodmage",
       "sourceKey": "nintendo-mod-pack-2",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "mod-pack-2:class:tempest",
+      "id": "mod:tempest:class:tempest",
       "kind": "class",
       "name": "Tempest",
       "sourceKey": "nintendo-mod-pack-2",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "mod-pack-2:class:forcemage",
+      "id": "mod:forcemage:class:forcemage",
       "kind": "class",
       "name": "Forcemage",
       "sourceKey": "nintendo-mod-pack-2",
       "reason": "Catalog identity source has no reviewed native database crosswalk"
     },
     {
-      "id": "mod-pack-2:class:barbarian",
+      "id": "mod:barbarian:class:barbarian",
       "kind": "class",
       "name": "Barbarian",
       "sourceKey": "nintendo-mod-pack-2",

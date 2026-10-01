@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from './bundled'
+import { DEFAULT_CATALOG } from './bundled'
 import { corroboratedFact } from './source-corroboration'
 import { DefinitionFactsPanel } from '../ui/DefinitionDetailSections'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -37,15 +37,6 @@ describe('game-code field corroboration', () => {
     expect(corroboratedFact({ ...target, catalog: imported }, 'Weapons', field)).toBe(false)
   })
 
-  it('keeps old pinned catalog revisions intact and verifies only their matching claims', () => {
-    const wiki = BUNDLED_CATALOGS.find(catalog => catalog.revisionId === 'wiki-v1')!
-    const warrior = wiki.entities[WARRIOR_ID]!
-    expect(corroboratedFact({ catalog: wiki, entity: warrior }, 'Weapons', warrior.fields.Weapons!)).toBe(true)
-    expect(corroboratedFact({ catalog: wiki, entity: warrior }, 'Location', { state: 'known', value: 'Synthetic place' })).toBe(false)
-    expect(wiki.revisionId).toBe('wiki-v1')
-    expect(Object.isFrozen(wiki)).toBe(true)
-  })
-
   it('requires an unchanged native fact before suppressing its disclosure', () => {
     const field = WARRIOR.fields['Class command']!
     expect(corroboratedFact(target, 'Class command', field)).toBe(true)
@@ -58,11 +49,11 @@ describe('game-code field corroboration', () => {
   })
 
   it('keeps partial and conflicting mechanic descriptions visible', () => {
-    const full = DEFAULT_CATALOG.entities['guide:mechanic:stat:Addi%20PVariance%20%5BX%5D']!
-    const partial = DEFAULT_CATALOG.entities['guide:mechanic:stat:StealChanceUp%20%5BX%5D']!
+    const full = DEFAULT_CATALOG.entities['base:mechanic:stat:Addi%20PVariance%20%5BX%5D']!
+    const partial = DEFAULT_CATALOG.entities['base:mechanic:stat:StealChanceUp%20%5BX%5D']!
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: full }, 'Description', full.fields.Description!)).toBe(true)
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: partial }, 'Description', partial.fields.Description!)).toBe(false)
-    const conflicting = DEFAULT_CATALOG.entities['guide:mechanic:ability:KillsUser']!
+    const conflicting = DEFAULT_CATALOG.entities['base:mechanic:ability:KillsUser']!
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: conflicting }, 'Description', conflicting.fields.Description!)).toBe(false)
   })
 })

@@ -160,7 +160,7 @@ test('import previews before writing and native restore keeps original source by
   expect(strFromU8(files[manifest.sources[0].path]!)).toBe(JSON.stringify(SYNTHETIC_RESEARCH))
   const restore = await openData(page)
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
-  await expect(restore.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await expect(restore.getByText('native-backup-2.1.0', { exact: true })).toBeVisible()
   await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
   const restored = await exportPayload(page)

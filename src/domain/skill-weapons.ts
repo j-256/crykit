@@ -1,6 +1,6 @@
 import type { CatalogEntity, JsonValue, Knowledge } from './types'
 import { EQUIPMENT_TYPES } from './crystal-edit'
-import { nativeSourceRecord } from './native-game'
+import { definitionSourceRecord } from './mechanics-facts'
 import type { ModState } from './mods'
 
 export const WEAPON_TYPES = ['Axe', 'Book', 'Bow', 'Dagger', 'Katana', 'Rapier', 'Scythe', 'Spear', 'Staff', 'Sword', 'Unarmed', 'Wand'] as const
@@ -33,15 +33,16 @@ function parseType(value: JsonValue): SkillWeaponRule | undefined {
 
 export function skillWeaponRule(entity: Pick<CatalogEntity, 'kind' | 'fields'>): Knowledge<SkillWeaponRule> {
   if (entity.kind !== 'ability' && entity.kind !== 'monsterMagic') return { state: 'notApplicable' }
-  const native = nativeSourceRecord(entity)
+  const native = definitionSourceRecord(entity)
   if (native) {
-    const sources = entity.fields['Native source record']?.state === 'known' ? entity.fields['Native source record'].sources : undefined
+    const sourceField = entity.fields['Native source record'] ?? entity.fields['Crystal Edit source record']
+    const sources = sourceField?.state === 'known' ? sourceField.sources : undefined
     if (native.IsPAbil === false) return { state: 'known', value: { kind: 'nonWeaponAction' }, sources }
     if (native.IsPAbil === true && Array.isArray(native.EnabledWeaponTypes) && typeof native.EnabledUnarmed === 'boolean') {
       const weapons = native.EnabledWeaponTypes.map(id => typeof id === 'number' ? normalizeWeaponType(EQUIPMENT_TYPES[id]) : undefined)
       if (weapons.every((weapon): weapon is WeaponType => weapon !== undefined)) return { state: 'known', value: { kind: 'weaponSkill', weapons: weapons.length === 0 && !native.EnabledUnarmed ? 'any' : [...new Set([...(native.EnabledUnarmed ? ['Unarmed' as const] : []), ...weapons])] }, sources }
     }
-    return { state: 'unknown', reason: 'Native weapon requirements are incomplete or unsupported', sources }
+    return { state: 'unknown', reason: 'Exported weapon requirements are incomplete or unsupported', sources }
   }
   const typeFields = Object.entries(entity.fields).filter(([key]) => key.trim().toLowerCase() === 'type')
   if (typeFields.length !== 1) return { state: 'unknown', reason: 'No unambiguous skill type was supplied' }

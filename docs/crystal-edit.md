@@ -40,7 +40,7 @@ npm run mods:check
 
 The check mode validates committed records, source digests, exact sprite hashes, image dimensions, and the absence of private machine paths without requiring the original project files.
 
-Earlier catalog revisions remain bundled with their original content and checksums. Existing Game Setups, builds, observations, and backups retain their exact pins; adding the mod evidence does not silently retarget saved records to `bundled-v2`. Default Reference browsing uses the current revision, while exact historical links remain available.
+The bundled baseline combines the reviewed source evidence. Saved Game Setups, builds, observations, and backups use exact revision and checksum pins. Imported snapshots are separate immutable references; changed input bytes create a separate imported revision.
 
 ## Importing custom classes and class edits
 
@@ -83,3 +83,5 @@ The guide's stat and ability modifier glossaries are bundled as searchable **Mec
 The reference entry **Growth estimates and damage formula research** records unresolved damage details. The guide reverses variance and critical-hit order between its prose and its final pipeline, and its defense denominator differs from the [developer's published explanation](https://steamcommunity.com/app/1637730/discussions/0/676199918678875437/). These local uncertainties limit damage simulation; they do not prevent using independently supported class data or growth estimates.
 
 The original guide, embedded images, original class-copy project, and original mod project exports are not committed. Bundled normalized facts and glossary text retain their source attribution. Their content rights are separate from the application's code license; no redistribution license is established by possession of a source file. Custom project archives stay in local browser storage and backups. The application makes no runtime game-data requests.
+
+Imports use `mod:<project-id>:<model-family>:<numeric-id>` entity IDs and `sha256:<source-digest>` revisions. Source digests and Crystal Edit provenance remain metadata. Explicit native family and ID mappings connect imported records and composed layers without relying on display-name similarity.

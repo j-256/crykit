@@ -128,6 +128,9 @@ const NAVIGATION_STATE_KEY = 'crykitNavigation'
 const COLLECTION_ID_RESERVED_SEGMENTS = new Set(['new', 'search', 'pick', 'definitions', 'corrections', 'correct'])
 const REVISION_ID_RESERVED_SEGMENTS = new Set(['new'])
 const COMPARE_LEFT_ID_RESERVED_SEGMENTS = new Set(['search', 'pick', 'definitions', 'corrections', 'correct'])
+const ENTITY_ID_RESERVED_SEGMENTS = new Set([...COLLECTION_ID_RESERVED_SEGMENTS, 'edit', 'field'])
+const ENTITY_ID_MIN_SEGMENTS: ReadonlyMap<string, number> = new Map([['base', 3], ['mod', 4]])
+const OPAQUE_ENTITY_ID_SEGMENT = 'id'
 
 interface NavigationHistoryState {
   readonly index: number
@@ -161,9 +164,18 @@ function encodeIdentitySegment(value: string, reserved: ReadonlySet<string>): st
   return `%${firstByte}${encodeURIComponent(value.slice(1))}`
 }
 
+function entityIdentitySegments(entityId: string): readonly string[] | undefined {
+  const parts = entityId.split(':')
+  const minimum = ENTITY_ID_MIN_SEGMENTS.get(parts[0]!)
+  return minimum && parts.length >= minimum && parts.every(part => boundedOpaque(part)) ? parts : undefined
+}
+
 export function formatEntityRefPath(ref: EntityRef): string {
   if (ref.kind === 'personal') return `personal/${encodeSegment(ref.definitionId)}`
-  return `catalog/${encodeSegment(ref.catalogId)}/revisions/${encodeSegment(ref.catalogRevisionId)}/entities/${encodeSegment(ref.entityId)}`
+  if (!boundedOpaque(ref.entityId)) throw new Error('Route identifier is invalid')
+  const parts = entityIdentitySegments(ref.entityId)
+  const entityPath = parts ? parts.map(part => encodeIdentitySegment(part, ENTITY_ID_RESERVED_SEGMENTS)).join('/') : `${OPAQUE_ENTITY_ID_SEGMENT}/${encodeSegment(ref.entityId)}`
+  return `catalog/${encodeSegment(ref.catalogId)}/revisions/${encodeSegment(ref.catalogRevisionId)}/entities/${entityPath}`
 }
 
 export function parseEntityRefPath(segments: readonly string[], offset = 0): { readonly ref: EntityRef; readonly consumed: number } | undefined {
@@ -174,9 +186,26 @@ export function parseEntityRefPath(segments: readonly string[], offset = 0): { r
   if (segments[offset] !== 'catalog' || segments[offset + 2] !== 'revisions' || segments[offset + 4] !== 'entities') return undefined
   const catalogId = decodeSegment(segments[offset + 1] ?? '')
   const catalogRevisionId = decodeSegment(segments[offset + 3] ?? '')
-  const entityId = decodeSegment(segments[offset + 5] ?? '')
+  const identityOffset = offset + 5
+  let consumed = 5
+  let entityId: string | undefined
+  if (segments[identityOffset] === OPAQUE_ENTITY_ID_SEGMENT) {
+    const opaque = decodeSegment(segments[identityOffset + 1] ?? '')
+    if (opaque && !entityIdentitySegments(opaque)) entityId = opaque
+    consumed += 2
+  } else if (ENTITY_ID_MIN_SEGMENTS.has(segments[identityOffset] ?? '')) {
+    const parts: string[] = []
+    for (let cursor = identityOffset; cursor < segments.length && !ENTITY_ID_RESERVED_SEGMENTS.has(segments[cursor]!); cursor += 1) {
+      const part = decodeSegment(segments[cursor]!)
+      if (!part || part.includes(':')) return undefined
+      parts.push(part)
+    }
+    const joined = parts.join(':')
+    if (boundedOpaque(joined) && entityIdentitySegments(joined)) entityId = joined
+    consumed += parts.length
+  }
   return catalogId && catalogRevisionId && entityId
-    ? { ref: { kind: 'catalog', catalogId: catalogId as CatalogId, catalogRevisionId: catalogRevisionId as CatalogRevisionId, entityId: entityId as EntityId }, consumed: 6 }
+    ? { ref: { kind: 'catalog', catalogId: catalogId as CatalogId, catalogRevisionId: catalogRevisionId as CatalogRevisionId, entityId: entityId as EntityId }, consumed }
     : undefined
 }
 
@@ -442,56 +471,6 @@ function queryFromParams(params: URLSearchParams, overlayPresent: boolean): Rout
   return boundedQuery(params, overlayPresent)
 }
 
-function legacyEntityRef(value: unknown): EntityRef | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const record = value as Record<string, unknown>
-  if (record.kind === 'personal') {
-    const definitionId = boundedOpaque(record.definitionId)
-    return definitionId ? { kind: 'personal', definitionId: definitionId as PersonalDefinitionId } : undefined
-  }
-  if (record.kind !== 'catalog') return undefined
-  const catalogId = boundedOpaque(record.catalogId)
-  const catalogRevisionId = boundedOpaque(record.catalogRevisionId)
-  const entityId = boundedOpaque(record.entityId)
-  return catalogId && catalogRevisionId && entityId ? { kind: 'catalog', catalogId: catalogId as CatalogId, catalogRevisionId: catalogRevisionId as CatalogRevisionId, entityId: entityId as EntityId } : undefined
-}
-
-function legacyTargetPage(value: string): PageRoute | undefined {
-  try {
-    const record = JSON.parse(value) as Record<string, unknown>
-    if (record.kind === 'definition') {
-      const ref = legacyEntityRef(record.ref)
-      return ref ? { page: 'reference', view: 'detail', ref } : undefined
-    }
-    const id = record.kind === 'inventory' ? boundedOpaque(record.positionId)
-      : record.kind === 'character' ? boundedOpaque(record.characterId)
-      : record.kind === 'build' ? boundedOpaque(record.buildId)
-      : record.kind === 'scenario' ? boundedOpaque(record.scenarioId)
-      : record.kind === 'progress' ? boundedOpaque(record.recordId)
-      : undefined
-    if (!id) return undefined
-    if (record.kind === 'inventory') return { page: 'inventory', view: 'edit', positionId: id as InventoryPositionId }
-    if (record.kind === 'character') return { page: 'characters', view: 'character', characterId: id as CharacterId, tab: 'current' }
-    if (record.kind === 'build') return { page: 'builds', view: 'build', buildId: id as BuildId }
-    if (record.kind === 'scenario') return { page: 'builds', view: 'scenario', scenarioId: id as ScenarioId }
-    if (record.kind === 'progress') return { page: 'progress', view: 'edit', recordId: id as ProgressRecordId }
-  } catch {
-    return undefined
-  }
-  return undefined
-}
-
-function legacySelectedPage(value: string): ReferencePageRoute | undefined {
-  try {
-    const parsed = JSON.parse(value) as unknown
-    if (!Array.isArray(parsed) || parsed.length !== 3) return undefined
-    const [catalogId, catalogRevisionId, entityId] = parsed.map((entry) => boundedOpaque(entry))
-    return catalogId && catalogRevisionId && entityId ? { page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: catalogId as CatalogId, catalogRevisionId: catalogRevisionId as CatalogRevisionId, entityId: entityId as EntityId } } : undefined
-  } catch {
-    return undefined
-  }
-}
-
 export function parseAppRoute(hash: string): AppRoute {
   if (hash.startsWith('#/share/')) {
     if (!/^#\/share\/v[12]\//.test(hash) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
@@ -511,18 +490,7 @@ export function parseAppRoute(hash: string): AppRoute {
   const path = rawPath.replace(/^\/?/, '/')
   const segments = path.split('/').filter(Boolean)
   const params = new URLSearchParams(rawQuery)
-  const legacyTarget = params.get('target')
-  const legacyPage = legacyTarget ? legacyTargetPage(legacyTarget) : undefined
-  if (legacyPage) return { page: legacyPage, overlays: [], query: {}, legacy: true }
   const parsed = parsePage(segments, path)
-  if (parsed.page.page === 'reference' && parsed.page.view === 'list') {
-    const selected = params.get('selected')
-    const selectedPage = selected ? legacySelectedPage(selected) : undefined
-    if (selectedPage) {
-      params.delete('selected')
-      return { page: selectedPage, overlays: [], query: queryFromParams(params, false), legacy: true }
-    }
-  }
   if (parsed.page.page === 'unresolved') return { page: parsed.page, overlays: [], query: {} }
   const overlays = parseOverlays(segments, parsed.consumed, params)
   if (!overlays || !overlaysSupported(parsed.page, overlays)) return { page: unresolved(path, recoveryFor(segments)), overlays: [], query: {} }

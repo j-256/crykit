@@ -9,8 +9,8 @@ const REFERENCE_ARTICLES = new Set([
   'axes', 'books', 'bows', 'daggers', 'heavy-armor', 'heavy-helmets', 'katanas',
   'light-armor', 'light-hats', 'medium-armor', 'medium-headgear', 'rapiers',
   'scythes', 'shields', 'spears', 'staves', 'swords', 'wands',
-].map((name) => `wiki:item:${name}`))
-const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost)$/i
+].map(name => `base:item:${name}`))
+const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost|cost \(copper\))$/i
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
 const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])
 
@@ -35,7 +35,9 @@ export function decisionFacts(record: Definition): readonly { readonly label: st
     const key = `${family}:${JSON.stringify(value.state === 'known' ? value.value : value)}`
     if (seen.has(key)) return []
     seen.add(key)
-    return [{ label, value }]
+    const monetaryCost = label === 'Cost (copper)'
+    const displayed = monetaryCost && value.state === 'known' && typeof value.value === 'number' ? { ...value, value: `${value.value} Copper` } : value
+    return [{ label: monetaryCost ? 'Cost' : label, value: displayed }]
   }).sort((left, right) => Number(/^cost$/i.test(left.label)) - Number(/^cost$/i.test(right.label)))
 }
 

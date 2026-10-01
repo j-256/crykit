@@ -2,8 +2,8 @@ import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { STARTER_CATALOG } from '../src/catalog/starter'
-import { MOONLIGHT_PROJECT_MOD, modDisplayName, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { MOONLIGHT_PROJECT_MOD, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
 import { asId, captureCharacter, createCharacter, setPlaythroughGameSetup, updateGameSetupRevision } from '../src/domain'
 import { addTestBuild, createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
 import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain/types'
@@ -11,12 +11,12 @@ import { selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replaceP
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
-const SHIELD: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('mod-pack-2:item:doge-shield') }
-const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('equipment-expansion:item:backbreaker') }
+const SHIELD: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:doge-shield') }
+const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:item:backbreaker') }
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [STARTER_CATALOG], evidence: [], history: [] }) })
+  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
 }
 
 async function dataPanel(page: Page) {
@@ -38,7 +38,8 @@ async function importBackup(page: Page, bytes: Uint8Array) {
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
-  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible({ timeout: NATIVE_BACKUP_PREVIEW_TIMEOUT_MS })
+  const manifest = JSON.parse(strFromU8(unzipSync(bytes)['manifest.json']!)) as { formatVersion: string }
+  await expect(panel.getByText(`native-backup-${manifest.formatVersion}`, { exact: true })).toBeVisible({ timeout: NATIVE_BACKUP_PREVIEW_TIMEOUT_MS })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
 }
@@ -52,7 +53,7 @@ async function search(page: Page, query: string) {
 
 test('recorded mod help opens settings and preserves the snapshot after a mod choice changes', async ({ page, isMobile }) => {
   const original = createTestLocalData()
-  let localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }, slots: original.gameSetups[TEST_GAME_SETUP_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
+  let localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, slots: original.gameSetups[TEST_GAME_SETUP_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
   localData = createCharacter(localData, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(12), displayedStats: {}, equipment: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
   localData = { ...localData, changes: [] }
@@ -91,7 +92,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
 })
 
 test('mod settings control search and choices while sheets retain recorded context across backup restore', async ({ page }) => {
-  let localData = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId } })
+  let localData = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } })
   localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   localData = createCharacter(localData, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(12), displayedStats: {}, equipment: { [HAND_SLOT]: SHIELD }, note: 'Synthetic mod observation', now: TEST_NOW })
@@ -211,12 +212,12 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
     const group = panel.locator('.game-setup-mod-pack').filter({ hasText: pack.name })
     await expect(group.locator(':scope > summary small')).toHaveText(`0 of ${pack.mods.length} enabled · ${pack.mods.length} need review`)
     await expect(group.getByRole('combobox')).toHaveCount(pack.mods.length)
-    for (const name of pack.mods) await expect(group.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('unknown')
+    for (const name of pack.mods) await expect(group.getByRole('combobox', { name: name, exact: true })).toHaveValue('unknown')
   }
   await panel.getByLabel('Game Setup label', { exact: false }).fill('Synthetic Switch choices')
   await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('enabled')
-  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: modDisplayName(name), exact: true })).toHaveValue('disabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('enabled')
+  for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
   await expect(platform).toHaveValue('Nintendo Switch')
   await expect(version).toHaveValue('1.6.6')
   const shield = panel.getByRole('combobox', { name: 'Doge Shield', exact: true })
@@ -295,7 +296,7 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     const setup = original.gameSetups[TEST_GAME_SETUP_REVISION_ID]
     const mods = state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : state === 'conflicting' ? { state: 'conflicting' as const, claims: [{ value: [MOONLIGHT_PROJECT_MOD], sources: [] }, { value: [], sources: [] }] } : { state: 'unknown' as const }
     const disabledMods = state === 'disabled' ? known([MOONLIGHT_PROJECT_MOD]) : { state: 'unknown' as const }
-    let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
+    let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
     localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known([MOONLIGHT_PROJECT_MOD]), disabledMods: state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : known([]) })
     await page.goto('/')
     await importBackup(page, backup(localData))

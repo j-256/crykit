@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { BUNDLED_CATALOG_REVISION_ID } from '../catalog/bundled-catalog'
+import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import {
   advanceClassSealProgress,
@@ -22,7 +22,7 @@ const NOW = '2026-09-29T12:00:00.000Z'
 const SUBJECT = {
   kind: 'catalog' as const,
   catalogId: STARTER_CATALOG_ID,
-  catalogRevisionId: BUNDLED_CATALOG_REVISION_ID,
+  catalogRevisionId: CERTAINTY_CATALOG_REVISION_ID,
   entityId: asId<EntityId>('base:class:warrior'),
 }
 const SECOND_SUBJECT = {
@@ -129,7 +129,7 @@ describe('class seal progress', () => {
 })
 
 describe('two-state acquisition progress', () => {
-  const instrument = { ...SUBJECT, entityId: asId<EntityId>('wiki:item:ibek-bell') }
+  const instrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:ibek-bell') }
 
   it('records acquired and not acquired without altering inventory, learning, or class facts', () => {
     const initial = createTestLocalData()
@@ -151,8 +151,8 @@ describe('two-state acquisition progress', () => {
 
   it('preserves uncertain imports until explicitly confirmed and keeps their pinned subject', () => {
     let localData = createTestLocalData()
-    const existingInstrument = { ...SUBJECT, entityId: asId<EntityId>('wiki:item:quintar-flute') }
-    const oldRef = { ...existingInstrument, catalogRevisionId: 'bundled-v1' as typeof instrument.catalogRevisionId }
+    const existingInstrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:quintar-flute') }
+    const oldRef = { ...existingInstrument, catalogRevisionId: 'synthetic-other-revision' as typeof instrument.catalogRevisionId }
     for (const collection of [{ state: 'unknown' }, { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] }, { state: 'notApplicable' }] as const) {
       localData = upsertProgress(localData, { subject: oldRef, displayName: 'Imported instrument', collection, observedAt: '2026-09-28', now: NOW })
       const record = Object.values(requirePlaythrough(localData).progress)[0]!

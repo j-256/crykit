@@ -19,7 +19,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 function StructuredValue({ value, field, nativeSource = false }: { value: unknown; field?: string; nativeSource?: boolean }) {
   if (field && isStatRatingField(field)) return <StatRatings field={field} value={value}/>
   const native = nativeSource || field === NATIVE_RECORD_FIELD
-  if (value === null) return <span>Null</span>
+  if (value === null) return <span>Not set in source</span>
   if (typeof value === 'string') {
     const parts = value.split(/(,\s*)/)
     if (field && parts.some(part => fieldIconKey(field, part))) return <span className="icon-values">{parts.map((part, index) => /^,\s*$/.test(part) ? <span key={index}>{part}</span> : <span className="icon-label" key={index}><GameIcon iconKey={fieldIconKey(field, part)}/><span><MoneyText>{part}</MoneyText></span></span>)}</span>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { historicalCatalogKeys } from '../domain/corrections'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlocks'
+import { catalogEntity } from '../domain/entity-identities'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId } from '../domain/types'
 import { Button, Field, InlineNotice } from './components'
@@ -30,12 +31,14 @@ export function travelUnlockEntries(localData: LocalData, catalogs: readonly Cat
   if (!catalog) return []
   const records = new Map(Object.values(requirePlaythrough(localData).progress).map(record => [logicalEntityKey(localData, record.subject), record]))
   return TRAVEL_UNLOCK_GROUPS.flatMap(group => group.entityIds.flatMap(entityId => {
-    const entity = catalog.entities[entityId]
+    const entity = catalogEntity(catalog, entityId)
     if (entity?.kind !== 'item') return []
-    const subject = preferredDefinitionRef(localData, { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId })
+    const subject = preferredDefinitionRef(localData, { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id })
     const key = logicalEntityKey(localData, subject)
     const record = records.get(key)
-    return [{ key, groupId: group.id, subject, name: resolveEntity(localData, catalogs, subject)?.name ?? entity.name, artworkEntity: subject.kind === 'catalog' ? entity : undefined, record, state: acquisitionState(record) }]
+    const definition = resolveEntity(localData, catalogs, subject)
+    const artworkEntity = subject.kind === 'catalog' ? definition as CatalogEntity | undefined : undefined
+    return [{ key, groupId: group.id, subject, name: definition?.name ?? entity.name, artworkEntity, record, state: acquisitionState(record) }]
   }))
 }
 
@@ -109,6 +112,6 @@ export function TravelUnlocksView({ localData, catalogs, saveBlocked, focusedRec
         })}</div>
       </section>
     })}
-    <p className="unlock-footnote">Unchecked items are not acquired on this checklist. Mark items from your game; inventory and character learning are tracked separately. Location links show community sources with their platform and mod uncertainty.</p>
+    <p className="unlock-footnote">Unchecked items are not acquired on this checklist. Mark items from your game; inventory and character learning are tracked separately. Saved observations keep their original reference. Location links identify their sources and any unresolved claims.</p>
   </ProgressPage>
 }

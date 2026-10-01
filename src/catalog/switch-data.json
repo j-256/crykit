@@ -12,47 +12,47 @@
     },
     "costs": [
       [
-        "mod-pack-2:barbarian:passive:hardy",
+        "mod:barbarian:passive:hardy",
         1
       ],
       [
-        "mod-pack-2:barbarian:passive:ferocious",
+        "mod:barbarian:passive:ferocious",
         3
       ],
       [
-        "mod-pack-2:barbarian:passive:endurance",
+        "mod:barbarian:passive:endurance",
         2
       ],
       [
-        "mod-pack-2:tempest:passive:preparation",
+        "mod:tempest:passive:preparation",
         4
       ],
       [
-        "mod-pack-2:tempest:passive:fast-hands",
+        "mod:tempest:passive:fast-hands",
         1
       ],
       [
-        "switch:brawler:passive:fists-of-steel",
+        "mod:moonlight-project:passive:97",
         3
       ],
       [
-        "switch:brawler:passive:brawlers-resolve",
+        "mod:moonlight-project:passive:99",
         3
       ],
       [
-        "switch:brawler:passive:close-combat",
+        "mod:moonlight-project:passive:100",
         3
       ],
       [
-        "switch:freelancer:passive:quick-thinking",
+        "mod:moonlight-project:passive:116",
         2
       ],
       [
-        "switch:freelancer:passive:scavenger",
+        "mod:moonlight-project:passive:115",
         2
       ],
       [
-        "switch:freelancer:passive:aptitude",
+        "mod:moonlight-project:passive:114",
         2
       ],
       [
@@ -162,366 +162,366 @@
     ],
     "notApplicable": [
       [
-        "mod-pack-2:barbarian:innate:toughness",
+        "mod:barbarian:innate:toughness",
         "Learnable Innate Skill applies only to vanilla classes"
       ],
       [
-        "mod-pack-2:tempest:innate:squall",
+        "mod:tempest:innate:squall",
         "Learnable Innate Skill applies only to vanilla classes"
       ]
     ]
   },
   "classes": [
     {
-      "id": "mod-pack-2:class:barbarian",
+      "id": "mod:barbarian:class:barbarian",
       "name": "Barbarian",
       "requiredMod": "Barbarian",
       "innate": {
-        "id": "mod-pack-2:barbarian:innate:toughness",
+        "id": "mod:barbarian:innate:toughness",
         "name": "Toughness",
         "learnableFromTree": false
       },
       "skills": [
         [
-          "mod-pack-2:barbarian:ability:shout",
+          "mod:barbarian:ability:shout",
           "ability",
           "Shout"
         ],
         [
-          "mod-pack-2:barbarian:ability:thick-skin",
+          "mod:barbarian:ability:thick-skin",
           "ability",
           "Thick Skin"
         ],
         [
-          "mod-pack-2:barbarian:ability:enrage",
+          "mod:barbarian:ability:enrage",
           "ability",
           "Enrage"
         ],
         [
-          "mod-pack-2:barbarian:passive:hardy",
+          "mod:barbarian:passive:hardy",
           "passive",
           "Hardy"
         ],
         [
-          "mod-pack-2:barbarian:ability:battlecry",
+          "mod:barbarian:ability:battlecry",
           "ability",
           "Battlecry"
         ],
         [
-          "mod-pack-2:barbarian:ability:second-wind",
+          "mod:barbarian:ability:second-wind",
           "ability",
           "Second Wind"
         ],
         [
-          "mod-pack-2:barbarian:passive:ferocious",
+          "mod:barbarian:passive:ferocious",
           "passive",
           "Ferocious"
         ],
         [
-          "mod-pack-2:barbarian:ability:rally",
+          "mod:barbarian:ability:rally",
           "ability",
           "Rally"
         ],
         [
-          "mod-pack-2:barbarian:ability:grapple",
+          "mod:barbarian:ability:grapple",
           "ability",
           "Grapple"
         ],
         [
-          "mod-pack-2:barbarian:passive:endurance",
+          "mod:barbarian:passive:endurance",
           "passive",
           "Endurance"
         ],
         [
-          "mod-pack-2:barbarian:ability:overpower",
+          "mod:barbarian:ability:overpower",
           "ability",
           "Overpower"
         ],
         [
-          "mod-pack-2:barbarian:ability:momentum",
+          "mod:barbarian:ability:momentum",
           "ability",
           "Momentum"
         ]
       ]
     },
     {
-      "id": "mod-pack-2:class:tempest",
+      "id": "mod:tempest:class:tempest",
       "name": "Tempest",
       "requiredMod": "Tempest",
       "innate": {
-        "id": "mod-pack-2:tempest:innate:squall",
+        "id": "mod:tempest:innate:squall",
         "name": "Squall",
         "learnableFromTree": false
       },
       "skills": [
         [
-          "mod-pack-2:tempest:ability:flurry",
+          "mod:tempest:ability:flurry",
           "ability",
           "Flurry"
         ],
         [
-          "mod-pack-2:tempest:passive:preparation",
+          "mod:tempest:passive:preparation",
           "passive",
           "Preparation"
         ],
         [
-          "mod-pack-2:tempest:ability:thunder-stance",
+          "mod:tempest:ability:thunder-stance",
           "ability",
           "Thunder Stance"
         ],
         [
-          "mod-pack-2:tempest:ability:chain-lightning",
+          "mod:tempest:ability:chain-lightning",
           "ability",
           "Chain Lightning"
         ],
         [
-          "mod-pack-2:tempest:ability:wind-stance",
+          "mod:tempest:ability:wind-stance",
           "ability",
           "Wind Stance"
         ],
         [
-          "mod-pack-2:tempest:ability:charge",
+          "mod:tempest:ability:charge",
           "ability",
           "Charge"
         ],
         [
-          "mod-pack-2:tempest:ability:gale",
+          "mod:tempest:ability:gale",
           "ability",
           "Gale"
         ],
         [
-          "mod-pack-2:tempest:ability:swipe",
+          "mod:tempest:ability:swipe",
           "ability",
           "Swipe"
         ],
         [
-          "mod-pack-2:tempest:ability:jolt",
+          "mod:tempest:ability:jolt",
           "ability",
           "Jolt"
         ],
         [
-          "mod-pack-2:tempest:ability:lightning-strike",
+          "mod:tempest:ability:lightning-strike",
           "ability",
           "Lightning Strike"
         ],
         [
-          "mod-pack-2:tempest:ability:hurricane",
+          "mod:tempest:ability:hurricane",
           "ability",
           "Hurricane"
         ],
         [
-          "mod-pack-2:tempest:passive:fast-hands",
+          "mod:tempest:passive:fast-hands",
           "passive",
           "Fast Hands"
         ]
       ]
     },
     {
-      "id": "switch:class:brawler",
+      "id": "mod:moonlight-project:class:25",
       "name": "Brawler",
       "requiredMod": null,
       "innate": null,
       "skills": [
         [
-          "switch:brawler:ability:brawler-stance",
+          "mod:moonlight-project:ability:616",
           "ability",
           "Brawler Stance"
         ],
         [
-          "switch:brawler:ability:jab-combo",
+          "mod:moonlight-project:ability:540",
           "ability",
           "Jab Combo"
         ],
         [
-          "switch:brawler:ability:rush-stance",
+          "mod:moonlight-project:ability:617",
           "ability",
           "Rush Stance"
         ],
         [
-          "switch:brawler:ability:leg-sweep",
+          "mod:moonlight-project:brawler:ability:leg-sweep",
           "ability",
           "Leg Sweep"
         ],
         [
-          "switch:brawler:ability:arm-break",
+          "mod:moonlight-project:brawler:ability:arm-break",
           "ability",
           "Arm Break"
         ],
         [
-          "switch:brawler:ability:body-slam",
+          "mod:moonlight-project:brawler:ability:body-slam",
           "ability",
           "Body Slam"
         ],
         [
-          "switch:brawler:ability:beast-stance",
+          "mod:moonlight-project:ability:618",
           "ability",
           "Beast Stance"
         ],
         [
-          "switch:brawler:ability:head-smash",
+          "mod:moonlight-project:brawler:ability:head-smash",
           "ability",
           "Head Smash"
         ],
         [
-          "switch:brawler:ability:shatter",
+          "mod:moonlight-project:brawler:ability:shatter",
           "ability",
           "Shatter"
         ],
         [
-          "switch:brawler:ability:flying-press",
+          "mod:moonlight-project:brawler:ability:flying-press",
           "ability",
           "Flying Press"
         ],
         [
-          "switch:brawler:passive:fists-of-steel",
+          "mod:moonlight-project:passive:97",
           "passive",
           "Fists of Steel"
         ],
         [
-          "switch:brawler:ability:grapple",
+          "mod:moonlight-project:ability:552",
           "ability",
           "Grapple"
         ],
         [
-          "switch:brawler:passive:brawlers-resolve",
+          "mod:moonlight-project:passive:99",
           "passive",
           "Brawler's Resolve"
         ],
         [
-          "switch:brawler:ability:drain-punch",
+          "mod:moonlight-project:brawler:ability:drain-punch",
           "ability",
           "Drain Punch"
         ],
         [
-          "switch:brawler:ability:bulk-up",
+          "mod:moonlight-project:brawler:ability:bulk-up",
           "ability",
           "Bulk Up"
         ],
         [
-          "switch:brawler:ability:rage-fist",
+          "mod:moonlight-project:brawler:ability:rage-fist",
           "ability",
           "Rage Fist"
         ],
         [
-          "switch:brawler:passive:close-combat",
+          "mod:moonlight-project:passive:100",
           "passive",
           "Close Combat"
         ],
         [
-          "switch:brawler:ability:soul-crush",
+          "mod:moonlight-project:brawler:ability:soul-crush",
           "ability",
           "Soul Crush"
         ],
         [
-          "switch:brawler:ability:meditate",
+          "mod:moonlight-project:brawler:ability:meditate",
           "ability",
           "Meditate"
         ],
         [
-          "switch:brawler:ability:battlecry",
+          "mod:moonlight-project:brawler:ability:battlecry",
           "ability",
           "Battlecry"
         ]
       ]
     },
     {
-      "id": "switch:class:freelancer",
+      "id": "mod:moonlight-project:class:26",
       "name": "Freelancer",
       "requiredMod": null,
       "innate": null,
       "skills": [
         [
-          "switch:freelancer:ability:check-out",
+          "mod:moonlight-project:ability:557",
           "ability",
           "Check Out"
         ],
         [
-          "switch:freelancer:ability:secret-stash",
+          "mod:moonlight-project:ability:560",
           "ability",
           "Secret Stash"
         ],
         [
-          "switch:freelancer:ability:patch-up",
+          "mod:moonlight-project:ability:572",
           "ability",
           "Patch Up"
         ],
         [
-          "switch:freelancer:ability:swipe",
+          "mod:moonlight-project:ability:558",
           "ability",
           "Swipe"
         ],
         [
-          "switch:freelancer:ability:hp-candy",
+          "mod:moonlight-project:ability:561",
           "ability",
           "HP Candy"
         ],
         [
-          "switch:freelancer:ability:mockery",
+          "mod:moonlight-project:ability:562",
           "ability",
           "Mockery"
         ],
         [
-          "switch:freelancer:passive:quick-thinking",
+          "mod:moonlight-project:passive:116",
           "passive",
           "Quick Thinking"
         ],
         [
-          "switch:freelancer:ability:see-ya",
+          "mod:moonlight-project:ability:559",
           "ability",
           "See Ya"
         ],
         [
-          "switch:freelancer:ability:mp-candy",
+          "mod:moonlight-project:ability:566",
           "ability",
           "MP Candy"
         ],
         [
-          "switch:freelancer:ability:scapegoat",
+          "mod:moonlight-project:ability:563",
           "ability",
           "Scapegoat"
         ],
         [
-          "switch:freelancer:ability:staring-contest",
+          "mod:moonlight-project:ability:564",
           "ability",
           "Staring Contest"
         ],
         [
-          "switch:freelancer:ability:revival-candy",
+          "mod:moonlight-project:ability:567",
           "ability",
           "Revival Candy"
         ],
         [
-          "switch:freelancer:ability:pep-talk",
+          "mod:moonlight-project:ability:569",
           "ability",
           "Pep Talk"
         ],
         [
-          "switch:freelancer:passive:scavenger",
+          "mod:moonlight-project:passive:115",
           "passive",
           "Scavenger"
         ],
         [
-          "switch:freelancer:ability:baton-pass",
+          "mod:moonlight-project:ability:570",
           "ability",
           "Baton Pass"
         ],
         [
-          "switch:freelancer:ability:candy-mix",
+          "mod:moonlight-project:ability:568",
           "ability",
           "Candy Mix"
         ],
         [
-          "switch:freelancer:ability:trash-talk",
+          "mod:moonlight-project:ability:571",
           "ability",
           "Trash Talk"
         ],
         [
-          "switch:freelancer:ability:100-pun-storm",
+          "mod:moonlight-project:ability:565",
           "ability",
           "100-Pun Storm"
         ],
         [
-          "switch:freelancer:passive:aptitude",
+          "mod:moonlight-project:passive:114",
           "passive",
           "Aptitude"
         ]

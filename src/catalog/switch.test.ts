@@ -24,14 +24,14 @@ function ref(id: string): CatalogRef {
 
 describe('confirmed Switch skill identities', () => {
   it('preserves class-specific identities without borrowing mechanics from matching wiki names', () => {
-    const meditate = STARTER_CATALOG.entities['switch:brawler:ability:meditate']
+    const meditate = STARTER_CATALOG.entities['mod:moonlight-project:brawler:ability:meditate']
     expect(meditate.name).toBe('Meditate')
     expect(meditate.fields.Class).toMatchObject({ state: 'known', value: 'Brawler' })
     expect(meditate.fields.Description.state).toBe('unknown')
     expect(meditate.fields['MP cost'].state).toBe('unknown')
     expect(meditate.id).not.toBe(STARTER_CATALOG.entities['base:monk:ability:meditate'].id)
     const swipes = Object.values(STARTER_CATALOG.entities).filter(entity => entity.kind === 'ability' && entity.name === 'Swipe')
-    expect(swipes.map(entity => entity.id).sort()).toEqual(['mod-pack-2:tempest:ability:swipe', 'switch:freelancer:ability:swipe'])
+    expect(swipes.map(entity => entity.id).sort()).toEqual(['mod:moonlight-project:ability:558', 'mod:tempest:ability:swipe'])
     for (const record of SWITCH_CLASS_RECORDS) {
       for (const [id, kind] of record.skills) {
         const entity = STARTER_CATALOG.entities[id]
@@ -70,30 +70,30 @@ describe('confirmed Switch skill identities', () => {
     const characterId = asId<CharacterId>('synthetic-switch-class-character')
     let localData = createCharacter(createTestLocalData(), { id: characterId, name: 'Rowan' })
     for (const className of ['barbarian', 'tempest']) {
-      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === `mod-pack-2:class:${className}`)!
+      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === `mod:${className}:class:${className}`)!
       localData = importSkillTrees(localData, [STARTER_CATALOG], [{ characterId, classRef: map.classRef, sourceDigest: className === 'barbarian' ? 'a'.repeat(64) : 'b'.repeat(64), filename: `synthetic-${className}.png`, squares: map.squares.map(square => ({ ...square, state: 'learned' })), mappings: map.mappings, reviewed: true }], localData.revision)
     }
     const learned = Object.values(requirePlaythrough(localData).characters[characterId].learnedNodes)
     expect(learned.some(node => node.kind === 'innate')).toBe(false)
-    expect(learned.find(node => node.ref.kind === 'catalog' && node.ref.entityId === 'mod-pack-2:tempest:passive:preparation')?.kind).toBe('passive')
-    for (const id of ['mod-pack-2:tempest:innate:squall', 'mod-pack-2:barbarian:innate:toughness']) {
+    expect(learned.find(node => node.ref.kind === 'catalog' && node.ref.entityId === 'mod:tempest:passive:preparation')?.kind).toBe('passive')
+    for (const id of ['mod:tempest:innate:squall', 'mod:barbarian:innate:toughness']) {
       expect(STARTER_CATALOG.entities[id].kind).toBe('innate')
       expect(STARTER_CATALOG.entities[id].fields['Learnable from this skill tree']).toMatchObject({ state: 'known', value: false })
       expect(learned.some(node => node.ref.kind === 'catalog' && node.ref.entityId === id)).toBe(false)
     }
-    expect(STARTER_CATALOG.entities['mod-pack-2:tempest:passive:preparation'].aliases).not.toContain('Squall')
+    expect(STARTER_CATALOG.entities['mod:tempest:passive:preparation'].aliases).not.toContain('Squall')
   })
 
   it('follows confirmed class mods while keeping uncertain ownership visible', () => {
     const localData = createTestLocalData()
-    const gameSetup = { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Barbarian', 'Tempest', 'Moonlight Project Custom Bosses']) }
+    const gameSetup = { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Barbarian', 'Tempest', 'Moonlight Project']) }
     for (const record of SWITCH_CLASS_RECORDS) {
       for (const id of [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])]) {
-        expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : record.id === 'switch:class:brawler' ? { requiredMod: 'Moonlight Project Custom Bosses', state: 'disabled' } : { state: 'unknown' })
+        expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : { requiredMod: 'Moonlight Project', state: 'disabled' })
       }
     }
-    expect(STARTER_CATALOG.entities['switch:class:brawler'].fields['Source mod'].state).toBe('unknown')
-    expect(STARTER_CATALOG.entities['switch:class:freelancer'].fields['Source mod'].state).toBe('unknown')
+    expect(STARTER_CATALOG.entities['mod:moonlight-project:class:25'].fields['Source mod'].state).toBe('unknown')
+    expect(STARTER_CATALOG.entities['mod:moonlight-project:class:26'].fields['Source mod'].state).toBe('unknown')
     expect(Object.values(STARTER_CATALOG.entities).some(entity => entity.kind === 'class' && entity.name === 'Shapeshifter')).toBe(false)
   })
 })

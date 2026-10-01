@@ -1,5 +1,5 @@
 import { entityDefinitionKey, entityRefKey } from './core'
-import { modEntity } from './mod-layers'
+import { catalogEntity } from './entity-identities'
 import type {
   CatalogEntity,
   CatalogSnapshot,
@@ -22,7 +22,7 @@ export function resolveDefinition(
 ): ResolvedDefinition | undefined {
   if (ref.kind === 'personal') return localData.personalDefinitions[ref.definitionId]
   const catalog = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
-  return catalog ? modEntity(catalog, ref.entityId) : undefined
+  return catalog ? catalogEntity(catalog, ref.entityId) : undefined
 }
 
 export function definitionLineageRootRef(localData: LocalData, ref: EntityRef): EntityRef {

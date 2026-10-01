@@ -1,6 +1,6 @@
 import type { CatalogSnapshot, EntityRef, Knowledge, LocalData, Quantity, GameSetupRevision } from '../domain/types'
 import { AppDataError } from '../interchange/errors'
-import { modEntity } from '../domain/mod-layers'
+import { catalogEntity } from '../domain/entity-identities'
 
 export function ownRecordValue<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
   return Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined
@@ -30,7 +30,7 @@ export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSn
   if (!ref) return undefined
   if (ref.kind === 'personal') return ownRecordValue(localData.personalDefinitions, ref.definitionId)
   const snapshot = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
-  return snapshot ? modEntity(snapshot, ref.entityId) : undefined
+  return snapshot ? catalogEntity(snapshot, ref.entityId) : undefined
 }
 
 export function entityName(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined, fallback = 'Unresolved entry') {

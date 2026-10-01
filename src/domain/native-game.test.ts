@@ -1,3 +1,4 @@
+import { baseGameEntityId } from './entity-identities'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
@@ -13,12 +14,12 @@ describe('native gameplay definitions', () => {
     const modComposition = { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [], links: [] }
     const effective = composeModCatalog({ ...setup, modComposition }, [DEFAULT_CATALOG])!
     const expanded = expandModCatalogs([DEFAULT_CATALOG, effective])[1]!
-    const slime = expanded.entities[nativeEntityId('monster', 2)]!
+    const slime = expanded.entities[baseGameEntityId('monster', 2)]!
     expect(nativeRelationships(expanded, slime)).toEqual(nativeRelationships(DEFAULT_CATALOG, slime))
     expect(nativeRecord(expanded.legacy) && expanded.legacy.nativeEnums).toEqual(nativeRecord(DEFAULT_CATALOG.legacy) && DEFAULT_CATALOG.legacy.nativeEnums)
   })
   it('preserves zero, false, null, loot probabilities, and detailed actions', () => {
-    const slime = DEFAULT_CATALOG.entities[nativeEntityId('monster', 2)]!
+    const slime = DEFAULT_CATALOG.entities[baseGameEntityId('monster', 2)]!
     const record = nativeSourceRecord(slime)!
     expect(record).toMatchObject({ ID: 2, HP: 50, MP: 40, PAccRating: 0, IsBoss: false, ItemDrops: [{ ItemID: 18, LootChance: 50 }], ItemSteals: [{ ItemID: 18, LootChance: 75, StealChance: 60 }] })
     expect(slime.fields['Physical accuracy rating input']).toBeUndefined()
@@ -26,7 +27,7 @@ describe('native gameplay definitions', () => {
     expect(slime.fields['Ability costs']).toBeUndefined()
     expect(slime.fields['JP reward']).toMatchObject({ state: 'known', value: 8 })
     expect(nativeRelationships(DEFAULT_CATALOG, slime)).toEqual(expect.arrayContaining([expect.objectContaining({ label: '/ItemSteals/0/ItemID', name: 'Tonic' }), expect.objectContaining({ label: '/Actions/0/AbilityID', targetId: expect.any(String) })]))
-    const boss = nativeSourceRecord(DEFAULT_CATALOG.entities[nativeEntityId('monster', 201)]!)!
+    const boss = nativeSourceRecord(DEFAULT_CATALOG.entities[baseGameEntityId('monster', 201)]!)!
     expect((boss.Actions as unknown[]).length).toBeGreaterThan(1)
   })
 
@@ -47,7 +48,7 @@ describe('native gameplay definitions', () => {
     expect(goldBow.rawDescription).toContain('Silver Bow')
     expect(goldBow.legacy).toMatchObject({ nativeDescriptionSupplemental: true })
     expect(equipmentFacts(sword)).toMatchObject({ type: 'Sword', twoHanded: false })
-    const equipSword = DEFAULT_CATALOG.entities[nativeEntityId('passive', 6)]!
+    const equipSword = DEFAULT_CATALOG.entities['base:warrior:passive:equip-sword']!
     expect(definitionPermissionEffects(equipSword)).toEqual({ equipment: ['Sword'], dualWield: false, twoHanded: false, complete: true })
     expect(skillWeaponRule(Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Cure' && nativeIdentity(entity)?.mode === 'base')!)).toMatchObject({ state: 'known', value: { kind: 'nonWeaponAction' } })
   })

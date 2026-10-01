@@ -30,6 +30,8 @@ const STARTER_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({
 })
 
 export function starterSourceLabel(sourceId: string): string | undefined {
+  const mod = /^bundled-mod:([a-z0-9-]+):(.+)$/.exec(sourceId)
+  if (mod) return `${mod[1]!.split('-').map(word => word[0]!.toUpperCase() + word.slice(1)).join(' ')} ${mod[2]} export`
   const native = /^native-game:windows:(\d+\.\d+\.\d+(?:\.\d+)?)$/.exec(sourceId)
   if (native) return `Windows ${native[1]} game files`
   const fixed = STARTER_SOURCE_LABELS[sourceId]

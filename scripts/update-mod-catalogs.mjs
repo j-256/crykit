@@ -96,7 +96,7 @@ function slug(value) {
 
 function entityId(family, name) {
   const kinds = { Equipment: 'item', Abilities: 'ability', Statuses: 'status', Recipes: 'recipe', Items: 'item', Monsters: 'monster' }
-  return `equipment-expansion:${kinds[family]}:${slug(name)}`
+  return `mod:equipment-expansion:${kinds[family]}:${slug(name)}`
 }
 
 function validateModelFamily(root, family) {

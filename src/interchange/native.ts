@@ -693,7 +693,19 @@ export function validateNativeLocalDataShape(localData: LocalData): void {
   }
 }
 
-export async function previewNativeBackup(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
+export function resolveBundledCatalogPins(pins: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[], available: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
+  const keys = new Set<string>()
+  return pins.map(pin => {
+    const key = catalogSnapshotKey(pin.id, pin.revisionId)
+    if (keys.has(key)) schemaError('The backup contains a duplicate bundled catalog pin', { catalogId: pin.id, revisionId: pin.revisionId })
+    keys.add(key)
+    const catalog = available.find(candidate => candidate.id === pin.id && candidate.revisionId === pin.revisionId)
+    if (!catalog || catalog.checksum !== pin.checksum) schemaError('The exact bundled catalog revision required by this backup is unavailable or has a different checksum', { catalogId: pin.id, revisionId: pin.revisionId })
+    return catalog
+  })
+}
+
+export async function previewNativeBackup(bytes: Uint8Array, filename: string, availableBundledCatalogs: readonly CatalogSnapshot[] = []): Promise<ImportPreview> {
   const { files } = safeUnzip(bytes, { limits: NATIVE_BACKUP_ARCHIVE_LIMITS })
   const manifestValue = parseBoundedJson(
     files.get('manifest.json') ?? schemaError('The native backup is missing manifest.json'),
@@ -742,7 +754,10 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     })
   }
   const corrections = payloadResult.data.corrections === undefined ? undefined : parseCorrectionCollection(JSON.stringify(payloadResult.data.corrections))
-  const catalogs = validateCatalogs(payloadResult.data.catalogs)
+  if (manifest.formatVersion === '2.0.0' && payloadResult.data.bundledCatalogs !== undefined) schemaError('Bundled catalog pins require backup format 2.1.0')
+  const pinnedCatalogs = resolveBundledCatalogPins((payloadResult.data.bundledCatalogs ?? []) as unknown as readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[], availableBundledCatalogs)
+  const allCatalogs = [...payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[], ...pinnedCatalogs]
+  const catalogs = validateCatalogs(allCatalogs)
   const localData = validateLocalData(payloadResult.data.localData, catalogs.keys, 'localData', catalogs.entityKinds)
   const lineage = validateLineage(payloadResult.data.lineage, localData.id)
   const evidence = validateEvidence(payloadResult.data.evidence)
@@ -772,7 +787,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
       })
     }
   }
-  validateNativeLocalDataGraph(localData, payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[], history)
+  validateNativeLocalDataGraph(localData, allCatalogs, history)
   const digest = await sha256(bytes)
   const personalCount = Object.values(localData.playthroughs).reduce((total, playthrough) => total +
     Object.keys(playthrough.inventory).length +
@@ -785,8 +800,8 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
   return {
     id: randomId('import-preview'),
     filename,
-    detectedFormat: 'native-backup-2.0.0',
-    detectedSchema: '2.0.0',
+    detectedFormat: manifest.formatVersion === '2.0.0' ? 'native-backup-2.0.0' : 'native-backup-2.1.0',
+    detectedSchema: manifest.formatVersion,
     sourceDigest: digest,
     counts: {
       reference: catalogs.snapshots.reduce((total, catalog) => total + Object.keys(catalog.entities).length, 0),

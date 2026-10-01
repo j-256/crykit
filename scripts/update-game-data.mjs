@@ -11,6 +11,7 @@ import { parseGameExecutableVersion } from './game-version.mjs'
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUTPUT = join(ROOT, 'src/catalog/native-game-data.json')
 const IDENTITIES = join(ROOT, 'src/catalog/game-identities.json')
+const CLASS_TREES = join(ROOT, 'src/catalog/class-tree-identities.json')
 const MAX_SOURCE_BYTES = 32 * 1024 * 1024
 const ENUM_NAMESPACE = 'Sang.SangData.SangDataEnums.'
 const USAGE = `Usage: node --experimental-strip-types scripts/update-game-data.mjs -i|--input <Content> [-d|--decompiler <ilspycmd>] [-h|--help]
@@ -50,13 +51,21 @@ export function parseEnumSource(source, type) {
   return result
 }
 
-export function identityBindingsFor(manifest, databases) {
+export function identityBindingsFor(manifest, databases, classTrees = { classes: {} }) {
   const bindings = {}
   for (const [id, mapping] of Object.entries(manifest.mappings)) {
     const key = `${mapping.database}:${mapping.databaseId}`
     if (!databases[mapping.database]?.some(record => record?.ID === mapping.databaseId)) continue
     if (bindings[key] && bindings[key] !== id) throw new Error(`Identity crosswalk has multiple catalog identities for ${key}`)
     bindings[key] = id
+  }
+  for (const entry of Object.values(classTrees.classes)) for (const node of entry.nodes) {
+    const family = node.nodeType === 2 ? 'ability' : 'passive'
+    const key = `${family}:${node.dataId}`
+    const record = databases[family]?.find(record => record?.ID === node.dataId)
+    if (!record || record.Name !== node.name) throw new Error(`Class-tree identity points to a missing or changed record: ${key}`)
+    if (bindings[key] && bindings[key] !== node.entityId) throw new Error(`Class-tree identity conflicts with the numeric crosswalk: ${key}`)
+    bindings[key] = node.entityId
   }
   return bindings
 }
@@ -82,8 +91,10 @@ async function check() {
   validateNativeSnapshot(snapshot)
   if (hash(Buffer.from(contentForDigest(snapshot))) !== snapshot.contentDigest || catalogDigest(snapshot) !== snapshot.catalogChecksum) throw new Error('Native snapshot content or catalog checksum is stale')
   const identities = await readFile(IDENTITIES)
+  const treeBytes = await readFile(CLASS_TREES)
   if (hash(identities) !== snapshot.identitySource.sha256) throw new Error('Native snapshot identity crosswalk has changed; regenerate the native data')
-  if (canonicalJson(identityBindingsFor(JSON.parse(identities), snapshot.databases)) !== canonicalJson(snapshot.identityBindings)) throw new Error('Native snapshot bindings differ from the reviewed numeric crosswalk')
+  if (hash(treeBytes) !== snapshot.identitySource.classTreesSha256) throw new Error('Native snapshot class-tree identities have changed; regenerate the native data')
+  if (canonicalJson(identityBindingsFor(JSON.parse(identities), snapshot.databases, JSON.parse(treeBytes))) !== canonicalJson(snapshot.identityBindings)) throw new Error('Native snapshot bindings differ from the reviewed numeric crosswalk')
   const catalog = buildNativeCatalog(snapshot)
   console.log(`Verified Windows ${snapshot.source.gameVersion} native definitions, source fingerprints, executable version evidence, enum labels, and catalog checksum (${Object.keys(catalog.entities).length} records)`)
 }
@@ -115,9 +126,10 @@ async function update(input, decompiler) {
     enums[type] = parseEnumSource(output, type)
   }
   const identityBytes = await readFile(IDENTITIES)
+  const treeBytes = await readFile(CLASS_TREES)
   const identityManifest = JSON.parse(identityBytes)
-  const identityBindings = identityBindingsFor(identityManifest, databases)
-  const snapshot = { schemaVersion: NATIVE_SNAPSHOT_SCHEMA, contentDigest: '0'.repeat(64), catalogChecksum: '0'.repeat(64), capturedAt: '', source: { platform: 'Windows', gameVersion: version.gameVersion, executable: { path: 'Crystal Project.exe', sha256: hash(executableBytes), size: executableBytes.length, ...version }, files }, databases, enums, identityBindings, identitySource: { sha256: hash(identityBytes), commit: identityManifest.source.commit } }
+  const identityBindings = identityBindingsFor(identityManifest, databases, JSON.parse(treeBytes))
+  const snapshot = { schemaVersion: NATIVE_SNAPSHOT_SCHEMA, contentDigest: '0'.repeat(64), catalogChecksum: '0'.repeat(64), capturedAt: '', source: { platform: 'Windows', gameVersion: version.gameVersion, executable: { path: 'Crystal Project.exe', sha256: hash(executableBytes), size: executableBytes.length, ...version }, files }, databases, enums, identityBindings, identitySource: { sha256: hash(identityBytes), classTreesSha256: hash(treeBytes), commit: identityManifest.source.commit } }
   snapshot.contentDigest = hash(Buffer.from(contentForDigest(snapshot)))
   let previous
   try { previous = JSON.parse(await readFile(OUTPUT, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }

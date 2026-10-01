@@ -588,8 +588,10 @@ function candidateKey(kind, name) {
   return `${kind}\0${normalizedName(name).toLocaleLowerCase()}`
 }
 
+const reviewedIdentities = new Map(JSON.parse(await readFile(OUTPUT_PATH, 'utf8')).entities.map(entity => [candidateKey(entity.kind, entity.name), entity.id]))
+
 function candidateId(kind, name) {
-  return `wiki:${kind}:${slug(name)}`
+  return reviewedIdentities.get(candidateKey(kind, name)) ?? `base:${kind}:${slug(name)}`
 }
 
 function mergeKnowledge(existing, incoming) {

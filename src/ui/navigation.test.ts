@@ -3,6 +3,8 @@ import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
 import { formatAppRoute, parentRoute, parseAppRoute, routeForDestination } from './navigation'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { MAX_ID_LENGTH } from '../domain/limits'
 
 const catalogRef = { kind: 'catalog' as const, catalogId: 'pack / alpha', catalogRevisionId: 'revision:1', entityId: 'item ? one' } as EntityRef
 const personalRef = { kind: 'personal' as const, definitionId: 'personal / one' } as EntityRef
@@ -16,6 +18,55 @@ function expectRoundTrip(value: AppRoute) {
 }
 
 describe('semantic navigation routes', () => {
+  it('uses readable entity segments while retaining exact catalog and revision pins', () => {
+    for (const [entityId, path] of [
+      ['mod:moonlight-project:ability:565', 'mod/moonlight-project/ability/565'],
+      ['base:item:tonic', 'base/item/tonic'],
+      ['base:warrior:ability:taunt', 'base/warrior/ability/taunt'],
+      ['base:monster:179:mode:Chaos', 'base/monster/179/mode/Chaos'],
+    ]) {
+      const ref = { kind: 'catalog', catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId } as CatalogRef
+      const value = route({ page: 'reference', view: 'detail', ref })
+      expect(formatAppRoute(value)).toBe(`#/reference/catalog/fixture/revisions/revision-a/entities/${path}`)
+      expectRoundTrip(value)
+    }
+    for (const entityId of Object.keys(DEFAULT_CATALOG.entities)) {
+      expectRoundTrip(route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entityId as CatalogRef['entityId'] } }))
+    }
+  })
+
+  it('keeps action words and escaped data distinct from entity path boundaries', () => {
+    for (const entityId of ['base:class:edit', 'base:ability:search', 'base:mechanic:stat:field', 'base:passive:0:mode:correct', 'mod:pick:ability:0', 'mod:definitions:ability:search', 'mod:project%3A%2Fname:ability:0', 'mod:project / name:ability:0']) {
+      const ref = { kind: 'catalog', catalogId: 'fixture / catalog', catalogRevisionId: 'revision:1', entityId } as CatalogRef
+      const detail: AppRoute = { ...route({ page: 'reference', view: 'detail', ref }), overlays: [{ kind: 'search', query: 'cost' }] }
+      expectRoundTrip(detail)
+      expectRoundTrip({ ...detail, overlays: [{ kind: 'correction-editor', ref, field: 'Location / source' }] })
+      expectRoundTrip({ ...detail, overlays: [{ kind: 'definition-editor', mode: 'override', ref }] })
+      expectRoundTrip(route({ page: 'characters', view: 'class-edit', characterId: 'character' as never, ref }))
+      expectRoundTrip(route({ page: 'characters', view: 'learning-edit', characterId: 'character' as never, learningKind: 'knowledge', ref }))
+    }
+    const ref = { kind: 'catalog', catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId: 'base:ability:search' } as CatalogRef
+    expect(formatAppRoute(route({ page: 'reference', view: 'detail', ref }))).toContain('/base/ability/%73earch')
+  })
+
+  it('retains arbitrary imported IDs through an explicit opaque identity segment', () => {
+    for (const entityId of ['item ? one', 'foreign:record:1', 'base::partial', 'base', 'constructor:record', 'id / value']) {
+      const ref = { ...catalogRef, entityId } as CatalogRef
+      const value = route({ page: 'reference', view: 'detail', ref })
+      expect(formatAppRoute(value)).toContain(`/entities/id/${encodeURIComponent(entityId)}`)
+      expectRoundTrip(value)
+    }
+  })
+
+  it('rejects retired entity encodings and malformed structured identities', () => {
+    const root = '#/reference/catalog/fixture/revisions/revision-a/entities/'
+    for (const identity of ['mod%3Amoonlight-project%3Aability%3A565', 'base%3Aitem%3Atonic', 'base/ability', 'mod/project/ability', 'base/ability/%E0%A4%A', 'base/ability/a%3Ab', 'base/ability/%00', 'id/base%3Aitem%3Atonic', 'constructor/record/1']) {
+      expect(parseAppRoute(root + identity).page).toMatchObject({ page: 'unresolved', reason: 'malformed-entity-reference' })
+    }
+    expect(parseAppRoute(`${root}base/ability/${'a'.repeat(MAX_ID_LENGTH + 1)}`).page.page).toBe('unresolved')
+    expect(parseAppRoute(`${root}base/ability/${'a'.repeat(MAX_ID_LENGTH)}`).page.page).toBe('unresolved')
+  })
+
   it('gives Progress pages explicit paths and canonicalizes the root to the first page', () => {
     const root = parseAppRoute('#/progress')
     expect(root).toMatchObject({ page: { page: 'progress', view: 'list' }, legacy: true })

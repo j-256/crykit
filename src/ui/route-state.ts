@@ -1,13 +1,12 @@
 import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
-import type { CatalogEntityKind } from '../domain/types'
+import type { CatalogEntityKind, CatalogRef } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
 import { OPTIONAL_REFERENCE_AUDIENCES, REFERENCE_FACETS, type OptionalReferenceAudience, type ReferenceFacetFilters } from './reference-facets'
-import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
+import { formatAppRoute, parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
 
 export const REFERENCE_ROUTE_STORAGE_KEY = 'crykit:reference-route:v1'
 export const REFERENCE_PAGE_SIZE = 100
 
-const REFERENCE_ROUTE = '#/reference'
 const ROUTE_VERSION = '1'
 const MAX_QUERY_LENGTH = 500
 const MAX_FACET_LENGTH = 256
@@ -181,27 +180,19 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     includeUncertainSkills: params.get('uncertainSkills') === '1',
     ppMin: queryNumber(params, 'ppMin'),
     ppMax: queryNumber(params, 'ppMax'),
-    selectedKey: routeSelected ?? params.get('selected') ?? undefined,
+    selectedKey: routeSelected,
     resultLimit: queryNumber(params, 'limit') ?? REFERENCE_PAGE_SIZE,
   })
 }
 
 export function formatReferenceRoute(value: ReferenceRouteState): string {
   const state = normalizeReferenceRouteState(value)
-  const params = new URLSearchParams({ v: ROUTE_VERSION })
-  if (state.query) params.set('q', state.query)
-  for (const kind of state.kinds) params.append('kind', kind)
-  for (const category of state.categories) params.append('category', category)
-  for (const source of state.sources) params.append('source', source)
-  for (const audience of state.audiences) params.append('audience', audience)
-  for (const facet of REFERENCE_FACETS) for (const entry of state[facet.key] ?? []) params.append(facet.parameter, entry)
-  if (state.weapon) params.set('weapon', state.weapon)
-  if (state.includeUncertainSkills) params.set('uncertainSkills', '1')
-  if (state.ppMin !== undefined) params.set('ppMin', String(state.ppMin))
-  if (state.ppMax !== undefined) params.set('ppMax', String(state.ppMax))
-  if (state.selectedKey) params.set('selected', state.selectedKey)
-  if (state.resultLimit !== REFERENCE_PAGE_SIZE) params.set('limit', String(state.resultLimit))
-  return `${REFERENCE_ROUTE}?${params.toString()}`
+  const selected = state.selectedKey ? decodeReferenceEntityKey(state.selectedKey) : undefined
+  return formatAppRoute({
+    page: selected ? { page: 'reference', view: 'detail', ref: { kind: 'catalog', ...selected } as CatalogRef } : { page: 'reference', view: 'list' },
+    overlays: [],
+    query: referenceQuery(state),
+  })
 }
 
 export function readReferenceRouteState(): ReferenceRouteState {
