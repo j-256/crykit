@@ -1,8 +1,18 @@
-import { PC_LEVEL_CAP, PC_MODEL } from './calculation-rules'
+import { NATIVE_DATA, PC_LEVEL_CAP, PC_MODEL, PC_RULES } from './calculation-rules'
 import type { BuildCalculationPlan, EntityRef } from './types'
 import { DomainError } from './core'
-import { STAT_KEYS } from './crystal-edit'
+import { STAT_KEYS, type GrowthStat } from './crystal-edit'
 import { GUIDE_LEVEL_CAP } from './growth'
+
+export const CALCULATION_GENDERS = ['male', 'female'] as const
+export const CALCULATION_GENDER_LABELS = Object.freeze({ male: 'Male', female: 'Female' })
+
+export function guideGenderBonuses(plan: BuildCalculationPlan): readonly GrowthStat[] {
+  if (!plan.gender) return plan.bonuses
+  const gender: Readonly<Record<string, unknown>> | undefined = NATIVE_DATA.records.gender.find(record => record.ID === PC_RULES.genders[plan.gender!])
+  const bonuses = STAT_KEYS.filter(stat => gender?.[PC_RULES.stats[stat]!.gender!] === true)
+  return [...new Set([...plan.bonuses, ...bonuses])]
+}
 
 export function defaultCalculation(primaryClass: EntityRef | null, level: number | null = PC_LEVEL_CAP): BuildCalculationPlan {
   return { model: PC_MODEL, growthMode: 'primary', pcMode: 'standard', level, growth: [{ classRef: primaryClass, levels: level }], bonuses: [], statuses: [] }
@@ -43,4 +53,5 @@ export function validateCalculationPlan(plan: BuildCalculationPlan, assertRef: (
   if (plan.model !== undefined && plan.model !== PC_MODEL) throw new DomainError('INVALID_INPUT', 'Unsupported calculation model')
   if (plan.growthMode !== undefined && !['primary', 'manual'].includes(plan.growthMode)) throw new DomainError('INVALID_INPUT', 'Unsupported growth mode')
   if (plan.pcMode !== undefined && !['standard', 'vanilla', 'chaos'].includes(plan.pcMode)) throw new DomainError('INVALID_INPUT', 'Unsupported PC balance mode')
+  if (plan.gender !== undefined && !CALCULATION_GENDERS.includes(plan.gender)) throw new DomainError('INVALID_INPUT', 'Unsupported calculation gender')
 }

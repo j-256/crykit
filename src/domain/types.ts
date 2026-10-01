@@ -382,6 +382,7 @@ export interface BuildCalculationPlan {
   readonly model?: 'pc-1.6.9-v1'
   readonly growthMode?: 'primary' | 'manual'
   readonly pcMode?: 'standard' | 'vanilla' | 'chaos'
+  readonly gender?: 'male' | 'female'
   readonly level: number | null
   readonly growth: readonly { readonly classRef: EntityRef | null; readonly levels: number | null }[]
   readonly bonuses: readonly import('./crystal-edit').GrowthStat[]

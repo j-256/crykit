@@ -2,7 +2,7 @@ import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES }
 import { definitionSourceRecord, knownField, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
 import { nativeIdentity } from './native-game'
 import { jsonRecord } from './crystal-edit'
-import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
+import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 import { entityDefinitionKey } from './core'
 import { catalogClassSource } from './build-mechanics'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
@@ -18,6 +18,10 @@ export interface PCStatResult {
   readonly female: PCStats
   readonly issues: readonly string[]
   readonly effects: readonly string[]
+}
+
+export function selectedPCStats(result: PCStatResult, gender: BuildCalculationPlan['gender']): PCStats {
+  return gender ? result[gender] : result.neutral
 }
 const number = (record: NativeRecord | undefined, key: string) => typeof record?.[key] === 'number' && Number.isSafeInteger(record[key]) ? record[key] as number : undefined
 const unknownStats = (): PCStats => Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, null]))

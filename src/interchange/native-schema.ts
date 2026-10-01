@@ -1,4 +1,5 @@
 import { GUIDE_LEVEL_CAP } from '../domain/growth'
+import { CALCULATION_GENDERS } from '../domain/calculation-plan'
 import { QUINTAR_BREEDING_STEP_IDS } from '../catalog/quintar-breeding'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { MAX_MOD_LAYERS } from '../domain/mod-layers'
@@ -229,6 +230,7 @@ const calculationPlan = z.object({
   model: z.literal('pc-1.6.9-v1').optional(),
   growthMode: z.enum(['primary', 'manual']).optional(),
   pcMode: z.enum(['standard', 'vanilla', 'chaos']).optional(),
+  gender: z.enum(CALCULATION_GENDERS).optional(),
   level: z.number().int().min(1).max(GUIDE_LEVEL_CAP).nullable(),
   growth: z.array(z.object({ classRef: entityRef.nullable(), levels: z.number().int().min(0).max(GUIDE_LEVEL_CAP).nullable() }).strict()).max(GUIDE_LEVEL_CAP),
   bonuses: z.array(z.enum(STAT_KEYS)).max(STAT_KEYS.length).refine(values => new Set(values).size === values.length, 'Stat bonuses must be unique'),
