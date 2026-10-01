@@ -19,6 +19,8 @@ async function railControlGeometry(page: Page) {
     const icon = control.querySelector('svg')!.getBoundingClientRect()
     return {
       isToggle: control.classList.contains('rail__toggle'),
+      isTool: control.closest('.nav-tools') !== null,
+      isFooter: control.closest('.rail__footer') !== null,
       y: box.y,
       width: box.width,
       height: box.height,
@@ -181,9 +183,17 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   const rail = page.locator('.rail')
   const main = page.locator('.main-shell')
   const desktopBrandHeader = page.locator('.desktop-brand-header')
+  const footer = rail.locator('.rail__footer')
+  const progressSublist = rail.getByRole('list', { name: 'Progress pages', exact: true })
+  await expect(progressSublist).toBeVisible()
+  const progressSublistSpace = await progressSublist.evaluate(element => {
+    const style = getComputedStyle(element)
+    return element.getBoundingClientRect().height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom)
+  })
   const expanded = (await rail.boundingBox())!
   const expandedMain = (await main.boundingBox())!
   const expandedBrandHeader = (await desktopBrandHeader.boundingBox())!
+  const expandedFooter = (await footer.boundingBox())!
   const expandedControls = await railControlGeometry(page)
   expect(expanded.width).toBe(EXPANDED_RAIL_WIDTH_PX)
   expect(expanded.y).toBe(expandedBrandHeader.y + expandedBrandHeader.height)
@@ -203,19 +213,24 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   await expect(page.locator('.rail__toggle svg')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)')
   const collapsedRail = (await rail.boundingBox())!
   const collapsedBrandHeader = (await desktopBrandHeader.boundingBox())!
+  const collapsedFooter = (await footer.boundingBox())!
+  const railBottomPadding = await rail.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom))
   expect(collapsedRail.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
+  expect(collapsedFooter.y + collapsedFooter.height + railBottomPadding).toBe(collapsedRail.y + collapsedRail.height)
   expect(collapsedBrandHeader).toEqual(expandedBrandHeader)
   await expect(desktopBrandHeader.locator('.brand__name')).toBeVisible()
   await expect(planningLabel).toBeHidden()
   await expect(trackingLabel).toBeHidden()
+  await expect(progressSublist).toBeHidden()
   const collapsedControls = await railControlGeometry(page)
   expect(collapsedControls).toHaveLength(expandedControls.length)
   for (const [index, control] of collapsedControls.entries()) {
     const expandedControl = expandedControls[index]
+    const shiftY = control.isTool ? -progressSublistSpace : control.isFooter ? collapsedFooter.y - expandedFooter.y : 0
     expect(control.width).toBe(control.isToggle ? RAIL_TOGGLE_WIDTH_PX : RAIL_CONTROL_WIDTH_PX)
-    expect(control.y).toBe(expandedControl.y)
+    expect(control.y).toBe(expandedControl.y + shiftY)
     expect(control.height).toBe(expandedControl.height)
-    expect(control.iconY).toBe(expandedControl.iconY)
+    expect(control.iconY).toBe(expandedControl.iconY + shiftY)
     expect(control.iconWidth).toBe(expandedControl.iconWidth)
     expect(control.iconHeight).toBe(expandedControl.iconHeight)
     expect(control.centerX).toBe(collapsedRail.x + collapsedRail.width / 2)
@@ -226,6 +241,7 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
 
   await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click()
+  await expect(progressSublist).toBeVisible()
   expect((await rail.boundingBox())!.width).toBe(EXPANDED_RAIL_WIDTH_PX)
   expect((await main.boundingBox())!.x).toBe(expandedMain.x)
 
