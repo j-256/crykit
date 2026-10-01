@@ -193,6 +193,7 @@ export interface GameSetupRevision {
   readonly mode: Knowledge<string>
   readonly mods: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly customMods?: readonly string[]
   readonly ppLimit?: Knowledge<number>
   readonly ppCostsNonNegative: Knowledge<boolean>
   readonly slots: readonly SlotDefinition[]
@@ -500,7 +501,7 @@ export interface Playthrough {
 }
 
 export interface LocalData {
-  readonly schemaVersion: '2.0.0'
+  readonly schemaVersion: '2.1.0'
   readonly id: LocalDataId
   readonly revision: number
   readonly createdAt: Timestamp

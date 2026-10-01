@@ -5,12 +5,12 @@ import { createBlankLocalData } from '../domain/local-data'
 import { createScenario, effectiveScenarioAssignments, TEAM_SIZE } from '../domain/scenarios'
 import { modCatalogRevision } from '../domain/mod-layers'
 import { sameCorrectionValue } from '../domain/corrections'
-import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
+import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
 import type { Build, BuildId, BuildRevision, BuildRevisionId, CharacterId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
 import { NativeLocalDataSchema } from './native-schema'
 import { parseBoundedJson } from './json'
 
-const SHARE_FORMAT_VERSION = 1
+const SHARE_FORMAT_VERSION = 2
 export const SHARE_VERSION = `v${SHARE_FORMAT_VERSION}`
 export const SHARE_ROUTE_PREFIX = `#/share/${SHARE_VERSION}/`
 export const MAX_SHARE_URL_LENGTH = 64 * 1024
@@ -20,7 +20,7 @@ const BASE64_CHUNK_BYTES = 8192
 const SHARE_COMPRESSION_LEVEL = 9
 const SHARE_RECORDS_SCHEMA = NativeLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true })
 const ShareSchema = z.object({
-  version: z.literal(SHARE_FORMAT_VERSION),
+  version: z.union([z.literal(1), z.literal(SHARE_FORMAT_VERSION)]),
   kind: z.enum(['build', 'team']),
   title: NativeLocalDataSchema.shape.builds.valueType.shape.title,
   records: SHARE_RECORDS_SCHEMA,
@@ -29,7 +29,7 @@ const ShareSchema = z.object({
 }).strict()
 
 export interface SharePayload {
-  readonly version: 1
+  readonly version: 1 | 2
   readonly kind: 'build' | 'team'
   readonly title: string
   readonly records: Pick<LocalData, 'personalDefinitions' | 'gameSetups' | 'builds' | 'buildRevisions'>
@@ -90,7 +90,7 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
       content: { ...content, contextAssumptions: includeNotes ? contextAssumptions : [], ...(includeNotes && rotationNotes !== undefined ? { rotationNotes } : {}) },
       ...(includeNotes && revision.note !== undefined ? { note: revision.note } : {}),
     }
-    builds[build.id] = { ...build, tags: [], favorite: false, latestRevisionId: id }
+    builds[build.id] = { ...build, gameSetupId: setups[revision.gameSetupRevisionId]!.gameSetupId, tags: [], favorite: false, latestRevisionId: id }
     visitRefs(revision.content, addRef)
   }
   if (target.kind === 'build') {
@@ -125,7 +125,7 @@ export function validateSharePayload(value: unknown): SharePayload {
   for (const revision of Object.values(buildRevisions)) {
     const build = own(builds, revision.buildId)
     const setup = own(gameSetups, revision.gameSetupRevisionId)
-    if (!build || !setup || setup.gameSetupId !== build.gameSetupId || revision.parentRevisionId) throw new Error('A shared checkpoint has an invalid dependency.')
+    if (!build || !setup || payload.version === 1 && setup.gameSetupId !== build.gameSetupId || revision.parentRevisionId) throw new Error('A shared checkpoint has an invalid dependency.')
     const slots = new Set(setup.slots.map(slot => slot.id as string))
     if (Object.keys(revision.content.equipment).some(id => !slots.has(id))) throw new Error('A shared build references an unavailable equipment slot.')
   }
@@ -194,22 +194,6 @@ function mapRefs<T>(value: T, personalIds: ReadonlyMap<string, PersonalDefinitio
   if (entry.kind === 'personal' && typeof entry.definitionId === 'string') return { ...entry, definitionId: personalIds.get(entry.definitionId) ?? entry.definitionId } as T
   if (entry.kind === 'catalog' && typeof entry.catalogRevisionId === 'string') return { ...entry, catalogRevisionId: catalogRevisions.get(entry.catalogRevisionId) ?? entry.catalogRevisionId } as T
   return Object.fromEntries(Object.entries(entry).map(([key, child]) => [key, mapRefs(child, personalIds, catalogRevisions)])) as T
-}
-
-function setupConfiguration(setup: GameSetupRevision) {
-  const { id, gameSetupId, revision, label, createdAt, ...configuration } = setup
-  return { ...configuration, definitionOverrides: setup.definitionOverrides ?? [] }
-}
-
-function uniqueSharedSetupLabel(label: string, setups: Readonly<Record<string, GameSetupRevision>>): string {
-  const normalize = (name: string) => name.trim().toLowerCase()
-  const names = new Set(Object.values(setups).map(setup => normalize(setup.label)))
-  if (!names.has(normalize(label))) return label
-  for (let copy = 1; ; copy += 1) {
-    const suffix = copy === 1 ? ' (shared)' : ` (shared ${copy})`
-    const candidate = `${label.trim().slice(0, MAX_SHORT_TEXT_LENGTH - suffix.length).trimEnd()}${suffix}`
-    if (!names.has(normalize(candidate))) return candidate
-  }
 }
 
 function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
@@ -296,12 +280,12 @@ function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
   const sourceFamilies = new Set([...requiredSetups].map(id => records.gameSetups[id]!.gameSetupId))
   for (const family of sourceFamilies) {
     const sources = [...requiredSetups].map(id => records.gameSetups[id]!).filter(setup => setup.gameSetupId === family)
-    const configurations = sources.map(setup => setupConfiguration({ ...mapRefs(setup, personalIds, catalogRevisions), catalogLock: catalogLock(setup.catalogLock) }))
+    const configurations = sources.map(setup => ({ ...mapRefs(setup, personalIds, catalogRevisions), catalogLock: catalogLock(setup.catalogLock) }))
     const targetFamilies = [...new Set(candidates.map(setup => setup.gameSetupId))]
     let matches: GameSetupRevision[] | undefined
     for (const targetFamily of targetFamilies) {
       const familyCandidates = candidates.filter(setup => setup.gameSetupId === targetFamily)
-      const found = configurations.map(configuration => familyCandidates.find(setup => sameCorrectionValue(configuration, setupConfiguration(setup))))
+      const found = configurations.map(configuration => familyCandidates.find(setup => sameBuildBehavior(configuration, setup)))
       if (found.every(setup => setup !== undefined)) { matches = found as GameSetupRevision[]; break }
     }
     setupFamilyIds.set(family, matches ? matches[0]!.gameSetupId : createId<GameSetupId>('gameSetup'))
@@ -328,7 +312,7 @@ export function saveSharedCopy(localData: LocalData, input: SharePayload, member
     if (!requiredSetups.has(setup.id) || reusedSetups.has(setup.id)) continue
     const mapped = mapRefs(setup, personalIds, catalogRevisions)
     const id = setupIds.get(setup.id)!
-    gameSetups[id] = { ...mapped, id, label: uniqueSharedSetupLabel(setup.label, gameSetups), gameSetupId: setupFamilyIds.get(setup.gameSetupId)!, catalogLock: catalogLock(setup.catalogLock) }
+    gameSetups[id] = { ...mapped, id, label: uniqueGameSetupLabel(setup.label, gameSetups, 'shared'), gameSetupId: setupFamilyIds.get(setup.gameSetupId)!, catalogLock: catalogLock(setup.catalogLock) }
   }
   const builds = { ...localData.builds }
   const buildRevisions = { ...localData.buildRevisions }

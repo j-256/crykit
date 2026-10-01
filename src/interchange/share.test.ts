@@ -12,6 +12,8 @@ import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { validateNativeLocalDataGraph } from './native'
 import { createSharePayload, createShareUrl, decodeSharePayload, encodeSharePayload, MAX_SHARE_JSON_BYTES, MAX_SHARE_URL_LENGTH, saveSharedCopy, SHARE_ROUTE_PREFIX, sharePreviewData, validateSharePayload } from './share'
 
+const MOD_CATALOG_GRAPH_TIMEOUT_MS = 15_000
+
 function fixture() {
   let data = addTestDefinition(createTestLocalData(), 'sword')
   data = addTestDefinition(data, 'unrelated-private-definition')
@@ -33,6 +35,11 @@ function envelope(json: string, claimedLength = new TextEncoder().encode(json).l
 }
 
 describe('sharing snapshots', () => {
+  it('continues to decode version 1 links with their original pinned behavior', () => {
+    const payload = { ...createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') }), version: 1 as const }
+    expect(decodeSharePayload(encodeSharePayload(payload))).toEqual(payload)
+  })
+
   it('round trips only a pinned checkpoint and its transitive dependencies', () => {
     const data = fixture()
     const payload = createSharePayload(data, { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
@@ -55,6 +62,24 @@ describe('sharing snapshots', () => {
     expect(createSharePayload(updated, target, true).records.buildRevisions[before.id]!.content.rotationNotes).toBe('private rotation')
     expect(Object.keys(publicPayload.records.buildRevisions)).toHaveLength(1)
     expect(publicPayload.records.builds[before.buildId]!.latestRevisionId).toBe(before.id)
+  })
+
+  it('shares multiple checkpoints of one build with their own behavior and rejects that graph in version 1', () => {
+    let data = fixture()
+    const before = data.buildRevisions['build-revision']!
+    data = addGameSetupRevision(data, { ...data.gameSetups[before.gameSetupRevisionId]!, id: asId<import('../domain/types').GameSetupRevisionId>('different-behavior'), gameSetupId: asId<import('../domain/types').GameSetupId>('different-preset'), ppLimit: { state: 'known', value: 20 }, activate: false, now: TEST_NOW })
+    data = saveBuildRevision(data, { buildId: before.buildId, id: asId<BuildRevisionId>('second-checkpoint'), gameSetupRevisionId: asId<import('../domain/types').GameSetupRevisionId>('different-behavior'), content: before.content, now: TEST_NOW })
+    data = addTestScenario(data, { alpha: before.id, beta: asId<BuildRevisionId>('second-checkpoint') })
+    const payload = createSharePayload(data, { kind: 'team', scenarioId: asId<ScenarioId>('scenario') })
+    expect(decodeSharePayload(encodeSharePayload(payload))).toEqual(payload)
+    expect(() => encodeSharePayload({ ...payload, version: 1 })).toThrow('invalid dependency')
+    const recipient = addTestScenario(createTestLocalData(), {})
+    const memberIds = requirePlaythrough(recipient).scenarios.scenario!.memberIds
+    const copied = saveSharedCopy(recipient, payload, memberIds)
+    validateNativeLocalDataGraph(copied.localData, [])
+    const checkpoints = Object.values(copied.localData.buildRevisions)
+    expect(checkpoints).toHaveLength(2)
+    expect(new Set(checkpoints.map(revision => revision.gameSetupRevisionId)).size).toBe(2)
   })
 
   it('preserves ordered slots, repeated checkpoints and effective baseline assignments without character IDs', () => {
@@ -128,7 +153,7 @@ describe('sharing snapshots', () => {
     const separateRevision = separate.localData.buildRevisions[separate.localData.builds[separate.buildId!]!.latestRevisionId!]!
     expect(separateRevision.gameSetupRevisionId).not.toBe(different.planningGameSetupRevisionId)
     validateNativeLocalDataGraph(separate.localData, await prepareModCatalogs(separate.localData, catalogs))
-  })
+  }, MOD_CATALOG_GRAPH_TIMEOUT_MS)
 
   it('adds fresh build identities while reusing identical dependencies and preserving existing records', () => {
     const data = fixture()
@@ -278,7 +303,7 @@ describe('sharing snapshots', () => {
 
   it('rejects malformed, truncated, dangerous and unsupported payloads', () => {
     const payload = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
-    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 2 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
+    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 3 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
     expect(() => validateSharePayload({ ...payload, records: { ...payload.records, personalDefinitions: {} } })).toThrow('missing')
     expect(() => validateSharePayload({ ...payload, kind: 'team', slots: [null], teamGameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })).toThrow()
   })

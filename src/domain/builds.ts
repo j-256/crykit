@@ -304,9 +304,6 @@ export function saveBuildRevision(localData: LocalData, input: SaveBuildRevision
   if (!gameSetup) {
     throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
   }
-  if (gameSetup.gameSetupId !== current.gameSetupId) {
-    throw new DomainError('INVALID_INPUT', 'Fork the Build before moving it to a different Game Setup')
-  }
   if (input.parentRevisionId) {
     const parent = localData.buildRevisions[input.parentRevisionId]
     if (!parent || parent.buildId !== input.buildId) {
@@ -366,6 +363,7 @@ export function saveBuildRevision(localData: LocalData, input: SaveBuildRevision
   }
   const build: Build = {
     ...current,
+    gameSetupId: gameSetup.gameSetupId,
     revision: current.revision + 1,
     latestRevisionId: id,
     updatedAt: at,

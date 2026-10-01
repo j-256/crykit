@@ -3,7 +3,7 @@ import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import type { Knowledge, GameSetupRevision } from './types'
 
 export type ModState = 'enabled' | 'disabled' | 'unknown' | 'conflicting'
-export type ModConfiguration = Pick<GameSetupRevision, 'mods' | 'disabledMods'>
+export type ModConfiguration = Pick<GameSetupRevision, 'mods' | 'disabledMods' | 'customMods'>
 export interface ModSelection {
   readonly name: string
   readonly state: Exclude<ModState, 'conflicting'>
@@ -15,6 +15,7 @@ export function normalizeModName(name: string): string {
 
 export function recordedModNames(configuration: ModConfiguration): readonly string[] {
   const unique = new Map<string, string>()
+  for (const name of configuration.customMods ?? []) unique.set(normalizeModName(name), name)
   for (const list of [configuration.mods, configuration.disabledMods]) {
     const names = list?.state === 'known' ? list.value : list?.state === 'conflicting' ? list.claims.flatMap(claim => claim.value) : []
     for (const name of names) {
@@ -61,12 +62,20 @@ export function updateModSelections(configuration: ModConfiguration, selections:
     const value = reviseNames(previous, state)
     return value === previous ? list : { state: 'known', value }
   }
-  const next = { mods: reviseList(configuration.mods, 'enabled') ?? { state: 'unknown' as const }, disabledMods: reviseList(configuration.disabledMods, 'disabled') }
+  const next = { ...configuration, mods: reviseList(configuration.mods, 'enabled') ?? { state: 'unknown' as const }, disabledMods: reviseList(configuration.disabledMods, 'disabled') }
   assertModConfiguration(next)
   return next
 }
 
 export function assertModConfiguration(configuration: ModConfiguration): void {
+  const customKeys = new Set<string>()
+  for (const name of configuration.customMods ?? []) {
+    if (!name.trim()) throw new DomainError('INVALID_INPUT', 'Mod names must not be empty')
+    assertTextLength(name, 'Mod name', MAX_SHORT_TEXT_LENGTH)
+    const key = normalizeModName(name)
+    if (customKeys.has(key)) throw new DomainError('INVALID_INPUT', 'Custom mod choices must be distinct')
+    customKeys.add(key)
+  }
   const lists: readonly (Knowledge<readonly string[]> | undefined)[] = [configuration.mods, configuration.disabledMods]
   for (const list of lists) {
     const names = list?.state === 'known' ? list.value : list?.state === 'conflicting' ? list.claims.flatMap(claim => claim.value) : []

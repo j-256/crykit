@@ -207,6 +207,16 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .game-setup-mod-heading { flex-wrap: wrap; }
 .game-setup-mod-heading > div { flex: 1 1 22rem; }
 .game-setup-mod-heading > button { flex-shrink: 0; }
+.build-behavior { margin: 0; min-width: 0; }
+.build-behavior > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; cursor: pointer; }
+.build-behavior > summary strong, .build-behavior > summary small { display: block; }
+.build-behavior > summary small { color: var(--text-faint); font-size: .7rem; margin-top: 4px; }
+.build-behavior > summary > span:first-child { flex: 1; }
+.build-behavior[open] > summary > svg { transform: rotate(180deg); }
+.build-behavior .grid-3 { align-items: start; }
+.build-behavior[open] > summary { border-bottom: 1px solid var(--line); }
+.mod-choice-add { align-items: end; }
+.mod-choice-add .field { flex: 1; min-width: 140px; }
 .game-setup-mod-packs { align-items: start; }
 .game-setup-mod-pack { min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius); }
 .game-setup-mod-pack > summary { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; }

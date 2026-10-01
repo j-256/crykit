@@ -1,4 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { NativeHistorySchema, StoredNativeLocalDataSchema } from '../interchange/native-schema'
+import { validateNativeLocalDataGraph } from '../interchange/native'
+import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import type { CatalogSnapshot, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import type {
   EvidenceRecord,
@@ -54,6 +57,23 @@ export class CrystalCompanionDatabase extends Dexie {
       history: 'id, localDataId, [localDataId+nextRevision]',
       imports: 'id, sourceDigest, localDataId',
       meta: 'key',
+    })
+    this.version(2).stores({}).upgrade(async transaction => {
+      const storedCatalogs = (await transaction.table<CatalogRecord>('catalogs').toArray()).map(record => record.snapshot)
+      const catalogs = [...new Map([...BUNDLED_CATALOGS, ...storedCatalogs].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
+      const localDatas = transaction.table<LocalDataRecord>('localDatas')
+      for (const record of await localDatas.toArray()) {
+        const localData = StoredNativeLocalDataSchema.parse(record.localData) as unknown as LocalData
+        validateNativeLocalDataGraph(localData, catalogs)
+        await localDatas.put({ ...record, localData })
+      }
+      const history = transaction.table<PersistedHistoryEntry>('history')
+      for (const entry of await history.toArray()) {
+        const migrated = NativeHistorySchema.parse(entry) as unknown as PersistedHistoryEntry
+        validateNativeLocalDataGraph(migrated.before, catalogs)
+        validateNativeLocalDataGraph(migrated.after, catalogs)
+        await history.put(migrated)
+      }
     })
   }
 }

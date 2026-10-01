@@ -272,7 +272,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
   await openSwitchModPacks(panel)
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('conflicting')
-  await panel.getByText('Other imported mod names (preserved)', { exact: true }).click()
+  await expect(panel.getByRole('region', { name: 'Custom mod choices' })).toBeVisible()
   await expect(panel).toContainText('Synthetic imported mod')
   await expect(panel).toContainText('Synthetic disabled mod')
   await panel.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
