@@ -59,6 +59,7 @@ For offline use, open **Data & settings > Offline & storage** while connected. C
 | --- | --- |
 | Explore builds, teams, character history, and search | [User guide](docs/user-guide.md) |
 | Understand stat estimates and supported rules | [Build mechanics](docs/planner-mechanics.md) |
+| Export versioned character formulas and native numeric data | [Calculation package](docs/calculations.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Correct a reference entry | [Reference corrections](docs/corrections.md) |

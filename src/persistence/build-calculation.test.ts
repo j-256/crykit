@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
-import { cloneBuild, compareBuildRevisions, createDefinitionOverride, createId, requirePlaythrough, saveBuildRevision } from '../domain'
+import { captureCharacter, cloneBuild, compareBuildRevisions, createDefinitionOverride, createId, requirePlaythrough, saveBuildRevision } from '../domain'
+import { defaultCalculation } from '../domain/calculation-plan'
 import { createBuildPlan } from '../domain/build-planning'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId } from '../domain/types'
 import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
@@ -64,3 +65,25 @@ it('round-trips native and earlier bundled catalog revisions together without re
   const restored = await commitImport(preview)
   expect(restored.localData.personalDefinitions).toEqual(data.personalDefinitions)
 }, MIXED_CATALOG_BACKUP_TIMEOUT_MS)
+
+it('round-trips character calculation assumptions without rewriting observed level, totals or earlier snapshots', async () => {
+  const before = await loadLocalData()
+  const character = Object.values(requirePlaythrough(before.localData).characters)[0]!
+  const original = character.snapshots[character.currentSnapshotId!]!
+  const calculation = { ...defaultCalculation(ref('Warrior')), growthMode: 'manual' as const, growth: [{ classRef: ref('Warrior'), levels: 40 }, { classRef: ref('Wizard'), levels: 20 }] }
+  const planned = captureCharacter(before.localData, { characterId: character.id, gameSetupRevisionId: original.gameSetupRevisionId, level: original.level, displayedStats: original.displayedStats, primaryClass: original.primaryClass, secondaryClass: original.secondaryClass, equipment: original.equipment, passives: original.passives, calculation })
+  const saved = await saveLocalData(planned, before.revision)
+  const updatedCharacter = requirePlaythrough(saved).characters[character.id]!
+  const snapshot = updatedCharacter.snapshots[updatedCharacter.currentSnapshotId!]!
+  expect(snapshot.calculation).toEqual(calculation)
+  expect(snapshot.level).toEqual(original.level)
+  expect(snapshot.displayedStats).toEqual(original.displayedStats)
+  expect(updatedCharacter.snapshots[original.id]).toEqual(original)
+  const restored = await commitImport(await previewImport(await exportBackup(), 'synthetic-character-calculation.zip'))
+  expect(requirePlaythrough(restored.localData).characters[character.id]!.snapshots[snapshot.id]!.calculation).toEqual(calculation)
+  expect(() => captureCharacter(saved, { characterId: character.id, calculation: { ...calculation, level: 61 } })).toThrow('Calculation level')
+  vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
+  const retryBase = await loadLocalData()
+  await expect(saveLocalData(captureCharacter(retryBase.localData, { characterId: character.id, calculation }), retryBase.revision)).rejects.toMatchObject({ code: 'storage-failure' })
+  expect((await loadLocalData()).localData).toEqual(retryBase.localData)
+})

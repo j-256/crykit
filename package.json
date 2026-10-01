@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b --pretty false",
-    "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs && vitest run",
+    "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs scripts/calculations.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "corrections:review": "node scripts/review-corrections.mjs",
@@ -30,12 +30,15 @@
     "mods:update": "node scripts/update-mod-catalogs.mjs",
     "mods:check": "node scripts/update-mod-catalogs.mjs --check",
     "check:privacy": "node scripts/privacy-check.mjs",
-    "check": "npm run typecheck && npm test && npm run class-trees:check && npm run game-identities:check && npm run game-assets:check && npm run game-data:check && npm run sprites:check && npm run mods:check && npm run check:privacy && npm run build",
+    "check": "npm run typecheck && npm test && npm run class-trees:check && npm run calculations:check && npm run game-identities:check && npm run game-assets:check && npm run game-data:check && npm run sprites:check && npm run mods:check && npm run check:privacy && npm run build",
     "verify": "npm run check && npm run test:e2e",
     "hooks:install": "git config core.hooksPath .githooks",
     "deploy:dry-run": "npm run check:assets && wrangler deploy --dry-run",
     "deploy": "npm run check:assets && wrangler deploy",
-    "check:assets": "node scripts/check-assets.mjs"
+    "check:assets": "node scripts/check-assets.mjs",
+    "calculations:export": "node scripts/export-calculations.mjs",
+    "calculations:update": "node scripts/update-native-stats.mjs",
+    "calculations:check": "node scripts/update-native-stats.mjs --check"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",

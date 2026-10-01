@@ -1,7 +1,7 @@
 import { definitionSourceRecord, knownField, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildStatEstimate, CalculatedStat, StatRange } from './build-stats'
+import { calculateFormula, GUIDE_RULES } from './calculation-rules'
 
-const JP_PER_LP = 100
 const COEFFICIENT_STATS: Readonly<Record<string, CalculatedStat>> = Object.freeze({ Hp: 'HP', Mp: 'MP', Atk: 'ATK', Def: 'DEF', Res: 'RES', Str: 'STR', Vit: 'VIT', Dex: 'DEX', Agi: 'AGI', Mnd: 'MND', Spi: 'SPI', Spd: 'SPD', Luk: 'LUK' })
 const NATIVE_RATES = Object.freeze({ STR: 'StrRate', VIT: 'VitRate', DEX: 'DexRate', AGI: 'AgiRate', MND: 'MndRate', SPI: 'SpiRate', SPD: 'SpdRate', LUK: 'LckRate' })
 const COEFFICIENT_FACTOR = '(?:\\d+(?:\\.\\d+)?(?: (?:Hp|Mp|Atk|Def|Res|Str|Vit|Dex|Agi|Mnd|Spi|Spd|Luk))?|(?:Hp|Mp|Atk|Def|Res|Str|Vit|Dex|Agi|Mnd|Spi|Spd|Luk))'
@@ -53,7 +53,7 @@ export function estimateAbility(definition: MechanicsDefinition, stats: BuildSta
     return [cost, value]
   })) as unknown as AbilityEstimate['costs']
   const jp = record?.JP
-  const learning = finite(jp) && jp >= 0 ? { jp, displayedLp: Math.floor(jp / JP_PER_LP), requiredWholeLp: Math.ceil(jp / JP_PER_LP) } : null
+  const learning = finite(jp) && jp >= 0 ? { jp, displayedLp: calculateFormula('displayedLP', [jp], GUIDE_RULES), requiredWholeLp: calculateFormula('requiredLP', [jp], GUIDE_RULES) } : null
   if (learning && learning.displayedLp !== learning.requiredWholeLp) notes.push('The displayed LP cost rounds down; unlocking requires more whole LP than shown')
   let baseAmount: StatRange | null = null
   let formula: string | undefined
@@ -66,12 +66,14 @@ export function estimateAbility(definition: MechanicsDefinition, stats: BuildSta
       const attack = stats.ATK.value
       const rates = Object.entries(NATIVE_RATES).map(([stat, field]) => ({ value: stats[stat as CalculatedStat].value, rate: record[field] as number }))
       if (((attackRate === 0 && scalingAttack === 0) || attack) && rates.every(entry => entry.rate === 0 || entry.value)) {
-        const endpoints = [0, 1].map(end => {
-          const atk = attack ? end ? attack.high : attack.low : 0
-          const scaledStats = rates.reduce((sum, entry) => sum + (entry.value ? end ? entry.value.high : entry.value.low : 0) * entry.rate / 100, 0)
-          return (base as number) + atk * (attackRate as number) / 100 + ((scaling as number) + atk * (scalingAttack as number) / 100) * scaledStats / 100
-        })
-        if (endpoints.every(Number.isFinite) && (attackRate as number) >= 0 && (scalingAttack as number) >= 0 && (scaling as number) >= 0 && rates.every(entry => entry.rate >= 0)) baseAmount = { low: Math.min(...endpoints), high: Math.max(...endpoints) }
+        try {
+          const endpoints = [0, 1].map(end => {
+            const atk = attack ? end ? attack.high : attack.low : 0
+            const scaledStats = rates.reduce((sum, entry) => sum + (entry.value ? end ? entry.value.high : entry.value.low : 0) * entry.rate / 100, 0)
+            return calculateFormula('abilityBase', [base as number, atk, attackRate as number, scaling as number, scalingAttack as number, scaledStats], GUIDE_RULES)
+          })
+          if ((attackRate as number) >= 0 && (scalingAttack as number) >= 0 && (scaling as number) >= 0 && rates.every(entry => entry.rate >= 0)) baseAmount = { low: Math.min(...endpoints), high: Math.max(...endpoints) }
+        } catch { notes.push('The base amount exceeds the supported finite arithmetic range') }
       }
       formula = 'Base power + Attack contribution + scaled core-stat contribution'
     }

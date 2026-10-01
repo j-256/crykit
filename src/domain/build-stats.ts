@@ -4,6 +4,8 @@ import { innateEffects, type DefinitionResolver } from './build-mechanics'
 import { estimateGrowth } from './growth'
 import { definitionSourceRecord, effectText, equipmentFacts, equipmentRole, isWeapon, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildRevisionContent, EntityRef, SlotDefinition, SourceRef } from './types'
+import { calculatePCStats } from './pc-stats'
+import { calculateFormula, GUIDE_RULES } from './calculation-rules'
 
 export const DERIVED_STATS = ['ATK', 'DEF', 'RES', 'CRIT', 'CRIT_DAMAGE', 'ACC', 'EVA', 'PPEN', 'MPEN', 'TT'] as const
 export const CALCULATED_STATS = [...STAT_KEYS, ...DERIVED_STATS] as const
@@ -12,16 +14,11 @@ export const STAT_LABELS: Readonly<Record<CalculatedStat, string>> = Object.free
 const STAT_ALIASES: Readonly<Record<string, CalculatedStat>> = Object.freeze({ hp: 'HP', 'max hp': 'HP', mp: 'MP', 'max mp': 'MP', str: 'STR', strength: 'STR', vit: 'VIT', vitality: 'VIT', dex: 'DEX', dexterity: 'DEX', agi: 'AGI', agility: 'AGI', mnd: 'MND', mind: 'MND', spi: 'SPI', spirit: 'SPI', spd: 'SPD', speed: 'SPD', luk: 'LUK', luck: 'LUK', atk: 'ATK', attack: 'ATK', def: 'DEF', defense: 'DEF', res: 'RES', resistance: 'RES', accuracy: 'ACC', evasion: 'EVA', 'crit chance': 'CRIT', 'crit damage': 'CRIT_DAMAGE', 'def pierce': 'PPEN', 'res pierce': 'MPEN' })
 const PERCENT_POINTS = new Set<CalculatedStat>(['CRIT', 'CRIT_DAMAGE', 'PPEN', 'MPEN'])
 const STAT_TEXT_FIELDS = ['Stat', 'Stat bonuses', 'Other effects', 'Other', 'Effect']
-const DOCUMENTED_DUAL_WIELD_RATE = 0.65
-const TURN_TIME_SPEED_LIMIT = 600
+const DOCUMENTED_DUAL_WIELD_RATE = GUIDE_RULES.dualWieldRate
+const TURN_TIME_SPEED_LIMIT = GUIDE_RULES.speedLimit
 const normalizeLabel = (label: string) => label.toLowerCase().replaceAll('.', '').replace(/\s+/g, ' ').trim()
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const DIRECT_STAT_MODS: Readonly<Record<number, readonly [CalculatedStat, 'flat' | 'percent']>> = Object.freeze({
-  0: ['HP', 'flat'], 1: ['MP', 'flat'], 6: ['STR', 'flat'], 7: ['VIT', 'flat'], 8: ['DEX', 'flat'], 9: ['AGI', 'flat'], 10: ['MND', 'flat'], 11: ['SPI', 'flat'], 12: ['SPD', 'flat'], 13: ['LUK', 'flat'],
-  20: ['HP', 'percent'], 21: ['MP', 'percent'], 26: ['STR', 'percent'], 27: ['VIT', 'percent'], 28: ['DEX', 'percent'], 29: ['AGI', 'percent'], 30: ['MND', 'percent'], 31: ['SPI', 'percent'], 32: ['SPD', 'percent'], 33: ['LUK', 'percent'],
-  40: ['ATK', 'flat'], 41: ['PPEN', 'flat'], 42: ['DEF', 'flat'], 43: ['CRIT', 'flat'], 44: ['CRIT_DAMAGE', 'flat'], 45: ['ACC', 'flat'], 46: ['EVA', 'flat'], 47: ['MPEN', 'flat'], 48: ['RES', 'flat'],
-  60: ['ATK', 'percent'], 61: ['PPEN', 'flat'], 62: ['DEF', 'percent'], 65: ['ACC', 'percent'], 66: ['EVA', 'percent'], 67: ['MPEN', 'flat'], 68: ['RES', 'percent'],
-})
+const DIRECT_STAT_MODS = GUIDE_RULES.statModifiers as unknown as Readonly<Record<number, readonly [CalculatedStat, 'flat' | 'percent']>>
 
 export interface StatContribution { readonly stat: CalculatedStat; readonly kind: 'flat' | 'percent'; readonly value: number; readonly label: string; readonly sources: readonly SourceRef[] }
 export interface StatRange { readonly low: number; readonly high: number }
@@ -123,11 +120,21 @@ export function statContributions(definition: MechanicsDefinition, textOverride?
 const exact = (value: number): StatRange => ({ low: value, high: value })
 function transform(range: StatRange | null, fn: (value: number) => number): StatRange | null {
   if (!range) return null
-  const values = [fn(range.low), fn(range.high)]
-  return values.every(Number.isFinite) ? { low: Math.min(...values), high: Math.max(...values) } : null
+  try {
+    const values = [fn(range.low), fn(range.high)]
+    return values.every(Number.isFinite) ? { low: Math.min(...values), high: Math.max(...values) } : null
+  } catch { return null }
 }
 
 export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey): BuildStatEstimate {
+  if (content.calculation?.model) {
+    const result = calculatePCStats(content, slots, resolve)
+    return { stats: Object.fromEntries(CALCULATED_STATS.map(stat => {
+      const values = [result.neutral[stat], result.male[stat], result.female[stat]]
+      const base = result.base[stat]
+      return [stat, { base: base == null ? null : { low: base, high: base }, value: values.some(value => value == null) ? null : { low: Math.min(...values as number[]), high: Math.max(...values as number[]) }, flat: 0, percent: 0 }]
+    })) as Record<CalculatedStat, StatEstimate>, contributions: [], excluded: result.effects, issues: result.issues }
+  }
   const contributions: StatContribution[] = []
   const excluded: string[] = []
   const issues: string[] = []
@@ -194,10 +201,11 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
     const percent = selected.filter(entry => entry.kind === 'percent').reduce((sum, entry) => sum + entry.value, 0)
     let value: StatRange | null = null
     if (base && !unknownStats.has(stat)) {
-      const rate = 1 + percent / 100
-      const candidates = [base.low, base.high].flatMap(part => [(part + flat) * rate, part * rate + flat])
-      if (candidates.every(Number.isFinite) && Math.min(...candidates) >= 0) value = { low: Math.min(...candidates), high: Math.max(...candidates) }
-      else issues.push(`${STAT_LABELS[stat]} falls outside the supported nonnegative stat range`)
+      try {
+        const candidates = [base.low, base.high].flatMap(part => [calculateFormula('flatBeforePercent', [part, flat, percent], GUIDE_RULES), calculateFormula('flatAfterPercent', [part, flat, percent], GUIDE_RULES)])
+        if (Math.min(...candidates) >= 0) value = { low: Math.min(...candidates), high: Math.max(...candidates) }
+      } catch { value = null }
+      if (!value) issues.push(`${STAT_LABELS[stat]} falls outside the supported nonnegative stat range`)
       if (flat && percent) issues.push(`${STAT_LABELS[stat]} shows both flat-before-percent and flat-after-percent estimates; stacking order is unspecified`)
     }
     stats[stat] = { base, value, flat, percent }
@@ -223,14 +231,14 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
       apply('ATK', exact(0))
     }
   }
-  apply('CRIT', transform(stats.DEX.value, dex => 100 * dex / (dex + 250)))
-  apply('CRIT_DAMAGE', transform(stats.DEX.value, dex => 25 + (dex / 15) ** 1.35))
+  apply('CRIT', transform(stats.DEX.value, dex => calculateFormula('critChance', [dex], GUIDE_RULES)))
+  apply('CRIT_DAMAGE', transform(stats.DEX.value, dex => calculateFormula('critDamage', [dex], GUIDE_RULES)))
   apply('ACC', stats.AGI.value)
   apply('EVA', stats.AGI.value)
-  apply('PPEN', transform(stats.STR.value, str => 100 * str / (str + 300)))
-  apply('MPEN', transform(stats.MND.value, mnd => 100 * mnd / (mnd + 300)))
+  apply('PPEN', transform(stats.STR.value, str => calculateFormula('penetration', [str], GUIDE_RULES)))
+  apply('MPEN', transform(stats.MND.value, mnd => calculateFormula('penetration', [mnd], GUIDE_RULES)))
   const speed = stats.SPD.value
-  apply('TT', speed && speed.high <= TURN_TIME_SPEED_LIMIT ? transform(speed, spd => 34 + (0.0175 * (spd - TURN_TIME_SPEED_LIMIT)) ** 2) : null)
+  apply('TT', speed && speed.high <= TURN_TIME_SPEED_LIMIT ? transform(speed, spd => calculateFormula('turnTime', [spd], GUIDE_RULES)) : null)
   if (speed && speed.high > TURN_TIME_SPEED_LIMIT) issues.push(`Turn time above ${TURN_TIME_SPEED_LIMIT} Speed requires a verified cap rule`)
   if (stats.CRIT.value && stats.CRIT.value.high > 100) issues.push('Crit chance exceeds 100%; the game cap is not applied')
   return { stats, contributions, excluded: [...new Set(excluded)], issues: [...new Set(issues)] }
@@ -238,14 +246,8 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
 
 export function physicalHitChance(accuracy: number, evasion: number): number | null {
   if (!Number.isFinite(accuracy) || !Number.isFinite(evasion) || accuracy < 0 || evasion <= 0) return null
-  if (accuracy === 0) return 0
+  if (accuracy === 0) return GUIDE_RULES.hitChance.zeroAccuracy
   const ratio = accuracy / evasion
-  if (ratio >= 1.5) return 100
-  if (ratio >= 1.25) return 98
-  if (ratio === 1) return 95
-  if (ratio > 1 || ratio < 0.25) return null
-  if (ratio >= 0.875) return 90
-  if (ratio >= 0.75) return 80
-  if (ratio >= 0.5) return 50
-  return 20
+  const band = GUIDE_RULES.hitChance.bands.find(band => 'exact' in band && band.exact !== undefined ? ratio === band.exact : 'lower' in band && band.lower !== undefined && ratio >= band.lower && (!('upper' in band) || band.upper === undefined || ratio < band.upper))
+  return band?.chance ?? null
 }

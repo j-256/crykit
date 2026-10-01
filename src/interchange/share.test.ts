@@ -9,6 +9,7 @@ import { createSampleLocalData } from '../domain/sample-data'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { BuildId, BuildRevisionId, EntityId, GameSetupRevision, PersonalDefinitionId, ScenarioId } from '../domain'
 import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
+import { defaultCalculation } from '../domain/calculation-plan'
 import { validateNativeLocalDataGraph } from './native'
 import { createSharePayload, createShareUrl, decodeSharePayload, encodeSharePayload, MAX_SHARE_JSON_BYTES, MAX_SHARE_URL_LENGTH, saveSharedCopy, SHARE_ROUTE_PREFIX, sharePreviewData, validateSharePayload } from './share'
 
@@ -48,6 +49,21 @@ describe('sharing snapshots', () => {
     expect(sharePreviewData(payload).playthroughs).toEqual({})
     expect(JSON.stringify(payload)).not.toContain('unrelated-private-definition')
     validateNativeLocalDataGraph(sharePreviewData(payload), [])
+  })
+
+  it.each(['primary', 'manual'] as const)('preserves native calculation rules and %s growth intent through a shared copy', growthMode => {
+    let data = addTestDefinition(fixture(), 'growth-class', { kind: 'class' })
+    const revision = data.buildRevisions['build-revision']!
+    const calculation = { ...defaultCalculation(personalRef('growth-class'), 20), growthMode, pcMode: 'chaos' as const }
+    data = saveBuildRevision(data, { buildId: revision.buildId, gameSetupRevisionId: revision.gameSetupRevisionId, content: { ...revision.content, primaryClass: personalRef('growth-class'), calculation }, now: TEST_NOW })
+    const payload = decodeSharePayload(encodeSharePayload(createSharePayload(data, { kind: 'build', revisionId: data.builds.build!.latestRevisionId! })))
+    expect(Object.values(payload.records.buildRevisions)[0]!.content.calculation).toEqual(calculation)
+    expect(payload.records.personalDefinitions['growth-class']!.kind).toBe('class')
+    const copied = saveSharedCopy(createTestLocalData(), payload)
+    const checkpoint = copied.localData.buildRevisions[copied.localData.builds[copied.buildId!]!.latestRevisionId!]!
+    expect(checkpoint.content.calculation).toEqual({ ...calculation, growth: [{ classRef: checkpoint.content.primaryClass, levels: 20 }] })
+    expect(checkpoint.content.primaryClass).not.toEqual(personalRef('growth-class'))
+    validateNativeLocalDataGraph(copied.localData, [])
   })
 
   it('shares an explicitly chosen older checkpoint and includes notes only on request', () => {

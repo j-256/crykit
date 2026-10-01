@@ -322,7 +322,7 @@ export default function App() {
 
   const addCharacter = useCallback(async (draft: CharacterDraft) => commitLocalData((localData) => createCharacter(localData, { name: draft.name, appearanceLabel: draft.appearanceLabel, expectedRevision: localData.revision })), [commitLocalData])
 
-  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitLocalData((localData) => captureCharacter(localData, { characterId, gameSetupRevisionId: draft.gameSetupRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, equipment: draft.equipment, passives: draft.passives, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: localData.revision })), [commitLocalData])
+  const captureSnapshot = useCallback(async (characterId: CharacterId, draft: SnapshotDraft) => commitLocalData((localData) => captureCharacter(localData, { characterId, gameSetupRevisionId: draft.gameSetupRevisionId, level: draft.level, primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, displayedStats: draft.displayedStats, equipment: draft.equipment, passives: draft.passives, calculation: draft.calculation, observedAt: currentTimestamp(draft.observedAt), note: draft.note, expectedRevision: localData.revision })), [commitLocalData])
 
   const upsertCharacterClass = useCallback(async (characterId: CharacterId, draft: ClassProgressDraft) => commitLocalData((localData) => upsertCharacterClassProgress(localData, { characterId, ...draft, expectedRevision: localData.revision })), [commitLocalData])
 
@@ -472,7 +472,7 @@ export default function App() {
     const currentCharacter = requirePlaythrough(next).characters[character.id]
     const currentSnapshot = currentCharacter?.currentSnapshotId ? currentCharacter.snapshots[currentCharacter.currentSnapshotId] : undefined
     const equipment = Object.fromEntries(Object.entries(revision.content.equipment).map(([slotId, selection]) => [slotId, selection?.ref ?? null]))
-    return captureCharacter(next, { characterId: character.id, gameSetupRevisionId: revision.gameSetupRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
+    return captureCharacter(next, { characterId: character.id, gameSetupRevisionId: revision.gameSetupRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, calculation: revision.content.calculation, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
   }), [commitLocalData])
 
   const saveGameSetup = useCallback(async (draft: GameSetupDraft) => commitLocalData((localData) => {

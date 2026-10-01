@@ -270,6 +270,7 @@ export interface CharacterSnapshot {
   readonly displayedStats: Readonly<Record<string, ObservedStat>>
   readonly equipment: Readonly<Record<string, EntityRef | null>>
   readonly passives: Knowledge<readonly EntityRef[]>
+  readonly calculation?: BuildCalculationPlan
   readonly sources: readonly SourceRef[]
   readonly note?: string
 }
@@ -378,6 +379,9 @@ export interface BuildRevisionContent {
 }
 
 export interface BuildCalculationPlan {
+  readonly model?: 'pc-1.6.9-v1'
+  readonly growthMode?: 'primary' | 'manual'
+  readonly pcMode?: 'standard' | 'vanilla' | 'chaos'
   readonly level: number | null
   readonly growth: readonly { readonly classRef: EntityRef | null; readonly levels: number | null }[]
   readonly bonuses: readonly import('./crystal-edit').GrowthStat[]

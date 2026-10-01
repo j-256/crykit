@@ -74,7 +74,28 @@ export function nativeDefinitionLabel(entity: Pick<CatalogEntity, 'fields'> & Pa
   const identity = nativeIdentity(entity)
   if (!identity) return undefined
   const version = entity.fields['Game version']
-  return `Windows ${version?.state === 'known' && typeof version.value === 'string' ? version.value : '(version unresolved)'} · ${identity.mode === 'base' ? 'base database' : `${identity.mode} override`}`
+  return `Windows ${version?.state === 'known' && typeof version.value === 'string' ? version.value : '(version unresolved)'} · ${identity.mode === 'base' ? 'base database' : `${identity.mode} mode`}`
+}
+
+export function nativeDisplayName(entity: Pick<CatalogEntity, 'name' | 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>, name = entity.name): string {
+  const identity = nativeIdentity(entity)
+  return identity && identity.mode !== 'base' ? `${name} (${identity.mode} mode)` : name
+}
+
+function nativeRecordSummary(family: NativeFamily, record: NativeRecord, version: string, mode: string, modeTerm = 'override'): string {
+  const modeLabel = mode === 'base' ? 'base database' : `${mode} ${modeTerm}`
+  return family === 'monster' ? `Windows ${version} ${modeLabel}; level ${record.Level ?? 'unknown'}. Includes raw stats, rewards, loot, and action conditions.` : `Windows ${version} ${FAMILY_LABELS[family].toLowerCase()} ${modeLabel}.`
+}
+
+export function nativeDisplayDescription(entity: Pick<CatalogEntity, 'rawDescription' | 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>): string | undefined {
+  const identity = nativeIdentity(entity)
+  const record = nativeSourceRecord(entity)
+  const version = entity.fields['Game version']
+  if (identity && Object.hasOwn(NATIVE_FAMILIES, identity.database) && record && version?.state === 'known' && typeof version.value === 'string') {
+    const family = identity.database as NativeFamily
+    if (entity.rawDescription === nativeRecordSummary(family, record, version.value, identity.mode)) return nativeRecordSummary(family, record, version.value, identity.mode, 'mode')
+  }
+  return entity.rawDescription
 }
 
 export function nativeSourceRecord(entity: Pick<CatalogEntity, 'fields'>): NativeRecord | undefined {
@@ -218,8 +239,7 @@ export function buildNativeCatalog(snapshot: NativeGameSnapshot): CatalogSnapsho
     }
     if (record.Flavor !== undefined && record.Flavor !== null) fields.Flavor = known(record.Flavor)
     const sourceDescription = typeof record.Description === 'string' && record.Description.trim() ? record.Description : undefined
-    const modeLabel = mode === 'base' ? 'base database' : `${mode} override`
-    const summary = family === 'monster' ? `Windows ${version} ${modeLabel}; level ${record.Level ?? 'unknown'}. Includes raw stats, rewards, loot, and action conditions.` : `Windows ${version} ${FAMILY_LABELS[family].toLowerCase()} ${modeLabel}.`
+    const summary = nativeRecordSummary(family, record, version, mode)
     const kind = family === 'passive' && record.IsInnate === true ? 'innate' : NATIVE_FAMILIES[family]
     const statMods = Array.isArray(record.StatMods) ? record.StatMods.filter(nativeRecord).map(mod => ({ ...mod, Name: snapshot.enums.SangStatModTag?.[String(mod.Tag)] ?? `Unresolved stat modifier ${mod.Tag}` })) : undefined
     if (statMods) fields['Stat modifiers'] = known(statMods)

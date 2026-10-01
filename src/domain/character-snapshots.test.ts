@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addGameSetupRevision, asId, captureCharacter, compareCharacterSnapshots, requirePlaythrough, setPlaythroughGameSetup, snapshotSlots } from './index'
 import { addTestCharacter, createTestLocalData, HAND_SLOT, known, personalRef, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
 import type { CharacterId, CharacterSnapshot, CharacterSnapshotId, LocalData, GameSetupRevisionId } from './types'
+import { defaultCalculation } from './calculation-plan'
 
 const characterId = asId<CharacterId>('synthetic-character')
 function current(localData: LocalData): CharacterSnapshot {
@@ -11,6 +12,14 @@ function current(localData: LocalData): CharacterSnapshot {
 function fixture(): CharacterSnapshot {
   return current(addTestCharacter(createTestLocalData(), characterId))
 }
+
+it('compares calculation assumptions independently of observed stats', () => {
+  const before = fixture()
+  const after = { ...before, calculation: defaultCalculation(null) }
+  const rows = compareCharacterSnapshots(before, after)
+  expect(rows.find(row => row.key === 'calculation')).toMatchObject({ changed: true, label: 'Calculation assumptions' })
+  expect(rows.filter(row => row.key.startsWith('stat:')).every(row => !row.changed)).toBe(true)
+})
 
 describe('recorded snapshot comparison', () => {
   it('reports numeric differences only for known values with matching field names and units', () => {

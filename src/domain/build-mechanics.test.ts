@@ -173,4 +173,13 @@ describe('supported build calculations', () => {
     expect(native.baseAmount).toEqual({ low: 153.5, high: 153.5 })
     expect(native.costs.MP).toBe(0)
   })
+
+  it('keeps overflowing imported numeric effects unresolved', () => {
+    const oversized: CatalogEntity = { ...sword, fields: { 'Crystal Edit source record': known({ StatMods: [{ Tag: 40, Value1: Number.MAX_VALUE }, { Tag: 60, Value1: Number.MAX_VALUE }] }) } }
+    const result = calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === sword.id ? oversized : resolve(reference))
+    expect(result.stats.ATK.value).toBeNull()
+    expect(result.issues.some(issue => issue.includes('supported nonnegative stat range'))).toBe(true)
+    const ability: CatalogEntity = { ...passive, kind: 'ability', fields: { 'Crystal Edit source record': known({ BasePower: Number.MAX_VALUE, BasePAtkRate: 0, ScalingPower: null, ScalingPAtkRate: null, StrRate: 0, VitRate: 0, DexRate: 0, AgiRate: 0, MndRate: 0, SpiRate: 300, SpdRate: 0, LckRate: 0 }) } }
+    expect(estimateAbility(ability, calculateBuildStats(base, SUGGESTED_BUILD_SLOTS, resolve).stats).baseAmount).toBeNull()
+  })
 })

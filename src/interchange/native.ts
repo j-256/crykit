@@ -312,6 +312,10 @@ function validateLocalDataEntityRefs(
     for (const [id, event] of Object.entries(playthrough.inventoryEvents)) check(event.ref, `${playthroughLabel}.inventoryEvents.${id}.ref`)
     for (const [characterId, character] of Object.entries(playthrough.characters)) {
       for (const [snapshotId, snapshot] of Object.entries(character.snapshots)) {
+        const calculationLabel = `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.calculation`
+        for (const [index, row] of (snapshot.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${calculationLabel}.growth.${index}.classRef`)
+        for (const [index, ref] of (snapshot.calculation?.statuses ?? []).entries()) check(ref, `${calculationLabel}.statuses.${index}`)
+        if (snapshot.calculation?.ability) check(snapshot.calculation.ability, `${calculationLabel}.ability`)
         for (const ref of knowledgeValues(snapshot.primaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.primaryClass`)
         for (const ref of knowledgeValues(snapshot.secondaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.secondaryClass`)
         for (const [slotId, ref] of Object.entries(snapshot.equipment)) {
