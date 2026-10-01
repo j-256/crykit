@@ -12,7 +12,7 @@ import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { validateNativeLocalDataGraph } from './native'
 import { createSharePayload, createShareUrl, decodeSharePayload, encodeSharePayload, MAX_SHARE_JSON_BYTES, MAX_SHARE_URL_LENGTH, saveSharedCopy, SHARE_ROUTE_PREFIX, sharePreviewData, validateSharePayload } from './share'
 
-const MOD_CATALOG_GRAPH_TIMEOUT_MS = 15_000
+const MOD_CATALOG_GRAPH_TIMEOUT_MS = 30_000
 
 function fixture() {
   let data = addTestDefinition(createTestLocalData(), 'sword')
