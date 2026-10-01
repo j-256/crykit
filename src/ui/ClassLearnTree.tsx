@@ -5,8 +5,9 @@ import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, exportedTree, LEARN_NODE_TYPES, type
 import { learnTreeGraph, treePositionKey, type TreePosition } from '../domain/learn-tree'
 import type { CatalogEntity, CatalogSnapshot, PersonalDefinition } from '../domain/types'
 import { GameIcon } from './GameIcon'
-import { SourceSummary } from './KnowledgeValue'
+import { SourceReferences } from './KnowledgeValue'
 import { formatAppRoute } from './navigation'
+import { visibleSources } from './source-display'
 
 const TREE_LAYOUT = Object.freeze({ columnWidth: 100, rowHeight: 120, nodeHeight: 80, minColumnWidth: 84, maxColumnWidth: 150 })
 const point = (position: TreePosition) => ({ x: (position.column + .5) * TREE_LAYOUT.columnWidth, y: position.row * TREE_LAYOUT.rowHeight + TREE_LAYOUT.nodeHeight / 2 })
@@ -29,10 +30,10 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
   const unresolved = new Set(graph.unresolved.map(treePositionKey))
   const bundled = bundledTreeIdentity(entity)
   const treeField = entity.fields[CLASS_FIELDS.tree] ?? entity.fields[CRYSTAL_EDIT_FIELDS.tree]
-  const sources = treeField?.state === 'known' ? treeField.sources ?? [] : []
+  const sources = visibleSources([...(treeField?.state === 'known' ? treeField.sources ?? [] : []), ...(bundled ? [CLASS_TREE_IDENTITY_SOURCE] : [])])
   if (!graph.nodes.length) return null
   return <details className="class-learn-tree"><summary>Learn tree</summary>
-    <p className="learn-tree-help">Follow the arrows from prerequisites to the skills they unlock. Select a named skill to open its reference. LP is the learning cost; this reference does not record character learning.</p>
+    <p className="learn-tree-help">All incoming prerequisites must be learned. Follow the arrows to the skills they unlock. Select a named skill to open its reference. LP is the learning cost; this reference does not record character learning.</p>
     <div aria-label="Scrollable learn tree" className="learn-tree-scroll" role="group" tabIndex={0}>
       <div className="learn-tree" style={{ height, minWidth: columns * TREE_LAYOUT.minColumnWidth, maxWidth: columns * TREE_LAYOUT.maxColumnWidth }}>
         <svg aria-hidden="true" className="learn-tree__connectors" height={height} preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`} width="100%">
@@ -44,7 +45,7 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
             const key = treePositionKey(node)
             const skill = skills.get(key)!
             const prerequisiteNames = [...new Set(graph.edges.filter(edge => treePositionKey(edge.to) === key).map(edge => skills.get(treePositionKey(edge.from))!.name))]
-            const requirement = [...(prerequisiteNames.length ? [`Requires ${prerequisiteNames.join(', ')}`] : []), ...(unresolved.has(key) ? ['Prerequisite unknown'] : [])].join('. ')
+            const requirement = [...(prerequisiteNames.length ? [`Requires all: ${prerequisiteNames.join(' and ')}`] : []), ...(unresolved.has(key) ? ['Prerequisite unknown'] : [])].join('. ')
             const cost = skill.monsterLearned ? 'Monster learning' : skill.jp === undefined ? 'LP unknown' : `${skill.jp / JP_PER_LP} LP`
             const iconKey = skill.definition ? definitionIconKey(skill.definition) : skill.kind === 'passive' || skill.kind === 'innate' ? 'skill:passive' : undefined
             const contents = <><span className="learn-tree__type"><GameIcon iconKey={iconKey} placeholderKind={skill.kind}/><small>{skill.kind === 'monsterMagic' ? 'Monster magic' : skill.kind}</small></span><strong>{skill.name}</strong><span className="learn-tree__cost">{cost}</span></>
@@ -59,6 +60,6 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
       </div>
     </div>
     {unresolved.size > 0 && <p className="learn-tree-warning">Some prerequisite cells are missing or unrecognized. Their connections remain unknown.</p>}
-    <details className="learn-tree-sources"><summary>Tree source and scope</summary><p>{bundled ? 'Names and LP costs are matched by native ID against PC databases whose trees exactly match the class-copy export. Modded and Nintendo Switch costs may differ.' : 'Names and costs resolve within this imported or inherited source catalog. Missing definitions remain unknown.'}</p>{sources.map((source, index) => <SourceSummary key={index} source={source}/>)}{bundled && <SourceSummary source={CLASS_TREE_IDENTITY_SOURCE}/>}</details>
+    {sources.length > 0 && <details className="learn-tree-sources"><summary>Additional reference</summary><SourceReferences sources={sources}/></details>}
   </details>
 }

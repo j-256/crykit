@@ -123,7 +123,7 @@ function DetailView({ item: displayedItem, modAvailability, onBack, onEdit, pers
     {enemy && !editing && <><p className="enemy-input-note"><Icon name="info"/>Database inputs are shown below. Difficulty and modes can change battle values.</p><NativeEnemyStats entity={item.entity}/></>}
     <NativeDefinitionDetails catalog={item.catalog} entity={item.entity} onOpenDefinition={onOpenDefinition} technicalDetails={enemy && !editing ? <><DefinitionFactsPanel facts={facts} primarySourceId={primarySourceId}/><DefinitionPlanningPanel definition={item.entity}/><DefinitionSourcesPanel collapsed sources={item.entity.sources}/><CatalogArtworkSource catalogId={item.catalog.id} entity={item.entity}/><FieldIconSources fields={item.entity.fields}/></> : undefined}/>
     <ClassResearch catalog={item.catalog} definitionRef={target} entity={item.entity} key={referenceDefinitionKey(item)}/>
-    {(!enemy || editing) && <div className="grid-2 definition-detail-columns">
+    {(!enemy || editing) && <div className="stack definition-detail-sections">
       <DefinitionFactsPanel facts={facts} primarySourceId={primarySourceId} renderValue={(field, _value, content) => <EditableReference {...editable(`field:${field}`, field)}>{content}</EditableReference>}>
         {editing && <div className="reference-add-fact"><input aria-label="Missing fact name" disabled={Boolean(activeEdit)} onChange={event => setNewFact(event.target.value)} placeholder="Add a missing fact..." value={newFact}/><Button disabled={Boolean(activeEdit) || !newFact.trim() || ['__proto__', 'prototype', 'constructor'].includes(newFact.trim())} icon="plus" onClick={() => { const name = Object.keys(item.entity.fields).find(field => field.toLocaleLowerCase() === newFact.trim().toLocaleLowerCase()) ?? newFact.trim(); setExtraFact(name); setActiveEdit(`field:${name}`); setNewFact('') }} tone="quiet">Add fact</Button></div>}
       </DefinitionFactsPanel>
@@ -152,7 +152,7 @@ function PersonalDetail({ option, onBack, onEdit, onOpenDefinition, collectionAc
     {enemy && <><p className="enemy-input-note"><Icon name="info"/>Database inputs are shown below. Difficulty and modes can change battle values.</p><NativeEnemyStats entity={enemy}/></>}
     {source && primarySourceId && <NativeDefinitionDetails catalog={source.catalog} entity={nativeEntity!} onOpenDefinition={onOpenDefinition} technicalDetails={enemy ? <><DefinitionFactsPanel facts={facts} primarySourceId={primarySourceId}/><DefinitionPlanningPanel definition={definition}/>{sourcePanel}<CatalogArtworkSource catalogId={source.catalog.id} entity={source.entity}/></> : undefined}/>}
     <ClassResearch catalog={source?.catalog} definitionRef={option.ref} entity={definition} key={option.key} sourceEntity={source?.entity}/>
-    {!enemy && <div className="grid-2 definition-detail-columns"><DefinitionFactsPanel facts={facts} primarySourceId={primarySourceId}/>{sourcePanel}</div>}
+    {!enemy && <div className="stack definition-detail-sections"><DefinitionFactsPanel facts={facts} primarySourceId={primarySourceId}/>{sourcePanel}</div>}
     {!enemy && <DefinitionPlanningPanel definition={definition}/>}
     {(source?.claims.length ?? 0) > 0 && <details><summary>Supplemental claims</summary><DefinitionClaimsPanel claims={source?.claims ?? []}/></details>}
   </div>

@@ -10,6 +10,7 @@ const LOCAL_TEST_WORKERS = '25%'
 const DOM_TEST_FILES = [
   'src/interchange/xlsx.test.ts',
   'src/ui/KnowledgeValue.test.tsx',
+  'src/ui/ClassLearnTree.test.tsx',
   'src/ui/components.test.tsx',
   'src/ui/navigation-controller.test.tsx',
   'src/ui/TravelUnlocksView.test.tsx',

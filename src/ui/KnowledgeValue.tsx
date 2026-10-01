@@ -1,5 +1,6 @@
 import { Money, MoneyText } from './MoneyText'
 import { NATIVE_RECORD_FIELD } from '../domain/native-game'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
 import { sourceDisplay, visibleSources } from './source-display'
 import { fieldIconKey } from '../catalog/menu-icons'
@@ -7,6 +8,7 @@ import { GameIcon } from './GameIcon'
 
 const COPPER_FIELD = /(?:^copper$|\(copper\)$)/i
 const NATIVE_COPPER_FIELDS = new Set(['Money', 'Cost'])
+const GROWTH_RATING_FIELDS = new Set([CLASS_FIELDS.ratings, CRYSTAL_EDIT_FIELDS.ratings, 'Growth ratings'])
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -30,7 +32,7 @@ function StructuredValue({ value, field, nativeSource = false }: { value: unknow
     }
     return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} nativeSource={native} value={entry}/></li>)}</ul>
   }
-  if (isRecord(value)) return <dl className="structured-value__record">{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} nativeSource={native} value={nested}/></dd></div>)}</dl>
+  if (isRecord(value)) return <dl className={`structured-value__record${GROWTH_RATING_FIELDS.has(field ?? '') ? ' structured-value__record--ratings' : ''}`}>{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} nativeSource={native} value={nested}/></dd></div>)}</dl>
   return <span>{String(value)}</span>
 }
 

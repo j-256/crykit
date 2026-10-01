@@ -116,6 +116,8 @@ Separate class, equipment-slot, element, source-mod, source, and PP filters use 
 
 Active selections remain visible above the results and can be removed individually or cleared together, including when mobile filters are closed. Filters survive details, browser navigation, and reloads. Unknown and conflicting values remain possible matches where appropriate; missing facts are not inferred from names or descriptions.
 
+Opening a definition uses the full content width. Short facts share columns, while tables and longer descriptions have their labels above them and span the page. Source details follow the facts. On narrow screens, wide tables scroll within their own area. **Back to results** returns to the retained search and filters. Catalog and personal definitions use the same layout.
+
 ### Find weapon skills
 
 To browse weapon skills, choose **Reference > Weapon skills > Weapon skills usable with > Dagger**, or press Cmd+K / Ctrl+K, type **dagger**, and open **Skills usable with Dagger**. On mobile, open **Filters** first. Results include multi-weapon and any-weapon skills, with class, listed weapon requirements, and cost visible. Spells and ordinary abilities are excluded. Unknown or conflicting requirements are available through an explicit checkbox. Filters survive details, reloads, and browser navigation. An explicitly enabled **Unrestricted Weapon Skills** mod broadens the list while retaining the original requirements. Other mod visibility follows the current Game Setup.

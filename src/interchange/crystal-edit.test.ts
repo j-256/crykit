@@ -3,12 +3,23 @@ import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crys
 import { previewImport } from './import'
 import { NativeCatalogSnapshotSchema } from './native-schema'
 import { requirePlaythrough } from '../domain'
+import type { CatalogSnapshot } from '../domain/types'
 
-import { syntheticCrystalEdit } from './crystal-edit.test-helpers'
+import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crystal-edit.test-helpers'
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 
 describe('Crystal Edit reference import', () => {
+  it('preserves every simultaneous prerequisite in columns and native snapshot round-trips', async () => {
+    const preview = await previewImport(encode(syntheticPrerequisiteCrystalEdit()), 'prerequisites.json')
+    const catalog: CatalogSnapshot = JSON.parse(JSON.stringify(preview.proposed.catalogs[0]))
+    expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
+    const nodes = exportedTree(catalog.entities['crystal-edit:Jobs:40']!)
+    expect(nodes.find(node => node.dataId === 11)?.prerequisites).toEqual([{ row: 0, column: 0 }, { row: 0, column: 1 }])
+    expect(nodes.find(node => node.dataId === 10)?.prerequisites).toEqual([{ row: 0, column: 0 }, { row: 0, column: 1 }, { row: 0, column: 2 }])
+    expect(preview.warnings.some(warning => warning.code === 'external-model-references')).toBe(false)
+  })
+
   it('detects content, keeps namespaces separate, decodes columns, and preserves unresolved IDs', async () => {
     const input = syntheticCrystalEdit()
     const preview = await previewImport(encode(input), 'anything.txt')

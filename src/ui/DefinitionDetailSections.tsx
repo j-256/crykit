@@ -3,13 +3,14 @@ import type { CatalogClaim, CatalogEntity, Knowledge, PersonalDefinition, Source
 import { Badge, InlineNotice } from './components'
 import { KnowledgeValue, SourceReferences, SourceSummary } from './KnowledgeValue'
 import { knowledgeTone } from './model'
-import { definitionFactLabel, visibleSources } from './source-display'
+import { definitionFactIsWide, definitionFactLabel, visibleSources } from './source-display'
 
 export function DefinitionFactsPanel({ facts, primarySourceId, renderValue, children }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; primarySourceId?: string; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode }) {
-  return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list">{facts.map(([field, value]) => {
+  const fields = facts.map(([field]) => field)
+  return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list definition-facts">{facts.map(([field, value]) => {
     const sources = value.state === 'known' ? visibleSources(value.sources?.filter(source => source.sourceId !== primarySourceId) ?? []) : []
     const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences sources={sources}/></details>}</>
-    return <div className={`definition-row${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{definitionFactLabel(field)}</dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
+    return <div className={`definition-row${definitionFactIsWide(field, value) ? ' definition-row--wide' : ''}${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt>{definitionFactLabel(field, value, fields)}</dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
   })}</dl> : <InlineNotice title="No definition facts">Unrecorded facts remain unknown. Add a fact in the definition editor.</InlineNotice>}{children}</div></section>
 }
 
