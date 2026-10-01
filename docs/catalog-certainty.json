@@ -1,0 +1,627 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "crystal-project-public-starter",
+  "revisionId": "catalog-v1",
+  "checksum": "builtin:sha256:9225b88bda2a63b74c422a842021e3b4a6834224ec30cfe25273433bf77b1957",
+  "states": {
+    "known": 113464,
+    "unknown": 1061,
+    "conflicting": 520,
+    "notApplicable": 7037
+  },
+  "scope": "Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states",
+  "gaps": [
+    {
+      "state": "conflicting",
+      "kind": "item",
+      "field": "Cost",
+      "reason": "Supplemental source claims differ",
+      "count": 2,
+      "examples": [
+        "base:item:nan-s-cocoa",
+        "base:item:nan-s-stew"
+      ]
+    },
+    {
+      "state": "conflicting",
+      "kind": "item",
+      "field": "Effect",
+      "reason": "Supplemental source claims differ",
+      "count": 4,
+      "examples": [
+        "base:item:shoudu-stew",
+        "base:item:nan-s-cocoa",
+        "base:item:nan-s-secret-recipe"
+      ]
+    },
+    {
+      "state": "conflicting",
+      "kind": "item",
+      "field": "Location",
+      "reason": "Supplemental source claims differ",
+      "count": 513,
+      "examples": [
+        "base:item:short-sword",
+        "base:item:iron-sword",
+        "base:item:contract"
+      ]
+    },
+    {
+      "state": "conflicting",
+      "kind": "other",
+      "field": "Description",
+      "reason": "Supplemental source claims differ",
+      "count": 1,
+      "examples": [
+        "base:mechanic:ability:KillsUser"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "AP cost",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 19,
+      "examples": [
+        "mod:barbarian:ability:shout",
+        "mod:barbarian:ability:thick-skin",
+        "mod:barbarian:ability:enrage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Class",
+      "reason": "The scraped wiki sources do not document class for this ability",
+      "count": 20,
+      "examples": [
+        "base:ability:aid",
+        "base:ability:amnesia",
+        "base:ability:attack"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Cost",
+      "reason": "The scraped wiki sources do not document cost for this ability",
+      "count": 20,
+      "examples": [
+        "base:ability:aid",
+        "base:ability:amnesia",
+        "base:ability:attack"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Description",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 19,
+      "examples": [
+        "mod:barbarian:ability:shout",
+        "mod:barbarian:ability:thick-skin",
+        "mod:barbarian:ability:enrage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Description",
+      "reason": "The scraped wiki sources do not document description for this ability",
+      "count": 5,
+      "examples": [
+        "base:ability:amnesia",
+        "base:ability:bulk-up",
+        "base:ability:chomp"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Learning cost",
+      "reason": "The scraped wiki sources do not document learning cost for this ability",
+      "count": 20,
+      "examples": [
+        "base:ability:aid",
+        "base:ability:amnesia",
+        "base:ability:attack"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "MP cost",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 19,
+      "examples": [
+        "mod:barbarian:ability:shout",
+        "mod:barbarian:ability:thick-skin",
+        "mod:barbarian:ability:enrage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Type",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 19,
+      "examples": [
+        "mod:barbarian:ability:shout",
+        "mod:barbarian:ability:thick-skin",
+        "mod:barbarian:ability:enrage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "ability",
+      "field": "Type",
+      "reason": "The scraped wiki sources do not document type for this ability",
+      "count": 20,
+      "examples": [
+        "base:ability:aid",
+        "base:ability:amnesia",
+        "base:ability:attack"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "class",
+      "field": "Class command",
+      "reason": "Not supplied in the export",
+      "count": 3,
+      "examples": [
+        "mod:moonlight-project:class:30",
+        "mod:moonlight-project:class:31",
+        "mod:moonlight-project:class:32"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "class",
+      "field": "Crystal name",
+      "reason": "Not supplied in the export",
+      "count": 3,
+      "examples": [
+        "mod:moonlight-project:class:30",
+        "mod:moonlight-project:class:31",
+        "mod:moonlight-project:class:32"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "class",
+      "field": "grants",
+      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
+      "count": 4,
+      "examples": [
+        "mod:bloodmage:class:bloodmage",
+        "mod:tempest:class:tempest",
+        "mod:forcemage:class:forcemage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "class",
+      "field": "requirements",
+      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
+      "count": 4,
+      "examples": [
+        "mod:bloodmage:class:bloodmage",
+        "mod:tempest:class:tempest",
+        "mod:forcemage:class:forcemage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "class",
+      "field": "Wiki coverage",
+      "reason": "No matching detail page or structured row was found in the bundled community wiki snapshot",
+      "count": 4,
+      "examples": [
+        "mod:bloodmage:class:bloodmage",
+        "mod:tempest:class:tempest",
+        "mod:forcemage:class:forcemage"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "command",
+      "field": "Description",
+      "reason": "The class page names this command but does not provide a separate command summary",
+      "count": 24,
+      "examples": [
+        "base:command:battle-skill",
+        "base:command:beatmaker",
+        "base:command:black-magic"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "Description",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 2,
+      "examples": [
+        "mod:barbarian:innate:toughness",
+        "mod:tempest:innate:squall"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "grants",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 2,
+      "examples": [
+        "mod:barbarian:innate:toughness",
+        "mod:tempest:innate:squall"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "grants",
+      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
+      "count": 25,
+      "examples": [
+        "base:warrior:innate:fighter",
+        "base:monk:innate:aversive",
+        "base:rogue:innate:pinpoint"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "requirements",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 2,
+      "examples": [
+        "mod:barbarian:innate:toughness",
+        "mod:tempest:innate:squall"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "requirements",
+      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
+      "count": 25,
+      "examples": [
+        "base:warrior:innate:fighter",
+        "base:monk:innate:aversive",
+        "base:rogue:innate:pinpoint"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "slotKinds",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 2,
+      "examples": [
+        "mod:barbarian:innate:toughness",
+        "mod:tempest:innate:squall"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "innate",
+      "field": "slotKinds",
+      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
+      "count": 25,
+      "examples": [
+        "base:warrior:innate:fighter",
+        "base:monk:innate:aversive",
+        "base:rogue:innate:pinpoint"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "item",
+      "field": "Location",
+      "reason": "The publisher description does not document the shield location or acquisition method",
+      "count": 1,
+      "examples": [
+        "mod:doge-shield:item:doge-shield"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "item",
+      "field": "Location",
+      "reason": "The scraped wiki sources do not document location for this item",
+      "count": 61,
+      "examples": [
+        "base:item:nuts",
+        "base:item:tonic-pouch",
+        "base:item:potion-pouch"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "item",
+      "field": "requirements",
+      "reason": "The source describes acquisition, but does not establish normalized build requirements",
+      "count": 5,
+      "examples": [
+        "base:item:ibek-bell",
+        "base:item:owl-drum",
+        "base:item:salmon-cello"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "item",
+      "field": "requirements",
+      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
+      "count": 245,
+      "examples": [
+        "base:item:tonic",
+        "base:item:potion",
+        "base:item:z-potion"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "item",
+      "field": "slotKinds",
+      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
+      "count": 166,
+      "examples": [
+        "base:item:ancient-labyrinth-map",
+        "base:item:ancient-reservoir-map",
+        "base:item:ancient-tablet-a"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Abilities",
+      "reason": "The publisher description does not document boss abilities",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Associated equipment",
+      "reason": "The publisher description does not name or detail the new equipment",
+      "count": 3,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-elder-entities:monster:elder-entities"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Drops",
+      "reason": "The publisher description does not document boss drops",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Drops",
+      "reason": "The scraped wiki sources do not document drops for this monster",
+      "count": 91,
+      "examples": [
+        "base:monster:arachlea",
+        "base:monster:bandages",
+        "base:monster:bass-hunter"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "HP",
+      "reason": "The publisher description does not document boss HP",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Level",
+      "reason": "The publisher description does not document boss level",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Location",
+      "reason": "The publisher description does not document boss location",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Steals",
+      "reason": "The publisher description does not document boss steals",
+      "count": 4,
+      "examples": [
+        "mod:additional-boss-yasha-tar:monster:yasha-tar",
+        "mod:additional-boss-pinga:monster:pinga",
+        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "monster",
+      "field": "Steals",
+      "reason": "The scraped wiki sources do not document steals for this monster",
+      "count": 132,
+      "examples": [
+        "base:monster:ancient-sword",
+        "base:monster:anubis",
+        "base:monster:arachlea"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "other",
+      "field": "Exact bundled revision",
+      "reason": "The publisher description does not expose the bundled mod source revisions",
+      "count": 2,
+      "examples": [
+        "mod:quality-fun:other:quality-fun",
+        "mod:new-challenges:other:new-challenges"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "other",
+      "field": "Nintendo Switch and mod-pack parity",
+      "reason": "The community wiki does not establish complete Nintendo Switch or official mod-pack parity",
+      "count": 1,
+      "examples": [
+        "base:other:catalog-coverage-gaps"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "AP cost",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "Description",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "grants",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "grants",
+      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
+      "count": 3,
+      "examples": [
+        "base:monk:passive:brawler",
+        "base:scholar:passive:learning",
+        "base:summoner:passive:mp-boost"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "MP cost",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "requirements",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "requirements",
+      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
+      "count": 3,
+      "examples": [
+        "base:monk:passive:brawler",
+        "base:scholar:passive:learning",
+        "base:summoner:passive:mp-boost"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "slotKinds",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "slotKinds",
+      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
+      "count": 3,
+      "examples": [
+        "base:monk:passive:brawler",
+        "base:scholar:passive:learning",
+        "base:summoner:passive:mp-boost"
+      ]
+    },
+    {
+      "state": "unknown",
+      "kind": "passive",
+      "field": "Type",
+      "reason": "Only names, node kinds, and class associations were confirmed in game",
+      "count": 5,
+      "examples": [
+        "mod:barbarian:passive:hardy",
+        "mod:barbarian:passive:ferocious",
+        "mod:barbarian:passive:endurance"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { entityDefinitionKey } from './core'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from './crystal-edit'
-import { nativeEntityId, nativeIdentity, nativeSourceRecord } from './native-game'
+import { nativeEntityId, nativeIdentity, nativeRecord, nativeSourceRecord } from './native-game'
+import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 import { classEquipmentTypes, classInnateText, definitionSourceRecord, definitionPermissionEffects, effectText, equipmentFacts, equipmentFitsRole, equipmentRole, isWeapon, knownField, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
@@ -20,7 +21,7 @@ export interface EquipmentPermissionAssessment { readonly status: 'valid' | 'inv
 type EquipmentPermissionContent = Pick<BuildRevisionContent, 'primaryClass' | 'secondaryClass' | 'passives'>
 const EQUIPMENT_PERMISSION_PREFIX = 'equipment:'
 
-function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver): { ref: Extract<EntityRef, { kind: 'catalog' }>; definition: MechanicsDefinition } | undefined {
+export function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver): { ref: Extract<EntityRef, { kind: 'catalog' }>; definition: MechanicsDefinition } | undefined {
   const visited = new Set<string>()
   let current = ref
   while (current.kind === 'personal') {
@@ -51,8 +52,16 @@ export function innateEffects(content: Pick<BuildRevisionContent, 'primaryClass'
   }
   const ids = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
   const ref = source?.ref
+  const mod = source && 'legacy' in source.definition ? bundledModIdentity(source.definition) : undefined
+  const links = source && 'legacy' in source.definition && nativeRecord(source.definition.legacy) && nativeRecord(source.definition.legacy.passiveEntityIds) ? source.definition.legacy.passiveEntityIds : {}
   return ref && Array.isArray(ids) ? ids.flatMap(id => {
-    const definition = typeof id === 'number' ? native ? resolve({ ...ref, entityId: nativeEntityId('passive', id, native.mode) }) ?? resolve({ ...ref, entityId: nativeEntityId('passive', id) }) : resolve({ ...ref, entityId: `crystal-edit:Passives:${id}` as typeof ref.entityId }) : undefined
+    if (typeof id !== 'number') return []
+    const linked = links[String(id)]
+    const candidates = typeof linked === 'string' ? [linked as typeof ref.entityId]
+      : mod ? [bundledModEntityId(mod.key, 'Passives', id)]
+      : native ? [nativeEntityId('passive', id, native.mode), nativeEntityId('passive', id)]
+      : []
+    const definition = candidates.map(entityId => resolve({ ...ref, entityId })).find(value => value !== undefined)
     return definition && definitionSourceRecord(definition)?.IsInnate === true ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
   }) : []
 }
@@ -61,7 +70,7 @@ export function buildEquipmentPermissions(content: EquipmentPermissionContent, r
   const primary = content.primaryClass ? resolve(content.primaryClass) : undefined
   const classTypes = classEquipmentTypes(primary)
   const innates = innateEffects(content, resolve)
-  const effects = innates.map(effect => nativeSourceRecord(effect.definition) ? definitionPermissionEffects(effect.definition) : permissionEffects(effect.text))
+  const effects = innates.map(effect => definitionSourceRecord(effect.definition) ? definitionPermissionEffects(effect.definition) : permissionEffects(effect.text))
   for (const selection of content.passives) {
     const definition = resolve(selection.ref)
     effects.push(!definition || !['passive', 'innate'].includes(definition.kind)

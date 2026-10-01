@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { definitionModAvailability, modDisplayName, type DefinitionModAvailability } from '../catalog/mods'
+import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import { snapshotSlots, type SnapshotValue } from '../domain/character-snapshots'
 import type { CatalogSnapshot, CharacterSnapshot, EntityRef, Knowledge, LocalData, GameSetupRevision, SourceRef } from '../domain/types'
 import { IconButton, InlineNotice } from './components'
@@ -30,7 +30,7 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
   if (!availability.requiredMod) return null
   return <details className={`recorded-sources recorded-mod ${className}`}>
     <summary><ModBadge name={availability.requiredMod} state={availability.state}/></summary>
-    <p>This entry comes from the {modDisplayName(availability.requiredMod)} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
+    <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
     <p>Update the mod setting in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Data &amp; settings &gt; Game Setup</a>, then capture a new character snapshot. Existing snapshots keep their recorded mod settings.</p>
   </details>
 }

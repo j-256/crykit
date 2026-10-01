@@ -20,7 +20,7 @@ import wikiDataJson from './wiki-data.json' with { type: 'json' }
 import { confirmedSwitchDefinitions, SWITCH_CLASS_SOURCE } from './switch'
 
 export const STARTER_CATALOG_ID = 'crystal-project-public-starter' as CatalogId
-export const STARTER_CATALOG_REVISION_ID = 'wiki-v1' as CatalogRevisionId
+export const STARTER_CATALOG_REVISION_ID = 'catalog-v1' as CatalogRevisionId
 
 const SOURCE_APPLICABILITY = 'Name evidence only; platform and enabled-mod applicability are unverified'
 const WIKI_GAP_REASON = 'No matching detail page or structured row was found in the bundled community wiki snapshot'
@@ -191,7 +191,7 @@ function mergeWikiEntity(record: typeof STARTER_NAME_RECORDS[number], wikiEntity
   return applyPlanningKnowledge({
     ...wikiEntity,
     id: record[0] as EntityId,
-    aliases: Array.from(new Set(wikiEntity.aliases)),
+    aliases: Array.from(new Set([...wikiEntity.aliases, ...(record[2] === wikiEntity.name ? [] : [record[2]])])),
     sources: uniqueSources([baseSource, ...wikiEntity.sources]),
     legacy: {
       starterIdentitySource: JSON.parse(JSON.stringify(baseSource)) as JsonValue,
@@ -201,15 +201,16 @@ function mergeWikiEntity(record: typeof STARTER_NAME_RECORDS[number], wikiEntity
 }
 
 const wikiByIdentity = new Map(WIKI_DATA.entities.map((entity) => [entityIdentity(entity.kind, entity.name), entity]))
+const wikiById = new Map(WIKI_DATA.entities.map(entity => [entity.id, entity]))
 const starterByIdentity = new Map(STARTER_NAME_RECORDS.map((record) => [entityIdentity(record[1], record[2]), record]))
 const matchedWikiIdentities = new Set<string>()
 const mergedEntities: CatalogEntity[] = []
 
 for (const record of STARTER_NAME_RECORDS) {
   const identity = entityIdentity(record[1], record[2])
-  const wikiEntity = wikiByIdentity.get(identity)
+  const wikiEntity = wikiByIdentity.get(identity) ?? wikiById.get(record[0] as EntityId)
   if (wikiEntity) {
-    matchedWikiIdentities.add(identity)
+    matchedWikiIdentities.add(entityIdentity(wikiEntity.kind, wikiEntity.name))
     mergedEntities.push(mergeWikiEntity(record, wikiEntity))
   } else {
     mergedEntities.push(namesOnlyEntity(record))
@@ -254,7 +255,7 @@ const coverageSource: SourceRef = {
 }
 
 const coverageEntity = applyPlanningKnowledge({
-  id: 'wiki:other:catalog-coverage-gaps' as EntityId,
+  id: 'base:other:catalog-coverage-gaps' as EntityId,
   kind: 'other',
   name: 'Wiki catalog coverage gaps',
   aliases: ['Missing wiki details', 'Unresolved wiki coverage'],
@@ -273,7 +274,7 @@ const coverageEntity = applyPlanningKnowledge({
 
 const officialEntities: readonly CatalogEntity[] = [
   applyPlanningKnowledge({
-    id: 'mod-pack-1:other:quality-fun' as EntityId,
+    id: 'mod:quality-fun:other:quality-fun' as EntityId,
     kind: 'other',
     name: 'Mod Pack 1: Quality Fun',
     aliases: ['Quality Fun'],
@@ -297,7 +298,7 @@ const officialEntities: readonly CatalogEntity[] = [
     sources: [MOD_PACK_1_SOURCE],
   }),
   applyPlanningKnowledge({
-    id: 'mod-pack-2:other:new-challenges' as EntityId,
+    id: 'mod:new-challenges:other:new-challenges' as EntityId,
     kind: 'other',
     name: 'Mod Pack 2: New Challenges',
     aliases: ['New Challenges'],
@@ -310,7 +311,7 @@ const officialEntities: readonly CatalogEntity[] = [
     sources: [MOD_PACK_2_SOURCE],
   }),
   applyPlanningKnowledge({
-    id: 'mod-pack-2:other:passive-trainer' as EntityId,
+    id: 'mod:passive-trainer:other:passive-trainer' as EntityId,
     kind: 'other',
     name: 'Passive Trainer',
     aliases: [],
@@ -324,7 +325,7 @@ const officialEntities: readonly CatalogEntity[] = [
     sources: [MOD_PACK_2_SOURCE],
   }),
   applyPlanningKnowledge({
-    id: 'mod-pack-2:item:doge-shield' as EntityId,
+    id: 'mod:doge-shield:item:doge-shield' as EntityId,
     kind: 'item',
     name: 'Doge Shield',
     aliases: [],
@@ -343,7 +344,7 @@ const officialEntities: readonly CatalogEntity[] = [
     ['Quintar Husk', false],
     ['Elder Entities', true],
   ].map(([name, addsEquipment]) => applyPlanningKnowledge({
-    id: `mod-pack-2:monster:${String(name).toLocaleLowerCase().replace(/\s+/g, '-')}` as EntityId,
+    id: `mod:additional-boss-${String(name).toLocaleLowerCase().replace(/\s+/g, '-')}:monster:${String(name).toLocaleLowerCase().replace(/\s+/g, '-')}` as EntityId,
     kind: 'monster',
     name: String(name),
     aliases: [],

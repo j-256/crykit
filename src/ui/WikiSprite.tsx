@@ -5,7 +5,7 @@ import { Icon, type IconName } from './icons'
 
 interface Props {
   readonly catalogId: string
-  readonly entity: Pick<CatalogEntity, 'id' | 'kind' | 'name'>
+  readonly entity: Pick<CatalogEntity, 'id' | 'kind' | 'name'> & Partial<Pick<CatalogEntity, 'legacy'>>
   readonly detailed?: boolean
   readonly compact?: boolean
 }

@@ -1,13 +1,13 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { STARTER_CATALOG } from '../src/catalog'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { activeCorrections, type CatalogCorrection } from '../src/domain/corrections'
 import { exportCorrections, readCorrections } from '../src/interchange/corrections'
 
 const ENTITY_ID = 'base:item:artisan-rapier'
-const ITEM_PATH = `/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/${encodeURIComponent(ENTITY_ID)}`
+const ITEM_PATH = referencePath(ENTITY_ID)
 const CORRECTED_LOCATION = 'Luxury Martial Weapon Shop, Capital Sequoia'
 const VENDOR_SOURCE = 'https://crystal-project.fandom.com/wiki/Luxury_Martial_Weapon_Shop?oldid=10431'
 
@@ -34,10 +34,10 @@ async function exportSelected(page: Page) {
   return readCorrections(await readFile(path))
 }
 function proposal(id: string, value: string, stale = false): CatalogCorrection {
-  const entity = STARTER_CATALOG.entities[ENTITY_ID]!
+  const entity = DEFAULT_CATALOG.entities[ENTITY_ID]!
   return {
-    id, target: { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: entity.id },
-    baselineChecksum: stale ? 'old-catalog-checksum' : STARTER_CATALOG.checksum, baselineName: entity.name, baselineSources: entity.sources, baselineClaims: STARTER_CATALOG.claims.filter(claim => claim.entityId === entity.id),
+    id, target: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id },
+    baselineChecksum: stale ? 'old-catalog-checksum' : DEFAULT_CATALOG.checksum, baselineName: entity.name, baselineSources: entity.sources, baselineClaims: DEFAULT_CATALOG.claims.filter(claim => claim.entityId === entity.id),
     decision: 'refinement', confidence: 'tentative', supersedes: [], reason: '', evidence: '', context: { platform: '', gameVersion: '', mods: '' }, updatedAt: '2026-01-02T03:04:05.000Z',
     changes: [{ path: 'field', field: 'Location', before: entity.fields.Location!, after: { state: 'known', value } }],
   }
@@ -62,7 +62,7 @@ test('edits in place with minimal input, adds provenance later, and exports exac
   await editor.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(locationRow(page)).toContainText(CORRECTED_LOCATION)
   await expect(page.getByText('Tentative correction', { exact: true })).toBeVisible()
-  await expect(page.getByText('Applicability unknown', { exact: true })).toBeVisible()
+  await expect(page.getByText('Windows 1.6.9 · base database', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'View original', exact: true }).click()
   await expect(locationRow(page)).toContainText('Shop: Luxury Martial Weapon Shop')
   await expect(locationRow(page)).not.toContainText('differing source values')
@@ -91,7 +91,7 @@ test('edits in place with minimal input, adds provenance later, and exports exac
   expect(active).toHaveLength(1)
   expect(active[0]?.supersedes).toEqual([exported.find(entry => entry.id !== active[0]?.id)!.id])
   expect(active[0]).toMatchObject({ confidence: 'confirmed', decision: 'refinement', evidence: VENDOR_SOURCE })
-  expect(active[0]?.changes[0]).toMatchObject({ path: 'field', field: 'Location', before: STARTER_CATALOG.entities[ENTITY_ID]!.fields.Location, after: { state: 'known', value: CORRECTED_LOCATION } })
+  expect(active[0]?.changes[0]).toMatchObject({ path: 'field', field: 'Location', before: DEFAULT_CATALOG.entities[ENTITY_ID]!.fields.Location, after: { state: 'known', value: CORRECTED_LOCATION } })
   expect(JSON.stringify(exported)).not.toMatch(/personalDefinitions|inventory|characters|localDataId/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('correction-review.png') })
@@ -190,7 +190,7 @@ test('holds competing and stale imports for review and restores on a fresh brows
 })
 
 test('keeps hidden entries reachable and restores them from the corrections list', async ({ page }) => {
-  await page.goto(`/#/reference/catalog/${DEFAULT_CATALOG.id}/revisions/${DEFAULT_CATALOG.revisionId}/entities/${encodeURIComponent(ENTITY_ID)}`)
+  await page.goto(referencePath(ENTITY_ID, DEFAULT_CATALOG.id, DEFAULT_CATALOG.revisionId))
   await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
   await page.getByRole('button', { name: 'Correct shared reference', exact: true }).click()
   const details = page.getByRole('dialog', { name: 'Correct shared reference: Artisan Rapier', exact: true })
@@ -217,7 +217,7 @@ test('adds facts gradually and keeps description edits consistent across both vi
   const description = page.getByRole('form', { name: 'Correct description in place' })
   await description.getByRole('textbox', { name: 'New description', exact: true }).fill('Synthetic revised description')
   await description.getByRole('button', { name: 'Save', exact: true }).click()
-  const descriptionRow = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Description$/ }) })
+  const descriptionRow = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator(':scope > dt', { hasText: /^Description$/ }) })
   await expect(descriptionRow).toContainText('Synthetic revised description')
   await page.getByRole('textbox', { name: 'Missing fact name', exact: true }).fill('Test finding')
   await page.getByRole('button', { name: 'Add fact', exact: true }).click()

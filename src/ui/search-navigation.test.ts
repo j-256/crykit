@@ -21,6 +21,12 @@ describe('universal search navigation', () => {
     expect(parseUniversalSearchTarget(formatSearchDestination('builds', target))).toEqual(target)
   })
 
+  it('does not navigate from retired JSON target queries', () => {
+    const target = { kind: 'character', characterId: 'character-1' }
+    const hash = `#/characters?target=${encodeURIComponent(JSON.stringify(target))}`
+    expect(parseUniversalSearchTarget(hash)).toBeUndefined()
+  })
+
   it('rejects malformed, mismatched, and oversized targets', () => {
     expect(parseUniversalSearchTarget('#/characters?target=%7Bbad')).toBeUndefined()
     expect(parseUniversalSearchTarget(`#/inventory?target=${encodeURIComponent(JSON.stringify({ kind: 'inventory', positionId: 'x'.repeat(MAX_ID_LENGTH + 1) }))}`)).toBeUndefined()

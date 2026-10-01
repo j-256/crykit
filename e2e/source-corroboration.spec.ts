@@ -1,10 +1,10 @@
+import { referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import type { CatalogCorrection } from '../src/domain/corrections'
 import { exportCorrections } from '../src/interchange/corrections'
 
-const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/base%3Aclass%3Awarrior'
-const MECHANIC_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/'
+const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior'
 
 function fact(page: Page, name: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
@@ -55,8 +55,8 @@ test('a local correction loses corroboration without changing surrounding facts 
 })
 
 test('partial mechanic evidence keeps the source disclosure', async ({ page }) => {
-  await page.goto(`${MECHANIC_PATH}${encodeURIComponent('guide:mechanic:stat:StealChanceUp%20%5BX%5D')}`)
+  await page.goto(referencePath('base:mechanic:stat:StealChanceUp%20%5BX%5D'))
   await expect(fact(page, 'Description').locator('.definition-fact-sources')).toHaveCount(1)
-  await page.goto(`${MECHANIC_PATH}${encodeURIComponent('guide:mechanic:stat:Addi%20PVariance%20%5BX%5D')}`)
+  await page.goto(referencePath('base:mechanic:stat:Addi%20PVariance%20%5BX%5D'))
   await expect(fact(page, 'Description').locator('.definition-fact-sources')).toHaveCount(0)
 })

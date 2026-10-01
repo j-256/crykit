@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-const REFERENCE = '/#/reference/catalog/crystal-project-public-starter/revisions/wiki-v1/entities/'
-const RAPIER = `${REFERENCE}base%3Aitem%3Aartisan-rapier`
-const SWORD = `${REFERENCE}base%3Aitem%3Airon-sword`
+const REFERENCE = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/'
+const RAPIER = `${REFERENCE}base/item/artisan-rapier`
+const SWORD = `${REFERENCE}base/item/iron-sword`
 
 async function edit(page: Page, personal = false) {
   const action = personal ? 'Create personal version' : page.url().includes('/reference/personal/') ? 'Edit personal version' : 'Correct shared reference'
@@ -23,8 +23,9 @@ function fact(page: Page, name: string) {
 test('uses matching detail sections and typed editors for catalog and personal definitions', async ({ page }) => {
   await page.goto(RAPIER)
   const sections = ['Definition facts', 'Source trail', 'Planning fields']
-  for (const name of sections) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Imported claims', exact: true })).toBeVisible()
+  for (const name of sections) await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
+  await page.getByRole('region', { name: 'Source trail', exact: true }).locator('summary').filter({ hasText: /^Source and version details$/ }).click()
+  await expect(page.locator('summary').filter({ hasText: /^Supplemental claims$/ })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Planning fields', exact: true }).locator('.badge').getByText('known', { exact: true })).toHaveCount(0)
   const artwork = await page.locator('.reference-title img').getAttribute('src')
   const catalog = await edit(page)
@@ -40,7 +41,7 @@ test('uses matching detail sections and typed editors for catalog and personal d
   await personal.getByRole('button', { name: 'Create personal version', exact: true }).click()
   await expect(personal).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic edited rapier', exact: true })).toBeVisible()
-  for (const name of sections) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  for (const name of sections) await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Imported claims', exact: true })).not.toBeVisible()
   await expect(page.locator('summary').filter({ hasText: /^Supplemental claims$/ })).toHaveCount(0)
   await expect(page.locator('.reference-title img')).toHaveAttribute('src', artwork!)
@@ -54,6 +55,7 @@ test('uses matching detail sections and typed editors for catalog and personal d
   await revision.getByRole('button', { name: 'Save personal revision', exact: true }).click()
   await expect(fact(page, 'Attack')).toContainText('Synthetic observation needed')
   await expect(page.getByRole('region', { name: 'Planning fields', exact: true })).not.toContainText('123')
+  await page.getByRole('region', { name: 'Source trail', exact: true }).locator('summary').filter({ hasText: /^Source and version details$/ }).click()
   await page.locator('summary').filter({ hasText: /^Definition history$/ }).click()
   await page.getByRole('button', { name: 'View previous revision', exact: true }).click()
   await expect(fact(page, 'Attack')).toContainText('123')
@@ -83,7 +85,7 @@ test('keeps validation and close recovery beside the fixed save controls', async
 })
 
 test('keeps class research available and uses the exact personal class for growth', async ({ page }) => {
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aclass%3Awarrior')
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior')
   const editor = await edit(page, true)
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
   await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()

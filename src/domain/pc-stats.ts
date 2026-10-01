@@ -4,6 +4,8 @@ import { nativeIdentity } from './native-game'
 import { jsonRecord } from './crystal-edit'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 import { entityDefinitionKey } from './core'
+import { catalogClassSource } from './build-mechanics'
+import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 
 type NativeRecord = Readonly<Record<string, unknown>>
 type Family = 'job' | 'equipment' | 'passive' | 'gender'
@@ -133,10 +135,15 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   }
   const addInnates = (ref: EntityRef | null, job: NativeRecord) => {
     if (!Array.isArray(job.PassiveIDs)) { issues.push('Class innate list is unknown.'); return }
-    const definition = ref ? resolve(ref) : undefined
-    const binding = !crystalRecord(definition) && (nativeIdentity(definition ?? { fields: {} })?.database === 'job' || ref?.kind === 'catalog' && ref.catalogId === NATIVE_DATA.catalogId && Object.hasOwn(NATIVE_DATA.bindings, ref.entityId))
+    const source = ref ? catalogClassSource(ref, resolve) : undefined
+    const definition = source?.definition
+    const binding = !crystalRecord(definition) && (nativeIdentity(definition ?? { fields: {} })?.database === 'job' || source?.ref.catalogId === NATIVE_DATA.catalogId && Object.hasOwn(NATIVE_DATA.bindings, source.ref.entityId))
+    const mod = definition && 'legacy' in definition ? bundledModIdentity(definition) : undefined
+    const metadata = definition && 'legacy' in definition && jsonRecord(definition.legacy) ? definition.legacy : undefined
+    const links = jsonRecord(metadata?.passiveEntityIds) ? metadata.passiveEntityIds : {}
     for (const id of job.PassiveIDs as unknown[]) {
-      const passive = typeof id === 'number' ? binding ? nativeById('passive', id, mode) : ref?.kind === 'catalog' ? crystalRecord(resolve({ ...ref, entityId: `crystal-edit:Passives:${id}` as typeof ref.entityId })) : undefined : undefined
+      const target = typeof id === 'number' ? links[String(id)] ?? (mod ? bundledModEntityId(mod.key, 'Passives', id) : undefined) : undefined
+      const passive = typeof id === 'number' && binding ? nativeById('passive', id, mode) : source && typeof target === 'string' ? crystalRecord(resolve({ ...source.ref, entityId: target as typeof source.ref.entityId })) : undefined
       if (!passive || typeof passive.IsInnate !== 'boolean') { issues.push('A class passive record is unavailable; its innate effects are unknown.'); continue }
       if (passive.IsInnate) apply(passive, passives, typeof passive.Name === 'string' ? passive.Name : 'Class innate')
     }

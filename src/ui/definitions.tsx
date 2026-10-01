@@ -3,6 +3,7 @@ import { MoneyText } from './MoneyText'
 import { nativeDefinitionLabel, nativeDisplayDescription, nativeDisplayName, nativeIdentity } from '../domain/native-game'
 import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
+import { bundledModLabel } from '../domain/bundled-mods'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
@@ -115,7 +116,7 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
   const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
     const preferred = !historical.has(JSON.stringify([snapshot.id, snapshot.revisionId])) && entityDefinitionKey(preferredDefinitionRef(localData, ref)) === entityDefinitionKey(ref)
-    const provenance = nativeDefinitionLabel(entity) ?? starterEntitySourceLabel(entity)
+    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? starterEntitySourceLabel(entity)
     const effectiveLayer = entity.fields['Effective mod layer']
     const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
     return {

@@ -13,17 +13,20 @@ export function DefinitionFactsPanel({ facts, primarySourceId, corroboration, re
   const orderedFacts = [...facts].sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right)))
   return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3 className="icon-label"><Icon name="book"/>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list definition-facts">{orderedFacts.map(([field, value]) => {
     const sources = value.state === 'known' && !corroboratedFact(corroboration, field, value) ? corroboration ? value.sources ?? [] : visibleSources(value.sources?.filter(source => source.sourceId !== primarySourceId) ?? []) : []
-    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences includeGameExports={Boolean(corroboration)} sources={sources}/></details>}</>
+    const content = <><KnowledgeValue field={field} value={value}/>{(value.state === 'unknown' || value.state === 'conflicting') && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences includeGameExports={Boolean(corroboration)} sources={sources}/></details>}</>
     return <div className={`definition-row${definitionFactIsWide(field, value) ? ' definition-row--wide' : ''}${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt><StatLabel label={definitionFactLabel(field, value, fields)}/></dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
   })}</dl> : <InlineNotice title="No definition facts">Unrecorded facts remain unknown. Add a fact in the definition editor.</InlineNotice>}{children}</div></section>
 }
 
 export function DefinitionPlanningPanel({ definition }: { definition: CatalogEntity | PersonalDefinition }) {
-  const fields: readonly [string, Knowledge<unknown> | undefined][] = [
-    ['Slot kinds', definition.slotKinds], ['PP cost', definition.ppCost], ['Requirements', definition.requirements], ['Grants', definition.grants], ['Listed contributions', definition.listedContributions ? { state: 'known', value: definition.listedContributions } : undefined],
+  const passive = definition.kind === 'passive' || definition.kind === 'innate'
+  const validatesSelections = passive || definition.kind === 'class' || definition.kind === 'item'
+  const candidates: readonly (readonly [string, Knowledge<unknown> | undefined])[] = [
+    ['Slot kinds', definition.kind === 'item' ? definition.slotKinds : undefined], ['PP cost', passive ? definition.ppCost : undefined], ['Requirements', validatesSelections ? definition.requirements : undefined], ['Grants', validatesSelections ? definition.grants : undefined], ['Listed contributions', definition.listedContributions ? { state: 'known', value: definition.listedContributions } : undefined],
   ]
-  if (definition.kind === 'monster' && fields.every(([, value]) => value === undefined)) return null
-  return <section className="panel" aria-label="Planning fields"><div className="panel__header"><div><h3>Planning fields</h3><p>Values used for validation; missing values stay unknown</p></div></div><div className="panel__body"><dl className="definition-list">{fields.map(([field, value]) => <div className={`definition-row${value?.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt><StatLabel label={field}/></dt><dd>{value ? <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state}</Badge>}</> : 'Not supplied'}</dd></div>)}</dl></div></section>
+  const fields = candidates.filter((entry): entry is readonly [string, Knowledge<unknown>] => entry[1] !== undefined && entry[1].state !== 'notApplicable')
+  if (!fields.length) return null
+  return <section className="panel" aria-label="Planning fields"><div className="panel__header"><h3>Planning fields</h3></div><div className="panel__body"><dl className="definition-list">{fields.map(([field, value]) => <div className={`definition-row${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt><StatLabel label={field}/></dt><dd><KnowledgeValue field={field} value={value}/>{(value.state === 'unknown' || value.state === 'conflicting') && <Badge tone={knowledgeTone(value)}>{value.state}</Badge>}</dd></div>)}</dl></div></section>
 }
 
 export function DefinitionSourcesPanel({ sources, collapsed = false, children }: { sources: readonly SourceRef[]; collapsed?: boolean; children?: ReactNode }) {

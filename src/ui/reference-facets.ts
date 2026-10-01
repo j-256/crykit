@@ -25,11 +25,11 @@ export const OPTIONAL_REFERENCE_AUDIENCES = [
 export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[number]['value']
 export type ReferenceAudience = 'default' | OptionalReferenceAudience
 
-const TECHNICAL_REFERENCE_PREFIXES = ['guide:mechanic:stat:', 'guide:mechanic:ability:'] as const
-const DIAGNOSTIC_REFERENCE_IDS = new Set(['wiki:other:catalog-coverage-gaps'])
-const ABOUT_REFERENCE_IDS = new Set(['wiki:other:andrew-willman', 'wiki:other:crystal-project-demo', 'wiki:other:crystal-project-game', 'wiki:other:patch-notes', 'wiki:other:soundtrack'])
-const TOOLING_REFERENCE_IDS = new Set(['wiki:other:cheat-engine'])
-const REFERENCE_ARTIFACT_IDS = new Set(['wiki:other:bgtest', 'wiki:other:defender'])
+const TECHNICAL_REFERENCE_PREFIXES = ['base:mechanic:stat:', 'base:mechanic:ability:'] as const
+const DIAGNOSTIC_REFERENCE_IDS = new Set(['base:other:catalog-coverage-gaps'])
+const ABOUT_REFERENCE_IDS = new Set(['andrew-willman', 'crystal-project-demo', 'crystal-project-game', 'patch-notes', 'soundtrack'].map(name => `base:other:${name}`))
+const TOOLING_REFERENCE_IDS = new Set(['base:other:cheat-engine'])
+const REFERENCE_ARTIFACT_IDS = new Set(['bgtest', 'defender'].map(name => `base:other:${name}`))
 
 export function referenceAudience(entity: Pick<CatalogEntity, 'id'>): ReferenceAudience {
   const id = String(entity.id)

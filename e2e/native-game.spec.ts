@@ -1,17 +1,18 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
 
-const SLIME_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/native%3Abase%3Amonster%3A2'
+const SLIME_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/monster/2'
 
 test('enemy rewards and item costs share coin denominations while editing keeps copper values', async ({ page }) => {
-  await page.goto(SLIME_PATH.replace('monster%3A2', 'monster%3A179'))
+  await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-rewards')).not.toContainText('20000')
   await page.getByText('Technical details', { exact: false }).click()
   const money = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Money \(copper\)$/ }) })
   await expect(money.getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
   await expect(page.getByText('Complete native source record', { exact: true })).toHaveCount(0)
-  await page.goto(SLIME_PATH.replace('native%3Abase%3Amonster%3A2', 'base%3Aitem%3Aether'))
+  await page.goto(SLIME_PATH.replace('base/monster/2', 'base/item/ether'))
   const cost = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
   await expect(cost.getByRole('img', { name: '2 silver, 50 copper', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
@@ -30,8 +31,8 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(reserve).toContainText('Record #179')
   await expect(overpass).toContainText('Overpass')
   await expect(overpass).toContainText('Record #318')
-  await expect(reserve).toHaveAttribute('href', /monster%3A179$/)
-  await expect(overpass).toHaveAttribute('href', /monster%3A318$/)
+  await expect(reserve).toHaveAttribute('href', /monster\/179$/)
+  await expect(overpass).toHaveAttribute('href', /monster\/318$/)
   await search.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(enemies).toHaveCount(6)
   await expect(enemies.filter({ hasText: 'Chaos mode' })).toHaveCount(2)
@@ -44,7 +45,7 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
 })
 
 test('enemy loot supports modifier-click in a new tab and ordinary in-app navigation', async ({ page, context }) => {
-  await page.goto(SLIME_PATH.replace('monster%3A2', 'monster%3A179'))
+  await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
   await expect(cookie).toHaveAttribute('href', /^#\/reference\/catalog\//)
   const opened = context.waitForEvent('page')
@@ -132,14 +133,14 @@ test('enemy actions and editing stay reachable without crowding the bestiary', a
 })
 
 test('bestiary entries retain zero values and keep large boss rewards on one line', async ({ page }, testInfo) => {
-  await page.goto(SLIME_PATH.replace('monster%3A2', 'monster%3A0'))
+  await page.goto(SLIME_PATH.replace('monster/2', 'monster/0'))
   await expect(page.getByRole('heading', { name: 'Dummy', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-vitals dd').filter({ hasText: /^0$/ })).toHaveCount(2)
   await expect(page.locator('.enemy-rewards dd').filter({ hasText: /^0$/ })).toHaveCount(3)
   await expect(page.getByRole('region', { name: 'Drops', exact: true })).toContainText('None listed in this record.')
   await expect(page.getByRole('region', { name: 'Steals', exact: true })).toContainText('None listed in this record.')
   await page.setViewportSize({ width: 320, height: 800 })
-  await page.goto(SLIME_PATH.replace('monster%3A2', 'monster%3A201'))
+  await page.goto(SLIME_PATH.replace('monster/2', 'monster/201'))
   await expect(page.getByRole('heading', { name: 'Akamanto', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-vitals')).toContainText('27000')
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '8 gold', exact: true })).toBeVisible()
@@ -148,7 +149,7 @@ test('bestiary entries retain zero values and keep large boss rewards on one lin
   await page.screenshot({ path: testInfo.outputPath('native-boss-narrow.png'), fullPage: true })
 })
 
-test('legacy build pickers prefer the native base and expose supplemental choices explicitly', async ({ page }) => {
+test('legacy build pickers prefer the native base and retain one reconciled Cure identity', async ({ page }) => {
   await page.goto('/#/builds/library')
   await page.getByRole('button', { name: 'Mira: sample Cleric', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Cleric')
@@ -166,11 +167,10 @@ test('legacy build pickers prefer the native base and expose supplemental choice
   await expect(cure).toHaveCount(1)
   await expect(cure).toContainText('Windows 1.6.9')
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()
-  await expect(cure).toHaveCount(2)
+  await expect(cure).toHaveCount(1)
 })
 
 test('new native loot icons, status cells, and distinct enemy sprites stay available offline', async ({ page, context }) => {
-  const nativeDetail = (id: string) => `/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/${encodeURIComponent(id)}`
   const expectImage = async (name: string) => {
     const image = page.getByRole('img', { name: `${name} game artwork`, exact: true })
     await expect(image).toBeVisible()
@@ -179,7 +179,7 @@ test('new native loot icons, status cells, and distinct enemy sprites stay avail
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     return image.getAttribute('src')
   }
-  await page.goto(nativeDetail('native:base:monster:179'))
+  await page.goto(referencePath('base:monster:179'))
   const redSprite = await expectImage('Woke Quintar')
   expect(await page.getByRole('img', { name: 'Woke Quintar game artwork', exact: true }).evaluate(element => {
     const image = element as HTMLImageElement
@@ -204,10 +204,10 @@ test('new native loot icons, status cells, and distinct enemy sprites stay avail
   await context.setOffline(true)
   await page.reload()
   await expectImage('Woke Quintar Eye')
-  await page.goto(nativeDetail('native:base:status:0'))
+  await page.goto(referencePath('base:status:0'))
   await expectImage('Poison')
-  await page.goto(nativeDetail('native:base:monster:318'))
+  await page.goto(referencePath('base:monster:318'))
   expect(await expectImage('Woke Quintar')).not.toBe(redSprite)
-  await page.goto(nativeDetail('native:Chaos:monster:179'))
+  await page.goto(referencePath('base:monster:179:mode:Chaos'))
   expect(await expectImage('Woke Quintar')).toBe(redSprite)
 })

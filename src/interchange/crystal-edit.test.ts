@@ -1,3 +1,4 @@
+import { modModelEntity } from '../domain/mod-layers'
 import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { previewImport } from './import'
@@ -14,7 +15,7 @@ describe('Crystal Edit reference import', () => {
     const preview = await previewImport(encode(syntheticPrerequisiteCrystalEdit()), 'prerequisites.json')
     const catalog: CatalogSnapshot = JSON.parse(JSON.stringify(preview.proposed.catalogs[0]))
     expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
-    const nodes = exportedTree(catalog.entities['crystal-edit:Jobs:40']!)
+    const nodes = exportedTree(modModelEntity(catalog, 'crystal-edit:Jobs:40')!)
     expect(nodes.find(node => node.dataId === 11)?.prerequisites).toEqual([{ row: 0, column: 0 }, { row: 0, column: 1 }])
     expect(nodes.find(node => node.dataId === 10)?.prerequisites).toEqual([{ row: 0, column: 0 }, { row: 0, column: 1 }, { row: 0, column: 2 }])
     expect(preview.warnings.some(warning => warning.code === 'external-model-references')).toBe(false)
@@ -26,14 +27,16 @@ describe('Crystal Edit reference import', () => {
     expect(preview.detectedFormat).toBe('crystal-edit-json-1')
     expect(preview.counts).toMatchObject({ reference: 2, personal: 0, mixed: 0 })
     const catalog = preview.proposed.catalogs[0]!
+    expect(Object.keys(catalog.entities).every(id => id.startsWith(`mod:${encodeURIComponent(input.ID)}:`))).toBe(true)
+    expect(catalog.revisionId).toBe(`sha256:${preview.sourceDigest}`)
     expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
-    const job = catalog.entities['crystal-edit:Jobs:40']!
+    const job = modModelEntity(catalog, 'crystal-edit:Jobs:40')!
     expect(growthRatings(job)).toEqual({ HP: 70, MP: 20 })
     expect(job.fields[CRYSTAL_EDIT_FIELDS.equipment]).toMatchObject({ value: ['Sword', 'Shield', 'Accessory', 'Unrecognized equipment type 99'] })
     expect(exportedTree(job).find(node => node.row === 1 && node.column === 1)).toEqual({ row: 1, column: 1, nodeType: 3, dataId: 2, prerequisites: [{ row: 0, column: 0 }] })
     expect(job.fields['Available as a starting class']).toMatchObject({ state: 'unknown' })
     expect(catalog.legacy).toMatchObject({ unresolvedReferences: ['Abilities #9', 'Passives #2'] })
-    expect(catalog.entities['crystal-edit:Abilities:8']?.rawDescription).toBe(input.Abilities[0]!.Description)
+    expect(modModelEntity(catalog, 'crystal-edit:Abilities:8')?.rawDescription).toBe(input.Abilities[0]!.Description)
     expect(Array.from(preview.proposed.sources[0]!.bytes)).toEqual(Array.from(encode(input)))
     expect(requirePlaythrough(preview.proposed.localData).characters).toEqual({})
     expect(requirePlaythrough(preview.proposed.localData).inventory).toEqual({})
@@ -41,9 +44,9 @@ describe('Crystal Edit reference import', () => {
 
   it('retains zero ratings, missing fields, future node types, and empty explicit membership', async () => {
     const preview = await previewImport(encode({ ID: 'future', EditorVersion: 99, Jobs: [{ ID: 0, Name: 'Future', HPRating: 0, AbilityIDs: [], LearnTree: [[{ NodeType: 8, DataID: 0, PrereqLeft: false, PrereqMiddle: false, PrereqRight: false }]] }] }), 'future.json')
-    expect(growthRatings(preview.proposed.catalogs[0]!.entities['crystal-edit:Jobs:0']!)).toEqual({ HP: 0 })
+    expect(growthRatings(modModelEntity(preview.proposed.catalogs[0]!, 'crystal-edit:Jobs:0')!)).toEqual({ HP: 0 })
     expect(preview.warnings.some(warning => warning.code === 'unknown-tree-node')).toBe(true)
-    expect(preview.proposed.catalogs[0]!.entities['crystal-edit:Jobs:0']!.fields['Class change']).toMatchObject({ value: 'Edits vanilla class ID 0' })
+    expect(modModelEntity(preview.proposed.catalogs[0]!, 'crystal-edit:Jobs:0')!.fields['Class change']).toMatchObject({ value: 'Edits vanilla class ID 0' })
   })
 
   it('keeps complete vanilla edits distinct from same-name copies and replaces lists within a new snapshot', async () => {
@@ -56,17 +59,17 @@ describe('Crystal Edit reference import', () => {
     const b = second.proposed.catalogs[0]!
     expect(b.id).toBe(a.id)
     expect(b.revisionId).not.toBe(a.revisionId)
-    const vanillaEdit = b.entities['crystal-edit:Jobs:4']!
+    const vanillaEdit = modModelEntity(b, 'crystal-edit:Jobs:4')!
     expect(vanillaEdit.fields['Class change']).toMatchObject({ value: 'Edits vanilla class ID 4' })
-    expect(b.entities['crystal-edit:Jobs:27']!.fields['Class change']).toMatchObject({ value: 'Adds a custom class' })
+    expect(modModelEntity(b, 'crystal-edit:Jobs:27')!.fields['Class change']).toMatchObject({ value: 'Adds a custom class' })
     expect(growthRatings(vanillaEdit)).toMatchObject({ HP: 70, MP: 20, SPI: 10 })
     expect(vanillaEdit.fields[CRYSTAL_EDIT_FIELDS.command]).toMatchObject({ value: 'Synthetic Research' })
     expect(vanillaEdit.fields[CRYSTAL_EDIT_FIELDS.equipment]).toMatchObject({ value: ['Staff', 'Book', 'Light Head', 'Medium Body', 'Light Body', 'Accessory'] })
     expect(vanillaEdit.fields[CRYSTAL_EDIT_FIELDS.abilities]).toMatchObject({ value: [7] })
     expect(vanillaEdit.fields[CRYSTAL_EDIT_FIELDS.passives]).toMatchObject({ value: [16, 64] })
     expect(exportedTree(vanillaEdit)).toMatchObject([{ nodeType: 0, dataId: 0 }])
-    expect(a.entities['crystal-edit:Jobs:4']!.fields[CRYSTAL_EDIT_FIELDS.abilities]).toMatchObject({ value: [7, 62] })
-    expect(growthRatings(b.entities['crystal-edit:Jobs:27']!).SPI).toBe(100)
+    expect(modModelEntity(a, 'crystal-edit:Jobs:4')!.fields[CRYSTAL_EDIT_FIELDS.abilities]).toMatchObject({ value: [7, 62] })
+    expect(growthRatings(modModelEntity(b, 'crystal-edit:Jobs:27')!).SPI).toBe(100)
   })
 
   it('reports model families that remain in the source archive only', async () => {
@@ -76,6 +79,8 @@ describe('Crystal Edit reference import', () => {
   })
 
   it.each([
+    { ID: '\u3042'.repeat(512), EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Oversized encoded identity' }] },
+    { ID: 'invalid\u0000project', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Invalid identity' }] },
     { ID: 'bad', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Broken', HPRating: -1 }] },
     { ID: 'bad', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Broken', AbilityIDs: [1.5] }] },
     { ID: 'bad', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Broken', LearnTree: [[{ NodeType: 2 }]] }] },

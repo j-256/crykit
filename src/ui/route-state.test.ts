@@ -22,7 +22,7 @@ describe('reference route state', () => {
     window.sessionStorage.clear()
   })
 
-  it('round-trips filters, pagination, and a JSON tuple selection through the hash', () => {
+  it('round-trips filters, pagination, and selection through a semantic detail path', () => {
     const selectedKey = encodeReferenceEntityKey({ catalogId: 'pack:alpha', catalogRevisionId: 'r/1', entityId: 'item?2' })
     const state: ReferenceRouteState = {
       query: 'spear & shield',
@@ -42,7 +42,8 @@ describe('reference route state', () => {
       resultLimit: 300,
     }
     const hash = formatReferenceRoute(state)
-    expect(hash).toMatch(/^#\/reference\?v=1/)
+    expect(hash).toMatch(/^#\/reference\/catalog\/pack%3Aalpha\/revisions\/r%2F1\/entities\/id\/item%3F2\?v=1/)
+    expect(hash).not.toContain('selected=')
     expect(parseReferenceRoute(hash)).toEqual(state)
   })
 
@@ -65,6 +66,13 @@ describe('reference route state', () => {
     const stored = JSON.stringify({ ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'mantle', kinds: ['passive'] })
     expect(parseReferenceRoute('#/reference', stored)).toMatchObject({ query: 'mantle', kinds: ['passive'] })
     expect(parseReferenceRoute('#/inventory', stored)).toEqual(DEFAULT_REFERENCE_ROUTE_STATE)
+  })
+
+  it('does not navigate from retired JSON selection queries', () => {
+    const selected = encodeReferenceEntityKey({ catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId: 'base:item:tonic' })
+    const hash = `#/reference?selected=${encodeURIComponent(selected)}`
+    expect(parseAppRoute(hash).page).toEqual({ page: 'reference', view: 'list' })
+    expect(parseReferenceRoute(hash).selectedKey).toBeUndefined()
   })
 
   it('bounds malformed route values and rejects invalid selected identities', () => {

@@ -28,9 +28,9 @@ You can plan with equipment or skills you have not acquired. The planner checks 
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 
-Native Windows 1.6.9 gameplay facts are the base catalog, with wiki and guide material supplementing gaps. Switch 1.6.6 observations keep their separate scope; content equivalence is unresolved. No game installation is needed to use the app.
+The bundled reference uses Windows 1.6.9 game definitions and versioned mod exports. Moonlight Project 2.2 includes its classes, skills, passives, equipment, and supporting definitions. Equipment Expansion and dated Learnable Innate Skills evidence are also included. Base entities use `base:` IDs and mod entities use `mod:` IDs; source metadata records where each fact came from. No game installation is needed to use the app.
 
-Equipment Expansion definitions and dated Learnable Innate Skills evidence are bundled with explicit version and platform limits. Reference entries prefer exact, locally extracted Windows game artwork for source-backed native database identities, use exact bundled cells for Equipment Expansion, and fall back to locally bundled wiki artwork where an explicit mapping exists. These sources retain separate [provenance, rights, and refresh instructions](docs/catalog-sources.md#native-game-artwork-snapshot).
+Exported zero, false, and null values retain their meaning. Fields that do not apply are omitted from planning details. Missing exports, supplemental acquisition claims, and unrecorded personal choices remain explicit; see the [certainty audit](docs/catalog-sources.md#catalog-certainty-and-identities). Imported catalogs and saved user revisions keep their exact reference pins. Reference entries prefer exact, locally extracted Windows game artwork for source-backed native database identities, use exact bundled cells for Equipment Expansion, and fall back to locally bundled wiki artwork where an explicit mapping exists. These sources retain separate [provenance, rights, and refresh instructions](docs/catalog-sources.md#native-game-artwork-snapshot).
 
 ## Track your own game when you are ready
 
