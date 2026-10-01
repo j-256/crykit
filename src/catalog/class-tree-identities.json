@@ -1,0 +1,3276 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "sourceId": "crystal-project:pc-class-tree-identities",
+    "snapshot": "PC 1.6.9.0",
+    "applicability": "Supplement for exact matching vanilla class-copy trees; Nintendo Switch and mod parity are unverified"
+  },
+  "learningCostDisplay": {
+    "jpPerLp": 100,
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "locator": "WindowLearnAbilitySelect.Draw; JP / 100",
+    "version": "PC 1.6.9.0"
+  },
+  "baselineSha256": "7213ad04563a2a78c46f0195e864c9bb46feee8d93f56bfaec9b08f9aacbb3d5",
+  "databaseSha256": {
+    "job": "42b39e967355488775879008a7868c9bcc345e7079c92c30ace725b5cdd7787c",
+    "ability": "9cad173af28266a109d8c6f682708cf32c639bf16996fa8a0589bd545f939b7b",
+    "passive": "9f9a5565e2fb85c3544e50e3a7a9339c4cb0c69526bfc71252dae42641ff13b5"
+  },
+  "classes": {
+    "base:class:warrior": {
+      "nativeJobId": 0,
+      "copiedJobId": 24,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 28,
+          "name": "Taunt",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:warrior:ability:taunt"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 18,
+          "name": "Defender",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warrior:ability:defender"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 19,
+          "name": "Berserker",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warrior:ability:berserker"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 6,
+          "name": "Equip Sword",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:warrior:passive:equip-sword"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 7,
+          "name": "Equip Axe",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:warrior:passive:equip-axe"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 2,
+          "name": "Power Break",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warrior:ability:power-break"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 27,
+          "name": "Armor Break",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warrior:ability:armor-break"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 17,
+          "name": "Bruiser Crush",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warrior:ability:bruiser-crush"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 3,
+          "name": "Paragon Crush",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:warrior:ability:paragon-crush"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 16,
+          "name": "Blitz Crush",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warrior:ability:blitz-crush"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 26,
+          "name": "Battle Crush",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:warrior:ability:battle-crush"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 5,
+          "name": "Grudge",
+          "kind": "passive",
+          "jp": 400,
+          "entityId": "base:warrior:passive:grudge"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 4,
+          "name": "Adrenaline",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:warrior:passive:adrenaline"
+        }
+      ]
+    },
+    "base:class:monk": {
+      "nativeJobId": 5,
+      "copiedJobId": 25,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 33,
+          "name": "Meditate",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:monk:ability:meditate"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 8,
+          "name": "Beat Down",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:monk:ability:beat-down"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 35,
+          "name": "First-Aid",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:monk:ability:first-aid"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 29,
+          "name": "Earth Split",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:monk:ability:earth-split"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 2,
+          "name": "Brawler",
+          "kind": "innate",
+          "jp": 300,
+          "entityId": "base:monk:innate:brawler"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 4,
+          "name": "Chakra",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:monk:ability:chakra"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 30,
+          "name": "Thunder Chop",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:monk:ability:thunder-chop"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 0,
+          "name": "Counter",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:monk:passive:counter"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 34,
+          "name": "Focus Energy",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:monk:ability:focus-energy"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 31,
+          "name": "Wind Punch",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:monk:ability:wind-punch"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 8,
+          "name": "HP Boost",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:monk:passive:hp-boost"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 36,
+          "name": "Revive",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:monk:ability:revive"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 32,
+          "name": "Chi Burst",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:monk:ability:chi-burst"
+        }
+      ]
+    },
+    "base:class:rogue": {
+      "nativeJobId": 2,
+      "copiedJobId": 26,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 37,
+          "name": "Steal",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:rogue:ability:steal"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 43,
+          "name": "Eye Gouge",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:eye-gouge"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 38,
+          "name": "Backstab",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:backstab"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 44,
+          "name": "Sleep Bomb",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:sleep-bomb"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 11,
+          "name": "Equip Dagger",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:rogue:passive:equip-dagger"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 40,
+          "name": "Shadow Cut",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:rogue:ability:shadow-cut"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 54,
+          "name": "Pocket Sand",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:rogue:passive:pocket-sand"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 45,
+          "name": "Run Away",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:run-away"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 9,
+          "name": "Sneak Attack",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:sneak-attack"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 112,
+          "name": "Reflex Stance",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:reflex-stance"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 9,
+          "name": "Backstabber",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:rogue:passive:backstabber"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 39,
+          "name": "Trick Slash",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:trick-slash"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 41,
+          "name": "Rupture",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:rupture"
+        }
+      ]
+    },
+    "base:class:cleric": {
+      "nativeJobId": 4,
+      "copiedJobId": 27,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 7,
+          "name": "Cure",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:cleric:ability:cure"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 59,
+          "name": "Spark Shine",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:cleric:ability:spark-shine"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 61,
+          "name": "Mend",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:cleric:ability:mend"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 16,
+          "name": "Equip Staff",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:cleric:passive:equip-staff"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 55,
+          "name": "Curen",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:cleric:ability:curen"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 63,
+          "name": "Spotlight",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:cleric:ability:spotlight"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 57,
+          "name": "Raise",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:cleric:ability:raise"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 77,
+          "name": "Inner Warmth",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:cleric:passive:inner-warmth"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 58,
+          "name": "Return",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:cleric:ability:return"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 62,
+          "name": "Blackout",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:cleric:ability:blackout"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 56,
+          "name": "Curena",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:cleric:ability:curena"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 60,
+          "name": "Star Flare",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:cleric:ability:star-flare"
+        }
+      ]
+    },
+    "base:class:wizard": {
+      "nativeJobId": 3,
+      "copiedJobId": 28,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 5,
+          "name": "Fire",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:wizard:ability:fire"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 6,
+          "name": "Bolt",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:wizard:ability:bolt"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 13,
+          "name": "Equip Wand",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:wizard:passive:equip-wand"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 71,
+          "name": "Initial Focus",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:wizard:passive:initial-focus"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 46,
+          "name": "Firen",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:wizard:ability:firen"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 48,
+          "name": "Bolten",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:wizard:ability:bolten"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 47,
+          "name": "Firena",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:wizard:ability:firena"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 49,
+          "name": "Boltena",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:wizard:ability:boltena"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 52,
+          "name": "Mind Stance",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:wizard:ability:mind-stance"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 53,
+          "name": "Storm Stance",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:wizard:ability:storm-stance"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 50,
+          "name": "Flare",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:wizard:ability:flare"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 51,
+          "name": "Thunder",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:wizard:ability:thunder"
+        }
+      ]
+    },
+    "base:class:warlock": {
+      "nativeJobId": 14,
+      "copiedJobId": 29,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 276,
+          "name": "Scan",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warlock:ability:scan"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 315,
+          "name": "Heal",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:warlock:ability:heal"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 126,
+          "name": "Protect",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warlock:ability:protect"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 257,
+          "name": "Blaze",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warlock:ability:blaze"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 316,
+          "name": "Remedy",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warlock:ability:remedy"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 124,
+          "name": "Regen",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warlock:ability:regen"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 127,
+          "name": "Shell",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warlock:ability:shell"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 322,
+          "name": "Douse",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warlock:ability:douse"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 317,
+          "name": "Life",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:warlock:ability:life"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 125,
+          "name": "Refresh",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:warlock:ability:refresh"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 128,
+          "name": "Dispel",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:warlock:ability:dispel"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 319,
+          "name": "Frost",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:warlock:ability:frost"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 32,
+          "name": "Regenerator",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:warlock:passive:regenerator"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 37,
+          "name": "Refresher",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:warlock:passive:refresher"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 233,
+          "name": "Doublecast",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:warlock:ability:doublecast"
+        }
+      ]
+    },
+    "base:class:fencer": {
+      "nativeJobId": 1,
+      "copiedJobId": 30,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 71,
+          "name": "Poison Tip",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:fencer:ability:poison-tip"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 72,
+          "name": "Barbed Cap",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:fencer:ability:barbed-cap"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 76,
+          "name": "Swallowtail",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:fencer:ability:swallowtail"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 80,
+          "name": "Hawk Stance",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:fencer:ability:hawk-stance"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 79,
+          "name": "Eagle Stance",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:fencer:ability:eagle-stance"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 74,
+          "name": "Piercethrough",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:fencer:ability:piercethrough"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 73,
+          "name": "Feathercut",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:fencer:ability:feathercut"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 49,
+          "name": "Eagle Eye",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:fencer:passive:eagle-eye"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 22,
+          "name": "Equip Rapier",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:fencer:passive:equip-rapier"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 75,
+          "name": "Snowfang",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:fencer:ability:snowfang"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 77,
+          "name": "Nighthawk",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:fencer:ability:nighthawk"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 78,
+          "name": "Checkmate",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:fencer:ability:checkmate"
+        }
+      ]
+    },
+    "base:class:shaman": {
+      "nativeJobId": 8,
+      "copiedJobId": 31,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 119,
+          "name": "Acid",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:shaman:ability:acid"
+        },
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 120,
+          "name": "Bio",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:shaman:ability:bio"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 122,
+          "name": "Drain",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:shaman:ability:drain"
+        },
+        {
+          "row": 0,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 111,
+          "name": "Instability",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:shaman:ability:instability"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 321,
+          "name": "Acid II",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:acid-ii"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 320,
+          "name": "Bio II",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:bio-ii"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 35,
+          "name": "Safeguard",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:shaman:passive:safeguard"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 123,
+          "name": "Sleep Echo",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:shaman:ability:sleep-echo"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 121,
+          "name": "Epidemic",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:epidemic"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 129,
+          "name": "Stone Core",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:shaman:ability:stone-core"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 130,
+          "name": "Mist Core",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:shaman:ability:mist-core"
+        }
+      ]
+    },
+    "base:class:scholar": {
+      "nativeJobId": 13,
+      "copiedJobId": 32,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 58,
+          "name": "Learning",
+          "kind": "innate",
+          "jp": 2500,
+          "entityId": "base:scholar:innate:learning"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 39,
+          "name": "Equip Book",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:scholar:passive:equip-book"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 364,
+          "name": "Infusion",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:infusion"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 197,
+          "name": "Regenerate",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:regenerate"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 101,
+          "name": "Sun Bath",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:sun-bath"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 25,
+          "name": "Roost",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:roost"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 245,
+          "name": "Build Life",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:build-life"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 376,
+          "name": "Lifegiver",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:lifegiver"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 198,
+          "name": "Reverse Polarity",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:reverse-polarity"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 199,
+          "name": "Barrier",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:barrier"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 366,
+          "name": "Reflection",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:reflection"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 202,
+          "name": "Adrenaline",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:adrenaline"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 264,
+          "name": "Aero",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:aero"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 207,
+          "name": "Whirlwind",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:whirlwind"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 205,
+          "name": "Fire Breath",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:fire-breath"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 70,
+          "name": "Lucky Dice",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:lucky-dice"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 206,
+          "name": "Explode",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:explode"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 200,
+          "name": "MP Sickle",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:mp-sickle"
+        },
+        {
+          "row": 5,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 213,
+          "name": "Atmoshear",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:atmoshear"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 186,
+          "name": "Sleep Aura",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:sleep-aura"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 365,
+          "name": "Overload",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:overload"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 363,
+          "name": "Insult",
+          "kind": "monsterMagic",
+          "jp": 0,
+          "entityId": "base:scholar:monster-magic:insult"
+        }
+      ]
+    },
+    "base:class:aegis": {
+      "nativeJobId": 10,
+      "copiedJobId": 33,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 93,
+          "name": "Cover",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:aegis:ability:cover"
+        },
+        {
+          "row": 0,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 299,
+          "name": "Entrench",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:aegis:ability:entrench"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 97,
+          "name": "Armor Boost",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:aegis:ability:armor-boost"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 78,
+          "name": "Natural Tank",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:aegis:passive:natural-tank"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 29,
+          "name": "Equip Shield",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:aegis:passive:equip-shield"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 98,
+          "name": "Resist Boost",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:aegis:ability:resist-boost"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 36,
+          "name": "Stalwart",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:aegis:passive:stalwart"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 69,
+          "name": "Stance Tank",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:aegis:passive:stance-tank"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 99,
+          "name": "Magic Break",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:aegis:ability:magic-break"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 100,
+          "name": "Resist Break",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:aegis:ability:resist-break"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 95,
+          "name": "Power Wall",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:aegis:ability:power-wall"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 96,
+          "name": "Magic Wall",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:aegis:ability:magic-wall"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 94,
+          "name": "Crystal Form",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:aegis:ability:crystal-form"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 298,
+          "name": "Reprisal Aura",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:aegis:ability:reprisal-aura"
+        }
+      ]
+    },
+    "base:class:hunter": {
+      "nativeJobId": 7,
+      "copiedJobId": 34,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 143,
+          "name": "Quickshot",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:hunter:ability:quickshot"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 142,
+          "name": "Take Aim",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:hunter:ability:take-aim"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 148,
+          "name": "Track",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:hunter:ability:track"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 144,
+          "name": "Barrage",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:hunter:ability:barrage"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 45,
+          "name": "Equip Bow",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:hunter:passive:equip-bow"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 149,
+          "name": "Unguent",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:hunter:ability:unguent"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 145,
+          "name": "Thorned Shot",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:hunter:ability:thorned-shot"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 44,
+          "name": "Perfect Vision",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:hunter:passive:perfect-vision"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 150,
+          "name": "Hide",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:hunter:ability:hide"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 151,
+          "name": "Hunter's Mark",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:hunter:ability:hunter-s-mark"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 336,
+          "name": "Pickoff",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:hunter:ability:pickoff"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 82,
+          "name": "Covert",
+          "kind": "passive",
+          "jp": 500,
+          "entityId": "base:hunter:passive:covert"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 147,
+          "name": "Snipe",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:hunter:ability:snipe"
+        }
+      ]
+    },
+    "base:class:chemist": {
+      "nativeJobId": 17,
+      "copiedJobId": 35,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 469,
+          "name": "Tonic",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:chemist:ability:tonic"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 472,
+          "name": "Tincture",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:chemist:ability:tincture"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 238,
+          "name": "Fenix Juice",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:chemist:ability:fenix-juice"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 236,
+          "name": "Potion",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:chemist:ability:potion"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 473,
+          "name": "Ether",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:ether"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 14,
+          "name": "Selfless Cure",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "wiki:passive:selfless-cure"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 476,
+          "name": "Fenix Syrup",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:chemist:ability:fenix-syrup"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 471,
+          "name": "Z-Potion",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:chemist:ability:z-potion"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 474,
+          "name": "Zether",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:chemist:ability:zether"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 86,
+          "name": "Item Finder",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "wiki:passive:item-finder"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 243,
+          "name": "Levigel",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:levigel"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 373,
+          "name": "Smoke Bomb",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:chemist:ability:smoke-bomb"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 239,
+          "name": "MP Juice",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:mp-juice"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 141,
+          "name": "Fig Mixture",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:chemist:ability:fig-mixture"
+        },
+        {
+          "row": 5,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 242,
+          "name": "Invisigel",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:chemist:ability:invisigel"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 235,
+          "name": "Heal Oil",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:heal-oil"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 240,
+          "name": "AP Juice",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:ap-juice"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 244,
+          "name": "Sap Mixture",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:chemist:ability:sap-mixture"
+        }
+      ]
+    },
+    "base:class:reaper": {
+      "nativeJobId": 6,
+      "copiedJobId": 36,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 102,
+          "name": "Reaping Cut",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:reaper:ability:reaping-cut"
+        },
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 106,
+          "name": "Lifedrink",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:reaper:ability:lifedrink"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 103,
+          "name": "Rending Cut",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:reaper:ability:rending-cut"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 107,
+          "name": "Bloodwell",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:reaper:ability:bloodwell"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 478,
+          "name": "Frenzy",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:reaper:ability:frenzy"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 477,
+          "name": "Expertise",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:reaper:ability:expertise"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 56,
+          "name": "Blood Spiller",
+          "kind": "passive",
+          "jp": 400,
+          "entityId": "base:reaper:passive:blood-spiller"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 108,
+          "name": "Satanic",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:reaper:ability:satanic"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 104,
+          "name": "Nightfall",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:reaper:ability:nightfall"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 31,
+          "name": "Equip Scythe",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:reaper:passive:equip-scythe"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 105,
+          "name": "Guillotine",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:reaper:ability:guillotine"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 1,
+          "name": "Initial Oomph",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:reaper:passive:initial-oomph"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 303,
+          "name": "Moon Slash",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:reaper:ability:moon-slash"
+        }
+      ]
+    },
+    "base:class:ninja": {
+      "nativeJobId": 18,
+      "copiedJobId": 37,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 165,
+          "name": "Utsusemi",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "wiki:ability:utsusemi"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 412,
+          "name": "Fuzake",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:fuzake"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 51,
+          "name": "Smokescreen",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "wiki:passive:smokescreen"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 19,
+          "name": "Perfect Dodge",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "wiki:passive:perfect-dodge"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 166,
+          "name": "Fire Seal",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:fire-seal"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 167,
+          "name": "Ice Seal",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:ice-seal"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 169,
+          "name": "Wind Seal",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:wind-seal"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 170,
+          "name": "Earth Seal",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:earth-seal"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 470,
+          "name": "Kawakage",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:kawakage"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 475,
+          "name": "Vanish",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:vanish"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 168,
+          "name": "Thunder Seal",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:thunder-seal"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 171,
+          "name": "Water Seal",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:water-seal"
+        }
+      ]
+    },
+    "base:class:nomad": {
+      "nativeJobId": 12,
+      "copiedJobId": 38,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 86,
+          "name": "Healing Spring",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:nomad:ability:healing-spring"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 81,
+          "name": "Water Blast",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:water-blast"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 84,
+          "name": "Chill Blast",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:chill-blast"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 241,
+          "name": "Therapy Stance",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:therapy-stance"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 87,
+          "name": "En-Water",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:en-water"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 83,
+          "name": "Frenzy Stance",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:nomad:passive:frenzy-stance"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 88,
+          "name": "En-Ice",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:en-ice"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 27,
+          "name": "Attack Focus",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:nomad:passive:attack-focus"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 91,
+          "name": "Wave Armor",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:wave-armor"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 90,
+          "name": "Shrapnel Armor",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:shrapnel-armor"
+        },
+        {
+          "row": 5,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 83,
+          "name": "Drown",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:drown"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 451,
+          "name": "Shimmertide",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:nomad:ability:shimmertide"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 82,
+          "name": "Icicle Barrage",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:icicle-barrage"
+        }
+      ]
+    },
+    "base:class:dervish": {
+      "nativeJobId": 11,
+      "copiedJobId": 39,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 132,
+          "name": "Quakesand",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:dervish:ability:quakesand"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 135,
+          "name": "Tornado",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:tornado"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 133,
+          "name": "Fissure",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:dervish:ability:fissure"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 136,
+          "name": "Cyclone",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:cyclone"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 237,
+          "name": "Magic Prayer",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:magic-prayer"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 33,
+          "name": "Focus Shield",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:dervish:passive:focus-shield"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 134,
+          "name": "Rockslide",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "wiki:ability:rockslide"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 140,
+          "name": "Soul Prayer",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:soul-prayer"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 139,
+          "name": "Vigor Drain",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:vigor-drain"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 70,
+          "name": "Critical Power",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:dervish:passive:critical-power"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 137,
+          "name": "Typhoon",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "wiki:ability:typhoon"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 138,
+          "name": "Meteor",
+          "kind": "ability",
+          "jp": 600,
+          "entityId": "wiki:ability:meteor"
+        }
+      ]
+    },
+    "base:class:beatsmith": {
+      "nativeJobId": 9,
+      "copiedJobId": 40,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 340,
+          "name": "Bass Kick",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:beatsmith:ability:bass-kick"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 341,
+          "name": "Beat Roll",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:beatsmith:ability:beat-roll"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 382,
+          "name": "Defense Style",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:beatsmith:ability:defense-style"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 52,
+          "name": "Auto Speed",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:beatsmith:passive:auto-speed"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 381,
+          "name": "Resistance Style",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:beatsmith:ability:resistance-style"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 81,
+          "name": "Critical Turn",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:beatsmith:passive:critical-turn"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 339,
+          "name": "Rhythm Break",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:beatsmith:ability:rhythm-break"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 344,
+          "name": "Third Act",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:beatsmith:ability:third-act"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 388,
+          "name": "Mana Song",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:beatsmith:ability:mana-song"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 346,
+          "name": "Rhapsody",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:beatsmith:ability:rhapsody"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 347,
+          "name": "Requiem",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:beatsmith:ability:requiem"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 337,
+          "name": "Crescendo",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:beatsmith:ability:crescendo"
+        }
+      ]
+    },
+    "base:class:samurai": {
+      "nativeJobId": 20,
+      "copiedJobId": 41,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 189,
+          "name": "Swift Wind",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "wiki:ability:swift-wind"
+        },
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 190,
+          "name": "Swift Ember",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:swift-ember"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 194,
+          "name": "Ken: Asura",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:samurai:ability:ken-asura"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 57,
+          "name": "Equip Katana",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:samurai:passive:equip-katana"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 191,
+          "name": "Fierce Wind",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:fierce-wind"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 40,
+          "name": "Fury",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:samurai:passive:fury"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 192,
+          "name": "Blade Song",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:blade-song"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 193,
+          "name": "Fierce Ember",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:fierce-ember"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 60,
+          "name": "Unreactable",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:samurai:passive:unreactable"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 195,
+          "name": "Ken: Heavenslash",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:samurai:ability:ken-heavenslash"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 196,
+          "name": "Ken: Omnislice",
+          "kind": "ability",
+          "jp": 600,
+          "entityId": "base:samurai:ability:ken-omnislice"
+        }
+      ]
+    },
+    "base:class:assassin": {
+      "nativeJobId": 19,
+      "copiedJobId": 42,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 331,
+          "name": "Bloody Slice",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:assassin:ability:bloody-slice"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 333,
+          "name": "Harm Power",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:assassin:ability:harm-power"
+        },
+        {
+          "row": 0,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 219,
+          "name": "Avid Assault",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:avid-assault"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 215,
+          "name": "Maim Focus",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:assassin:ability:maim-focus"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 335,
+          "name": "Harm Magic",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:harm-magic"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 218,
+          "name": "Maim Sustain",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:assassin:ability:maim-sustain"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 217,
+          "name": "Voracity",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:voracity"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 216,
+          "name": "Harm Memory",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:harm-memory"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 332,
+          "name": "Executioner",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:executioner"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 61,
+          "name": "Venom Coat",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:assassin:passive:venom-coat"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 222,
+          "name": "Coup de Grace",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:assassin:ability:coup-de-grace"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 62,
+          "name": "Crippling Coat",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:assassin:passive:crippling-coat"
+        }
+      ]
+    },
+    "base:class:valkyrie": {
+      "nativeJobId": 15,
+      "copiedJobId": 43,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 285,
+          "name": "Warcry",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:valkyrie:ability:warcry"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 109,
+          "name": "Healing Breeze",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:healing-breeze"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 114,
+          "name": "Bracing Strike",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:valkyrie:ability:bracing-strike"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 117,
+          "name": "Steel Heart",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:steel-heart"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 3,
+          "dataId": 15,
+          "name": "Auto-Revival",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "wiki:passive:auto-revival"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 115,
+          "name": "Steeling Strike",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:steeling-strike"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 34,
+          "name": "Equip Spear",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "wiki:passive:equip-spear"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 334,
+          "name": "Thawed Heart",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:thawed-heart"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 110,
+          "name": "Steeling Wind",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:steeling-wind"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 28,
+          "name": "Commander",
+          "kind": "passive",
+          "jp": 400,
+          "entityId": "wiki:passive:commander"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 113,
+          "name": "AP Transfer",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:ap-transfer"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 116,
+          "name": "Re-Raise",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:re-raise"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 118,
+          "name": "Call to Arms",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:call-to-arms"
+        }
+      ]
+    },
+    "base:class:summoner": {
+      "nativeJobId": 21,
+      "copiedJobId": 44,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 63,
+          "name": "MP Boost",
+          "kind": "innate",
+          "jp": 300,
+          "entityId": "base:summoner:innate:mp-boost"
+        },
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 64,
+          "name": "Initial Resist",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:summoner:passive:initial-resist"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 230,
+          "name": "Pinga",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:summoner:ability:pinga"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 234,
+          "name": "Pah",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:summoner:ability:pah"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 223,
+          "name": "Shaku",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:shaku"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 224,
+          "name": "Pamoa",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:pamoa"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 226,
+          "name": "Niltsi",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:niltsi"
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 227,
+          "name": "Ioske",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:ioske"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 225,
+          "name": "Guaba",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:guaba"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 228,
+          "name": "Coyote",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:summoner:ability:coyote"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 231,
+          "name": "Tira",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:summoner:ability:tira"
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 232,
+          "name": "Juses",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:summoner:ability:juses"
+        }
+      ]
+    },
+    "base:class:beastmaster": {
+      "nativeJobId": 23,
+      "copiedJobId": 45,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 342,
+          "name": "Feast",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:beastmaster:ability:feast"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 221,
+          "name": "Gouge",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:beastmaster:ability:gouge"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 343,
+          "name": "Wild Stance",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "wiki:ability:wild-stance"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 220,
+          "name": "Furrow",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:furrow"
+        },
+        {
+          "row": 2,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 67,
+          "name": "Threatening",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:beastmaster:passive:threatening"
+        },
+        {
+          "row": 3,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 300,
+          "name": "Balm",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:balm"
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 318,
+          "name": "Feral Stance",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:feral-stance"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 214,
+          "name": "Hew",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:hew"
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 431,
+          "name": "Famine",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:beastmaster:ability:famine"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 3,
+          "dataId": 21,
+          "name": "Duel Ready",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:beastmaster:passive:duel-ready"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 345,
+          "name": "Jugular",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "wiki:ability:jugular"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 211,
+          "name": "Odor Deposit",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "wiki:ability:odor-deposit"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 209,
+          "name": "Rigid Stance",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "wiki:ability:rigid-stance"
+        }
+      ]
+    },
+    "base:class:weaver": {
+      "nativeJobId": 16,
+      "copiedJobId": 46,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 152,
+          "name": "Slow",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:weaver:ability:slow"
+        },
+        {
+          "row": 0,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 154,
+          "name": "Haste",
+          "kind": "ability",
+          "jp": 100,
+          "entityId": "base:weaver:ability:haste"
+        },
+        {
+          "row": 1,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 153,
+          "name": "Daze",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:weaver:ability:daze"
+        },
+        {
+          "row": 1,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 46,
+          "name": "Delay 20",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:weaver:passive:delay-20"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 48,
+          "name": "Delay 40",
+          "kind": "passive",
+          "jp": 100,
+          "entityId": "base:weaver:passive:delay-40"
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 155,
+          "name": "Dust",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:weaver:ability:dust"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 156,
+          "name": "Status Drop",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:weaver:ability:status-drop"
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 157,
+          "name": "Status Amp",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:weaver:ability:status-amp"
+        },
+        {
+          "row": 4,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 449,
+          "name": "Stability",
+          "kind": "ability",
+          "jp": 200,
+          "entityId": "base:weaver:ability:stability"
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 450,
+          "name": "Statis",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:weaver:ability:statis"
+        },
+        {
+          "row": 5,
+          "column": 0,
+          "nodeType": 2,
+          "dataId": 158,
+          "name": "Rewind",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:weaver:ability:rewind"
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "nodeType": 3,
+          "dataId": 47,
+          "name": "Fast Cast",
+          "kind": "passive",
+          "jp": 400,
+          "entityId": "base:weaver:passive:fast-cast"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 3,
+          "name": "Preemptive",
+          "kind": "passive",
+          "jp": 200,
+          "entityId": "base:weaver:passive:preemptive"
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "nodeType": 2,
+          "dataId": 159,
+          "name": "Quick",
+          "kind": "ability",
+          "jp": 400,
+          "entityId": "base:weaver:ability:quick"
+        }
+      ]
+    },
+    "base:class:mimic": {
+      "nativeJobId": 22,
+      "copiedJobId": 47,
+      "nodes": [
+        {
+          "row": 0,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 20,
+          "name": "Imitate",
+          "kind": "ability",
+          "jp": 0,
+          "entityId": "base:mimic:ability:imitate"
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 21,
+          "name": "Repeat",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:mimic:ability:repeat"
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 22,
+          "name": "Copy",
+          "kind": "ability",
+          "jp": 500,
+          "entityId": "base:mimic:ability:copy"
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "nodeType": 2,
+          "dataId": 178,
+          "name": "Observe",
+          "kind": "ability",
+          "jp": 300,
+          "entityId": "base:mimic:ability:observe"
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "nodeType": 2,
+          "dataId": 23,
+          "name": "Mirror",
+          "kind": "ability",
+          "jp": 600,
+          "entityId": "base:mimic:ability:mirror"
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "nodeType": 3,
+          "dataId": 68,
+          "name": "Equip All",
+          "kind": "passive",
+          "jp": 300,
+          "entityId": "base:mimic:passive:equip-all"
+        }
+      ]
+    }
+  }
+}
