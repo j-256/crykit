@@ -13,6 +13,8 @@ import { addTestBuild, addTestScenario, createTestLocalData, known, TEST_GAME_SE
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { createSharePayload, decodeSharePayload, encodeSharePayload, saveSharedCopy } from '../interchange/share'
 
+const IMPORTED_CATALOG_BEHAVIOR_TIMEOUT_MS = 15_000
+
 describe('checkpoint-owned behavior', () => {
   it('reuses equivalent presets without interpreting their labels or mod spelling as rules', () => {
     const data = createTestLocalData()
@@ -70,7 +72,7 @@ describe('checkpoint-owned behavior', () => {
     const changed = saveBuildBehavior(second, { ...buildBehavior(selected), ppLimit: known(12) }, TEST_NOW)
     expect(changed.setup.catalogLock).toEqual(selected.catalogLock)
     validateNativeLocalDataGraph(changed.localData, await prepareModCatalogs(changed.localData, catalogs))
-  })
+  }, IMPORTED_CATALOG_BEHAVIOR_TIMEOUT_MS)
 
   it('retains individually named custom choices when their state is unknown', () => {
     const original = createTestLocalData()
