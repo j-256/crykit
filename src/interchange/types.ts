@@ -128,7 +128,7 @@ export interface NativeBackupSourceManifest {
 }
 
 export interface NativeBackupManifest {
-  readonly format: 'crystal-companion-backup'
+  readonly format: 'crykit-backup'
   readonly formatVersion: '2.0.0'
   readonly exportedAt: Timestamp
   readonly payload: 'bundle.json'

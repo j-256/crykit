@@ -34,14 +34,14 @@ import {
 } from '../interchange/util'
 import {
   type CatalogRecord,
-  CrystalCompanionDatabase,
+  CryKitDatabase,
   getDatabase,
   type LocalDataRecord,
 } from './database'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
 
 const LOCAL_DATA_RECORD_KEY = 'local-data-record'
-const CHANNEL_NAME = 'crystal-companion-local-data'
+const CHANNEL_NAME = 'crykit-local-data'
 const MAX_LOCAL_DATA_CHANGES = 500
 const MAX_HISTORY_ENTRIES = 500
 const MAX_HISTORY_BYTES = 8 * 1024 * 1024
@@ -122,7 +122,7 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 async function assertCatalogsImmutable(
-  database: CrystalCompanionDatabase,
+  database: CryKitDatabase,
   catalogs: readonly CatalogSnapshot[],
 ): Promise<void> {
   for (const catalog of catalogs) {
@@ -148,11 +148,11 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
   }
 }
 
-async function removePersistedBundledCatalogs(database: CrystalCompanionDatabase): Promise<void> {
+async function removePersistedBundledCatalogs(database: CryKitDatabase): Promise<void> {
   await database.catalogs.bulkDelete([...BUNDLED_CATALOG_KEYS])
 }
 
-async function initializeStarterRecord(database: CrystalCompanionDatabase): Promise<LocalDataRecord> {
+async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalDataRecord> {
   return database.transaction('rw', database.localDatas, async () => {
     const active = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
     if (active) return active
@@ -173,7 +173,7 @@ async function initializeStarterRecord(database: CrystalCompanionDatabase): Prom
 }
 
 async function resolveLocalDataRecord(
-  database: CrystalCompanionDatabase,
+  database: CryKitDatabase,
 ): Promise<LocalDataRecord> {
   const requested = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
   if (requested) return requested
@@ -217,7 +217,7 @@ function localDataImportDigests(localData: LocalData): Set<string> {
   )
 }
 
-async function loadedDataForRecord(database: CrystalCompanionDatabase, record: LocalDataRecord): Promise<LoadedLocalData> {
+async function loadedDataForRecord(database: CryKitDatabase, record: LocalDataRecord): Promise<LoadedLocalData> {
   const keys = catalogReferences(record.localData)
   const digests = localDataImportDigests(record.localData)
   const catalogRecords = (await database.catalogs.toArray()).filter(
@@ -325,7 +325,7 @@ function historyEntry(before: LocalData, after: LocalData, command: string, time
   }
 }
 
-async function trimHistory(database: CrystalCompanionDatabase, localDataId: LocalDataId): Promise<boolean> {
+async function trimHistory(database: CryKitDatabase, localDataId: LocalDataId): Promise<boolean> {
   const entries = await database.history.where('localDataId').equals(localDataId).sortBy('nextRevision')
   let removeCount = Math.max(0, entries.length - MAX_HISTORY_ENTRIES)
   let retainedBytes = entries.slice(removeCount).reduce((total, entry) => total + textBytes(entry).byteLength, 0)
@@ -338,7 +338,7 @@ async function trimHistory(database: CrystalCompanionDatabase, localDataId: Loca
 }
 
 async function storedCatalogsForLocalData(
-  database: CrystalCompanionDatabase,
+  database: CryKitDatabase,
   localData: LocalData,
 ): Promise<readonly CatalogSnapshot[]> {
   const keys = catalogReferences(localData)
@@ -409,7 +409,7 @@ export async function saveLocalData(localData: LocalData, expectedRevision: numb
   return (await saveLocalDataWithStatus(localData, expectedRevision)).localData
 }
 
-async function putCandidateData(database: CrystalCompanionDatabase, candidate: ImportCandidate): Promise<void> {
+async function putCandidateData(database: CryKitDatabase, candidate: ImportCandidate): Promise<void> {
   assertStarterCatalogIdentity(candidate.catalogs)
   const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog)).map(compactModCatalog)
   await assertCatalogsImmutable(database, storedCatalogs)
@@ -775,7 +775,7 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
     })
     const exportedAt = nowTimestamp()
     const manifest: NativeBackupManifest = {
-      format: 'crystal-companion-backup',
+      format: 'crykit-backup',
       formatVersion: '2.0.0',
       exportedAt,
       payload: 'bundle.json',

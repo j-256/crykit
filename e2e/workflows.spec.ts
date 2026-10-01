@@ -361,7 +361,7 @@ test('offline preparation repairs missing cached assets before reporting ready',
   await closeData(page)
   await page.evaluate(async () => {
     const names = await caches.keys()
-    for (const name of names.filter((value) => value.startsWith('crystal-companion-shell-'))) {
+    for (const name of names.filter((value) => value.startsWith('crykit-shell-'))) {
       const cache = await caches.open(name)
       for (const request of await cache.keys()) if (request.url.endsWith('.css')) await cache.delete(request)
     }
@@ -472,7 +472,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
         return
       }
       let bytes = await readFile(join(process.cwd(), 'dist', relative))
-      if (relative === 'sw.js') bytes = Buffer.from(bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crystal-companion-shell-test-build-${generation}';`))
+      if (relative === 'sw.js') bytes = Buffer.from(bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-test-build-${generation}';`))
       response.writeHead(200, { 'Content-Type': mimeTypes[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-store', Vary: 'Origin' })
       response.end(bytes)
     } catch {
@@ -490,11 +490,11 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
     await expectOfflineReady(panel)
     await page.evaluate(async () => {
-      await (await caches.open('crystal-companion-shell-other-installation')).put('/other/index.html', new Response('Other installation'))
+      await (await caches.open('crykit-shell-other-installation')).put('/other/index.html', new Response('Other installation'))
       await (await caches.open('unrelated-application')).put('/journal/index.html', new Response('Unrelated application'))
-      await (await caches.open('crystal-companion-shell-test-build-1')).put('/journal/assets/previous-build-only.js', new Response('Previous build asset'))
+      await (await caches.open('crykit-shell-test-build-1')).put('/journal/assets/previous-build-only.js', new Response('Previous build asset'))
     })
-    expect(await page.evaluate(async () => (await (await caches.open('crystal-companion-shell-test-build-1')).match('/journal/index.html'))?.redirected)).toBe(true)
+    expect(await page.evaluate(async () => (await (await caches.open('crykit-shell-test-build-1')).match('/journal/index.html'))?.redirected)).toBe(true)
     await closeData(page)
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
     const entry = page.getByRole('dialog', { name: 'Add inventory item' })
@@ -512,7 +512,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
     await expect(update).toBeVisible()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).not.toBeVisible()
-    expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crystal-companion-shell-test-build-1', 'crystal-companion-shell-test-build-2']))
+    expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crykit-shell-test-build-1', 'crykit-shell-test-build-2']))
     await context.setOffline(true)
     expect(await page.evaluate(async () => (await fetch('./assets/previous-build-only.js')).text())).toBe('Previous build asset')
     await page.reload()
@@ -531,8 +531,8 @@ test('subpath installation stages updates without reloading an open draft', asyn
       page.waitForEvent('load'),
       thirdUpdate.getByRole('button', { name: 'Apply app update', exact: true }).click(),
     ])
-    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crystal-companion-shell-test-build-2', 'crystal-companion-shell-test-build-3', 'crystal-companion-shell-other-installation', 'unrelated-application']))
-    await expect.poll(() => page.evaluate(() => caches.keys())).not.toContain('crystal-companion-shell-test-build-1')
+    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crykit-shell-test-build-2', 'crykit-shell-test-build-3', 'crykit-shell-other-installation', 'unrelated-application']))
+    await expect.poll(() => page.evaluate(() => caches.keys())).not.toContain('crykit-shell-test-build-1')
   } finally {
     server.closeAllConnections()
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))

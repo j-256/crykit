@@ -44,4 +44,4 @@ The contribution list and exclusion list describe the scope of each estimate. Di
 
 The guide preview does not predict final enemy damage. The inspected PC package separately verifies integer defense reduction for synthetic benchmarks. Full encounters, status lifecycles, conditional damage effects, and platform or mod parity remain outside that calculation scope. Native enemy records remain available for inspection without simulating their behavior.
 
-The separate [PC steal mechanics research](steal-mechanics.md) records the executable's availability, success, Luck, failure-protection, multi-entry display, and guaranteed-attempt mod formulas. It is source evidence for the inspected PC build rather than a calculation performed by Crystal Companion, and it does not establish Nintendo Switch parity.
+The separate [PC steal mechanics research](steal-mechanics.md) records the executable's availability, success, Luck, failure-protection, multi-entry display, and guaranteed-attempt mod formulas. It is source evidence for the inspected PC build rather than a calculation performed by Crystal Kit, and it does not establish Nintendo Switch parity.

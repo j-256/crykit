@@ -147,9 +147,9 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await page.goto('/#/settings/data/search?q=blade')
   await page.reload()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  const search = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
+  const search = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await expect(search).toBeVisible()
-  await expectActiveDialog(page, 'Search Crystal Companion')
+  await expectActiveDialog(page, 'Search CryKit')
 
   await page.keyboard.press('Escape')
   await expect(search).not.toBeVisible()

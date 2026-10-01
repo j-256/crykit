@@ -22,7 +22,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.keyboard.press('Meta+k')
-  const palette = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
+  const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await expect(palette.getByRole('searchbox')).toBeFocused()
   await page.keyboard.type('dagger')
   const result = palette.locator('[data-universal-result="true"]').first()

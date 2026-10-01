@@ -498,7 +498,7 @@ export const NativeSourceManifestSchema = z.object({
 }).strict()
 
 export const NativeManifestSchema = z.object({
-  format: z.literal('crystal-companion-backup'),
+  format: z.literal('crykit-backup'),
   formatVersion: z.literal('2.0.0'),
   exportedAt: timestamp,
   payload: z.literal('bundle.json'),

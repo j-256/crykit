@@ -2,7 +2,7 @@
 
 This note records the steal behavior verified from the Windows PC build of Crystal Project rather than treating guide or wiki descriptions as executable rules. The inspected `Crystal Project.exe` has assembly version `1.6.9.0` and SHA-256 `36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6`. The executable methods `BattlerMonster.SetupLootSteals`, `Calculator.CalculateStealChance`, `Calculator.CalculateLuckFactor`, `RollResolver.ResolveSteal`, and `AbilityProcessor.ResolveAbilityMod` establish the calculation and resolution order. The shipped `monster.dat`, `ability.dat`, and `equipment.dat` files supply the inputs described below.
 
-This evidence applies to that PC build. It does not establish Nintendo Switch or mod-pack parity, and Crystal Companion does not yet calculate steal outcomes.
+This evidence applies to that PC build. It does not establish Nintendo Switch or mod-pack parity, and Crystal Kit does not yet calculate steal outcomes.
 
 ## Inputs and integer behavior
 

@@ -3,11 +3,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QUINTAR_STEP } from '../catalog/quintar-breeding'
 import { requirePlaythrough, toggleQuintarStep } from '../domain'
 import { NativeLocalDataSchema } from '../interchange/native-schema'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData, undoLocalDataWithStatus } from './local-data'
 
-let database: CrystalCompanionDatabase
-beforeEach(() => { database = new CrystalCompanionDatabase(`quintar-${crypto.randomUUID()}`); setDatabaseForTests(database) })
+let database: CryKitDatabase
+beforeEach(() => { database = new CryKitDatabase(`quintar-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
 it('rolls back a failed transaction, retries the step, and undoes its completion', async () => {

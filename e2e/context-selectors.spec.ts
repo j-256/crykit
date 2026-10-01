@@ -20,7 +20,7 @@ async function chooseContext(page: Page, label: ContextLabel, name: string) {
 
 async function readLocalData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
-    const request = indexedDB.open('crystal-companion-v2')
+    const request = indexedDB.open('crykit')
     request.onerror = () => reject(request.error)
     request.onsuccess = () => {
       const db = request.result

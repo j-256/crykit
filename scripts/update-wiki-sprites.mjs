@@ -15,7 +15,7 @@ const BATCH_SIZE = 50
 const CACHE_SCHEMA = 2
 const MANIFEST_SCHEMA = 3
 const SOURCE_TEMPLATES = [...TEMPLATE_TITLES, ICON_TEMPLATE]
-const USER_AGENT = 'CrystalCompanionSprites/0.1 (personal offline fan planner)'
+const USER_AGENT = 'CryKitSprites/0.1 (personal offline fan planner)'
 const REQUEST_TIMEOUT_MS = 30_000
 const USAGE = `Usage: node scripts/update-wiki-sprites.mjs [-c|--cache] [--check] [-h|--help]
 Download original wiki sprites, menu icons, and explicit bindings with attribution.

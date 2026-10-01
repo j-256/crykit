@@ -4,13 +4,13 @@ import { loadLocalData, exportBackup, commitImport, previewImport } from './loca
 import { createBlankLocalData } from '../domain/local-data'
 import { mergeCorrections } from '../domain/corrections'
 import { testCorrection } from '../domain/corrections.test-helpers'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { CORRECTIONS_STORAGE_KEY, loadCorrections, saveCorrectionDraft, saveCorrections, subscribeCorrections } from './corrections'
 
 describe('global correction storage', () => {
-  let database: CrystalCompanionDatabase
+  let database: CryKitDatabase
   beforeEach(() => {
-    database = new CrystalCompanionDatabase(`corrections-${crypto.randomUUID()}`)
+    database = new CryKitDatabase(`corrections-${crypto.randomUUID()}`)
     setDatabaseForTests(database)
   })
   afterEach(async () => { setDatabaseForTests(undefined); await database.delete() })
@@ -83,7 +83,7 @@ describe('global correction storage', () => {
     const bytes = await exportBackup()
     const preview = await previewImport(bytes, 'synthetic-correction-backup.zip')
     expect(preview.proposed.corrections?.entries).toEqual([correction])
-    const restoredDatabase = new CrystalCompanionDatabase(`restore-${crypto.randomUUID()}`)
+    const restoredDatabase = new CryKitDatabase(`restore-${crypto.randomUUID()}`)
     setDatabaseForTests(restoredDatabase)
     try {
       await loadLocalData()
@@ -98,7 +98,7 @@ describe('global correction storage', () => {
     const correction = testCorrection()
     await saveCorrections([correction], 0)
     const preview = await previewImport(await exportBackup(), 'synthetic-backup.zip')
-    const destination = new CrystalCompanionDatabase(`rollback-${crypto.randomUUID()}`)
+    const destination = new CryKitDatabase(`rollback-${crypto.randomUUID()}`)
     setDatabaseForTests(destination)
     try {
       const original = await loadLocalData()

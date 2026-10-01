@@ -1,6 +1,6 @@
 # Calculation package
 
-Crystal Companion's numeric character calculations use versioned JSON rules and data. The package is available from **Export calculation package** on the character and Build calculation panels, or without a game installation:
+Crystal Kit's numeric character calculations use versioned JSON rules and data. The package is available from **Export calculation package** on the character and Build calculation panels, or without a game installation:
 
 ```sh
 npm run calculations:export -- --output calculations.json
@@ -48,7 +48,7 @@ This is the integer growth seed `(rating * level + growth) / 2`. A formula decla
 | `if` | Condition, true expression, false expression; evaluates only the selected branch |
 | `call` | A formula name followed by its arguments |
 
-Use IEEE-754 doubles and preserve the expression's operation order. Integer divisions appear explicitly as `trunc(div(...))`; do not combine or move rounding steps. Native integer products are verified over ordinary character and game-data inputs, not arbitrary values that overflow the game's signed integer arithmetic. Missing variables, invalid operations, nonfinite values, division by zero, and evaluation-budget exhaustion produce unresolved calculations. Depth and operation limits are part of the rules. The [reference evaluator](../src/domain/calculation-rules.ts) uses a finite operator list; it does not use `eval`, `Function`, or imported code. Crystal Companion evaluates only its bundled arithmetic data and never executes imported descriptions or formula packages.
+Use IEEE-754 doubles and preserve the expression's operation order. Integer divisions appear explicitly as `trunc(div(...))`; do not combine or move rounding steps. Native integer products are verified over ordinary character and game-data inputs, not arbitrary values that overflow the game's signed integer arithmetic. Missing variables, invalid operations, nonfinite values, division by zero, and evaluation-budget exhaustion produce unresolved calculations. Depth and operation limits are part of the rules. The [reference evaluator](../src/domain/calculation-rules.ts) uses a finite operator list; it does not use `eval`, `Function`, or imported code. Crystal Kit evaluates only its bundled arithmetic data and never executes imported descriptions or formula packages.
 
 ## Sheet inputs and order
 

@@ -39,7 +39,7 @@ describe('reviewed baseline promotion', () => {
     expect(pinnedOptions[0]?.ppCost).toMatchObject({ state: 'known', value: 3 })
     expect(historicalCatalogKeys([catalog, promoted]).has(JSON.stringify([catalog.id, catalog.revisionId]))).toBe(true)
     expect(projectReferenceEntity(promoted, promoted.entities[entity.id]!).ppCost).toMatchObject({ value: 2 })
-    const bundle = validateReviewedCatalogBundle({ format: 'crystal-companion-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: 'v2' }, catalogs: [catalog, promoted] })
+    const bundle = validateReviewedCatalogBundle({ format: 'crykit-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: 'v2' }, catalogs: [catalog, promoted] })
     await expect(verifyReviewedCatalogChecksums(bundle)).resolves.toBeUndefined()
     const corrupt = { ...promoted, entities: { [entity.id]: { ...promoted.entities[entity.id]!, name: 'Tampered' } } }
     await expect(verifyReviewedCatalogChecksums({ ...bundle, catalogs: [catalog, corrupt] })).rejects.toThrow('checksum mismatch')
@@ -72,7 +72,7 @@ describe('reviewed baseline promotion', () => {
     const correction = reviewedCorrection()
     const malformed = { ...catalog, legacy: { reviewedCorrections: 'invalid history' } }
     await expect(promoteCorrections(malformed, [correction], 'v2', CORRECTION_TEST_TIME)).rejects.toThrow('format or values are invalid')
-    expect(() => validateReviewedCatalogBundle({ format: 'crystal-companion-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: catalog.revisionId }, catalogs: [malformed] })).toThrow('format or values are invalid')
+    expect(() => validateReviewedCatalogBundle({ format: 'crykit-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: catalog.revisionId }, catalogs: [malformed] })).toThrow('format or values are invalid')
     const history = Array.from({ length: MAX_CORRECTIONS }, (_, index) => ({ ...testCorrection(), id: `previous-${index}`, changes: [{ path: 'name', before: entity.name, after: `Synthetic name ${index}` }] }))
     const full = { ...catalog, legacy: { reviewedCorrections: JSON.parse(JSON.stringify(history)) as JsonValue } }
     expect(reviewedCatalogDecisions(full)).toHaveLength(MAX_CORRECTIONS)

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:crystal-companion:calculation-package:1",
+  "$id": "urn:crykit:calculation-package:1",
   "title": "Crystal Project calculation package",
   "description": "Portable rules and numeric inputs; describes export structure and arithmetic syntax, not permission to execute imported rules",
   "type": "object",

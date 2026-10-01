@@ -833,7 +833,7 @@ export function nativeBackupTimestamp(): Timestamp {
 }
 
 export function isNativeManifest(value: JsonValue): boolean {
-  return isJsonObject(value) && value.format === 'crystal-companion-backup'
+  return isJsonObject(value) && value.format === 'crykit-backup'
 }
 
 export const localDataIdFromNative = (value: string): LocalDataId => asLocalDataId(value)

@@ -21,7 +21,7 @@ test('enemy rewards and item costs share coin denominations while editing keeps 
 
 test('same-name enemies remain distinct while mode variants are opt-in in global search', async ({ page }) => {
   await page.goto('/#/reference/search?q=woke%20qui')
-  const search = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
+  const search = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   const enemies = search.getByRole('link').filter({ has: page.locator('strong', { hasText: /^Woke Quintar(?: \((?:Chaos|Vanilla) mode\))?$/ }) })
   await expect(enemies).toHaveCount(2)
   const reserve = enemies.filter({ hasText: 'Level 54' })

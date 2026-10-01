@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util'
 import { readFile, writeFile, stat } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
-const help = `Review exported Crystal Companion corrections without uploading any data.
+const help = `Review exported Crystal Kit corrections without uploading any data.
 
 Usage: npm run corrections:review -- [options] FILE
 
@@ -12,7 +12,7 @@ Usage: npm run corrections:review -- [options] FILE
   -r, --revision ID      New immutable catalog revision ID (required with --promote)
   -o, --output FILE      Write the new bundle to a new file (required with --promote)
 
-FILE must be a crystal-companion-corrections version 1 JSON export.
+FILE must be a crykit-corrections version 1 JSON export.
 Report mode writes the decision review as JSON to stdout. Promotion requires
 confirmed decisions, evidence, applicability, unchanged sources, and resolved
 supersession. The maintainer must verify those claims before using --promote.
@@ -62,7 +62,7 @@ try {
         process.exitCode = 2
       } else {
         const catalog = await promotion.promoteCorrections(bundled.DEFAULT_CATALOG, entries, values.revision, new Date().toISOString())
-        const result = promotion.validateReviewedCatalogBundle({ format: 'crystal-companion-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: catalog.revisionId }, catalogs: [...bundled.BUNDLED_CATALOGS, catalog] })
+        const result = promotion.validateReviewedCatalogBundle({ format: 'crykit-reviewed-catalogs', version: 1, current: { catalogId: catalog.id, revisionId: catalog.revisionId }, catalogs: [...bundled.BUNDLED_CATALOGS, catalog] })
         await promotion.verifyReviewedCatalogChecksums(result)
         await writeFile(values.output, `${JSON.stringify(result, null, 2)}\n`, { flag: 'wx' })
         console.error('Reviewed catalog bundle created. Source revisions remain unchanged.')
