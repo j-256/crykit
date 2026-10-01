@@ -416,6 +416,7 @@ function validateLocalData(
     if (build.latestRevisionId !== undefined) {
       const latest = buildRevisions[build.latestRevisionId as string]
       if (latest?.buildId !== id) schemaError('A build latest revision belongs to another build', { id })
+      if (latest && gameSetups[latest.gameSetupRevisionId as string]?.gameSetupId !== gameSetupId) schemaError('A Build identity does not match its latest behavior preset', { id })
     }
   }
   for (const [id, revision] of Object.entries(buildRevisions)) {
@@ -436,9 +437,6 @@ function validateLocalData(
     const gameSetup = gameSetups[gameSetupRevisionId]
     if (!gameSetup) {
       schemaError('A Build revision references a missing Game Setup', { id })
-    }
-    if (gameSetup.gameSetupId !== builds[buildId]!.gameSetupId) {
-      schemaError('A Build revision belongs to a different Game Setup than its Build', { id })
     }
     const lock = recordValue(revision.catalogLock, `${label}.buildRevisions.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {

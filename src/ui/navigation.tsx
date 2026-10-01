@@ -487,7 +487,7 @@ function legacySelectedPage(value: string): ReferencePageRoute | undefined {
 
 export function parseAppRoute(hash: string): AppRoute {
   if (hash.startsWith('#/share/')) {
-    if (!hash.startsWith(SHARE_ROUTE_PREFIX) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
+    if (!/^#\/share\/v[12]\//.test(hash) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
     const [rawPath, rawQuery = ''] = hash.slice(1).split('?', 2)
     const segments = rawPath.split('/').filter(Boolean)
     const encoded = segments[2] ?? ''

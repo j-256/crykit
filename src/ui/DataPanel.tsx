@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import type { CatalogEntityKind, Knowledge, LocalData, ModComposition, PersonalRef, PlaythroughId, GameSetupRevisionId, SlotDefinition, SlotId, SlotProvenance, SourceRef } from '../domain/types'
 import { DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
-import { modState, normalizeModName, recordedModNames, updateModSelections, type ModConfiguration, type ModSelection } from '../domain/mods'
+import { modState, updateModSelections, type ModConfiguration } from '../domain/mods'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
@@ -21,6 +21,7 @@ import { CorrectionsButton } from './Corrections'
 import { Sheet } from './Sheet'
 import { CreditsSection } from './CreditsSection'
 import { ModLayersEditor } from './ModLayersEditor'
+import { ModSelections } from './ModSelections'
 
 const IMPORT_WARNING_PRIMARY_COUNT = 8
 const IMPORT_WARNING_DOM_LIMIT = 100
@@ -66,6 +67,7 @@ export interface GameSetupDraft {
   readonly mode: Knowledge<string>
   readonly mods: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
+  readonly customMods?: readonly string[]
   readonly modComposition?: ModComposition
   readonly definitionOverrides?: readonly PersonalRef[]
   readonly ppLimit: Knowledge<number>
@@ -102,7 +104,6 @@ function ImportPanel({ preview, importError, busy, disabled, onPreview, onCommit
 
 const GAME_SETUP_ENTITY_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'status', 'command', 'recipe', 'location', 'other']
 const GAME_SETUP_ENTITY_KIND_LABELS: Readonly<Record<CatalogEntityKind, string>> = Object.freeze({ item: 'Item', class: 'Class', ability: 'Ability', passive: 'Passive', innate: 'Innate', monsterMagic: 'Monster Magic', monster: 'Monster', status: 'Status', command: 'Command', recipe: 'Recipe', location: 'Location', other: 'Other' })
-const SWITCH_MOD_NAMES = new Set(SWITCH_MOD_PACKS.flatMap(pack => pack.mods.map(normalizeModName)))
 
 type GameSetupFocus = 'setup' | 'passives' | 'slots'
 
@@ -135,7 +136,7 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
   const [platform, setPlatform] = useState(current?.platform.state === 'known' ? current.platform.value : '')
   const [version, setVersion] = useState(current?.gameVersion.state === 'known' ? current.gameVersion.value : current ? '' : DEFAULT_GAME_VERSION)
   const [mode, setMode] = useState(current?.mode.state === 'known' ? current.mode.value : '')
-  const [modConfiguration, setModConfiguration] = useState<ModConfiguration>({ mods: current?.mods ?? { state: 'unknown' }, disabledMods: current?.disabledMods })
+  const [modConfiguration, setModConfiguration] = useState<ModConfiguration>({ mods: current?.mods ?? { state: 'unknown' }, disabledMods: current?.disabledMods, customMods: current?.customMods })
   const [modComposition, setModComposition] = useState(current?.modComposition)
   const [definitionOverrides, setDefinitionOverrides] = useState(current?.definitionOverrides ?? [])
   const incompatibleOverrides = modComposition && !sameCorrectionValue(modComposition, current?.modComposition) ? definitionOverrides.filter(ref => {
@@ -215,7 +216,6 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
     setTouched(value => ({ ...value, platform: true, version: true }))
     onDirty(true)
   }
-  const otherMods = recordedModNames(modConfiguration).filter(name => !SWITCH_MOD_NAMES.has(normalizeModName(name)))
   const hasSuggestedSlots = slots.some(slot => slot.provenance === 'suggested')
   const ppValue = ppCostsNonNegative.state === 'known' ? String(ppCostsNonNegative.value) : ppCostsNonNegative.state
   const switchModStates = SWITCH_MOD_PACKS.flatMap(pack => pack.mods.map(name => modState(modConfiguration, name)))
@@ -234,8 +234,7 @@ function GameSetupForm({ localData, sourceGameSetupRevisionId, focus, saveError,
       <InlineNotice title="Starter list, not a complete catalog">The choices below cover the supplied Nintendo packs and selected Steam mods. Browse the source catalogs for anything else installed in your game.</InlineNotice>
       <div className="cluster"><a href={STEAM_WORKSHOP_URL} rel="noreferrer noopener" target="_blank">Steam Workshop</a><a href={NINTENDO_MOD_PACK_1_URL} rel="noreferrer noopener" target="_blank">Nintendo eShop: Mod Pack 1</a><a href={NINTENDO_MOD_PACK_2_URL} rel="noreferrer noopener" target="_blank">Nintendo eShop: Mod Pack 2</a></div>
       <div className="split"><p className="settings-section__intro">{unresolvedModCount ? `${unresolvedModCount} listed mods need review.` : 'Every listed mod has been reviewed.'}</p><Button onClick={useConfirmedModSetup} tone="secondary" type="button">Apply Nintendo eShop defaults</Button></div>
-      <div className="grid-2 game-setup-mod-packs">{SWITCH_MOD_PACKS.map(pack => { const packStates = pack.mods.map(name => modState(modConfiguration, name)); const packEnabled = packStates.filter(state => state === 'enabled').length; const packUnresolved = packStates.filter(state => state === 'unknown' || state === 'conflicting').length; return <details className="game-setup-mod-pack" key={pack.id}><summary><span><strong>{pack.name}</strong><small>{packEnabled} of {pack.mods.length} enabled · {packUnresolved} need review</small></span><Badge tone={packUnresolved ? 'warning' : 'positive'}>{packUnresolved ? 'Review' : 'Done'}</Badge></summary><div className="game-setup-mod-pack__body">{pack.mods.map(name => { const state = modState(modConfiguration, name); return <label className="game-setup-mod-choice" key={name}><span>{name}</span><select aria-label={name} data-mod-state={state} onChange={event => { setModConfiguration(value => updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }])); onDirty(true) }} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label> })}</div></details> })}</div>
-      {otherMods.length > 0 && <details><summary>Other imported mod names (preserved)</summary><p className="settings-section__intro">These names are outside the supplied starter list. Their recorded states are retained when you change listed mods.</p><dl className="definition-list">{otherMods.map(name => <DefinitionRow key={name} term={name}>{modState(modConfiguration, name)}</DefinitionRow>)}</dl></details>}
+      <ModSelections value={modConfiguration} onChange={value => { setModConfiguration(value); onDirty(true) }}/>
     </section>
     <ModLayersEditor composition={modComposition} onChange={value => { setModComposition(value); onDirty(true) }}/>
     {incompatibleOverrides.length > 0 && <InlineNotice title="Review personal override pins" tone="warning"><p>These personal revisions pin an earlier catalog: {incompatibleOverrides.map(ref => localData.personalDefinitions[ref.definitionId]?.name ?? 'Unavailable definition').join(', ')}. Choose the layered definitions for this new Game Setup to continue. Personal revisions and earlier Game Setups remain available.</p><Button onClick={() => { const ids = new Set(incompatibleOverrides.map(ref => ref.definitionId)); setDefinitionOverrides(values => values.filter(ref => !ids.has(ref.definitionId))); onDirty(true) }} tone="secondary" type="button">Use layer definitions for these records</Button></InlineNotice>}

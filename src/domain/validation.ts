@@ -1,3 +1,4 @@
+import { sameBuildBehavior } from './build-behavior'
 import { DomainError, entityDefinitionKey, requirePlaythrough } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
 import { effectiveScenarioAssignments } from './scenarios'
@@ -220,12 +221,12 @@ function collectSelections(
         buildRevisionId: revision.id,
       })
     }
-    if (revision.gameSetupRevisionId !== scenario.gameSetupRevisionId) {
+    if (!sameBuildBehavior(localData.gameSetups[revision.gameSetupRevisionId], localData.gameSetups[scenario.gameSetupRevisionId])) {
       issue(accumulator, {
         code: 'GAME_SETUP_REVISION_MISMATCH',
         dimension: 'gameSetupCertainty',
         status: 'invalid',
-        message: 'Build and scenario use different Game Setup revisions',
+        message: 'Build behavior differs from team behavior',
         characterId,
         buildRevisionId: revision.id,
       })
@@ -545,7 +546,7 @@ function classPermissionBase(
   const permissions = new Set<string>()
   let unresolved = false
   if (
-    revision.gameSetupRevisionId !== scenario.gameSetupRevisionId ||
+    !sameBuildBehavior(localData.gameSetups[revision.gameSetupRevisionId], localData.gameSetups[scenario.gameSetupRevisionId]) ||
     !catalogLocksEqual(revision.catalogLock, scenario.catalogLock) ||
     !catalogLocksEqual(scenario.catalogLock, gameSetup.catalogLock)
   ) {
@@ -724,7 +725,7 @@ function baseEligibility(
   const build = localData.builds[entry.buildRevision.buildId]
   if (
     !build ||
-    entry.buildRevision.gameSetupRevisionId !== scenario.gameSetupRevisionId ||
+    !sameBuildBehavior(localData.gameSetups[entry.buildRevision.gameSetupRevisionId], gameSetup) ||
     !catalogLocksEqual(entry.buildRevision.catalogLock, scenario.catalogLock) ||
     !catalogLocksEqual(scenario.catalogLock, gameSetup.catalogLock) ||
     !refMatchesCatalogLock(localData, entry.ref, entry.buildRevision.catalogLock)
