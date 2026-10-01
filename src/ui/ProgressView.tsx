@@ -5,7 +5,7 @@ import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, requirePlaythrough, type ClassSealProgressSelection } from '../domain'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId, ProgressStage } from '../domain/types'
-import { Badge, Button, Field, InlineNotice, ScreenHeader } from './components'
+import { Badge, Button, Field, InlineNotice } from './components'
 import { Icon } from './icons'
 import { formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { Sheet } from './Sheet'
@@ -14,9 +14,8 @@ import { useNavigation, type ProgressPageRoute } from './navigation'
 import { ReferenceLink } from './ReferenceLink'
 import { ClassWorldArtwork } from './WikiSprite'
 import { TravelUnlocksView, travelUnlockEntries } from './TravelUnlocksView'
-import { ProgressBoards } from './ProgressBoards'
+import { ProgressPage } from './ProgressPage'
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
-import './quintar-breeding.css'
 
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
 
@@ -249,9 +248,7 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
       setSaveError(reason instanceof Error ? reason.message : 'The selected class progress could not be saved.')
     } finally { setBulkSaving(false) }
   }
-  return <>
-    <ScreenHeader actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} description="Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough." eyebrow="Class mastery seals" title="Progress"/>
-    <ProgressBoards/>
+  return <ProgressPage actions={selecting ? undefined : <Button className="class-seal-multi-edit" disabled={queuedAdvanceCount > 0} onClick={() => { setSelecting(true); setSaveError(undefined) }} tone="secondary">Edit multiple</Button>} count={counts.sealAcquired} notices={<>
     {missingRecord && <InlineNotice title="Progress record unavailable" tone="warning">The requested progress record is not part of the active playthrough. It may have been removed or the link may belong to another playthrough. <Button onClick={() => navigate({ page: 'progress', view: 'list' })} tone="quiet">Return to progress</Button></InlineNotice>}
     {saveError && <InlineNotice title="Progress not saved" tone="danger">{saveError}</InlineNotice>}
     {selecting && <section aria-busy={bulkSaving} aria-label="Bulk edit class mastery" className="class-seal-bulk" data-saving={bulkSaving || undefined}>
@@ -259,13 +256,10 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
       <div className="class-seal-bulk__selection-actions"><Button disabled={bulkSaving || selectedKeys.size === entries.length} onClick={() => setSelectedKeys(new Set(entries.map(entry => entry.key)))} tone="secondary">Select all</Button><Button disabled={bulkSaving || selectedKeys.size === 0} onClick={() => setSelectedKeys(new Set())} tone="quiet">Clear</Button><Button disabled={bulkSaving} onClick={cancelSelection} tone="quiet">Done</Button></div>
       <div aria-label="Set selected classes to" className="class-seal-bulk__states" role="group"><span>Set selected to</span>{CLASS_SEAL_STAGES.map(stage => <Button className="class-seal-bulk__state" data-stage={stage} disabled={bulkSaving || selectedKeys.size === 0} key={stage} onClick={() => void applyBulkStage(stage)} tone={stage === 'sealAcquired' ? 'primary' : 'secondary'}>{STAGE_DETAILS[stage].label}</Button>)}</div>
     </section>}
-    <section aria-label="Class mastery seal totals" className="class-seal-summary">
-      <div className="class-seal-summary__primary"><span className="class-seal-summary__icon"><Icon name="crystal"/></span><strong>{counts.sealAcquired}</strong><span>Seals acquired</span><small>of {entries.length} vanilla classes</small></div>
-      <dl className="class-seal-summary__stages">{CLASS_SEAL_STAGES.filter(stage => stage !== 'sealAcquired').map(stage => <div data-stage={stage} key={stage}><dt>{STAGE_DETAILS[stage].counterLabel}</dt><dd>{counts[stage]}</dd></div>)}</dl>
-    </section>
+    </>} summaryDetails={<dl className="class-seal-summary__stages">{CLASS_SEAL_STAGES.filter(stage => stage !== 'sealAcquired').map(stage => <div data-stage={stage} key={stage}><dt>{STAGE_DETAILS[stage].counterLabel}</dt><dd>{counts[stage]}</dd></div>)}</dl>} total={entries.length} variant="seals">
     {displayedEntries.length ? <section aria-label="Vanilla class mastery board" className="class-seal-board">{displayedEntries.map(entry => <ClassSealTile entry={entry} key={entry.key} onAdvance={advance} onEdit={edit} onToggleSelection={toggleSelection} pending={queuedAdvances.has(entry.key)} selected={selectedKeys.has(entry.key)} selecting={selecting}/>)}</section> : <InlineNotice title="Vanilla class references unavailable" tone="warning">The bundled vanilla class and seal references are unavailable. Restore the bundled catalog before recording this checklist.</InlineNotice>}
     <section className="progress-other"><div className="split"><div><h2>Other class records</h2><p>Personal classes and imported records outside the vanilla seal board remain separate.</p></div><Button icon="plus" onClick={() => navigate({ page: 'progress', view: 'new' })} tone="secondary">Add other class</Button></div>{otherRecords.length ? <div className="progress-other__rows">{otherRecords.map(record => <article className="progress-other__row" key={record.id}><div><strong>{record.displayName}</strong><small>{record.observedAt ? `Observed ${formatRelativeDate(record.observedAt)}` : 'Observation date unknown'}</small></div><Badge tone="info">{STAGE_DETAILS[classSealStage(record)].label}</Badge><Button onClick={() => navigate({ page: 'progress', view: 'edit', recordId: record.id })} tone="quiet">Details</Button></article>)}</div> : <p className="progress-other__empty">No additional class records.</p>}</section>
     <Sheet description="Record a class that is not part of the vanilla mastery-seal board." onClose={() => navigation.close()} open={adding} title="Add other class progress"><ProgressForm onCancel={() => navigation.close()} onSubmit={add}/></Sheet>
     <Sheet description="Update secondary details without changing the linked class identity." onClose={() => navigation.close()} open={Boolean(editing)} title="Edit progress record">{editing && <ProgressForm initial={editing} key={editing.id} onCancel={() => navigation.close()} onSubmit={update}/>}</Sheet>
-  </>
+  </ProgressPage>
 }

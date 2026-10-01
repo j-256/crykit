@@ -4,11 +4,11 @@ import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlocks'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId } from '../domain/types'
-import { Button, Field, InlineNotice, ScreenHeader } from './components'
+import { Button, Field, InlineNotice } from './components'
 import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
 import { resolveEntity } from './model'
 import { useNavigation, type AppRoute } from './navigation'
-import { ProgressBoards } from './ProgressBoards'
+import { ProgressPage } from './ProgressPage'
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 
 const ACQUISITION_FILTER = Object.freeze({ all: 'all', notAcquired: 'notAcquired', acquired: 'acquired' } as const)
@@ -84,10 +84,7 @@ export function TravelUnlocksView({ localData, catalogs, saveBlocked, focusedRec
       navigation.navigate(route)
     }}>Location & requirements</a>
   }
-  return <>
-    <ScreenHeader description="Track acquired mount instruments, reusable shrine stones, and capability items for this Playthrough." eyebrow="Travel & unlocks" title="Progress"/>
-    <ProgressBoards/>
-    <section aria-label="Travel and unlock totals" className="unlock-summary"><strong>{acquiredCount} / {entries.length}</strong><span>Acquired</span>{unconfirmedCount > 0 && <small>{unconfirmedCount} imported observations need confirmation</small>}</section>
+  return <ProgressPage count={acquiredCount} summaryNote={unconfirmedCount > 0 ? `${unconfirmedCount} imported observations need confirmation` : undefined} total={entries.length} variant="unlocks">
     <div className="unlock-toolbar"><Field label="Find an unlock"><input onChange={event => setQuery(event.target.value)} placeholder="Instrument, stone, or capability item" type="search" value={query}/></Field><Field label="Acquisition filter"><select onChange={event => setFilter(event.target.value as AcquisitionFilter)} value={filter}><option value={ACQUISITION_FILTER.all}>All items</option><option value={ACQUISITION_FILTER.notAcquired}>Not acquired / needs confirmation</option><option value={ACQUISITION_FILTER.acquired}>Acquired</option></select></Field></div>
     {error && <InlineNotice title="Acquisition not saved" tone="danger">{error}</InlineNotice>}
     {!entries.length && <InlineNotice title="Travel references unavailable" tone="warning">Restore the bundled catalog to record this checklist.</InlineNotice>}
@@ -113,5 +110,5 @@ export function TravelUnlocksView({ localData, catalogs, saveBlocked, focusedRec
       </section>
     })}
     <p className="unlock-footnote">Unchecked items are not acquired on this checklist. Mark items from your game; inventory and character learning are tracked separately. Location links show community sources with their platform and mod uncertainty.</p>
-  </>
+  </ProgressPage>
 }
