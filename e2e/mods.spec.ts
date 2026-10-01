@@ -10,6 +10,7 @@ import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain
 import { selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
+const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
 const SHIELD: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('mod-pack-2:item:doge-shield') }
 const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: asId<EntityId>('equipment-expansion:item:backbreaker') }
 
@@ -37,7 +38,7 @@ async function importBackup(page: Page, bytes: Uint8Array) {
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
-  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible({ timeout: NATIVE_BACKUP_PREVIEW_TIMEOUT_MS })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
 }
