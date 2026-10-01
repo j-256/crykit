@@ -12,6 +12,8 @@ import { createSearchScheduler } from './mod-inspector/search-scheduler'
 import { isExpanded, prepareVisibleTree, revealPath, setExpansion, type ExpansionRule, type VisibleTreeRow } from './mod-inspector/tree'
 import './mod-inspector/inspector.css'
 
+export type SaveModToLibrary = (text: string, filename: string) => Promise<{ readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }>
+
 const PAGE_SIZE = 80
 const TREE_ROW_PAGE_SIZE = 240
 const INITIAL_EXPANSION: readonly ExpansionRule[] = [{ path: [], open: true }]
@@ -83,7 +85,9 @@ const EnumDictionary = memo(function EnumDictionary() {
   })}</div>{!hasMatches && <p role="status">No enum names or values match this search. Try a shorter name, numeric value, or enum family.</p>}</section>
 })
 
-export function ModInspectorView({ onDraftChange }: { readonly onDraftChange?: DraftChangeHandler } = {}) {
+export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftId, embedded = false }: { readonly onDraftChange?: DraftChangeHandler; readonly onSaveToLibrary?: SaveModToLibrary; readonly initialDraftId?: string; readonly embedded?: boolean } = {}) {
+  const [libraryResult, setLibraryResult] = useState<Awaited<ReturnType<SaveModToLibrary>>>()
+  const [libraryError, setLibraryError] = useState<string>()
   const [drafts, setDrafts] = useState<readonly InspectorDraftSummary[]>([])
   const draftLabels = useMemo(() => {
     const counts = new Map<string, number>()
@@ -233,13 +237,24 @@ export function ModInspectorView({ onDraftChange }: { readonly onDraftChange?: D
     onDraftChange?.(editorDirty || saveState !== 'saved', registeredActions)
   }, [editorDirty, saveState, onDraftChange, registeredActions])
   useEffect(() => () => onDraftChange?.(false), [onDraftChange])
+  useEffect(() => { if (initialDraftId) void openSavedDraft(initialDraftId) }, [initialDraftId])
+  async function saveToLibrary() {
+    const row = activeRef.current
+    if (!row || !onSaveToLibrary || !beginOperation('Saving mod revision to CryKit...')) return
+    setLibraryError(undefined); setLibraryResult(undefined)
+    try {
+      const result = await onSaveToLibrary(textRef.current, row.filename)
+      if (mounted.current) setLibraryResult(result)
+    } catch (reason) { if (mounted.current) setLibraryError(message(reason)) }
+    finally { endOperation() }
+  }
   function beginOperation(label: string, allowUnsaved = false) {
     if (opening.current || saving.current || dirtyRef.current || (!allowUnsaved && (saveFailed.current || (activeRef.current && textRef.current !== activeRef.current.draftText)))) return false
     opening.current = true; setBusyLabel(label); setBusy(true)
     return true
   }
   function endOperation() { opening.current = false; if (mounted.current) setBusy(false) }
-  function edit(value: string) { if (opening.current) return; setEditor(value); setEditorDirty(true); dirtyRef.current = true; setEditError(undefined); setReview(undefined) }
+  function edit(value: string) { if (opening.current) return; setLibraryResult(undefined); setLibraryError(undefined); setEditor(value); setEditorDirty(true); dirtyRef.current = true; setEditError(undefined); setReview(undefined) }
   function select(nextPath: JsonPath) {
     if (opening.current) return
     if (dirtyRef.current) { setEditError('Apply or discard the pending JSON edit before selecting another field.'); return }
@@ -249,6 +264,7 @@ export function ModInspectorView({ onDraftChange }: { readonly onDraftChange?: D
     setExpanded(previous => revealPath(previous, nextPath))
   }
   function open(row: InspectorDraft) {
+    setLibraryResult(undefined); setLibraryError(undefined)
     activeRef.current = row; textRef.current = row.draftText; saveFailed.current = false
     setActive(row); setText(row.draftText); setPath([]); setEditor(''); setEditorLoaded(false); setEditorDirty(false); dirtyRef.current = false; setReview(undefined); setError(undefined); setEditError(undefined); setSaveState('saved'); setExpanded(INITIAL_EXPANSION); setTreePages(new Map()); setTreeRowLimit(TREE_ROW_PAGE_SIZE); setQuery(''); setTab('document'); setRemoveConfirmation(false)
   }
@@ -401,18 +417,20 @@ export function ModInspectorView({ onDraftChange }: { readonly onDraftChange?: D
   }
   const blockedSwitch = busy || removing || reviewBusy || editorDirty || saveState !== 'saved'
   return <div className="mod-inspector" ref={viewElement}>
-    <ScreenHeader eyebrow="Mod JSON tool" title="Mod Inspector" description="Read any Crystal Edit mod JSON, resolve IDs, and follow record relationships. Edit and export a copy when needed."/>
+    {!embedded && <ScreenHeader eyebrow="Mod JSON tool" title="Mod Inspector" description="Read any Crystal Edit mod JSON, resolve IDs, and follow record relationships. Edit and export a copy when needed."/>}
     <div className="inspector-tabs" role="tablist" aria-label="Inspector views" ref={tabList} onKeyDown={navigateTabs}>{INSPECTOR_TABS.map(item => <button key={item.id} type="button" role="tab" id={`${tabsId}-${item.id}-tab`} aria-controls={`${tabsId}-${item.id}-panel`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} onClick={() => setTab(item.id)}>{item.label}</button>)}</div>
     {busy && <p role="status">{busyLabel}</p>}
     {error && <InlineNotice title={saveState === 'failed' ? 'Draft is not saved' : 'Inspector storage error'} tone="danger"><p>{error}</p>{saveState === 'failed' && <><p>Your unsaved draft remains visible. Reopen saved version discards this unsaved draft. Download a recovery copy first if you want to keep it. For a revision conflict, reopen the saved version before applying your changes again.</p><div className="inspector-actions"><Button tone="secondary" disabled={busy || removing} onClick={() => { if (opening.current) return; saveFailed.current = false; setError(undefined); void persist() }}>Retry save</Button><Button tone="secondary" onClick={() => download(active?.filename ?? 'mod.json', text)}>Download unsaved draft for recovery</Button><Button tone="secondary" disabled={busy || removing || editorDirty} onClick={() => void reopenSavedVersion()}>Reopen saved version</Button></div></>}</InlineNotice>}
     <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-document-panel`} aria-labelledby={`${tabsId}-document-tab`} tabIndex={0} hidden={tab !== 'document'}>
     <div className="inspector-toolbar"><Field label="Files opened in this tool"><select value={active?.id ?? ''} disabled={blockedSwitch} onChange={event => { if (event.target.value) void openSavedDraft(event.target.value) }}><option value="">Choose a recent file</option>{drafts.map(row => <option key={row.id} value={row.id}>{draftLabels.get(row.id)}</option>)}</select></Field><Button disabled={blockedSwitch} onClick={() => fileInput.current?.click()}>Open JSON file</Button><input ref={fileInput} type="file" accept=".json,application/json" className="inspector-file-input" aria-label="Open mod JSON file" disabled={blockedSwitch} onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value = '' }}/>{active && <span role="status" className="inspector-save-state">{editorDirty ? 'Pending JSON edit' : saveState === 'saving' ? 'Saving draft...' : saveState === 'failed' ? 'Unsaved draft' : 'Saved in this browser'}</span>}</div>
-    <p className="inspector-local-note">Files opened here are separate from mods added to your planner. Originals and edited copies stay in this browser; download them to keep a backup.</p>
+    <p className="inspector-local-note">Draft edits stay in this workspace. Save to CryKit adds a version to the Mod library for use in Game Setups. Download the original and working copy to keep backups of your drafts.</p>
     {!active && <div className="inspector-panel inspector-empty"><h2>Open a mod to explore its JSON</h2><p>Choose a recent file or open a JSON file to see its records and decoded IDs.</p></div>}
     {active && fileInfo && <section className="inspector-file-summary" aria-label="Current file"><div className="inspector-file-heading"><h2>{fileInfo.title ?? active.filename}</h2><span>{fileInfo.edited ? 'Edited copy' : 'Original file'}</span><Button tone="quiet" disabled={blockedSwitch} onClick={() => setRemoveConfirmation(true)}>Remove from recent files</Button></div><p className="inspector-file-facts"><span>{fileInfo.version ? `Version ${fileInfo.version}` : fileInfo.versionState === 'invalid' ? 'Version unavailable' : 'Version not specified'}</span><span>File: {active.filename}</span></p>{fileInfo.projectId && <details><summary>Project ID</summary><code>{fileInfo.projectId}</code></details>}</section>}
     {removeConfirmation && active && <InlineNotice title="Remove this browser copy?" tone="warning"><p>Remove the saved original and draft for {active.filename} from this browser. Download copies first if you want to keep them.</p><div className="inspector-actions"><Button tone="danger" disabled={blockedSwitch} onClick={() => void removeDraft()}>{removing ? 'Removing...' : 'Remove original and draft'}</Button><Button tone="secondary" disabled={removing} onClick={() => setRemoveConfirmation(false)}>Keep saved draft</Button></div></InlineNotice>}
     {parsed && resolver && active && <>
-      <div className="inspector-actions inspector-document-actions"><Button tone="secondary" disabled={editorDirty} onClick={() => select([])}>Edit whole document JSON</Button><Button tone="secondary" onClick={() => download(`original-${active.filename}`, active.originalText)}>Download original</Button><Button disabled={editorDirty || reviewBusy} onClick={() => void prepareReview()}>{reviewBusy ? 'Preparing export review...' : 'Review export'}</Button>{editorDirty && <small>Apply or discard the pending edit before export review.</small>}</div>
+      <div className="inspector-actions inspector-document-actions">{onSaveToLibrary && <Button disabled={blockedSwitch} onClick={() => void saveToLibrary()}>Save to CryKit</Button>}<Button tone="secondary" disabled={editorDirty} onClick={() => select([])}>Edit whole document JSON</Button><Button tone="secondary" onClick={() => download(`original-${active.filename}`, active.originalText)}>Download original</Button><Button disabled={editorDirty || reviewBusy} onClick={() => void prepareReview()}>{reviewBusy ? 'Preparing export review...' : 'Review export'}</Button>{editorDirty && <small>Apply or discard the pending edit before export review.</small>}</div>
+      {libraryError && <InlineNotice title="Mod not saved to CryKit" tone="danger">{libraryError} Your editor draft remains available. Correct the problem or retry Save to CryKit.</InlineNotice>}
+      {libraryResult && <InlineNotice title={libraryResult.unchanged ? "This mod revision is already saved" : "Mod revision saved to CryKit"}><p>{libraryResult.title}. Choose this version in a Game Setup to use it for planning.</p>{libraryResult.warnings.length > 0 && <details><summary>Import coverage</summary><ul>{libraryResult.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}
       <details className="inspector-reference"><summary>Label reference</summary><p className="inspector-source">{resolver.sourceLabel}</p><p>Names and links use CryKit's bundled reference data. Reference updates do not alter your JSON.</p>{active.referenceId !== resolver.referenceId && <p>This browser copy was first opened with a different version of CryKit's reference data. This does not indicate that the mod is outdated.</p>}</details>
       <details className="inspector-format" key={resolver.editorVersion.state} open={resolver.editorVersion.state !== 'matched' ? true : undefined}><summary>Editor format: {resolver.editorVersion.label}</summary><p>{resolver.editorVersion.detail}</p></details>
       <div className="inspector-workspace"><section className="inspector-panel inspector-tree-panel"><h2>JSON explorer</h2><div className="inspector-branch-actions"><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, true, true))}>Expand branch</Button><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, false, true))}>Collapse branch</Button><small>Branch: <code>{formatJsonPath(branchPath)}</code>. Alt-click an expander to expand or collapse its entire branch.</small></div><Field label="Search keys, values, and decoded names"><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSearchLimit(PAGE_SIZE) }} placeholder="Find a field or name"/></Field>{query.trim() ? <div className="inspector-search-results"><p role="status">{searching ? `Searching document... ${scannedNodes.toLocaleString()} values inspected` : `${searchStopped ? 'Search stopped. ' : ''}${matches.length}${searchComplete ? '' : '+'} matches`}</p>{searching && <Button tone="quiet" onClick={() => searchCancellation.current?.()}>Stop search</Button>}{!searching && matches.length === 0 && searchComplete && <p>No document fields match this search.</p>}{matches.slice(0, searchLimit).map(node => <button className="inspector-search-result" type="button" key={pathKey(node.path)} onClick={() => select(node.path)}><code>{formatJsonPath(node.path)}</code><span>{resolver.annotate(node.path)?.label ?? (node.kind === 'object' || node.kind === 'array' ? node.kind : node.raw)}</span></button>)}{!searchComplete && !searching && <Button tone="quiet" onClick={() => setSearchLimit(value => value + PAGE_SIZE)}>Show more matches</Button>}</div> : <ul className="inspector-tree">{visibleTree?.rows.map(row => <JsonTreeRow key={`${row.kind}:${pathKey(row.node.path)}`} row={row} resolver={resolver} selected={pathKey(path)} onSelect={select} onExpand={(nextPath, recursive) => setExpanded(previous => setExpansion(previous, nextPath, !isExpanded(previous, nextPath), recursive))} onMore={nextPath => setTreePages(previous => { const next = new Map(previous); next.set(pathKey(nextPath), (next.get(pathKey(nextPath)) ?? PAGE_SIZE) + PAGE_SIZE); return next })}/>)}{visibleTree?.hasMore && <li><Button tone="secondary" onClick={() => setTreeRowLimit(value => value + TREE_ROW_PAGE_SIZE)}>Show more visible rows</Button></li>}</ul>}</section>

@@ -1,13 +1,13 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { requirePlaythrough } from '../domain'
-import type { LocalData, PlaythroughId, GameSetupRevisionId, ScenarioId, ScenarioKind } from '../domain/types'
+import type { LocalData, PlaythroughId, ScenarioId, ScenarioKind } from '../domain/types'
 import { Button, InlineNotice } from './components'
 import { Dropdown } from './Dropdown'
 import { Icon, type IconName } from './icons'
-import { activeGameSetup, formatAppError, knowledgeLabel } from './model'
+import { formatAppError } from './model'
 import { useNavigation } from './navigation'
 
-const SCENARIO_LABELS: Record<ScenarioKind, string> = { recordedCurrent: 'Recorded current', draft: 'Draft team', hypothetical: 'Hypothetical' }
+const SCENARIO_LABELS: Record<ScenarioKind, string> = { recordedCurrent: 'Recorded current', draft: 'Draft party', hypothetical: 'Hypothetical' }
 const NO_SCENARIO = ''
 
 interface ContextOption {
@@ -71,12 +71,12 @@ function ContextSelector({ label, icon, value, selectedId, options, hint, empty,
   </div>
 }
 
-export function ContextSelectors({ localData, busy, onSelectPlaythrough, onSelectGameSetup, onSelectScenario }: { localData: LocalData; busy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectGameSetup: (id: GameSetupRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void> }) {
+export function ContextSelectors({ localData, busy, onSelectPlaythrough, onSelectScenario }: { localData: LocalData; busy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void> }) {
   const navigation = useNavigation()
   const [switching, setSwitching] = useState(false)
   const switchingRef = useRef(false)
   const playthrough = requirePlaythrough(localData)
-  const gameSetup = playthrough.currentGameSetupRevisionId ? localData.gameSetups[playthrough.currentGameSetupRevisionId] : activeGameSetup(localData)
+  const gameSetup = playthrough.currentGameSetupRevisionId ? localData.gameSetups[playthrough.currentGameSetupRevisionId] : undefined
   const scenario = playthrough.activeScenarioId ? playthrough.scenarios[playthrough.activeScenarioId] : undefined
   const change = async (action: () => Promise<void>) => {
     if (switchingRef.current) return
@@ -95,8 +95,7 @@ export function ContextSelectors({ localData, busy, onSelectPlaythrough, onSelec
     }
   }
   return <div className={`context-bar__group${showScenario ? ' context-bar__group--scenario' : ''}`}>
-    <ContextSelector actions={[{ label: 'Manage Playthroughs', run: () => navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }) }]} busy={disabled} empty="No Playthroughs." hint="A Playthrough is one save lineage with its own characters, inventory, progress, and teams." icon="archive" label="Playthrough" onSelect={(id) => change(() => onSelectPlaythrough(id as PlaythroughId))} options={Object.values(localData.playthroughs).sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id)).map((entry) => ({ id: entry.id, label: entry.label, detail: entry.id === playthrough.id ? 'Active Playthrough' : 'Saved in this browser' }))} selectedId={playthrough.id} value={playthrough.label}/>
-    <ContextSelector actions={[{ label: 'Configure Game Setup', run: () => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: {} }) }]} busy={disabled} empty="No saved Game Setups. New Builds can start with suggested planning slots." hint="This Playthrough's Game Setup controls applicable Builds. Builds for other setups remain visible at the bottom of the library." icon="shield" label="Game Setup" onSelect={(id) => change(() => onSelectGameSetup(id as GameSetupRevisionId))} options={Object.values(localData.gameSetups).sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.revision - left.revision || left.label.localeCompare(right.label) || left.id.localeCompare(right.id)).map((entry) => ({ id: entry.id, label: entry.label, detail: `Revision ${entry.revision} · Platform: ${knowledgeLabel(entry.platform)} · Game version: ${knowledgeLabel(entry.gameVersion)}` }))} selectedId={gameSetup?.id} value={gameSetup ? `${gameSetup.label} · revision ${gameSetup.revision}` : 'Not configured'}/>
-    {showScenario && <ContextSelector actions={[{ label: 'Manage scenarios', run: () => navigation.navigate({ page: { page: 'builds', view: 'teams' }, overlays: [], query: {} }) }, { label: 'New scenario', disabled: !gameSetup, run: () => navigation.navigate({ page: { page: 'builds', view: 'scenario-new' }, overlays: [], query: {} }) }]} busy={disabled} empty="No scenarios yet." hint="Each team pins an exact Game Setup revision inside this Playthrough." icon="team" label="Scenario" onSelect={(id) => change(() => selectScenario(id))} options={[{ id: NO_SCENARIO, label: 'None selected', detail: 'Leave all saved teams available' }, ...Object.values(playthrough.scenarios).sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id)).map((entry) => { const pinnedGameSetup = localData.gameSetups[entry.gameSetupRevisionId]; return { id: entry.id, label: entry.label, detail: `${SCENARIO_LABELS[entry.kind]} · ${pinnedGameSetup ? `${pinnedGameSetup.label} · revision ${pinnedGameSetup.revision}` : 'Game Setup unavailable'}${entry.gameSetupRevisionId !== gameSetup?.id ? ' · Different from current Game Setup revision' : ''}` } })]} selectedId={playthrough.activeScenarioId ?? NO_SCENARIO} value={scenario?.label ?? 'None selected'}/>}
+    <ContextSelector actions={[{ label: 'Manage Playthrough', run: () => navigation.navigate({ page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {} }) }]} busy={disabled} empty="No Playthroughs." hint="Select the game save you are tracking. Builds keep their own Game Setup; this choice supplies tracking and readiness data." icon="archive" label="Playthrough" onSelect={(id) => change(() => onSelectPlaythrough(id as PlaythroughId))} options={Object.values(localData.playthroughs).sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id)).map((entry) => ({ id: entry.id, label: entry.label, detail: entry.id === playthrough.id ? 'Active Playthrough' : 'Saved in this browser' }))} selectedId={playthrough.id} value={playthrough.label}/>
+    {showScenario && <ContextSelector actions={[{ label: 'Manage party plans', run: () => navigation.navigate({ page: { page: 'builds', view: 'teams' }, overlays: [], query: {} }) }, { label: 'New party plan', disabled: !gameSetup, run: () => navigation.navigate({ page: { page: 'builds', view: 'scenario-new' }, overlays: [], query: {} }) }]} busy={disabled} empty="No party plans yet." hint="Choose a tracked party for inventory and readiness checks." icon="team" label="Party plan" onSelect={(id) => change(() => selectScenario(id))} options={[{ id: NO_SCENARIO, label: 'None selected', detail: 'Leave all saved party plans available' }, ...Object.values(playthrough.scenarios).sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id)).map((entry) => { const pinnedGameSetup = localData.gameSetups[entry.gameSetupRevisionId]; return { id: entry.id, label: entry.label, detail: `${SCENARIO_LABELS[entry.kind]} · ${pinnedGameSetup ? `${pinnedGameSetup.label} · revision ${pinnedGameSetup.revision}` : 'Game Setup unavailable'}${entry.gameSetupRevisionId !== gameSetup?.id ? ' · Different from current Game Setup revision' : ''}` } })]} selectedId={playthrough.activeScenarioId ?? NO_SCENARIO} value={scenario?.label ?? 'None selected'}/>}
   </div>
 }

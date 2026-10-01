@@ -15,11 +15,12 @@ import type {
   PersonalDefinitionId,
   ProgressRecordId,
   ScenarioId,
+  TeamId,
 } from '../domain/types'
 
-export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference' | 'mod-inspector'
+export type Destination = 'inventory' | 'characters' | 'builds' | 'teams' | 'progress' | 'reference' | 'mods'
 export type CharacterTab = 'current' | 'history'
-export type SettingsSection = 'data' | 'game-setup' | 'history' | 'storage' | 'credits'
+export type SettingsSection = 'playthrough' | 'data' | 'game-setup' | 'history' | 'storage' | 'credits'
 
 export type InventoryPageRoute =
   | { readonly page: 'inventory'; readonly view: 'list' }
@@ -55,6 +56,11 @@ export type BuildsPageRoute =
   | { readonly page: 'builds'; readonly view: 'compare' }
   | { readonly page: 'builds'; readonly view: 'compare-pair'; readonly leftRevisionId: BuildRevisionId; readonly rightRevisionId: BuildRevisionId }
 
+export type TeamsPageRoute =
+  | { readonly page: 'teams'; readonly view: 'list' }
+  | { readonly page: 'teams'; readonly view: 'new' }
+  | { readonly page: 'teams'; readonly view: 'team' | 'adopt'; readonly teamId: TeamId }
+
 export type ProgressPageRoute =
   | { readonly page: 'progress'; readonly view: 'list' }
   | { readonly page: 'progress'; readonly view: 'unlocks' }
@@ -84,7 +90,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string } | { readonly page: 'mod-inspector' }
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string } | { readonly page: 'mods'; readonly view: 'library' | 'editor' }
 
 export interface SearchOverlay {
   readonly kind: 'search'
@@ -215,7 +221,7 @@ function unresolved(requestedPath: string, recovery: Destination, reason: Unreso
 
 function recoveryFor(segments: readonly string[]): Destination {
   const root = segments[0]
-  return root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' || root === 'mod-inspector' ? root : 'builds'
+  return root === 'teams' || root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' || root === 'mods' ? root : 'builds'
 }
 
 function overlayStartsAt(segments: readonly string[], index: number): boolean {
@@ -225,7 +231,11 @@ function overlayStartsAt(segments: readonly string[], index: number): boolean {
 
 function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number; readonly legacy?: true } {
   const bad = (recovery = recoveryFor(segments), reason?: UnresolvedPageRoute['reason']) => ({ page: unresolved(requestedPath, recovery, reason), consumed: segments.length })
-  if (segments[0] === 'mod-inspector') return overlayStartsAt(segments, 1) ? { page: { page: 'mod-inspector' }, consumed: 1 } : bad('mod-inspector')
+  if (segments[0] === 'mods') {
+    if (overlayStartsAt(segments, 1)) return { page: { page: 'mods', view: 'library' }, consumed: 1 }
+    if (segments[1] === 'editor' && overlayStartsAt(segments, 2)) return { page: { page: 'mods', view: 'editor' }, consumed: 2 }
+    return bad('mods')
+  }
   if (segments[0] === 'inventory') {
     if (overlayStartsAt(segments, 1)) return { page: { page: 'inventory', view: 'list' }, consumed: 1 }
     if (segments[1] === 'new') return { page: { page: 'inventory', view: 'new' }, consumed: 2 }
@@ -326,9 +336,17 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
     const parsed = parseEntityRefPath(segments, 1)
     return parsed ? { page: { page: 'reference', view: 'detail', ref: parsed.ref }, consumed: 1 + parsed.consumed } : bad('reference', 'malformed-entity-reference')
   }
+  if (segments[0] === 'teams') {
+    if (overlayStartsAt(segments, 1)) return { page: { page: 'teams', view: 'list' }, consumed: 1 }
+    if (segments[1] === 'new' && overlayStartsAt(segments, 2)) return { page: { page: 'teams', view: 'new' }, consumed: 2 }
+    const teamId = decodeSegment(segments[1] ?? '') as TeamId | undefined
+    if (!teamId) return bad('teams', 'malformed-identifier')
+    if (segments[2] === 'adopt' && overlayStartsAt(segments, 3)) return { page: { page: 'teams', view: 'adopt', teamId }, consumed: 3 }
+    return overlayStartsAt(segments, 2) ? { page: { page: 'teams', view: 'team', teamId }, consumed: 2 } : bad('teams')
+  }
   if (segments[0] === 'settings') {
     const section = segments[1]
-    if (section !== 'data' && section !== 'game-setup' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
+    if (section !== 'playthrough' && section !== 'data' && section !== 'game-setup' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
     if (section === 'data' && segments[2] === 'import') {
       const previewId = decodeSegment(segments[3] ?? '')
       return previewId ? { page: { page: 'settings', section, previewId }, consumed: 4 } : bad('inventory', 'malformed-identifier')
@@ -494,11 +512,14 @@ export function parseAppRoute(hash: string): AppRoute {
   if (parsed.page.page === 'unresolved') return { page: parsed.page, overlays: [], query: {} }
   const overlays = parseOverlays(segments, parsed.consumed, params)
   if (!overlays || !overlaysSupported(parsed.page, overlays)) return { page: unresolved(path, recoveryFor(segments)), overlays: [], query: {} }
-  return { page: parsed.page, overlays, query: queryFromParams(params, overlays.length > 0), ...(parsed.legacy ? { legacy: true as const } : {}) }
+  const query = queryFromParams(params, overlays.length > 0)
+  if (parsed.page.page === 'settings' && parsed.page.section === 'game-setup' && query.scope?.[0] === 'playthrough') return { page: { page: 'settings', section: 'playthrough' }, overlays, query: {}, legacy: true }
+  return { page: parsed.page, overlays, query, ...(parsed.legacy ? { legacy: true as const } : {}) }
 }
 
 function formatPage(page: PageRoute): string {
-  if (page.page === 'mod-inspector') return '/mod-inspector'
+  if (page.page === 'mods') return page.view === 'editor' ? '/mods/editor' : '/mods'
+  if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : ''}`
   if (page.page === 'share') {
     if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
     return `${SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
@@ -600,13 +621,14 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-picker') return 'Choose definition | CryKit'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | CryKit`
   const page = route.page
-  if (page.page === 'mod-inspector') return 'Mod Inspector | CryKit'
+  if (page.page === 'mods') return `${page.view === 'editor' ? 'Mod editor' : 'Mods'} | CryKit`
+  if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : 'Teams'} | CryKit`
   if (page.page === 'share') return 'Shared snapshot | CryKit'
   if (page.page === 'unresolved') return 'Page unavailable | CryKit'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | CryKit`
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | CryKit`
   if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | CryKit`
-  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | CryKit`
+  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create party plan' : page.view === 'scenario' ? 'Party plan' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Party plans' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | CryKit`
   if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | CryKit`
   return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | CryKit`
 }
@@ -615,9 +637,10 @@ export function routeForDestination(destination: Destination): AppRoute {
   return {
     page: destination === 'inventory' ? { page: 'inventory', view: 'list' }
       : destination === 'characters' ? { page: 'characters', view: 'list' }
+      : destination === 'teams' ? { page: 'teams', view: 'list' }
       : destination === 'builds' ? { page: 'builds', view: 'library' }
       : destination === 'progress' ? PROGRESS_PAGES[0].page
-      : destination === 'mod-inspector' ? { page: 'mod-inspector' }
+      : destination === 'mods' ? { page: 'mods', view: 'library' }
       : { page: 'reference', view: 'list' },
     overlays: [],
     query: {},
@@ -627,6 +650,7 @@ export function routeForDestination(destination: Destination): AppRoute {
 export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (route.overlays.length) return { ...route, overlays: route.overlays.slice(0, -1) }
   const page = route.page
+  if (page.page === 'teams') return page.view === 'list' ? undefined : page.view === 'adopt' ? { ...route, page: { page: 'teams', view: 'team', teamId: page.teamId } } : { ...route, page: { page: 'teams', view: 'list' } }
   if (page.page === 'share') return BUILDS_ROUTE
   if (page.page === 'inventory' && page.view !== 'list') return { ...route, page: { page: 'inventory', view: 'list' } }
   if (page.page === 'characters') {
@@ -650,11 +674,12 @@ export function parentRoute(route: AppRoute): AppRoute | undefined {
   return undefined
 }
 
-export function isRouteWithin(route: AppRoute, scope: AppRoute): boolean {
+export function isRouteWithin(route: AppRoute, scope: AppRoute, matchQuery = false): boolean {
   const routeHash = formatAppRoute(route)
   const scopeHash = formatAppRoute(scope)
   const routePath = routeHash.split('?', 1)[0]
   const scopePath = scopeHash.split('?', 1)[0]
+  if (matchQuery && routeHash.slice(routePath.length) !== scopeHash.slice(scopePath.length)) return false
   return routePath === scopePath || routePath.startsWith(`${scopePath}/`)
 }
 
@@ -700,6 +725,7 @@ export function writeNavigationRoute(route: AppRoute, mode: 'push' | 'replace' =
 
 export interface NavigationBlocker {
   readonly scope: AppRoute
+  readonly matchQuery?: boolean
   readonly blocked: () => boolean
   readonly onBlocked?: (to: AppRoute) => void
   readonly allows?: (to: AppRoute) => boolean
@@ -735,7 +761,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
   const blocked = useCallback((from: AppRoute, to: AppRoute) => {
     if (optionsRef.current.shouldBlock?.(from, to)) { optionsRef.current.onBlocked?.(to); return true }
     for (const blocker of blockersRef.current) {
-      if (!blocker.blocked() || isRouteWithin(to, blocker.scope) || blocker.allows?.(to)) continue
+      if (!blocker.blocked() || isRouteWithin(to, blocker.scope, blocker.matchQuery) || blocker.allows?.(to)) continue
       blocker.onBlocked?.(to)
       return true
     }
@@ -843,7 +869,7 @@ export function useNavigation(): NavigationController {
   return value
 }
 
-export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: (to: AppRoute) => void, allows?: (to: AppRoute) => boolean): void {
+export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: (to: AppRoute) => void, allows?: (to: AppRoute) => boolean, matchQuery = false): void {
   const { registerBlocker } = useNavigation()
   const dirtyRef = useRef(dirty)
   const blockedRef = useRef(onBlocked)
@@ -852,7 +878,7 @@ export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => bo
   blockedRef.current = onBlocked
   allowsRef.current = allows
   const scopeHash = formatAppRoute(scope)
-  useEffect(() => registerBlocker({ scope, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: to => blockedRef.current?.(to), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash])
+  useEffect(() => registerBlocker({ scope, matchQuery, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: to => blockedRef.current?.(to), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash, matchQuery])
 }
 
 export function routeWithOverlay(route: AppRoute, overlay: RouteOverlay): AppRoute {

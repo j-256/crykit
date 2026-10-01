@@ -174,6 +174,7 @@ const gameSetupRevision = z.object({
   platform: knowledge(shortText),
   gameVersion: knowledge(shortText),
   mode: knowledge(shortText),
+  difficulty: z.object({ version: z.literal(1), selection: knowledge(nonnegativeInteger) }).strict().optional(),
   mods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)),
   disabledMods: knowledge(z.array(shortText).max(MAX_COLLECTION_LENGTH)).optional(),
   customMods: z.array(nonemptyText).max(MAX_COLLECTION_LENGTH).optional(),
@@ -422,7 +423,7 @@ const playthrough = z.object({
 }).strict()
 
 export const NativeLocalDataSchema = z.object({
-  schemaVersion: z.literal('2.1.0'),
+  schemaVersion: z.literal('2.2.0'),
   id,
   revision: nonnegativeInteger,
   createdAt: timestamp,
@@ -433,13 +434,16 @@ export const NativeLocalDataSchema = z.object({
   gameSetups: z.record(id, gameSetupRevision),
   builds: z.record(id, build),
   buildRevisions: z.record(id, buildRevision),
+  teams: z.record(id, z.object({ id, revision: nonnegativeInteger, title: nonemptyText, slots: z.array(id.nullable()).length(4), createdAt: timestamp, updatedAt: timestamp }).strict()),
   playthroughs: z.record(id, playthrough),
   importReceipts: z.record(id, importReceipt),
   changes: z.array(changeEntry).max(500),
   skillTreeLayouts: z.record(id, skillLayout).optional(),
 }).strict()
 
-export const LegacyNativeLocalDataSchema = NativeLocalDataSchema.extend({
+const PreviousNativeLocalDataSchema = NativeLocalDataSchema.omit({ teams: true }).extend({ schemaVersion: z.literal('2.1.0') })
+
+export const LegacyNativeLocalDataSchema = PreviousNativeLocalDataSchema.extend({
   schemaVersion: z.literal('2.0.0'),
   gameSetups: z.record(id, gameSetupRevision.omit({ customMods: true })),
 }).superRefine((data, context) => {
@@ -448,7 +452,10 @@ export const LegacyNativeLocalDataSchema = NativeLocalDataSchema.extend({
   }
 })
 
-export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => ({ ...data, schemaVersion: '2.1.0' as const }))
+export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, PreviousNativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => {
+  if (data.schemaVersion === '2.2.0') return data
+  return { ...data, schemaVersion: '2.2.0' as const, teams: {} }
+})
 
 export const NativeLineageSchema = z.object({
   rootLocalDataId: id,

@@ -1,3 +1,4 @@
+import type { GameRuleResolution } from './game-rules'
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES } from './calculation-rules'
 import { definitionSourceRecord, knownField, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
 import { nativeIdentity } from './native-game'
@@ -54,11 +55,11 @@ export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve:
   return undefined
 }
 
-export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false): PCStatResult {
+export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
   const plan = content.calculation
-  const issues = [...unknownInputs]
+  const issues = [...unknownInputs, ...(gameRules?.issues ?? [])]
   const effects = new Set<string>()
-  const mode = plan?.pcMode ?? 'standard'
+  const mode = gameRules?.mode ?? plan?.pcMode ?? 'standard'
   const primary = nativeStatRecord(content.primaryClass, 'job', resolve, mode)
   const empty = unknownStats()
   if (plan?.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
@@ -170,7 +171,7 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   const tags = new Set([...equipment.tags, ...passives.tags])
   const weaponAttack = main?.record && Array.isArray(main.record.StatMods) ? number((main.record.StatMods as NativeRecord[]).find(mod => PC_RULES.statMods[String(mod.Tag)]?.stat === 'ATK' && PC_RULES.statMods[String(mod.Tag)]?.scale === 'direct' && PC_RULES.statMods[String(mod.Tag)]?.kind === 'flat'), 'Value1') : undefined
   const vars: Record<string, number> = { hpMultiplier: equipment.hp + passives.hp, ttMultiplier: calculateFormula('multiplyPercent', [equipment.tt, passives.tt]), 'context.unarmed': Number(unarmed), 'context.dualWield': Number(unarmed || Boolean(isWeapon(main?.record) && isWeapon(off?.record))), 'context.twoHanded': Number(Boolean(main?.record && isWeapon(main.record) && main.record.IsTwoHanded === false && !off?.selection && weaponAttack !== undefined)), 'context.weaponAttack': weaponAttack ?? 0 }
-  for (const [key, value] of Object.entries(NATIVE_DATA.battleConfig)) if (typeof value === 'number') vars[`config.${key}`] = value
+  for (const [key, value] of Object.entries(gameRules?.battleConfig ?? NATIVE_DATA.battleConfig)) if (typeof value === 'number') vars[`config.${key}`] = value
   for (const mod of Object.values(PC_RULES.statMods)) vars[`tag.${mod.name}`] = Number(tags.has(mod.name))
   const base: Record<string, number | null> = { ...empty }
   const sheet = (gender?: NativeRecord): PCStats => {

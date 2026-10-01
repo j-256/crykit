@@ -13,6 +13,7 @@ export type CharacterSnapshotId = Brand<string, 'CharacterSnapshotId'>
 export type ProgressRecordId = Brand<string, 'ProgressRecordId'>
 export type BuildId = Brand<string, 'BuildId'>
 export type BuildRevisionId = Brand<string, 'BuildRevisionId'>
+export type TeamId = Brand<string, 'TeamId'>
 export type ScenarioId = Brand<string, 'ScenarioId'>
 export type GameSetupId = Brand<string, 'GameSetupId'>
 export type GameSetupRevisionId = Brand<string, 'GameSetupRevisionId'>
@@ -36,6 +37,7 @@ export type DomainId =
   | ProgressRecordId
   | BuildId
   | BuildRevisionId
+  | TeamId
   | ScenarioId
   | GameSetupId
   | GameSetupRevisionId
@@ -191,6 +193,7 @@ export interface GameSetupRevision {
   readonly platform: Knowledge<string>
   readonly gameVersion: Knowledge<string>
   readonly mode: Knowledge<string>
+  readonly difficulty?: { readonly version: 1; readonly selection: Knowledge<number> }
   readonly mods: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
   readonly customMods?: readonly string[]
@@ -419,6 +422,15 @@ export interface Build {
 
 export type ScenarioKind = 'recordedCurrent' | 'draft' | 'hypothetical'
 
+export interface Team {
+  readonly id: TeamId
+  readonly revision: number
+  readonly title: string
+  readonly slots: readonly (BuildRevisionId | null)[]
+  readonly createdAt: Timestamp
+  readonly updatedAt: Timestamp
+}
+
 export interface InventoryPolicy {
   readonly includeProtected: boolean
   readonly enforceStock: boolean
@@ -506,7 +518,7 @@ export interface Playthrough {
 }
 
 export interface LocalData {
-  readonly schemaVersion: '2.1.0'
+  readonly schemaVersion: '2.2.0'
   readonly id: LocalDataId
   readonly revision: number
   readonly createdAt: Timestamp
@@ -517,6 +529,7 @@ export interface LocalData {
   readonly gameSetups: Readonly<Record<string, GameSetupRevision>>
   readonly builds: Readonly<Record<string, Build>>
   readonly buildRevisions: Readonly<Record<string, BuildRevision>>
+  readonly teams: Readonly<Record<string, Team>>
   readonly playthroughs: Readonly<Record<string, Playthrough>>
   readonly importReceipts: Readonly<Record<string, ImportReceipt>>
   readonly changes: readonly ChangeEntry[]

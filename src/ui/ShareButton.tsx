@@ -10,7 +10,7 @@ export function ShareButton({ localData, target, disabled = false }: { readonly 
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle')
   const inputRef = useRef<HTMLInputElement>(null)
   const capacityId = useId()
-  const targetId = target.kind === 'build' ? target.revisionId : target.scenarioId
+  const targetId = target.kind === 'build' ? target.revisionId : ('teamId' in target ? target.teamId : target.scenarioId)
   const result = useMemo(() => {
     if (!open) return undefined
     try { return { url: createShareUrl(createSharePayload(localData, target, includeNotes), window.location.href) } }

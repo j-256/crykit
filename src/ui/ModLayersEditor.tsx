@@ -1,8 +1,9 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { composeModLayers, CRYSTAL_EDIT_CATALOG_SCHEMA, MAX_MOD_LAYERS, modCatalogForPin, modCatalogTitle, modModelRecords } from '../domain/mod-layers'
+import { composeModLayers, MAX_MOD_LAYERS, modCatalogForPin, modCatalogTitle, modModelRecords } from '../domain/mod-layers'
 import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogEntity, CatalogSnapshot, EntityId, ModComposition } from '../domain/types'
+import { modLibrary } from '../domain/mod-library'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Dropdown } from './Dropdown'
 import { useDefinitionLibrary } from './definitions'
@@ -15,7 +16,7 @@ const TARGET_PAGE_SIZE = 40
 
 function revisionLabel(catalog: CatalogSnapshot): string {
   const metadata = catalog.legacy as { projectVersion?: string; editorVersion?: number } | undefined
-  return `${metadata?.projectVersion ?? 'Unspecified version'} · editor ${metadata?.editorVersion ?? 'unknown'} · ${catalog.revisionId.slice(-12)}`
+  return `${metadata?.projectVersion ?? 'Unspecified version'} · editor ${metadata?.editorVersion ?? 'unknown'} · ${catalog.revisionId.replace(/^.*sha256:/, '').split(':')[0]?.slice(0, 12)}`
 }
 
 function TargetPicker({ entity, baseline, target, occupied, onChange }: { entity: CatalogEntity; baseline: CatalogSnapshot; target?: EntityId | null; occupied: readonly EntityId[]; onChange: (id: EntityId | null | undefined) => void }) {
@@ -47,9 +48,10 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
   const [project, setProject] = useState('')
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(RECORD_PAGE_SIZE)
-  const imported = catalogs.filter(catalog => catalog.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA).sort((left, right) => left.importedAt.localeCompare(right.importedAt))
+  const mods = modLibrary(catalogs)
+  const imported = mods.flatMap(mod => mod.revisions.map(revision => revision.catalog))
   const available = imported.filter(catalog => !current.layers.some(layer => layer.catalogId === catalog.id))
-  const projectChoices = [...new Map(available.map(catalog => [catalog.id, catalog])).values()]
+  const projectChoices = [...new Map([...available].reverse().map(catalog => [catalog.id, catalog])).values()]
   const result = useMemo(() => {
     try { return { value: composeModLayers(current, catalogs) } } catch (error) { return { error: formatAppError(error, 'The mod composition could not be resolved.') } }
   }, [catalogs, current])
@@ -77,7 +79,7 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
   return <section aria-label="Imported mod layers" className="stack mod-layers">
     <div className="split"><div><h3>Imported mod layers</h3><p>Enable exact imported versions and arrange their priority. Later enabled layers replace earlier records with the same model family and native ID.</p></div><Badge tone="info">{current.layers.filter(layer => layer.enabled).length} enabled</Badge></div>
     <p className="field__hint">This is the planner's selected priority. Confirm it against your game's mod order. Importing a file alone does not enable it.</p>
-    {imported.length === 0 && <InlineNotice title="No imported mod files">Add a Crystal Edit JSON through Import & backup, then return here to enable it.</InlineNotice>}
+    {imported.length === 0 && <InlineNotice title="No imported mod files">Save a Crystal Edit JSON from the Mods editor to CryKit, then select its version here.</InlineNotice>}
     {projectChoices.length > 0 && <div className="mod-layers__add"><Field label="Imported mod to add"><select onChange={event => setProject(event.target.value)} value={project || projectChoices[0]!.id}>{projectChoices.map(catalog => <option key={catalog.id} value={catalog.id}>{modCatalogTitle(catalog)}</option>)}</select></Field><Button disabled={current.layers.length >= MAX_MOD_LAYERS} onClick={add} tone="secondary" type="button">Add mod layer</Button></div>}
     <ol aria-label="Mod priority" className="mod-layers__list">{current.layers.map((layer, index) => {
       const catalog = modCatalogForPin(catalogs, layer)
@@ -100,7 +102,7 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
           {baseline && <TargetPicker occupied={current.links.filter(link => link.modelKey !== record.modelKey && link.targetEntityId !== null).map(link => link.targetEntityId!)} baseline={baseline} entity={record.entity} onChange={id => change({ ...current, links: [...current.links.filter(link => link.modelKey !== record.modelKey), ...(id === undefined ? [] : [{ modelKey: record.modelKey, targetEntityId: id }])] })} target={current.links.find(link => link.modelKey === record.modelKey)?.targetEntityId}/>}<details><summary>Winning source record</summary><pre>{JSON.stringify(record.entity.fields['Crystal Edit source record'], null, 2)}</pre></details>
         </li>)}</ul>{records.length > limit && <Button onClick={() => setLimit(value => value + RECORD_PAGE_SIZE)} tone="secondary" type="button">Show more effective records</Button>}{records.length === 0 && <p>No effective imported records match this search.</p>}
       </div></details>
-      <InlineNotice title="Supported rules and remaining gaps">Exported class ratings, equipment permissions, native passive costs, and other supported definition fields drive planning. Missing fields stay unknown. Global project settings, unmapped numeric modifier tags, and unsupported battle behavior remain in the source archive. Set the passive PP budget under Advanced Game Setup when needed.</InlineNotice>
+      <InlineNotice title="Supported rules and remaining gaps">Exported class ratings, equipment permissions, native passive costs, and other supported definition fields drive planning. Missing fields stay unknown. Supported battle constants and difficulty definitions come from the selected mod revisions. Other project settings, unmapped modifier tags, and unsupported battle behavior remain unresolved.</InlineNotice>
       <p className="field__hint">Saving pins this baseline, each chosen revision, and the effective result. Earlier Game Setups, builds, and observations keep their original definitions.</p>
     </>}
   </section>

@@ -1,3 +1,9 @@
+import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
+import { modRevision } from './domain/mod-library'
+import { adoptTeam, recordBuildForCharacter, saveTeam, type SaveTeamInput } from './domain/teams'
+import type { TeamId } from './domain/types'
+import { TeamsView } from './ui/TeamsView'
+import { createPlaythroughWithSetup } from './domain/game-setups'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   activateScenario,
@@ -13,7 +19,6 @@ import {
   createDefinitionOverride,
   createId,
   createPersonalDefinition,
-  createPlaythrough,
   createGameSetupRevision,
   createScenario,
   effectiveScenarioAssignments,
@@ -32,7 +37,6 @@ import {
   selectPlaythrough,
   setPlaythroughGameSetup,
   updateBuild,
-  updateScenario,
   updateGameSetupRevision,
   upsertCharacterClassProgress,
   upsertLearnedNode,
@@ -56,7 +60,6 @@ import {
   type ScenarioId,
   type SlotDefinition,
   type SlotId,
-  type TeamScenario,
   type Timestamp,
   type ValidationReport,
 } from './domain'
@@ -68,7 +71,8 @@ import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } f
 import { SharedView } from './ui/SharedView'
 import { saveSharedCopy, type SharePayload } from './interchange/share'
 import { CharactersView, type CharacterDraft, type ClassProgressDraft, type LearnedNodeDraft, type SnapshotDraft } from './ui/CharactersView'
-import { DataPanel, type GameSetupDraft } from './ui/DataPanel'
+import { DataPanel } from './ui/DataPanel'
+import type { GameSetupDraft, GameSetupSaveOptions } from './ui/GameSetupEditor'
 import { InventoryView, type InventoryDraft, type InventoryEventDraft } from './ui/InventoryView'
 import { ProgressView, type ProgressDraft } from './ui/ProgressView'
 import { QuintarBreedingView } from './ui/QuintarBreedingView'
@@ -82,7 +86,7 @@ import { catalogLocksMatch, formatAppError } from './ui/model'
 import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions'
 import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
 
-const ModInspectorView = lazy(() => import('./ui/ModInspectorView').then(module => ({ default: module.ModInspectorView })))
+const ModsView = lazy(() => import('./ui/ModsView').then(module => ({ default: module.ModsView })))
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 const PAINT_WAIT_FALLBACK_MS = 250
@@ -398,10 +402,10 @@ export default function App() {
   const addBuild = useCallback(async (draft: BuildDraft, revision: RevisionDraft) => {
     const buildId = draft.id
     const revisionId = draft.revisionId
-    const { note, behavior, ...content } = revision
+    const { note, behavior, behaviorRevisionId, ...content } = revision
     await commitLocalData((current) => {
       if (current.buildRevisions[revisionId]?.buildId === buildId) return current
-      const configured = saveBuildBehavior(current, behavior)
+      const configured = saveBuildBehavior(current, behavior, undefined, behaviorRevisionId)
       const created = createBuild(configured.localData, { id: buildId, title: draft.title, kind: draft.kind, state: draft.state, tags: draft.tags, gameSetupId: configured.setup.gameSetupId, expectedRevision: configured.localData.revision })
       return saveBuildRevision(created, { buildId, id: revisionId, content, note, gameSetupRevisionId: configured.setup.id, expectedRevision: created.revision })
     })
@@ -422,7 +426,7 @@ export default function App() {
   const saveRevision = useCallback(async (buildId: string, draft: RevisionDraft, parentRevisionId?: string): Promise<BuildRevisionId> => {
     const revisionId = createId<BuildRevisionId>('buildRevision')
     await commitLocalData((current) => {
-      const configured = saveBuildBehavior(current, draft.behavior)
+      const configured = saveBuildBehavior(current, draft.behavior, undefined, draft.behaviorRevisionId)
       const localData = configured.localData
       const build = localData.builds[buildId]
       if (!build) throw new Error('The selected Build no longer exists.')
@@ -455,42 +459,29 @@ export default function App() {
 
   const assignScenario = useCallback(async (scenarioId: string, characterId: string, revisionId: string) => commitLocalData((localData) => replaceScenarioBuild(localData, { scenarioId: asId<ScenarioId>(scenarioId), characterId: asId<CharacterId>(characterId), buildRevisionId: revisionId ? asId<BuildRevisionId>(revisionId) : null, expectedRevision: localData.revision })), [commitLocalData])
 
-  const recordBuildCurrent = useCallback(async (buildId: string, revisionId: string, characterId: string) => commitLocalData((localData) => {
-    const playthrough = requirePlaythrough(localData)
-    const build = localData.builds[buildId]
-    if (!build) throw new Error('The selected Build is unavailable.')
-    const character = playthrough.characters[characterId]
-    if (!character) throw new Error('Choose a character from this Playthrough before recording the Build.')
-    const revision = localData.buildRevisions[revisionId]
-    if (!revision || revision.buildId !== build.id) throw new Error('The selected build revision is unavailable for this build.')
-    const compatibleTeam = (scenario: TeamScenario) => {
-      return sameBuildBehavior(localData.gameSetups[scenario.gameSetupRevisionId], localData.gameSetups[revision.gameSetupRevisionId]) && catalogLocksMatch(scenario.catalogLock, revision.catalogLock) && scenario.memberIds.includes(character.id)
-    }
-    const recorded = Object.values(playthrough.scenarios).find((scenario) => scenario.kind === 'recordedCurrent')
-    const active = playthrough.activeScenarioId ? playthrough.scenarios[playthrough.activeScenarioId] : undefined
-    const rosterSource = recorded && compatibleTeam(recorded) ? recorded : active && compatibleTeam(active) ? active : undefined
-    if (!rosterSource) throw new Error('Select a complete four-character team containing this character before recording the build as current.')
-    let next = localData
-    if (recorded && compatibleTeam(recorded)) next = replaceScenarioBuild(next, { scenarioId: recorded.id, characterId: character.id, buildRevisionId: revision.id, expectedRevision: next.revision })
-    else {
-      if (recorded) next = updateScenario(next, { scenarioId: recorded.id, kind: 'draft', expectedRevision: next.revision })
-      next = createScenario(next, { label: 'Recorded current party', kind: 'recordedCurrent', memberIds: rosterSource.memberIds, gameSetupRevisionId: revision.gameSetupRevisionId, catalogLock: revision.catalogLock, assignments: { ...effectiveScenarioAssignments(rosterSource), [character.id]: revision.id }, inventoryPolicy: { enforceStock: true, includeProtected: true }, activate: true, expectedRevision: next.revision })
-    }
-    const currentCharacter = requirePlaythrough(next).characters[character.id]
-    const currentSnapshot = currentCharacter?.currentSnapshotId ? currentCharacter.snapshots[currentCharacter.currentSnapshotId] : undefined
-    const equipment = Object.fromEntries(Object.entries(revision.content.equipment).map(([slotId, selection]) => [slotId, selection?.ref ?? null]))
-    return captureCharacter(next, { characterId: character.id, gameSetupRevisionId: revision.gameSetupRevisionId, level: currentSnapshot?.level ?? { state: 'unknown' }, primaryClass: revision.content.primaryClass ? { state: 'known', value: revision.content.primaryClass } : { state: 'unknown' }, secondaryClass: revision.content.secondaryClass ? { state: 'known', value: revision.content.secondaryClass } : { state: 'unknown' }, equipment, passives: { state: 'known', value: revision.content.passives.map(selection => selection.ref) }, calculation: revision.content.calculation, note: 'Build recorded as current; displayed final stats require a new in-game observation', expectedRevision: next.revision })
-  }), [commitLocalData])
+  const recordBuildCurrent = useCallback(async (buildId: string, revisionId: string, characterId: string) => commitLocalData(localData => {
+    if (localData.buildRevisions[revisionId]?.buildId !== buildId) throw new Error('The requested build checkpoint is unavailable.')
+    return recordBuildForCharacter(localData, { buildRevisionId: asId<BuildRevisionId>(revisionId), characterId: asId<CharacterId>(characterId), expectedRevision: localData.revision })
+  }, { rollbackOnFailure: true }), [commitLocalData])
 
-  const saveGameSetup = useCallback(async (draft: GameSetupDraft) => commitLocalData((localData) => {
+  const savePlanningTeam = useCallback(async (input: SaveTeamInput) => {
+    const id = input.id ?? createId<TeamId>('team')
+    await commitLocalData(localData => saveTeam(localData, { ...input, id, expectedRevision: localData.revision }), { rollbackOnFailure: true })
+    return id
+  }, [commitLocalData])
+
+  const adoptPlanningTeam = useCallback(async (teamId: TeamId, characterIds: readonly CharacterId[]) => {
+    await commitLocalData(localData => adoptTeam(localData, { teamId, characterIds, expectedRevision: localData.revision }), { rollbackOnFailure: true })
+  }, [commitLocalData])
+
+  const saveGameSetup = useCallback(async (draft: GameSetupDraft, options: GameSetupSaveOptions) => commitLocalData((localData) => {
     const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: 'equipment', order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
-    const sourceRevisionId = draft.sourceGameSetupRevisionId ?? localData.planningGameSetupRevisionId
+    const sourceRevisionId = draft.sourceGameSetupRevisionId
     const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
     const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
-    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, mods: draft.mods, disabledMods: draft.disabledMods, customMods: draft.customMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides, activate: true, expectedRevision: localData.revision }
+    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, difficulty: draft.difficulty, mods: draft.mods, disabledMods: draft.disabledMods, customMods: draft.customMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides, id: options.id, activate: false, expectedRevision: localData.revision }
     const next = sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
-    if (!next.planningGameSetupRevisionId) throw new Error('The saved Game Setup revision could not be selected.')
-    return setPlaythroughGameSetup(next, { gameSetupRevisionId: next.planningGameSetupRevisionId, expectedRevision: next.revision })
+    return next
   }), [commitLocalData])
 
   const installLoadedData = useCallback((loaded: LoadedLocalData) => {
@@ -509,20 +500,24 @@ export default function App() {
 
   const waitForSafeTransition = useCallback(async () => {
     await commitQueueRef.current
-    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching Playthrough, Game Setup, or scenario.')
+    if (dirtyRef.current || formDirtyRef.current || navigation.hasOpenDraft()) throw new Error('Save or discard open form edits, and retry any failed save, before switching Playthrough, Game Setup, or party plan.')
   }, [navigation.hasOpenDraft])
 
-  const createLocalPlaythrough = useCallback(async (label: string) => {
+  const createLocalPlaythrough = useCallback(async (label: string, setupId?: GameSetupRevisionId) => {
     await waitForSafeTransition()
-    await commitLocalData((localData) => createPlaythrough(localData, { label, currentGameSetupRevisionId: localData.planningGameSetupRevisionId, select: true, expectedRevision: localData.revision }))
+    await commitLocalData((localData) => createPlaythroughWithSetup(localData, { label, currentGameSetupRevisionId: setupId, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, select: true, expectedRevision: localData.revision }))
+  }, [commitLocalData, waitForSafeTransition])
+
+  const selectLocalPlaythrough = useCallback(async (playthroughId: PlaythroughId) => {
+    await waitForSafeTransition()
+    await commitLocalData((localData) => selectPlaythrough(localData, { playthroughId, expectedRevision: localData.revision }))
   }, [commitLocalData, waitForSafeTransition])
 
   const selectContextPlaythrough = useCallback(async (playthroughId: PlaythroughId) => {
-    await waitForSafeTransition()
     if (loadedDataRef.current?.localData.selectedPlaythroughId === playthroughId) return
-    await commitLocalData((localData) => selectPlaythrough(localData, { playthroughId, expectedRevision: localData.revision }))
+    await selectLocalPlaythrough(playthroughId)
     navigation.navigate(routeForDestination(destination), { replace: true })
-  }, [commitLocalData, destination, navigation, waitForSafeTransition])
+  }, [destination, navigation, selectLocalPlaythrough])
 
   const selectGameSetup = useCallback(async (gameSetupRevisionId: GameSetupRevisionId) => {
     await waitForSafeTransition()
@@ -562,12 +557,28 @@ export default function App() {
     } catch (error) { setImportError(formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
   }, [closeData, installLoadedData, waitForSafeTransition])
 
-  const saveShare = useCallback(async (payload: SharePayload, memberIds?: readonly CharacterId[]) => {
+  const saveModDraft = useCallback(async (text: string, filename: string) => {
+    setImportBusy(true)
+    try {
+      const preview = await previewImport(new TextEncoder().encode(text), filename)
+      const revision = preview.proposed.catalogs[0] && modRevision(preview.proposed.catalogs[0])
+      if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a Crystal Edit project ID, editor version, and supported records or game settings before it can be used for planning.')
+      await waitForSafeTransition()
+      const current = loadedDataRef.current
+      if (!current) throw new Error('The local planner data is not ready.')
+      const unchanged = current.catalogs.some(catalog => catalog.id === revision.catalogId && catalog.revisionId === revision.catalogRevisionId)
+      const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
+      installLoadedData(loaded)
+      return { title: revision.title, unchanged, warnings: preview.warnings.map(warning => warning.message) }
+    } finally { setImportBusy(false) }
+  }, [installLoadedData, waitForSafeTransition])
+
+  const saveShare = useCallback(async (payload: SharePayload) => {
     await waitForSafeTransition()
-    let result: { readonly buildId?: BuildId; readonly scenarioId?: ScenarioId } = {}
+    let result: { readonly buildId?: BuildId; readonly teamId?: TeamId } = {}
     await commitLocalData(localData => {
-      const copy = saveSharedCopy(localData, payload, memberIds)
-      result = { buildId: copy.buildId, scenarioId: copy.scenarioId }
+      const copy = saveSharedCopy(localData, payload)
+      result = { buildId: copy.buildId, teamId: copy.teamId }
       return copy.localData
     }, { rollbackOnFailure: true })
     return result
@@ -602,12 +613,12 @@ export default function App() {
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
   const content = sharedPage ? <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Kit did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'mod-inspector' ? <Suspense fallback={<p role="status">Opening Mod Inspector...</p>}><ModInspectorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onAdopt={adoptPlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
   const buildContent = buildRoute && <div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView shareBlocked={dirty || formDirty || saveState === 'saving'} catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onRenameBuild={renameBuild} onSaveRevision={saveRevision} localData={localData} validations={validations}/></NavigationProvider></div>
   const draftReminder = destination === 'reference' && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Browse reference records, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onSelectPlaythrough={selectContextPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><CorrectionsContext.Provider value={corrections}><DefinitionProvider catalogs={corrections.catalogs} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/><CorrectionSurfaces/></DefinitionProvider></CorrectionsContext.Provider></NavigationProvider>
 }

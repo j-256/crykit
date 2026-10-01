@@ -1,6 +1,6 @@
 # Crystal Edit data and growth estimates
 
-For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod exports, open **Tools > Mod Inspector**. See the [Mod Inspector guide](mod-inspector.md). Planner reference imports and saved mod-editor drafts have separate storage and export workflows.
+For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod exports, open **Mods > Editor workspace**. See the [Mods guide](mod-inspector.md). Choose **Save to CryKit** to add an applied editor draft as a saved mod revision for planning. Workspace drafts have separate downloads, while revisions saved to the Mod library are included in planner backups.
 
 The application ships class facts from the installed game's native database baseline. Numeric ratings, equipment categories, class selection flags, command and crystal labels, ability and passive membership, learn-tree coordinates, and prerequisite connectors come from those game records. Native ability and passive definitions resolve their related entries. See [native game data and extraction](catalog-sources.md#native-gameplay-facts-are-the-base) for version coverage and regeneration. Updating the baseline requires a new immutable catalog revision.
 
@@ -52,7 +52,7 @@ The project ID provides the catalog namespace, the file digest identifies its im
 
 ## Configuring imported mod layers
 
-Open **Data & settings > Game Setup > Imported mod layers** after importing the files. Add each project, choose its exact revision, and enable or disable it. **Earlier** and **Later** arrange planner priority; the last enabled layer wins when records share the same model family and native ID. Confirm this chosen priority against the order used by the game. The companion does not inspect the game installation or assert its runtime loading behavior.
+Open **Data & settings > Saved setups > Edit setup > Mods > Imported mod files** after importing the files. Add each project, choose its exact revision, and enable or disable it. **Earlier** and **Later** arrange planner priority; the last enabled layer wins when records share the same model family and native ID. Confirm this chosen priority against the order used by the game. The companion does not inspect the game installation or assert its runtime loading behavior. To use the saved revision for a tracked game, choose it under **Playthrough > Game Setup to apply** and choose **Apply**.
 
 Layers replace complete records. They do not merge membership lists or fill omitted fields from a lower layer. An explicit empty list replaces the previous list, zero remains zero, and an absent field stays unknown. Records absent from a mod remain available from the baseline or an earlier enabled layer. Different model families remain distinct even when their numeric IDs match. Definitions referenced by a class can come from any enabled layer; references absent from the complete enabled set remain unresolved.
 
@@ -64,7 +64,7 @@ Personal overrides based on an earlier catalog require review when layers change
 
 The effective catalog stores changed records and an exact baseline pin, expanding unchanged entries locally when loaded. Native backups retain the baseline, selected source revisions, original bytes, layer order, enabled states, replacement links, and effective revisions. Restoration validates the effective result against its sources. A failed save rolls back both the configuration and its derived catalog; the retained draft supports retry, and undo restores the earlier configuration.
 
-Supported exported fields supply class ratings, equipment permissions and occupancy, native passive PP costs, and the existing scoped planning calculations. Global project settings, unmapped numeric modifier tags, and unsupported battle behavior remain archived data. Set the shared passive PP budget explicitly under **Advanced Game Setup** when a mod changes it. Enabling a layer does not execute formulas, establish platform parity, grant ownership, or record learning.
+Supported exported fields supply class ratings, equipment permissions and occupancy, native passive PP costs, and the existing scoped planning calculations. Global project settings, unmapped numeric modifier tags, and unsupported battle behavior remain archived data. Set the shared passive PP budget explicitly under **Advanced rules** when a mod changes it. Enabling a layer does not execute formulas, establish platform parity, grant ownership, or record learning.
 
 ## Growth calculator
 

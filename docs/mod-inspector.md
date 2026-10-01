@@ -1,12 +1,14 @@
-# Mod Inspector
+# Mods and the editor workspace
 
-Open **Tools > Mod Inspector** to read an external Crystal Edit mod JSON and understand its records, identifiers, and relationships. Editing and exporting a copy are optional. The **JSON document** tab contains the file picker and document tools. The **Enum dictionary** tab is a shared reference available without opening a file. Search by a numeric value or its exact internal name, such as `RevealStatsAuto`. Switching tabs preserves pending edits and dictionary searches. Use Left/Right Arrow, Home, or End to switch tabs from the keyboard.
+Open **Mods** from the sidebar to manage saved mod versions. **Editor workspace** reads external Crystal Edit mod JSON and explains its records, identifiers, and relationships. Editing and exporting a copy are optional. The **JSON document** tab contains the file picker and document tools. The **Enum dictionary** tab is a shared reference available without opening a file. Search by a numeric value or its exact internal name, such as `RevealStatsAuto`. Switching tabs preserves pending edits and dictionary searches. Use Left/Right Arrow, Home, or End to switch tabs from the keyboard.
 
 ## Import and inspect
 
 Choose **Open JSON file** to inspect a Crystal Edit file. **Files opened in this tool** lists local browser copies using the mod's declared title and version when available, alongside the filename. The selected file summary distinguishes the original from an edited copy and shows its project ID when provided. Missing or invalid metadata does not prevent inspection, and matching titles, project IDs, or filenames do not merge independent files.
 
-The imported original stays intact while edits are saved separately. Opening or editing a file here does not add it to the planner or change Game Setups, builds, or playthroughs. To use an exported file for planning, add it through **Data & settings > Import & backup**, then choose its revision in Game Setup. The planner groups revisions by the mod's project ID; importing another revision does not duplicate builds or automatically change their saved definitions.
+The imported original stays intact while edits are saved separately. Choose **Save to CryKit** to add the applied draft as an immutable revision in **Mod library**, then choose its revision in Game Setup. A planning import requires a project ID, editor version, and supported records or game settings. Files that cannot be used for planning remain available for inspection and editing. Pending edits and failed draft saves must be resolved before saving to CryKit.
+
+The library groups revisions by the mod's project ID. Saving identical contents again reuses the existing revision. Different contents add a revision and preserve earlier versions. Existing Game Setups and build checkpoints keep their selected versions until explicitly changed. **Edit a copy** opens an exact saved source as a new workspace draft. Saving a mod does not enable it or apply changes to the game. Import errors and storage failures leave the draft available for correction or retry.
 
 Expand the JSON tree and select a field to inspect its value. Known enum values display their internal names. Known references resolve within the appropriate record family, using the imported mod's definition before the bundled base definition. Duplicate identities remain ambiguous. Missing references, unsupported fields, and unfamiliar enum values remain visible.
 
@@ -44,7 +46,7 @@ The original can be downloaded separately. Test edited mods with the intended ga
 
 ## Browser storage and recovery
 
-Originals and working drafts are saved in this browser and origin. Keep exported copies outside the browser. Inspector drafts are stored separately from planner data and are not included in the planner's backup ZIP.
+Originals and working drafts are saved in this browser and origin. Keep exported copies outside the browser. Workspace drafts are stored separately from planner data and are not included in the planner's backup ZIP. Revisions saved to the Mod library, including their exact source files, are included in planner backups.
 
 **Remove from recent files** removes the browser copy and its stored original after confirmation. Download any copies you want to retain first. **Label reference** shows the source of displayed names and links, with lookup history when a browser copy was first opened using different reference data. A reference change does not establish that the mod is outdated and does not produce a compatibility notice. The stored reference identifier and document text are preserved; **Editor format** describes the mod's own format marker separately.
 

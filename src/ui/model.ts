@@ -56,6 +56,13 @@ export function knowledgeTone<T>(knowledge: Knowledge<T>) {
   return 'warning' as const
 }
 
+export function gameSetupModSummary(setup: Pick<GameSetupRevision, 'mods' | 'modComposition'>): string {
+  const imported = setup.modComposition?.layers.filter(layer => layer.enabled).length ?? 0
+  const named = setup.mods.state === 'known' ? setup.mods.value.length : undefined
+  if (!imported) return named === undefined ? 'Mods unresolved' : named ? `${named} named mods enabled` : 'No mods selected'
+  return `${imported} imported mod${imported === 1 ? '' : 's'} enabled${named ? ` · ${named} named choices` : ''}`
+}
+
 export function activeGameSetup(localData: LocalData): GameSetupRevision | undefined {
   return localData.planningGameSetupRevisionId ? ownRecordValue(localData.gameSetups, localData.planningGameSetupRevisionId) : undefined
 }
