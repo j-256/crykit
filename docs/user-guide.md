@@ -46,9 +46,9 @@ In-game readiness is a separate, collapsed check with adjacent character and sce
 
 ### Explore stat estimates
 
-The build editor also checks documented equipment permissions, hand occupancy, roles, and unique flags before a scenario exists. Under **Checks & notes**, **Stats & combat estimates** saves explicit growth plans, bonuses, statuses, and ability-preview inputs with each checkpoint. It shows supported stat contributions, derived estimates, and source costs, with conflicting values and excluded effects visible. These estimates do not alter recorded character data. See [build mechanics and calculation scope](planner-mechanics.md).
+The build editor also checks documented equipment permissions, hand occupancy, roles, and unique flags before a scenario exists. On **Loadout**, **Calculated stats** saves the calculation level and growth allocation with each checkpoint, defaulting to level 60 and all growth in the primary class. Untouched allocations follow the primary class and level; editing one preserves your manual allocation until explicitly reset. Numeric controls and fixed-scale sliders share one allowance. Totals show male and female bonuses separately, and sample damage benchmarks illustrate stat differences. **Export calculation package** shares the versioned formulas, constants and evidence without personal data. Older saved plans retain **Stats & combat estimates** under **Checks & notes** until explicitly switched to PC calculations. These estimates do not alter recorded character data. See [build mechanics and calculation scope](planner-mechanics.md).
 
-Class pages and build plans offer scoped estimates with explicit inputs. Full displayed-stat prediction, final enemy-damage simulation, optimization, and automatic game-state inspection require additional verified data.
+Class pages and build plans offer scoped calculations with explicit inputs. Conditional battle effects, encounter simulation, optimization, and automatic game-state inspection require additional verified data.
 
 ## Share a build or team
 
@@ -72,7 +72,7 @@ The overview follows each snapshot's pinned Game Setup revision, even when the P
 
 The compact **Member** screen shows recorded vitals, class and command, equipment, and a passive strip. Select a row to update it through an anchored searchable dropdown. Desktop selection details sit beside the menu; mobile details expand beneath the selected row.
 
-**Save changes** saves a new character snapshot without changing inventory or shared Builds. For equipment, **Empty** means nothing is equipped in that slot and **Unknown** means its contents have not been recorded. Passives use a separate ordered list with known or unknown certainty. Displayed stats remain recorded values rather than recalculations. **Status** reveals recorded totals; **Capture snapshot** records a full observation.
+**Save changes** saves a new character snapshot without changing inventory or shared Builds. For equipment, **Empty** means nothing is equipped in that slot and **Unknown** means its contents have not been recorded. Passives use a separate ordered list with known or unknown certainty. The calculated stat panel compares resting loadout totals with recorded in-game totals. It shares the Build level and growth controls and shows neutral, male and female cases with their differences. Calculation assumptions are saved separately from observed level and stats; unknown equipment or passive observations keep totals unresolved. **Status** reveals recorded totals; **Capture snapshot** records a full observation.
 
 Unsaved changes block navigation, and failed saves retain the draft with a retry action that persists the same observation.
 

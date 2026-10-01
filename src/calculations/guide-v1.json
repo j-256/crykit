@@ -1,0 +1,551 @@
+{
+  "schemaVersion": 1,
+  "id": "guide-v1",
+  "title": "Legacy community guide estimates",
+  "source": {
+    "sourceId": "community:geef-modding-guide",
+    "applicability": "Preserves saved guide-based estimates; game rounding and caps were not applied"
+  },
+  "levelCap": 60,
+  "growth": {
+    "HP": {
+      "base": 50,
+      "baseRating": 1,
+      "level": 9.533,
+      "growth": 0.113,
+      "primaryWeight": 1,
+      "historyWeight": 1,
+      "divisor": 2,
+      "bonus": 10,
+      "bonusLevel": 1.5
+    },
+    "MP": {
+      "base": 6,
+      "baseRating": 0.24,
+      "level": 0.25,
+      "growth": 0.0355,
+      "primaryWeight": 3,
+      "historyWeight": 2,
+      "divisor": 5,
+      "bonus": 6,
+      "bonusLevel": 0.233
+    },
+    "core": {
+      "base": 5,
+      "baseRating": 0.1,
+      "level": 1.25,
+      "growth": 0.0275,
+      "primaryWeight": 1,
+      "historyWeight": 1,
+      "divisor": 2,
+      "bonus": 3,
+      "bonusLevel": 0.2
+    }
+  },
+  "limits": {
+    "expressionDepth": 64,
+    "expressionNodes": 10000
+  },
+  "dualWieldRate": 0.65,
+  "speedLimit": 600,
+  "statModifiers": {
+    "0": [
+      "HP",
+      "flat"
+    ],
+    "1": [
+      "MP",
+      "flat"
+    ],
+    "6": [
+      "STR",
+      "flat"
+    ],
+    "7": [
+      "VIT",
+      "flat"
+    ],
+    "8": [
+      "DEX",
+      "flat"
+    ],
+    "9": [
+      "AGI",
+      "flat"
+    ],
+    "10": [
+      "MND",
+      "flat"
+    ],
+    "11": [
+      "SPI",
+      "flat"
+    ],
+    "12": [
+      "SPD",
+      "flat"
+    ],
+    "13": [
+      "LUK",
+      "flat"
+    ],
+    "20": [
+      "HP",
+      "percent"
+    ],
+    "21": [
+      "MP",
+      "percent"
+    ],
+    "26": [
+      "STR",
+      "percent"
+    ],
+    "27": [
+      "VIT",
+      "percent"
+    ],
+    "28": [
+      "DEX",
+      "percent"
+    ],
+    "29": [
+      "AGI",
+      "percent"
+    ],
+    "30": [
+      "MND",
+      "percent"
+    ],
+    "31": [
+      "SPI",
+      "percent"
+    ],
+    "32": [
+      "SPD",
+      "percent"
+    ],
+    "33": [
+      "LUK",
+      "percent"
+    ],
+    "40": [
+      "ATK",
+      "flat"
+    ],
+    "41": [
+      "PPEN",
+      "flat"
+    ],
+    "42": [
+      "DEF",
+      "flat"
+    ],
+    "43": [
+      "CRIT",
+      "flat"
+    ],
+    "44": [
+      "CRIT_DAMAGE",
+      "flat"
+    ],
+    "45": [
+      "ACC",
+      "flat"
+    ],
+    "46": [
+      "EVA",
+      "flat"
+    ],
+    "47": [
+      "MPEN",
+      "flat"
+    ],
+    "48": [
+      "RES",
+      "flat"
+    ],
+    "60": [
+      "ATK",
+      "percent"
+    ],
+    "61": [
+      "PPEN",
+      "flat"
+    ],
+    "62": [
+      "DEF",
+      "percent"
+    ],
+    "65": [
+      "ACC",
+      "percent"
+    ],
+    "66": [
+      "EVA",
+      "percent"
+    ],
+    "67": [
+      "MPEN",
+      "flat"
+    ],
+    "68": [
+      "RES",
+      "percent"
+    ]
+  },
+  "hitChance": {
+    "zeroAccuracy": 0,
+    "bands": [
+      {
+        "lower": 1.5,
+        "chance": 100
+      },
+      {
+        "lower": 1.25,
+        "chance": 98
+      },
+      {
+        "exact": 1,
+        "chance": 95
+      },
+      {
+        "lower": 0.875,
+        "upper": 1,
+        "chance": 90
+      },
+      {
+        "lower": 0.75,
+        "upper": 1,
+        "chance": 80
+      },
+      {
+        "lower": 0.5,
+        "upper": 1,
+        "chance": 50
+      },
+      {
+        "lower": 0.25,
+        "upper": 1,
+        "chance": 20
+      }
+    ],
+    "gapsAreUnknown": true
+  },
+  "jpPerLp": 100,
+  "formulas": {
+    "critChance": {
+      "inputs": [
+        "dex"
+      ],
+      "steps": [],
+      "result": [
+        "div",
+        [
+          "mul",
+          100,
+          "dex"
+        ],
+        [
+          "add",
+          "dex",
+          250
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "critDamage": {
+      "inputs": [
+        "dex"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        25,
+        [
+          "pow",
+          [
+            "div",
+            "dex",
+            15
+          ],
+          1.35
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "penetration": {
+      "inputs": [
+        "stat"
+      ],
+      "steps": [],
+      "result": [
+        "div",
+        [
+          "mul",
+          100,
+          "stat"
+        ],
+        [
+          "add",
+          "stat",
+          300
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "turnTime": {
+      "inputs": [
+        "speed"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        34,
+        [
+          "pow",
+          [
+            "mul",
+            0.0175,
+            [
+              "sub",
+              "speed",
+              600
+            ]
+          ],
+          2
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "flatBeforePercent": {
+      "inputs": [
+        "base",
+        "flat",
+        "percent"
+      ],
+      "steps": [],
+      "result": [
+        "mul",
+        [
+          "add",
+          "base",
+          "flat"
+        ],
+        [
+          "add",
+          1,
+          [
+            "div",
+            "percent",
+            100
+          ]
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "flatAfterPercent": {
+      "inputs": [
+        "base",
+        "flat",
+        "percent"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        [
+          "mul",
+          "base",
+          [
+            "add",
+            1,
+            [
+              "div",
+              "percent",
+              100
+            ]
+          ]
+        ],
+        "flat"
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "abilityBase": {
+      "inputs": [
+        "base",
+        "attack",
+        "attackRate",
+        "scaling",
+        "scalingAttack",
+        "scaledStats"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "base",
+        [
+          "div",
+          [
+            "mul",
+            "attack",
+            "attackRate"
+          ],
+          100
+        ],
+        [
+          "div",
+          [
+            "mul",
+            [
+              "add",
+              "scaling",
+              [
+                "div",
+                [
+                  "mul",
+                  "attack",
+                  "scalingAttack"
+                ],
+                100
+              ]
+            ],
+            "scaledStats"
+          ],
+          100
+        ]
+      ],
+      "evidence": "Legacy community guide estimate; preserved without native rounding"
+    },
+    "growthBase": {
+      "inputs": [
+        "rating",
+        "base",
+        "baseRating"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "base",
+        [
+          "mul",
+          "baseRating",
+          "rating"
+        ]
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "growthLevel": {
+      "inputs": [
+        "level",
+        "coefficient"
+      ],
+      "steps": [],
+      "result": [
+        "mul",
+        "coefficient",
+        "level"
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "growthHistory": {
+      "inputs": [
+        "level",
+        "rating",
+        "history",
+        "coefficient",
+        "primaryWeight",
+        "historyWeight",
+        "divisor"
+      ],
+      "steps": [],
+      "result": [
+        "div",
+        [
+          "mul",
+          "coefficient",
+          [
+            "add",
+            [
+              "mul",
+              "primaryWeight",
+              "rating",
+              "level"
+            ],
+            [
+              "mul",
+              "historyWeight",
+              "history"
+            ]
+          ]
+        ],
+        "divisor"
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "growthBonus": {
+      "inputs": [
+        "level",
+        "base",
+        "coefficient"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "base",
+        [
+          "mul",
+          "coefficient",
+          "level"
+        ]
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "growthTotal": {
+      "inputs": [
+        "base",
+        "levelPart",
+        "growth",
+        "bonus"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "base",
+        "levelPart",
+        "growth",
+        "bonus"
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "displayedLP": {
+      "inputs": [
+        "jp"
+      ],
+      "steps": [],
+      "result": [
+        "floor",
+        [
+          "div",
+          "jp",
+          100
+        ]
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    },
+    "requiredLP": {
+      "inputs": [
+        "jp"
+      ],
+      "steps": [],
+      "result": [
+        "ceil",
+        [
+          "div",
+          "jp",
+          100
+        ]
+      ],
+      "evidence": "Preserved legacy community guide estimate; not native integer rounding"
+    }
+  }
+}

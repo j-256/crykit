@@ -1,0 +1,3233 @@
+{
+  "schemaVersion": 1,
+  "id": "pc-1.6.9-v1",
+  "title": "Crystal Project PC 1.6.9.0 character calculations",
+  "source": {
+    "kind": "inspected-game-build",
+    "gameVersion": "1.6.9.0",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "methods": [
+      "Sang/Battle/Calculator.cs",
+      "Sang/Battle/BattlerBase.cs: RecalcStats",
+      "Sang/Battle/BattlerMember.cs: RecalcBaseStats, RecalcEquipStats, RecalcPassiveStats",
+      "Sang/Battle/BattlerStats.cs: Add, ApplyStatMod, ApplyBonus_*",
+      "Sang/Battle/LevelsCollection.cs",
+      "Sang/SangData/SangDataEnums/SangStatModTag.cs"
+    ]
+  },
+  "semantics": {
+    "expression": "Number literal, variable-name string, or [operator, ...arguments]",
+    "numeric": "IEEE-754 double; truncation toward zero; roundEven matches Math.Round midpoint-to-even",
+    "evaluation": "Steps in order; call arguments follow named formula input order; if, and are lazy",
+    "rounding": "Integer divisions are explicit trunc(div(...)); no implicit rounding",
+    "missing": "Missing or nonfinite inputs, invalid operations and division by zero are errors; consumers expose unknowns",
+    "trust": "Only bundled, validated formulas are evaluated. Imported descriptions and formulas are never executed."
+  },
+  "limits": {
+    "levelCap": 60,
+    "expressionDepth": 64,
+    "expressionNodes": 10000
+  },
+  "coreStats": [
+    "HP",
+    "MP",
+    "STR",
+    "VIT",
+    "DEX",
+    "AGI",
+    "MND",
+    "SPI",
+    "SPD",
+    "LUK"
+  ],
+  "stats": {
+    "HP": {
+      "rating": "HPRating",
+      "gender": "BoostHP",
+      "formula": "memberHP",
+      "min": 1,
+      "max": 9999
+    },
+    "MP": {
+      "rating": "MPRating",
+      "gender": "BoostMP",
+      "formula": "memberMP",
+      "min": 0,
+      "max": 999
+    },
+    "STR": {
+      "rating": "StrRating",
+      "gender": "BoostStr",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "VIT": {
+      "rating": "VitRating",
+      "gender": "BoostVit",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "DEX": {
+      "rating": "DexRating",
+      "gender": "BoostDex",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "AGI": {
+      "rating": "AgiRating",
+      "gender": "BoostAgi",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "MND": {
+      "rating": "MndRating",
+      "gender": "BoostMnd",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "SPI": {
+      "rating": "SpiRating",
+      "gender": "BoostSpi",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "SPD": {
+      "rating": "SpdRating",
+      "gender": "BoostSpd",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "LUK": {
+      "rating": "LckRating",
+      "gender": "BoostLck",
+      "formula": "memberCore",
+      "min": 0
+    },
+    "AP": {
+      "min": 0,
+      "max": 99,
+      "base": 30
+    },
+    "ATK": {
+      "min": 0
+    },
+    "DEF": {
+      "min": 0
+    },
+    "RES": {
+      "min": 0
+    },
+    "CRIT": {
+      "min": 0
+    },
+    "CRIT_DAMAGE": {
+      "min": 0
+    },
+    "ACC": {
+      "min": 0
+    },
+    "EVA": {
+      "min": 0
+    },
+    "PPEN": {
+      "min": 0
+    },
+    "MPEN": {
+      "min": 0
+    },
+    "TT": {
+      "min": 0
+    }
+  },
+  "formulas": {
+    "memberHP": {
+      "inputs": [
+        "level",
+        "rating",
+        "growth",
+        "boost"
+      ],
+      "steps": [
+        {
+          "name": "seed",
+          "value": [
+            "trunc",
+            [
+              "div",
+              [
+                "add",
+                [
+                  "mul",
+                  "rating",
+                  "level"
+                ],
+                "growth"
+              ],
+              2
+            ]
+          ]
+        },
+        {
+          "name": "base",
+          "value": [
+            "add",
+            [
+              "add",
+              50,
+              "rating"
+            ],
+            [
+              "if",
+              "boost",
+              10,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "gain",
+          "value": [
+            "add",
+            [
+              "add",
+              [
+                "mul",
+                "level",
+                9.533
+              ],
+              [
+                "div",
+                [
+                  "mul",
+                  "seed",
+                  11.3
+                ],
+                100
+              ]
+            ],
+            [
+              "if",
+              "boost",
+              [
+                "mul",
+                "level",
+                1.5
+              ],
+              0
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "roundEven",
+        [
+          "add",
+          "base",
+          "gain"
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateMemberHP"
+    },
+    "memberCore": {
+      "inputs": [
+        "level",
+        "rating",
+        "growth",
+        "boost"
+      ],
+      "steps": [
+        {
+          "name": "seed",
+          "value": [
+            "trunc",
+            [
+              "div",
+              [
+                "add",
+                [
+                  "mul",
+                  "rating",
+                  "level"
+                ],
+                "growth"
+              ],
+              2
+            ]
+          ]
+        },
+        {
+          "name": "base",
+          "value": [
+            "add",
+            [
+              "add",
+              5,
+              [
+                "div",
+                [
+                  "mul",
+                  "rating",
+                  10
+                ],
+                100
+              ]
+            ],
+            [
+              "if",
+              "boost",
+              3,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "gain",
+          "value": [
+            "add",
+            [
+              "add",
+              [
+                "mul",
+                "level",
+                1.25
+              ],
+              [
+                "div",
+                [
+                  "mul",
+                  "seed",
+                  2.75
+                ],
+                100
+              ]
+            ],
+            [
+              "if",
+              "boost",
+              [
+                "mul",
+                "level",
+                0.2
+              ],
+              0
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "roundEven",
+        [
+          "add",
+          "base",
+          "gain"
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateMemberStat"
+    },
+    "memberMP": {
+      "inputs": [
+        "level",
+        "rating",
+        "growth",
+        "boost"
+      ],
+      "steps": [
+        {
+          "name": "seed",
+          "value": [
+            "trunc",
+            [
+              "div",
+              [
+                "add",
+                [
+                  "mul",
+                  "rating",
+                  "level",
+                  3
+                ],
+                [
+                  "mul",
+                  "growth",
+                  2
+                ]
+              ],
+              5
+            ]
+          ]
+        },
+        {
+          "name": "base",
+          "value": [
+            "add",
+            [
+              "add",
+              6,
+              [
+                "div",
+                [
+                  "mul",
+                  "rating",
+                  24
+                ],
+                100
+              ]
+            ],
+            [
+              "if",
+              "boost",
+              6,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "gain",
+          "value": [
+            "add",
+            [
+              "add",
+              [
+                "mul",
+                "level",
+                0.25
+              ],
+              [
+                "div",
+                [
+                  "mul",
+                  "seed",
+                  3.55
+                ],
+                100
+              ]
+            ],
+            [
+              "if",
+              "boost",
+              [
+                "mul",
+                "level",
+                0.233
+              ],
+              0
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "roundEven",
+        [
+          "add",
+          "base",
+          "gain"
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateMemberMP"
+    },
+    "addPercent": {
+      "inputs": [
+        "base",
+        "percent"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "base",
+        [
+          "trunc",
+          [
+            "div",
+            [
+              "mul",
+              "base",
+              "percent"
+            ],
+            100
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/BattlerStats.cs: ApplyBonus_BaseStats, ApplyBonus_EquipStats"
+    },
+    "multiplyPercent": {
+      "inputs": [
+        "base",
+        "percent"
+      ],
+      "steps": [],
+      "result": [
+        "trunc",
+        [
+          "div",
+          [
+            "mul",
+            "base",
+            "percent"
+          ],
+          100
+        ]
+      ],
+      "evidence": "Sang/Battle/BattlerStats.cs: Add, ApplyStatMod"
+    },
+    "perLevel": {
+      "inputs": [
+        "value",
+        "level",
+        "denominator"
+      ],
+      "steps": [],
+      "result": [
+        "trunc",
+        [
+          "div",
+          [
+            "mul",
+            "value",
+            "level"
+          ],
+          "denominator"
+        ]
+      ],
+      "evidence": "Sang/Battle/BattlerStats.cs: ApplyStatMod *_PerLevel"
+    },
+    "perTurn": {
+      "inputs": [
+        "value",
+        "turn",
+        "limit"
+      ],
+      "steps": [],
+      "result": [
+        "mul",
+        "value",
+        [
+          "min",
+          "turn",
+          "limit"
+        ]
+      ],
+      "evidence": "Sang/Battle/BattlerStats.cs: ApplyStatMod *_PerTurn"
+    },
+    "critChance": {
+      "inputs": [
+        "seed"
+      ],
+      "steps": [
+        {
+          "name": "x",
+          "value": [
+            "max",
+            0,
+            "seed"
+          ]
+        }
+      ],
+      "result": [
+        "trunc",
+        [
+          "mul",
+          75,
+          [
+            "div",
+            "x",
+            [
+              "add",
+              "x",
+              150
+            ]
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculatePCritChanceBonus"
+    },
+    "critDamage": {
+      "inputs": [
+        "seed"
+      ],
+      "steps": [
+        {
+          "name": "atCap",
+          "value": [
+            "add",
+            25,
+            [
+              "pow",
+              [
+                "div",
+                300,
+                15
+              ],
+              1.35
+            ]
+          ]
+        },
+        {
+          "name": "slope",
+          "value": [
+            "sub",
+            "atCap",
+            [
+              "add",
+              25,
+              [
+                "pow",
+                [
+                  "div",
+                  299,
+                  15
+                ],
+                1.35
+              ]
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "trunc",
+        [
+          "if",
+          [
+            "lte",
+            "seed",
+            300
+          ],
+          [
+            "add",
+            25,
+            [
+              "pow",
+              [
+                "div",
+                "seed",
+                15
+              ],
+              1.35
+            ]
+          ],
+          [
+            "add",
+            "atCap",
+            [
+              "mul",
+              [
+                "sub",
+                "seed",
+                300
+              ],
+              "slope"
+            ]
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculatePCritDmgBonus"
+    },
+    "penetration": {
+      "inputs": [
+        "seed"
+      ],
+      "steps": [
+        {
+          "name": "x",
+          "value": [
+            "max",
+            0,
+            "seed"
+          ]
+        }
+      ],
+      "result": [
+        "trunc",
+        [
+          "div",
+          [
+            "mul",
+            100,
+            "x"
+          ],
+          [
+            "add",
+            "x",
+            300
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculatePPenBonus, CalculateMPenBonus"
+    },
+    "turnTime": {
+      "inputs": [
+        "speed",
+        "multiplier"
+      ],
+      "steps": [
+        {
+          "name": "speed",
+          "value": [
+            "max",
+            0,
+            [
+              "min",
+              600,
+              "speed"
+            ]
+          ]
+        },
+        {
+          "name": "tt",
+          "value": [
+            "div",
+            [
+              "mul",
+              [
+                "add",
+                34,
+                [
+                  "pow",
+                  [
+                    "mul",
+                    0.0175,
+                    [
+                      "sub",
+                      "speed",
+                      600
+                    ]
+                  ],
+                  2
+                ]
+              ],
+              "multiplier"
+            ],
+            100
+          ]
+        }
+      ],
+      "result": [
+        "trunc",
+        [
+          "max",
+          20,
+          "tt"
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateTTBonus"
+    },
+    "unarmedAttack": {
+      "inputs": [
+        "strength"
+      ],
+      "steps": [],
+      "result": [
+        "trunc",
+        [
+          "div",
+          [
+            "mul",
+            "strength",
+            400
+          ],
+          250
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateUnarmedPAtkBonus"
+    },
+    "twoHandedAttack": {
+      "inputs": [
+        "base",
+        "flat",
+        "rate"
+      ],
+      "steps": [],
+      "result": [
+        "add",
+        "flat",
+        [
+          "trunc",
+          [
+            "div",
+            [
+              "mul",
+              "base",
+              "rate"
+            ],
+            100
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateTwoHandedPAtkBonus"
+    },
+    "defenseSeed": {
+      "inputs": [
+        "stat"
+      ],
+      "steps": [],
+      "result": [
+        "sub",
+        500,
+        [
+          "trunc",
+          [
+            "div",
+            250000,
+            [
+              "add",
+              500,
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "mul",
+                    "stat",
+                    3
+                  ],
+                  2
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateDefenseReduction"
+    },
+    "defenseRate": {
+      "inputs": [
+        "main",
+        "targetMain",
+        "defense",
+        "pierce"
+      ],
+      "steps": [
+        {
+          "name": "defense",
+          "value": [
+            "max",
+            0,
+            [
+              "trunc",
+              [
+                "div",
+                [
+                  "mul",
+                  "defense",
+                  [
+                    "sub",
+                    100,
+                    [
+                      "min",
+                      100,
+                      "pierce"
+                    ]
+                  ]
+                ],
+                100
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "userSeed",
+          "value": [
+            "call",
+            "defenseSeed",
+            "main"
+          ]
+        },
+        {
+          "name": "targetSeed",
+          "value": [
+            "call",
+            "defenseSeed",
+            "targetMain"
+          ]
+        },
+        {
+          "name": "denom",
+          "value": [
+            "add",
+            "userSeed",
+            "targetSeed"
+          ]
+        },
+        {
+          "name": "scale",
+          "value": [
+            "mul",
+            4,
+            [
+              "if",
+              [
+                "lte",
+                "denom",
+                0
+              ],
+              [
+                "mul",
+                "userSeed",
+                "userSeed"
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "mul",
+                    "userSeed",
+                    "userSeed"
+                  ],
+                  "denom"
+                ]
+              ]
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "if",
+        [
+          "lte",
+          [
+            "add",
+            "scale",
+            "defense"
+          ],
+          0
+        ],
+        100,
+        [
+          "trunc",
+          [
+            "div",
+            [
+              "mul",
+              100,
+              "scale"
+            ],
+            [
+              "add",
+              "scale",
+              "defense"
+            ]
+          ]
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateDefenseReduction; single physical or magical defense coefficient 100"
+    },
+    "benchmarkDamage": {
+      "inputs": [
+        "attack",
+        "main",
+        "basePower",
+        "attackRate",
+        "statRate",
+        "targetMain",
+        "defense",
+        "pierce"
+      ],
+      "steps": [
+        {
+          "name": "power",
+          "value": [
+            "add",
+            "basePower",
+            [
+              "trunc",
+              [
+                "div",
+                [
+                  "mul",
+                  "attack",
+                  "attackRate"
+                ],
+                100
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "raw",
+          "value": [
+            "add",
+            "power",
+            [
+              "trunc",
+              [
+                "div",
+                [
+                  "mul",
+                  "power",
+                  [
+                    "trunc",
+                    [
+                      "div",
+                      [
+                        "mul",
+                        "main",
+                        "statRate"
+                      ],
+                      100
+                    ]
+                  ]
+                ],
+                100
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "weighted",
+          "value": [
+            "trunc",
+            [
+              "div",
+              [
+                "mul",
+                "main",
+                "statRate"
+              ],
+              100
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "trunc",
+        [
+          "div",
+          [
+            "mul",
+            "raw",
+            [
+              "call",
+              "defenseRate",
+              [
+                "if",
+                [
+                  "eq",
+                  "weighted",
+                  0
+                ],
+                "main",
+                "weighted"
+              ],
+              "targetMain",
+              "defense",
+              "pierce"
+            ]
+          ],
+          100
+        ]
+      ],
+      "evidence": "Sang/Battle/Calculator.cs: CalculateBaseAttack, CalculateDefenseReduction; isolated benchmark excludes damage modifications"
+    }
+  },
+  "sheetStages": [
+    {
+      "stat": "STR",
+      "value": [
+        "add",
+        "stat.STR",
+        [
+          "if",
+          [
+            "and",
+            "context.unarmed",
+            "tag.StrBonusWhileUnarmed"
+          ],
+          "config.StrWhileUnarmedBonusFlat",
+          0
+        ]
+      ]
+    },
+    {
+      "stat": "HP",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.HP",
+        "percent.HP"
+      ]
+    },
+    {
+      "stat": "MP",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.MP",
+        "percent.MP"
+      ]
+    },
+    {
+      "stat": "STR",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.STR",
+        "percent.STR"
+      ]
+    },
+    {
+      "stat": "VIT",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.VIT",
+        "percent.VIT"
+      ]
+    },
+    {
+      "stat": "DEX",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.DEX",
+        "percent.DEX"
+      ]
+    },
+    {
+      "stat": "AGI",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.AGI",
+        "percent.AGI"
+      ]
+    },
+    {
+      "stat": "MND",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.MND",
+        "percent.MND"
+      ]
+    },
+    {
+      "stat": "SPI",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.SPI",
+        "percent.SPI"
+      ]
+    },
+    {
+      "stat": "SPD",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.SPD",
+        "percent.SPD"
+      ]
+    },
+    {
+      "stat": "LUK",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.LUK",
+        "percent.LUK"
+      ]
+    },
+    {
+      "stat": "AP",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.AP",
+        "percent.AP"
+      ]
+    },
+    {
+      "stat": "HP",
+      "value": [
+        "call",
+        "multiplyPercent",
+        "stat.HP",
+        [
+          "add",
+          100,
+          "hpMultiplier"
+        ]
+      ]
+    },
+    {
+      "stat": "ATK",
+      "value": [
+        "add",
+        "stat.ATK",
+        [
+          "if",
+          [
+            "and",
+            "context.unarmed",
+            "tag.UnarmedPAtk"
+          ],
+          [
+            "call",
+            "unarmedAttack",
+            "stat.STR"
+          ],
+          0
+        ]
+      ]
+    },
+    {
+      "stat": "TT",
+      "value": [
+        "add",
+        "stat.TT",
+        [
+          "call",
+          "turnTime",
+          "stat.SPD",
+          "ttMultiplier"
+        ]
+      ]
+    },
+    {
+      "stat": "CRIT",
+      "value": [
+        "add",
+        "stat.CRIT",
+        [
+          "call",
+          "critChance",
+          [
+            "if",
+            "tag.CritFromMndAndSpi",
+            [
+              "add",
+              "stat.MND",
+              "stat.SPI"
+            ],
+            "stat.DEX"
+          ]
+        ]
+      ]
+    },
+    {
+      "stat": "CRIT_DAMAGE",
+      "value": [
+        "add",
+        "stat.CRIT_DAMAGE",
+        [
+          "call",
+          "critDamage",
+          [
+            "if",
+            "tag.CritFromMndAndSpi",
+            [
+              "add",
+              "stat.MND",
+              "stat.SPI"
+            ],
+            "stat.DEX"
+          ]
+        ]
+      ]
+    },
+    {
+      "stat": "ACC",
+      "value": [
+        "add",
+        "stat.ACC",
+        "stat.AGI"
+      ]
+    },
+    {
+      "stat": "EVA",
+      "value": [
+        "add",
+        "stat.EVA",
+        "stat.AGI"
+      ]
+    },
+    {
+      "stat": "PPEN",
+      "value": [
+        "add",
+        "stat.PPEN",
+        [
+          "call",
+          "penetration",
+          "stat.STR"
+        ]
+      ]
+    },
+    {
+      "stat": "MPEN",
+      "value": [
+        "add",
+        "stat.MPEN",
+        [
+          "call",
+          "penetration",
+          "stat.MND"
+        ]
+      ]
+    },
+    {
+      "stat": "ATK",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.ATK",
+        "percent.ATK"
+      ]
+    },
+    {
+      "stat": "DEF",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.DEF",
+        "percent.DEF"
+      ]
+    },
+    {
+      "stat": "RES",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.RES",
+        "percent.RES"
+      ]
+    },
+    {
+      "stat": "ACC",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.ACC",
+        "percent.ACC"
+      ]
+    },
+    {
+      "stat": "EVA",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.EVA",
+        "percent.EVA"
+      ]
+    },
+    {
+      "stat": "PPEN",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.PPEN",
+        "percent.PPEN"
+      ]
+    },
+    {
+      "stat": "MPEN",
+      "value": [
+        "call",
+        "addPercent",
+        "stat.MPEN",
+        "percent.MPEN"
+      ]
+    },
+    {
+      "stat": "MP",
+      "value": [
+        "if",
+        "tag.NoMP",
+        0,
+        "stat.MP"
+      ]
+    },
+    {
+      "stat": "DEF",
+      "value": [
+        "if",
+        "tag.PDefMax",
+        [
+          "max",
+          9999,
+          "stat.DEF"
+        ],
+        "stat.DEF"
+      ]
+    },
+    {
+      "stat": "RES",
+      "value": [
+        "if",
+        "tag.MDefMax",
+        [
+          "max",
+          9999,
+          "stat.RES"
+        ],
+        "stat.RES"
+      ]
+    },
+    {
+      "stat": "ATK",
+      "value": [
+        "add",
+        "stat.ATK",
+        [
+          "if",
+          [
+            "and",
+            "tag.TwoHanded",
+            "context.twoHanded"
+          ],
+          [
+            "call",
+            "twoHandedAttack",
+            "context.weaponAttack",
+            "config.TwoHandedPAtkFlat",
+            "config.TwoHandedPAtkRate"
+          ],
+          0
+        ]
+      ]
+    },
+    {
+      "stat": "ATK",
+      "value": [
+        "if",
+        [
+          "and",
+          "tag.DualWield",
+          "context.dualWield"
+        ],
+        [
+          "call",
+          "multiplyPercent",
+          "stat.ATK",
+          "config.DualWieldPAtkRate"
+        ],
+        "stat.ATK"
+      ]
+    },
+    {
+      "stat": "HP",
+      "value": [
+        "max",
+        1,
+        [
+          "min",
+          9999,
+          "stat.HP"
+        ]
+      ]
+    },
+    {
+      "stat": "MP",
+      "value": [
+        "max",
+        0,
+        [
+          "min",
+          999,
+          "stat.MP"
+        ]
+      ]
+    },
+    {
+      "stat": "STR",
+      "value": [
+        "max",
+        0,
+        "stat.STR"
+      ]
+    },
+    {
+      "stat": "VIT",
+      "value": [
+        "max",
+        0,
+        "stat.VIT"
+      ]
+    },
+    {
+      "stat": "DEX",
+      "value": [
+        "max",
+        0,
+        "stat.DEX"
+      ]
+    },
+    {
+      "stat": "AGI",
+      "value": [
+        "max",
+        0,
+        "stat.AGI"
+      ]
+    },
+    {
+      "stat": "MND",
+      "value": [
+        "max",
+        0,
+        "stat.MND"
+      ]
+    },
+    {
+      "stat": "SPI",
+      "value": [
+        "max",
+        0,
+        "stat.SPI"
+      ]
+    },
+    {
+      "stat": "SPD",
+      "value": [
+        "max",
+        0,
+        "stat.SPD"
+      ]
+    },
+    {
+      "stat": "LUK",
+      "value": [
+        "max",
+        0,
+        "stat.LUK"
+      ]
+    },
+    {
+      "stat": "AP",
+      "value": [
+        "max",
+        0,
+        [
+          "min",
+          99,
+          "stat.AP"
+        ]
+      ]
+    },
+    {
+      "stat": "ATK",
+      "value": [
+        "max",
+        0,
+        "stat.ATK"
+      ]
+    },
+    {
+      "stat": "DEF",
+      "value": [
+        "max",
+        0,
+        "stat.DEF"
+      ]
+    },
+    {
+      "stat": "RES",
+      "value": [
+        "max",
+        0,
+        "stat.RES"
+      ]
+    },
+    {
+      "stat": "CRIT",
+      "value": [
+        "max",
+        0,
+        "stat.CRIT"
+      ]
+    },
+    {
+      "stat": "CRIT_DAMAGE",
+      "value": [
+        "max",
+        0,
+        "stat.CRIT_DAMAGE"
+      ]
+    },
+    {
+      "stat": "ACC",
+      "value": [
+        "max",
+        0,
+        "stat.ACC"
+      ]
+    },
+    {
+      "stat": "EVA",
+      "value": [
+        "max",
+        0,
+        "stat.EVA"
+      ]
+    },
+    {
+      "stat": "PPEN",
+      "value": [
+        "max",
+        0,
+        "stat.PPEN"
+      ]
+    },
+    {
+      "stat": "MPEN",
+      "value": [
+        "max",
+        0,
+        "stat.MPEN"
+      ]
+    },
+    {
+      "stat": "TT",
+      "value": [
+        "max",
+        0,
+        "stat.TT"
+      ]
+    }
+  ],
+  "statMods": {
+    "0": {
+      "name": "Flat_HP",
+      "stat": "HP",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "1": {
+      "name": "Flat_MP",
+      "stat": "MP",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "2": {
+      "name": "Flat_AP",
+      "stat": "AP",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "6": {
+      "name": "Flat_Str",
+      "stat": "STR",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "7": {
+      "name": "Flat_Vit",
+      "stat": "VIT",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "8": {
+      "name": "Flat_Dex",
+      "stat": "DEX",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "9": {
+      "name": "Flat_Agi",
+      "stat": "AGI",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "10": {
+      "name": "Flat_Mnd",
+      "stat": "MND",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "11": {
+      "name": "Flat_Spi",
+      "stat": "SPI",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "12": {
+      "name": "Flat_Spd",
+      "stat": "SPD",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "13": {
+      "name": "Flat_Lck",
+      "stat": "LUK",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "14": {
+      "name": "Flat_AllStats",
+      "kind": "allCore",
+      "scope": "sheet"
+    },
+    "20": {
+      "name": "Addi_HP",
+      "stat": "HP",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "21": {
+      "name": "Addi_MP",
+      "stat": "MP",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "22": {
+      "name": "Addi_AP",
+      "stat": "AP",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "26": {
+      "name": "Addi_Str",
+      "stat": "STR",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "27": {
+      "name": "Addi_Vit",
+      "stat": "VIT",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "28": {
+      "name": "Addi_Dex",
+      "stat": "DEX",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "29": {
+      "name": "Addi_Agi",
+      "stat": "AGI",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "30": {
+      "name": "Addi_Mnd",
+      "stat": "MND",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "31": {
+      "name": "Addi_Spi",
+      "stat": "SPI",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "32": {
+      "name": "Addi_Spd",
+      "stat": "SPD",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "33": {
+      "name": "Addi_Lck",
+      "stat": "LUK",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "40": {
+      "name": "Flat_PAtk",
+      "stat": "ATK",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "41": {
+      "name": "Flat_PPen",
+      "stat": "PPEN",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "42": {
+      "name": "Flat_PDef",
+      "stat": "DEF",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "43": {
+      "name": "Addi_PCritChance",
+      "stat": "CRIT",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "44": {
+      "name": "Addi_PCritDmg",
+      "stat": "CRIT_DAMAGE",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "45": {
+      "name": "Flat_PAccRating",
+      "stat": "ACC",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "46": {
+      "name": "Flat_PEvaRating",
+      "stat": "EVA",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "47": {
+      "name": "Flat_MPen",
+      "stat": "MPEN",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "48": {
+      "name": "Flat_MDef",
+      "stat": "RES",
+      "kind": "flat",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "49": {
+      "name": "Mult_BasicAttack_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "50": {
+      "name": "Mult_PHitChance_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "51": {
+      "name": "Mult_PHitChance_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "52": {
+      "name": "Flat_TTAtBattleStart",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "53": {
+      "name": "Flat_CritResist",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "60": {
+      "name": "Addi_PAtk",
+      "stat": "ATK",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "61": {
+      "name": "Addi_PPen",
+      "stat": "PPEN",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "62": {
+      "name": "Addi_PDef",
+      "stat": "DEF",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "63": {
+      "name": "Addi_PHitChance_Given",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "64": {
+      "name": "Addi_PHitChance_Taken",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "65": {
+      "name": "Addi_PAccRating",
+      "stat": "ACC",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "66": {
+      "name": "Addi_PEvaRating",
+      "stat": "EVA",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "67": {
+      "name": "Addi_MPen",
+      "stat": "MPEN",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "68": {
+      "name": "Addi_MDef",
+      "stat": "RES",
+      "kind": "percent",
+      "scale": "direct",
+      "scope": "sheet"
+    },
+    "69": {
+      "name": "Addi_MHitChance_Given",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "70": {
+      "name": "Addi_MHitChance_Taken",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "80": {
+      "name": "Addi_PVariance",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "81": {
+      "name": "PElement",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "82": {
+      "name": "PStatusApply",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "83": {
+      "name": "Mult_MVariance",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "84": {
+      "name": "Addi_MVariance",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "100": {
+      "name": "Flat_HP_PerLevel",
+      "stat": "HP",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "101": {
+      "name": "Flat_MP_PerLevel",
+      "stat": "MP",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "102": {
+      "name": "Flat_AP_PerLevel",
+      "stat": "AP",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "106": {
+      "name": "Flat_Str_PerLevel",
+      "stat": "STR",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "107": {
+      "name": "Flat_Vit_PerLevel",
+      "stat": "VIT",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "108": {
+      "name": "Flat_Dex_PerLevel",
+      "stat": "DEX",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "109": {
+      "name": "Flat_Agi_PerLevel",
+      "stat": "AGI",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "110": {
+      "name": "Flat_Mnd_PerLevel",
+      "stat": "MND",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "111": {
+      "name": "Flat_Spi_PerLevel",
+      "stat": "SPI",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "112": {
+      "name": "Flat_Spd_PerLevel",
+      "stat": "SPD",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "113": {
+      "name": "Flat_Lck_PerLevel",
+      "stat": "LUK",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "140": {
+      "name": "Flat_PAtk_PerLevel",
+      "stat": "ATK",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "141": {
+      "name": "Flat_PPen_PerLevel",
+      "stat": "PPEN",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "142": {
+      "name": "Flat_PDef_PerLevel",
+      "stat": "DEF",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "143": {
+      "name": "Addi_PCritChance_PerLevel",
+      "stat": "CRIT",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "144": {
+      "name": "Addi_PCritDmg_PerLevel",
+      "stat": "CRIT_DAMAGE",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "145": {
+      "name": "Flat_PAccRating_PerLevel",
+      "stat": "ACC",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "146": {
+      "name": "Flat_PEvaRating_PerLevel",
+      "stat": "EVA",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "147": {
+      "name": "Flat_MPen_PerLevel",
+      "stat": "MPEN",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "148": {
+      "name": "Flat_MDef_PerLevel",
+      "stat": "RES",
+      "kind": "flat",
+      "scale": "PerLevel",
+      "scope": "sheet"
+    },
+    "150": {
+      "name": "Flat_HP_PerTurn",
+      "stat": "HP",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "151": {
+      "name": "Flat_MP_PerTurn",
+      "stat": "MP",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "152": {
+      "name": "Flat_AP_PerTurn",
+      "stat": "AP",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "156": {
+      "name": "Flat_Str_PerTurn",
+      "stat": "STR",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "157": {
+      "name": "Flat_Vit_PerTurn",
+      "stat": "VIT",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "158": {
+      "name": "Flat_Dex_PerTurn",
+      "stat": "DEX",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "159": {
+      "name": "Flat_Agi_PerTurn",
+      "stat": "AGI",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "160": {
+      "name": "Flat_Mnd_PerTurn",
+      "stat": "MND",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "161": {
+      "name": "Flat_Spi_PerTurn",
+      "stat": "SPI",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "162": {
+      "name": "Flat_Spd_PerTurn",
+      "stat": "SPD",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "163": {
+      "name": "Flat_Lck_PerTurn",
+      "stat": "LUK",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "170": {
+      "name": "Flat_PAtk_PerTurn",
+      "stat": "ATK",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "171": {
+      "name": "Flat_PPen_PerTurn",
+      "stat": "PPEN",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "172": {
+      "name": "Flat_PDef_PerTurn",
+      "stat": "DEF",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "173": {
+      "name": "Addi_PCritChance_PerTurn",
+      "stat": "CRIT",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "174": {
+      "name": "Addi_PCritDmg_PerTurn",
+      "stat": "CRIT_DAMAGE",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "175": {
+      "name": "Flat_PAccRating_PerTurn",
+      "stat": "ACC",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "176": {
+      "name": "Flat_PEvaRating_PerTurn",
+      "stat": "EVA",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "177": {
+      "name": "Flat_MPen_PerTurn",
+      "stat": "MPEN",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "178": {
+      "name": "Flat_MDef_PerTurn",
+      "stat": "RES",
+      "kind": "flat",
+      "scale": "PerTurn",
+      "scope": "sheet"
+    },
+    "200": {
+      "name": "Mult_PDmg_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "201": {
+      "name": "Mult_PDmg_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "202": {
+      "name": "Mult_MDmg_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "203": {
+      "name": "Mult_MDmg_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "204": {
+      "name": "PHit_Always",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "205": {
+      "name": "PHit_Never",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "206": {
+      "name": "PEva_Always",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "207": {
+      "name": "PEva_Never",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "208": {
+      "name": "Mute",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "209": {
+      "name": "Mult_PCritDmg_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "210": {
+      "name": "Mult_PCritDmg_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "211": {
+      "name": "Mult_PCritChance_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "212": {
+      "name": "Mult_PCritChance_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "213": {
+      "name": "Flat_PCritDmg_Given",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "214": {
+      "name": "Flat_PCritDmg_Taken",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "215": {
+      "name": "Mult_Healing_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "216": {
+      "name": "Mult_Healing_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "217": {
+      "name": "Mult_MPCosts",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "218": {
+      "name": "MEva_Always",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "219": {
+      "name": "MEva_Never",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "220": {
+      "name": "Mult_RepeatActionDmg",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "221": {
+      "name": "Flat_MPCosts",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "222": {
+      "name": "NoPhysical",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "223": {
+      "name": "CantAttack",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "224": {
+      "name": "MHit_Always",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "225": {
+      "name": "MHit_Never",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "226": {
+      "name": "Mult_PercentDmg_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "227": {
+      "name": "MagicOnly",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "228": {
+      "name": "Mult_PNonCritDmg_Given_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "229": {
+      "name": "Mult_PNonCritDmg_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "230": {
+      "name": "Mult_APCosts",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "231": {
+      "name": "Flat_APCosts",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "240": {
+      "name": "Flat_DamagePerTurnHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "241": {
+      "name": "Addi_DamagePerTurnHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "242": {
+      "name": "Flat_DamagePerTurnMP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "243": {
+      "name": "Addi_DamagePerTurnMP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "244": {
+      "name": "Flat_DamagePerTurnAP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "245": {
+      "name": "Addi_DamagePerTurnAP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "246": {
+      "name": "Mult_DamagePerTurn_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "247": {
+      "name": "Mult_HealingPerTurn_Taken_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "250": {
+      "name": "APBonus_OnBattleStart",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "251": {
+      "name": "APBonus_OnTurn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "252": {
+      "name": "APBonus_OnAttack",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "253": {
+      "name": "APBonus_OnDamaged",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "254": {
+      "name": "APBonus_OnMagic",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "260": {
+      "name": "Mult_ThreatGain",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "261": {
+      "name": "Mult_ThreatDecay",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "269": {
+      "name": "Mult_CT_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "270": {
+      "name": "Mult_TT_NextTurn_100",
+      "kind": "ttMultiplier",
+      "scope": "sheet"
+    },
+    "271": {
+      "name": "Addi_PDmgReturn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "272": {
+      "name": "Addi_PDmgReturn_OnKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "273": {
+      "name": "Addi_MDmgReturn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "274": {
+      "name": "Addi_MDmgReturn_OnKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "275": {
+      "name": "Flat_PDmgReturn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "276": {
+      "name": "Addi_HealingReturn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "300": {
+      "name": "Mult_HP",
+      "kind": "hpMultiplier",
+      "scope": "sheet"
+    },
+    "330": {
+      "name": "MaxDamageTaken",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "331": {
+      "name": "MaxDamageGiven",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "398": {
+      "name": "ExpBoost",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "399": {
+      "name": "JPBoostAll",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "400": {
+      "name": "Mult_ElementDmg_Taken",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "401": {
+      "name": "StatusImmunity",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "402": {
+      "name": "StatusAuto",
+      "kind": "tag",
+      "scope": "context"
+    },
+    "403": {
+      "name": "Reaction",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "404": {
+      "name": "JPBoost",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "405": {
+      "name": "Mult_ElementDmg_Given",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "406": {
+      "name": "EnableEquipType",
+      "kind": "tag",
+      "scope": "permission"
+    },
+    "407": {
+      "name": "Addi_BuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "408": {
+      "name": "Addi_DebuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "409": {
+      "name": "Addi_ApplyBuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "410": {
+      "name": "Addi_ApplyDebuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "411": {
+      "name": "Flat_BuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "412": {
+      "name": "Flat_DebuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "413": {
+      "name": "Flat_ApplyBuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "414": {
+      "name": "Flat_ApplyDebuffDuration",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "415": {
+      "name": "AppliedBuffsArePerma",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "416": {
+      "name": "AppliedDebuffsArePerma",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "417": {
+      "name": "MaxBuffCount",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "418": {
+      "name": "MaxDebuffCount",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "419": {
+      "name": "ImmuneToStatusCategory",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "461": {
+      "name": "SetStatusOnApply",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "462": {
+      "name": "ForceTurnAbility",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "463": {
+      "name": "NoInput",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "464": {
+      "name": "OnStanceChange_GetMPRate",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "465": {
+      "name": "DamageOnApply",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "466": {
+      "name": "DamageRateOnApply",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "467": {
+      "name": "Flat_AbilityAPCost",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "468": {
+      "name": "InstantTurnOnApplication",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "469": {
+      "name": "RemoveStatusOnApply",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "470": {
+      "name": "MDmgCannotKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "471": {
+      "name": "SetStatusAfterRemoval",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "472": {
+      "name": "LootConsumableChanceUp",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "473": {
+      "name": "AbilityItemConsumptionDown",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "474": {
+      "name": "StrBonusWhileUnarmed",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "475": {
+      "name": "DisableLifestealAndRegen",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "476": {
+      "name": "Mult_AbilityDmg",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "477": {
+      "name": "RevealStatsAuto",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "478": {
+      "name": "MinAggro",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "479": {
+      "name": "Frostbite",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "480": {
+      "name": "InstantBuff",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "481": {
+      "name": "InstantDebuff",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "482": {
+      "name": "Flat_Cooldowns",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "483": {
+      "name": "Flat_AbilityMPCost",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "484": {
+      "name": "SetAppearanceToJob",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "485": {
+      "name": "OnStanceChange_GetHPRate",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "486": {
+      "name": "OnStanceChange_GetAPFlat",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "487": {
+      "name": "ReplaceAttackWith",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "488": {
+      "name": "CooldownsTo1",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "489": {
+      "name": "PDmgDoesntWakeTarget",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "490": {
+      "name": "HealSingleToMulti",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "491": {
+      "name": "MaxAggro",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "492": {
+      "name": "Possessed",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "493": {
+      "name": "EscapeCostDown",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "494": {
+      "name": "LuckyDiceRandomMultitarget",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "495": {
+      "name": "APGainsRecoverMP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "496": {
+      "name": "PerfectRunAway",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "497": {
+      "name": "GoldGainUp",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "498": {
+      "name": "PerfectHit",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "499": {
+      "name": "GetNextTurnWhenCritical",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "500": {
+      "name": "Cover",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "501": {
+      "name": "PDmgIncreasesMaxHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "502": {
+      "name": "Mult_PDmgWithBottomThreat",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "503": {
+      "name": "DodgeIndirectPAoe",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "504": {
+      "name": "CritImmunity",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "505": {
+      "name": "UnarmedPAtk",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "506": {
+      "name": "IgnoreReaction",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "507": {
+      "name": "PDefAsMDef",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "508": {
+      "name": "MPShield",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "509": {
+      "name": "APGainsRecoverHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "510": {
+      "name": "TwoHanded",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "511": {
+      "name": "DualWield",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "512": {
+      "name": "Mult_SelflessCure",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "513": {
+      "name": "MPLock",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "514": {
+      "name": "Learning",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "515": {
+      "name": "Mult_PDefAtFullHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "516": {
+      "name": "ImmuneToInterrupt",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "517": {
+      "name": "ImmuneToMPDmg",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "518": {
+      "name": "InstantKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "519": {
+      "name": "ResetTurnOnApplication",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "520": {
+      "name": "InitialThreat",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "521": {
+      "name": "PDefMax",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "522": {
+      "name": "MDefMax",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "523": {
+      "name": "NoMP",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "524": {
+      "name": "SetActorTexture",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "525": {
+      "name": "LootChanceUp",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "526": {
+      "name": "StealChanceUp",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "527": {
+      "name": "Mult_PDmgOnKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "528": {
+      "name": "CritAlways",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "529": {
+      "name": "RandomizeTarget",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "530": {
+      "name": "SkipTurn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "531": {
+      "name": "Float",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "532": {
+      "name": "InstantTT",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "533": {
+      "name": "InstantCT",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "534": {
+      "name": "RestrictCommandTo",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "535": {
+      "name": "HideStats",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "536": {
+      "name": "InvertDamage",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "537": {
+      "name": "ChainCast",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "538": {
+      "name": "AutoCover",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "539": {
+      "name": "TargetMulti",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "540": {
+      "name": "DamageHitsMDef",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "541": {
+      "name": "PDmgBonusVsSleep",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "542": {
+      "name": "BlockAPGains",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "543": {
+      "name": "PDmgCannotKill",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "544": {
+      "name": "ZeroTTAtBattleStart",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "545": {
+      "name": "SetStatusAfterExpiry",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "546": {
+      "name": "CritNever",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "547": {
+      "name": "InstantStance",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "548": {
+      "name": "NoCooldowns",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "549": {
+      "name": "FreeTurn",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "550": {
+      "name": "PerfectDodge",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "551": {
+      "name": "HalfCooldowns",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "552": {
+      "name": "CantBeOneHitKOd",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "553": {
+      "name": "Encore",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "554": {
+      "name": "SubJobInnatePassives",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "555": {
+      "name": "DamageBonusFromAPCost",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "556": {
+      "name": "TargetSingleWithBonus",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "557": {
+      "name": "Reflect",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "558": {
+      "name": "BonusDoubledWhenPaired",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "559": {
+      "name": "Mult_CriticalCure",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "560": {
+      "name": "Mult_PDmg_GivenWhenCritical_100",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "561": {
+      "name": "Mult_MDefAtFullHP",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "562": {
+      "name": "LearnAll",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "563": {
+      "name": "DmgTakenWhileCharging",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "564": {
+      "name": "CritFromMndAndSpi",
+      "kind": "tag",
+      "scope": "sheet"
+    },
+    "565": {
+      "name": "HiddenIntent",
+      "kind": "tag",
+      "scope": "battle"
+    }
+  },
+  "equipment": {
+    "weaponTypes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "pairedTag": 558,
+    "secondaryInnatesTag": 554,
+    "twoHandedWeaponRequiresAttackModifier": true
+  },
+  "contexts": {
+    "turnCount": 0,
+    "maxHPAbsorbed": 0,
+    "genderBoostEnabled": true,
+    "randomizerRedirects": false
+  },
+  "benchmarks": [
+    {
+      "id": "physical",
+      "label": "Physical benchmark",
+      "attack": "ATK",
+      "main": "STR",
+      "pierce": "PPEN",
+      "basePower": 0,
+      "attackRate": 100,
+      "statRate": 100,
+      "targetMain": 100,
+      "defense": 100
+    },
+    {
+      "id": "magical",
+      "label": "Magic benchmark",
+      "attack": "ATK",
+      "main": "MND",
+      "pierce": "MPEN",
+      "basePower": 100,
+      "attackRate": 0,
+      "statRate": 100,
+      "targetMain": 100,
+      "defense": 100
+    }
+  ],
+  "coverage": {
+    "verified": [
+      "Level and weighted job growth",
+      "Gender-specific base bonuses",
+      "Flat, additive percentage, per-level and resting per-turn stat modifiers",
+      "Innates and explicit equipped passives",
+      "Sheet derived stats and caps",
+      "Unarmed, Two-Handed, Dual Wield, paired equipment",
+      "Isolated single-defense damage benchmarks"
+    ],
+    "requiresContext": [
+      "Battle statuses and automatic status application",
+      "Damage multipliers, critical outcomes, variance, elemental effects, reactions",
+      "HP-dependent defenses and absorbed maximum HP",
+      "Randomizer redirects and runtime mods",
+      "Switch formula parity"
+    ],
+    "sheetEvidence": "RecalcStats order; out-of-battle, zero turns, no status effects"
+  },
+  "operators": [
+    "add",
+    "sub",
+    "mul",
+    "div",
+    "pow",
+    "min",
+    "max",
+    "trunc",
+    "roundEven",
+    "lte",
+    "and",
+    "if",
+    "call",
+    "floor",
+    "ceil",
+    "eq"
+  ],
+  "modifierDefaults": {
+    "flat": 0,
+    "percent": 0,
+    "tt": 100,
+    "hp": 0
+  },
+  "genders": {
+    "male": 0,
+    "female": 1
+  }
+}

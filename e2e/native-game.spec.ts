@@ -22,7 +22,7 @@ test('enemy rewards and item costs share coin denominations while editing keeps 
 test('same-name enemies remain distinct while mode variants are opt-in in global search', async ({ page }) => {
   await page.goto('/#/reference/search?q=woke%20qui')
   const search = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
-  const enemies = search.getByRole('link').filter({ has: page.locator('strong', { hasText: /^Woke Quintar$/ }) })
+  const enemies = search.getByRole('link').filter({ has: page.locator('strong', { hasText: /^Woke Quintar(?: \((?:Chaos|Vanilla) mode\))?$/ }) })
   await expect(enemies).toHaveCount(2)
   const reserve = enemies.filter({ hasText: 'Level 54' })
   const overpass = enemies.filter({ hasText: 'Level 63' })
@@ -34,8 +34,8 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(overpass).toHaveAttribute('href', /monster%3A318$/)
   await search.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(enemies).toHaveCount(6)
-  await expect(enemies.filter({ hasText: 'Chaos override' })).toHaveCount(2)
-  await expect(enemies.filter({ hasText: 'Vanilla override' })).toHaveCount(2)
+  await expect(enemies.filter({ hasText: 'Chaos mode' })).toHaveCount(2)
+  await expect(enemies.filter({ hasText: 'Vanilla mode' })).toHaveCount(2)
   await search.getByLabel('Include other sources and mode variants', { exact: true }).uncheck()
   await expect(enemies).toHaveCount(2)
   await reserve.click()
@@ -148,8 +148,9 @@ test('bestiary entries retain zero values and keep large boss rewards on one lin
   await page.screenshot({ path: testInfo.outputPath('native-boss-narrow.png'), fullPage: true })
 })
 
-test('ordinary planning choices prefer the native base and expose supplemental choices explicitly', async ({ page }) => {
-  await page.goto('/#/builds/library/new')
+test('legacy build pickers prefer the native base and expose supplemental choices explicitly', async ({ page }) => {
+  await page.goto('/#/builds/library')
+  await page.getByRole('button', { name: 'Mira: sample Cleric', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Cleric')
   const classes = page.getByRole('listbox', { name: 'Choose Class', exact: true })
   const cleric = classes.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cleric$/ }) })
@@ -161,7 +162,7 @@ test('ordinary planning choices prefer the native base and expose supplemental c
   await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   await page.getByRole('combobox', { name: 'Preview ability', exact: true }).fill('Cure')
   const abilities = page.getByRole('listbox', { name: 'Choose Preview ability', exact: true })
-  const cure = abilities.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cure$/ }) })
+  const cure = abilities.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
   await expect(cure).toHaveCount(1)
   await expect(cure).toContainText('Windows 1.6.9')
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()

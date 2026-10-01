@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isPotentiallyLearnableInnate } from '../catalog/switch'
-import { nativeDefinitionLabel } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeDisplayName } from '../domain/native-game'
 import { entityDefinitionKey } from '../domain'
 import type { CatalogEntityKind, EntityRef } from '../domain/types'
 import { Dropdown } from './Dropdown'
@@ -33,7 +33,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const { localData, catalogs, planningOptions: options, availablePlanningOptions: availableOptions } = useDefinitionLibrary()
   const selected = findDefinitionOption(options, value)
   const similarNames = useMemo(() => similarNameOptions(localData, availableOptions), [availableOptions, localData])
-  const optionName = (option: DefinitionOption) => label === 'Sub-command' ? commandName(option) ?? option.name : option.name
+  const optionName = (option: DefinitionOption) => nativeDisplayName(option.record, label === 'Sub-command' ? commandName(option) ?? option.name : option.name)
   const inputRef = useRef<HTMLInputElement>(null)
   const id = useId()
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -42,7 +42,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
     if (!open) return []
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
     const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selected?.key)
-    return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && matchesSlot(option, label) && tokens.every((token) => `${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
+    return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && matchesSlot(option, label) && tokens.every((token) => `${optionName(option)} ${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
       .sort((a, b) => Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
   }, [allowedKinds, availableOptions, includeAlternatives, includeInnates, label, open, localData, query, selected?.key])
   const visible = candidates.slice(0, resultLimit)

@@ -52,6 +52,10 @@ export function SnapshotValueView({ localData, catalogs, gameSetup: recordedGame
   if (value.kind === 'unrecorded') return <>Unrecorded</>
   if (value.kind === 'sources') return value.value.length ? <>{value.value.map((source, index) => <small key={index}>{sourceLabel(source)}</small>)}</> : <>Unrecorded</>
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
+  if (value.kind === 'calculation') {
+    const plan = value.value
+    return plan ? <div><p>{plan.model ? `PC 1.6.9.0 (${plan.pcMode ?? 'standard'})` : 'Legacy guide estimate'} · level {plan.level ?? 'unknown'} · {plan.growthMode === 'primary' ? 'follows primary class' : 'manual growth'}</p>{plan.growth.map((row, index) => <div key={index}>{row.classRef ? entityName(localData, catalogs, row.classRef) : 'Unknown class'}: {row.levels ?? '?'} levels</div>)}{plan.statuses.length > 0 && <p>Statuses: {plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ')}</p>}{plan.bonuses.length > 0 && <p>Bonuses: {plan.bonuses.join(', ')}</p>}</div> : <>No saved calculation assumptions</>
+  }
   if (value.kind === 'selection') return value.value === undefined ? <>Unknown</> : value.value === null ? <>Empty</> : definition(value.value)
   if (value.kind === 'reference') return <RecordedKnowledge format={definition} value={value.value}/>
   if (value.kind === 'references') return <RecordedKnowledge format={(refs) => refs.length ? <>{refs.map((ref, index) => <div key={index}>{definition(ref)}</div>)}</> : <>None equipped</>} value={value.value}/>
@@ -67,6 +71,7 @@ export function CharacterSheet({ localData, catalogs, snapshot, onEditSlot }: Re
     { label: 'Level', value: { kind: 'number', value: snapshot.level, unit: '' } },
     { label: 'Primary class', value: { kind: 'reference', value: snapshot.primaryClass } },
     { label: 'Secondary class', value: { kind: 'reference', value: snapshot.secondaryClass } },
+    ...(snapshot.calculation ? [{ label: 'Calculation assumptions', value: { kind: 'calculation' as const, value: snapshot.calculation } }] : []),
   ]
   const context = { localData, catalogs, gameSetup }
   return <div className="recorded-sheet">

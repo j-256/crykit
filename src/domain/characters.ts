@@ -12,6 +12,7 @@ import {
   updatePlaythrough,
 } from './core'
 import { logicalEntityKey } from './definitions'
+import { validateCalculationPlan } from './calculation-plan'
 import { MAX_ID_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import type {
   Character,
@@ -19,6 +20,7 @@ import type {
   CharacterId,
   CharacterSnapshot,
   CharacterSnapshotId,
+  BuildCalculationPlan,
   EntityRef,
   Knowledge,
   LearnedNode,
@@ -136,6 +138,7 @@ export interface CaptureCharacterInput {
   readonly displayedStats?: Readonly<Record<string, ObservedStat>>
   readonly equipment?: Readonly<Record<string, EntityRef | null>>
   readonly passives?: Knowledge<readonly EntityRef[]>
+  readonly calculation?: BuildCalculationPlan
   readonly sources?: readonly SourceRef[]
   readonly note?: string
   readonly now?: Timestamp | string
@@ -172,6 +175,7 @@ export function captureCharacter(localData: LocalData, input: CaptureCharacterIn
     if (ref) assertPersonalDefinitionRef(localData, ref)
   }
   for (const refs of knowledgeValues(input.passives)) for (const ref of refs) assertPersonalDefinitionRef(localData, ref)
+  if (input.calculation) validateCalculationPlan(input.calculation, ref => assertPersonalDefinitionRef(localData, ref))
   const snapshotId = input.snapshotId ?? createId<CharacterSnapshotId>('characterSnapshot')
   if (current.snapshots[snapshotId]) {
     throw new DomainError('DUPLICATE_ID', `Character snapshot already exists: ${snapshotId}`)
@@ -187,6 +191,7 @@ export function captureCharacter(localData: LocalData, input: CaptureCharacterIn
     displayedStats: input.displayedStats ?? {},
     equipment: input.equipment ?? {},
     passives: input.passives ?? UNKNOWN_REFS,
+    ...(input.calculation ? { calculation: structuredClone(input.calculation) } : {}),
     sources: input.sources ?? [],
     ...(input.observedAt === undefined ? {} : { observedAt: asTimestamp(input.observedAt) }),
     ...(input.note === undefined ? {} : { note: input.note }),
