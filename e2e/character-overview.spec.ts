@@ -61,7 +61,7 @@ function syntheticOverview(): LocalData {
 async function importLocalData(page: Page, localData: LocalData) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   const panel = await openData(page)

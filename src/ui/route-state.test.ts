@@ -102,9 +102,9 @@ describe('reference route state', () => {
       query: { kind: ['item'] },
     }))
     const notified = vi.fn()
-    window.addEventListener('crystal-companion:navigation', notified)
+    window.addEventListener('crykit:navigation', notified)
     commitReferenceRouteState({ ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'sword', categories: ['Weapon'] }, 'replace')
-    window.removeEventListener('crystal-companion:navigation', notified)
+    window.removeEventListener('crykit:navigation', notified)
 
     const route = parseAppRoute(window.location.hash)
     expect(route.page).toEqual({ page: 'reference', view: 'detail', ref })

@@ -5,13 +5,13 @@ import { captureCharacter, cloneBuild, compareBuildRevisions, createDefinitionOv
 import { defaultCalculation } from '../domain/calculation-plan'
 import { createBuildPlan } from '../domain/build-planning'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId } from '../domain/types'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData } from './local-data'
 
 const MIXED_CATALOG_BACKUP_TIMEOUT_MS = 60_000
 
-let database: CrystalCompanionDatabase
-beforeEach(() => { database = new CrystalCompanionDatabase(`build-calculation-${crypto.randomUUID()}`); setDatabaseForTests(database) })
+let database: CryKitDatabase
+beforeEach(() => { database = new CryKitDatabase(`build-calculation-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 const ref = (name: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === name)!.id as EntityId })
 

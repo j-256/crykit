@@ -38,7 +38,7 @@ export interface MetaRecord {
   readonly value: string
 }
 
-export class CrystalCompanionDatabase extends Dexie {
+export class CryKitDatabase extends Dexie {
   localDatas!: EntityTable<LocalDataRecord, 'id'>
   catalogs!: EntityTable<CatalogRecord, 'key'>
   evidence!: EntityTable<EvidenceRecord, 'id'>
@@ -47,7 +47,7 @@ export class CrystalCompanionDatabase extends Dexie {
   imports!: EntityTable<ImportRecord, 'id'>
   meta!: EntityTable<MetaRecord, 'key'>
 
-  constructor(name = 'crystal-companion-v2') {
+  constructor(name = 'crykit') {
     super(name)
     this.version(1).stores({
       localDatas: 'id, revision, updatedAt',
@@ -78,13 +78,13 @@ export class CrystalCompanionDatabase extends Dexie {
   }
 }
 
-let defaultDatabase: CrystalCompanionDatabase | undefined
+let defaultDatabase: CryKitDatabase | undefined
 
-export function getDatabase(): CrystalCompanionDatabase {
-  defaultDatabase ??= new CrystalCompanionDatabase()
+export function getDatabase(): CryKitDatabase {
+  defaultDatabase ??= new CryKitDatabase()
   return defaultDatabase
 }
 
-export function setDatabaseForTests(database: CrystalCompanionDatabase | undefined): void {
+export function setDatabaseForTests(database: CryKitDatabase | undefined): void {
   defaultDatabase = database
 }

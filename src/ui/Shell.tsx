@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import crystalCricketUrl from '../assets/crystal-cricket.svg'
 import type { CatalogSnapshot, LocalData, PlaythroughId, GameSetupRevisionId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
 import { Icon, type IconName } from './icons'
@@ -21,7 +22,16 @@ const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
 ]
 
 function Brand() {
-  return <div className="brand"><span className="brand__mark"><Icon name="crystal" /></span><span><strong className="brand__name">Crystal Companion</strong><span className="brand__tagline">A Crystal Project planner</span></span></div>
+  return <div className="brand">
+    <span className="brand__mark"><Icon name="crystal" /></span>
+    <span>
+      <strong className="brand__name">
+        <span>Crystal </span>
+        <span className="brand__kit"><span>Kit</span><img alt="" className="brand__cricket" src={crystalCricketUrl}/></span>
+      </strong>
+      <span className="brand__tagline">A Crystal Project planner</span>
+    </span>
+  </div>
 }
 
 export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectGameSetup, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectGameSetup: (id: GameSetupRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {

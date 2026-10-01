@@ -36,7 +36,7 @@ async function loadFixture(page: Page): Promise<void> {
   const localData = compatibilityFixture()
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()

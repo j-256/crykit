@@ -333,8 +333,8 @@ describe('sharing snapshots', () => {
     const sample = createSampleLocalData(DEFAULT_CATALOG, TEST_NOW)
     const revision = Object.values(sample.buildRevisions)[0]!
     const team = Object.values(requirePlaythrough(sample).scenarios)[0]!
-    const single = createShareUrl(createSharePayload(sample, { kind: 'build', revisionId: revision.id }), 'https://crycom.lasers.app/')
-    const fullTeam = createShareUrl(createSharePayload(sample, { kind: 'team', scenarioId: team.id }), 'https://crycom.lasers.app/')
+    const single = createShareUrl(createSharePayload(sample, { kind: 'build', revisionId: revision.id }), 'https://crykit.lasers.app/')
+    const fullTeam = createShareUrl(createSharePayload(sample, { kind: 'team', scenarioId: team.id }), 'https://crykit.lasers.app/')
     let equipped = { ...sample, personalDefinitions: { ...sample.personalDefinitions } }
     const equippedRevisions = { ...equipped.buildRevisions }
     const passiveSelections = Object.values(DEFAULT_CATALOG.entities).filter(entity => entity.kind === 'passive' || entity.kind === 'innate').slice(0, 10).map(entity => ({ ref: { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id } }))
@@ -344,10 +344,10 @@ describe('sharing snapshots', () => {
       equippedRevisions[revision.id] = { ...revision, content: { ...revision.content, secondaryClass: revision.content.primaryClass, equipment: Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, { ref: { kind: 'personal' as const, definitionId } }])), passives: passiveSelections, calculation: { level: 20, growth: [{ classRef: revision.content.primaryClass, levels: 20 }], bonuses: ['STR', 'AGI'], statuses: [], targetEvasion: null } } }
     }
     equipped = { ...equipped, buildRevisions: equippedRevisions }
-    const detailedTeam = createShareUrl(createSharePayload(equipped, { kind: 'team', scenarioId: team.id }), 'https://crycom.lasers.app/')
+    const detailedTeam = createShareUrl(createSharePayload(equipped, { kind: 'team', scenarioId: team.id }), 'https://crykit.lasers.app/')
     const data = fixture()
     const custom = { ...data, personalDefinitions: { ...data.personalDefinitions, sword: { ...data.personalDefinitions.sword!, rawDescription: variedText(24_000) } } }
-    const large = createShareUrl(createSharePayload(custom, { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') }), 'https://crycom.lasers.app/')
+    const large = createShareUrl(createSharePayload(custom, { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') }), 'https://crykit.lasers.app/')
     expect(single.length).toBeLessThan(MAX_SHARE_URL_LENGTH / 16)
     expect(fullTeam.length).toBeLessThan(MAX_SHARE_URL_LENGTH / 16)
     expect(large.length).toBeGreaterThan(16_384)

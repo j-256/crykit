@@ -16,14 +16,14 @@ export function reviewedCatalogDecisions(catalog: CatalogSnapshot): readonly Cat
 }
 
 export interface ReviewedCatalogBundle {
-  readonly format: 'crystal-companion-reviewed-catalogs'
+  readonly format: 'crykit-reviewed-catalogs'
   readonly version: 1
   readonly current: { readonly catalogId: string; readonly revisionId: string } | null
   readonly catalogs: readonly CatalogSnapshot[]
 }
 
 const bundleSchema = z.object({
-  format: z.literal('crystal-companion-reviewed-catalogs'),
+  format: z.literal('crykit-reviewed-catalogs'),
   version: z.literal(1),
   current: z.object({ catalogId: z.string().min(1), revisionId: z.string().min(1) }).strict().nullable(),
   catalogs: z.array(NativeCatalogSnapshotSchema).max(100),

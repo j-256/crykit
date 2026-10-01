@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "crystal-companion",
+  "name": "crykit",
   "compatibility_date": "2026-09-28",
   "workers_dev": false,
   "preview_urls": false,
@@ -8,6 +8,6 @@
     "directory": "./dist"
   },
   "routes": [
-    { "pattern": "crycom.lasers.app", "custom_domain": true }
+    { "pattern": "crykit.lasers.app", "custom_domain": true }
   ]
 }

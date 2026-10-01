@@ -8,7 +8,7 @@ import { stripHtmlComments, stripHtmlTags } from './wiki-markup.mjs'
 
 const API_URL = 'https://crystal-project.fandom.com/api.php'
 const WIKI_ROOT = 'https://crystal-project.fandom.com/wiki/'
-const USER_AGENT = 'CrystalCompanionCatalogResearch/0.1 (personal offline fan planner)'
+const USER_AGENT = 'CryKitCatalogResearch/0.1 (personal offline fan planner)'
 const WIKI_APPLICABILITY = 'Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified'
 const BATCH_SIZE = 50
 const CACHE_SCHEMA = 1

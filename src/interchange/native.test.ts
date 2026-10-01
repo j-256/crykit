@@ -41,7 +41,7 @@ function nativeFixture(options: {
       }]
     : []
   const manifest = {
-    format: 'crystal-companion-backup',
+    format: 'crykit-backup',
     formatVersion: options.version ?? '2.0.0',
     exportedAt: '2026-01-02T03:04:05.000Z',
     payload: 'bundle.json',

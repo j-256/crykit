@@ -1,4 +1,4 @@
-# Crystal Companion development
+# Crystal Kit development
 
 Build a local-first planner with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
 

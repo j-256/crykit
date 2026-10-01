@@ -1,10 +1,10 @@
-# Crystal Companion
+# CryKit: Builds and more for Crystal Project
 
-Plan classes, equipment, passives, and teams for **Crystal Project** in your browser. Explore build ideas right away, then add character, inventory, and progress tracking whenever you want it.
+Crystal Kit (CryKit, pronounced "cricket") is a local-first planner for **Crystal Project**. Plan classes, equipment, passives, and teams in your browser. Explore build ideas right away, then add character, inventory, and progress tracking whenever you want it.
 
-**[Open Crystal Companion](https://crycom.lasers.app/)** · [User guide](docs/user-guide.md) · [Report a problem](https://github.com/j-256/crystal-companion/issues)
+**[Open Crystal Kit](https://crykit.lasers.app/)** · [User guide](docs/user-guide.md) · [Report a problem](https://github.com/j-256/crykit/issues)
 
-No account or installation is needed. Your saved builds and records stay in your browser, and you can prepare the app for offline use. Crystal Companion is an unofficial fan tool.
+No account or installation is needed. Your saved builds and records stay in your browser, and you can prepare the app for offline use. Crystal Kit is an unofficial fan tool.
 
 ## What you can do
 
@@ -70,8 +70,8 @@ For offline use, open **Data & settings > Offline & storage** while connected. C
 If you prefer a local copy, install Node.js 22.12 or later and npm, then run:
 
 ```sh
-git clone https://github.com/j-256/crystal-companion.git
-cd crystal-companion
+git clone https://github.com/j-256/crykit.git
+cd crykit
 npm ci
 npm run dev
 ```
@@ -80,6 +80,6 @@ Open the localhost address printed by Vite. For offline caching, use the [produc
 
 ## Feedback and license
 
-Found a bug or a reference mistake? [Open an issue](https://github.com/j-256/crystal-companion/issues) with steps to reproduce it and an example using made-up records. Keep personal backups, imports, and playthrough screenshots out of public issues.
+Found a bug or a reference mistake? [Open an issue](https://github.com/j-256/crykit/issues) with steps to reproduce it and an example using made-up records. Keep personal backups, imports, and playthrough screenshots out of public issues.
 
 Original application code is licensed under [AGPL-3.0-only](LICENSE). Game artwork, wiki content, fonts, and dependencies retain their separate rights. See [credits and third-party notices](NOTICE.md), also available in **Data & settings > Credits & licenses**.

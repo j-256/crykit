@@ -1,4 +1,4 @@
-export { CrystalCompanionDatabase, getDatabase, setDatabaseForTests } from './database'
+export { CryKitDatabase, getDatabase, setDatabaseForTests } from './database'
 export {
   commitImport,
   exportBackup,

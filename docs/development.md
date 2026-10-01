@@ -1,14 +1,14 @@
 # Development guide
 
-To use the planner, [open the app](https://crycom.lasers.app/). This guide is for running, changing, and verifying the source locally. Read the [project instructions](../AGENTS.md) before contributing.
+To use the planner, [open the app](https://crykit.lasers.app/). This guide is for running, changing, and verifying the source locally. Read the [project instructions](../AGENTS.md) before contributing.
 
 ## Set up the repository
 
 Use Node.js 22.12 or later and npm. Clone the repository, then install the locked dependencies and the privacy hook:
 
 ```sh
-git clone https://github.com/j-256/crystal-companion.git
-cd crystal-companion
+git clone https://github.com/j-256/crykit.git
+cd crykit
 npm ci
 npm run hooks:install
 npm run dev
@@ -49,7 +49,7 @@ Keep catalog definitions, personal observations, and planned configurations sepa
 
 Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and unreviewed workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
 
-Use [GitHub issues](https://github.com/j-256/crystal-companion/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. The [correction guide](corrections.md) explains how to export reference corrections separately from playthrough records.
+Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. The [correction guide](corrections.md) explains how to export reference corrections separately from playthrough records.
 
 ## Interface and artwork
 
@@ -61,7 +61,7 @@ The interface takes its visual cues from Crystal Project's menus: charcoal windo
 
 Serve `dist/` from a secure origin. Hash routes and relative asset URLs support a subdirectory. Offline preparation requires HTTPS or a browser's trusted localhost context. Prepare the production app while connected, then check its offline status before relying on it without a connection. App updates are staged for explicit activation; browser storage still needs external backups.
 
-The hosted app uses an assets-only Cloudflare Worker at `crycom.lasers.app`. The aliases `cp.lasers.app` and `crystal.lasers.app` use HTTP 307 redirects that preserve the request method, path, and query. See [deployment and recovery](deployment.md) for configuration, the public-only CI sequence, and Free-plan limits. Local builds do not need Cloudflare credentials.
+The hosted app uses an assets-only Cloudflare Worker at `crykit.lasers.app`. The retained aliases `crycom.lasers.app`, `cp.lasers.app`, `crystal.lasers.app`, `crystal-companion.lasers.app`, and `crystalcompanion.lasers.app` use HTTP 307 redirects that preserve the request method, path, and query. See [deployment and recovery](deployment.md) for configuration, the public-only CI sequence, and Free-plan limits. Local builds do not need Cloudflare credentials.
 
 Development and verification can run entirely locally. The public repository also verifies changes and deploys main with GitHub Actions. Actions must remain disabled whenever the repository is private; the workflow retains a public-repository guard.
 

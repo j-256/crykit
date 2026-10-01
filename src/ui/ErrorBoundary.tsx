@@ -11,14 +11,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   static getDerivedStateFromError(error: Error): State { return { error } }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('crystal_companion_render_failure', { name: error.name, componentStack: info.componentStack })
+    console.error('crykit_render_failure', { name: error.name, componentStack: info.componentStack })
   }
 
   private exportRecovery = async () => {
     this.setState({ exporting: true, exportError: undefined })
     try {
       await loadLocalData()
-      downloadBytes(await exportBackup(), 'crystal-companion-recovery.zip', 'application/zip')
+      downloadBytes(await exportBackup(), 'crykit-recovery.zip', 'application/zip')
     } catch (reason) {
       this.setState({ exportError: formatAppError(reason, 'The persisted recovery backup could not be prepared.') })
     } finally {

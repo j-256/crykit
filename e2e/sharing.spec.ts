@@ -6,7 +6,7 @@ import { selectedPlaythrough } from './local-data-helpers'
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crystal-companion-v2')
+    const request = indexedDB.open('crykit')
     request.onerror = () => reject(request.error)
     request.onsuccess = () => {
       const database = request.result

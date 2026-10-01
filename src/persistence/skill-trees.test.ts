@@ -3,11 +3,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { importSkillTrees } from '../domain/skill-trees'
 import { screenshotTestLocalData, TEST_CAPTURE } from '../domain/skill-trees.test-helpers'
 import { requirePlaythrough } from '../domain'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData, undoLocalDataWithStatus } from './local-data'
 
-let database: CrystalCompanionDatabase
-beforeEach(() => { database = new CrystalCompanionDatabase(`screenshot-${crypto.randomUUID()}`); setDatabaseForTests(database) })
+let database: CryKitDatabase
+beforeEach(() => { database = new CryKitDatabase(`screenshot-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
 it('rolls back failed screenshot saves, supports retry, and undoes the whole batch', async () => {

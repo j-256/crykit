@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const e2ePort = process.env.CRYSTAL_COMPANION_E2E_PORT ?? '4173'
+const e2ePort = process.env.CRYKIT_E2E_PORT ?? '4173'
 const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`
 const END_TO_END_TEST_TIMEOUT_MS = 60_000
 const CI_END_TO_END_WORKERS = 1

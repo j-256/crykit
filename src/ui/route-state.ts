@@ -4,7 +4,7 @@ import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
 import { OPTIONAL_REFERENCE_AUDIENCES, REFERENCE_FACETS, type OptionalReferenceAudience, type ReferenceFacetFilters } from './reference-facets'
 import { parseAppRoute, writeNavigationRoute, type AppRoute, type RouteQuery } from './navigation'
 
-export const REFERENCE_ROUTE_STORAGE_KEY = 'crystal-companion:reference-route:v1'
+export const REFERENCE_ROUTE_STORAGE_KEY = 'crykit:reference-route:v1'
 export const REFERENCE_PAGE_SIZE = 100
 
 const REFERENCE_ROUTE = '#/reference'
@@ -229,7 +229,7 @@ export function commitReferenceRouteState(value: ReferenceRouteState, mode: 'pus
   return state
 }
 
-export const INVENTORY_ROUTE_STORAGE_KEY = 'crystal-companion:inventory-route:v1'
+export const INVENTORY_ROUTE_STORAGE_KEY = 'crykit:inventory-route:v1'
 export const INVENTORY_PAGE_SIZE = 100
 
 const INVENTORY_ROUTE = '#/inventory'

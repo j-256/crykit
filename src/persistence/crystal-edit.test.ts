@@ -2,12 +2,12 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { syntheticCrystalEdit } from '../interchange/crystal-edit.test-helpers'
 import { requirePlaythrough } from '../domain'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, undoLocalDataWithStatus } from './local-data'
 
-let database: CrystalCompanionDatabase
+let database: CryKitDatabase
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-beforeEach(() => { database = new CrystalCompanionDatabase(`crystal-edit-${crypto.randomUUID()}`); setDatabaseForTests(database) })
+beforeEach(() => { database = new CryKitDatabase(`crystal-edit-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
 it('adds reference data without replacing personal records, repeats idempotently, and restores the source in a backup', async () => {

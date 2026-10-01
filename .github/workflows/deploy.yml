@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: crystal-companion-${{ github.ref }}
+  group: crykit-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -102,7 +102,7 @@ jobs:
 
   deploy:
     needs: verify
-    if: github.event.repository.private == false && github.repository == 'j-256/crystal-companion' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.event.repository.private == false && github.repository == 'j-256/crykit' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -142,8 +142,8 @@ jobs:
           const upload = uploads[0]
           const versionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
           if (uploads.length !== 1 || upload.version !== 1 ||
-              upload.worker_name !== 'crystal-companion' || !versionIdPattern.test(upload.version_id)) {
-            throw new Error('Expected one version upload for crystal-companion with a valid version ID')
+              upload.worker_name !== 'crykit' || !versionIdPattern.test(upload.version_id)) {
+            throw new Error('Expected one version upload for crykit with a valid version ID')
           }
           execFileSync('node_modules/.bin/wrangler', [
             'versions', 'deploy', `${upload.version_id}@100%`, '--yes',

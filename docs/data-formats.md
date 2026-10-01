@@ -1,6 +1,6 @@
 # Local data and interchange
 
-Crystal Companion separates reference definitions, personal observations, and hypothetical plans. Importing reference material does not establish current stock or character learning. Original source bytes and unmapped fields are retained for inspection and native backup.
+Crystal Kit separates reference definitions, personal observations, and hypothetical plans. Importing reference material does not establish current stock or character learning. Original source bytes and unmapped fields are retained for inspection and native backup.
 
 Quintar breeding guide marks are optional timestamped observations in each Playthrough's `quintarBreeding` record, keyed by the guide's fixed step identities. An absent key means no completion was recorded. Native backups preserve these marks and their undo history; unknown step identities and invalid timestamps are rejected. Completing a guide action does not establish current nursery contents or item possession.
 
@@ -59,7 +59,7 @@ Native backups allow a bounded 128 MiB uncompressed entry and 256 MiB aggregate 
 
 Character snapshots carry `gameSetupRevisionId`, pinning their recorded equipment-slot labels, order, and configuration independently of the Playthrough's current Game Setup. A supplied pin must reference a retained Game Setup revision. Snapshots store equipment by slot ID and passives as a separate ordered list with explicit knowledge state. New captures pin the capture Game Setup revision, and recording a Build as current pins that Build checkpoint's Game Setup revision. Capturing under a changed or previously unrecorded slot context requires selections to be recorded again. Backups retain these pins and all earlier snapshots.
 
-The manifest uses `format: "crystal-companion-backup"` and `formatVersion: "2.0.0"`. It names `bundle.json` and lists each retained source file's identity, filename, format, size, and SHA-256 digest. `bundle.json` contains the local planner data, lineage, immutable catalog snapshots, evidence, and retained history. Source files occupy declared `sources/*.bin` entries.
+The manifest uses `format: "crykit-backup"` and `formatVersion: "2.0.0"`. It names `bundle.json` and lists each retained source file's identity, filename, format, size, and SHA-256 digest. `bundle.json` contains the local planner data, lineage, immutable catalog snapshots, evidence, and retained history. Source files occupy declared `sources/*.bin` entries.
 
 The manifest reports how many undo checkpoints were available to the export and how many fit. If complete history would exceed the bounded payload, export keeps the newest checkpoints and marks history as truncated; preview reports that limitation. If no checkpoint fits, the exported command journal is cleared so restored planner data does not offer an unavailable Undo action. The complete current facts, required catalogs and evidence, and every referenced source file remain in the backup. Raw rows are retained in evidence alongside the original source bytes, while catalog legacy data contains only unnormalized package metadata so backups do not duplicate every row several times.
 
@@ -77,4 +77,4 @@ The service worker stores only the static application shell. Its cache does not 
 
 ## Reference correction deltas
 
-The versioned `crystal-companion-corrections` JSON format transfers immutable correction decisions independently of personal records. Full native backups can also include the global correction registry; its restoration is an explicit import option and commits atomically with planner-data replacement. See [correction editing, provenance, and baseline promotion](corrections.md) for the contribution workflow and source-review boundaries.
+The versioned `crykit-corrections` JSON format transfers immutable correction decisions independently of personal records. Full native backups can also include the global correction registry; its restoration is an explicit import option and commits atomically with planner-data replacement. See [correction editing, provenance, and baseline promotion](corrections.md) for the contribution workflow and source-review boundaries.

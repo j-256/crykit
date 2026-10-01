@@ -7,7 +7,7 @@ export function offlinePlugin(): Plugin {
   let publicDirectory = 'public'
   const publicAssets = ['icon.svg', 'manifest.webmanifest', 'pixel-operator-CC0.txt']
   return {
-    name: 'crystal-companion-offline',
+    name: 'crykit-offline',
     apply: 'build',
     configResolved(config) { publicDirectory = config.publicDir },
     generateBundle: { order: 'post', handler(_, bundle) {
@@ -23,7 +23,7 @@ export function offlinePlugin(): Plugin {
         digest.update(entry.type === 'chunk' ? entry.code : entry.source)
       }
       const version = digest.digest('hex').slice(0, 16)
-      const source = `const CACHE_PREFIX = 'crystal-companion-shell-';
+      const source = `const CACHE_PREFIX = 'crykit-shell-';
 const CACHE_NAME = CACHE_PREFIX + encodeURIComponent(self.registration.scope) + '-' + ${JSON.stringify(version)};
 const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);

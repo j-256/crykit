@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Crystal Companion",
-  "short_name": "Companion",
-  "description": "Local inventory and party planning for Crystal Project",
+  "name": "Crystal Kit",
+  "short_name": "CryKit",
+  "description": "Plan and compare builds for Crystal Project. Explore classes, skills, and gear, then track your characters, inventory, and progress with Crystal Kit.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
