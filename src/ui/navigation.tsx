@@ -117,8 +117,8 @@ const MAX_QUERY_VALUE_LENGTH = 4_096
 const MAX_OVERLAYS = 16
 const DEFAULT_PICKER_LIMIT = 100
 const MAX_PICKER_LIMIT = 2_000
-const NAVIGATION_EVENT = 'crystal-companion:navigation'
-const NAVIGATION_STATE_KEY = 'crystalCompanionNavigation'
+const NAVIGATION_EVENT = 'crykit:navigation'
+const NAVIGATION_STATE_KEY = 'crykitNavigation'
 const COLLECTION_ID_RESERVED_SEGMENTS = new Set(['new', 'search', 'pick', 'definitions', 'corrections', 'correct'])
 const REVISION_ID_RESERVED_SEGMENTS = new Set(['new'])
 const COMPARE_LEFT_ID_RESERVED_SEGMENTS = new Set(['search', 'pick', 'definitions', 'corrections', 'correct'])
@@ -619,20 +619,20 @@ export function routeDestination(route: AppRoute): Destination {
 
 export function routeTitle(route: AppRoute): string {
   const top = route.overlays.at(-1)
-  if (top?.kind === 'corrections') return 'Corrections | Crystal Companion'
-  if (top?.kind === 'correction-editor') return 'Correction details | Crystal Companion'
-  if (top?.kind === 'search') return 'Search | Crystal Companion'
-  if (top?.kind === 'definition-picker') return 'Choose definition | Crystal Companion'
-  if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | Crystal Companion`
+  if (top?.kind === 'corrections') return 'Corrections | CryKit'
+  if (top?.kind === 'correction-editor') return 'Correction details | CryKit'
+  if (top?.kind === 'search') return 'Search | CryKit'
+  if (top?.kind === 'definition-picker') return 'Choose definition | CryKit'
+  if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | CryKit`
   const page = route.page
-  if (page.page === 'share') return 'Shared snapshot | Crystal Companion'
-  if (page.page === 'unresolved') return 'Page unavailable | Crystal Companion'
-  if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | Crystal Companion`
-  if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | Crystal Companion`
-  if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | Crystal Companion`
-  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | Crystal Companion`
-  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | Crystal Companion`
-  return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | Crystal Companion`
+  if (page.page === 'share') return 'Shared snapshot | CryKit'
+  if (page.page === 'unresolved') return 'Page unavailable | CryKit'
+  if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | CryKit`
+  if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | CryKit`
+  if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | CryKit`
+  if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create team scenario' : page.view === 'scenario' ? 'Team scenario' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Teams' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | CryKit`
+  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | CryKit`
+  return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | CryKit`
 }
 
 export function routeForDestination(destination: Destination): AppRoute {

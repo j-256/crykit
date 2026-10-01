@@ -88,7 +88,9 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .brand { display: flex; align-items: center; gap: 9px; min-height: 54px; padding: 0 5px; }
 .brand__mark { width: 44px; height: 50px; flex: 0 0 auto; display: grid; place-items: center; color: var(--cyan-300); }
 .brand__mark svg { width: 40px; height: 44px; }
-.brand__name { display: block; max-width: 180px; margin-bottom: 6px; font-size: var(--menu-size-medium); line-height: .75; }
+.brand__name { display: grid; width: max-content; max-width: 180px; margin-bottom: 6px; font-size: var(--menu-size-medium); line-height: .75; }
+.brand__kit { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.brand__cricket { display: block; width: 1.5em; height: .75em; flex: 0 0 auto; }
 .brand__tagline { display: block; color: var(--text-faint); font-size: .63rem; line-height: 1.5; }
 .nav-list { display: grid; gap: 6px; margin: 0; padding: 8px; list-style: none; }
 .nav-tracking { margin-top: 4px; border-top: 1px solid var(--line); }
@@ -1023,7 +1025,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .mobile-header .brand { min-width: 0; min-height: 44px; padding: 0; gap: 9px; }
   .mobile-header .brand__mark { width: 32px; height: 40px; }
   .mobile-header .brand__mark svg { width: 28px; height: 36px; }
-  .mobile-header .brand__name { max-width: none; margin-bottom: 3px; font-size: var(--menu-size-compact); line-height: 1; }
+  .mobile-header .brand__name { max-width: none; margin-bottom: 3px; font-size: var(--menu-size-compact); line-height: .75; }
   .mobile-header .brand__tagline { max-width: 190px; font-size: .58rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .context-bar { position: sticky; inset: auto; top: var(--mobile-header-height); z-index: 19; height: auto; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--ink-900); }
   .context-bar__group { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }

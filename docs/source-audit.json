@@ -499,7 +499,7 @@
       },
       "reasons": []
     },
-    "https://crycom.lasers.app": {
+    "https://crykit.lasers.app": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -513,7 +513,7 @@
       },
       "reasons": []
     },
-    "https://crycom.lasers.app/": {
+    "https://crykit.lasers.app/": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -528,7 +528,7 @@
       },
       "reasons": []
     },
-    "https://crycom.lasers.app/)**": {
+    "https://crykit.lasers.app/)**": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -58360,7 +58360,7 @@
       },
       "reasons": []
     },
-    "https://github.com/j-256/crystal-companion": {
+    "https://github.com/j-256/crykit": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -58375,7 +58375,7 @@
       },
       "reasons": []
     },
-    "https://github.com/j-256/crystal-companion.git": {
+    "https://github.com/j-256/crykit.git": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -58390,7 +58390,7 @@
       },
       "reasons": []
     },
-    "https://github.com/j-256/crystal-companion/issues": {
+    "https://github.com/j-256/crykit/issues": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [

@@ -5,7 +5,7 @@ import { BUNDLED_V1_CATALOG, BUNDLED_V2_CATALOG, DEFAULT_CATALOG } from '../cata
 import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { TEAM_SIZE } from '../domain/scenarios'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
   exportBackup,
@@ -19,10 +19,10 @@ import {
 } from './local-data'
 
 describe('local planner persistence', () => {
-  let database: CrystalCompanionDatabase
+  let database: CryKitDatabase
 
   beforeEach(() => {
-    database = new CrystalCompanionDatabase(`test-${crypto.randomUUID()}`)
+    database = new CryKitDatabase(`test-${crypto.randomUUID()}`)
     setDatabaseForTests(database)
   })
 

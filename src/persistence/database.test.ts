@@ -6,7 +6,7 @@ import { createTestLocalData, TEST_NOW } from '../domain/test-helpers'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { compactModCatalog } from '../domain/mod-layers'
 import type { LocalData } from '../domain/types'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { exportBackup, loadLocalData, prepareModCatalogs, previewImport, undoLocalDataWithStatus } from './local-data'
 
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
@@ -34,7 +34,7 @@ afterEach(async () => {
 describe('persisted behavior format migration', () => {
   it('upgrades legacy data and undo history transactionally without changing pinned records', async () => {
     const fixture = await oldDatabase()
-    const database = new CrystalCompanionDatabase(fixture.name)
+    const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
     expect(database.verno).toBe(2)
@@ -63,7 +63,7 @@ describe('persisted behavior format migration', () => {
     await original.table('history').clear()
     for (const catalog of prepared) await original.table('catalogs').put({ key: JSON.stringify([catalog.id, catalog.revisionId]), id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum, snapshot: compactModCatalog(catalog) })
     original.close()
-    const database = new CrystalCompanionDatabase(fixture.name)
+    const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
     expect(loaded.localData).toEqual(data)
@@ -73,7 +73,7 @@ describe('persisted behavior format migration', () => {
 
   it('rolls back data writes and the database version when history migration fails', async () => {
     const fixture = await oldDatabase(true)
-    const database = new CrystalCompanionDatabase(fixture.name)
+    const database = new CryKitDatabase(fixture.name)
     await expect(database.open()).rejects.toThrow()
     database.close()
     const original = new Dexie(fixture.name)

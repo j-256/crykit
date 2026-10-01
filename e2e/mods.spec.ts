@@ -16,7 +16,7 @@ const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  return zipSync({ 'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [STARTER_CATALOG], evidence: [], history: [] }) })
+  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [STARTER_CATALOG], evidence: [], history: [] }) })
 }
 
 async function dataPanel(page: Page) {
@@ -45,7 +45,7 @@ async function importBackup(page: Page, bytes: Uint8Array) {
 
 async function search(page: Page, query: string) {
   await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
-  const palette = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
+  const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await palette.getByRole('searchbox').fill(query)
   return palette
 }

@@ -1,4 +1,4 @@
-# Crystal Companion specification, revision 2
+# Crystal Kit specification, revision 2
 
 Date: 2026-09-24. This is the implementation contract for a local inventory, character, and party planner. It replaces the first proposal's conflicting release priorities and unsupported assumptions about its input package. Private source documents and playthrough examples are deliberately excluded.
 

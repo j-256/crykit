@@ -6,11 +6,11 @@ import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { modCatalogForPin } from '../domain/mod-layers'
 import type { EntityId } from '../domain/types'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { CrystalCompanionDatabase, setDatabaseForTests } from './database'
+import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData, undoLocalDataWithStatus } from './local-data'
 
-let database: CrystalCompanionDatabase
-beforeEach(() => { database = new CrystalCompanionDatabase(`mod-layers-${crypto.randomUUID()}`); setDatabaseForTests(database) })
+let database: CryKitDatabase
+beforeEach(() => { database = new CryKitDatabase(`mod-layers-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
 async function importedData() {

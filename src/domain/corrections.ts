@@ -1,7 +1,7 @@
 import { entityDefinitionKey } from './core'
 import type { CatalogClaim, CatalogEntity, CatalogRef, CatalogSnapshot, JsonValue, Knowledge, PersonalDefinition, SourceRef } from './types'
 
-export const CORRECTIONS_FORMAT = 'crystal-companion-corrections'
+export const CORRECTIONS_FORMAT = 'crykit-corrections'
 export const CORRECTIONS_VERSION = 1
 export const MAX_CORRECTIONS = 2_000
 export const MAX_CORRECTION_BYTES = 4 * 1024 * 1024

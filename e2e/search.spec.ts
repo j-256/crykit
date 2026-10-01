@@ -25,10 +25,10 @@ async function exportLocalData(page: Page) {
 
 async function search(page: Page, query: string, shortcut = 'Control+k') {
   await page.keyboard.press(shortcut)
-  const palette = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
+  const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await expect(palette).toBeVisible()
-  await expect(palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true })).toBeFocused()
-  await palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true }).fill(query)
+  await expect(palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })).toBeFocused()
+  await palette.getByRole('searchbox', { name: 'Search CryKit', exact: true }).fill(query)
   return palette
 }
 
@@ -48,8 +48,8 @@ test.beforeEach(async ({ page }) => {
 
 test('universal search focuses the input on shortcuts, reopening, and the search button', async ({ page, isMobile }) => {
   const trigger = page.getByRole('button', { name: isMobile ? 'Search planner' : /^Search/ }).filter({ visible: true })
-  const palette = page.getByRole('dialog', { name: 'Search Crystal Companion', exact: true })
-  const input = palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true })
+  const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
+  const input = palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })
   await trigger.focus()
   for (const shortcut of ['Meta+k', 'Control+k']) {
     await page.keyboard.press(shortcut)
@@ -95,7 +95,7 @@ test('starter picklists and universal search work without importing or inventing
   await expect(form).not.toBeVisible()
 
   const palette = await search(page, 'Taunt', 'Meta+k')
-  await palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true }).press('ArrowDown')
+  await palette.getByRole('searchbox', { name: 'Search CryKit', exact: true }).press('ArrowDown')
   await expect(palette.locator('[data-universal-result="true"]').first()).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(palette).not.toBeVisible()
@@ -105,8 +105,8 @@ test('starter picklists and universal search work without importing or inventing
   const trigger = page.getByRole('button', { name: isMobile ? 'Search planner' : /^Search/ }).filter({ visible: true })
   await trigger.click()
   await expect(palette).toBeVisible()
-  await palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true }).fill('A nonempty query')
-  await palette.getByRole('searchbox', { name: 'Search Crystal Companion', exact: true }).press('Escape')
+  await palette.getByRole('searchbox', { name: 'Search CryKit', exact: true }).fill('A nonempty query')
+  await palette.getByRole('searchbox', { name: 'Search CryKit', exact: true }).press('Escape')
   await expect(palette).not.toBeVisible()
   await expect(trigger).toBeFocused()
 

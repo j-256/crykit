@@ -7,12 +7,12 @@ interface LockedPackage { readonly dev?: boolean; readonly version?: string; rea
 export function softwareLicenses(): Plugin {
   let root = '.'
   return {
-    name: 'crystal-companion-software-licenses',
+    name: 'crykit-software-licenses',
     apply: 'build',
     configResolved(config) { root = config.root },
     generateBundle() {
       const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as { packages: Record<string, LockedPackage> }
-      const notices = ['Crystal Companion dependency notices', 'These notices describe third-party software, not game artwork or wiki content. Package license declarations and supplied license files follow.']
+      const notices = ['Crystal Kit dependency notices', 'These notices describe third-party software, not game artwork or wiki content. Package license declarations and supplied license files follow.']
       for (const [path, entry] of Object.entries(lock.packages)) {
         if (!path || entry.dev) continue
         const directory = join(root, path)

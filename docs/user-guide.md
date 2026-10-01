@@ -1,6 +1,6 @@
 # User guide
 
-Start with the [first-build walkthrough](../README.md#try-your-first-build) if you are new to Crystal Companion. This guide covers the details you can explore as you need them.
+Start with the [first-build walkthrough](../README.md#try-your-first-build) if you are new to Crystal Kit. This guide covers the details you can explore as you need them.
 
 [Getting around](#getting-around) · [Builds](#create-and-save-builds) · [Teams](#check-a-team) · [Characters](#record-characters) · [Inventory and progress](#track-inventory-and-progress) · [Reference](#browse-reference-data) · [Backups](#imports-backups-and-privacy) · [Offline use](#use-the-app-offline)
 

@@ -79,7 +79,7 @@ function CorrectionsManager({ layer }: { layer: number }) {
   })
   const download = () => {
     try {
-      downloadBytes(exportCorrections(selectedEntries), 'crystal-companion-corrections.json', 'application/json')
+      downloadBytes(exportCorrections(selectedEntries), 'crykit-corrections.json', 'application/json')
       setMessage('Selected corrections exported. You can keep editing locally.')
       setError(undefined)
     } catch (reason) { setError(formatAppError(reason, 'The corrections could not be exported.')) }

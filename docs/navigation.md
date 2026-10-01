@@ -1,6 +1,6 @@
 # Navigation and local links
 
-Crystal Companion uses semantic hash routes so links work on static hosts, in a subdirectory, and with the prepared offline application. The path after `#` identifies a page, selected record, settings section, or modal action. Record links retain exact identities instead of using names as unique keys.
+Crystal Kit uses semantic hash routes so links work on static hosts, in a subdirectory, and with the prepared offline application. The path after `#` identifies a page, selected record, settings section, or modal action. Record links retain exact identities instead of using names as unique keys.
 
 The app opens at the Build library without selecting a Build. The menu starts with Builds, Characters, and Reference, followed by a Tracking group containing Inventory and Progress. Mobile navigation preserves that order with a divider before the tracking destinations. Explicit page and record links still open their requested destinations. Build library, team scenarios, comparison views, character views, and settings sections have separate routes. Inventory observations, character captures and learning records, Build creation and editing, progress edits, reference overrides, and Game Setup collection also have their own addresses.
 

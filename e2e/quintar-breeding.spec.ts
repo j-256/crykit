@@ -35,7 +35,7 @@ async function expectArtLoaded(page: Page, stepId: string) {
 async function readLocalData(page: Page): Promise<LocalData> {
   return page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crystal-companion-v2')
+      const request = indexedDB.open('crykit')
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
