@@ -29,7 +29,6 @@
 .member-navigation .button { font-weight: 400; font-size: .72rem; }
 .member-window__body { padding: 18px 22px 12px; }
 .member-sheet { gap: 18px; }
-.member-sheet__layout { display: grid; grid-template-columns: minmax(330px, 1.1fr) minmax(240px, 1fr); align-items: start; gap: 36px; }
 .member-menu { min-width: 0; display: grid; gap: 12px; }
 .member-menu__group { display: grid; gap: 4px; }
 .member-skills-standalone { margin-top: 14px; }
@@ -60,21 +59,6 @@
 .member-passive-list > p { margin: 0 0 5px; color: var(--text-dim); font-size: .78rem; }
 .member-passive-list .member-row { grid-template-columns: minmax(150px, .75fr) minmax(0, 1.25fr); }
 .member-passive-list .member-row__label { white-space: normal; }
-.member-inspector { position: sticky; top: 94px; min-width: 0; }
-.member-detail { min-width: 0; color: var(--text-dim); font-size: .84rem; overflow-wrap: anywhere; }
-.member-detail__title { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 2px solid var(--cyan-500); }
-.member-detail__title h3, .member-detail > h3 { margin: 0; color: var(--text); font-family: var(--font-menu); font-size: 1.7rem; font-weight: 400; }
-.member-detail__title > .definition-badge-heading { flex: 1; }
-.member-detail__title .wiki-sprite { max-width: 38px; }
-.member-detail__title img { max-width: 38px; max-height: 42px; object-fit: contain; }
-.member-detail__kind { display: block; margin: 9px 0 16px; color: var(--text-faint); font-size: .68rem; }
-.member-detail__facts { display: grid; gap: 12px; margin: 20px 0; }
-.member-detail__facts > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
-.member-detail__facts dt { color: var(--text-faint); }
-.member-detail__facts dd { margin: 0; color: var(--text); }
-.member-detail__availability { color: var(--amber); }
-.member-detail__sources { margin-top: 24px; color: var(--text-faint); font-size: .7rem; }
-.member-detail__sources summary { min-height: 32px; cursor: pointer; }
 .member-mobile-detail { display: none; }
 .member-record { padding: 0; color: var(--text-faint); font-size: .75rem; border-top: 1px solid var(--line); }
 .member-record > summary { min-height: 44px; align-content: center; cursor: pointer; }
@@ -116,11 +100,8 @@
   .member-state { display: none; }
 }
 @media (max-width: 1100px) {
-  .member-sheet__layout { display: block; }
-  .member-inspector { display: none; }
   .member-mobile-detail { display: block; font-size: .72rem; color: var(--cyan-300); }
   .member-mobile-detail > summary { min-height: 32px; padding: 8px; cursor: pointer; }
-  .member-mobile-detail > .member-detail { padding: 12px 8px 16px; }
 }
 @media (max-width: 820px) {
   .member-toolbar { gap: 8px; margin-bottom: 12px; }

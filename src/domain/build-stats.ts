@@ -4,7 +4,8 @@ import { innateEffects, type DefinitionResolver } from './build-mechanics'
 import { estimateGrowth } from './growth'
 import { definitionSourceRecord, effectText, equipmentFacts, equipmentRole, isWeapon, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildRevisionContent, EntityRef, SlotDefinition, SourceRef } from './types'
-import { calculatePCStats } from './pc-stats'
+import { calculatePCStats, selectedPCStats } from './pc-stats'
+import { guideGenderBonuses } from './calculation-plan'
 import { calculateFormula, GUIDE_RULES } from './calculation-rules'
 
 export const DERIVED_STATS = ['ATK', 'DEF', 'RES', 'CRIT', 'CRIT_DAMAGE', 'ACC', 'EVA', 'PPEN', 'MPEN', 'TT'] as const
@@ -127,10 +128,11 @@ function transform(range: StatRange | null, fn: (value: number) => number): Stat
 }
 
 export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey): BuildStatEstimate {
-  if (content.calculation?.model) {
+  const plan = content.calculation
+  if (plan?.model) {
     const result = calculatePCStats(content, slots, resolve)
     return { stats: Object.fromEntries(CALCULATED_STATS.map(stat => {
-      const values = [result.neutral[stat], result.male[stat], result.female[stat]]
+      const values = plan.gender ? [selectedPCStats(result, plan.gender)[stat]] : [result.neutral[stat], result.male[stat], result.female[stat]]
       const base = result.base[stat]
       return [stat, { base: base == null ? null : { low: base, high: base }, value: values.some(value => value == null) ? null : { low: Math.min(...values as number[]), high: Math.max(...values as number[]) }, flat: 0, percent: 0 }]
     })) as Record<CalculatedStat, StatEstimate>, contributions: [], excluded: result.effects, issues: result.issues }
@@ -190,8 +192,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
     excluded.push(...parsed.excluded)
     for (const stat of parsed.unknownStats) unknownStats.add(stat)
   }
-  const plan = content.calculation
-  const growth = plan ? estimateGrowth(plan.level ?? NaN, growthRatings(primary ?? { fields: {} }), plan.growth.map(row => ({ levels: row.levels ?? NaN, ratings: growthRatings(row.classRef ? resolve(row.classRef) ?? { fields: {} } : { fields: {} }) })), plan.bonuses) : undefined
+  const growth = plan ? estimateGrowth(plan.level ?? NaN, growthRatings(primary ?? { fields: {} }), plan.growth.map(row => ({ levels: row.levels ?? NaN, ratings: growthRatings(row.classRef ? resolve(row.classRef) ?? { fields: {} } : { fields: {} }) })), guideGenderBonuses(plan)) : undefined
   if (growth) issues.push(...growth.issues)
   else issues.push('Set a level and allocate growth levels to estimate core stats')
   const stats = {} as Record<CalculatedStat, StatEstimate>

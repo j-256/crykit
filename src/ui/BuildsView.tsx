@@ -1,6 +1,4 @@
-import { nativeDisplayName } from '../domain/native-game'
 import { MoneyText } from './MoneyText'
-import { DefinitionArtwork } from './GameIcon'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { buildBehavior, sameBuildBehavior, compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, requirePlaythrough, sameLogicalEntity, TEAM_SIZE, validateBuildContent } from '../domain'
 import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, GameSetupId, GameSetupRevision, GameSetupRevisionId, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
@@ -10,13 +8,11 @@ import { activeGameSetup, catalogLocksMatch, entityName, formatRelativeDate, own
 import { Sheet } from './Sheet'
 import { DefinitionProvider, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
-import { BuildMechanics, formatStatRange } from './BuildMechanics'
-import { CalculatedStats } from './CalculatedStats'
-import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
+import { formatStatRange } from './BuildMechanics'
+import { CALCULATION_GENDER_LABELS, defaultCalculation, followPrimary } from '../domain/calculation-plan'
 import { BuildValidity } from './BuildValidity'
 import { calculateBuildStats, CALCULATED_STATS, STAT_LABELS } from '../domain/build-stats'
-import { BuildSelectionDetails } from './BuildSelectionDetails'
-import { BuildStatsOverview } from './BuildStatsOverview'
+import { LoadoutSheet } from './LoadoutSheet'
 import { BuildTitleControl } from './BuildTitleControl'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -252,24 +248,19 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
     return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
   }
-  return <form className="stack build-sheet" data-validity={validity.status} onInput={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onSubmit={submit}>
+  return <form className="stack build-sheet" data-validity={validity.status} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity report={validity}/>
-    <div className="build-sheet__view-switch"><Segmented label="Build editor view" onChange={setEditorView} options={[{ value: 'loadout', label: 'Loadout' }, { value: 'checks', label: 'Checks & notes' }]} value={editorView}/></div>
-    <fieldset className="build-sheet__fields" disabled={busy || locked}>{editorView === 'loadout' ? <><div className="build-sheet__layout">
-      <div className="build-sheet__slots">
-        <BuildStatsOverview catalogs={catalogs} content={draft} localData={localData} slots={slots}/>
-        <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
-        <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentSlots.map(slotField)}</div>{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This preset has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</section>
-        <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
-      </div>
-      {inspected && <aside className="build-sheet__preview" aria-label="Selection details"><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={inspected.ref}/>{nativeDisplayName(inspected.record)}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></aside>}
-      <p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>
-    </div><CalculatedStats content={draft} slots={slots} localData={localData} catalogs={catalogs} onChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}/></> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">
-      <BuildMechanics catalogs={catalogs} content={draft} onChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }} localData={localData} slots={slots}/>
-      <section className="build-details"><h3>Build details & notes</h3><div className="stack">{children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; adjust the layout in Data & settings.'}</p></div></section>
-    </section>}</fieldset>
+    <fieldset className="build-sheet__fields" disabled={busy || locked}><LoadoutSheet catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith}
+      classFields={<>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</>}
+      equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This preset has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
+      passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label></>}
+      passiveFields={[...draft.passives, undefined].map(passiveField)}
+      context={<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>}
+      onCalculationChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}
+      notes={<section className="build-details"><h3>Build details & notes</h3><div className="stack">{children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; adjust the layout in Data & settings.'}</p></div></section>}
+    /></fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
     <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></div>
@@ -563,7 +554,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
     const calculationLabel = (revision: BuildRevision) => {
       const plan = revision.content.calculation
       if (!plan) return 'No calculation inputs'
-      return [plan.model ? `${plan.model} (${plan.pcMode ?? 'standard'}; range compares gender cases)` : 'Legacy guide estimate', `Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
+      return [plan.model ? `${plan.model} (${plan.pcMode ?? 'standard'}${plan.gender ? '' : '; range compares gender cases'})` : 'Legacy guide estimate', `Gender: ${plan.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'not specified'}`, `Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
     }
     const scopeRows = statRows.length ? [{ label: 'Estimate exclusions', left: leftStats.excluded.join('; ') || 'None found in supplied fields', right: rightStats.excluded.join('; ') || 'None found in supplied fields' }, { label: 'Calculation notes', left: leftStats.issues.join('; '), right: rightStats.issues.join('; ') }] : []
     return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.equipment.') ? ownRecordValue(localData.gameSetups, left.gameSetupRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.equipment.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]

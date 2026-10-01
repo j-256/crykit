@@ -66,3 +66,17 @@ The hosted app uses an assets-only Cloudflare Worker at `crykit.lasers.app`. The
 Development and verification can run entirely locally. The public repository also verifies changes and deploys main with GitHub Actions. Actions must remain disabled whenever the repository is private; the workflow retains a public-repository guard.
 
 Keep the application license and third-party notices with redistributions. See [credits and licenses](../NOTICE.md).
+
+## Loadout presentation
+
+The build editor, share preview, and current character editor use `src/ui/LoadoutSheet.tsx` for section order, the Loadout and Checks & notes views, definition inspection, and calculation panels. The stats overview keeps fixed class growth ratings visible alongside numeric base and equipped values using the selected level and growth history. The selection inspector omits a duplicate rating panel for the primary class and retains ratings when inspecting another class. Add common presentation there so the three surfaces stay aligned. Each surface supplies its class, equipment, and passive fields and owns its save behavior.
+
+Build editing retains checkpoint drafts, slot allocations, behavior presets, and revision saves. Share previews resolve definitions from the decoded graph and exact catalog pins, and omit calculation mutation callbacks to display saved inputs without edit controls. Character editing retains `Knowledge` values, unrecorded slots, recorded level and displayed totals, and snapshot saves. Its build-shaped calculation adapter supplies explicit unknown-input flags; it does not convert unknown observations into known empty selections. Calculation assumptions remain distinct from in-game observations. These presentation adapters do not change persisted formats or share-link versions.
+
+Build forms mark native controls dirty on change, after the control's own handler updates the draft. Marking them dirty on input can rerender and reset a controlled select before its change event reads the selected value.
+
+When a saved calculation level is absent or unknown, the shared sheet uses a labeled level-60 preview. An absent calculation uses the PC default with growth following the primary class; an existing calculation retains its model and growth intent. Deriving the display does not update stored checkpoints or observations. Editing calculation controls supplies an explicit plan through the surface's existing save behavior.
+
+The overview uses the pure `calculateStatBreakdown` domain function for Base, Equipment, Level, Gender, and Total. Base uses a level-1 primary-class baseline. Equipment includes the loadout's passive effects, and Gender measures its effect after modifiers and rounding. Calculation gender is an optional saved plan input; read-only sheets show its label while editable sheets supply it through their existing calculation callback. Do not infer recorded character gender or rewrite older plans that omit it. See [the calculation package](calculations.md) for formula scope and contribution semantics.
+
+When changing these components, verify definition inspection, both calculation models, read-only share previews and saved copies, unknown character observations, save failure retries, and desktop and mobile layouts. The sharing and character sheet browser tests cover those flows, including offline rendering and preview-to-editor calculation parity.

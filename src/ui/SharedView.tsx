@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { logicalEntityKey, requirePlaythrough, validateBuildContent } from '../domain'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
-import type { BuildId, BuildRevision, CatalogSnapshot, CharacterId, LocalData, ScenarioId } from '../domain'
+import type { BuildId, BuildRevision, CatalogSnapshot, CharacterId, LocalData, ScenarioId, EntityRef, Knowledge } from '../domain'
 import { decodeSharePayload, sharePreviewData, type SharePayload } from '../interchange/share'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { prepareModCatalogs } from '../persistence'
-import { BuildLoadoutSummary } from './BuildLoadoutSummary'
+import { BuildLoadoutSummary, PassiveCapacityMeter } from './BuildLoadoutSummary'
+import { LoadoutSheet, type LoadoutView } from './LoadoutSheet'
+import { ReadOnlyDefinitionField } from './ReadOnlyDefinitionField'
+import { buildDefinitionOptions, findDefinitionOption, type DefinitionOption } from './definitions'
+import { CalculationInputs } from './CalculationInputs'
+import { KnowledgeValue } from './KnowledgeValue'
 import { BuildValidity } from './BuildValidity'
 import { Button, Field, InlineNotice, ScreenHeader } from './components'
-import { entityName, formatAppError, knowledgeLabel, resolveEntity } from './model'
+import { formatAppError, resolveEntity } from './model'
 import { useNavigation } from './navigation'
 
 interface SharedPreview { readonly payload: SharePayload; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }
@@ -21,14 +26,35 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   const mainHand = mainHandSlot && revision.content.equipment[mainHandSlot.id]
   const mainHandDefinition = mainHand ? resolveEntity(localData, catalogs, mainHand.ref) : undefined
   const twoHanded = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true
-  const calculation = revision.content.calculation
-  return <div className="stack">
-    <BuildLoadoutSummary catalogs={catalogs} content={revision.content} gameSetup={setup} localData={localData}/>
-    <dl className="definition-list">{setup.slots.map(slot => <div className="definition-row" key={slot.id}><dt>{slot.label}</dt><dd>{revision.content.equipment[slot.id] ? entityName(localData, catalogs, revision.content.equipment[slot.id]!.ref) : twoHanded && equipmentRole(slot) === 'offHand' ? `Occupied by ${mainHandDefinition.name}` : 'Empty'}</dd></div>)}</dl>
+  const content = revision.content
+  const slots = [...setup.slots].sort((left, right) => left.order - right.order)
+  const retained = Object.keys(content.equipment).filter(id => !slots.some(slot => slot.id === id))
+  const options = useMemo(() => buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: setup.id }, catalogs), [localData, catalogs, setup.id])
+  const [view, setView] = useState<LoadoutView>('loadout')
+  const [inspection, setInspection] = useState<{ option?: DefinitionOption }>()
+  const field = (label: string, ref: EntityRef | null | undefined, empty = 'Empty') => <ReadOnlyDefinitionField catalogs={catalogs} empty={empty} label={label} localData={localData} onInspect={option => setInspection({ option })} option={findDefinitionOption(options, ref)}/>
+  const equipmentField = (id: string, label: string) => {
+    const selection = content.equipment[id]
+    const offHand = slots.find(slot => slot.id === id && equipmentRole(slot) === 'offHand')
+    const sameCopy = Boolean(selection?.allocationId && selection.allocationId === mainHand?.allocationId)
+    const occupied = twoHanded && offHand && (!selection || sameCopy)
+    return <div className="slot-entry" key={id}>{field(label, occupied ? undefined : selection?.ref, occupied ? `Occupied by ${mainHandDefinition.name}` : selection?.observedName ?? 'Empty')}{selection?.allocationId && <p className="field__hint">Same physical copy: {[...slots.map(slot => ({ id: slot.id as string, label: slot.label })), ...retained.map(id => ({ id, label: id }))].filter(slot => slot.id !== id && content.equipment[slot.id]?.allocationId === selection.allocationId).map(slot => slot.label).join(', ') || 'No other selected slot'}</p>}</div>
+  }
+  const setupFacts: readonly { label: string; value: Knowledge<unknown> }[] = [
+    { label: 'Platform', value: setup.platform }, { label: 'Game version', value: setup.gameVersion }, { label: 'Mode', value: setup.mode },
+    { label: 'Enabled mods', value: setup.mods }, { label: 'Disabled mods', value: setup.disabledMods ?? { state: 'unknown' } },
+    { label: 'Passive PP limit', value: setup.ppLimit ?? { state: 'unknown' } }, { label: 'Nonnegative PP costs', value: setup.ppCostsNonNegative },
+  ]
+  return <div className="stack build-sheet" data-validity={report.status}>
+    <details><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
     <BuildValidity report={report}/>
-    {calculation && <details><summary>Calculation inputs</summary><dl className="definition-list"><div className="definition-row"><dt>Level</dt><dd>{calculation.level ?? 'Unknown'}</dd></div>{calculation.growth.map((growth, index) => <div className="definition-row" key={index}><dt>{entityName(localData, catalogs, growth.classRef, 'Unknown growth class')}</dt><dd>{growth.levels ?? 'Unknown'} levels</dd></div>)}<div className="definition-row"><dt>Stat bonuses</dt><dd>{calculation.bonuses.join(', ') || 'None selected'}</dd></div><div className="definition-row"><dt>Statuses</dt><dd>{calculation.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'None selected'}</dd></div><div className="definition-row"><dt>Ability</dt><dd>{entityName(localData, catalogs, calculation.ability, 'None selected')}</dd></div><div className="definition-row"><dt>Target evasion</dt><dd>{calculation.targetEvasion ?? 'Unknown'}</dd></div></dl></details>}
-    {(revision.note || revision.content.rotationNotes || revision.content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{revision.content.rotationNotes && <p>{revision.content.rotationNotes}</p>}{revision.content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}
-    <details><summary>Game Setup: {setup.label}</summary><dl className="definition-list"><div className="definition-row"><dt>Platform</dt><dd>{knowledgeLabel(setup.platform)}</dd></div><div className="definition-row"><dt>Game version</dt><dd>{knowledgeLabel(setup.gameVersion)}</dd></div><div className="definition-row"><dt>Mode</dt><dd>{knowledgeLabel(setup.mode)}</dd></div><div className="definition-row"><dt>Mods</dt><dd>{knowledgeLabel(setup.mods, mods => mods.join(', ') || 'None')}</dd></div></dl></details>
+    <LoadoutSheet catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)}
+      classFields={<>{field('Class', content.primaryClass, 'No class selected')}{field('Sub-command', content.secondaryClass, 'No sub-command')}</>}
+      equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">Selections outside the pinned slot layout retain their stored slot IDs.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
+      passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
+      passiveFields={content.passives.length ? content.passives.map((selection, index) => <div key={index}>{field(`Equipped passive ${index + 1}`, selection.ref, selection.observedName)}</div>) : <p>No passives equipped.</p>}
+      notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
+    />
   </div>
 }
 
