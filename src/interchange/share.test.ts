@@ -54,7 +54,7 @@ describe('sharing snapshots', () => {
   it.each(['primary', 'manual'] as const)('preserves native calculation rules and %s growth intent through a shared copy', growthMode => {
     let data = addTestDefinition(fixture(), 'growth-class', { kind: 'class' })
     const revision = data.buildRevisions['build-revision']!
-    const calculation = { ...defaultCalculation(personalRef('growth-class'), 20), growthMode, pcMode: 'chaos' as const }
+    const calculation = { ...defaultCalculation(personalRef('growth-class'), 20), growthMode, pcMode: 'chaos' as const, gender: 'male' as const }
     data = saveBuildRevision(data, { buildId: revision.buildId, gameSetupRevisionId: revision.gameSetupRevisionId, content: { ...revision.content, primaryClass: personalRef('growth-class'), calculation }, now: TEST_NOW })
     const payload = decodeSharePayload(encodeSharePayload(createSharePayload(data, { kind: 'build', revisionId: data.builds.build!.latestRevisionId! })))
     expect(Object.values(payload.records.buildRevisions)[0]!.content.calculation).toEqual(calculation)

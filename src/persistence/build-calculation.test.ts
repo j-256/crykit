@@ -20,7 +20,7 @@ it('pins calculation inputs through saving, cloning, immutable comparison, and b
   const id = createId<BuildId>('build')
   const revisionId = createId<BuildRevisionId>('buildRevision')
   const planned = createBuildPlan(before.localData, { id, revisionId, title: 'Synthetic planned caster', kind: 'template', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: {
-    primaryClass: ref('Cleric'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: 20, growth: [{ classRef: ref('Cleric'), levels: 20 }], bonuses: ['SPI'], statuses: [ref('Power Up')], ability: ref('Cure'), targetEvasion: 50 },
+    primaryClass: ref('Cleric'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: 20, gender: 'female', growth: [{ classRef: ref('Cleric'), levels: 20 }], bonuses: ['SPI'], statuses: [ref('Power Up')], ability: ref('Cure'), targetEvasion: 50 },
   } })
   const saved = await saveLocalData(planned, before.revision)
   const original = saved.buildRevisions[revisionId]!
@@ -70,7 +70,7 @@ it('round-trips character calculation assumptions without rewriting observed lev
   const before = await loadLocalData()
   const character = Object.values(requirePlaythrough(before.localData).characters)[0]!
   const original = character.snapshots[character.currentSnapshotId!]!
-  const calculation = { ...defaultCalculation(ref('Warrior')), growthMode: 'manual' as const, growth: [{ classRef: ref('Warrior'), levels: 40 }, { classRef: ref('Wizard'), levels: 20 }] }
+  const calculation = { ...defaultCalculation(ref('Warrior')), gender: 'female' as const, growthMode: 'manual' as const, growth: [{ classRef: ref('Warrior'), levels: 40 }, { classRef: ref('Wizard'), levels: 20 }] }
   const planned = captureCharacter(before.localData, { characterId: character.id, gameSetupRevisionId: original.gameSetupRevisionId, level: original.level, displayedStats: original.displayedStats, primaryClass: original.primaryClass, secondaryClass: original.secondaryClass, equipment: original.equipment, passives: original.passives, calculation })
   const saved = await saveLocalData(planned, before.revision)
   const updatedCharacter = requirePlaythrough(saved).characters[character.id]!
@@ -84,6 +84,6 @@ it('round-trips character calculation assumptions without rewriting observed lev
   expect(() => captureCharacter(saved, { characterId: character.id, calculation: { ...calculation, level: 61 } })).toThrow('Calculation level')
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
   const retryBase = await loadLocalData()
-  await expect(saveLocalData(captureCharacter(retryBase.localData, { characterId: character.id, calculation }), retryBase.revision)).rejects.toMatchObject({ code: 'storage-failure' })
+  await expect(saveLocalData(captureCharacter(retryBase.localData, { characterId: character.id, calculation: { ...calculation, gender: 'male' } }), retryBase.revision)).rejects.toMatchObject({ code: 'storage-failure' })
   expect((await loadLocalData()).localData).toEqual(retryBase.localData)
 })

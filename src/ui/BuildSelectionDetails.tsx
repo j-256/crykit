@@ -7,7 +7,8 @@ import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { classRatingField } from '../domain/stat-ratings'
 import { StatLabel } from './StatRatings'
 import { fieldIconKey } from '../catalog/menu-icons'
-import { GameIcon } from './GameIcon'
+import { FieldIconSources, GameIcon } from './GameIcon'
+import { CatalogArtworkSource } from './WikiSprite'
 import { Icon } from './icons'
 
 function ClassSummaryFact({ label, value, interactiveHelp }: ReturnType<typeof decisionFacts>[number] & { interactiveHelp: boolean }) {
@@ -32,7 +33,7 @@ export function BuildSelectionFacts({ option, interactiveHelp = true }: { option
   return <span className="build-selection-facts"><MoneyText>{facts.length ? facts.slice(0, 4).map(({ label, value }) => `${label}: ${compactKnowledge(value)}`).join(' · ') : hasNameEvidenceOnly(option.record) ? 'Name evidence only; stats and effects unknown' : option.description ?? 'Stats and effects not recorded'}</MoneyText></span>
 }
 
-export function BuildSelectionDetails({ option, comparedWith, alternatives = [] }: { option: DefinitionOption; comparedWith?: DefinitionOption; alternatives?: readonly DefinitionOption[] }) {
+export function BuildSelectionDetails({ option, comparedWith, alternatives = [], showClassRatings = true }: { option: DefinitionOption; comparedWith?: DefinitionOption; alternatives?: readonly DefinitionOption[]; showClassRatings?: boolean }) {
   const facts = decisionFacts(option.record)
   const previous = comparedWith && comparedWith.key !== option.key ? decisionFacts(comparedWith.record) : undefined
   const labels = [...new Set([...facts.map((fact) => fact.label), ...(previous?.map((fact) => fact.label) ?? [])])].sort((left, right) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right)))
@@ -42,9 +43,9 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [] 
     {modPlanningReason(option.modAvailability) && <p className="field__hint">{modPlanningReason(option.modAvailability)}</p>}
     {alternatives.length > 0 && <p className="field__hint">Similar spelling: {alternatives.map((other) => other.name).join(', ')}. These are separate source records; shared identity is unconfirmed. Inventory links are kept separate.</p>}
     {option.description && <p><MoneyText>{option.description}</MoneyText></p>}
-    {option.kind === 'class' && <div className="build-selection-details__ratings"><h4>Class stat ratings</h4><KnowledgeValue field={ratingField} value={ratings}/></div>}
+    {option.kind === 'class' && showClassRatings && <div className="build-selection-details__ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings. Numeric stats also depend on level and growth history.</p></div>}
     {previous ? <table className="build-fact-table"><caption>Catalog facts compared with {comparedWith!.name}</caption><thead><tr><th>Field</th><th>{comparedWith!.name}</th><th>{option.name}</th></tr></thead><tbody>{labels.map((label) => <tr key={label}><th><StatLabel label={label}/></th><td><KnowledgeValue compact field={label} value={previous.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td><td><KnowledgeValue compact field={label} value={facts.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td></tr>)}</tbody></table> : <dl className="definition-list">{facts.map(({ label, value }) => <div className="definition-row" key={label}><dt><StatLabel label={label}/></dt><dd><KnowledgeValue compact field={label} value={value}/></dd></div>)}</dl>}
     <p className="field__hint">Listed catalog values describe this definition. Build equipment checks and stat estimates show which facts are supported and which effects remain unresolved.</p>
-    <details><summary>All reference fields & sources</summary><dl className="definition-list">{Object.entries(option.record.fields).sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right))).map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} showSources value={value}/></dd></div>)}{option.ppCost && <div className="definition-row"><dt>PP cost</dt><dd><KnowledgeValue showSources value={option.ppCost}/></dd></div>}</dl><p className="field__hint">{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/></details>
+    <details><summary>All reference fields & sources</summary><dl className="definition-list">{Object.entries(option.record.fields).sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right))).map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} showSources value={value}/></dd></div>)}{option.ppCost && <div className="definition-row"><dt>PP cost</dt><dd><KnowledgeValue showSources value={option.ppCost}/></dd></div>}</dl><p className="field__hint">{option.sourceLabel}</p><SourceReferences sources={option.record.sources}/><FieldIconSources fields={option.record.fields}/>{option.ref.kind === 'catalog' && <CatalogArtworkSource catalogId={option.ref.catalogId} entity={{ id: option.ref.entityId, kind: option.kind, name: option.name }}/>}</details>
   </div>
 }

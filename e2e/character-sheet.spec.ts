@@ -1,5 +1,6 @@
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
+import { selectWithSeparateEvents } from './select-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
@@ -83,16 +84,27 @@ test('character growth calculations save separately from observed level and disp
   const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
   await expect(hp).not.toContainText('Unknown')
   await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
+  const overviewHP = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
+  await expect(overviewHP.getByRole('cell').nth(4)).toHaveText(await hp.getByRole('cell').first().innerText())
+  await selectWithSeparateEvents(page.getByLabel('Calculation gender', { exact: true }), 'female')
+  await expect(table.getByRole('columnheader').nth(1)).toContainText('Female')
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeVisible()
+  const originalLevel = await overviewHP.getByRole('cell').nth(2).innerText()
   await page.getByText(/^Level-up growth/).click()
   await page.getByRole('button', { name: 'Decrease growth 1 by 5', exact: true }).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('19')
   await expect(hp).toContainText('Unknown')
+  await expect(overviewHP).toContainText('Unknown')
   await page.getByLabel('Calculation level', { exact: true }).fill('19')
   await expect(hp).not.toContainText('Unknown')
+  await expect(overviewHP.getByRole('cell').nth(2)).not.toHaveText(originalLevel)
+  await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('female')
+  await expect(overviewHP.getByRole('cell').nth(4)).toHaveText(await hp.getByRole('cell').first().innerText())
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
   await page.reload()
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('19')
+  await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('female')
   await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('character-calculated-stats.png'), fullPage: true })
   const saved = await exportLocalData(page)
@@ -100,7 +112,7 @@ test('character growth calculations save separately from observed level and disp
   const snapshot = character.snapshots[character.currentSnapshotId!]!
   expect(snapshot.level).toEqual(known(24))
   expect(snapshot.displayedStats['Max HP']?.value).toEqual(known(777))
-  expect(snapshot.calculation).toMatchObject({ model: 'pc-1.6.9-v1', growthMode: 'manual', level: 19 })
+  expect(snapshot.calculation).toMatchObject({ model: 'pc-1.6.9-v1', growthMode: 'manual', level: 19, gender: 'female' })
   for (const [id, earlier] of Object.entries(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots)) expect(character.snapshots[id]).toEqual(earlier)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
@@ -382,14 +394,22 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
   })
 }
 
-test('the member menu stays compact and learning shares a single view', async ({ page, isMobile }) => {
+test('the grouped member sheet aligns loadout sections and learning shares a single view', async ({ page }) => {
   await page.goto('/#/characters')
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Class growth ratings', exact: true }).locator('.stat-rating').first()).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Stats at selected level', exact: true })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(0)
   const mainHand = page.getByRole('button', { name: 'Choose Main hand', exact: true })
-  const bounds = await mainHand.boundingBox()
-  expect(bounds!.y).toBeLessThan(isMobile ? 600 : 500)
+  const classes = await page.getByRole('region', { name: 'Class and command', exact: true }).boundingBox()
+  const equipment = await page.getByRole('region', { name: 'Equipment', exact: true }).boundingBox()
+  expect(classes).not.toBeNull()
+  expect(equipment).not.toBeNull()
+  expect(equipment!.y).toBeGreaterThan(classes!.y)
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Loadout', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Choose Equipped passive 1', exact: true })).toHaveCount(0)
   await mainHand.click()
   const picker = page.getByRole('dialog', { name: 'Choose Main hand', exact: true })
