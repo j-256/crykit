@@ -65,6 +65,7 @@ body.has-sheet { overflow: hidden; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
+summary { cursor: pointer; }
 button:not(:disabled), select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled) { cursor: pointer; }
 button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity: .5; }
 a { color: var(--cyan-300); }
@@ -587,6 +588,8 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .definition-dropdown::backdrop { background: transparent; pointer-events: none; }
 .definition-dropdown__search { flex: 0 0 auto; margin: 8px; }
 .definition-dropdown__search input { min-height: 44px; font-size: .86rem; }
+.definition-dropdown > .check-row { flex: 0 0 auto; padding-inline: 12px; }
+.definition-dropdown > .check-row input { flex: 0 0 18px; }
 .definition-dropdown .picker-results { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .picker-result { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--text); border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; }
 .picker-result:hover, .picker-result:focus-visible, .picker-result[aria-pressed="true"] { background: rgba(78, 166, 207, .15); }

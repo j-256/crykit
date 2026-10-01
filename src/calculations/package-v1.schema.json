@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:crystal-companion:calculation-package:1",
+  "title": "Crystal Project calculation package",
+  "description": "Portable rules and numeric inputs; describes export structure and arithmetic syntax, not permission to execute imported rules",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "crystal-project-calculations"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "const": "pc-1.6.9-v1"
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "id": {
+          "const": "pc-1.6.9-v1"
+        },
+        "formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/formula"
+          }
+        },
+        "sheetStages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sheetStep"
+          }
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/stat"
+          }
+        },
+        "statMods": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/statMod"
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "levelCap": {
+              "type": "integer"
+            },
+            "expressionDepth": {
+              "type": "integer"
+            },
+            "expressionNodes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "levelCap",
+            "expressionDepth",
+            "expressionNodes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "source",
+        "semantics",
+        "limits",
+        "coreStats",
+        "stats",
+        "formulas",
+        "sheetStages",
+        "statMods",
+        "equipment",
+        "contexts",
+        "benchmarks",
+        "coverage",
+        "operators",
+        "modifierDefaults",
+        "genders"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "engine": {
+          "const": "pc-1.6.9-v1"
+        },
+        "records": {
+          "$ref": "#/$defs/records"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/binding"
+          }
+        },
+        "patches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "records": {
+                "$ref": "#/$defs/records"
+              }
+            },
+            "required": [
+              "name",
+              "records"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "engine",
+        "gameVersion",
+        "executableSha256",
+        "nativeDataDigest",
+        "inputs",
+        "crosswalkDigest",
+        "wikiDigest",
+        "starterDigest",
+        "catalogId",
+        "battleConfig",
+        "records",
+        "patches",
+        "bindings",
+        "checksum"
+      ]
+    },
+    "legacy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "const": "guide-v1"
+        },
+        "formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/formula"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "growth",
+        "formulas"
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "type": "string"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "formula": {
+                "type": "string"
+              },
+              "input": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "expected": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "formula",
+              "input",
+              "expected"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "evidence",
+        "cases"
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "id",
+    "rules",
+    "data",
+    "legacy",
+    "verification"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "expression": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 10000,
+          "prefixItems": [
+            {
+              "enum": [
+                "add",
+                "sub",
+                "mul",
+                "div",
+                "pow",
+                "min",
+                "max",
+                "trunc",
+                "roundEven",
+                "lte",
+                "and",
+                "if",
+                "call",
+                "floor",
+                "ceil",
+                "eq"
+              ]
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/expression"
+          }
+        }
+      ]
+    },
+    "formula": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/expression"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "inputs",
+        "steps",
+        "result",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "sheetStep": {
+      "type": "object",
+      "properties": {
+        "stat": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "stat",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "statMod": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "stat": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "flat",
+            "percent",
+            "allCore",
+            "ttMultiplier",
+            "hpMultiplier",
+            "tag"
+          ]
+        },
+        "scale": {
+          "enum": [
+            "direct",
+            "PerLevel",
+            "PerTurn"
+          ]
+        },
+        "scope": {
+          "enum": [
+            "sheet",
+            "battle",
+            "permission",
+            "context"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "stat": {
+      "type": "object",
+      "properties": {
+        "rating": {
+          "type": "string"
+        },
+        "gender": {
+          "type": "string"
+        },
+        "formula": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "base": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "additionalProperties": false
+    },
+    "nativeRecord": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "type": "integer"
+        },
+        "Name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ID",
+        "Name"
+      ]
+    },
+    "records": {
+      "type": "object",
+      "properties": {
+        "job": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "passive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "gender": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "ability": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        }
+      },
+      "required": [
+        "job",
+        "equipment",
+        "passive",
+        "gender",
+        "ability",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "enum": [
+            "job",
+            "equipment",
+            "passive",
+            "gender",
+            "ability",
+            "status"
+          ]
+        },
+        "id": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "family",
+        "id",
+        "evidence"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

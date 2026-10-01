@@ -1,6 +1,6 @@
 # Build mechanics and estimates
 
-The Build editor applies supported rules from GEEF's Crystal Project modding guide to the selected source definitions. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, passive PP limits, class unlocks, and Game Setup applicability. Saving a plan never changes observed character stats, inventory, or learning.
+The Build editor checks equipment rules against the selected source definitions. New calculation plans use the inspected PC 1.6.9.0 formulas and numeric records from the [exportable calculation package](calculations.md). Older plans retain the community guide model until explicitly switched. These checks work on unowned equipment and unlearned passives. Scenario validation separately checks recorded stock, learning, passive PP limits, class unlocks, and Game Setup applicability. Saving a plan never changes observed character stats, inventory, or learning.
 
 ## Equipment checks
 
@@ -16,13 +16,17 @@ Passives are stored as an ordered, variable-length list, not as Game Setup slots
 
 The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion prefers those properties from native game source records and retains older export records without changing old catalog snapshots.
 
-## Saved calculation inputs
+## Verified PC calculations
+
+The **Loadout** tab and character current page share calculated totals, level and growth controls, neutral/male/female comparisons, recorded-total comparisons, and sample damage benchmarks. New plans assign every level to the primary class until an allocation is edited. Numeric steps, rounding, caps, native inputs, and source evidence are structured data that can be exported independently of planner data. See [calculation format, controls, compatibility and scope](calculations.md).
+
+## Legacy saved calculation inputs
 
 Expand **Stats & combat estimates** to enter a planned level, explicit growth allocations, optional per-stat bonuses, active statuses, a preview ability, and target evasion. **Use primary class for all growth** makes a deliberate hypothetical allocation. Clearing a growth class or leaving allocations incomplete keeps the affected estimates unknown.
 
 Inputs belong to the immutable build checkpoint. Cloning, comparison, backup restore, and offline reload preserve them. Growth classes, statuses, and abilities obey the checkpoint's catalog lock. Comparisons show inputs by name, supported stat estimates, exclusions, and calculation notes. Old checkpoints without calculation inputs remain valid.
 
-## Included calculations
+## Legacy included calculations
 
 Base growth uses the [class growth equations](crystal-edit.md#growth-calculator). The evaluator adds explicit numeric equipment fields and narrowly recognized flat or percentage descriptions for HP, MP, core stats, Attack, Defense, Resistance, crit chance/damage, accuracy/evasion, and penetration. Repeated descriptions of the same contribution count once. Disagreeing source values leave that stat unresolved. Crit and penetration percentages are percentage points; HP/MP and core-stat percentages are additive percentage modifiers.
 
@@ -38,6 +42,6 @@ Physical hit chance uses the guide's supplied accuracy/evasion steps. Unspecifie
 
 The contribution list and exclusion list describe the scope of each estimate. Direct flat and additive game StatMods use their documented stat values. Conditional triggers, per-level or per-turn changes, reactions, status timing, damage multipliers, cost modifiers, and custom battle settings require more source data or verified rules and remain listed without being simulated. Selecting an active status preserves that assumption but does not simulate its lifecycle. Selecting an ability does not establish that the character has learned it or that the build can use it.
 
-Final enemy damage is not predicted: the guide and a developer explanation disagree on defense reduction. Native enemy actions, drops, encounters, and raw inputs are available for inspection, but automatic stat generation, mode application, and battle execution are outside the supported calculation. These gaps do not block the supported equipment checks, growth calculations, or coefficient previews.
+The guide preview does not predict final enemy damage. The inspected PC package separately verifies integer defense reduction for synthetic benchmarks. Full encounters, status lifecycles, conditional damage effects, and platform or mod parity remain outside that calculation scope. Native enemy records remain available for inspection without simulating their behavior.
 
 The separate [PC steal mechanics research](steal-mechanics.md) records the executable's availability, success, Luck, failure-protection, multi-entry display, and guaranteed-attempt mod formulas. It is source evidence for the inspected PC build rather than a calculation performed by Crystal Companion, and it does not establish Nintendo Switch parity.

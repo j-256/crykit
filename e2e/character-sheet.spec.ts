@@ -3,19 +3,20 @@ import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { addGameSetupRevision, asId, captureCharacter, createCharacter, createScenario, upsertCharacterClassProgress } from '../src/domain'
+import { addGameSetupRevision, asId, captureCharacter, createCharacter, createPersonalDefinition, createScenario, upsertCharacterClassProgress } from '../src/domain'
 import { addTestBuild, addTestDefinition, createTestLocalData, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
 import type { BuildRevisionId, CharacterId, CharacterSnapshotId, LocalData, GameSetupRevisionId } from '../src/domain/types'
+import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 
 const CHARACTER_ID = asId<CharacterId>('synthetic-rowan')
 const BEFORE_ID = asId<CharacterSnapshotId>('before')
 const AFTER_ID = asId<CharacterSnapshotId>('after')
 const BEFORE_DATE = '2026-01-01T10:00:00.000Z'
 
-function syntheticLocalData(changedContext = false): LocalData {
+function syntheticLocalData(changedContext = false, nativeCalculations = false): LocalData {
   let localData = createTestLocalData()
   localData = addTestDefinition(localData, 'Synthetic blade')
-  localData = addTestDefinition(localData, 'Synthetic warrior', { kind: 'class' })
+  localData = createPersonalDefinition(localData, { id: personalRef('Synthetic warrior').definitionId, name: 'Synthetic warrior', kind: 'class', ...(nativeCalculations ? { fields: { 'Crystal Edit source record': known({ ID: 9000, Name: 'Synthetic warrior', HPRating: 50, MPRating: 50, StrRating: 50, VitRating: 50, DexRating: 50, AgiRating: 50, MndRating: 50, SpiRating: 50, SpdRating: 50, LckRating: 50, PassiveIDs: [] }) } } : {}), now: TEST_NOW })
   localData = createCharacter(localData, { id: CHARACTER_ID, name: 'Synthetic Rowan', now: TEST_NOW })
   localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-mira'), name: 'Synthetic Mira', now: TEST_NOW })
   localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-tavi'), name: 'Synthetic Tavi', now: TEST_NOW })
@@ -33,6 +34,11 @@ function syntheticLocalData(changedContext = false): LocalData {
     localData = { ...localData, playthroughs: { ...localData.playthroughs, [playthrough.id]: { ...playthrough, characters: { ...playthrough.characters, [CHARACTER_ID]: { ...character, snapshots: { ...character.snapshots, [BEFORE_ID]: legacy } } } } } }
     localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: asId<GameSetupRevisionId>('revised-gameSetup'), activate: true, slots: localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!.slots.map((slot) => ({ ...slot, label: `Revised ${slot.label}` })), now: TEST_NOW })
   }
+  if (nativeCalculations) {
+    const setupId = asId<GameSetupRevisionId>('synthetic-native-stats-setup')
+    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
+    localData = captureCharacter(localData, { characterId: CHARACTER_ID, gameSetupRevisionId: setupId, primaryClass: known(personalRef('Synthetic warrior')), secondaryClass: { state: 'notApplicable' }, level: known(24), displayedStats: { 'Max HP': { value: known(777), unit: 'points' } }, equipment: Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null])), passives: known([]), now: TEST_NOW })
+  }
   return { ...localData, changes: [] }
 }
 
@@ -41,9 +47,9 @@ async function dataPanel(page: Page) {
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
 }
 
-async function loadFixture(page: Page, changedContext = false) {
+async function loadFixture(page: Page, changedContext = false, nativeCalculations = false) {
   await page.goto('/')
-  const localData = syntheticLocalData(changedContext)
+  const localData = syntheticLocalData(changedContext, nativeCalculations)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
     'manifest.json': encode({ format: 'crystal-companion-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
@@ -70,6 +76,34 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return payload.localData
 }
+
+test('character growth calculations save separately from observed level and displayed totals', async ({ page }, testInfo) => {
+  const original = await loadFixture(page, false, true)
+  const table = page.getByRole('table', { name: 'Calculated character stats', exact: true })
+  const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
+  await expect(hp).not.toContainText('Unknown')
+  await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
+  await page.getByText(/^Level-up growth/).click()
+  await page.getByRole('button', { name: 'Decrease growth 1 by 5', exact: true }).click()
+  await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('19')
+  await expect(hp).toContainText('Unknown')
+  await page.getByLabel('Calculation level', { exact: true }).fill('19')
+  await expect(hp).not.toContainText('Unknown')
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('19')
+  await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('character-calculated-stats.png'), fullPage: true })
+  const saved = await exportLocalData(page)
+  const character = selectedPlaythrough(saved).characters[CHARACTER_ID]!
+  const snapshot = character.snapshots[character.currentSnapshotId!]!
+  expect(snapshot.level).toEqual(known(24))
+  expect(snapshot.displayedStats['Max HP']?.value).toEqual(known(777))
+  expect(snapshot.calculation).toMatchObject({ model: 'pc-1.6.9-v1', growthMode: 'manual', level: 19 })
+  for (const [id, earlier] of Object.entries(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots)) expect(character.snapshots[id]).toEqual(earlier)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
 
 test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', async ({ page }) => {
   const original = await loadFixture(page)

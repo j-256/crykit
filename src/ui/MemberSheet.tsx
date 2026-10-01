@@ -1,6 +1,7 @@
 import { MoneyText } from './MoneyText'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { entityDefinitionKey } from '../domain'
+import { nativeDisplayName } from '../domain/native-game'
 import { snapshotSlots, type SnapshotSlot } from '../domain/character-snapshots'
 import type { CatalogEntityKind, CatalogSnapshot, Character, CharacterSnapshot, EntityRef, Knowledge, LocalData } from '../domain/types'
 import { definitionModAvailability } from '../catalog/mods'
@@ -18,6 +19,9 @@ import type { SnapshotDraft } from './CharactersView'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import { DefinitionModLabel, ModBadge } from './DefinitionModLabel'
 import { FIELD_FOCUS_QUERY_KEY, focusFieldElement } from './field-focus'
+import { CalculatedStats } from './CalculatedStats'
+import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
+import { PC_LEVEL_CAP } from '../domain/calculation-rules'
 
 const PRIMARY_CLASS = 'primary-class'
 const SECONDARY_CLASS = 'secondary-class'
@@ -66,7 +70,7 @@ function SelectionDetails({ option, empty }: { option?: DefinitionOption; empty?
   const ref = option.ref
   const fields = Object.entries(option.record.fields).filter(([key]) => DETAIL_FIELDS.test(key))
   return <div className="member-detail">
-    <div className="member-detail__title">{ref.kind === 'catalog' && <CatalogArtwork catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{option.name}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
+    <div className="member-detail__title">{ref.kind === 'catalog' && <CatalogArtwork catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: option.kind, name: option.name }}/>}<div className="definition-badge-heading"><h3>{nativeDisplayName(option.record)}</h3>{option.modAvailability?.requiredMod && <ModBadge className="member-detail__availability" name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}</div></div>
     <span className="member-detail__kind">{option.kind === 'class' ? 'Class reference' : 'Definition reference'}</span>
     {option.description && <p><MoneyText>{option.description}</MoneyText></p>}
     <dl className="member-detail__facts">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} value={value}/></dd></div>)}</dl>
@@ -90,6 +94,7 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
   const picker = currentMemberPicker(navigation.route)
   const open = editable && picker?.fieldKey === fieldKey
   const option = findDefinitionOption(options, value)
+  const displayName = option ? nativeDisplayName(option.record, display) : display
   const inspect = () => onInspect(option)
   const preview = () => { if (window.matchMedia(DESKTOP_MEMBER_QUERY).matches) inspect() }
   const optionLabel = (candidate: DefinitionOption) => fieldKey === SECONDARY_CLASS ? commandName(candidate) ?? candidate.name : candidate.name
@@ -100,9 +105,9 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
     else navigation.navigate(routeWithOverlay(routeWithoutOverlays(navigation.route), { kind: 'definition-picker', fieldKey, query: '', resultLimit: PICKER_PAGE_SIZE }), { replace: Boolean(picker) })
   }
   return <div className="member-choice" data-field-key={fieldKey} tabIndex={-1}>
-    <button aria-controls={open ? id : undefined} aria-expanded={editable ? open : undefined} aria-haspopup={editable ? 'dialog' : undefined} aria-label={`${editable ? 'Choose' : 'Inspect'} ${label}`} className="member-row" data-active={selected} data-definition-trigger="true" onClick={choose} onFocus={preview} onKeyDown={event => { if (editable && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); if (!open) choose() } }} ref={triggerRef} type="button"><span className="member-row__label">{label}</span><span className="member-row__value"><MemberArtwork catalogs={catalogs} localData={localData} value={value}/><span>{display}</span>{editable && <Icon name="chevron-down"/>}</span></button>
+    <button aria-controls={open ? id : undefined} aria-expanded={editable ? open : undefined} aria-haspopup={editable ? 'dialog' : undefined} aria-label={`${editable ? 'Choose' : 'Inspect'} ${label}`} className="member-row" data-active={selected} data-definition-trigger="true" onClick={choose} onFocus={preview} onKeyDown={event => { if (editable && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); if (!open) choose() } }} ref={triggerRef} type="button"><span className="member-row__label">{label}</span><span className="member-row__value"><MemberArtwork catalogs={catalogs} localData={localData} value={value}/><span>{displayName}</span>{editable && <Icon name="chevron-down"/>}</span></button>
     {children}
-    {selected && <details className="member-mobile-detail" open={revealDetails}><summary>About {option?.name ?? label}</summary><SelectionDetails empty={display} option={option}/></details>}
+    {selected && <details className="member-mobile-detail" open={revealDetails}><summary>About {option ? nativeDisplayName(option.record) : label}</summary><SelectionDetails empty={display} option={option}/></details>}
     <DefinitionDropdown allowEmpty={fieldKey !== PRIMARY_CLASS} allowedKinds={allowedKinds} anchorRef={triggerRef} compact emptyDescription={fieldKey === SECONDARY_CLASS ? 'No sub-command is equipped' : undefined} emptyLabel={fieldKey === SECONDARY_CLASS ? 'Not applicable' : undefined} filterOption={candidate => matchesSlot(candidate, label)} id={id} onClose={() => navigation.close()} onInspect={onInspect} onSelect={onChange} open={open} optionLabel={optionLabel} selected={value} title={`Choose ${label}`}/>
   </div>
 }
@@ -113,7 +118,8 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
 }) {
   const navigation = useNavigation()
   const { options } = useDefinitionLibrary()
-  const [draft, setDraft] = useState(() => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives }))
+  const initialDraft = () => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives, calculation: snapshot.calculation ?? defaultCalculation(knownRef(snapshot.primaryClass) ?? null, snapshot.level.state === 'known' && snapshot.level.value >= 1 && snapshot.level.value <= PC_LEVEL_CAP ? snapshot.level.value : undefined) })
+  const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState(PRIMARY_CLASS)
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [passivesOpen, setPassivesOpen] = useState(false)
@@ -134,7 +140,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   useEffect(() => {
     if (synchronizedSnapshot.current === snapshot.id || dirty || busy) return
     synchronizedSnapshot.current = snapshot.id
-    const next = { primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives }
+    const next = initialDraft()
     setDraft(next)
     setSavedDraft(next)
     setInspected(undefined)
@@ -177,7 +183,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   const selectedOption = active === PRIMARY_CLASS ? inspected ?? primaryOption : inspected
   const display = (value: EntityRef | null | undefined) => value === null ? 'Empty' : value ? entityName(localData, catalogs, value) : 'Unknown'
   const inspect = (key: string, option?: DefinitionOption) => { setActive(key); setInspected(option) }
-  const changeClass = (key: 'primaryClass' | 'secondaryClass', value: EntityRef | null | undefined) => setDraft(current => ({ ...current, [key]: value ? { state: 'known', value } : value === null ? { state: 'notApplicable' } : UNKNOWN }))
+  const changeClass = (key: 'primaryClass' | 'secondaryClass', value: EntityRef | null | undefined) => setDraft(current => ({ ...current, [key]: value ? { state: 'known', value } : value === null ? { state: 'notApplicable' } : UNKNOWN, ...(key === 'primaryClass' ? { calculation: followPrimary(current.calculation, value ?? null) } : {}) }))
   const classField = (key: 'primaryClass' | 'secondaryClass', fieldKey: string, label: string) => {
     const value = draft[key]
     const ref = knownRef(value)
@@ -238,7 +244,8 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
       </section>
       <aside aria-label="Selection details" className="member-inspector"><SelectionDetails empty={active === PRIMARY_CLASS ? 'Class unknown' : undefined} option={selectedOption}/></aside>
     </div>
-    {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals. Changing equipment here does not recalculate stats.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} localData={localData} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
+    <fieldset disabled={!editable}><CalculatedStats content={{ primaryClass: knownRef(draft.primaryClass) ?? null, secondaryClass: knownRef(draft.secondaryClass) ?? null, equipment: Object.fromEntries(Object.entries(draft.equipment).map(([id, ref]) => [id, ref ? { ref } : null])), passives: passiveRefs.map(ref => ({ ref })), contextAssumptions: [], calculation: draft.calculation }} slots={gameSetup?.slots ?? []} localData={localData} catalogs={catalogs} recorded={snapshot.displayedStats} unknownSecondaryClass={draft.secondaryClass.state !== 'known' && draft.secondaryClass.state !== 'notApplicable'} unknownInputs={[...(draft.passives.state === 'known' ? [] : ['Equipped passive list is unknown.']), ...slots.filter(slot => slot.selection === undefined || slot.kind === 'unmapped').map(slot => `${slot.label}: equipment is unknown or unmapped.`)]} onChange={calculation => setDraft(current => ({ ...current, calculation }))}/></fieldset>
+    {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals stay unchanged. Calculated loadout totals appear separately above.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} localData={localData} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
     {picker && ![PRIMARY_CLASS, SECONDARY_CLASS, ...slots.map(slot => `slot:${slot.id}`), ...Array.from({ length: passiveRefs.length + 1 }, (_, index) => `slot:passive-${index + 1}`)].includes(picker.fieldKey) && <InlineNotice title="Character field unavailable" tone="warning">The requested field is not in this snapshot. <Button onClick={() => navigation.close()} tone="quiet">Close picker route</Button></InlineNotice>}
     {dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={discard} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your choices are retained for retry.</InlineNotice>}

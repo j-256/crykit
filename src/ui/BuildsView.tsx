@@ -1,3 +1,4 @@
+import { nativeDisplayName } from '../domain/native-game'
 import { MoneyText } from './MoneyText'
 import { DefinitionArtwork } from './GameIcon'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
@@ -10,6 +11,8 @@ import { Sheet } from './Sheet'
 import { DefinitionProvider, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
 import { BuildMechanics, formatStatRange } from './BuildMechanics'
+import { CalculatedStats } from './CalculatedStats'
+import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
 import { BuildValidity } from './BuildValidity'
 import { calculateBuildStats, CALCULATED_STATS, STAT_LABELS } from '../domain/build-stats'
 import { BuildSelectionDetails } from './BuildSelectionDetails'
@@ -115,7 +118,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const navigation = useNavigation()
   const { options, planningOptions } = useDefinitionLibrary()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
-  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation, note: undefined })
+  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest ? latest.content.calculation : defaultCalculation(null), note: undefined })
   const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
@@ -223,7 +226,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
   const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
-    if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref }))
+    if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref, ...(current.calculation ? { calculation: followPrimary(current.calculation, ref) } : {}) }))
     else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
     else if (target.target === 'passive') setDraft((current) => {
       const passives = [...current.passives]
@@ -250,14 +253,14 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity report={validity}/>
     <div className="build-sheet__view-switch"><Segmented label="Build editor view" onChange={setEditorView} options={[{ value: 'loadout', label: 'Loadout' }, { value: 'checks', label: 'Checks & notes' }]} value={editorView}/></div>
-    <fieldset className="build-sheet__fields" disabled={busy || locked}>{editorView === 'loadout' ? <div className="build-sheet__layout">
+    <fieldset className="build-sheet__fields" disabled={busy || locked}>{editorView === 'loadout' ? <><div className="build-sheet__layout">
       <div className="build-sheet__slots">
         <section className="build-sheet__group" aria-label="Class and command"><h3><Icon name="crystal"/>Class & command</h3>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</section>
         <section className="build-sheet__group" aria-label="Equipment"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentSlots.map(slotField)}</div>{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This preset has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</section>
         <section className="build-sheet__group" aria-label="Passives"><h3><Icon name="spark"/>Equipped passives</h3><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label><div className="build-sheet__passives">{[...draft.passives, undefined].map(passiveField)}</div></section>
       </div>
-      <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={inspected.ref}/>{inspected.name}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Loadout</h3><p>Choose a slot to search the pinned catalog and inspect its details.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
-    </div> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">
+      <aside className="build-sheet__preview" aria-label="Selection details" data-empty={!inspected}>{inspected ? <><span className="eyebrow">Selection details</span><h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={inspected.ref}/>{nativeDisplayName(inspected.record)}</h3><BuildSelectionDetails comparedWith={comparedWith} option={inspected}/></> : <><Icon name="character"/><h3>Loadout</h3><p>Choose a slot to search the pinned catalog and inspect its details.</p></>}<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p></aside>
+    </div><CalculatedStats content={draft} slots={slots} localData={localData} catalogs={catalogs} onChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}/></> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">
       <BuildMechanics catalogs={catalogs} content={draft} onChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }} localData={localData} slots={slots}/>
       <section className="build-details"><h3>Build details & notes</h3><div className="stack">{children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; adjust the layout in Data & settings.'}</p></div></section>
     </section>}</fieldset>
@@ -532,7 +535,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
     const calculationLabel = (revision: BuildRevision) => {
       const plan = revision.content.calculation
       if (!plan) return 'No calculation inputs'
-      return [`Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
+      return [plan.model ? `${plan.model} (${plan.pcMode ?? 'standard'}; range compares gender cases)` : 'Legacy guide estimate', `Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
     }
     const scopeRows = statRows.length ? [{ label: 'Estimate exclusions', left: leftStats.excluded.join('; ') || 'None found in supplied fields', right: rightStats.excluded.join('; ') || 'None found in supplied fields' }, { label: 'Calculation notes', left: leftStats.issues.join('; '), right: rightStats.issues.join('; ') }] : []
     return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.equipment.') ? ownRecordValue(localData.gameSetups, left.gameSetupRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.equipment.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]

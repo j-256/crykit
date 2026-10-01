@@ -225,6 +225,17 @@ const inventoryEvent = z.object({
 }).strict()
 
 const observedStat = z.object({ value: knowledge(finiteNumber), unit: nonemptyText }).strict()
+const calculationPlan = z.object({
+  model: z.literal('pc-1.6.9-v1').optional(),
+  growthMode: z.enum(['primary', 'manual']).optional(),
+  pcMode: z.enum(['standard', 'vanilla', 'chaos']).optional(),
+  level: z.number().int().min(1).max(GUIDE_LEVEL_CAP).nullable(),
+  growth: z.array(z.object({ classRef: entityRef.nullable(), levels: z.number().int().min(0).max(GUIDE_LEVEL_CAP).nullable() }).strict()).max(GUIDE_LEVEL_CAP),
+  bonuses: z.array(z.enum(STAT_KEYS)).max(STAT_KEYS.length).refine(values => new Set(values).size === values.length, 'Stat bonuses must be unique'),
+  statuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
+  ability: entityRef.nullable().optional(),
+  targetEvasion: finiteNumber.nonnegative().nullable().optional(),
+}).strict()
 const characterSnapshot = z.object({
   id,
   gameSetupRevisionId: id.optional(),
@@ -236,6 +247,7 @@ const characterSnapshot = z.object({
   displayedStats: z.record(z.string().min(1).max(MAX_ID_LENGTH), observedStat),
   equipment: z.record(id, entityRef.nullable()),
   passives: knowledge(z.array(entityRef).max(MAX_COLLECTION_LENGTH)),
+  calculation: calculationPlan.optional(),
   sources: sourceRefs,
   note: longText.optional(),
 }).strict()
@@ -293,14 +305,7 @@ const buildRevisionContent = z.object({
   passives: z.array(buildSelection).max(MAX_COLLECTION_LENGTH),
   rotationNotes: longText.optional(),
   contextAssumptions: z.array(shortText).max(MAX_COLLECTION_LENGTH),
-  calculation: z.object({
-    level: z.number().int().min(1).max(GUIDE_LEVEL_CAP).nullable(),
-    growth: z.array(z.object({ classRef: entityRef.nullable(), levels: z.number().int().min(0).max(GUIDE_LEVEL_CAP).nullable() }).strict()).max(GUIDE_LEVEL_CAP),
-    bonuses: z.array(z.enum(STAT_KEYS)).max(STAT_KEYS.length).refine(values => new Set(values).size === values.length, 'Stat bonuses must be unique'),
-    statuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
-    ability: entityRef.nullable().optional(),
-    targetEvasion: finiteNumber.nonnegative().nullable().optional(),
-  }).strict().optional(),
+  calculation: calculationPlan.optional(),
 }).strict()
 
 const buildRevision = z.object({

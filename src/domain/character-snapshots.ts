@@ -1,4 +1,4 @@
-import type { CharacterSnapshot, EntityRef, Knowledge, ObservedStat, LocalData, SourceRef } from './types'
+import type { BuildCalculationPlan, CharacterSnapshot, EntityRef, Knowledge, ObservedStat, LocalData, SourceRef } from './types'
 
 export type SnapshotValue =
   | { readonly kind: 'number'; readonly value: Knowledge<number>; readonly unit: string }
@@ -6,6 +6,7 @@ export type SnapshotValue =
   | { readonly kind: 'references'; readonly value: Knowledge<readonly EntityRef[]> }
   | { readonly kind: 'selection'; readonly value: EntityRef | null | undefined }
   | { readonly kind: 'text'; readonly value: string | undefined }
+  | { readonly kind: 'calculation'; readonly value: BuildCalculationPlan | undefined }
   | { readonly kind: 'gameSetup'; readonly value: CharacterSnapshot['gameSetupRevisionId'] }
   | { readonly kind: 'sources'; readonly value: readonly SourceRef[] }
   | { readonly kind: 'unrecorded' }
@@ -62,6 +63,7 @@ export function compareCharacterSnapshots(left: CharacterSnapshot, right: Charac
   add('level', 'Level', { kind: 'number', value: left.level, unit: '' }, { kind: 'number', value: right.level, unit: '' })
   add('primaryClass', 'Primary class', { kind: 'reference', value: left.primaryClass }, { kind: 'reference', value: right.primaryClass })
   add('secondaryClass', 'Secondary class', { kind: 'reference', value: left.secondaryClass }, { kind: 'reference', value: right.secondaryClass })
+  if (left.calculation || right.calculation) add('calculation', 'Calculation assumptions', { kind: 'calculation', value: left.calculation }, { kind: 'calculation', value: right.calculation })
   const leftStats = new Map(Object.entries(left.displayedStats))
   const rightStats = new Map(Object.entries(right.displayedStats))
   for (const key of new Set([...leftStats.keys(), ...rightStats.keys()])) add(`stat:${key}`, key, statValue(leftStats.get(key)), statValue(rightStats.get(key)))

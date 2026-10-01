@@ -19,7 +19,7 @@ export function formatStatRange(value: StatRange | null): string {
   return value.low === value.high ? format(value.low) : `${format(value.low)} to ${format(value.high)}`
 }
 
-function CalculationPicker({ label, kinds, value, onChange }: { label: string; kinds: readonly CatalogEntityKind[]; value: EntityRef | null; onChange: (ref: EntityRef | null) => void }) {
+export function CalculationPicker({ label, kinds, value, onChange }: { label: string; kinds: readonly CatalogEntityKind[]; value: EntityRef | null; onChange: (ref: EntityRef | null) => void }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(BUILD_DEFINITION_PAGE_SIZE)
@@ -44,7 +44,7 @@ export function BuildMechanics({ content, slots, localData, catalogs, onChange }
     <div><h3>Equipment checks</h3><p>Primary-class permissions, selected permission effects, equipment roles, shared copies, and known unique flags. Sub-commands supply equipment permissions only through an explicit effect.</p>
       {equipment.length ? <ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}</li>)}</ul> : <p role="status">{hasSelections ? 'No conflict found in the supported equipment checks.' : 'Add equipment to check this build.'}</p>}
     </div>
-    <details className="build-calculation"><summary>Stats & combat estimates{plan ? ` · level ${plan.level ?? 'unknown'}` : ''}</summary><div className="stack">
+    {plan?.model ? <p>Calculated stats and growth are on the Loadout tab. The PC model uses the versioned calculation package.</p> : <details className="build-calculation"><summary>Stats & combat estimates{plan ? ` · level ${plan.level ?? 'unknown'}` : ''}</summary><div className="stack">
       <p>Plan growth explicitly. These inputs are saved with the build checkpoint and do not change recorded character stats.</p>
       <div className="cluster"><Field label="Planned level"><input aria-label="Planned level" max={GUIDE_LEVEL_CAP} min="1" onChange={event => update({ level: numberInput(event.target.value) })} type="number" value={plan?.level ?? ''}/></Field><Button disabled={!content.primaryClass || !plan?.level} onClick={() => update({ growth: [{ classRef: content.primaryClass, levels: plan?.level ?? null }] })} tone="secondary" type="button">Use primary class for all growth</Button></div>
       {(plan?.growth ?? []).map((row, index) => <div className="mechanics-growth-row" key={index}>
@@ -66,6 +66,6 @@ export function BuildMechanics({ content, slots, localData, catalogs, onChange }
       <details open={estimate.excluded.length > 0}><summary>Effects outside this estimate ({estimate.excluded.length})</summary>{estimate.excluded.length ? <ul>{estimate.excluded.map(effect => <li key={effect}>{effect}</li>)}</ul> : <p>No additional effects were found in the supplied fields. Missing source data can still affect totals.</p>}</details>
       <SourceSummary source={GUIDE_MECHANICS_SOURCE}/>
       {plan && <Button onClick={() => onChange(undefined)} tone="quiet" type="button">Clear calculation inputs</Button>}
-    </div></details>
+    </div></details>}
   </section>
 }
