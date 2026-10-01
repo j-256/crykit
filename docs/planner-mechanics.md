@@ -6,15 +6,23 @@ The Build editor checks equipment rules against the selected source definitions.
 
 Exported primary-class equipment categories provide permissions. The sub-command does not supply its class's equipment list. Supported permission descriptions such as Equip Sword and Equip All add categories. Explicit innate descriptions supply Dual Wield and Two-Handed; Shapeshift can inherit a documented sub-command innate. Custom Crystal Edit classes use their own exported fields and native passive references. A saved imported-layer configuration resolves those native references across its enabled layers through the effective catalog. Similarly named vanilla records do not establish missing identities.
 
-Equipment categories map to main hand, off hand, head, body, and accessory roles. The suggested layout has these roles; custom layouts can assign them under **Data & settings > Game Setup**. Accepted definition types use a finite multi-select rather than comma-separated identifiers. Historical suggested slots retain their established roles. Explicit custom slot and requirement rules remain available to scenario validation.
+Equipment categories map to main hand, off hand, head, body, and two accessory slots. The inspected PC executable fixes this layout; Game Setup displays it as a derived rule. Imported slot and requirement evidence remains available to party validation, with unresolved values shown explicitly.
 
 A two-handed weapon reserves both hands even when selected in one hand with the other empty. If the same copy is displayed in both hand slots, use **Same copy as**; its stats and stock demand count once. Separate weapons require Dual Wield. A one-handed weapon can share both hand slots when Two-Handed is present. Known unique-equipment flags, duplicate passive selections, disabled class selections, and wrong equipment roles produce conflicts. Missing hand counts and unknown permission effects produce unresolved findings where they matter. Plans can still be saved with conflicts.
 
 ## Passive PP budget
 
-Passives are stored as an ordered, variable-length list, not as Game Setup slots. Each passive contributes its documented PP cost to one total. The unmodified game permits up to 10 PP across all equipped passives, so new Game Setups default to that limit and modded Game Setups can override it. PP is a Game Setup limit rather than a character observation. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the Build invalid even when another selected cost is unknown.
+Passives are stored as an ordered, variable-length list, not as Game Setup slots. Each passive contributes its documented PP cost to one total. The inspected PC executable permits up to 10 PP across all equipped passives, so new Game Setups use that limit. Game Setup does not offer an arbitrary PP override. Imported mods can change individual passive costs through their definitions. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the Build invalid even when another selected cost is unknown.
 
 The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion prefers those properties from native game source records and retains older export records without changing old catalog snapshots.
+
+## Game Setup and mod rules
+
+Game Setup records the base game version, difficulty, and enabled mod revisions. Platform and game mode appear under base game details. Builds save their own setup with each checkpoint; changing a Playthrough does not retarget saved Builds or Teams. A mod title alone cannot establish calculation effects.
+
+Supported Crystal Edit format 34 imports retain battle settings and difficulty definitions with the exact source revision. Enabled layers apply in order. A non-localization BattleConfig replaces the complete prior configuration; difficulty records replace matching identities. Incomplete or unsupported settings leave affected calculations unresolved. The resolver uses inspected PC 1.6.9 Standard, Vanilla, and Chaos difficulty data without asserting parity for other versions or platforms.
+
+Dual Wield, Two-Handed, and unarmed stat constants feed PC character calculations. The shared loadout sheet uses the same pinned rules for stat contributions and detailed totals in Builds, recorded character snapshots, and read-only share previews; newer mod revisions do not retarget those snapshots. Difficulty-dependent hit previews use the selected difficulty modifier for non-guaranteed hits. Enemy HP and stat multipliers are shown as settings, not applied to player stats or presented as a full encounter simulation. Game Setup lists other retained battle settings and their calculation coverage.
 
 ## Verified PC calculations
 
@@ -45,3 +53,5 @@ The contribution list and exclusion list describe the scope of each estimate. Di
 The guide preview does not predict final enemy damage. The inspected PC package separately verifies integer defense reduction for synthetic benchmarks. Full encounters, status lifecycles, conditional damage effects, and platform or mod parity remain outside that calculation scope. Native enemy records remain available for inspection without simulating their behavior.
 
 The separate [PC steal mechanics research](steal-mechanics.md) records the executable's availability, success, Luck, failure-protection, multi-entry display, and guaranteed-attempt mod formulas. It is source evidence for the inspected PC build rather than a calculation performed by Crystal Kit, and it does not establish Nintendo Switch parity.
+
+PC calculations use the pinned Game Setup's recognized Standard, Vanilla, or Chaos mode. The calculation panel shows that choice without a second mode selector. When Game Setup mode is unknown, a retained calculation mode or the standard model is shown as an explicit calculation assumption; difficulty-dependent estimates remain unresolved.

@@ -204,7 +204,7 @@ test('shares a saved build, supports manual copying, previews without writes and
   expect(errors).toEqual([])
 })
 
-test('opens four portable team slots in a fresh browser and maps them to local characters', async ({ page, browser, baseURL, isMobile }) => {
+test('opens four portable team slots in a fresh browser and saves them as an independent Team', async ({ page, browser, baseURL, isMobile }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const source = await storedData(page)
@@ -224,24 +224,19 @@ test('opens four portable team slots in a fresh browser and maps them to local c
     const regions = recipient.getByRole('region', { name: /^Shared team slot \d$/ })
     await expect(regions).toHaveCount(4)
     expect(await recipient.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    const savePanel = recipient.getByRole('region', { name: 'Save shared team' })
-    await expect(savePanel.getByRole('button', { name: 'Save a copy' })).toBeDisabled()
-    for (let index = 0; index < members.length; index += 1) await savePanel.getByLabel(`Team slot ${index + 1}`, { exact: true }).selectOption(members[index]!.id)
-    await savePanel.getByRole('button', { name: 'Save a copy' }).click()
-    await expect(recipient).toHaveURL(/#\/builds\/teams\//)
+    await recipient.getByRole('button', { name: 'Save a copy', exact: true }).click()
+    await expect(recipient).toHaveURL(/#\/teams\//)
     const after = await storedData(recipient)
     expect(Object.keys(after.builds)).toHaveLength(Object.keys(before.builds).length + 4)
     expect(selectedPlaythrough(after).characters).toEqual(selectedPlaythrough(before).characters)
     expect(selectedPlaythrough(after).inventory).toEqual(selectedPlaythrough(before).inventory)
     expect(after.gameSetups).toEqual(before.gameSetups)
-    const added = Object.values(selectedPlaythrough(after).scenarios).find(scenario => !selectedPlaythrough(before).scenarios[scenario.id])!
-    expect(added.memberIds).toEqual(members.map(character => character.id))
-    expect(added.kind).toBe('draft')
-    expect(added.gameSetupRevisionId).toBe(selectedPlaythrough(before).currentGameSetupRevisionId)
-    const active = before.gameSetups[added.gameSetupRevisionId]!
-    for (const build of Object.values(after.builds).filter(build => !before.builds[build.id])) expect(build.gameSetupId).toBe(active.gameSetupId)
-    await recipient.goto(`${baseURL}/#/builds/teams`)
-    await expect(recipient.getByRole('heading', { name: sourceTeam.label, exact: true })).toHaveCount(2)
+    const added = Object.values(after.teams).find(team => !before.teams[team.id])!
+    expect(added.slots).toHaveLength(4)
+    expect(added.slots.every(id => id && after.buildRevisions[id])).toBe(true)
+    expect(after.playthroughs).toEqual(before.playthroughs)
+    await recipient.goto(`${baseURL}/#/teams`)
+    await expect(recipient.getByRole('heading', { name: sourceTeam.label, exact: true })).toHaveCount(1)
   } finally { await recipientContext.close() }
 })
 

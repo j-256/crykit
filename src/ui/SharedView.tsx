@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { logicalEntityKey, requirePlaythrough, validateBuildContent } from '../domain'
+import { logicalEntityKey, validateBuildContent } from '../domain'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
-import type { BuildId, BuildRevision, CatalogSnapshot, CharacterId, LocalData, ScenarioId, EntityRef, Knowledge } from '../domain'
+import type { BuildId, BuildRevision, CatalogSnapshot, LocalData, TeamId, EntityRef, Knowledge } from '../domain'
 import { decodeSharePayload, sharePreviewData, type SharePayload } from '../interchange/share'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { prepareModCatalogs } from '../persistence'
@@ -12,7 +12,7 @@ import { buildDefinitionOptions, findDefinitionOption, type DefinitionOption } f
 import { CalculationInputs } from './CalculationInputs'
 import { KnowledgeValue } from './KnowledgeValue'
 import { BuildValidity } from './BuildValidity'
-import { Button, Field, InlineNotice, ScreenHeader } from './components'
+import { Button, InlineNotice, ScreenHeader } from './components'
 import { formatAppError, resolveEntity } from './model'
 import { useNavigation } from './navigation'
 
@@ -48,7 +48,7 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   return <div className="stack build-sheet" data-validity={report.status}>
     <details><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
     <BuildValidity report={report}/>
-    <LoadoutSheet catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)}
+    <LoadoutSheet gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)}
       classFields={<>{field('Class', content.primaryClass, 'No class selected')}{field('Sub-command', content.secondaryClass, 'No sub-command')}</>}
       equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">Selections outside the pinned slot layout retain their stored slot IDs.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
@@ -58,13 +58,12 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   </div>
 }
 
-export function SharedView({ encoded, localData, catalogs, onSave }: { readonly encoded: string; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onSave: (payload: SharePayload, memberIds?: readonly CharacterId[]) => Promise<{ readonly buildId?: BuildId; readonly scenarioId?: ScenarioId }> }) {
+export function SharedView({ encoded, catalogs, onSave }: { readonly encoded: string; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onSave: (payload: SharePayload) => Promise<{ readonly buildId?: BuildId; readonly teamId?: TeamId }> }) {
   const navigation = useNavigation()
   const [preview, setPreview] = useState<SharedPreview>()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string>()
-  const [memberIds, setMemberIds] = useState<string[]>(['', '', '', ''])
   useEffect(() => {
     let live = true
     setPreview(undefined)
@@ -83,8 +82,8 @@ export function SharedView({ encoded, localData, catalogs, onSave }: { readonly 
     setBusy(true)
     setSaveError(undefined)
     try {
-      const result = await onSave(preview.payload, preview.payload.kind === 'team' ? memberIds as CharacterId[] : undefined)
-      const page = result.scenarioId ? { page: 'builds' as const, view: 'scenario' as const, scenarioId: result.scenarioId } : { page: 'builds' as const, view: 'build' as const, buildId: result.buildId! }
+      const result = await onSave(preview.payload)
+      const page = result.teamId ? { page: 'teams' as const, view: 'team' as const, teamId: result.teamId } : { page: 'builds' as const, view: 'build' as const, buildId: result.buildId! }
       navigation.navigate({ page, overlays: [], query: {} })
     } catch (reason) { setSaveError(formatAppError(reason, 'The shared copy could not be saved.')) }
     finally { setBusy(false) }
@@ -92,10 +91,9 @@ export function SharedView({ encoded, localData, catalogs, onSave }: { readonly 
   if (error) return <section className="panel"><div className="panel__body stack"><h1>Shared snapshot unavailable</h1><InlineNotice title="Link could not be opened" tone="danger">{error} Missing catalog revisions are not replaced by another version.</InlineNotice><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })}>Open build library</Button></div></section>
   if (!preview) return <p role="status">Opening shared snapshot...</p>
   const { payload } = preview
-  const characters = Object.values(requirePlaythrough(localData).characters)
   const slots = payload.kind === 'team' ? payload.slots! : [Object.values(payload.records.buildRevisions)[0]!.id]
   return <div className="stack shared-preview">
-    <ScreenHeader description="A read-only snapshot from a share link. Save a copy to edit it in this browser." eyebrow={payload.kind === 'team' ? 'Shared team' : 'Shared build'} title={payload.title} actions={payload.kind === 'build' ? <Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button> : undefined}/>
+    <ScreenHeader description="A read-only snapshot from a share link. Save a copy to edit it in this browser." eyebrow={payload.kind === 'team' ? 'Shared team' : 'Shared build'} title={payload.title} actions={<Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button>}/>
     <p>Build rules use the pinned Game Setup. Character readiness and available stock need your own Playthrough records.</p>
     {saveError && <InlineNotice title="Copy not saved" tone="danger">{saveError} Your existing records were preserved.</InlineNotice>}
     <div className={payload.kind === 'team' ? 'share-team-grid' : 'share-build-grid'}>{slots.map((id, index) => {
@@ -103,6 +101,6 @@ export function SharedView({ encoded, localData, catalogs, onSave }: { readonly 
       const build = revision ? payload.records.builds[revision.buildId] : undefined
       return <section aria-label={payload.kind === 'team' ? `Shared team slot ${index + 1}` : 'Shared build loadout'} className="panel" key={index}><header className="panel__header"><h2>{payload.kind === 'team' ? `${index + 1}. ` : ''}{build?.title ?? 'No build assigned'}</h2></header><div className="panel__body">{revision ? <SharedBuild preview={preview} revision={revision}/> : <BuildLoadoutSummary catalogs={preview.catalogs} gameSetup={preview.localData.gameSetups[payload.teamGameSetupRevisionId!]} localData={preview.localData}/>}</div></section>
     })}</div>
-    {payload.kind === 'team' && <section aria-label="Save shared team" className="panel"><div className="panel__body stack"><h2>Save a team copy</h2><p>Choose which of your characters fills each slot. This adds a draft team and its builds to your Playthrough.</p>{characters.length < slots.length && <InlineNotice title="Four characters needed">Add four characters to your Playthrough to save this team.</InlineNotice>}<div className="grid-2">{slots.map((_, index) => <Field key={index} label={`Team slot ${index + 1}`}><select aria-label={`Team slot ${index + 1}`} disabled={busy} onChange={event => setMemberIds(current => current.map((id, slot) => slot === index ? event.target.value : id))} value={memberIds[index]}><option value="">Choose character</option>{characters.map(character => <option disabled={memberIds.includes(character.id) && memberIds[index] !== character.id} key={character.id} value={character.id}>{character.name}</option>)}</select></Field>)}</div><Button disabled={busy || memberIds.some(id => !id) || new Set(memberIds).size !== slots.length} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button></div></section>}
+
   </div>
 }

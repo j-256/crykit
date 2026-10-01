@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import crystalCricketUrl from '../assets/crystal-cricket.svg'
-import type { CatalogSnapshot, LocalData, PlaythroughId, GameSetupRevisionId, ScenarioId } from '../domain/types'
+import type { CatalogSnapshot, LocalData, PlaythroughId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
@@ -14,15 +14,14 @@ interface MenuDestination { readonly id: Destination; readonly label: string; re
 
 const MAIN_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'builds', label: 'Builds', icon: 'sword' },
-  { id: 'characters', label: 'Characters', icon: 'character' },
+  { id: 'teams', label: 'Teams', icon: 'team' },
   { id: 'reference', label: 'Reference', icon: 'tome' },
+  { id: 'mods', label: 'Mods', icon: 'edit' },
 ]
 const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
+  { id: 'characters', label: 'Characters', icon: 'character' },
   { id: 'inventory', label: 'Inventory', icon: 'chest' },
   { id: 'progress', label: 'Progress', icon: 'crystal' },
-]
-const TOOL_DESTINATIONS: readonly MenuDestination[] = [
-  { id: 'mod-inspector', label: 'Mod Inspector', icon: 'edit' },
 ]
 
 function Brand() {
@@ -38,10 +37,12 @@ function Brand() {
   </div>
 }
 
-export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectGameSetup, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectGameSetup: (id: GameSetupRevisionId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
-  const activeDestination = navigation.route.page.page === 'settings' ? undefined : destination
+  const partyPage = navigation.route.page.page === 'builds' && ['teams', 'scenario', 'scenario-new'].includes(navigation.route.page.view)
+  const tracking = (navigation.route.page.page === 'teams' && navigation.route.page.view === 'adopt') || partyPage || TRACKING_DESTINATIONS.some(item => item.id === destination)
+  const activeDestination = navigation.route.page.page === 'settings' ? undefined : partyPage ? 'characters' : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
   const developmentPort = import.meta.env.DEV ? window.location.port : ''
@@ -70,9 +71,8 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     <aside className="rail">
       <nav aria-label="Primary navigation" className="menu-window">
         <p className="nav-section__label">Planning</p>
-        <ul aria-label="Builds, characters, and reference" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
+        <ul aria-label="Planning" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
         <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
-        <div aria-label="Tools" className="nav-tracking nav-tools" role="group"><p className="nav-section__label">Tools</p><ul className="nav-list">{TOOL_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
@@ -84,15 +84,15 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     <main className="main-shell">
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className="context-bar">
-        {destination === 'mod-inspector' ? <strong>Mod workspace</strong> : <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectGameSetup={onSelectGameSetup} onSelectScenario={onSelectScenario} localData={localData}/>}
+        {destination === 'mods' ? <strong>Mod workspace</strong> : tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <span className="field__hint">Buildcrafting workspace</span>}
         <div className="context-bar__meta">
-          {destination !== 'mod-inspector' && <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>}
-          {developmentPort && <span aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
+          {destination !== 'mods' && <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>}
+          {developmentPort && <span role="note" aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
         </div>
       </header>
       <div className="content">{children}</div>
     </main>
-    <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Builds, characters, and reference" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tools" className="bottom-nav__tools" role="group">{TOOL_DESTINATIONS.map(destinationButton)}</div></nav>
+    <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }

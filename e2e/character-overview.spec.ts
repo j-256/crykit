@@ -205,8 +205,8 @@ test('overview links support keyboard, history, offline reload and dirty member 
 test('blank Playthroughs and new characters stay blank and the roster is independent of scenario selection', async ({ page, isMobile }) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/#/characters')
-  await page.getByRole('button', { name: /^Scenario:/ }).click()
-  await page.getByRole('dialog', { name: 'Choose scenario', exact: true }).getByRole('button', { name: /^None selected/ }).click()
+  await page.getByRole('button', { name: /^Party plan:/ }).click()
+  await page.getByRole('dialog', { name: 'Choose party plan', exact: true }).getByRole('button', { name: /^None selected/ }).click()
   await expect(page.getByRole('article')).toHaveCount(4)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await createBlankPlaythrough(page)

@@ -1,3 +1,4 @@
+import { importedGameRules, IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { z } from 'zod'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { bundledModEntityId } from '../domain/bundled-mods'
@@ -24,10 +25,14 @@ const job = model.extend({
   IsStartingJob: z.boolean().optional(), IsUnselectableJob: z.boolean().optional(), IsUnselectableSubJob: z.boolean().optional(), IsNotCrystalJob: z.boolean().optional(),
 })
 const FAMILIES: Readonly<Record<string, CatalogEntityKind>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'item', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'location' })
-const ARCHIVED_FAMILIES = ['Animations', 'Difficulties', 'Genders', 'Sparks', 'Troops', 'Entities'] as const
+const ARCHIVED_FAMILIES = ['Animations', 'Genders', 'Sparks', 'Troops', 'Entities'] as const
+
+function hasRuleData(root: Readonly<Record<string, JsonValue>>): boolean {
+  return jsonRecord(root.System) && jsonRecord(root.System.BattleConfig) || Array.isArray(root.Difficulties) && root.Difficulties.length > 0
+}
 
 export function isCrystalEdit(value: JsonValue): boolean {
-  return jsonRecord(value) && typeof value.ID === 'string' && typeof value.EditorVersion === 'number' && Object.keys(FAMILIES).some(key => Array.isArray(value[key]))
+  return jsonRecord(value) && typeof value.ID === 'string' && typeof value.EditorVersion === 'number' && (Object.keys(FAMILIES).some(key => Array.isArray(value[key])) || hasRuleData(value))
 }
 
 export async function previewCrystalEdit(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
@@ -71,7 +76,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
       entities[id] = { id, kind, name: record.Name as string, aliases: [], fields, sources: [source], ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}) }
     }
   }
-  if (!total) throw new AppDataError('schema-mismatch', 'This export contains no supported reference models', { recoverable: true })
+  if (!total && !hasRuleData(root)) throw new AppDataError('schema-mismatch', 'This export contains no supported reference models or game settings', { recoverable: true })
   for (const entity of Object.values(entities).filter(entity => entity.kind === 'class')) {
     const record = entity.fields['Crystal Edit source record']
     if (record?.state !== 'known' || !jsonRecord(record.value) || !Array.isArray(record.value.PassiveIDs)) continue
@@ -99,14 +104,14 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
   }
   if (missing.size) warnings.push({ severity: 'warning', code: 'external-model-references', message: `${missing.size} referenced ability or passive definitions are absent. Their IDs and tree positions are retained; names, costs, and effects remain unresolved.` })
   const catalog: CatalogSnapshot = {
-    id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
+    id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}:${IMPORTED_RULES_REVISION}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
     checksum: `sha256:${digest}`, importedAt, entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
-    legacy: { projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities },
+    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities },
   }
   const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
-  const receiptId = asImportReceiptId(`import:${digest}`)
+  const receiptId = asImportReceiptId(`import:${digest}:${IMPORTED_RULES_REVISION}`)
   const localData: LocalData = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, importedAt, localDataRevision: 0 } } }
   return {
     id: randomId('import-preview'), filename, detectedFormat: CRYSTAL_EDIT_FORMAT, detectedSchema: `Crystal Edit ${root.EditorVersion}`, sourceDigest: digest,

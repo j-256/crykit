@@ -53,7 +53,7 @@ export interface CreateBlankLocalDataInput {
 export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): LocalData {
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   return {
-    schemaVersion: '2.1.0',
+    schemaVersion: '2.2.0',
     id: input.id ?? createId<LocalDataId>('localData'),
     revision: 0,
     createdAt: at,
@@ -62,6 +62,7 @@ export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): Loc
     gameSetups: {},
     builds: {},
     buildRevisions: {},
+    teams: {},
     playthroughs: {},
     importReceipts: {},
     changes: [],
@@ -131,10 +132,10 @@ export function selectPlaythrough(localData: LocalData, input: SelectPlaythrough
     localData,
     {
       selectedPlaythroughId: input.playthroughId,
-      ...(playthrough.currentGameSetupRevisionId ? { planningGameSetupRevisionId: playthrough.currentGameSetupRevisionId } : {}),
+      planningGameSetupRevisionId: playthrough.currentGameSetupRevisionId,
     },
     'playthrough.select',
-    ['selectedPlaythroughId', ...(playthrough.currentGameSetupRevisionId ? ['planningGameSetupRevisionId'] : [])],
+    ['selectedPlaythroughId', 'planningGameSetupRevisionId'],
     at,
   )
 }
@@ -382,6 +383,7 @@ export interface AddGameSetupRevisionInput {
   readonly platform?: Knowledge<string>
   readonly gameVersion?: Knowledge<string>
   readonly mode?: Knowledge<string>
+  readonly difficulty?: GameSetupRevision['difficulty']
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
   readonly customMods?: readonly string[]
@@ -402,6 +404,7 @@ const UNKNOWN_STRINGS: Knowledge<readonly string[]> = { state: 'unknown' }
 export const DEFAULT_PP_LIMIT = 10
 export const DEFAULT_PP_COSTS_NONNEGATIVE = true
 export const DEFAULT_GAME_VERSION = '1.6.6'
+export const DEFAULT_GAME_MODE = 'Standard'
 
 export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRevisionInput): LocalData {
   assertExpectedRevision(localData, input.expectedRevision)
@@ -419,6 +422,7 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
   const revision = input.revision ?? 1
   assertNonnegativeInteger(revision, 'Game Setup revision')
   for (const value of knowledgeValues(input.ppLimit)) assertNonnegativeInteger(value, 'PP limit')
+  for (const value of knowledgeValues(input.difficulty?.selection)) assertNonnegativeInteger(value, 'Difficulty ID')
   const slots = input.slots ?? []
   const slotIds = new Set<string>()
   for (const slot of slots) {
@@ -450,7 +454,8 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
     label: input.label.trim() || 'Untitled Game Setup',
     platform: input.platform ?? UNKNOWN_STRING,
     gameVersion: input.gameVersion ?? { state: 'known', value: DEFAULT_GAME_VERSION },
-    mode: input.mode ?? UNKNOWN_STRING,
+    mode: input.mode ?? { state: 'known', value: DEFAULT_GAME_MODE },
+    ...(input.difficulty === undefined ? {} : { difficulty: input.difficulty }),
     mods: input.mods ?? UNKNOWN_STRINGS,
     ...(input.disabledMods === undefined ? {} : { disabledMods: input.disabledMods }),
     ...(input.customMods === undefined ? {} : { customMods: input.customMods }),
@@ -484,6 +489,7 @@ export interface UpdateGameSetupRevisionInput {
   readonly platform?: Knowledge<string>
   readonly gameVersion?: Knowledge<string>
   readonly mode?: Knowledge<string>
+  readonly difficulty?: GameSetupRevision['difficulty']
   readonly mods?: Knowledge<readonly string[]>
   readonly disabledMods?: Knowledge<readonly string[]>
   readonly customMods?: readonly string[]
@@ -508,11 +514,12 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
   return addGameSetupRevision(localData, {
     id: input.id,
     gameSetupId: source.gameSetupId,
-    revision: source.revision + 1,
+    revision: Object.values(localData.gameSetups).reduce((latest, setup) => setup.gameSetupId === source.gameSetupId ? Math.max(latest, setup.revision) : latest, source.revision) + 1,
     label: input.label ?? source.label,
     platform: input.platform ?? source.platform,
     gameVersion: input.gameVersion ?? source.gameVersion,
     mode: input.mode ?? source.mode,
+    difficulty: input.difficulty ?? source.difficulty,
     mods: input.mods ?? source.mods,
     disabledMods: input.disabledMods ?? source.disabledMods,
     customMods: input.customMods ?? source.customMods,

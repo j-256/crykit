@@ -67,6 +67,13 @@ describe('semantic navigation routes', () => {
     expect(parseAppRoute(`${root}base/ability/${'a'.repeat(MAX_ID_LENGTH)}`).page.page).toBe('unresolved')
   })
 
+  it('canonicalizes the Playthrough settings shortcut without opening a Game Setup editor', () => {
+    const playthrough = parseAppRoute('#/settings/game-setup?scope=playthrough')
+    expect(playthrough).toEqual({ page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {}, legacy: true })
+    expect(formatAppRoute(playthrough)).toBe('#/settings/playthrough')
+    expect(parseAppRoute('#/settings/game-setup?gameSetup=synthetic-revision')).toEqual({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: ['synthetic-revision'] } })
+  })
+
   it('gives Progress pages explicit paths and canonicalizes the root to the first page', () => {
     const root = parseAppRoute('#/progress')
     expect(root).toMatchObject({ page: { page: 'progress', view: 'list' }, legacy: true })
@@ -95,7 +102,8 @@ describe('semantic navigation routes', () => {
   })
   it('round-trips every page and action identity', () => {
     const pages = [
-      { page: 'mod-inspector' },
+      { page: 'mods', view: 'library' },
+      { page: 'mods', view: 'editor' },
       { page: 'inventory', view: 'list' },
       { page: 'inventory', view: 'new' },
       { page: 'inventory', view: 'event-new' },
@@ -112,6 +120,10 @@ describe('semantic navigation routes', () => {
       { page: 'characters', view: 'class-edit', characterId: 'character / one', ref: catalogRef },
       { page: 'characters', view: 'learning-new', characterId: 'character / one', learningKind: 'knowledge' },
       { page: 'characters', view: 'learning-edit', characterId: 'character / one', learningKind: 'magic', ref: personalRef },
+      { page: 'teams', view: 'list' },
+      { page: 'teams', view: 'new' },
+      { page: 'teams', view: 'team', teamId: 'team / one' },
+      { page: 'teams', view: 'adopt', teamId: 'team / one' },
       { page: 'builds', view: 'library' },
       { page: 'builds', view: 'build-new' },
       { page: 'builds', view: 'build', buildId: 'build / one' },
@@ -135,6 +147,7 @@ describe('semantic navigation routes', () => {
       { page: 'reference', view: 'promote' },
       { page: 'settings', section: 'data' },
       { page: 'settings', section: 'data', previewId: 'preview / one' },
+      { page: 'settings', section: 'playthrough' },
       { page: 'settings', section: 'game-setup' },
       { page: 'settings', section: 'history' },
       { page: 'settings', section: 'storage' },
@@ -164,8 +177,8 @@ describe('semantic navigation routes', () => {
   })
 
   it('parses search overlays after page prefixes without accepting extra path segments', () => {
-    expect(parseAppRoute('#/mod-inspector/search?q=RevealStatsAuto')).toMatchObject({ page: { page: 'mod-inspector' }, overlays: [{ kind: 'search', query: 'RevealStatsAuto' }] })
-    expect(parseAppRoute('#/mod-inspector/unrecognized').page).toMatchObject({ page: 'unresolved', recovery: 'mod-inspector' })
+    expect(parseAppRoute('#/mods/search?q=RevealStatsAuto')).toMatchObject({ page: { page: 'mods', view: 'library' }, overlays: [{ kind: 'search', query: 'RevealStatsAuto' }] })
+    expect(parseAppRoute('#/mods/unrecognized').page).toMatchObject({ page: 'unresolved', recovery: 'mods' })
     expect(parseAppRoute('#/inventory/search?q=sword')).toMatchObject({ page: { page: 'inventory', view: 'list' }, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parseAppRoute('#/reference/search?q=sword')).toMatchObject({ page: { page: 'reference', view: 'list' }, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parseAppRoute('#/characters/character-example/current/search')).toMatchObject({ page: { page: 'characters', view: 'character', characterId: 'character-example', tab: 'current' }, overlays: [{ kind: 'search' }] })
