@@ -3,7 +3,7 @@ import { selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import { syntheticCrystalEdit } from '../src/interchange/crystal-edit.test-helpers'
+import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from '../src/interchange/crystal-edit.test-helpers'
 import type { LocalData } from '../src/domain/types'
 
 const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aclass%3Awarrior'
@@ -46,9 +46,10 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   await expect(hp).toContainText('658.94')
   await research.getByText('Learn tree', { exact: true }).click()
   const tree = research.getByRole('list', { name: 'Learn tree skills' })
+  await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   await expect(tree.getByRole('link', { name: 'ability Taunt 0 LP', exact: true })).toBeVisible()
   await expect(tree.getByRole('link', { name: 'passive Equip Axe 2 LP', exact: true })).toBeVisible()
-  await expect(tree.getByRole('link', { name: 'ability Power Break 2 LP', exact: true })).toHaveAccessibleDescription('Requires Defender')
+  await expect(tree.getByRole('link', { name: 'ability Power Break 2 LP', exact: true })).toHaveAccessibleDescription('Requires all: Defender')
   await expect(tree.getByText(/^(Gate|Empty|Ability #|Passive #)/)).toHaveCount(0)
   await expect(research.locator('.learn-tree__connectors > path[data-from="1:0"][data-to="2:0"]')).toHaveCount(1)
   await expect(research.locator('.learn-tree__connectors > path[data-from="1:0"][data-to="2:0"]')).not.toHaveAttribute('marker-end')
@@ -117,6 +118,7 @@ test('Scholar tree names monster learning and keeps its Adrenaline reference sep
   const research = page.getByRole('region', { name: 'Class growth and learning' })
   await research.getByText('Learn tree', { exact: true }).click()
   const tree = research.getByRole('list', { name: 'Learn tree skills' })
+  await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const adrenaline = tree.getByRole('link', { name: 'Monster magic Adrenaline Monster learning', exact: true })
   await expect(adrenaline).toBeVisible()
   await expect(adrenaline).toHaveAttribute('href', /base%3Ascholar%3Amonster-magic%3Aadrenaline$/)
@@ -130,10 +132,75 @@ test('native class trees retain named skills and exact links in the native catal
   const research = page.getByRole('region', { name: 'Class growth and learning' })
   await research.getByText('Learn tree', { exact: true }).click()
   const tree = research.getByRole('list', { name: 'Learn tree skills' })
+  await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const taunt = tree.getByRole('link', { name: 'ability Taunt 0 LP', exact: true })
   await expect(taunt).toBeVisible()
   await expect(taunt).toHaveAttribute('href', /native-v1\/entities\/native%3Abase%3Aability%3A28$/)
   await expect(tree.getByRole('link', { name: 'passive Equip Axe 2 LP', exact: true })).toBeVisible()
   await taunt.click()
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
+})
+
+test('draws every simultaneous prerequisite into its skill and keeps arrows aligned after resizing', async ({ page }, testInfo) => {
+  await page.goto('/')
+  const settings = await openData(page)
+  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await settings.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-prerequisites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(syntheticPrerequisiteCrystalEdit())) })
+  await settings.getByRole('button', { name: 'Add references', exact: true }).click()
+  await expect(settings).not.toBeVisible()
+  await page.goto('/#/reference')
+  await page.getByLabel('Search reference', { exact: true }).fill('Synthetic Scholar')
+  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic Scholar', exact: true }) }).click()
+  const research = page.getByRole('region', { name: 'Class growth and learning' })
+  await research.getByText('Learn tree', { exact: true }).click()
+  const two = research.locator('[data-position="1:0"]')
+  const three = research.locator('[data-position="1:1"]')
+  await expect(two).toContainText('Synthetic Combination')
+  await expect(two).toContainText('Requires all: Synthetic Spark and Synthetic Focus')
+  await expect(three).toContainText('Synthetic Fusion')
+  await expect(three).toContainText('Requires all: Synthetic Spark and Synthetic Focus and Synthetic Calm')
+  await expect(research.locator('.learn-tree__connectors > path[data-to="1:0"]')).toHaveCount(2)
+  await expect(research.locator('.learn-tree__connectors > path[data-to="1:1"]')).toHaveCount(3)
+
+  const checkArrows = async () => {
+    await expect.poll(() => research.evaluate(region => {
+      return [...region.querySelectorAll<SVGPathElement>('.learn-tree__connectors > path[data-from]')].every(path => {
+        const origin = region.querySelector(`[data-position="${path.getAttribute('data-from')}"]`)!.getBoundingClientRect()
+        const destination = region.querySelector(`[data-position="${path.getAttribute('data-to')}"]`)!.getBoundingClientRect()
+        const transform = path.getScreenCTM()!
+        const start = path.getPointAtLength(0).matrixTransform(transform)
+        const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(transform)
+        return Math.abs(start.x - (origin.left + origin.width / 2)) < 1 && Math.abs(start.y - origin.bottom) < 1 && Math.abs(end.x - (destination.left + destination.width / 2)) < 1 && Math.abs(end.y - destination.top) < 1
+      })
+    })).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const diagram = research.getByRole('group', { name: 'Scrollable learn tree', exact: true })
+    const bounds = (await diagram.boundingBox())!
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+    const scrollable = await diagram.evaluate(element => element.scrollWidth > element.clientWidth)
+    if (scrollable) {
+      await diagram.focus()
+      await page.keyboard.press('ArrowRight')
+      await expect.poll(() => diagram.evaluate(element => element.scrollLeft)).toBeGreaterThan(0)
+      await diagram.evaluate(element => { element.scrollLeft = 0 })
+    }
+  }
+  await checkArrows()
+  const originalViewport = page.viewportSize()!
+  await page.setViewportSize({ width: 760, height: 915 })
+  await checkArrows()
+  await page.setViewportSize(originalViewport)
+  await checkArrows()
+  await page.screenshot({ path: testInfo.outputPath('simultaneous-prerequisites.png'), fullPage: true })
+})
+
+
+test('native learn trees resolve game names and draw simultaneous incoming arrows', async ({ page }) => {
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/native-v1/entities/base%3Aclass%3Aaegis')
+  const research = page.getByRole('region', { name: 'Class growth and learning', exact: true })
+  await research.getByText('Learn tree', { exact: true }).click()
+  const destination = research.locator('[data-position="2:1"]')
+  await expect(destination).toContainText('Requires all:')
+  await expect(destination.locator('strong')).not.toContainText(/Ability #|Passive #/)
+  await expect(research.locator('.learn-tree__connectors > path[data-to="2:1"]')).toHaveCount(2)
 })
