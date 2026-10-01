@@ -17,7 +17,7 @@ import type {
   ScenarioId,
 } from '../domain/types'
 
-export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference'
+export type Destination = 'inventory' | 'characters' | 'builds' | 'progress' | 'reference' | 'mod-inspector'
 export type CharacterTab = 'current' | 'history'
 export type SettingsSection = 'data' | 'game-setup' | 'history' | 'storage' | 'credits'
 
@@ -84,7 +84,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string }
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string } | { readonly page: 'mod-inspector' }
 
 export interface SearchOverlay {
   readonly kind: 'search'
@@ -186,7 +186,7 @@ function unresolved(requestedPath: string, recovery: Destination, reason: Unreso
 
 function recoveryFor(segments: readonly string[]): Destination {
   const root = segments[0]
-  return root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' ? root : 'builds'
+  return root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' || root === 'mod-inspector' ? root : 'builds'
 }
 
 function overlayStartsAt(segments: readonly string[], index: number): boolean {
@@ -196,6 +196,7 @@ function overlayStartsAt(segments: readonly string[], index: number): boolean {
 
 function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number; readonly legacy?: true } {
   const bad = (recovery = recoveryFor(segments), reason?: UnresolvedPageRoute['reason']) => ({ page: unresolved(requestedPath, recovery, reason), consumed: segments.length })
+  if (segments[0] === 'mod-inspector') return overlayStartsAt(segments, 1) ? { page: { page: 'mod-inspector' }, consumed: 1 } : bad('mod-inspector')
   if (segments[0] === 'inventory') {
     if (overlayStartsAt(segments, 1)) return { page: { page: 'inventory', view: 'list' }, consumed: 1 }
     if (segments[1] === 'new') return { page: { page: 'inventory', view: 'new' }, consumed: 2 }
@@ -529,6 +530,7 @@ export function parseAppRoute(hash: string): AppRoute {
 }
 
 function formatPage(page: PageRoute): string {
+  if (page.page === 'mod-inspector') return '/mod-inspector'
   if (page.page === 'share') {
     if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
     return `${SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
@@ -630,6 +632,7 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-picker') return 'Choose definition | CryKit'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | CryKit`
   const page = route.page
+  if (page.page === 'mod-inspector') return 'Mod Inspector | CryKit'
   if (page.page === 'share') return 'Shared snapshot | CryKit'
   if (page.page === 'unresolved') return 'Page unavailable | CryKit'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | CryKit`
@@ -646,6 +649,7 @@ export function routeForDestination(destination: Destination): AppRoute {
       : destination === 'characters' ? { page: 'characters', view: 'list' }
       : destination === 'builds' ? { page: 'builds', view: 'library' }
       : destination === 'progress' ? PROGRESS_PAGES[0].page
+      : destination === 'mod-inspector' ? { page: 'mod-inspector' }
       : { page: 'reference', view: 'list' },
     overlays: [],
     query: {},

@@ -1,5 +1,7 @@
 # Crystal Edit data and growth estimates
 
+For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod exports, open **Tools > Mod Inspector**. See the [Mod Inspector guide](mod-inspector.md). Planner reference imports and saved mod-editor drafts have separate storage and export workflows.
+
 The application ships class facts from the installed game's native database baseline. Numeric ratings, equipment categories, class selection flags, command and crystal labels, ability and passive membership, learn-tree coordinates, and prerequisite connectors come from those game records. Native ability and passive definitions resolve their related entries. See [native game data and extraction](catalog-sources.md#native-gameplay-facts-are-the-base) for version coverage and regeneration. Updating the baseline requires a new immutable catalog revision.
 
 Earlier bundled revisions retain the class-copy export dated 2026-09-27 from Crystal Edit editor version 34. Its copied job IDs, export-local references, and source records remain available to saved Builds and backups. Mods can edit vanilla classes, so the base database does not establish the effective values of a modded class.

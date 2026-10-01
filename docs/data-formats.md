@@ -2,6 +2,8 @@
 
 Crystal Kit separates reference definitions, personal observations, and hypothetical plans. Importing reference material does not establish current stock or character learning. Original source bytes and unmapped fields are retained for inspection and native backup.
 
+[Mod Inspector](mod-inspector.md) keeps its imported originals and working drafts in a separate browser database. Download those files from the inspector; planner backups and restores do not include or replace them.
+
 Quintar breeding guide marks are optional timestamped observations in each Playthrough's `quintarBreeding` record, keyed by the guide's fixed step identities. An absent key means no completion was recorded. Native backups preserve these marks and their undo history; unknown step identities and invalid timestamps are rejected. Completing a guide action does not establish current nursery contents or item possession.
 
 ## Starter catalog and personal overrides

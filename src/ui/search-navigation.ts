@@ -53,6 +53,7 @@ export function formatSearchDestination(destination: Destination, target?: Unive
       : destination === 'characters' ? { page: 'characters', view: 'list' }
       : destination === 'builds' ? { page: 'builds', view: 'library' }
       : destination === 'progress' ? { page: 'progress', view: 'list' }
+      : destination === 'mod-inspector' ? { page: 'mod-inspector' }
       : { page: 'reference', view: 'list' },
     overlays: [],
     query: {},
