@@ -32,6 +32,13 @@ async function expectArtLoaded(page: Page, stepId: string) {
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
 }
 
+async function expectSummaryArtwork(page: Page, stepId: string) {
+  const image = page.locator('.progress-summary__icon img')
+  const tileImage = page.locator(`[data-step="${stepId}"] .quintar-tile__art img`)
+  await expect(image).toHaveAttribute('src', (await tileImage.getAttribute('src'))!)
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
+}
+
 async function readLocalData(page: Page): Promise<LocalData> {
   return page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -67,6 +74,7 @@ test('step tiles toggle with mouse and keyboard, persist, and keep other records
   const tiles = page.locator('.quintar-tile')
   await expect(tiles).toHaveCount(QUINTAR_BREEDING_STEPS.length)
   await expect(tiles.locator('button[aria-pressed="true"]')).toHaveCount(0)
+  await expectSummaryArtwork(page, QUINTAR_STEP.babel)
   const golden = tiles.filter({ has: page.getByRole('button', { name: /Hatch Golden Quintar/ }) })
   const button = golden.getByRole('button')
   const art = golden.locator('.quintar-tile__art')
@@ -87,6 +95,7 @@ test('step tiles toggle with mouse and keyboard, persist, and keep other records
   await waitForSaves(page)
   await page.reload()
   await expect(page.getByRole('button', { name: /Step 1: Obtain Babel Quintar/ })).toHaveAttribute('aria-pressed', 'true')
+  await expectSummaryArtwork(page, QUINTAR_STEP.ocarina)
   await page.getByRole('button', { name: 'Go to next step', exact: true }).click()
   await expect(page.getByRole('button', { name: /Step 2: Buy Quintar Ocarina/ })).toBeFocused()
   const after = await readLocalData(page)
@@ -224,12 +233,14 @@ test('the whole guide completes offline and keeps progress separate between play
   await expectArtLoaded(page, QUINTAR_STEP.fancyRed)
   await expectArtLoaded(page, QUINTAR_STEP.golden)
   for (const step of QUINTAR_BREEDING_STEPS) {
+    await expectSummaryArtwork(page, step.id)
     const button = page.locator(`[data-step="${step.id}"]`).getByRole('button')
     await button.click()
     await expect(button).toHaveAttribute('aria-pressed', 'true')
     await expect(button).toBeEnabled()
   }
   await expect(page.locator('.quintar-summary__next')).toContainText('Guide complete')
+  await expectSummaryArtwork(page, QUINTAR_STEP.golden)
   await expect(page.locator('.quintar-tile__missing')).toHaveCount(0)
   await waitForSaves(page)
   await page.reload()
@@ -245,6 +256,7 @@ test('the whole guide completes offline and keeps progress separate between play
   await expect(page.locator('.quintar-tile[data-complete="true"]')).toHaveCount(QUINTAR_BREEDING_STEPS.length)
   await page.locator(`[data-step="${QUINTAR_STEP.babel}"]`).getByRole('button').click()
   await expect(page.locator(`[data-step="${QUINTAR_STEP.babel}"]`).getByRole('button')).toBeEnabled()
+  await expectSummaryArtwork(page, QUINTAR_STEP.babel)
   await expect(page.locator(`[data-step="${QUINTAR_STEP.golden}"]`)).toHaveAttribute('data-complete', 'true')
   await waitForSaves(page)
   await context.setOffline(false)

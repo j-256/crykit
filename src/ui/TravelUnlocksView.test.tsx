@@ -50,6 +50,7 @@ describe('travel acquisition certainty and identity', () => {
     expect(checkbox.getAttribute('aria-checked')).toBe('mixed')
     expect(tile.textContent).toContain('Acquisition needs confirmation')
     expect(tile.textContent).not.toContain('Not acquired')
+    expect(container.querySelector('[aria-label="Travel and unlock totals"]')?.textContent).toContain('1 imported observations need confirmation')
     const confirm = [...tile.querySelectorAll('button')].find(button => button.textContent === 'Mark not acquired')!
     await act(async () => confirm.click())
     expect(onSetAcquired).toHaveBeenCalledWith(SUBJECT, 'Treasure Finder', false)

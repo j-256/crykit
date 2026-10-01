@@ -6,10 +6,10 @@ import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/spr
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { requirePlaythrough } from '../domain/core'
 import type { CatalogSnapshot, EntityId, LocalData } from '../domain/types'
-import { Button, InlineNotice, ScreenHeader } from './components'
+import { Button, InlineNotice } from './components'
 import { Icon, type IconName } from './icons'
 import { MoneyText } from './MoneyText'
-import { ProgressBoards } from './ProgressBoards'
+import { ProgressPage } from './ProgressPage'
 import { ReferenceLink } from './ReferenceLink'
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 import './quintar-breeding.css'
@@ -26,6 +26,16 @@ const STEP_ARTWORK: Readonly<Partial<Record<QuintarBreedingStepId, QuintarGuideA
   [QUINTAR_STEP.summon]: 'golden',
 })
 
+function QuintarStepArtwork({ step, loading = 'eager' }: {
+  readonly step?: QuintarBreedingStep
+  readonly loading?: 'eager' | 'lazy'
+}) {
+  const [artworkFailed, setArtworkFailed] = useState(false)
+  const artworkKey = step ? STEP_ARTWORK[step.id] ?? (step.parents ? 'egg' : undefined) : 'golden'
+  const artwork = artworkKey && quintarGuideArtwork(artworkKey)
+  return artwork && !artworkFailed ? <img alt="" decoding="async" height={artwork.asset.height} loading={loading} onError={() => setArtworkFailed(true)} src={artwork.url} width={artwork.asset.width}/> : <Icon name={step ? PHASE_ICONS[step.phase] : 'check'}/>
+}
+
 const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, next, pending, missingParents, catalog, onToggle }: {
   readonly step: QuintarBreedingStep
   readonly number: number
@@ -38,14 +48,11 @@ const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, 
 }) {
   const races = quintarRaceRequirements(step)
   const parents = quintarParentsAfterStep(step)
-  const [artworkFailed, setArtworkFailed] = useState(false)
-  const artworkKey = STEP_ARTWORK[step.id] ?? (step.parents ? 'egg' : undefined)
-  const artwork = artworkKey && quintarGuideArtwork(artworkKey)
   const references = QUINTAR_STEP_REFERENCES[step.id].filter(target => catalog?.entities[target.entityId]?.kind === target.kind)
   return <article aria-busy={pending || undefined} className="quintar-tile" data-complete={complete} data-next={next || undefined} data-step={step.id} data-type={step.result?.type}>
     <button aria-label={`Step ${number}: ${step.title}. ${complete ? 'Mark incomplete' : 'Mark complete'}`} aria-pressed={complete} className="quintar-tile__toggle" id={`quintar-step-${step.id}`} onClick={() => onToggle(step.id, complete)} type="button">
       <span className="quintar-tile__top"><span className="quintar-tile__number">{String(number).padStart(2, '0')}</span><span className="quintar-tile__status">{complete ? 'Complete' : next ? 'Next step' : 'Not marked'}</span><span aria-hidden="true" className="quintar-tile__check">{complete ? <Icon name="check"/> : <span/>}</span></span>
-      <span aria-hidden="true" className="quintar-tile__art">{artwork && !artworkFailed ? <img alt="" decoding="async" height={artwork.asset.height} loading="lazy" onError={() => setArtworkFailed(true)} src={artwork.url} width={artwork.asset.width}/> : <Icon name={PHASE_ICONS[step.phase]}/>}{step.result && <span>{step.result.type}</span>}</span>
+      <span aria-hidden="true" className="quintar-tile__art"><QuintarStepArtwork loading="lazy" step={step}/>{step.result && <span>{step.result.type}</span>}</span>
       <strong>{step.title}</strong>
       <small>{complete ? 'Click to undo' : 'Click when done'}</small>
     </button>
@@ -87,14 +94,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
     button?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     button?.focus({ preventScroll: true })
   }
-  return <>
-    <ScreenHeader description="A step-by-step route from wild eggs to your Golden Quintar. Click each tile when you finish it in the game." eyebrow="Golden Quintar guide" title="Quintar breeding"/>
-    <ProgressBoards/>
-    {failure && <InlineNotice title="Step not saved" tone="danger">{failure.message} After queued clicks finish, the tile shows its saved state. <Button disabled={queuedUpdates.has(failure.stepId)} onClick={() => toggle(failure.stepId, isComplete(failure.stepId))} tone="secondary">Retry step</Button></InlineNotice>}
-    <section aria-label="Quintar breeding progress" className="quintar-summary">
-      <div className="quintar-summary__count" aria-live="polite"><Icon name="ring"/><div><strong>{completeCount}<span> / {QUINTAR_BREEDING_STEPS.length}</span></strong><p>Steps complete</p></div></div>
-      <div className="quintar-summary__next"><span>{nextStep ? 'Next unmarked step' : 'Guide complete'}</span><strong>{nextStep?.title ?? 'Your Golden Quintar route is complete!'}</strong><p>{nextStep ? 'You can mark steps in any order. Only the tile you click changes.' : 'Click any completed tile to undo its mark.'}</p>{nextStep && <Button onClick={focusNextStep} tone="secondary">Go to next step</Button>}</div>
-    </section>
+  return <ProgressPage count={completeCount} notices={failure && <InlineNotice title="Step not saved" tone="danger">{failure.message} After queued clicks finish, the tile shows its saved state. <Button disabled={queuedUpdates.has(failure.stepId)} onClick={() => toggle(failure.stepId, isComplete(failure.stepId))} tone="secondary">Retry step</Button></InlineNotice>} summaryIcon={<QuintarStepArtwork key={nextStep?.id} step={nextStep}/>} summaryDetails={<div className="quintar-summary__next"><div className="quintar-summary__copy"><span>{nextStep ? 'Next unmarked step' : 'Guide complete'}</span><strong>{nextStep?.title ?? 'Your Golden Quintar route is complete!'}</strong></div><p>{nextStep ? 'You can mark steps in any order. Only the tile you click changes.' : 'Click any completed tile to undo its mark.'}</p>{nextStep && <Button onClick={focusNextStep} tone="secondary">Go to next step</Button>}</div>} total={QUINTAR_BREEDING_STEPS.length} variant="quintar">
     <details className="quintar-tips">
       <summary>Breeding tips & sources</summary>
       <div>
@@ -114,5 +114,5 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
         <div className="quintar-board">{steps.map(step => <QuintarStepTile catalog={referenceCatalog} complete={isComplete(step.id)} key={step.id} missingParents={step.requires.filter(id => !isComplete(id)).map(id => QUINTAR_BREEDING_STEPS.find(entry => entry.id === id)!.title).join(', ')} next={step.id === nextStep?.id} number={QUINTAR_BREEDING_STEPS.indexOf(step) + 1} onToggle={toggle} pending={queuedUpdates.has(step.id)} step={step}/>)}</div>
       </section>
     })}</div>
-  </>
+  </ProgressPage>
 }

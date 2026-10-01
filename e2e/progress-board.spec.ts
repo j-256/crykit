@@ -56,6 +56,7 @@ test('the vanilla mastery board cycles one class through all four playthrough st
   await expect(board.locator('.class-seal-tile__seal img')).toHaveCount(24)
   await expect(board.locator('[data-artwork-placeholder="item"]')).toHaveCount(0)
   await expect(board.locator('.class-seal-tile__seal img').first()).toHaveAttribute('src', /class-seal/)
+  await expect(page.locator('.progress-summary__icon img')).toHaveAttribute('src', /class-seal/)
 
   const warrior = tiles.filter({ has: page.getByRole('button', { name: /^Warrior:/ }) })
   const advance = warrior.getByRole('button', { name: /^Warrior:/ })
@@ -76,11 +77,11 @@ test('the vanilla mastery board cycles one class through all four playthrough st
   await advance.click()
   await expect(warrior).toHaveAttribute('data-stage', 'sealAcquired')
   await expect(advance).toHaveAccessibleName(/^Warrior: Seal acquired/)
-  await expect(page.locator('.class-seal-summary__primary strong')).toHaveText('1')
+  await expect(page.locator('.progress-summary__primary strong')).toHaveText('1')
 
   await advance.click()
   await expect(warrior).toHaveAttribute('data-stage', 'notAcquired')
-  await expect(page.locator('.class-seal-summary__primary strong')).toHaveText('0')
+  await expect(page.locator('.progress-summary__primary strong')).toHaveText('0')
 
   const columnCount = await board.evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length)
   expect(columnCount).toBeGreaterThanOrEqual(2)
@@ -106,7 +107,7 @@ test('rapid class clicks stay interactive, drain in order, and guard tab close w
 
   expect(queuedState).toEqual({ beforeUnloadPrevented: true, disabled: false })
   await expect(warrior).toHaveAttribute('data-stage', 'sealAcquired')
-  await expect(page.locator('.class-seal-summary__primary strong')).toHaveText('1')
+  await expect(page.locator('.progress-summary__primary strong')).toHaveText('1')
   await expect(page.locator('.class-seal-tile__queue')).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => {
     const beforeUnload = new Event('beforeunload', { cancelable: true })
@@ -140,11 +141,11 @@ test('bulk edit sets selected classes to one explicit state and persists them to
   for (const className of ['Warrior', 'Monk', 'Mimic']) {
     await expect(board.locator('.class-seal-tile').filter({ hasText: className })).toHaveAttribute('data-stage', 'sealAcquired')
   }
-  await expect(page.locator('.class-seal-summary__primary strong')).toHaveText('3')
+  await expect(page.locator('.progress-summary__primary strong')).toHaveText('3')
   await expectStableProgressRegions(page)
 
   await bulkEditor.getByRole('button', { name: 'Done', exact: true }).click()
   await page.reload()
-  await expect(page.locator('.class-seal-summary__primary strong')).toHaveText('3')
+  await expect(page.locator('.progress-summary__primary strong')).toHaveText('3')
   await expect(board.locator('.class-seal-tile[data-stage="sealAcquired"]')).toHaveCount(3)
 })

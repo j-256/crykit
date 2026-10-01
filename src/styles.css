@@ -347,10 +347,6 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { min-height: 44px; padding: 0 14px; white-space: nowrap; color: var(--text-faint); border: 0; border-bottom: 2px solid transparent; background: transparent; font-size: .76rem; font-weight: 700; }
 .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--cyan-300); }
-.unlock-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 20px; }
-.unlock-summary strong { color: var(--cyan-300); font-size: var(--menu-size-large); }
-.unlock-summary span { font-weight: 700; }
-.unlock-summary small { color: var(--text-dim); }
 .unlock-toolbar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
 .unlock-toolbar .field { flex: 1 1 220px; margin: 0; }
 .unlock-group { margin-bottom: 28px; }
@@ -726,13 +722,6 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .class-seal-bulk__states { grid-column: 1 / -1; display: grid; grid-template-columns: auto repeat(4, minmax(128px, 1fr)); align-items: center; gap: 7px; }
 .class-seal-bulk__states > span { color: var(--text-dim); font-size: .68rem; font-weight: 700; text-transform: uppercase; }
 .class-seal-bulk__state { min-width: 0; justify-content: center; padding-inline: 9px; }
-.class-seal-summary { display: grid; grid-template-columns: minmax(220px, 1.1fr) minmax(0, 2fr); gap: 12px; margin-bottom: 18px; }
-.class-seal-summary__primary { min-height: 118px; display: grid; grid-template-columns: 58px auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 15px; padding: 17px 20px; border: 1px solid rgba(215, 167, 86, .68); border-radius: var(--radius); background: linear-gradient(135deg, rgba(215, 167, 86, .17), rgba(32, 39, 44, .82)); box-shadow: var(--window-edge); }
-.class-seal-summary__primary .class-seal-summary__icon { grid-row: 1 / 3; width: 58px; height: 58px; display: grid; place-items: center; color: #ffe09b; border: 1px solid rgba(215, 167, 86, .58); background: rgba(23, 29, 34, .7); }
-.class-seal-summary__primary svg { width: 38px; height: 38px; }
-.class-seal-summary__primary strong { align-self: end; color: #ffe09b; font-family: var(--font-menu); font-size: 3.2rem; font-weight: 400; line-height: .72; }
-.class-seal-summary__primary span:not(.class-seal-summary__icon) { align-self: end; color: var(--ivory-100); font-size: .86rem; font-weight: 700; }
-.class-seal-summary__primary small { grid-column: 2 / 4; align-self: start; margin-top: 5px; color: var(--text-faint); font-size: .66rem; }
 .class-seal-summary__stages { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--line); box-shadow: var(--window-edge); }
 .class-seal-summary__stages > div { min-width: 0; display: grid; align-content: center; gap: 5px; padding: 15px 18px; background: rgba(32, 39, 44, .92); }
 .class-seal-summary__stages dt { color: var(--text-faint); font-size: .67rem; font-weight: 650; text-transform: uppercase; }
@@ -1101,7 +1090,6 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .list-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
   .list-row__fact { grid-column: 1; }
   .list-row__action { grid-column: 2; grid-row: 1 / span 2; }
-  .class-seal-summary { grid-template-columns: minmax(0, 1fr); }
   .class-seal-board { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
   .empty-state { min-height: 0; grid-template-columns: 1fr; justify-items: start; padding: 28px 22px; }
   .empty-state__mark { width: 58px; height: 58px; }
@@ -1140,9 +1128,6 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .import-preview__counts { grid-template-columns: 1fr; }
   .sheet__body { padding: 17px 15px; }
   .sheet__footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 15px; }
-  .class-seal-summary__primary { grid-template-columns: 50px auto minmax(0, 1fr); padding-inline: 14px; }
-  .class-seal-summary__primary .class-seal-summary__icon { width: 50px; height: 50px; }
-  .class-seal-summary__primary strong { font-size: 2.8rem; }
   .class-seal-summary__stages > div { padding-inline: 10px; }
   .class-seal-summary__stages dt { font-size: .58rem; }
   .class-seal-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

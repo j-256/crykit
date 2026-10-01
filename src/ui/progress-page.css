@@ -1,0 +1,23 @@
+.progress-boards { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.progress-boards a { padding: 9px 15px; color: var(--text-dim); border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-900); font-size: .8rem; font-weight: 700; text-decoration: none; }
+.progress-boards a[aria-current="page"] { color: var(--cyan-300); border-color: rgba(123, 216, 243, .6); background: rgba(123, 216, 243, .08); }
+.progress-summary { --progress-summary-min-height: 118px; display: grid; grid-template-columns: minmax(220px, 1.1fr) minmax(0, 2fr); gap: 12px; margin-bottom: 18px; }
+.progress-summary__primary { min-height: var(--progress-summary-min-height); align-self: start; display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 15px; padding: 17px 20px; border: 1px solid rgba(215, 167, 86, .68); border-radius: var(--radius); background: linear-gradient(135deg, rgba(215, 167, 86, .17), rgba(32, 39, 44, .82)); box-shadow: var(--window-edge); }
+.progress-summary__icon { width: 58px; height: 58px; display: grid; place-items: center; color: #ffe09b; border: 1px solid rgba(215, 167, 86, .58); background: rgba(23, 29, 34, .7); }
+.progress-summary__icon > svg, .progress-summary__icon > img { width: 38px; height: 38px; }
+.progress-summary__icon > img { object-fit: contain; image-rendering: pixelated; }
+.progress-summary__number { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-menu); white-space: nowrap; }
+.progress-summary__number strong { color: #ffe09b; font-size: 3.2rem; font-weight: 400; line-height: .9; }
+.progress-summary__number span { color: var(--text-faint); font-size: 1.7rem; }
+.progress-summary__primary p { margin: 6px 0 0; color: var(--ivory-100); font-size: .86rem; font-weight: 700; }
+.progress-summary__primary small { display: block; margin-top: 6px; color: var(--text-dim); font-size: .66rem; }
+
+@media (max-width: 1000px) {
+  .progress-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .progress-summary__primary { grid-template-columns: 50px minmax(0, 1fr); padding-inline: 14px; }
+  .progress-summary__icon { width: 50px; height: 50px; }
+  .progress-summary__number strong { font-size: 2.8rem; }
+}
