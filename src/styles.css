@@ -918,6 +918,7 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .settings-section > .split > div > .settings-section__intro { margin-top: 7px; }
 .definition-list { margin: 0; }
 .structured-value__text { white-space: pre-wrap; }
+.native-source-record { max-height: 20rem; max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
 .structured-value__list { list-style: none; margin: 0; padding: 0; }
 .structured-value__list li + li { margin-top: 3px; }
 .structured-value__record { margin: 0; }
