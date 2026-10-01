@@ -457,6 +457,10 @@ function validateLocalData(
     }
   }
 
+  const teams = assertIdMap(typedLocalData.teams, `${label}.teams`)
+  for (const [id, team] of Object.entries(teams)) {
+    for (const revisionId of team.slots as readonly (string | null)[]) if (revisionId && !buildRevisions[revisionId]) schemaError('A Team references a missing build checkpoint', { id, revisionId })
+  }
   for (const [playthroughId, playthrough] of Object.entries(playthroughs)) {
     const playthroughLabel = `${label}.playthroughs.${playthroughId}`
     const inventory = assertIdMap(playthrough.inventory, `${playthroughLabel}.inventory`)

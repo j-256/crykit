@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
+import { resolveGameRules } from '../domain/game-rules'
 import { logicalEntityKey } from '../domain'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { STAT_LABELS } from '../domain/build-stats'
 import { CALCULATION_GENDERS, CALCULATION_GENDER_LABELS } from '../domain/calculation-plan'
 import { calculateStatBreakdown, STAT_BREAKDOWN_COLUMNS } from '../domain/stat-breakdown'
 import { classRatingField } from '../domain/stat-ratings'
-import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, LocalData, SlotDefinition } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, GameSetupRevision, LocalData, SlotDefinition } from '../domain/types'
 import { formatStatRange } from './BuildMechanics'
 import { Field } from './components'
 import { DefinitionArtwork } from './GameIcon'
@@ -16,8 +17,9 @@ import { KnowledgeValue } from './KnowledgeValue'
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 const COLUMN_LABELS = Object.freeze({ base: 'Base', equipment: 'Equipment', level: 'Level', gender: 'Gender', total: 'Total' })
 
-export function BuildStatsOverview({ content, slots, localData, catalogs, onCalculationChange, usesDefaultLevel = false, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; usesDefaultLevel?: boolean; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
-  const breakdown = useMemo(() => calculateStatBreakdown(content, slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref), unknownInputs, unknownSecondaryClass), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass])
+export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onCalculationChange, usesDefaultLevel = false, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; usesDefaultLevel?: boolean; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
+  const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
+  const breakdown = useMemo(() => calculateStatBreakdown(content, slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules])
   const primary = content.primaryClass ? resolveEntity(localData, catalogs, content.primaryClass) : undefined
   if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Primary class is unknown. Numeric stats need a recorded class.' : 'No primary class selected. Numeric stats need a primary class.'}</p></section>
   const plan = content.calculation

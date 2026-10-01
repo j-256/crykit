@@ -4,6 +4,7 @@ import { calculatePCStats, selectedPCStats } from './pc-stats'
 import type { DefinitionResolver } from './build-mechanics'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 import { entityDefinitionKey } from './core'
+import type { GameRuleResolution } from './game-rules'
 
 export const STAT_BREAKDOWN_COLUMNS = ['base', 'equipment', 'level', 'gender', 'total'] as const
 export type StatBreakdown = Readonly<Record<typeof STAT_BREAKDOWN_COLUMNS[number], StatRange | null>>
@@ -16,12 +17,12 @@ const difference = (value: StatRange | null, baseline: StatRange | null): StatRa
   return { low: Math.min(low, high), high: Math.max(low, high) }
 }
 
-export function calculateStatBreakdown(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey, unknownInputs: readonly string[] = [], unknownSecondaryClass = false): Readonly<Record<GrowthStat, StatBreakdown>> {
+export function calculateStatBreakdown(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): Readonly<Record<GrowthStat, StatBreakdown>> {
   const plan = content.calculation
   const initialContent = { ...content, calculation: plan ? { ...plan, level: 1, growth: [{ classRef: content.primaryClass, levels: 1 }], bonuses: [], gender: undefined } : undefined }
   if (plan?.model) {
-    const current = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass)
-    const initial = calculatePCStats(initialContent, slots, resolve)
+    const current = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules)
+    const initial = calculatePCStats(initialContent, slots, resolve, [], false, gameRules)
     const total = selectedPCStats(current, plan.gender)
     return Object.fromEntries(STAT_KEYS.map(stat => [stat, {
       base: exact(initial.base[stat]),
@@ -31,9 +32,9 @@ export function calculateStatBreakdown(content: BuildRevisionContent, slots: rea
       total: exact(total[stat]),
     }])) as Record<GrowthStat, StatBreakdown>
   }
-  const current = calculateBuildStats(content, slots, resolve, identity)
-  const neutral = calculateBuildStats({ ...content, calculation: plan ? { ...plan, bonuses: [], gender: undefined } : undefined }, slots, resolve, identity)
-  const initial = calculateBuildStats(initialContent, slots, resolve, identity)
+  const current = calculateBuildStats(content, slots, resolve, identity, gameRules)
+  const neutral = calculateBuildStats({ ...content, calculation: plan ? { ...plan, bonuses: [], gender: undefined } : undefined }, slots, resolve, identity, gameRules)
+  const initial = calculateBuildStats(initialContent, slots, resolve, identity, gameRules)
   const unknownLoadout = unknownInputs.length > 0 || unknownSecondaryClass
   return Object.fromEntries(STAT_KEYS.map(stat => [stat, {
     base: initial.stats[stat].base,

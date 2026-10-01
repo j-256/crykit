@@ -11,7 +11,7 @@ No account or installation is needed. Your saved builds and records stay in your
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
-- **Inspect and edit mods:** look up exact effect names and record IDs, edit a browser draft, and review changes before exporting standard mod JSON. See [Mod Inspector](docs/mod-inspector.md).
+- **Manage mods:** save exact mod versions for planning, inspect their records, edit a browser draft, and save it directly to CryKit or export standard mod JSON. See [Mods and the editor workspace](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.
 
@@ -34,23 +34,24 @@ Exported zero, false, and null values retain their meaning. Fields that do not a
 
 ## Track your own game when you are ready
 
-In **Data & settings > Import & backup**, enter a name under **New blank Playthrough** and choose **Create**. Your new Playthrough starts without sample characters, inventory, or progress. Review **Data & settings > Game Setup** for your platform, version, and mods, then record the details you want to track.
+In **Data & settings > Playthrough**, enter a name under **New blank Playthrough** and choose **Create**. Your new Playthrough starts without sample characters, inventory, or progress. Choose **Edit game settings** to record the version, difficulty, and mods used by that Playthrough, then add observations under **Tracking**. Builds and Teams remain available independently.
 
 These terms describe different parts of your planning:
 
 | Name | What it means |
 | --- | --- |
-| **Playthrough** | One game save's tracked characters, inventory, progress, and teams. |
-| **Game Setup** | The platform, version, mods, and rules used by a build or Playthrough. Builds and Game Setups are shared across Playthroughs. |
-| **Scenario** | A team with saved builds assigned to its characters, used to check whether they can use those builds together. |
+| **Playthrough** | One game save's tracked characters, inventory, progress, and party plans. |
+| **Game Setup** | Base game version, difficulty, and mods used by a saved build checkpoint or Playthrough. |
+| **Team** | Four build checkpoints saved together for planning and sharing, independent of characters. |
+| **Party plan** | Builds assigned to four tracked characters for readiness and shared inventory checks. |
 
-On a saved build, expand **Can I use this Build now?** to check it against your tracked game. Recording is manual: the app does not connect to Crystal Project, and saving a build leaves your recorded character and inventory unchanged.
+On a saved build, expand **Use with Tracking** to check it against your tracked game. Recording is manual: the app does not connect to Crystal Project, and saving a build leaves your recorded character and inventory unchanged.
 
 ## Keep your data safe
 
 Save open forms, then choose **Data & settings > Import & backup > Export backup** to download a copy of your planner data. Use that file to recover your records or move them to another browser or device.
 
-Mod Inspector originals and drafts have separate downloads and are not included in planner backups. Export them from **Tools > Mod Inspector** before clearing browser storage or moving to another browser.
+Mods saved to the Mod library and their original source files are included in planner backups. Editor workspace originals and working drafts have separate downloads; export those drafts from **Mods > Editor workspace** before clearing browser storage or moving to another browser.
 
 **Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
 
@@ -64,7 +65,7 @@ For offline use, open **Data & settings > Offline & storage** while connected. C
 | Understand stat estimates and supported rules | [Build mechanics](docs/planner-mechanics.md) |
 | Export versioned character formulas and native numeric data | [Calculation package](docs/calculations.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
-| Decode IDs and edit mod JSON | [Mod Inspector](docs/mod-inspector.md) |
+| Decode IDs and edit mod JSON | [Mods and the editor workspace](docs/mod-inspector.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Correct a reference entry | [Reference corrections](docs/corrections.md) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |

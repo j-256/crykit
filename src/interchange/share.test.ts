@@ -90,8 +90,7 @@ describe('sharing snapshots', () => {
     expect(decodeSharePayload(encodeSharePayload(payload))).toEqual(payload)
     expect(() => encodeSharePayload({ ...payload, version: 1 })).toThrow('invalid dependency')
     const recipient = addTestScenario(createTestLocalData(), {})
-    const memberIds = requirePlaythrough(recipient).scenarios.scenario!.memberIds
-    const copied = saveSharedCopy(recipient, payload, memberIds)
+    const copied = saveSharedCopy(recipient, payload)
     validateNativeLocalDataGraph(copied.localData, [])
     const checkpoints = Object.values(copied.localData.buildRevisions)
     expect(checkpoints).toHaveLength(2)
@@ -301,20 +300,16 @@ describe('sharing snapshots', () => {
     validateNativeLocalDataGraph(repeated, [DEFAULT_CATALOG])
   })
 
-  it('maps team slots to recipient characters without activating or recording the team', () => {
+  it('saves a reusable Team without requiring or changing tracked characters', () => {
     const data = addTestScenario(fixture(), { alpha: asId<BuildRevisionId>('build-revision') })
     const payload = createSharePayload(data, { kind: 'team', scenarioId: asId<ScenarioId>('scenario') })
-    const members = [...requirePlaythrough(data).scenarios.scenario!.memberIds].reverse()
-    const result = saveSharedCopy(data, payload, members)
-    const team = requirePlaythrough(result.localData).scenarios[result.scenarioId!]!
-    expect(team.memberIds).toEqual(members)
-    expect(team.assignments[members[0]!]).not.toBeNull()
-    expect(team.assignments[members[1]!]).toBeNull()
-    expect(team.kind).toBe('draft')
-    expect(requirePlaythrough(result.localData).characters).toBe(requirePlaythrough(data).characters)
-    expect(requirePlaythrough(result.localData).activeScenarioId).toBe(requirePlaythrough(data).activeScenarioId)
+    const result = saveSharedCopy(data, payload)
+    const team = result.localData.teams[result.teamId!]!
+    expect(team.slots).toHaveLength(4)
+    expect(team.slots[0]).not.toBeNull()
+    expect(team.slots[1]).toBeNull()
+    expect(result.localData.playthroughs).toBe(data.playthroughs)
     validateNativeLocalDataGraph(result.localData, [])
-    expect(() => saveSharedCopy(data, payload, [members[0]!, members[0]!, members[2]!, members[3]!])).toThrow('distinct')
   })
 
   it('rejects malformed, truncated, dangerous and unsupported payloads', () => {

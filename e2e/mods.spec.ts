@@ -1,3 +1,4 @@
+import { applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -7,7 +8,6 @@ import { MOONLIGHT_PROJECT_MOD, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } f
 import { asId, captureCharacter, createCharacter, setPlaythroughGameSetup, updateGameSetupRevision } from '../src/domain'
 import { addTestBuild, createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
 import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain/types'
-import { selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
@@ -76,12 +76,14 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   await expect(help).toContainText('then capture a new character snapshot')
   expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await help.getByRole('link', { name: 'Data & settings > Game Setup', exact: true }).click()
+  await help.getByRole('link', { name: 'Playthrough game settings', exact: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await expect(settings.getByRole('combobox', { name: 'Game version', exact: true })).toHaveCount(0)
+  await openCurrentGameSetup(settings)
   await openSwitchModPacks(settings)
   await expect(settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true })).toHaveValue('unknown')
   await settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true }).selectOption('enabled')
-  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(settings)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/characters/${CHARACTER}/current$`))
@@ -107,13 +109,13 @@ test('mod settings control search and choices while sheets retain recorded conte
   await expect(palette.locator('.universal-search__result')).toHaveCount(0)
   await page.keyboard.press('Escape')
   const settings = await dataPanel(page)
-  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(settings)
   await openSwitchModPacks(settings)
   await expect(settings.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('enabled')
   await settings.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
   await settings.getByRole('combobox', { name: 'Bloodmage', exact: true }).selectOption('enabled')
   await settings.getByRole('combobox', { name: 'Equipment Expansion', exact: true }).selectOption('unknown')
-  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(settings)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto(`/#/characters/${CHARACTER}/current`)
@@ -188,26 +190,26 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
   await openSwitchModPacks(panel)
   await expect(panel.locator('textarea')).toHaveCount(0)
-  await expect(panel.getByRole('heading', { name: 'Mods', exact: true }).locator('..').locator('..')).toContainText(`0 of ${SWITCH_MOD_PACKS.flatMap(pack => pack.mods).length} enabled`)
+  await expect(panel.locator('.game-setup-mods > summary')).toContainText('0 imported versions enabled')
   await openGameSetupSection(panel, 'Game context')
   const platform = panel.getByRole('combobox', { name: 'Platform', exact: true })
   const version = panel.getByRole('combobox', { name: /^Game version/ })
   const mode = panel.getByRole('combobox', { name: 'Game mode', exact: true })
-  await expect(platform.locator('option')).toHaveText(['Not set', 'Nintendo Switch', 'Windows', 'PC (Windows, macOS, or Linux)'])
-  await expect(version.locator('option')).toHaveText(['< 1.6.6', '1.6.6', '> 1.6.6'])
+  await expect(platform.locator('option')).toHaveText(['Unknown', 'Nintendo Switch', 'Windows', 'macOS', 'Linux', 'PC (platform unspecified)'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
   await expect(version).toHaveValue('1.6.6')
-  await expect(mode.locator('option')).toHaveText(['Not set', 'Standard', 'Vanilla', 'Chaos'])
+  await expect(mode.locator('option')).toHaveText(['Unknown', 'Standard', 'Vanilla', 'Chaos'])
   await expect(panel.getByLabel('Exact game version', { exact: true })).toHaveCount(0)
   await platform.selectOption('Nintendo Switch')
-  await expect(version.locator('option')).toHaveText(['< 1.6.6', '1.6.6', '> 1.6.6'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
   await platform.selectOption('Windows')
   await version.selectOption('1.6.9')
   await expect(version).toHaveValue('1.6.9')
   await platform.selectOption('PC')
-  await expect(version.locator('option')).toHaveText(['< 1.6.6', '1.6.6', '1.6.9', '> 1.6.6'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
   for (const pack of SWITCH_MOD_PACKS) {
     const group = panel.locator('.game-setup-mod-pack').filter({ hasText: pack.name })
     await expect(group.locator(':scope > summary small')).toHaveText(`0 of ${pack.mods.length} enabled · ${pack.mods.length} need review`)
@@ -215,11 +217,12 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
     for (const name of pack.mods) await expect(group.getByRole('combobox', { name: name, exact: true })).toHaveValue('unknown')
   }
   await panel.getByLabel('Game Setup label', { exact: false }).fill('Synthetic Switch choices')
-  await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
+  await panel.getByText('Nintendo preset', { exact: true }).click()
+  await panel.getByRole('button', { name: 'Apply Nintendo mod preset', exact: true }).click()
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
-  await expect(platform).toHaveValue('Nintendo Switch')
-  await expect(version).toHaveValue('1.6.6')
+  await expect(platform).toHaveValue('PC')
+  await expect(version).toHaveValue('1.6.9')
   const shield = panel.getByRole('combobox', { name: 'Doge Shield', exact: true })
   await shield.focus()
   await shield.press('d')
@@ -240,16 +243,21 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
       return original.apply(this, args)
     }
   })
-  await panel.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
+  await panel.getByRole('button', { name: /^(Create Game Setup|Save Game Setup)$/ }).click()
   await expect(panel.getByText('Game Setup not saved', { exact: true })).toBeVisible()
   await openSwitchModPacks(panel)
   await expect(shield).toHaveValue('disabled')
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  panel = await dataPanel(page)
+  await panel.getByRole('button', { name: 'Saved setups', exact: true }).click()
+  await panel.getByRole('button', { name: 'Edit setup', exact: true }).first().click()
+  await applySavedGameSetup(panel)
+  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()
   panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
   await openSwitchModPacks(panel)
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('disabled')
   await expect(panel.getByRole('combobox', { name: 'Pointier Hat', exact: true })).toHaveValue('unknown')
@@ -263,15 +271,16 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
 })
 
 test('Switch selections retain other imported names and unrelated conflicting claims', async ({ page }) => {
-  const localData = updateGameSetupRevision(createTestLocalData(), {
+  let localData = updateGameSetupRevision(createTestLocalData(), {
     sourceRevisionId: TEST_GAME_SETUP_REVISION_ID,
     mods: { state: 'conflicting', claims: [{ value: ['Doge Shield', 'Synthetic imported mod'], sources: [] }, { value: ['Tempest'], sources: [] }] },
     disabledMods: known(['Synthetic disabled mod']),
   })
+  localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   await page.goto('/')
   await importBackup(page, backup(localData))
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
   await openSwitchModPacks(panel)
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('conflicting')
   await expect(panel.getByRole('region', { name: 'Custom mod choices' })).toBeVisible()
@@ -280,7 +289,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   await panel.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('disabled')
   await panel.getByRole('combobox', { name: 'Bloodmage', exact: true }).selectOption('enabled')
   await expect(panel.getByRole('combobox', { name: 'Tempest', exact: true })).toHaveValue('conflicting')
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()

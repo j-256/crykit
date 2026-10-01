@@ -1,9 +1,10 @@
+import { resolveGameRules } from '../domain/game-rules'
 import { useMemo } from 'react'
 import { benchmarkDamage, calculatePCStats, selectedPCStats } from '../domain/pc-stats'
 import { PC_LEVEL_CAP, PC_MODEL, PC_RULES, calculationPackage } from '../domain/calculation-rules'
 import { CALCULATION_GENDER_LABELS, changeCalculationLevel, changeGrowthLevels, defaultCalculation, growthAllowance } from '../domain/calculation-plan'
 import { STAT_LABELS, type CalculatedStat } from '../domain/build-stats'
-import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, LocalData, ObservedStat, SlotDefinition } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, LocalData, GameSetupRevision, ObservedStat, SlotDefinition } from '../domain/types'
 import { Button, Field, InlineNotice } from './components'
 import { CalculationPicker } from './BuildMechanics'
 import { CalculationInputs } from './CalculationInputs'
@@ -16,11 +17,12 @@ const format = (value: number | null | undefined) => value == null ? 'Unknown' :
 const delta = (value: number | null | undefined, baseline: number | null | undefined) => value == null || baseline == null ? '' : `${value - baseline >= 0 ? '+' : ''}${value - baseline}`
 const STAT_NAMES = { ...STAT_LABELS, AP: 'Max AP' }
 
-export function CalculatedStats({ content, slots, localData, catalogs, onChange, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, recorded }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; onChange?: (plan: BuildCalculationPlan | undefined) => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; recorded?: Readonly<Record<string, ObservedStat>> }) {
+export function CalculatedStats({ content, slots, localData, catalogs, gameSetup, onChange, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, recorded }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; recorded?: Readonly<Record<string, ObservedStat>> }) {
   const plan = content.calculation
-  const estimate = useMemo(() => calculatePCStats(content, slots, ref => resolveEntity(localData, catalogs, ref), unknownInputs, unknownSecondaryClass), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass])
+  const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
+  const estimate = useMemo(() => calculatePCStats(content, slots, ref => resolveEntity(localData, catalogs, ref), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules])
   const allocated = plan?.growth.reduce((total, row) => total + (row.levels ?? 0), 0) ?? 0
-  const baseline = useMemo(() => plan?.model ? calculatePCStats({ ...content, calculation: { ...plan, growth: [{ classRef: content.primaryClass, levels: plan.level }] } }, slots, ref => resolveEntity(localData, catalogs, ref), unknownInputs, unknownSecondaryClass) : undefined, [content, plan, slots, localData, catalogs, unknownInputs, unknownSecondaryClass])
+  const baseline = useMemo(() => plan?.model ? calculatePCStats({ ...content, calculation: { ...plan, growth: [{ classRef: content.primaryClass, levels: plan.level }] } }, slots, ref => resolveEntity(localData, catalogs, ref), unknownInputs, unknownSecondaryClass, rules) : undefined, [content, plan, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules])
   const exportRules = () => downloadBytes(new TextEncoder().encode(JSON.stringify(calculationPackage(), null, 2) + '\n'), `crystal-project-calculations-${PC_MODEL}.json`, 'application/json')
   if (!plan?.model && !onChange) return <section aria-label="Calculated stats" className="calculated-stats"><h3>Calculated stats</h3><p>{plan ? 'This checkpoint retains its original guide calculation. Its estimates are in Checks & notes.' : 'No calculation inputs saved. Calculated character totals remain unknown.'}</p></section>
   if (!plan?.model) return <section aria-label="Calculated stats" className="calculated-stats"><h3>Calculated stats</h3><p>{plan ? 'This checkpoint retains its original guide calculation. Switch explicitly to use the verified PC formulas.' : 'Calculate a level-60 loadout with all growth assigned to its primary class.'}</p><Button onClick={() => onChange?.(plan ? { ...plan, model: PC_MODEL, growthMode: 'manual', pcMode: 'standard', bonuses: [] } : defaultCalculation(content.primaryClass))} type="button">Use verified PC calculations</Button></section>
@@ -35,7 +37,8 @@ export function CalculatedStats({ content, slots, localData, catalogs, onChange,
   return <section aria-label="Calculated stats" className="calculated-stats stack">
     <div className="split"><h3>Calculated stats</h3><Button onClick={exportRules} tone="quiet" type="button">Export calculation package</Button></div>
     <p className="field__hint">PC 1.6.9.0 formulas. Resting loadout, no active statuses or accumulated battle effects. Switch and mod parity remain unverified. Calculation assumptions are saved separately from recorded in-game totals.</p>
-    {onChange ? <><div className="cluster"><Field label="Calculation level"><input aria-label="Calculation level" max={PC_LEVEL_CAP} min="1" onChange={event => onChange?.(changeCalculationLevel(plan, event.target.value === '' ? null : Math.max(1, Math.min(PC_LEVEL_CAP, Math.trunc(Number(event.target.value)))), content.primaryClass))} type="number" value={plan.level ?? ''}/></Field><Field label="PC balance mode"><select aria-label="PC balance mode" onChange={event => update({ pcMode: event.target.value as BuildCalculationPlan['pcMode'] })} value={plan.pcMode ?? 'standard'}><option value="standard">Standard</option><option value="vanilla">Vanilla</option><option value="chaos">Chaos</option></select></Field></div>
+    <p className="field__hint">Balance mode: {rules.mode ?? plan.pcMode ?? 'standard'} · {rules.mode ? 'from Game Setup' : 'calculation assumption; choose Game mode in Game Setup to confirm'}</p>
+    {onChange ? <><div className="cluster"><Field label="Calculation level"><input aria-label="Calculation level" max={PC_LEVEL_CAP} min="1" onChange={event => onChange?.(changeCalculationLevel(plan, event.target.value === '' ? null : Math.max(1, Math.min(PC_LEVEL_CAP, Math.trunc(Number(event.target.value)))), content.primaryClass))} type="number" value={plan.level ?? ''}/></Field></div>
     <details className="growth-controls"><summary>Level-up growth · {allocated}/{plan.level ?? '?'}{plan.growthMode === 'primary' ? ' · follows primary class' : ' · manually allocated'}</summary><div className="stack">
       <p>One class assignment per level, including level 1. Editing an allocation stops automatic class and level tracking. Lowering the level preserves manual allocations so you can redistribute them.</p>
       {plan.growth.map((row, index) => <div className="growth-control" key={index}>

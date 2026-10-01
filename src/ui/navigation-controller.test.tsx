@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain'
 import { DefinitionEditor, DefinitionProvider } from './definitions'
-import { NavigationProvider, routeWithOverlay, useNavigation, useNavigationController, type NavigationController } from './navigation'
+import { NavigationProvider, parseAppRoute, routeWithOverlay, useNavigation, useNavigationController, type NavigationController } from './navigation'
 import { Sheet } from './Sheet'
 
 let container: HTMLDivElement
@@ -63,6 +63,25 @@ afterEach(() => {
 })
 
 describe('navigation controller history', () => {
+  it('protects query-selected editors while allowing navigation after their draft is resolved', async () => {
+    const root = createRoot(container)
+    const scope = parseAppRoute('#/settings/game-setup?gameSetup=synthetic-source')
+    await act(async () => { root.render(<Harness/>); await tick() })
+    await act(async () => { controller.navigate(scope) })
+    let dirty = true
+    const unregister = controller.registerBlocker({ scope, matchQuery: true, blocked: () => dirty })
+    await act(async () => {
+      expect(controller.navigate(scope)).toBe(true)
+      expect(controller.navigate(parseAppRoute('#/settings/game-setup'))).toBe(false)
+      expect(controller.navigate(parseAppRoute('#/settings/game-setup?gameSetup=synthetic-other'))).toBe(false)
+    })
+    expect(controller.route).toEqual(scope)
+    dirty = false
+    await act(async () => { expect(controller.navigate(parseAppRoute('#/settings/game-setup'))).toBe(true) })
+    unregister()
+    await act(async () => root.unmount())
+  })
+
   it('reports drafts for context changes even when navigation stays inside their scope', async () => {
     const root = createRoot(container)
     await act(async () => { root.render(<Harness/>); await tick() })

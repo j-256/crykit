@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { expectOfflineReady } from './offline-helpers'
 
-const ROUTE = '/#/mod-inspector'
+const ROUTE = '/#/mods/editor'
 const FILENAME = 'synthetic-inspector.json'
 const SOURCE = '\ufeff{\r\n  "EditorVersion": 34,\r\n  "Title": "Synthetic inspector",\r\n  "SteamWorkshopFileID": 9007199254740993,\r\n  "Passives": [{"ID": 91000, "Name": "Synthetic sight", "StatMods": [{"Tag": 9001, "Value1": 0, "Value2": 0, "Value3": 0}]}],\r\n  "Abilities": [{"ID": 92000, "Name": "Synthetic action"}],\r\n  "Jobs": [{"ID": 93000, "Name": "Synthetic job", "AbilityIDs": [92000]}],\r\n  "FutureData": {"nullValue": null, "text": "<script>throw new Error(1)</script>", "precise": 0.12345678901234567890123456789}\r\n}\r\n'
 
@@ -35,7 +35,7 @@ async function downloadText(page: Page, buttonName: string) {
 
 test('switches between document and shared dictionary tabs by keyboard without importing', async ({ page }) => {
   await page.goto(ROUTE)
-  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   const documentTab = page.getByRole('tab', { name: 'JSON document', exact: true })
   const dictionaryTab = page.getByRole('tab', { name: 'Enum dictionary', exact: true })
   const documentPanel = page.getByRole('tabpanel', { name: 'JSON document', exact: true })
@@ -116,11 +116,11 @@ test('keeps invalid edits open, protects navigation, and links mod-local relatio
   await expect(page.getByRole('button', { name: 'Review export', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
   await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).not.toBeVisible()
   await page.goto(ROUTE)
   await reopenFile(page)
   await page.getByRole('button', { name: 'Review export', exact: true }).click()
@@ -337,7 +337,7 @@ test('recognizes external file versions and edits one copy without importing pla
   const firstSource = JSON.stringify(mod, null, 2)
   const secondSource = JSON.stringify({ ...mod, Version: '1.1', Notes: 'A later external file' }, null, 2)
   await page.goto(ROUTE)
-  await expect(page.getByRole('heading', { name: 'Mod Inspector', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   const plannerCounts = () => page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('crykit')

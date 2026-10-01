@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 
 test('a blank playthrough can plan unowned gear directly and reopen it offline', async ({ page, context }, testInfo) => {
   await expect(page).toHaveURL(/#\/builds\/library$/)
-  await expect(page.getByRole('button', { name: /^Scenario:/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeVisible()
   await expect(page.locator('dialog:modal')).toHaveCount(0)

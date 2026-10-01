@@ -1,3 +1,4 @@
+import type { GameRuleResolution } from './game-rules'
 import { entityDefinitionKey } from './core'
 import { growthRatings, STAT_KEYS } from './crystal-edit'
 import { innateEffects, type DefinitionResolver } from './build-mechanics'
@@ -127,10 +128,10 @@ function transform(range: StatRange | null, fn: (value: number) => number): Stat
   } catch { return null }
 }
 
-export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey): BuildStatEstimate {
+export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey, gameRules?: GameRuleResolution): BuildStatEstimate {
   const plan = content.calculation
   if (plan?.model) {
-    const result = calculatePCStats(content, slots, resolve)
+    const result = calculatePCStats(content, slots, resolve, [], false, gameRules)
     return { stats: Object.fromEntries(CALCULATED_STATS.map(stat => {
       const values = plan.gender ? [selectedPCStats(result, plan.gender)[stat]] : [result.neutral[stat], result.male[stat], result.female[stat]]
       const base = result.base[stat]

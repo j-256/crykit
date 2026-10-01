@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { gameSetupMode } from '../domain/game-rules'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import { snapshotSlots, type SnapshotValue } from '../domain/character-snapshots'
 import type { CatalogSnapshot, CharacterSnapshot, EntityRef, Knowledge, LocalData, GameSetupRevision, SourceRef } from '../domain/types'
@@ -7,7 +8,7 @@ import { entityName, formatRelativeDate, ownRecordValue } from './model'
 import { useNavigation, type AppRoute } from './navigation'
 import { ModBadge } from './DefinitionModLabel'
 
-const GAME_SETUP_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'game-setup' }, overlays: [], query: {} }
+const GAME_SETUP_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {} }
 const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
   unknown: 'This snapshot does not record whether that mod was enabled in your game.',
   conflicting: 'This snapshot contains conflicting records about whether that mod was enabled in your game.',
@@ -31,7 +32,7 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
   return <details className={`recorded-sources recorded-mod ${className}`}>
     <summary><ModBadge name={availability.requiredMod} state={availability.state}/></summary>
     <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
-    <p>Update the mod setting in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Data &amp; settings &gt; Game Setup</a>, then capture a new character snapshot. Existing snapshots keep their recorded mod settings.</p>
+    <p>Choose updated rules in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Playthrough game settings</a>, then capture a new character snapshot. Create or edit rules under Saved setups. Existing snapshots keep their recorded mod settings.</p>
   </details>
 }
 
@@ -54,7 +55,7 @@ export function SnapshotValueView({ localData, catalogs, gameSetup: recordedGame
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
   if (value.kind === 'calculation') {
     const plan = value.value
-    return plan ? <div><p>{plan.model ? `PC 1.6.9.0 (${plan.pcMode ?? 'standard'})` : 'Legacy guide estimate'} · level {plan.level ?? 'unknown'} · {plan.growthMode === 'primary' ? 'follows primary class' : 'manual growth'}</p>{plan.growth.map((row, index) => <div key={index}>{row.classRef ? entityName(localData, catalogs, row.classRef) : 'Unknown class'}: {row.levels ?? '?'} levels</div>)}{plan.statuses.length > 0 && <p>Statuses: {plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ')}</p>}{plan.bonuses.length > 0 && <p>Bonuses: {plan.bonuses.join(', ')}</p>}</div> : <>No saved calculation assumptions</>
+    return plan ? <div><p>{plan.model ? `PC 1.6.9.0 (${gameSetupMode(recordedGameSetup) ?? plan.pcMode ?? 'standard'})` : 'Legacy guide estimate'} · level {plan.level ?? 'unknown'} · {plan.growthMode === 'primary' ? 'follows primary class' : 'manual growth'}</p>{plan.growth.map((row, index) => <div key={index}>{row.classRef ? entityName(localData, catalogs, row.classRef) : 'Unknown class'}: {row.levels ?? '?'} levels</div>)}{plan.statuses.length > 0 && <p>Statuses: {plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ')}</p>}{plan.bonuses.length > 0 && <p>Bonuses: {plan.bonuses.join(', ')}</p>}</div> : <>No saved calculation assumptions</>
   }
   if (value.kind === 'selection') return value.value === undefined ? <>Unknown</> : value.value === null ? <>Empty</> : definition(value.value)
   if (value.kind === 'reference') return <RecordedKnowledge format={definition} value={value.value}/>

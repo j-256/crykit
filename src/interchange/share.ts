@@ -1,12 +1,13 @@
+import { saveTeam } from '../domain/teams'
 import { deflateSync, inflateSync } from 'fflate'
 import { z } from 'zod'
 import { createId, nowTimestamp, requirePlaythrough, updateLocalData } from '../domain/core'
 import { createBlankLocalData } from '../domain/local-data'
-import { createScenario, effectiveScenarioAssignments, TEAM_SIZE } from '../domain/scenarios'
+import { effectiveScenarioAssignments, TEAM_SIZE } from '../domain/scenarios'
 import { modCatalogRevision } from '../domain/mod-layers'
 import { sameCorrectionValue } from '../domain/corrections'
 import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
-import type { Build, BuildId, BuildRevision, BuildRevisionId, CharacterId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
+import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
 import { NativeLocalDataSchema } from './native-schema'
 import { parseBoundedJson } from './json'
 
@@ -36,7 +37,7 @@ export interface SharePayload {
   readonly slots?: readonly (BuildRevisionId | null)[]
   readonly teamGameSetupRevisionId?: GameSetupRevisionId
 }
-export type ShareTarget = { readonly kind: 'build'; readonly revisionId: BuildRevisionId } | { readonly kind: 'team'; readonly scenarioId: ScenarioId }
+export type ShareTarget = { readonly kind: 'build'; readonly revisionId: BuildRevisionId } | { readonly kind: 'team'; readonly scenarioId: ScenarioId } | { readonly kind: 'team'; readonly teamId: TeamId }
 
 function own<T>(records: Readonly<Record<string, T>>, id: string): T | undefined {
   return Object.prototype.hasOwnProperty.call(records, id) ? records[id] : undefined
@@ -96,6 +97,14 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
   if (target.kind === 'build') {
     addRevision(target.revisionId)
     return validateSharePayload({ version: SHARE_FORMAT_VERSION, kind: 'build', title: builds[revisions[target.revisionId]!.buildId]!.title, records: { personalDefinitions: definitions, gameSetups: setups, builds, buildRevisions: revisions } })
+  }
+  if ('teamId' in target) {
+    const team = own(localData.teams, target.teamId)
+    const first = team?.slots.find(id => id !== null)
+    const setupId = first ? localData.buildRevisions[first]?.gameSetupRevisionId : undefined
+    if (!team || !setupId) throw new Error('Choose a build before sharing the Team.')
+    for (const id of team.slots) if (id) addRevision(id)
+    return validateSharePayload({ version: SHARE_FORMAT_VERSION, kind: 'team', title: team.title, records: { personalDefinitions: definitions, gameSetups: setups, builds, buildRevisions: revisions }, slots: team.slots, teamGameSetupRevisionId: setupId })
   }
   const scenario = own(requirePlaythrough(localData).scenarios, target.scenarioId)
   if (!scenario || scenario.memberIds.length !== TEAM_SIZE || new Set(scenario.memberIds).size !== TEAM_SIZE) throw new Error('Sharing requires a complete four-slot team.')
@@ -294,7 +303,7 @@ function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
   return { personalIds, setupIds, setupFamilyIds, catalogRevisions, catalogLock, requiredSetups, reusedDefinitions, reusedSetups }
 }
 
-export function saveSharedCopy(localData: LocalData, input: SharePayload, memberIds?: readonly CharacterId[]): { readonly localData: LocalData; readonly buildId?: BuildId; readonly scenarioId?: ScenarioId } {
+export function saveSharedCopy(localData: LocalData, input: SharePayload): { readonly localData: LocalData; readonly buildId?: BuildId; readonly teamId?: TeamId } {
   const payload = validateSharePayload(input)
   const { records } = payload
   const { personalIds, setupIds, setupFamilyIds, catalogRevisions, catalogLock, requiredSetups, reusedDefinitions, reusedSetups } = sharedCopyDependencies(localData, payload)
@@ -327,8 +336,7 @@ export function saveSharedCopy(localData: LocalData, input: SharePayload, member
   const now = nowTimestamp()
   let next = updateLocalData(localData, { personalDefinitions, gameSetups, builds, buildRevisions }, 'share.saveCopy', ['personalDefinitions', 'gameSetups', 'builds', 'buildRevisions'], now)
   if (payload.kind === 'build') return { localData: next, buildId: [...buildIds.values()][0]! }
-  if (!memberIds || memberIds.length !== TEAM_SIZE || new Set(memberIds).size !== TEAM_SIZE) throw new Error('Choose four distinct characters for the shared team.')
-  const scenarioId = createId<ScenarioId>('scenario')
-  next = createScenario(next, { id: scenarioId, label: payload.title, kind: 'draft', memberIds, baseline: { kind: 'empty' }, assignments: Object.fromEntries(memberIds.map((id, index) => [id, payload.slots![index] ? revisionIds.get(payload.slots![index]!)! : null])), gameSetupRevisionId: setupIds.get(payload.teamGameSetupRevisionId!)!, activate: false, now, expectedRevision: next.revision })
-  return { localData: next, scenarioId }
+  const teamId = createId<TeamId>('team')
+  next = saveTeam(next, { id: teamId, title: payload.title, slots: payload.slots!.map(id => id ? revisionIds.get(id)! : null), now, expectedRevision: next.revision })
+  return { localData: next, teamId }
 }

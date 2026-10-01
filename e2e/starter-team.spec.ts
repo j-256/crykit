@@ -1,9 +1,9 @@
+import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
-import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -89,7 +89,7 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.reload()
-  await expect(page.getByRole('region', { name: 'Builds for current Game Setup', exact: true }).locator('.build-card')).toHaveCount(4)
+  await expect(page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')).toHaveCount(4)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
   const localData = await exportLocalData(page)
@@ -97,14 +97,25 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   expect(Object.values(localData.builds)).toHaveLength(4)
 })
 
-test('the Game Setup keeps mods visible and technical fields under Advanced Game Setup', async ({ page }, testInfo) => {
-  await page.goto('/#/settings/game-setup')
+test('Game Setup starts with core fields and reveals optional settings on demand', async ({ page }, testInfo) => {
+  await page.goto('/#/settings/game-setup?scope=playthrough')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  await expect(panel.getByText('Starter list, not a complete catalog', { exact: true })).toBeVisible()
-  await expect(panel.getByRole('link', { name: 'Steam Workshop', exact: true })).toHaveAttribute('href', 'https://steamcommunity.com/app/1637730/workshop/')
-  await expect(panel.getByRole('link', { name: 'Nintendo eShop: Mod Pack 1', exact: true })).toHaveAttribute('href', /mod-pack-1-quality-fun/)
-  await expect(panel.getByRole('link', { name: 'Nintendo eShop: Mod Pack 2', exact: true })).toHaveAttribute('href', /mod-pack-2-new-challenges/)
+  await openCurrentGameSetup(panel)
+  await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toBeVisible()
+  const mods = panel.locator('.game-setup-mods')
+  const advanced = panel.locator('.game-setup-derived')
+  await expect(mods).not.toHaveAttribute('open')
+  await expect(advanced).not.toHaveAttribute('open')
+  await expect(mods.locator(':scope > summary')).toContainText('0 imported versions enabled')
+  await expect(panel.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeInViewport()
+  await expect(panel.getByLabel('Custom mod name', { exact: true })).not.toBeVisible()
+  await expect(panel.getByRole('region', { name: 'Imported mod layers', exact: true })).not.toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('game-setup-overview.png') })
+  await mods.locator(':scope > summary').focus()
+  await page.keyboard.press('Enter')
+  await expect(panel.getByRole('region', { name: 'Imported mod layers', exact: true })).toBeVisible()
+  await panel.locator('.game-setup-named-mods > summary').click()
+  await expect(panel.getByLabel('Custom mod name', { exact: true })).toBeVisible()
   await expect(panel.locator('.game-setup-editor-section[open]')).toHaveCount(0)
   await expect(panel.getByText('Equipment slot rules', { exact: true })).not.toBeVisible()
   await expect(panel.getByRole('combobox', { name: 'Doge Shield', exact: true })).not.toBeVisible()
@@ -113,15 +124,24 @@ test('the Game Setup keeps mods visible and technical fields under Advanced Game
   await expect(pack.getByRole('combobox')).not.toBeVisible()
   await pack.locator(':scope > summary').click()
   await expect(pack.getByRole('combobox').first()).toBeVisible()
+  await pack.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('enabled')
+  await panel.getByLabel('Custom mod name', { exact: true }).fill('Synthetic draft mod')
+  await mods.locator(':scope > summary').click()
+  await expect(mods.locator(':scope > summary')).toContainText('1 named choices')
+  await mods.locator(':scope > summary').click()
+  await expect(pack.getByRole('combobox', { name: 'Doge Shield', exact: true })).toHaveValue('enabled')
+  await expect(panel.getByLabel('Custom mod name', { exact: true })).toHaveValue('Synthetic draft mod')
+  await openGameSetupSection(panel, 'Imported mod files')
+  await expect(panel.getByRole('region', { name: 'Imported mod layers', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('game-setup-progressive-disclosure.png') })
 })
 
-test('new team scenarios require four distinct roster members before build assignment', async ({ page }) => {
+test('new party plans require four distinct roster members before build assignment', async ({ page }) => {
   await page.goto('/#/builds/teams')
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-  const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-  await form.getByLabel('Scenario label').fill('Synthetic exact team')
-  const create = form.getByRole('button', { name: 'Create scenario', exact: true })
+  await page.getByRole('button', { name: 'New party plan', exact: true }).click()
+  const form = page.getByRole('dialog', { name: 'Create party plan', exact: true })
+  await form.getByLabel('Party plan name').fill('Synthetic exact team')
+  const create = form.getByRole('button', { name: 'Create party plan', exact: true })
   await expect(create).toBeDisabled()
   await chooseFourTeamMembers(form)
   await expect(create).toBeEnabled()
@@ -139,7 +159,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   const coverage = team.locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
 
   await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
-  await expect(setup.locator('summary')).toHaveText('Setup needs review · 3 fields')
+  await expect(setup.locator('summary')).toHaveText('Setup needs review · 2 fields')
   await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 6 slots')
   await expect(coverage).toHaveCount(0)
   await expect(team.getByText('Game Setup settings need evidence', { exact: true })).toHaveCount(0)
@@ -148,27 +168,20 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
   let panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Sample starter Game Setup · revision 1', exact: true })).toBeVisible()
-  await expect(panel.locator('.game-setup-advanced')).toHaveAttribute('open', '')
-  await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
+  await expect(panel.getByText('Saved revision 1', { exact: true })).toBeVisible()
+  await expect(panel.locator('.game-setup-derived')).not.toHaveAttribute('open')
+  await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await defaults.locator('summary').click()
   await defaults.getByRole('button', { name: 'Review planner defaults', exact: true }).click()
   panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  const accept = panel.getByRole('button', { name: 'Apply planner defaults', exact: true })
-  await expect(accept).toBeFocused()
-  await expect(panel.getByText('Applying them records your choice; it does not claim independent verification of game behavior.', { exact: false })).toBeVisible()
-  await accept.click()
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
+  await expect(panel.locator('.game-setup-derived')).toHaveAttribute('open')
+  await expect(panel.getByText('Saved equipment layout', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Apply planner defaults', exact: true })).toHaveCount(0)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-
   const saved = await exportLocalData(page)
   const savedTeam = Object.values(selectedPlaythrough(saved).scenarios).find(scenario => scenario.label === 'Sample starter team')!
-  const activeGameSetup = saved.gameSetups[saved.planningGameSetupRevisionId!]!
-  expect(activeGameSetup.id).not.toBe(savedTeam.gameSetupRevisionId)
-  expect(activeGameSetup.slots.every(slot => slot.provenance === 'userDefined')).toBe(true)
   expect(saved.gameSetups[savedTeam.gameSetupRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
 
   await expect(team.getByRole('button', { name: 'Review catalog coverage', exact: true })).toHaveCount(0)
@@ -176,33 +189,35 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 })
 
 test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
-  await page.goto('/#/settings/game-setup')
+  await page.goto('/#/settings/game-setup?scope=playthrough')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByLabel('Platform', { exact: true }).selectOption('Windows')
   await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.9')
   await panel.getByLabel('Game mode', { exact: true }).selectOption('Standard')
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto('/#/builds/teams')
 
   async function createTeam(label: string) {
-    await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-    const form = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-    await form.getByLabel('Scenario label').fill(label)
+    await page.getByRole('button', { name: 'New party plan', exact: true }).click()
+    const form = page.getByRole('dialog', { name: 'Create party plan', exact: true })
+    await form.getByLabel('Party plan name').fill(label)
     await chooseFourTeamMembers(form)
-    await form.getByRole('button', { name: 'Create scenario', exact: true }).click()
+    await form.getByRole('button', { name: 'Create party plan', exact: true }).click()
     return page.getByRole('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) })
   }
 
   const windowsTeam = await createTeam('Synthetic Windows context')
   await expect(windowsTeam.getByText('Game data parity is unresolved', { exact: true })).toHaveCount(0)
-  await page.goto('/#/settings/game-setup')
+  await page.goto('/#/settings/game-setup?scope=playthrough')
+  await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByLabel('Platform', { exact: true }).selectOption('Nintendo Switch')
   await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.6')
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto('/#/builds/teams')
@@ -212,5 +227,5 @@ test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ 
   await expect(scope).toContainText('Equivalence between Windows 1.6.9 game data and Nintendo Switch 1.6.6 is unresolved')
   await scope.getByRole('button', { name: 'Review setup', exact: true }).click()
   await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
-  await expect(panel.getByLabel('Platform', { exact: true })).toBeFocused()
+  await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()
 })

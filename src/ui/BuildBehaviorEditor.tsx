@@ -1,53 +1,51 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { buildBehavior, sameBuildBehavior, type BuildBehavior } from '../domain/build-behavior'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
-import { DEFAULT_GAME_VERSION, DEFAULT_PP_LIMIT } from '../domain/local-data'
-import { definitionLineageRootRef } from '../domain/definitions'
+import { createId, requirePlaythrough } from '../domain'
+import { latestGameSetups } from '../domain/game-setups'
+import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { recordedModNames } from '../domain/mods'
-import type { Knowledge, LocalData } from '../domain/types'
-import { Badge, Button, Field, InlineNotice } from './components'
+import type { LocalData, SlotId } from '../domain/types'
+import { Badge, Field } from './components'
 import { Icon } from './icons'
-import { ModSelections } from './ModSelections'
+import { GameRulesFields, type GameSetupDraft } from './GameSetupEditor'
+import { gameSetupModSummary, knowledgeLabel } from './model'
 
-const PRESET = Object.freeze({ CUSTOM: 'custom', VANILLA: 'vanilla', NINTENDO: 'nintendo' })
+const PRESET = Object.freeze({ CUSTOM: 'custom', VANILLA: 'vanilla', NINTENDO: 'nintendo', PLAYTHROUGH: 'playthrough' })
 const KNOWN_MODS = SWITCH_MOD_PACKS.flatMap(pack => pack.mods)
-const textValue = (value: Knowledge<string>) => value.state === 'known' ? value.value : ''
-const knowledgeLabel = (value: Knowledge<string>) => value.state === 'known' ? value.value : value.state === 'conflicting' ? 'Conflicting' : value.state === 'notApplicable' ? 'Not applicable' : 'Unknown'
 
-export function BuildBehaviorEditor({ localData, value, onChange }: { readonly localData: LocalData; readonly value: BuildBehavior; readonly onChange: (value: BuildBehavior) => void }) {
-  const [customVersion, setCustomVersion] = useState(false)
-  const presets = useMemo(() => Object.values(localData.gameSetups).sort((left, right) => left.label.localeCompare(right.label) || right.revision - left.revision), [localData.gameSetups])
-  const matches = presets.filter(setup => sameBuildBehavior(value, setup))
+export function BuildBehaviorEditor({ localData, value, onChange, initiallyOpen = false }: { readonly localData: LocalData; readonly value: BuildBehavior; readonly onChange: (value: BuildBehavior) => void; readonly initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen)
+  const presets = latestGameSetups(localData)
+  const matches = Object.values(localData.gameSetups).filter(setup => sameBuildBehavior(value, setup))
   const match = matches.find(setup => setup.label === value.label) ?? matches[0]
   const selected = match?.id ?? PRESET.CUSTOM
-  const versions = [...new Set([DEFAULT_GAME_VERSION, ...presets.flatMap(setup => setup.gameVersion.state === 'known' ? [setup.gameVersion.value] : []), ...(value.gameVersion.state === 'known' ? [value.gameVersion.value] : [])])]
-  const enabled = value.mods.state === 'known' ? value.mods.value.length : undefined
-  const incompatibleOverrides = (value.definitionOverrides ?? []).filter(ref => {
-    const root = definitionLineageRootRef(localData, ref)
-    return root.kind === 'catalog' && value.catalogLock[root.catalogId] !== root.catalogRevisionId
-  })
-  const update = (change: Partial<BuildBehavior>) => onChange({ ...value, ...change })
+  const choices = match && !presets.some(setup => setup.id === match.id) ? [match, ...presets] : presets
+  const playthrough = requirePlaythrough(localData)
+  const actual = playthrough.currentGameSetupRevisionId ? localData.gameSetups[playthrough.currentGameSetupRevisionId] : undefined
+  const origin = value.modComposition ? Object.values(localData.gameSetups).find(setup => setup.modComposition && setup.catalogLock[value.modComposition!.baseline.catalogId] === value.catalogLock[value.modComposition!.baseline.catalogId]) : undefined
+  const draft: GameSetupDraft = { ...value, ppLimit: value.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT } }
+  const update = (changes: Partial<GameSetupDraft>) => {
+    const next = { ...value, ...changes }
+    onChange({ ...next, slots: next.slots.map((slot, order) => ({ ...slot, id: slot.id ?? createId<SlotId>('slot'), kind: 'equipment', order })) })
+  }
   const preset = (id: string) => {
-    const saved = localData.gameSetups[id]
+    const saved = id === PRESET.PLAYTHROUGH ? actual : localData.gameSetups[id]
     if (saved) { onChange({ ...buildBehavior(saved), slots: saved.slots.length ? saved.slots : SUGGESTED_BUILD_SLOTS }); return }
     if (id === PRESET.CUSTOM) return
     const catalogLock = value.modComposition ? { ...value.catalogLock, [value.modComposition.baseline.catalogId]: value.modComposition.baseline.catalogRevisionId } : value.catalogLock
     const base = { ...value, catalogLock, modComposition: undefined, ppLimit: { state: 'known' as const, value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known' as const, value: true } }
     onChange(id === PRESET.VANILLA
-      ? { ...base, label: 'Unmodified game', mode: { state: 'known', value: 'Vanilla' }, mods: { state: 'known', value: [] }, disabledMods: { state: 'known', value: [...new Set([...KNOWN_MODS, ...recordedModNames(value)])] } }
-      : { ...base, label: CONFIRMED_SWITCH_MOD_SETUP.label, platform: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.platform }, gameVersion: { state: 'unknown' }, mode: { state: 'unknown' }, mods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.enabledMods }, disabledMods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods } })
+      ? { ...base, label: 'Unmodified game', mods: { state: 'known', value: [] }, disabledMods: { state: 'known', value: [...new Set([...KNOWN_MODS, ...recordedModNames(value)])] } }
+      : { ...base, label: CONFIRMED_SWITCH_MOD_SETUP.label, platform: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.platform }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, mods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.enabledMods }, disabledMods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods } })
   }
-  const textChoice = (key: 'platform' | 'mode', label: string, choices: readonly string[]) => <Field label={label}><select aria-label={label} onChange={event => update({ [key]: event.target.value ? { state: 'known', value: event.target.value } : { state: 'unknown' } })} value={textValue(value[key])}><option value="">{value[key].state === 'known' ? 'Unknown' : knowledgeLabel(value[key])}</option>{[...new Set([...choices, ...(value[key].state === 'known' ? [value[key].value] : [])])].map(name => <option key={name} value={name}>{name}</option>)}</select></Field>
-  return <details className="build-behavior panel">
-    <summary><span><strong>Build behavior</strong><small>{match?.label ?? value.label} · {knowledgeLabel(value.gameVersion)} · {enabled === undefined ? 'Mods unresolved' : `${enabled} mods enabled`}</small></span>{!match && <Badge tone="info">Customized</Badge>}<Icon name="chevron-down"/></summary>
+  return <details className="build-behavior panel" onToggle={event => setOpen(event.currentTarget.open)} open={open}>
+    <summary><span><strong>Game Setup</strong><small>{match?.label ?? value.label} · {knowledgeLabel(value.gameVersion)} · {gameSetupModSummary(value)}</small></span>{!match && <Badge tone="info">Customized</Badge>}<Icon name="chevron-down"/></summary>
     <div className="panel__body stack">
-      <p>These rules belong to this build checkpoint. Saving preserves earlier checkpoints and your Playthrough setup.</p>
-      <Field label="Behavior preset"><select aria-label="Behavior preset" onChange={event => preset(event.target.value)} value={selected}><option value={PRESET.CUSTOM}>Custom behavior</option><option value={PRESET.VANILLA}>Unmodified game</option><option value={PRESET.NINTENDO}>{CONFIRMED_SWITCH_MOD_SETUP.label}</option>{presets.map(setup => <option key={setup.id} value={setup.id}>{setup.label} · r{setup.revision}</option>)}</select></Field>
-      <div className="grid-3">{textChoice('platform', 'Build platform', ['Nintendo Switch', 'PC'])}<Field label="Build game version"><select aria-label="Build game version" onChange={event => update({ gameVersion: event.target.value ? { state: 'known', value: event.target.value } : { state: 'unknown' } })} value={textValue(value.gameVersion)}><option value="">{value.gameVersion.state === 'known' ? 'Unknown' : knowledgeLabel(value.gameVersion)}</option>{versions.map(version => <option key={version} value={version}>{version}</option>)}</select><Button onClick={() => setCustomVersion(value => !value)} tone="quiet" type="button">Enter exact version</Button>{customVersion && <input aria-label="Exact build game version" onChange={event => update({ gameVersion: event.target.value.trim() ? { state: 'known', value: event.target.value.trim() } : { state: 'unknown' } })} placeholder="Exact game version" value={textValue(value.gameVersion)}/>}</Field>{textChoice('mode', 'Build game mode', ['Standard', 'Vanilla', 'Chaos'])}</div>
-      <div className="grid-2"><Field label="Build passive PP limit"><input aria-label="Build passive PP limit" min="0" onChange={event => update({ ppLimit: event.target.value === '' ? { state: 'unknown' } : { state: 'known', value: Number(event.target.value) } })} step="1" type="number" value={value.ppLimit?.state === 'known' ? value.ppLimit.value : ''}/></Field><Field label="Build PP cost rule"><select aria-label="Build PP cost rule" onChange={event => update({ ppCostsNonNegative: event.target.value === '' ? { state: 'unknown' } : { state: 'known', value: event.target.value === 'true' } })} value={value.ppCostsNonNegative.state === 'known' ? String(value.ppCostsNonNegative.value) : ''}><option value="">{value.ppCostsNonNegative.state === 'conflicting' ? 'Conflicting' : 'Unknown'}</option><option value="true">Cannot be negative</option><option value="false">Negative values permitted</option></select></Field></div>
-      <h3>Mods</h3><ModSelections value={value} onChange={configuration => update(configuration)}/>
-      {incompatibleOverrides.length > 0 && <InlineNotice title="Override pins need review" tone="warning">Some personal overrides use another catalog revision. Their exact definitions remain saved. <Button onClick={() => update({ definitionOverrides: value.definitionOverrides?.filter(ref => !incompatibleOverrides.includes(ref)) })} tone="secondary" type="button">Remove incompatible override pins from this behavior</Button></InlineNotice>}
+      <p>These rules are saved with this build checkpoint. Copy a Game Setup as a starting point, then adjust it here.</p>
+      <Field label="Copy Game Setup" hint="Copies rules into this checkpoint. Your playthrough and other builds keep their own settings."><select aria-label="Copy Game Setup" onChange={event => preset(event.target.value)} value={selected}><option value={PRESET.CUSTOM}>Custom rules</option><optgroup label="Starting points"><option value={PRESET.VANILLA}>Unmodified game</option><option value={PRESET.NINTENDO}>{CONFIRMED_SWITCH_MOD_SETUP.label}</option>{actual && <option value={PRESET.PLAYTHROUGH}>From playthrough: {playthrough.label}</option>}</optgroup><optgroup label="Saved Game Setups">{choices.map(setup => <option key={setup.id} value={setup.id}>{setup.label} · r{setup.revision}</option>)}</optgroup></select></Field>
+      <GameRulesFields current={origin} localData={localData} onChange={update} value={draft}/>
     </div>
   </details>
 }

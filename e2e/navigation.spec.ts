@@ -1,4 +1,4 @@
-import { chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function navigate(page: Page, destination: string) {
@@ -18,12 +18,10 @@ async function setHash(page: Page, hash: string) {
 
 async function configureGameSetup(page: Page) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
   await panel.getByLabel('Game Setup label').fill('Synthetic navigation Game Setup')
-  await openGameSetupSection(panel, 'Equipment slot rules')
-  await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
-  await panel.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  await panel.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
+  await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
@@ -104,14 +102,19 @@ test('character learning and nested definition routes restore exact UI state', a
 test('settings routes retain dirty forms and expired previews recover explicitly', async ({ page }) => {
   const panel = await openData(page)
   await expect(page).toHaveURL(/#\/settings\/data$/)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
-  await expect(page).toHaveURL(/#\/settings\/game-setup$/)
+  await openCurrentGameSetup(panel)
+  await expect(page).toHaveURL(/#\/settings\/game-setup\?gameSetup=/)
   await panel.getByLabel('Game Setup label').fill('Unsaved semantic route Game Setup')
 
+  await page.evaluate(() => { window.location.hash = '#/settings/game-setup' })
+  await expect(page).toHaveURL(/#\/settings\/game-setup\?gameSetup=/)
+  await expect(panel.getByLabel('Game Setup label')).toHaveValue('Unsaved semantic route Game Setup')
+
   await page.goBack()
-  await expect(page).toHaveURL(/#\/settings\/game-setup$/)
+  await expect(page).toHaveURL(/#\/settings\/game-setup\?gameSetup=/)
   await expect(panel.getByLabel('Game Setup label')).toHaveValue('Unsaved semantic route Game Setup')
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('button', { name: 'Discard and close', exact: true }).click()
 
   const reopened = await openData(page)
   await reopened.locator('input[type="file"]').setInputFiles({
@@ -199,21 +202,13 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(`#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/edit`)
 
   await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
-  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
-  await expect(recording.getByText(/revision 2/)).toBeVisible()
-  await recording.getByRole('button', { name: 'Create four-person team', exact: true }).click()
-  const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-  await team.getByLabel('Scenario label').fill('Synthetic routed team')
-  await chooseFourTeamMembers(team)
-  await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
-  await expect(team).not.toBeVisible()
-  await expect(page).toHaveURL(/#\/builds\/teams$/)
-  await setHash(page, `#/builds/library/${secondRevisionRoute![1]!}/revisions/${secondRevisionRoute![2]!}/record-current`)
+  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Compare and record Build', exact: true }) })
+  await expect(recording).toContainText('Synthetic routed character build r2')
   await recording.getByRole('combobox', { name: /^Character/ }).selectOption({ label: 'Synthetic routed character' })
   const confirmation = recording.getByRole('checkbox', { name: /I made these changes in game/ })
   await confirmation.check()
   await setHash(page, `#/builds/library/${firstRevisionRoute![1]!}/revisions/${firstRevisionRoute![2]!}/record-current`)
-  await expect(recording.getByText(/revision 1/)).toBeVisible()
+  await expect(recording).toContainText('Synthetic routed character build r1')
   await expect(confirmation).not.toBeChecked()
   await confirmation.check()
   await recording.getByRole('button', { name: 'Record as current', exact: true }).click()
@@ -233,9 +228,9 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await expect(page.getByLabel('Revision A')).not.toHaveValue('')
   await expect(page.getByLabel('Revision B')).not.toHaveValue('')
 
-  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
+  await page.goto('/#/builds/teams')
   await expect(page).toHaveURL(/#\/builds\/teams$/)
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
+  await page.getByRole('button', { name: 'New party plan', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/teams\/new$/)
 })
 
@@ -251,7 +246,7 @@ test('prototype-shaped missing IDs use record recovery', async ({ page }) => {
     ['#/inventory/items/__proto__/edit', 'Inventory entry unavailable'],
     ['#/progress/__proto__/edit', 'Progress record unavailable'],
     ['#/builds/library/__proto__/revisions/new', 'Build unavailable'],
-    ['#/builds/teams/__proto__', 'Team scenario unavailable'],
+    ['#/builds/teams/__proto__', 'Party plan unavailable'],
     ['#/builds/compare/__proto__/constructor', 'Comparison checkpoint unavailable'],
   ] as const
 

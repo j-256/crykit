@@ -1,3 +1,4 @@
+import { difficultyHitChance, resolveGameRules } from '../domain/game-rules'
 import { useId, useState } from 'react'
 import { logicalEntityKey } from '../domain'
 import { analyzeBuildEquipment } from '../domain/build-mechanics'
@@ -6,7 +7,7 @@ import { ABILITY_COSTS, estimateAbility } from '../domain/ability-estimates'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { GUIDE_LEVEL_CAP } from '../domain/growth'
 import { GUIDE_MECHANICS_SOURCE } from '../domain/mechanics-facts'
-import type { BuildCalculationPlan, BuildRevisionContent, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, SlotDefinition } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision, SlotDefinition } from '../domain/types'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
 import { Button, Field, InlineNotice } from './components'
 import { resolveEntity } from './model'
@@ -27,17 +28,19 @@ export function CalculationPicker({ label, kinds, value, onChange }: { label: st
   return <BuildDefinitionField allowedKinds={kinds} label={label} onChange={onChange} onClose={() => setOpen(false)} onDismiss={() => setOpen(false)} onInspect={() => undefined} onOpen={() => setOpen(true)} onQueryChange={value => { setQuery(value); setLimit(BUILD_DEFINITION_PAGE_SIZE) }} onResultLimitChange={setLimit} open={open} query={query} resultLimit={limit} value={value}/>
 }
 
-export function BuildMechanics({ content, slots, localData, catalogs, onChange, allowClearCalculation = true }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; onChange?: (plan: BuildCalculationPlan | undefined) => void; allowClearCalculation?: boolean }) {
+export function BuildMechanics({ content, slots, localData, catalogs, gameSetup, onChange, allowClearCalculation = true }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; allowClearCalculation?: boolean }) {
   const id = useId()
   const resolve = (ref: EntityRef) => resolveEntity(localData, catalogs, ref)
   const identity = (ref: EntityRef) => logicalEntityKey(localData, ref)
   const equipment = analyzeBuildEquipment(content, slots, resolve, identity)
-  const estimate = calculateBuildStats(content, slots, resolve, identity)
+  const rules = resolveGameRules(gameSetup, catalogs)
+  const estimate = calculateBuildStats(content, slots, resolve, identity, rules)
   const plan = content.calculation
   const abilityDefinition = plan?.ability ? resolve(plan.ability) : undefined
   const ability = abilityDefinition ? estimateAbility(abilityDefinition, estimate.stats) : undefined
   const accuracy = estimate.stats.ACC.value
   const hitChance = accuracy && accuracy.low === accuracy.high && plan?.targetEvasion != null ? physicalHitChance(accuracy.low, plan.targetEvasion) : null
+  const adjustedHitChance = difficultyHitChance(hitChance, rules)
   const update = (patch: Partial<BuildCalculationPlan>) => onChange?.({ level: null, growth: [], bonuses: [], statuses: [], ...plan, ...patch })
   const numberInput = (value: string) => value.trim() ? Number(value) : null
   const hasSelections = Object.values(content.equipment).some(Boolean) || content.passives.length > 0
@@ -66,7 +69,7 @@ export function BuildMechanics({ content, slots, localData, catalogs, onChange, 
     </div></details>}
     <details><summary>Ability and hit-chance preview</summary><div className="stack">{onChange && <CalculationPicker kinds={['ability', 'monsterMagic']} label="Preview ability" onChange={ability => update({ ability })} value={plan?.ability ?? null}/>}
       {ability && <div aria-label="Ability estimate"><p><strong>Base amount before defense and other effects: {formatStatRange(ability.baseAmount)}</strong></p>{ability.formula && <p>Documented coefficients: {ability.formula}</p>}<dl className="definition-list">{ABILITY_COSTS.map(cost => <div className="definition-row" key={cost}><dt>{cost === 'HP' ? 'HP cost (% of max)' : cost === 'CT' ? 'CT delay' : cost === 'CD' ? 'Cooldown' : `${cost} cost`}</dt><dd>{ability.costs[cost] ?? 'Unknown'}{cost === 'CD' && ability.costs.CD != null && ability.costs.CD > 0 ? ` (${ability.costs.CD + 1} turns including the casting turn)` : ''}</dd></div>)}{ability.learning && <div className="definition-row"><dt>Learn cost</dt><dd>{ability.learning.jp} JP; display {ability.learning.displayedLp} LP; {ability.learning.requiredWholeLp} whole LP needed</dd></div>}</dl><p>Listed costs exclude cost modifiers. The selected ability is a preview, not a claim that this build can use it. Defense, crits, variance, targets, and conditional effects are not applied.</p>{ability.notes.length > 0 && <ul>{ability.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}</div>}
-      {onChange && <Field label="Target evasion"><input aria-label="Target evasion" min="0" onChange={event => update({ targetEvasion: numberInput(event.target.value) })} type="number" value={plan?.targetEvasion ?? ''}/></Field>}<p aria-label="Base physical hit chance">Base physical hit chance: {hitChance === null ? 'Unknown' : `${hitChance}%`}</p><p className="field__hint">Uses the guide's accuracy/evasion steps before ability and passive overrides. Missing curve intervals and zero target evasion remain unknown.</p>
+      {onChange && <Field label="Target evasion"><input aria-label="Target evasion" min="0" onChange={event => update({ targetEvasion: numberInput(event.target.value) })} type="number" value={plan?.targetEvasion ?? ''}/></Field>}<p aria-label="Base physical hit chance">Base physical hit chance: {hitChance === null ? 'Unknown' : `${hitChance}%`}</p><p aria-label="Difficulty-adjusted hit chance">With selected difficulty: {adjustedHitChance === null ? 'Unknown' : `${adjustedHitChance}%`}</p><p className="field__hint">Difficulty uses the PC 1.6.9 model before luck and repeated-miss adjustments. Custom difficulty, assist options, and randomizer redirects are not simulated.</p><p className="field__hint">Uses the guide's accuracy/evasion steps before ability and passive overrides. Missing curve intervals and zero target evasion remain unknown.</p>
     </div></details>
   </section>
 }

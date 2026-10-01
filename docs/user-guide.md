@@ -6,25 +6,33 @@ Start with the [first-build walkthrough](../README.md#try-your-first-build) if y
 
 ## Getting around
 
-The app opens to the build library. Builds, Characters, and Reference share the main menu, with Inventory and Progress under Tracking. Create reusable builds without recording a character, owned equipment, or progress. Characters connects plans to observed in-game state when you want that context. Team scenarios and build comparisons remain within Builds.
+The app opens to the build library. Builds, Teams, and Reference share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
 
-The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample team. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
+The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample team. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
 
 ### Choose a Playthrough and Game Setup
 
-Use **Playthrough** and **Game Setup** at the top to switch context. A Playthrough is one save lineage and owns tracked characters, inventory, progress, and scenarios.
+**Game Setups** describe the game rules used for planning: base game version, difficulty, and enabled mods. Open **Builds > Game Setups** or **Data & settings > Saved setups** to create or edit a reusable setup. **Start a Build** uses the chosen setup as a starting point. Each saved checkpoint keeps its exact rules, so later edits do not change earlier plans.
 
-Game Setups describe shared, versioned game configuration such as platform, mods, slots, and PP rules. Platform and game mode use finite choices; game version reuses recorded values or accepts an explicitly entered exact version.
+The editor puts **Game version** and **Difficulty** first. **Enter exact version** accepts a version not listed. **Base game details** contains platform and mode. New setups default to **Standard** mode; opening a saved setup retains its recorded mode. **Mods** contains ordered imported revisions, with named choices under **Mods without imported files** for cases where a mod file is unavailable. A mod name alone does not establish its calculation effects. **Rules from game data** shows supported changes and coverage gaps. PP budgets and equipment layouts are not arbitrary configuration controls.
 
-Builds are shared across Playthroughs. Each checkpoint owns its exact behavior: version, mods, catalog pins, equipment layout, and PP rules. Open **Build behavior** to choose a recognizable preset or customize those rules. Changes save with the new checkpoint; earlier checkpoints keep their rules. Builds with different behavior from the active Playthrough remain editable in the library, with a compatibility explanation.
+Saving creates a new setup revision. Unchanged forms cannot create duplicate revisions. **Discard changes** restores the opened revision after confirmation. Closing with unsaved changes asks whether to discard or keep editing. A failed save retains the draft for **Retry save**.
 
-**Scenario** appears on tracking pages, Characters, and team views. It prioritizes a selected team for readiness checks without changing the Playthrough's current Game Setup. **None selected** clears the active scenario without deleting it. Finish open drafts or retry failed saves before switching.
+A **Playthrough** represents one tracked game save and owns characters, inventory, progress, and party plans. Its selector appears on Tracking pages. Open **Data & settings > Playthrough** to switch saves or create a blank Playthrough. A new Playthrough starts in Standard mode with unknown platform, version, and mods unless you explicitly choose an existing setup. This page displays the selected rules as a read-only summary. Choose a saved revision under **Game Setup to apply**, review its summary, then choose **Apply**. Create or edit version, difficulty, and mods under **Saved setups**. Saving a setup never applies it to a Playthrough automatically.
+
+**Party plan** selects the tracked party used for inventory and readiness checks. **None selected** clears the selection without deleting a plan. Finish open drafts or retry failed saves before switching.
+
+## Manage mods
+
+Open **Mods > Editor workspace**, choose a Crystal Edit JSON file, and inspect or edit its records. Apply edits to save the working draft, then choose **Save to CryKit** to add it to **Mod library**. Saved versions are grouped by project ID; changed contents create another revision. **Edit a copy** opens an exact saved source for further editing. Select the desired revision and order under a Build's **Game Setup > Mods**. Existing checkpoints keep their mod versions.
+
+Supported game and mod data supplies calculation constants and difficulty effects. Incomplete or unsupported changes remain visible in **Rules from game data**. The library is included in planner backups; editor drafts have separate downloads. See [Mods and the editor workspace](mod-inspector.md) for inspection, exports, and recovery.
 
 ## Create and save builds
 
 Choose **Builds > New Build** to open a blank Build sheet. Type into class, sub-command, equipment, accessory, or passive fields and select a matching catalog or personal definition. Search text never becomes a saved selection or creates a definition. Sub-commands use documented command names while retaining the associated class identity. No recorded inventory, character, or learned skills are required.
 
-A new Build starts from the selected Game Setup as a preset. Choose known mods individually as Enabled, Disabled, or Unknown. Enter one custom mod name and choose **Add mod** to create a separate selection; custom choices remain available when changed to Unknown. A preset supplies rules without changing the Playthrough. A suggested equipment-slot layout is available when the preset has no configured slots; its game rules remain unknown and its slots can be adjusted in Data & settings. Passives are an ordered, variable-length list rather than configured slots. Existing configured layouts are preserved.
+A new Build has independent game settings. Open **Game Setup** to choose version, difficulty, and mods, or **Copy Game Setup** to use a saved setup. Changes save with the checkpoint and leave other builds and Playthroughs unchanged. Equipment uses the standard layout; passives form an ordered list. Named mod choices support Enabled, Disabled, and Unknown, while imported mods supply exact definitions and supported calculation constants.
 
 The primary class's stat ratings appear above the loadout using the game's colored full and half stars. The same ratings appear in Reference, with source details and explicit unknown values. Class ratings describe base-stat scaling and growth; they are separate from a character's recorded stats. Set a planned level and growth history under **Checks & notes > Stats & combat estimates** to calculate numeric values. A saved calculation plan also exposes **Planned base & equipped stats** in the class stats panel; unsupported contributions and incomplete inputs remain unresolved.
 
@@ -38,7 +46,7 @@ Equipment searches include every available definition that fits the slot. Choice
 
 Passive searches label PP directly. A single default-on toggle includes innates from the Learnable Innate Skill mod across every passive search, while missing PP costs remain explicit.
 
-Build validity sums the PP costs of every equipped passive against the pinned Game Setup's limit and reports unresolved costs separately. The unmodified game uses a 10 PP limit; modded Game Setups can override it. The limit is a budget, not a count of passive positions or a character observation. Validation also checks documented class, equipment, slot, hand, and passive rules without depending on a character or inventory.
+Build validity sums the PP costs of every equipped passive against the pinned Game Setup's limit and reports unresolved costs separately. The PC 1.6.9 model uses the game's 10 PP budget. Imported mods can change individual passive costs; unsupported rule changes remain unresolved. The limit is a budget, not a count of passive positions or a character observation. Validation also checks documented class, equipment, slot, hand, and passive rules without depending on a character or inventory.
 
 ### Save checkpoints and make copies
 
@@ -50,7 +58,7 @@ Cloning makes a separate draft within the same Game Setup; editing creates a new
 
 When one equipped item occupies several slots, mark those selections as the same copy. On narrow screens the library starts collapsed and selection evidence appears directly below its field.
 
-In-game readiness is a separate, collapsed check with adjacent character and scenario assignment. Readiness and recording actions follow the saved checkpoint displayed in the editor. Creating a scenario from readiness uses the saved checkpoint's Game Setup and catalog snapshot, even when the current Playthrough uses another Game Setup. Shared validation causes are grouped, with affected slots and links to the relevant records or settings.
+Optional tracking actions live under **Use with Tracking**, including character comparisons, recording, and party readiness. Readiness and recording actions follow the saved checkpoint displayed in the editor. Creating a party plan from readiness uses the saved checkpoint's Game Setup and catalog snapshot, even when the current Playthrough uses another Game Setup. Shared validation causes are grouped, with affected slots and links to the relevant records or settings.
 
 ### Explore stat estimates
 
@@ -60,13 +68,17 @@ Class pages and build plans offer scoped calculations with explicit inputs. Cond
 
 ## Share a build or team
 
-Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a complete team scenario, then choose **Copy link**. Build cards share the latest checkpoint. A recipient can inspect the snapshot and choose **Save a copy**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies map the four slots to the recipient's own characters. **Include written notes** adds rotation notes, written assumptions, and checkpoint names. Build behavior and calculation inputs are always included, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
+Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a saved Team, then choose **Copy link**. Build cards share the latest checkpoint. A recipient can inspect the snapshot and choose **Save a copy**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies save four build slots directly, without requiring tracked characters. **Include written notes** adds rotation notes, written assumptions, and checkpoint names. Build behavior and calculation inputs are always included, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
 
 ## Check a team
 
-Assign checkpoints to a team scenario under **Can I use this Build now?** to check current stock, character learning and unlocks, simultaneous party conflicts, and source applicability. Passive PP legality uses the scenario's pinned Game Setup rather than a character observation. Alternative library Builds do not reserve stock. Each dimension reports proved issues separately from facts that still need confirmation.
+Open **Teams > New Team**, name the Team, and choose a saved checkpoint for each of its four slots. The same build can appear in several slots. Empty slots can be saved while planning. Saving another build checkpoint does not change a Team's existing pins. Teams can be shared and copied independently of tracking.
 
-Open **Can I use this Build now? > Record as current** to record a Build as applied in game. This requires an explicit in-game confirmation and preserves the previous character snapshots.
+To use a Team in a tracked game, open its **Use with Tracking > Adopt Team** action. Match the slots to four distinct characters in the selected Playthrough. Each slot offers a comparison of recorded equipment, classes, and passives with the proposed build. **Check party readiness and shared equipment** checks learning and simultaneous stock use. All checkpoints must use compatible Game Setups to record one party. Confirm **I applied these builds in game** before recording.
+
+For one character, open a saved Build's **Use with Tracking > Compare / record on a character**, or choose **Compare or apply a Build** on the character page. Comparing saves nothing. Recording creates a new current snapshot and preserves history, learning, levels, and inventory. Displayed stats require recapture. No four-character party is required for a single build.
+
+Tracking also provides **Characters > Party plans & readiness** for draft and hypothetical assignments. Alternative plans do not reserve stock. Validation distinguishes known conflicts from facts that still need confirmation. Recording a whole Team uses one transaction, so a failed save leaves every character unchanged.
 
 ## Record characters
 
@@ -74,7 +86,7 @@ Characters opens a roster overview with stacked game-menu cards for every charac
 
 Stat names and units stay as recorded; missing HP or MP stays unknown, and current and maximum values are never assumed to be interchangeable. A known empty passive list means none are equipped, while an unknown list means the equipped passives were not recorded.
 
-The overview follows each snapshot's pinned Game Setup revision, even when the Playthrough now uses another revision, and includes characters outside the selected team scenario. **Member**, **Learn**, and **History** open the selected character directly; **Overview** returns to the roster. New characters remain blank until observations are added.
+The overview follows each snapshot's pinned Game Setup revision, even when the Playthrough now uses another revision, and includes characters outside the selected party plan. **Member**, **Learn**, and **History** open the selected character directly; **Overview** returns to the roster. New characters remain blank until observations are added.
 
 ### Update a character and review history
 
@@ -86,7 +98,7 @@ Unsaved changes block navigation, and failed saves retain the draft with a retry
 
 History can inspect a saved snapshot or compare two exact snapshots, showing changed fields first. Numeric differences require two known values with matching stat names and units and do not imply a cause.
 
-**Build assignments** lists the shared Builds assigned to this character in the current Playthrough's team scenarios and links back to Builds.
+**Compare or apply a Build** opens a saved checkpoint for comparison with this character and lists its assignments in tracked party plans.
 
 **Learn** combines class progress and learned-node observations, with a type filter for abilities, passives, innates, and Monster Magic. Earlier character-section links remain supported.
 
@@ -136,7 +148,7 @@ To browse weapon skills, choose **Reference > Weapon skills > Weapon skills usab
 
 ### Configure mods and import custom classes
 
-Choose **Enabled**, **Disabled**, or **Unknown** for each mod in **Data & settings > Game Setup**. The fixed Switch list is grouped by the two official packs. Known mod associations control definition searches and choices; unclassified entries stay visible. Character sheets retain their pinned Game Setup revision, including mod settings. See [playthrough mods](mods.md) for supported filtering and catalog gaps.
+Choose **Enabled**, **Disabled**, or **Unknown** for each named mod in the Game Setup editor. Open **Data & settings > Saved setups > Edit setup** for reusable planning rules, then **Playthrough > Game Setup to apply** to use the saved revision for a tracked game. The fixed Switch list is grouped by the two official packs. Known mod associations control definition searches and choices; unclassified entries stay visible. Character sheets retain their pinned Game Setup revision, including mod settings. See [playthrough mods](mods.md) for supported filtering and catalog gaps.
 
 Brawler and its class skills are associated with **Moonlight Project**. Their mod badges and availability follow that entry's recorded setting. The Monk's base-game Brawler passive is a separate definition.
 

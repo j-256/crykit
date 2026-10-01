@@ -1,4 +1,4 @@
-import { selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -32,16 +32,12 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   return payload.localData
 }
 
-async function configureGameSetup(page: Page, slotLabels = ['Main hand']) {
+async function configureGameSetup(page: Page, _slotLabels = ['Main hand']) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
   await panel.getByLabel('Game Setup label').fill('Synthetic configuration')
-  await openGameSetupSection(panel, 'Equipment slot rules')
-  for (const [index, label] of slotLabels.entries()) {
-    await panel.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
-    await panel.getByLabel(`Equipment slot ${index + 1}`, { exact: true }).fill(label)
-  }
-  await panel.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
+  await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog' }).click()
 }
@@ -164,6 +160,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
   await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await build.getByText('Build details & notes', { exact: true }).click()
@@ -186,12 +183,12 @@ test('immutable alternatives contend only when selected together in a scenario',
   await page.getByRole('listbox', { name: 'Choose Main hand' }).getByRole('option', { name: /Leave empty/ }).click()
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-  const team = page.getByRole('dialog', { name: 'Create team scenario' })
-  await team.getByLabel('Scenario label').fill('Synthetic simultaneous team')
+  await page.goto('/#/builds/teams')
+  await page.getByRole('button', { name: 'New party plan', exact: true }).click()
+  const team = page.getByRole('dialog', { name: 'Create party plan' })
+  await team.getByLabel('Party plan name').fill('Synthetic simultaneous team')
   await chooseFourTeamMembers(team)
-  await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await team.getByRole('button', { name: 'Create party plan', exact: true }).click()
   await expect(team).not.toBeVisible()
   await page.getByRole('combobox', { name: 'Synthetic Rowan', exact: true }).selectOption(firstRevision.id)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
@@ -213,7 +210,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('build drafts resist navigation and recording current preserves known level and party baseline', async ({ page, isMobile }) => {
+test('build drafts resist navigation and recording current preserves level and the existing party plan', async ({ page, isMobile }) => {
   await configureGameSetup(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')
@@ -228,15 +225,16 @@ test('build drafts resist navigation and recording current preserves known level
   await snapshot.getByRole('button', { name: 'Save snapshot', exact: true }).click()
   await expect(snapshot).not.toBeVisible()
   await navigate(page, 'Builds')
-  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-  const currentTeam = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-  await currentTeam.getByLabel('Scenario label').fill('Synthetic current team')
+  await page.goto('/#/builds/teams')
+  await page.getByRole('button', { name: 'New party plan', exact: true }).click()
+  const currentTeam = page.getByRole('dialog', { name: 'Create party plan', exact: true })
+  await currentTeam.getByLabel('Party plan name').fill('Synthetic current team')
   await chooseFourTeamMembers(currentTeam)
-  await currentTeam.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await currentTeam.getByRole('button', { name: 'Create party plan', exact: true }).click()
   await expect(currentTeam).not.toBeVisible()
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 / 10 PP')
   await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
@@ -258,20 +256,13 @@ test('build drafts resist navigation and recording current preserves known level
   await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await page.locator('.build-readiness > summary').click()
-  await page.getByRole('button', { name: 'Record as current', exact: true }).click()
-  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Record Build as current', exact: true }) })
+  await page.getByRole('button', { name: 'Compare / record on a character', exact: true }).click()
+  const recording = page.locator('dialog').filter({ has: page.getByRole('heading', { name: 'Compare and record Build', exact: true }) })
   await recording.getByRole('combobox', { name: /^Character/ }).selectOption({ label: 'Synthetic Rowan' })
   await expect(recording.getByRole('button', { name: 'Record as current', exact: true })).toBeDisabled()
   await recording.getByRole('checkbox', { name: /I made these changes in game/ }).check()
   await recording.getByRole('button', { name: 'Record as current', exact: true }).click()
   await expect(recording).not.toBeVisible()
-  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-  const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-  await team.getByLabel('Scenario label').fill('Copied recorded party')
-  await team.getByLabel('Starting assignments').selectOption('recordedParty')
-  await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
-  await expect(team).not.toBeVisible()
   const localData = await exportLocalData(page)
   const character = Object.values(selectedPlaythrough(localData).characters)[0]!
   const observed = character.snapshots[character.currentSnapshotId!]!
@@ -279,15 +270,11 @@ test('build drafts resist navigation and recording current preserves known level
   expect(observed).not.toHaveProperty('ppCapacity')
   expect(selectedPlaythrough(localData).inventory).toEqual({})
   expect(character.learnedNodes).toEqual({})
-  const scenario = Object.values(selectedPlaythrough(localData).scenarios).find((entry) => entry.label === 'Copied recorded party')!
-  expect(scenario.baseline.kind).toBe('recordedParty')
-  if (scenario.baseline.kind !== 'recordedParty') throw new Error('The recorded baseline was not preserved')
-  const revisionId = scenario.baseline.assignments[character.id]!
-  const card = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Copied recorded party', exact: true }) })
-  await expect(card.getByRole('combobox', { name: 'Synthetic Rowan', exact: true })).toHaveValue(revisionId)
-  await expect(card.getByRole('combobox', { name: 'Synthetic Rowan', exact: true })).toBeEnabled()
-  const recorded = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Recorded current party', exact: true }) })
-  await expect(recorded.getByRole('combobox', { name: /^Synthetic Rowan/ })).toBeDisabled()
+  const partyPlans = Object.values(selectedPlaythrough(localData).scenarios)
+  expect(partyPlans).toHaveLength(1)
+  expect(partyPlans[0]?.label).toBe('Synthetic current team')
+  expect(partyPlans[0]?.kind).toBe('draft')
+  expect(partyPlans[0]?.assignments).toEqual({})
 })
 
 test('named shared-copy checkpoints clone independently and picker history preserves its query', async ({ page }, testInfo) => {
@@ -299,6 +286,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
@@ -353,12 +341,12 @@ test('named shared-copy checkpoints clone independently and picker history prese
   expect(selectedPlaythrough(after).characters).toEqual(selectedPlaythrough(before).characters)
   expect(selectedPlaythrough(after).scenarios).toEqual(selectedPlaythrough(before).scenarios)
 
-  await page.getByRole('button', { name: 'Team scenarios', exact: true }).click()
-  await page.getByRole('button', { name: 'New scenario', exact: true }).click()
-  const team = page.getByRole('dialog', { name: 'Create team scenario', exact: true })
-  await team.getByLabel('Scenario label').fill('Shared physical copy')
+  await page.goto('/#/builds/teams')
+  await page.getByRole('button', { name: 'New party plan', exact: true }).click()
+  const team = page.getByRole('dialog', { name: 'Create party plan', exact: true })
+  await team.getByLabel('Party plan name').fill('Shared physical copy')
   await chooseFourTeamMembers(team)
-  await team.getByRole('button', { name: 'Create scenario', exact: true }).click()
+  await team.getByRole('button', { name: 'Create party plan', exact: true }).click()
   await expect(team).not.toBeVisible()
   const assignment = page.getByRole('combobox', { name: 'Synthetic Rowan', exact: true })
   await expect(assignment.locator(`option[value="${copiedRevision.id}"]`)).toContainText('One physical staff')
@@ -400,16 +388,10 @@ test('named shared-copy checkpoints clone independently and picker history prese
 
 test('snapshot edits reject duplicate stats and distinguish empty from unrecorded slots', async ({ page }) => {
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(settings)
   await settings.getByLabel('Game Setup label').fill('Synthetic validation configuration')
-  await openGameSetupSection(settings, 'Equipment slot rules')
-  await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
-  await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  const acceptedTypes = settings.getByLabel('Accepted types').last()
-  await expect(acceptedTypes).toHaveJSProperty('multiple', true)
-  await expect(acceptedTypes.locator('option')).toHaveText(['Item', 'Class', 'Ability', 'Passive', 'Innate', 'Monster Magic', 'Monster', 'Status', 'Command', 'Recipe', 'Location', 'Other'])
-  await acceptedTypes.selectOption(['item'])
-  await settings.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
+  await settings.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
+  await saveAndApplyGameSetup(settings)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await addCharacter(page, 'Synthetic Ash')

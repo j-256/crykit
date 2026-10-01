@@ -1,3 +1,4 @@
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
@@ -9,7 +10,6 @@ import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { screenshotTestLocalData, CHARACTER } from '../src/domain/skill-trees.test-helpers'
 import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { LocalData } from '../src/domain/types'
-import { selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -104,12 +104,14 @@ async function exportLocalData(page: Page): Promise<LocalData> {
 
 async function useConfirmedSwitchSetup(page: Page) {
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(panel)
+  await panel.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('Nintendo Switch')
   await openSwitchModPacks(panel)
-  await panel.getByRole('button', { name: 'Apply Nintendo eShop defaults', exact: true }).click()
+  await panel.getByText('Nintendo preset', { exact: true }).click()
+  await panel.getByRole('button', { name: 'Apply Nintendo mod preset', exact: true }).click()
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }

@@ -65389,20 +65389,6 @@
         "Windows defense reduction is version-scoped static evidence; the original guide and developer formula disagreement remains recorded and no complete simulator is implemented"
       ]
     },
-    "https://steamcommunity.com/app/1637730/workshop/": {
-      "disposition": "claim-specific",
-      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
-      "files": [
-        "src/ui/DataPanel.tsx"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
     "https://steamcommunity.com/sharedfiles/filedetails/?id=2794448715": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
@@ -65551,8 +65537,7 @@
       "files": [
         "docs/catalog-sources.md",
         "docs/mods.md",
-        "src/catalog/data.ts",
-        "src/ui/DataPanel.tsx"
+        "src/catalog/data.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1"
@@ -65571,8 +65556,7 @@
       "disposition": "retain",
       "reason": "Windows code cannot establish Nintendo packaging, publisher terms, or Switch version parity",
       "files": [
-        "docs/mods.md",
-        "src/ui/DataPanel.tsx"
+        "docs/mods.md"
       ],
       "catalogs": [],
       "outcomes": {

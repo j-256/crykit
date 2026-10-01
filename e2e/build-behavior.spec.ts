@@ -1,3 +1,4 @@
+import { openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 import type { LocalData } from '../src/domain/types'
@@ -24,6 +25,7 @@ async function openBuild(page: Page) {
   const build = Object.values(original.builds)[0]!
   await page.goto(`/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
   return { original, build, before: original.buildRevisions[build.latestRevisionId!]! }
 }
 
@@ -47,8 +49,8 @@ test('owns discrete known and custom mod choices and version while keeping earli
   await expect(custom).toHaveCount(1)
   await custom.selectOption('unknown')
   await page.getByRole('button', { name: 'Enter exact version', exact: true }).click()
-  await page.getByLabel('Exact build game version', { exact: true }).fill('synthetic-1.0')
-  await page.getByLabel('Build passive PP limit', { exact: true }).fill('12')
+  await page.getByLabel('Exact game version', { exact: true }).fill('synthetic-1.0')
+  await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('2')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
@@ -66,8 +68,9 @@ test('owns discrete known and custom mod choices and version while keeping earli
   expect(saved.playthroughs).toEqual(original.playthroughs)
   await page.reload()
   await page.locator('.build-behavior > summary').click()
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
   await expect(custom).toHaveValue('unknown')
-  await expect(page.getByRole('combobox', { name: 'Build game version' })).toHaveValue('synthetic-1.0')
+  await expect(page.getByRole('combobox', { name: 'Game version' })).toHaveValue('synthetic-1.0')
   await context.setOffline(false)
   const url = createShareUrl(createSharePayload(saved, { kind: 'build', revisionId: checkpoint.id }), `${baseURL}/`)
   await page.goto(url)
@@ -75,6 +78,7 @@ test('owns discrete known and custom mod choices and version while keeping earli
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
   await page.locator('.build-behavior > summary').click()
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
   await expect(custom).toHaveValue('unknown')
   expect((await storedData(page)).gameSetups).toEqual(saved.gameSetups)
   expect(errors).toEqual([])
@@ -82,7 +86,7 @@ test('owns discrete known and custom mod choices and version while keeping earli
 
 test('retains behavior and loadout after a failed save, and an older checkpoint restores its own rules', async ({ page, baseURL }) => {
   const { original, build, before } = await openBuild(page)
-  await page.getByLabel('Build passive PP limit', { exact: true }).fill('1')
+  await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('1')
   await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toBeVisible()
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
@@ -95,19 +99,20 @@ test('retains behavior and loadout after a failed save, and an older checkpoint 
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Revision not saved', { exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(original)
-  await expect(page.getByLabel('Build passive PP limit', { exact: true })).toHaveValue('1')
+  await expect(page.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue('1')
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toHaveCount(0)
   const recovered = await storedData(page)
   expect(recovered.buildRevisions[before.id]).toEqual(before)
   const latest = recovered.buildRevisions[recovered.builds[build.id]!.latestRevisionId!]!
-  expect(recovered.gameSetups[latest.gameSetupRevisionId]!.ppLimit).toEqual({ state: 'known', value: 1 })
+  expect(recovered.gameSetups[latest.gameSetupRevisionId]!.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 1 } })
   expect(Object.keys(recovered.gameSetups)).toHaveLength(Object.keys(original.gameSetups).length + 1)
   await page.getByRole('button', { name: 'Discard edits', exact: true }).click()
   await page.goto(`${baseURL}/#/builds/library/${build.id}/revisions/${before.id}/edit`)
   await page.locator('.build-behavior > summary').click()
-  const originalLimit = original.gameSetups[before.gameSetupRevisionId]!.ppLimit
-  await expect(page.getByLabel('Build passive PP limit', { exact: true })).toHaveValue(originalLimit?.state === 'known' ? String(originalLimit.value) : '')
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
+  const originalLimit = original.gameSetups[before.gameSetupRevisionId]!.difficulty?.selection
+  await expect(page.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue(originalLimit?.state === 'known' ? String(originalLimit.value) : '')
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   const restored = await storedData(page)
   expect(restored.buildRevisions[restored.builds[build.id]!.latestRevisionId!]!.gameSetupRevisionId).toBe(before.gameSetupRevisionId)
@@ -133,7 +138,8 @@ test('a preset without a configured layout keeps suggested slots usable and pres
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
   await page.goto(`${baseURL}/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
-  await page.getByRole('combobox', { name: 'Behavior preset', exact: true }).selectOption({ label: 'Synthetic empty-layout preset · r1' })
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Synthetic empty-layout preset · r1' })
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Short Sword')
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()

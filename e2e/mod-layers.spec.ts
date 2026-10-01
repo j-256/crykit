@@ -1,3 +1,4 @@
+import { saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -7,12 +8,13 @@ import { syntheticModLayers } from '../src/domain/mod-layers.test-helpers'
 import { coalesceDefinitionOverrides, createDefinitionOverride, setPlaythroughGameSetup } from '../src/domain/local-data'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { EntityId, LocalData } from '../src/domain/types'
-import { replacePlannerData } from './local-data-helpers'
 
 async function openSettings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await panel.getByRole('button', { name: section, exact: true }).click()
+  if (section === 'Game Setup') await openCurrentGameSetup(panel)
+  else await panel.getByRole('button', { name: section, exact: true }).click()
+  if (section === 'Game Setup') await openGameSetupSection(panel, 'Imported mod files')
   return panel
 }
 
@@ -52,12 +54,13 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await expect(layers.getByRole('button', { name: 'Bundled target for Second Fighter', exact: true })).toHaveText('Replaces Warrior')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
   await page.screenshot({ path: testInfo.outputPath('mod-layer-priority-and-links.png'), fullPage: true })
-  const oldSetupHeading = await panel.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ }).innerText()
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(panel.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ })).not.toHaveText(oldSetupHeading)
+  const oldSetupHeading = await panel.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
+  await saveAndApplyGameSetup(panel)
+  await expect(panel.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(oldSetupHeading)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(panel).not.toBeVisible()
   await page.goto('/#/builds/library/new')
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await page.getByText('Build details & notes', { exact: true }).click()
   await page.getByLabel('Build title').fill('Pinned mod build')
@@ -73,15 +76,16 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   expect(oldRevision.content.primaryClass).toMatchObject({ catalogId: DEFAULT_CATALOG.id, entityId: 'base:class:warrior' })
   const changed = await openSettings(page, 'Game Setup')
   await changed.getByRole('button', { name: 'Move Layer B earlier', exact: true }).click()
-  const priorHeading = await changed.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ }).innerText()
-  await changed.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(changed.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ })).not.toHaveText(priorHeading)
+  const priorHeading = await changed.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
+  await saveAndApplyGameSetup(changed)
+  await expect(changed.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(priorHeading)
   await changed.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(changed).not.toBeVisible()
   const newer = await exportData(page)
   expect(newer.localData.buildRevisions[oldRevision.id]).toEqual(oldRevision)
   expect(newer.localData.gameSetups[newer.localData.planningGameSetupRevisionId!]!.modComposition?.layers.map(layer => layer.catalogId)).toEqual(['crystal-edit:layer-b', 'crystal-edit:layer-a'])
   await page.goto('/#/builds/library/new')
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await primary.fill('Fighter')
   const options = page.getByRole('listbox', { name: 'Choose Class', exact: true })
   await expect(options.getByRole('option').filter({ has: page.locator('strong', { hasText: /^First Fighter$/ }) })).toBeVisible()
@@ -124,12 +128,12 @@ test('changing layers requires an explicit personal override decision and label 
   const panel = await openSettings(page, 'Game Setup')
   await panel.getByRole('button', { name: 'Add mod layer', exact: true }).click()
   await expect(panel.getByText('Review personal override pins', { exact: true })).toBeVisible()
-  await expect(panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true })).toBeDisabled()
+  await expect(panel.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeDisabled()
   await panel.getByRole('button', { name: 'Use layer definitions for these records', exact: true }).click()
-  await expect(panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true })).toBeEnabled()
-  const initialHeading = await panel.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ }).innerText()
-  await panel.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(panel.getByRole('heading', { level: 2 }).filter({ hasText: /revision/ })).not.toHaveText(initialHeading)
+  await expect(panel.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeEnabled()
+  const initialHeading = await panel.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
+  await saveAndApplyGameSetup(panel)
+  await expect(panel.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(initialHeading)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   const saved = await exportData(page)
   const layered = saved.localData.gameSetups[saved.localData.planningGameSetupRevisionId!]!
@@ -138,8 +142,9 @@ test('changing layers requires an explicit personal override decision and label 
   expect(saved.localData.personalDefinitions[override.ref.definitionId]).toEqual(override.definition)
   const editing = await openSettings(page, 'Game Setup')
   await editing.getByLabel('Game Setup label').fill('Renamed mod setup')
-  await editing.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(editing.getByRole('heading', { name: /^Renamed mod setup/ })).toBeVisible()
+  await saveAndApplyGameSetup(editing)
+  await expect(editing.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeDisabled()
+  await expect(editing.getByLabel('Game Setup label')).toHaveValue('Renamed mod setup')
   await editing.getByRole('button', { name: 'Close dialog', exact: true }).click()
   const renamed = await exportData(page)
   expect(renamed.localData.gameSetups[renamed.localData.planningGameSetupRevisionId!]!.catalogLock).toEqual(layered.catalogLock)

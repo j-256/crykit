@@ -11,7 +11,7 @@ import { exportBackup, loadLocalData, prepareModCatalogs, previewImport, undoLoc
 
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
 const names: string[] = []
-const legacy = (data: LocalData) => ({ ...data, schemaVersion: '2.0.0' })
+const legacy = (data: LocalData) => { const { teams, ...rest } = data; return { ...rest, schemaVersion: '2.0.0' } }
 
 async function oldDatabase(badHistory = false) {
   const name = `migration-${crypto.randomUUID()}`
@@ -37,7 +37,7 @@ describe('persisted behavior format migration', () => {
     const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
-    expect(database.verno).toBe(2)
+    expect(database.verno).toBe(3)
     expect(loaded.localData).toEqual(fixture.after)
     expect(loaded.canUndo).toBe(true)
     const history = await database.history.get('history')

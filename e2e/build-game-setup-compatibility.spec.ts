@@ -1,10 +1,10 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { createGameSetupRevision, setPlaythroughGameSetup } from '../src/domain'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { LocalData } from '../src/domain/types'
-import { replacePlannerData } from './local-data-helpers'
+import { openGameSetupSection, replacePlannerData } from './local-data-helpers'
 
 const TEST_NOW = '2026-01-01T00:00:00.000Z'
 const ALTERNATE_GAME_SETUP = 'Synthetic alternate Game Setup'
@@ -47,36 +47,31 @@ async function loadFixture(page: Page): Promise<void> {
   await page.goto('/#/builds/library')
 }
 
-function cards(section: Locator): Locator {
-  return section.locator('.build-card')
-}
-
-test('inapplicable Builds remain visible below current Builds with an explanation and direct editing', async ({ page, isMobile }) => {
+test('the build library is independent of the playthrough and copies rules explicitly', async ({ page }) => {
   await loadFixture(page)
-  const groups = page.locator('.build-library-group')
-  await expect(groups.locator('.build-library-group__header h2')).toHaveText(['Current Game Setup', 'Other Game Setups'])
-
-  const current = page.getByRole('region', { name: 'Builds for current Game Setup', exact: true })
-  const other = page.getByRole('region', { name: 'Builds for other Game Setups', exact: true })
-  await expect(current.getByText('No matching Builds for this Game Setup', { exact: true })).toBeVisible()
-  await expect(cards(other)).toHaveCount(4)
-
-  const original = cards(other).first()
-  const originalTitle = await original.locator('.build-card__open').innerText()
-  await expect(original).toHaveClass(/build-card--inapplicable/)
-  await expect(original).toHaveCSS('filter', 'grayscale(0.72)')
-  await expect(original).toContainText(`Uses Sample starter Game Setup. Current Playthrough uses ${ALTERNATE_GAME_SETUP}.`)
-
-  await original.locator('.build-card__open').click()
+  const library = page.getByRole('region', { name: 'Build library', exact: true })
+  await expect(library.locator('.build-card')).toHaveCount(4)
+  await expect(page.locator('.build-card--inapplicable')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Game Setup:/ })).toHaveCount(0)
+  await library.locator('.build-card__open').first().click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
-  await expect(page.getByRole('button', { name: 'Fork to current Game Setup', exact: true })).toHaveCount(0)
   await page.locator('.build-behavior > summary').click()
-  const preset = page.getByRole('combobox', { name: 'Behavior preset', exact: true })
+  const preset = page.getByRole('combobox', { name: 'Copy Game Setup', exact: true })
+  await expect(preset.locator('option:checked')).toContainText('Sample starter Game Setup')
   await preset.selectOption({ label: `${ALTERNATE_GAME_SETUP} · r1` })
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  if (isMobile) await page.locator('.build-library > summary').click()
-  await expect(cards(current)).toHaveCount(1)
-  await expect(cards(current).first()).toContainText(originalTitle)
-  await expect(cards(other)).toHaveCount(3)
+  await page.goto('/#/builds/library')
+  await expect(library.locator('.build-card')).toHaveCount(4)
+  await expect(library.locator('.build-card').filter({ hasText: ALTERNATE_GAME_SETUP })).toHaveCount(1)
+})
+
+test('new builds start independently and can copy the selected playthrough on request', async ({ page }) => {
+  await loadFixture(page)
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await openGameSetupSection(page.locator('.build-behavior'), 'Game context')
+  await expect(page.getByRole('combobox', { name: 'Platform', exact: true })).toHaveValue('')
+  await expect(page.getByRole('combobox', { name: 'Game version', exact: true })).toHaveValue('')
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
+  await expect(page.locator('.build-behavior > summary')).toContainText(ALTERNATE_GAME_SETUP)
 })

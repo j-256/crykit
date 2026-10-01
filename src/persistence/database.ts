@@ -58,7 +58,7 @@ export class CryKitDatabase extends Dexie {
       imports: 'id, sourceDigest, localDataId',
       meta: 'key',
     })
-    this.version(2).stores({}).upgrade(async transaction => {
+    const migrate = async (transaction: import('dexie').Transaction) => {
       const storedCatalogs = (await transaction.table<CatalogRecord>('catalogs').toArray()).map(record => record.snapshot)
       const catalogs = [...new Map([...BUNDLED_CATALOGS, ...storedCatalogs].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
       const localDatas = transaction.table<LocalDataRecord>('localDatas')
@@ -74,7 +74,9 @@ export class CryKitDatabase extends Dexie {
         validateNativeLocalDataGraph(migrated.after, catalogs)
         await history.put(migrated)
       }
-    })
+    }
+    this.version(2).stores({}).upgrade(migrate)
+    this.version(3).stores({}).upgrade(migrate)
   }
 }
 

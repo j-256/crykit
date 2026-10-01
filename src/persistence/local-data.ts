@@ -479,7 +479,8 @@ export async function commitImport(
           if (preview.detectedFormat !== 'crystal-edit-json-1' || preview.counts.personal || preview.counts.mixed) {
             throw new AppDataError('import-conflict', 'Only a reference-only Crystal Edit preview can be added to existing planner data', { recoverable: true })
           }
-          if (Object.values(target.localData.importReceipts).some(receipt => receipt.sourceIdentity === `sha256:${preview.sourceDigest}`)) {
+          const receiptsAlreadyImported = Object.values(preview.proposed.localData.importReceipts)
+          if (receiptsAlreadyImported.length > 0 && receiptsAlreadyImported.every(candidate => target.localData.importReceipts[candidate.id]?.sourceIdentity === candidate.sourceIdentity)) {
             committed = true
             return
           }

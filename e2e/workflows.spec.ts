@@ -1,5 +1,5 @@
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
-import { selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -169,7 +169,7 @@ test('import previews before writing and native restore keeps original source by
   expect(selectedPlaythrough(restored.payload.localData).inventory).toEqual({})
 })
 
-test('an imported Game Setup requires a numeric PP budget before saving a revision', async ({ page }) => {
+test('an imported Game Setup preserves unknown rules while difficulty remains editable', async ({ page }) => {
   const panel = await openData(page)
   const research = { ...SYNTHETIC_RESEARCH, player_context: { platform: 'Nintendo Switch' } }
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-game-setup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
@@ -178,22 +178,18 @@ test('an imported Game Setup requires a numeric PP budget before saving a revisi
   await expect(panel).not.toBeVisible()
 
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
-  await openGameSetupSection(settings, 'Passive validation rules')
-  await expect(settings.getByLabel('Build PP limit certainty', { exact: true })).toHaveCount(0)
-  const ppLimit = settings.getByLabel('Build PP limit', { exact: true })
-  await expect(ppLimit).toHaveValue('')
-  await expect(ppLimit).toHaveAttribute('required', '')
-  expect(await ppLimit.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true)
-  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
-  await expect(ppLimit).toBeFocused()
-
-  await ppLimit.fill('10')
-  await settings.getByRole('button', { name: 'Save new Game Setup revision', exact: true }).click()
+  await openCurrentGameSetup(settings)
+  await openGameSetupSection(settings, 'Rules from game data')
+  await expect(settings.getByLabel('Build PP limit', { exact: true })).toHaveCount(0)
+  await settings.getByLabel('Game Setup label').fill('Synthetic unknown PP setup')
+  await settings.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('2')
+  await saveAndApplyGameSetup(settings)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await closeData(page)
   const { payload } = await exportPayload(page)
-  expect(payload.localData.gameSetups[payload.localData.planningGameSetupRevisionId].ppLimit).toEqual({ state: 'known', value: 10 })
+  const setup = payload.localData.gameSetups[payload.localData.planningGameSetupRevisionId]
+  expect(setup.ppLimit).toMatchObject({ state: 'unknown' })
+  expect(setup.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 2 } })
 })
 
 test('large previews bound warning and facet elements while keeping every facet reachable', async ({ page, isMobile }) => {
@@ -244,8 +240,10 @@ test('replacement confirmation belongs to one import preview', async ({ page }) 
 test('Playthrough switching isolates records and undo restores the previous observation', async ({ page }) => {
   await addItem(page, 'First Playthrough keepsake', 1)
   const panel = await openData(page)
+  await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   const playthroughs = panel.getByRole('combobox', { name: 'Active Playthrough', exact: true })
   const original = await playthroughs.inputValue()
+  await panel.locator('.playthrough-create > summary').click()
   await panel.getByLabel('New blank Playthrough').fill('Synthetic second Playthrough')
   await panel.getByRole('button', { name: 'Create', exact: true }).click()
   await expect(playthroughs).not.toHaveValue(original)
@@ -260,8 +258,10 @@ test('Playthrough switching isolates records and undo restores the previous obse
   await closeData(page)
   await expect(page.getByText('Second Playthrough keepsake', { exact: true })).not.toBeVisible()
   const switcher = await openData(page)
+  await switcher.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await switcher.getByRole('combobox', { name: 'Active Playthrough', exact: true }).selectOption(original)
-  await expect(switcher).not.toBeVisible()
+  await expect(switcher).toBeVisible()
+  await closeData(page)
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
   await expect(page.getByText('First Playthrough keepsake', { exact: true })).toBeVisible()
   await expect(page.getByText('Second Playthrough keepsake', { exact: true })).not.toBeVisible()

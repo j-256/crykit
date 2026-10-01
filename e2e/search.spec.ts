@@ -1,6 +1,6 @@
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
-import { selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -229,12 +229,10 @@ test('nested definition creation preserves the observation and universal search 
 
 test('item overrides preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Game Setup', exact: true }).click()
+  await openCurrentGameSetup(settings)
   await settings.getByLabel('Game Setup label').fill('Synthetic base rules')
-  await openGameSetupSection(settings, 'Equipment slot rules')
-  await settings.getByRole('button', { name: 'Add equipment slot', exact: true }).click()
-  await settings.getByLabel('Equipment slot 1', { exact: true }).fill('Main hand')
-  await settings.getByRole('button', { name: /^(Create Game Setup|Save new Game Setup revision)$/ }).click()
+  await settings.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
+  await saveAndApplyGameSetup(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await page.getByRole('button', { name: 'Add item', exact: true }).click()

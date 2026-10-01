@@ -142,19 +142,19 @@ export function definitionOptionsForRevisions(options: readonly DefinitionOption
   })
 }
 
-function optionsForModSetup(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], gameSetup?: GameSetupRevision): readonly DefinitionOption[] {
+function optionsForModSetup(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], gameSetup?: GameSetupRevision, planning = false): readonly DefinitionOption[] {
   const schemas = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog.schemaVersion]))
   return options.filter(option => {
     if (option.ref.kind !== 'catalog') return true
     const schema = schemas.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId]))
     if (schema === MOD_CATALOG_SCHEMA) return gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
-    if (!gameSetup?.modComposition) return true
-    if (option.ref.catalogId === gameSetup.modComposition.baseline.catalogId) return gameSetup.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
+    if (!gameSetup?.modComposition) return !planning || schema !== CRYSTAL_EDIT_CATALOG_SCHEMA || gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
+    if (option.ref.catalogId === gameSetup.modComposition.baseline.catalogId) return gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
     return schema !== CRYSTAL_EDIT_CATALOG_SCHEMA
   })
 }
 
-export function DefinitionProvider({ localData, catalogs, onSaveDefinition, children }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
+export function DefinitionProvider({ localData, catalogs, onSaveDefinition, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
   const corrections = useOptionalCorrections()
   const options = useMemo(() => {
     const local = new Map(activeCorrections(corrections?.collection.entries ?? []).filter(entry => correctionStatus(entry, corrections?.baseline ?? [], corrections?.collection.entries) === 'applied').map(entry => [correctionKey(entry), entry]))
@@ -168,12 +168,12 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, chil
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return optionsForModSetup(definitionOptionsForRevisions(options, catalogs, gameSetup?.modComposition ? gameSetup.catalogLock : undefined), catalogs, gameSetup).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
   }, [catalogs, options, corrections?.hiddenKeys, localData])
-  const baseline = corrections?.baseline ?? catalogs
+  const baseline = planningCatalogs ?? corrections?.baseline ?? catalogs
   const planningOptions = useMemo(() => buildDefinitionOptions(localData, baseline), [baseline, localData])
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
-    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup).filter(option => !hidden.has(option.key))
+    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup, true).filter(option => !hidden.has(option.key))
   }, [baseline, corrections?.hiddenKeys, planningOptions, localData])
   const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
