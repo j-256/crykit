@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
-import { formatAppRoute, parentRoute, parseAppRoute } from './navigation'
+import { formatAppRoute, parentRoute, parseAppRoute, routeForDestination } from './navigation'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 
 const catalogRef = { kind: 'catalog' as const, catalogId: 'pack / alpha', catalogRevisionId: 'revision:1', entityId: 'item ? one' } as EntityRef
@@ -16,6 +16,22 @@ function expectRoundTrip(value: AppRoute) {
 }
 
 describe('semantic navigation routes', () => {
+  it('gives Progress pages explicit paths and canonicalizes the root to the first page', () => {
+    const root = parseAppRoute('#/progress')
+    expect(root).toMatchObject({ page: { page: 'progress', view: 'list' }, legacy: true })
+    expect(formatAppRoute(root)).toBe('#/progress/seals')
+    expect(formatAppRoute(routeForDestination('progress'))).toBe('#/progress/seals')
+    for (const [segment, view] of [['seals', 'list'], ['unlocks', 'unlocks'], ['quintar', 'quintar']]) {
+      const hash = `#/progress/${segment}`
+      expect(parseAppRoute(hash)).toEqual(route({ page: 'progress', view } as PageRoute))
+      expect(formatAppRoute(parseAppRoute(hash))).toBe(hash)
+    }
+    expect(formatAppRoute(parseAppRoute('#/progress/search?q=crystal'))).toBe('#/progress/seals/search?q=crystal')
+    expect(parseAppRoute('#/progress/seals/extra').page.page).toBe('unresolved')
+    expectRoundTrip(route({ page: 'progress', view: 'edit', recordId: 'seals' as never }))
+    expect(parentRoute(parseAppRoute('#/progress/record/edit'))?.page).toEqual({ page: 'progress', view: 'list' })
+  })
+
   it('allows long shared snapshots and their search overlay while retaining ordinary route bounds', () => {
     const shared = route({ page: 'share', encoded: 'a'.repeat(40_000) })
     expectRoundTrip(shared)
