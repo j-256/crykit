@@ -103,6 +103,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
         <p><strong>Release advice follows this route:</strong> hatch the child first, keep every parent needed by a later pairing, and keep any quintar you want for another purpose. Marks record completed actions, not your current nursery roster or inventory.</p>
         <p><strong>Reference links:</strong> The tiles link to exact bundled entries for items, wild quintars, eggs, and documented places. Individual bred variants have no separate entries in the bundled Reference, so their tiles link to the breeding method and egg instead.</p>
         <p>The pairings follow <a href={QUINTAR_GUIDE_SOURCE} rel="noreferrer" target="_blank">the wiki's Method 2</a>. Capture directions also use the bundled monster entries. Race totals follow <a href={QUINTAR_RACING_SOURCE} rel="noreferrer" target="_blank">Respwner's breeding guide</a>, which notes Black's reduction to three partner wins. <a href="https://crystal-project.fandom.com/wiki/Quintar_Shop?oldid=13165" rel="noreferrer" target="_blank">Shop prices</a> are community documentation. Switch and mod applicability remain unverified.</p>
+        <p>Windows 1.6.9 requires one partner win for Desert and Highland; this community route recommends two. River, Black, and Aqua thresholds agree with the inspected code. Switch and mod thresholds remain unverified.</p>
       </div>
     </details>
     <div className="quintar-guide">{QUINTAR_PHASES.map(phase => {

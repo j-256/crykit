@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from '../src/interchange/crystal-edit.test-helpers'
 import type { LocalData } from '../src/domain/types'
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { nativeSourceRecord } from '../src/domain/native-game'
 
 const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/bundled-v2/entities/base%3Aclass%3Awarrior'
 
@@ -21,6 +23,22 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const entries = unzipSync(await readFile((await (await download).path())!))
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }).localData
+}
+
+async function expectClassProvenance(page: Page) {
+  await expect(page.getByRole('region', { name: 'Game details', exact: true })).toHaveCount(0)
+  const sources = page.getByRole('region', { name: 'Source trail', exact: true })
+  expect(await sources.evaluate(element => Boolean(document.querySelector('[aria-label="Planning fields"]')!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+  const raw = sources.locator('pre.native-source-record')
+  await expect(raw).not.toBeVisible()
+  await sources.getByText('Source and version details', { exact: true }).click()
+  await expect(sources).toContainText('Native job #0')
+  await sources.getByText('Complete native source record', { exact: true }).click()
+  await expect(raw).toBeVisible()
+  expect(JSON.parse((await raw.textContent())!)).toEqual(nativeSourceRecord(DEFAULT_CATALOG.entities['base:class:warrior']!))
+  await expect(raw.locator('..').locator('table, ol, ul')).toHaveCount(0)
+  await expect(page.locator('.class-learn-tree')).toHaveCount(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
 test('bundled class calculations respond to explicit mixed growth and work offline', async ({ page, context, baseURL }, testInfo) => {
@@ -129,6 +147,7 @@ test('Scholar tree names monster learning and keeps its Adrenaline reference sep
 
 test('native class trees retain named skills and exact links in the native catalog revision', async ({ page }) => {
   await page.goto(WARRIOR_PATH.replace('bundled-v2', 'native-v1'))
+  await expectClassProvenance(page)
   const research = page.getByRole('region', { name: 'Class growth and learning' })
   await research.getByText('Learn tree', { exact: true }).click()
   const tree = research.getByRole('list', { name: 'Learn tree skills' })
@@ -203,4 +222,16 @@ test('native learn trees resolve game names and draw simultaneous incoming arrow
   await expect(destination).toContainText('Requires all:')
   await expect(destination.locator('strong')).not.toContainText(/Ability #|Passive #/)
   await expect(research.locator('.learn-tree__connectors > path[data-to="2:1"]')).toHaveCount(2)
+})
+
+test('native personal class versions retain raw provenance below their gameplay sections', async ({ page }) => {
+  await page.goto(WARRIOR_PATH.replace('bundled-v2', 'native-v1'))
+  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: 'Create personal version: Warrior', exact: true })
+  await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
+  await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
+  await expectClassProvenance(page)
+  await page.getByRole('region', { name: 'Class growth and learning' }).getByText('Learn tree', { exact: true }).click()
+  await expect(page.getByRole('list', { name: 'Learn tree skills' })).toBeVisible()
 })

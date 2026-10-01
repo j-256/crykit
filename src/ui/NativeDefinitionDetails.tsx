@@ -18,14 +18,30 @@ function describeCodes(value: JsonValue, enums: Readonly<Record<string, JsonValu
   }))
 }
 
+function NativeRelatedDefinitions({ catalog, relationships, onOpenDefinition }: { catalog: CatalogSnapshot; relationships: ReturnType<typeof nativeRelationships>; onOpenDefinition: (ref: EntityRef) => void }) {
+  return relationships.length > 0 && <details><summary>Related definitions</summary><ul>{relationships.map(link => <li key={link.label}><small>{link.label.slice(1)}: </small>{link.targetId ? <DefinitionLink definitionRef={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: link.targetId as CatalogEntity['id'] }} onOpenDefinition={onOpenDefinition}>{link.name} ({link.database} #{link.databaseId})</DefinitionLink> : <span>{link.database} #{link.databaseId}: definition unresolved</span>}</li>)}</ul></details>
+}
+
+export function NativeClassSourceDetails({ catalog, entity, onOpenDefinition }: { catalog: CatalogSnapshot; entity: CatalogEntity; onOpenDefinition: (ref: EntityRef) => void }) {
+  const identity = nativeIdentity(entity)
+  const record = nativeSourceRecord(entity)
+  if (identity?.database !== 'job' || !record) return null
+  return <div className="stack">
+    <small>Native {identity.database} #{identity.databaseId}</small>
+    {identity.mode !== 'base' && <p>This record is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
+    <NativeRelatedDefinitions catalog={catalog} relationships={nativeRelationships(catalog, entity)} onOpenDefinition={onOpenDefinition}/>
+    <details><summary>Complete native source record</summary><pre className="native-source-record">{JSON.stringify(record, null, 2)}</pre></details>
+  </div>
+}
+
 export function NativeDefinitionDetails({ catalog, entity, onOpenDefinition, technicalDetails }: { catalog: CatalogSnapshot; entity: CatalogEntity; onOpenDefinition: (ref: EntityRef) => void; technicalDetails?: ReactNode }) {
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
-  if (!identity || !record) return null
+  if (!identity || !record || identity.database === 'job') return null
   const relationships = nativeRelationships(catalog, entity)
   const legacy = nativeRecord(catalog.legacy) ? catalog.legacy : {}
   const enums = nativeRecord(legacy.nativeEnums) ? legacy.nativeEnums : {}
-  const related = relationships.length > 0 && <details><summary>Related definitions</summary><ul>{relationships.map(link => <li key={link.label}><small>{link.label.slice(1)}: </small>{link.targetId ? <DefinitionLink definitionRef={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: link.targetId as CatalogEntity['id'] }} onOpenDefinition={onOpenDefinition}>{link.name} ({link.database} #{link.databaseId})</DefinitionLink> : <span>{link.database} #{link.databaseId}: definition unresolved</span>}</li>)}</ul></details>
+  const related = <NativeRelatedDefinitions catalog={catalog} relationships={relationships} onOpenDefinition={onOpenDefinition}/>
   if (identity.database === 'monster') return <section aria-label="Game details" className="enemy-details">
     {identity.mode !== 'base' && <p className="enemy-scope-note">This is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
     <NativeEnemyBehavior catalog={catalog} entity={entity} onOpenDefinition={onOpenDefinition} describeConditions={value => describeCodes(value, enums)}/>

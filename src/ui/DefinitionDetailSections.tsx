@@ -6,13 +6,14 @@ import { knowledgeTone } from './model'
 import { definitionFactIsWide, definitionFactLabel, visibleSources } from './source-display'
 import { StatLabel } from './StatRatings'
 import { Icon } from './icons'
+import { corroboratedFact, type CorroborationTarget } from '../catalog/source-corroboration'
 
-export function DefinitionFactsPanel({ facts, primarySourceId, renderValue, children }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; primarySourceId?: string; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode }) {
+export function DefinitionFactsPanel({ facts, primarySourceId, corroboration, renderValue, children }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; primarySourceId?: string; corroboration?: CorroborationTarget; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode }) {
   const fields = facts.map(([field]) => field)
   const orderedFacts = [...facts].sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right)))
   return <section className="panel" aria-label="Definition facts"><div className="panel__header"><h3 className="icon-label"><Icon name="book"/>Definition facts</h3></div><div className="panel__body">{facts.length ? <dl className="definition-list definition-facts">{orderedFacts.map(([field, value]) => {
-    const sources = value.state === 'known' ? visibleSources(value.sources?.filter(source => source.sourceId !== primarySourceId) ?? []) : []
-    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences sources={sources}/></details>}</>
+    const sources = value.state === 'known' && !corroboratedFact(corroboration, field, value) ? corroboration ? value.sources ?? [] : visibleSources(value.sources?.filter(source => source.sourceId !== primarySourceId) ?? []) : []
+    const content = <><KnowledgeValue field={field} value={value}/>{value.state !== 'known' && <Badge tone={knowledgeTone(value)}>{value.state === 'conflicting' ? 'Sources differ' : value.state}</Badge>}{sources.length > 0 && <details className="definition-fact-sources"><summary>Sources</summary><SourceReferences includeGameExports={Boolean(corroboration)} sources={sources}/></details>}</>
     return <div className={`definition-row${definitionFactIsWide(field, value) ? ' definition-row--wide' : ''}${value.state === 'conflicting' ? ' definition-row--conflicting' : ''}`} key={field}><dt><StatLabel label={definitionFactLabel(field, value, fields)}/></dt><dd>{renderValue ? renderValue(field, value, content) : content}</dd></div>
   })}</dl> : <InlineNotice title="No definition facts">Unrecorded facts remain unknown. Add a fact in the definition editor.</InlineNotice>}{children}</div></section>
 }
