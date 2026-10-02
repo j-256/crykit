@@ -38,7 +38,7 @@ function syntheticLocalData(changedContext = false, nativeCalculations = false):
   }
   if (nativeCalculations) {
     const setupId = asId<GameSetupRevisionId>('synthetic-native-stats-setup')
-    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
+    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
     localData = captureCharacter(localData, { characterId: CHARACTER_ID, gameSetupRevisionId: setupId, primaryClass: known(personalRef('Synthetic warrior')), secondaryClass: { state: 'notApplicable' }, level: known(24), displayedStats: { 'Max HP': { value: known(777), unit: 'points' } }, equipment: Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null])), passives: known([]), now: TEST_NOW })
   }
   return { ...localData, changes: [] }
@@ -79,8 +79,11 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   return payload.localData
 }
 
-test('character growth calculations save separately from observed level and displayed totals', async ({ page }, testInfo) => {
+test('character growth calculations save separately from observed level and displayed totals', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   const original = await loadFixture(page, false, true)
+  await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('No calculation inputs saved.')
+  await page.getByRole('button', { name: 'Plan level-60 native calculations', exact: true }).click()
+  await page.getByLabel('Calculation level', { exact: true }).fill('24')
   const table = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
   await expect(hp).not.toContainText('Unknown')
@@ -233,6 +236,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   expect(character.snapshots[BEFORE_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[BEFORE_ID])
   expect(character.snapshots[AFTER_ID]).toEqual(selectedPlaythrough(original).characters[CHARACTER_ID]!.snapshots[AFTER_ID])
   expect(character.snapshots[character.currentSnapshotId!]!.equipment[HAND_SLOT]).toBeNull()
+  expect(character.snapshots[character.currentSnapshotId!]!.calculation).toBeUndefined()
   expect(character.snapshots[character.currentSnapshotId!]!.gameSetupRevisionId).toBe(TEST_GAME_SETUP_REVISION_ID)
   expect(character.learnedNodes).toEqual({})
   expect(selectedPlaythrough(saved).inventory).toEqual({})

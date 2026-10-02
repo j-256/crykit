@@ -2,6 +2,7 @@ import rulesData from '../calculations/pc-1.6.9-v1.json' with { type: 'json' }
 import nativeData from '../catalog/native-stats-v1.json' with { type: 'json' }
 import guideData from '../calculations/guide-v1.json' with { type: 'json' }
 import parityData from '../calculations/pc-parity-v1.json' with { type: 'json' }
+import { MIN_NATIVE_INTEGER, MAX_NATIVE_INTEGER } from './native-number.ts'
 
 export type Expression = number | string | readonly Expression[]
 export interface Formula {
@@ -63,7 +64,7 @@ export function evaluateExpression(expression: Expression, variables: Readonly<R
     if (['trunc', 'roundEven', 'floor', 'ceil'].includes(operator)) {
       arity(1)
       const value = at(0)
-      return operator === 'trunc' ? Math.trunc(value) : operator === 'floor' ? Math.floor(value) : operator === 'ceil' ? Math.ceil(value) : roundEven(value)
+      return checked(operator === 'trunc' ? Math.trunc(value) : operator === 'floor' ? Math.floor(value) : operator === 'ceil' ? Math.ceil(value) : roundEven(value))
     }
     if (['sub', 'div', 'pow', 'lte', 'eq'].includes(operator)) {
       arity(2)
@@ -76,8 +77,8 @@ export function evaluateExpression(expression: Expression, variables: Readonly<R
     }
     if (args.length < 2) throw new Error(`Invalid arity for ${operator}`)
     const values = args.map((_, index) => at(index))
-    if (operator === 'add') return checked(values.reduce((a, b) => a + b, 0))
-    if (operator === 'mul') return checked(values.reduce((a, b) => a * b, 1))
+    if (operator === 'add') return values.reduce((a, b) => checked(a + b), 0)
+    if (operator === 'mul') return values.reduce((a, b) => checked(a * b), 1)
     if (operator === 'min') return Math.min(...values)
     if (operator === 'max') return Math.max(...values)
     throw new Error(`Unsupported calculation operator: ${operator}`)
@@ -87,6 +88,7 @@ export function evaluateExpression(expression: Expression, variables: Readonly<R
 
 function checked(value: number): number {
   if (!Number.isFinite(value)) throw new Error('Calculation input or result is not finite')
+  if (value < MIN_NATIVE_INTEGER || value > MAX_NATIVE_INTEGER) throw new Error('Calculation arithmetic exceeds the supported native integer range')
   return value
 }
 

@@ -2,9 +2,10 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH } from '../src/interchange/share'
 import { asId } from '../src/domain/core'
-import type { CatalogRevisionId, LocalData, PersonalDefinitionId } from '../src/domain/types'
-import { createPersonalDefinition } from '../src/domain'
+import type { CatalogRevisionId, LocalData, PersonalDefinitionId, GameSetupRevisionId, EntityId } from '../src/domain/types'
+import { addGameSetupRevision, createPersonalDefinition } from '../src/domain'
 import { known } from '../src/domain/test-helpers'
+import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 import { defaultCalculation } from '../src/domain/calculation-plan'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough } from './local-data-helpers'
@@ -22,7 +23,7 @@ async function storedData(page: Page): Promise<LocalData> {
   }))
 }
 
-test('shared PC stats and personal definition details match the saved editor offline', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, context }, testInfo) => {
+for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? 'with' : 'without'} a model marker and personal definition details match the saved editor offline`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, context }, testInfo) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -36,9 +37,13 @@ test('shared PC stats and personal definition details match the saved editor off
   const revision = before.buildRevisions[build.latestRevisionId!]!
   const id = asId<PersonalDefinitionId>('synthetic-shared-class')
   const ref = { kind: 'personal' as const, definitionId: id }
+  if (revision.content.primaryClass?.kind !== 'catalog') throw new Error('The synthetic sample needs a catalog class')
+  const cureRef = { ...revision.content.primaryClass, entityId: 'base:cleric:ability:cure' as EntityId }
   const source = createPersonalDefinition(before, { id, name: 'Synthetic shared class', kind: 'class', fields: { 'Crystal Edit source record': known({ ID: 9000, Name: 'Synthetic shared class', HPRating: 50, MPRating: 50, StrRating: 50, VitRating: 50, DexRating: 50, AgiRating: 50, MndRating: 50, SpiRating: 50, SpdRating: 50, LckRating: 50, PassiveIDs: [] }), Command: known('Synthetic command') }, now: before.updatedAt })
-  const content = { ...revision.content, primaryClass: ref, equipment: Object.fromEntries(Object.keys(revision.content.equipment).map(slot => [slot, null])), passives: [], calculation: { ...defaultCalculation(ref, 24), gender: 'female' as const }, rotationNotes: 'Synthetic shared rotation', contextAssumptions: ['Synthetic shared assumption'] }
-  const payload = createSharePayload({ ...source, buildRevisions: { ...source.buildRevisions, [revision.id]: { ...revision, content } } }, { kind: 'build', revisionId: revision.id }, true)
+  const nativeSetupId = asId<GameSetupRevisionId>('synthetic-shared-native-setup')
+  const scopedSource = addGameSetupRevision(source, { ...source.gameSetups[revision.gameSetupRevisionId]!, id: nativeSetupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), mods: known([]), slots: SUGGESTED_BUILD_SLOTS, activate: false, now: source.updatedAt })
+  const content = { ...revision.content, primaryClass: ref, equipment: Object.fromEntries(Object.keys(revision.content.equipment).map(slot => [slot, null])), passives: [], calculation: { ...defaultCalculation(ref, 24), model: modelMarker ? defaultCalculation(ref, 24).model : undefined, gender: 'female' as const, ability: cureRef, targetEvasion: 0 }, rotationNotes: 'Synthetic shared rotation', contextAssumptions: ['Synthetic shared assumption'] }
+  const payload = createSharePayload({ ...scopedSource, buildRevisions: { ...scopedSource.buildRevisions, [revision.id]: { ...revision, gameSetupRevisionId: nativeSetupId, content } } }, { kind: 'build', revisionId: revision.id }, true)
   await page.goto(createShareUrl(payload, `${baseURL}/`))
   const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
   await expect(shared.getByRole('region', { name: 'Class stats', exact: true })).toContainText('Synthetic shared class')
@@ -59,6 +64,10 @@ test('shared PC stats and personal definition details match the saved editor off
   await expect(shared.locator('input, select, textarea')).toHaveCount(0)
   await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await expect(shared.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
+  await shared.locator('summary').filter({ hasText: 'Ability and hit-chance preview' }).click()
+  await expect(shared.getByLabel('Ability estimate', { exact: true })).toContainText('Native coefficient power before battle effects: -159')
+  await expect(shared.getByLabel('Ability estimate', { exact: true }).getByRole('heading', { name: 'Cure', exact: true })).toBeVisible()
+  await expect(shared.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: 100%')
   await shared.locator('summary').filter({ hasText: 'Build notes and assumptions' }).click()
   await expect(shared.locator('.share-notes')).toContainText('Synthetic shared rotation')
   await expect(shared.locator('.share-notes')).toContainText('Synthetic shared assumption')
@@ -76,9 +85,12 @@ test('shared PC stats and personal definition details match the saved editor off
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td')).toHaveText(previewOverview)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Synthetic shared class')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  const copied = await storedData(page)
+  const copy = Object.values(copied.builds).find(candidate => !before.builds[candidate.id])!
+  expect(copied.buildRevisions[copy.latestRevisionId!]!.content.calculation?.model).toBe(content.calculation.model)
 })
 
-test('shared guide estimates retain saved inputs and match the copied editor without writes', async ({ page, baseURL }) => {
+test('model-less shares use native rules and retain unsupported inputs without writes', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const before = await storedData(page)
@@ -86,7 +98,9 @@ test('shared guide estimates retain saved inputs and match the copied editor wit
   const revision = before.buildRevisions[build.latestRevisionId!]!
   const calculation = { level: 20, gender: 'male' as const, growth: [{ classRef: revision.content.primaryClass, levels: 20 }], bonuses: ['HP' as const], statuses: [], ability: null, targetEvasion: 25 }
   const content = { ...revision.content, calculation }
-  const payload = createSharePayload({ ...before, buildRevisions: { ...before.buildRevisions, [revision.id]: { ...revision, content } } }, { kind: 'build', revisionId: revision.id })
+  const nativeSetupId = asId<GameSetupRevisionId>('synthetic-model-less-native-setup')
+  const scopedSource = addGameSetupRevision(before, { ...before.gameSetups[revision.gameSetupRevisionId]!, id: nativeSetupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), mods: known([]), slots: SUGGESTED_BUILD_SLOTS, activate: false, now: before.updatedAt })
+  const payload = createSharePayload({ ...scopedSource, buildRevisions: { ...scopedSource.buildRevisions, [revision.id]: { ...revision, gameSetupRevisionId: nativeSetupId, content } } }, { kind: 'build', revisionId: revision.id })
   await page.goto(createShareUrl(payload, `${baseURL}/`))
   const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
   const previewOverview = await shared.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td').allTextContents()
@@ -94,12 +108,11 @@ test('shared guide estimates retain saved inputs and match the copied editor wit
   await expect(shared.getByRole('heading', { name: 'Level 20 stats', exact: true })).toBeVisible()
   await expect(shared.getByText('Gender: Male', { exact: true })).toBeVisible()
   await expect(shared.getByRole('complementary', { name: 'Selection details', exact: true }).locator('.build-selection-details__ratings')).toHaveCount(0)
-  await expect(shared.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('original guide calculation')
-  await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await shared.locator('summary').filter({ hasText: /^Stats & combat estimates/ }).click()
-  await expect(shared.getByRole('definition').filter({ hasText: '20 levels' })).toBeVisible()
-  const stats = shared.getByRole('table', { name: 'Build stat estimates', exact: true })
+  const stats = shared.getByRole('table', { name: 'Calculated character stats', exact: true })
+  await expect(stats).toContainText('Unknown')
+  await expect(shared).toContainText('Per-stat bonus assumptions are outside the native gender comparisons.')
   const previewStats = await stats.locator('th, td').allTextContents()
+  await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await shared.locator('summary').filter({ hasText: 'Ability and hit-chance preview' }).click()
   const hitChance = await shared.getByLabel('Base physical hit chance', { exact: true }).innerText()
   await expect(shared.locator('input, select, textarea')).toHaveCount(0)
@@ -107,16 +120,15 @@ test('shared guide estimates retain saved inputs and match the copied editor wit
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('male')
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td')).toHaveText(previewOverview)
+  await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
+  await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('20')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await page.locator('summary').filter({ hasText: /^Stats & combat estimates/ }).click()
-  await expect(page.getByLabel('Planned level', { exact: true })).toHaveValue('20')
-  await expect(page.getByRole('table', { name: 'Build stat estimates', exact: true }).locator('th, td')).toHaveText(previewStats)
   await page.locator('summary').filter({ hasText: 'Ability and hit-chance preview' }).click()
   await expect(page.getByLabel('Target evasion', { exact: true })).toHaveValue('25')
   await expect(page.getByLabel('Base physical hit chance', { exact: true })).toHaveText(hitChance)
 })
 
-test('a default level preview preserves absent and unknown saved inputs until explicitly edited', async ({ page, baseURL }) => {
+test('absent and unknown calculation inputs stay unknown until explicitly edited', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const before = await storedData(page)
@@ -124,21 +136,22 @@ test('a default level preview preserves absent and unknown saved inputs until ex
   const revision = before.buildRevisions[build.latestRevisionId!]!
   expect(revision.content.calculation).toBeUndefined()
   const unknownCalculation = defaultCalculation(revision.content.primaryClass, null)
-  const unknownGuideCalculation = { level: null, growth: [{ classRef: revision.content.primaryClass, levels: 60 }], bonuses: [], statuses: [] }
-  for (const calculation of [undefined, unknownGuideCalculation, unknownCalculation]) {
+  const unknownModelLessCalculation = { level: null, growth: [{ classRef: revision.content.primaryClass, levels: 60 }], bonuses: [], statuses: [] }
+  for (const calculation of [undefined, unknownModelLessCalculation, unknownCalculation]) {
     const content = { ...revision.content, calculation }
     const payload = createSharePayload({ ...before, buildRevisions: { ...before.buildRevisions, [revision.id]: { ...revision, content } } }, { kind: 'build', revisionId: revision.id })
     await page.goto(createShareUrl(payload, `${baseURL}/`))
     const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
-    await expect(shared.getByRole('heading', { name: 'Level 60 stats', exact: true })).toBeVisible()
-    await expect(shared).toContainText('Level 60 assumed for preview')
-    const stats = shared.getByRole('table', { name: 'Planned build stats', exact: true })
-    await expect(stats.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })).not.toContainText('Unknown')
-    if (calculation === unknownGuideCalculation) await expect(shared.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('original guide calculation')
-    else await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
+    await expect(shared.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
+    await expect(shared).not.toContainText('assumed for preview')
+    if (calculation) {
+      const stats = shared.getByRole('table', { name: 'Planned build stats', exact: true })
+      await expect(stats.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })).toContainText('Unknown')
+      await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true })).toContainText('Unknown')
+    } else await expect(shared).toContainText('No calculation inputs saved.')
     await expect(shared.locator('input, select, textarea')).toHaveCount(0)
     await page.reload()
-    await expect(shared.getByRole('heading', { name: 'Level 60 stats', exact: true })).toBeVisible()
+    await expect(shared.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
     expect(await storedData(page)).toEqual(before)
   }
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
@@ -146,7 +159,7 @@ test('a default level preview preserves absent and unknown saved inputs until ex
   const copy = Object.values(copied.builds).find(candidate => !before.builds[candidate.id])!
   const copiedRevision = copied.buildRevisions[copy.latestRevisionId!]!
   expect(copiedRevision.content.calculation).toEqual(unknownCalculation)
-  await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('60')
+  await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('')
   await page.getByLabel('Calculation level', { exact: true }).fill('24')
   await expect(page.getByRole('region', { name: 'Class stats', exact: true })).not.toContainText('assumed for preview')
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()

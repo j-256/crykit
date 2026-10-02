@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
@@ -10,7 +11,7 @@ async function choose(page: Page, label: string, name: string) {
   if (label !== 'Add planned status') await expect(field).toHaveValue(name)
 }
 
-test('build mechanics survive checkpoints and offline reload without observed character data', async ({ page, context }, testInfo) => {
+test('build mechanics survive checkpoints and offline reload without observed character data', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
@@ -35,6 +36,20 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(spirit).toContainText('Unknown')
   await page.getByRole('button', { name: 'Increase growth 1 by 10', exact: true }).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('20')
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await choose(page, 'Preview ability', 'Cure')
+  const ability = page.getByLabel('Ability estimate', { exact: true })
+  await expect(ability).toContainText('Native coefficient power before battle effects: -192')
+  await expect(ability).toContainText('display 0 LP')
+  await page.getByLabel('Target evasion', { exact: true }).fill('0')
+  await expect(page.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: 100%')
+  await page.getByLabel('Target evasion', { exact: true }).fill('100')
+  await expect(page.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: 50%')
+  await page.getByLabel('Target evasion', { exact: true }).fill('')
+  await expect(page.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: Unknown')
+  await page.getByRole('button', { name: 'Loadout', exact: true }).click()
+  await page.getByText(/^Level-up growth/).click()
   await choose(page, 'Class', 'Wizard')
   await expect(page.getByRole('combobox', { name: 'Growth class 1', exact: true })).toHaveValue('Cleric')
   await page.getByText('Sample damage calculations', { exact: true }).click()

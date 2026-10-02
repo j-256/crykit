@@ -20,7 +20,7 @@
     "numeric": "IEEE-754 double; truncation toward zero; roundEven matches Math.Round midpoint-to-even",
     "evaluation": "Steps in order; call arguments follow named formula input order; if, and are lazy",
     "rounding": "Integer divisions are explicit trunc(div(...)); no implicit rounding",
-    "missing": "Missing or nonfinite inputs, invalid operations and division by zero are errors; consumers expose unknowns",
+    "missing": "Missing or nonfinite inputs, arithmetic outside signed 32-bit bounds, invalid operations and division by zero are errors; consumers expose unknowns. Overflow wrapping is unsupported",
     "trust": "Only bundled, validated formulas are evaluated. Imported descriptions and formulas are never executed."
   },
   "limits": {

@@ -25,7 +25,7 @@ export function addModdingGuideFacts(base: CatalogSnapshot): CatalogSnapshot {
   const source = { ...MODDING_GUIDE_SOURCE, locator: 'Game synopsis > Growths; Abilities > Formula construction' }
   const formulaEntity: CatalogEntity = {
     id: caveatId, kind: 'other', name: 'Growth estimates and damage formula research', aliases: ['Stat calculator', 'Damage calculation', 'Growth formula'],
-    rawDescription: 'Class details include a growth calculator using the guide equations and explicit growth allocations. Estimates retain fractions and exclude equipment, passives, and combat effects. Damage simulation requires resolving the formula discrepancies listed here.',
+    rawDescription: 'This entry preserves community formula research. Class and loadout calculators use verified Windows PC rules. The discrepancies below describe the community source and are not calculation inputs.',
     fields: {
       Category: { state: 'known', value: ['Mechanics', 'Formulas'], sources: [source] },
       'Growth inputs': { state: 'known', value: ['Primary class ratings', 'Level', 'Levels allocated to each growth class', 'Explicit stat bonuses'], sources: [source] },

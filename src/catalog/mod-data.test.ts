@@ -1,6 +1,6 @@
 import { catalogEntity } from '../domain/entity-identities'
 import { describe, expect, it } from 'vitest'
-import { statContributions } from '../domain/build-stats'
+import { definitionSourceRecord } from '../domain/mechanics-facts'
 import { CLASS_FIELDS, exportedTree } from '../domain/crystal-edit'
 import { DEFAULT_CATALOG } from './bundled'
 import { EQUIPMENT_EXPANSION_ENTITY_IDS, EQUIPMENT_EXPANSION_EQUIPMENT_IDS } from './equipment-expansion'
@@ -16,7 +16,7 @@ describe('bundled mod definition evidence', () => {
     expect(heavyEdge.fields['Equipment type']).toMatchObject({ state: 'known', value: 'Sword' })
     expect(heavyEdge.fields['Stat modifiers']).toMatchObject({ state: 'known', value: expect.arrayContaining([expect.objectContaining({ Name: 'Flat_PAtk', Tag: 40, Value1: 45 })]) })
     expect(heavyEdge.listedContributions?.Attack).toMatchObject({ state: 'known', value: { value: 45, unit: 'listed flat value' } })
-    expect(statContributions(heavyEdge).contributions).toContainEqual(expect.objectContaining({ stat: 'ATK', kind: 'flat', value: 45 }))
+    expect(definitionSourceRecord(heavyEdge)?.StatMods).toContainEqual(expect.objectContaining({ Tag: 40, Value1: 45 }))
     expect(heavyEdge.sources.some(source => source.snapshot?.includes('Version 1.3'))).toBe(true)
     expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:tarot-accessories')).toBeUndefined()
     expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:0-fool')).toBeDefined()

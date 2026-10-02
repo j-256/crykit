@@ -5,11 +5,11 @@ import { entityName } from './model'
 export function CalculationInputs({ plan, localData, catalogs }: { plan: BuildCalculationPlan; localData: LocalData; catalogs: readonly CatalogSnapshot[] }) {
   const values = [
     ['Calculation level', plan.level ?? 'Unknown'],
-    ['Calculation model', plan.model ?? 'Guide estimates'],
+    ['Calculation model', 'PC 1.6.9.0 native rules'],
     ['Calculation gender', plan.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'Not specified (no bonus preview)'],
-    ...(plan.model ? [['PC balance mode', plan.pcMode ?? 'standard'], ['Growth allocation', plan.growthMode === 'primary' ? 'Follows primary class' : 'Manual']] : []),
+    ...[['PC balance mode', plan.pcMode ?? 'standard'], ['Growth allocation', plan.growthMode === 'primary' ? 'Follows primary class' : 'Manual']],
     ...plan.growth.map((row, index) => [`Growth class ${index + 1}`, `${entityName(localData, catalogs, row.classRef, 'Unknown growth class')}: ${row.levels ?? 'Unknown'} levels`]),
-    ['Stat bonuses', plan.bonuses.join(', ') || 'None selected'],
+    ['Retained custom bonuses (unsupported)', plan.bonuses.join(', ') || 'None selected'],
     ['Statuses', plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'None selected'],
     ['Ability', entityName(localData, catalogs, plan.ability, 'None selected')],
     ['Target evasion', plan.targetEvasion ?? 'Unknown'],

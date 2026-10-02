@@ -1,5 +1,6 @@
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { NATIVE_DATA } from './calculation-rules'
+import { nativeInteger } from './native-number'
 import { jsonRecord } from './crystal-edit'
 import { modCatalogForPin } from './mod-layers'
 import { modRevision } from './mod-library'
@@ -9,8 +10,6 @@ export const IMPORTED_RULES_VERSION = 1
 export const IMPORTED_RULES_REVISION = `rules-v${IMPORTED_RULES_VERSION}`
 export const SUPPORTED_EDITOR_VERSION = 34
 export const PC_GAME_RULES = Object.freeze({ ppLimit: 10, equipmentSlots: 6, version: '1.6.9' })
-const MIN_NATIVE_INTEGER = -2_147_483_648
-const MAX_NATIVE_INTEGER = 2_147_483_647
 const SHEET_CONSTANTS = new Set(['TwoHandedPAtkFlat', 'TwoHandedPAtkRate', 'DualWieldPAtkRate', 'StrWhileUnarmedBonusFlat'])
 const DIFFICULTY_FIELDS = ['MonsterHPRate', 'BossHPRate', 'MonsterMPRate', 'BossMPRate', 'MonsterStrRate', 'MonsterVitRate', 'MonsterDexRate', 'MonsterAgiRate', 'MonsterMndRate', 'MonsterSpiRate', 'MonsterSpdRate', 'MonsterLckRate', 'MonsterPAtkRate', 'MonsterPDefRate', 'MonsterMDefRate', 'MemberHitChanceMod', 'MonsterHitChanceMod'] as const
 export interface GameRuleChange { readonly field: string; readonly value: number | boolean; readonly baseline: number | boolean; readonly source: string; readonly calculated: boolean }
@@ -30,8 +29,7 @@ export function gameSetupMode(setup: Pick<GameSetupRevision, 'mode'> | undefined
   return mode === 'standard' || mode === 'vanilla' || mode === 'chaos' ? mode : undefined
 }
 
-type SetupRules = Pick<GameSetupRevision, 'modComposition'> & Partial<Pick<GameSetupRevision, 'difficulty' | 'mode' | 'mods'>>
-const nativeInteger = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= MIN_NATIVE_INTEGER && value <= MAX_NATIVE_INTEGER
+type SetupRules = Pick<GameSetupRevision, 'modComposition'> & Partial<Pick<GameSetupRevision, 'difficulty' | 'mode' | 'mods' | 'platform' | 'gameVersion'>>
 
 export function importedGameRules(root: Readonly<Record<string, JsonValue>>): JsonValue {
   const system = jsonRecord(root.System) ? root.System : undefined
@@ -49,6 +47,8 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   let source = 'PC 1.6.9 game data'
   let configIssues: string[] = []
   const issues: string[] = []
+  if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`Native Windows PC calculations do not establish parity for ${setup.platform.value}.`)
+  if (setup?.gameVersion?.state === 'known' && !['1.6.9', '1.6.9.0'].includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
   if (setup?.mods?.state === 'known' && setup.mods.value.length) issues.push('Named mod choices lack calculation settings. Import their files and select exact revisions to establish their effects.')
   const difficultyIssues: string[] = [...issues]
   const difficulties = new Map<number, DifficultyDefinition>()

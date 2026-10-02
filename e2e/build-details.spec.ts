@@ -1,6 +1,20 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { selectWithSeparateEvents } from './select-helpers'
+
+async function planNativeSample(page: Page) {
+  await page.goto('/#/builds/library')
+  await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
+  await page.getByRole('button', { name: 'Plan level-60 native calculations', exact: true }).click()
+  await page.locator('.build-behavior > summary').click()
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Unmodified game' })
+  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
+  await page.locator('.game-setup-base-details > summary').click()
+  await page.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('Windows')
+  await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Standard')
+  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
+}
 
 test('build details separate fixed class ratings from level stats and keep editing usable across viewport sizes', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/builds/library')
@@ -12,8 +26,12 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(classRatings.locator('.stat-rating')).toHaveCount(10)
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^HP$/ }) }).getByRole('img', { name: '4 of 5 stars', exact: true })).toBeVisible()
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^MND$/ }) }).getByRole('img', { name: '0.5 of 5 stars', exact: true })).toBeVisible()
+  await expect(stats.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('No calculation inputs saved.')
+  await page.getByRole('button', { name: 'Plan level-60 native calculations', exact: true }).click()
   await expect(stats.getByRole('heading', { name: 'Level 60 stats', exact: true })).toBeVisible()
-  await expect(stats).toContainText('Level 60 assumed for preview')
+  await expect(stats).not.toContainText('assumed for preview')
+  await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('Native calculations do not support game version 1.6.6.')
   await expect(stats).not.toContainText('Crystal Edit')
   await expect(stats.getByText('Rating sources', { exact: true })).toHaveCount(0)
   await expect(stats.getByRole('table', { name: 'Planned build stats' })).toBeVisible()
@@ -58,7 +76,7 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(stats.getByRole('heading', { name: 'Wizard stats', exact: true })).toBeVisible()
 })
 
-test('level and allocated growth change numeric stats while class ratings remain fixed', async ({ page }) => {
+test('level and allocated growth change numeric stats while class ratings remain fixed', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
@@ -91,9 +109,8 @@ test('level and allocated growth change numeric stats while class ratings remain
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('gender contributions reconcile colored columns and persist alongside the selected total', async ({ page }) => {
-  await page.goto('/#/builds/library')
-  await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
+test('gender contributions reconcile colored columns and persist alongside the selected total', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await planNativeSample(page)
   const table = page.getByRole('table', { name: 'Planned build stats', exact: true })
   await expect(table.getByRole('columnheader')).toHaveText(['Stat', 'Base', 'Equipment', 'Level', 'Gender', 'Total'])
   const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
@@ -112,7 +129,7 @@ test('gender contributions reconcile colored columns and persist alongside the s
   expect(new Set(colors).size).toBe(colors.length)
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) }).getByRole('cell').first()).toHaveText(cells[4]!)
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
+  await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r3')
   await page.reload()
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('male')
   await expect(hp.getByRole('cell')).toHaveText(cells)
@@ -127,9 +144,8 @@ test('gender contributions reconcile colored columns and persist alongside the s
   await expect(agility.getByRole('cell').nth(3)).not.toHaveText('0')
 })
 
-test('the first female selection and balance mode change survive separate native events', async ({ page }) => {
-  await page.goto('/#/builds/library')
-  await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
+test('the first female selection and balance mode change survive separate native events', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await planNativeSample(page)
   const checkpoint = page.getByRole('combobox', { name: /^Editor checkpoint/ })
   const gender = page.getByLabel('Calculation gender', { exact: true })
   const mode = page.getByLabel('Game mode', { exact: true })
@@ -148,7 +164,7 @@ test('the first female selection and balance mode change survive separate native
   await selectWithSeparateEvents(mode, 'Vanilla')
   await expect(checkpoint).toBeDisabled()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
-  await expect(checkpoint.locator('option:checked')).toContainText('r2')
+  await expect(checkpoint.locator('option:checked')).toContainText('r3')
   await page.reload()
   await page.locator('.build-behavior > summary').click()
   await page.locator('.game-setup-base-details > summary').click()

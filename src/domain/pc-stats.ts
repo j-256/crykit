@@ -3,14 +3,15 @@ import type { GameRuleResolution } from './game-rules'
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES } from './calculation-rules'
 import { definitionSourceRecord, knownField, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
 import { nativeIdentity } from './native-game'
-import { jsonRecord } from './crystal-edit'
+import { nativeInteger } from './native-number'
+import { jsonRecord, MAX_GROWTH_RATING } from './crystal-edit'
 import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 import { entityDefinitionKey } from './core'
 import { catalogClassSource } from './build-mechanics'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 
-type NativeRecord = Readonly<Record<string, unknown>>
-type Family = 'job' | 'equipment' | 'passive' | 'gender'
+export type NativeRecord = Readonly<Record<string, unknown>>
+type Family = 'job' | 'equipment' | 'passive' | 'gender' | 'ability'
 type Resolve = (ref: EntityRef) => MechanicsDefinition | undefined
 export type PCStats = Readonly<Record<string, number | null>>
 export interface PCStatResult {
@@ -25,7 +26,7 @@ export interface PCStatResult {
 export function selectedPCStats(result: PCStatResult, gender: BuildCalculationPlan['gender']): PCStats {
   return gender ? result[gender] : result.neutral
 }
-const number = (record: NativeRecord | undefined, key: string) => typeof record?.[key] === 'number' && Number.isSafeInteger(record[key]) ? record[key] as number : undefined
+const number = (record: NativeRecord | undefined, key: string) => nativeInteger(record?.[key]) ? record[key] as number : undefined
 const unknownStats = (): PCStats => Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, null]))
 const crystalRecord = (definition: MechanicsDefinition | undefined): NativeRecord | undefined => {
   const record = knownField(definition, 'Crystal Edit source record')
@@ -41,7 +42,7 @@ function nativeById(family: Family, id: number, mode: string): NativeRecord | un
 export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve: Resolve, mode = 'standard'): NativeRecord | undefined {
   if (!ref) return undefined
   const definition = resolve(ref)
-  if (!definition || (family === 'job' ? definition.kind !== 'class' : family === 'passive' ? !['passive', 'innate'].includes(definition.kind) : family === 'equipment' ? definition.kind !== 'item' : false)) return undefined
+  if (!definition || (family === 'job' ? definition.kind !== 'class' : family === 'passive' ? !['passive', 'innate'].includes(definition.kind) : family === 'equipment' ? definition.kind !== 'item' : family === 'ability' ? !['ability', 'monsterMagic'].includes(definition.kind) : false)) return undefined
   const explicit = crystalRecord(definition)
   if (explicit) return explicit
   const native = definitionSourceRecord(definition)
@@ -56,7 +57,15 @@ export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve:
   return undefined
 }
 
-export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
+export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
+  try { return calculateRestingStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules) }
+  catch {
+    const empty = unknownStats()
+    return { base: empty, neutral: empty, male: empty, female: empty, effects: [], issues: [...unknownInputs, ...gameRules?.issues ?? [], 'Native arithmetic is outside the supported range.'] }
+  }
+}
+
+function calculateRestingStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: Resolve, unknownInputs: readonly string[], unknownSecondaryClass: boolean, gameRules?: GameRuleResolution): PCStatResult {
   const modScope = calculationModResolver(sourceResolve)
   const resolve = modScope.resolve
   const plan = content.calculation
@@ -65,8 +74,9 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   const mode = gameRules?.mode ?? plan?.pcMode ?? 'standard'
   const primary = nativeStatRecord(content.primaryClass, 'job', resolve, mode)
   const empty = unknownStats()
-  if (plan?.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
-    issues.push(!primary ? 'Primary class has no verified numeric record.' : 'Choose a supported calculation model and level.')
+  if (gameRules?.issues.length) return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
+  if (!plan || plan.model !== undefined && plan.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
+    issues.push(!primary ? 'Primary class has no verified numeric record.' : 'Choose a supported native calculation level.')
     return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
   }
   const level = plan.level
@@ -74,13 +84,13 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   let growthKnown = true
   let allocated = 0
   for (const row of plan.growth) {
-    if (row.levels === null || !Number.isInteger(row.levels) || row.levels < 0) { growthKnown = false; continue }
+    if (row.levels === null || !Number.isInteger(row.levels) || row.levels < 0 || row.levels > PC_RULES.limits.levelCap) { growthKnown = false; continue }
     allocated += row.levels
     if (row.levels === 0) continue
     const job = nativeStatRecord(row.classRef, 'job', resolve, mode)
     for (const stat of PC_RULES.coreStats) {
       const rating = number(job, PC_RULES.stats[stat]!.rating!)
-      if (rating === undefined) growthKnown = false
+      if (rating === undefined || rating < 0 || rating > MAX_GROWTH_RATING) growthKnown = false
       else growth[stat]! += row.levels * rating
     }
   }
@@ -126,13 +136,13 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
           if (mapped.scope === 'context') issues.push(`${label}: ${mapped.name} needs additional context.`)
           else if (mapped.scope === 'battle') effects.add(`${label}: ${mapped.name}`)
         } else if (mapped.kind === 'allCore') {
-          for (const stat of PC_RULES.coreStats) target.flat[stat]! += value
+          for (const stat of PC_RULES.coreStats) target.flat[stat] = evaluateExpression(['add', target.flat[stat]!, value], {})
         } else if (mapped.kind === 'ttMultiplier') target.tt = calculateFormula('multiplyPercent', [target.tt, value])
-        else if (mapped.kind === 'hpMultiplier') target.hp += value
+        else if (mapped.kind === 'hpMultiplier') target.hp = evaluateExpression(['add', target.hp, value], {})
         else {
           const amount = mapped.scale === 'PerLevel' ? calculateFormula('perLevel', [value, level, number(mod, 'Value2') ?? NaN]) : mapped.scale === 'PerTurn' ? calculateFormula('perTurn', [value, PC_RULES.contexts.turnCount, number(mod, 'Value2') ?? NaN]) : value
           const values = mapped.kind === 'percent' ? target.percent : target.flat
-          values[mapped.stat!]! += amount
+          values[mapped.stat!] = evaluateExpression(['add', values[mapped.stat!]!, amount], {})
         }
       } catch { issues.push(`${label}: a numeric modifier cannot be calculated.`) }
     }
@@ -171,9 +181,10 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   }
   if (plan.statuses.length) issues.push('Active status effects are outside this resting character calculation.')
   if (plan.bonuses.length) issues.push('Per-stat bonus assumptions are outside the native gender comparisons.')
+  for (const target of [equipment, passives]) if (![...Object.values(target.flat), ...Object.values(target.percent), target.tt, target.hp].every(nativeInteger)) issues.push('Accumulated modifiers exceed the supported native integer range.')
   const tags = new Set([...equipment.tags, ...passives.tags])
   const weaponAttack = main?.record && Array.isArray(main.record.StatMods) ? number((main.record.StatMods as NativeRecord[]).find(mod => PC_RULES.statMods[String(mod.Tag)]?.stat === 'ATK' && PC_RULES.statMods[String(mod.Tag)]?.scale === 'direct' && PC_RULES.statMods[String(mod.Tag)]?.kind === 'flat'), 'Value1') : undefined
-  const vars: Record<string, number> = { hpMultiplier: equipment.hp + passives.hp, ttMultiplier: calculateFormula('multiplyPercent', [equipment.tt, passives.tt]), 'context.unarmed': Number(unarmed), 'context.dualWield': Number(unarmed || Boolean(isWeapon(main?.record) && isWeapon(off?.record))), 'context.twoHanded': Number(Boolean(main?.record && isWeapon(main.record) && main.record.IsTwoHanded === false && !off?.selection && weaponAttack !== undefined)), 'context.weaponAttack': weaponAttack ?? 0 }
+  const vars: Record<string, number> = { hpMultiplier: evaluateExpression(['add', equipment.hp, passives.hp], {}), ttMultiplier: calculateFormula('multiplyPercent', [equipment.tt, passives.tt]), 'context.unarmed': Number(unarmed), 'context.dualWield': Number(unarmed || Boolean(isWeapon(main?.record) && isWeapon(off?.record))), 'context.twoHanded': Number(Boolean(main?.record && isWeapon(main.record) && main.record.IsTwoHanded === false && !off?.selection && weaponAttack !== undefined)), 'context.weaponAttack': weaponAttack ?? 0 }
   for (const [key, value] of Object.entries(gameRules?.battleConfig ?? NATIVE_DATA.battleConfig)) if (typeof value === 'number') vars[`config.${key}`] = value
   for (const mod of Object.values(PC_RULES.statMods)) vars[`tag.${mod.name}`] = Number(tags.has(mod.name))
   issues.push(...modScope.issues)
@@ -185,12 +196,14 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
       let start = descriptor.base ?? 0
       if (descriptor.formula) {
         const rating = number(primary, descriptor.rating!)
-        if (rating === undefined || !growthKnown) { known = false; continue }
+        if (rating === undefined || rating < 0 || rating > MAX_GROWTH_RATING || !growthKnown) { known = false; continue }
         start = calculateFormula(descriptor.formula, [level, rating, growth[stat]!, Number(gender?.[descriptor.gender!] === true)])
       }
       if (!gender) base[stat] = start
-      scope[`stat.${stat}`] = start + equipment.flat[stat]! + passives.flat[stat]!
-      scope[`percent.${stat}`] = equipment.percent[stat]! + passives.percent[stat]!
+      if (issues.length) continue
+      scope[`stat.${stat}`] = evaluateExpression(['add', start, equipment.flat[stat]!, passives.flat[stat]!], {})
+      scope[`percent.${stat}`] = evaluateExpression(['add', equipment.percent[stat]!, passives.percent[stat]!], {})
+      if (!nativeInteger(scope[`stat.${stat}`]) || !nativeInteger(scope[`percent.${stat}`])) { known = false; issues.push('Accumulated stats exceed the supported native integer range.') }
     }
     if (!known) return empty
     if (issues.length) return empty
@@ -210,5 +223,6 @@ export function benchmarkDamage(stats: PCStats, id: string): number | null {
   if (!benchmark) return null
   const attack = stats[benchmark.attack], main = stats[benchmark.main], pierce = stats[benchmark.pierce]
   if (attack == null || main == null || pierce == null) return null
-  return calculateFormula('benchmarkDamage', [attack, main, benchmark.basePower, benchmark.attackRate, benchmark.statRate, benchmark.targetMain, benchmark.defense, pierce])
+  try { return calculateFormula('benchmarkDamage', [attack, main, benchmark.basePower, benchmark.attackRate, benchmark.statRate, benchmark.targetMain, benchmark.defense, pierce]) }
+  catch { return null }
 }

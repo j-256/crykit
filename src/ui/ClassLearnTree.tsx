@@ -1,5 +1,6 @@
 import { useId } from 'react'
-import { bundledTreeIdentity, CLASS_TREE_IDENTITY_SOURCE, classTreeSkill, JP_PER_LP } from '../catalog/class-learn-tree'
+import { bundledTreeIdentity, CLASS_TREE_IDENTITY_SOURCE, classTreeSkill } from '../catalog/class-learn-tree'
+import { learningCost } from '../domain/ability-estimates'
 import { definitionIconKey } from '../catalog/menu-icons'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, exportedTree, LEARN_NODE_TYPES, type ExportedTreeNode } from '../domain/crystal-edit'
 import { learnTreeGraph, treePositionKey, type TreePosition } from '../domain/learn-tree'
@@ -46,7 +47,7 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
             const skill = skills.get(key)!
             const prerequisiteNames = [...new Set(graph.edges.filter(edge => treePositionKey(edge.to) === key).map(edge => skills.get(treePositionKey(edge.from))!.name))]
             const requirement = [...(prerequisiteNames.length ? [`Requires all: ${prerequisiteNames.join(' and ')}`] : []), ...(unresolved.has(key) ? ['Prerequisite unknown'] : [])].join('. ')
-            const cost = skill.monsterLearned ? 'Monster learning' : skill.jp === undefined ? 'LP unknown' : `${skill.jp / JP_PER_LP} LP`
+            const cost = skill.monsterLearned ? 'Monster learning' : skill.jp === undefined ? 'LP unknown' : `${learningCost(skill.jp)?.displayedLp ?? 'Unknown'} LP`
             const iconKey = skill.definition ? definitionIconKey(skill.definition) : skill.kind === 'passive' || skill.kind === 'innate' ? 'skill:passive' : undefined
             const contents = <><span className="learn-tree__type"><GameIcon iconKey={iconKey} placeholderKind={skill.kind}/><small>{skill.kind === 'monsterMagic' ? 'Monster magic' : skill.kind}</small></span><strong>{skill.name}</strong><span className="learn-tree__cost">{cost}</span></>
             const descriptionId = `${arrowId}-${key}`
