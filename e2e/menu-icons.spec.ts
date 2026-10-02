@@ -11,11 +11,12 @@ async function loadedIcons(container: Locator, count: number) {
 async function characterDetails(page: Page) {
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
-  const desktop = page.locator('.member-detail').filter({ visible: true })
+  const desktop = page.getByRole('complementary', { name: 'Selection details', exact: true }).filter({ visible: true })
   if (await desktop.count() === 0) {
     await page.getByText('About Warrior', { exact: true }).click()
+    return page.locator('.member-mobile-detail[open] .build-selection-details')
   }
-  return page.locator('.member-detail').filter({ visible: true }).first()
+  return desktop
 }
 
 test('game icons accompany character equipment, inventory, and both pickers without external requests', async ({ page, context, isMobile }) => {
@@ -25,12 +26,13 @@ test('game icons accompany character equipment, inventory, and both pickers with
   const sword = page.locator('.list-row').filter({ has: page.getByText('Short Sword', { exact: true }) })
   await loadedIcons(sword, 1)
   const details = await characterDetails(page)
-  const weapons = details.locator('.member-detail__facts > div').filter({ has: page.locator('dt', { hasText: /^Weapons$/ }) })
+  const facts = details.locator('.definition-list').first()
+  const weapons = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Weapons$/ }) })
   await expect(weapons).toContainText('Swords, Axes, Daggers, Spears')
   await loadedIcons(weapons, 4)
-  const armor = details.locator('.member-detail__facts > div').filter({ has: page.locator('dt', { hasText: /^Armor$/ }) })
+  const armor = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Armor$/ }) })
   await loadedIcons(armor, 3)
-  await details.getByText('Sources & definition', { exact: true }).click()
+  await details.getByText('All reference fields & sources', { exact: true }).click()
   await details.getByText('Menu icon sources', { exact: true }).click()
   await expect(details.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', /File.*SwordAbilityIcon.*oldid=/)
 
