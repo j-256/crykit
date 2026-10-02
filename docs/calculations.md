@@ -17,15 +17,15 @@ The `crystal-project-calculations` format defaults to `schemaVersion: 2`, with p
 | --- | --- |
 | `rules` | Formulas, integer steps, rounding, caps, ordered sheet stages, modifier tags and scopes, gender identities, benchmark assumptions, and coverage |
 | `data` | Job ratings and innate IDs, equipment and passive modifiers, gender bonuses, ability coefficients and costs, status modifiers, balance patches, and battle configuration |
-| `legacy` | The separate community guide model retained for older saved plans, including its fractional estimates and incomplete hit-chance curve |
 | `verification` | Synthetic input/output vectors from compiled, unchanged methods extracted from the inspected executable, with evidence describing the probe |
 | `combat` | Executable arithmetic for every native Calculator method not supplied by the character module, plus periodic effects, costs, random resolution, resource application, threat, difficulty, and rewards |
 | `combatData` | Numeric monster/difficulty/status records and mode patches, native enum identities, source digest, and checksum |
 | `combatVerification` | Independent compiled-native vectors, source hashes, and audited Calculator method inventory; each case's `input` indexes the shared `values` array |
+| `previewVerification` | Native coefficient-power and hit-curve vectors plus learning-arithmetic checks, with direct input arrays and source fingerprints |
 | `example` | An explicitly synthetic complete actor, recipient, ability, and battle-context fixture |
 | `enemy` | Preserved source evidence and constants for the difficulty-adjusted bestiary inputs |
 
-Existing consumers can request the unchanged version 1 shape with `node scripts/export-calculations.mjs --schema-version 1`. The [version 1 schema](../src/calculations/package-v1.schema.json), character rules, guide rules, and their numeric semantics remain unchanged. Version 2 does not migrate saved plans or turn resting character previews into battle simulations.
+Version 2 contains only native-backed calculation models; it excludes the community-guide estimates from both the export and readable reference. Existing consumers can request the version 1 shape, including its historical `legacy` section, with `node scripts/export-calculations.mjs --schema-version 1`. The [version 1 schema](../src/calculations/package-v1.schema.json) and guide numeric semantics are preserved separately, not used as an application fallback. Version 2 does not migrate saved plans or turn resting character previews into battle simulations.
 
 The browser loads the expanded package only when exporting. Offline preparation caches that module alongside the application, so a first export also works after an offline reload. Export errors remain visible with recovery instructions: save pending edits, restore the connection, and reload before retrying a failed module load. The [package API](../src/domain/calculation-package.ts) provides both versions without changing the original character-rule API.
 
@@ -52,7 +52,7 @@ This is the integer growth seed `(rating * level + growth) / 2`. A formula decla
 | `min`, `max` | At least two arguments |
 | `trunc` | One argument, truncated toward zero |
 | `roundEven` | One argument, rounded to nearest integer with midpoint ties to even, matching `Math.Round` |
-| `floor`, `ceil` | One argument; used by legacy LP previews |
+| `floor`, `ceil` | One argument; round toward negative or positive infinity, respectively |
 | `lte` | Two arguments; returns numeric 1 or 0 |
 | `eq` | Two arguments; returns numeric 1 for equality or 0 otherwise |
 | `and` | Two arguments; returns 1 or 0 with short-circuit evaluation |
@@ -104,7 +104,7 @@ npm run calculations:reference
 
 The updaters verify source identity, project reviewed numeric fields, and replace generated files atomically. Use `node scripts/update-native-stats.mjs --input "$CRYSTAL_PROJECT_INSTALL_DIR"` to verify the installed executable and database hashes against the bundled source. Updating the shared snapshot follows the [native catalog workflow](catalog-sources.md). A different executable requires a new calculation version rather than overwriting this dataset. Routine checks need no private inputs or network requests.
 
-Authored combat expressions live in [the rule definitions](../scripts/lib/combat-rules.mjs). The readable reference is generated from those definitions, the unchanged character and guide formulas, and a maintained plain-language introduction. `calculations:check` rejects rule, projection, schema, or documentation drift. Schema tests validate both exported formats and reject malformed combat operations. Domain tests compare the bundled rules with synthetic results from unchanged native Calculator methods, selected native costs/periodic methods, and native FNA curve methods compiled in a private .NET harness. Source stubs supply explicit state and do not establish scheduler parity. Only numerical fixtures and portable source hashes are checked in; the harness and decompiled code are not. Native preview regressions compare coefficient power and the complete physical hit curve with compiled native methods. Learning display and affordability rules pin the native learn-menu source. Persistence and rollback coverage keeps saved assumptions and observations separate.
+Authored combat expressions live in [the rule definitions](../scripts/lib/combat-rules.mjs). The readable reference is generated from the native character and combat formulas and a maintained plain-language introduction. It omits per-formula evidence lines; source fingerprints and numerical verification remain in the machine package and this technical guide. `calculations:check` rejects rule, projection, schema, or documentation drift. Schema tests validate both exported formats and reject malformed combat operations. Domain tests compare the bundled rules with synthetic results from unchanged native Calculator methods, selected native costs/periodic methods, and native FNA curve methods compiled in a private .NET harness. Source stubs supply explicit state and do not establish scheduler parity. Only numerical fixtures and portable source hashes are checked in; the harness and decompiled code are not. Native preview regressions compare coefficient power and the complete physical hit curve with compiled native methods. Learning display and affordability rules pin the native learn-menu source. Persistence and rollback coverage keeps saved assumptions and observations separate.
 
 Male and female previews apply the native Gender boost flags with `EnableGenderBoost` enabled. The no-bonus preview represents that startup flag being disabled. Gender assumptions never change recorded character observations. Arithmetic outside the supported signed 32-bit range remains unknown.
 
