@@ -107,7 +107,7 @@ export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange 
       <summary aria-label={build.tags.length > 0 ? `Tags (${build.tags.length})` : 'Tags'} ref={summaryRef}>Tags{build.tags.length > 0 && <span className="build-tags-control__count">{build.tags.length}</span>}</summary>
       {tagsOpen && <div className="build-tags-control__editor"><BuildTagsField disabled={busy} draft={draft.tags} onChange={tags => change({ ...draftRef.current, tags })} suggestions={suggestions}/></div>}
     </details>
-    {active && <div className="cluster"><Button disabled={busy} onClick={() => finish()} tone="quiet" type="button">Cancel details</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving details...' : 'Save details'}</Button></div>}
+    {active && <div className="cluster build-details-control__actions"><Button disabled={busy} onClick={() => finish()} tone="quiet" type="button">Cancel details</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving details...' : 'Save details'}</Button></div>}
     {error && <InlineNotice title="Build details not saved" tone="danger">{error}</InlineNotice>}
   </form>
 }

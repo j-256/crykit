@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
@@ -9,6 +9,7 @@ import { createSharePayload } from '../src/interchange/share'
 const ORIGINAL_TITLE = 'Rowan: sample Warrior'
 const TAG = 'guard rotation'
 const NEW_TITLE = 'Synthetic tagged Build'
+const DETAILS_ACTION_SPACING = 16
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -37,6 +38,35 @@ async function chooseWizard(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/builds/library')
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
+})
+
+test('details actions have balanced spacing before the checkpoint controls', async ({ page }) => {
+  const form = page.locator('.build-details-control')
+  const cancel = form.getByRole('button', { name: 'Cancel details', exact: true })
+  const save = form.getByRole('button', { name: 'Save details', exact: true })
+  const checkpointNote = page.getByText('Loadout changes save as a new checkpoint', { exact: true })
+  const expectSpacing = async (preceding: Locator) => {
+    const [previousBox, cancelBox, saveBox, noteBox] = await Promise.all([preceding.boundingBox(), cancel.boundingBox(), save.boundingBox(), checkpointNote.boundingBox()])
+    expect(previousBox).not.toBeNull()
+    expect(cancelBox).not.toBeNull()
+    expect(saveBox).not.toBeNull()
+    expect(noteBox).not.toBeNull()
+    expect(cancelBox!.y - previousBox!.y - previousBox!.height).toBeCloseTo(DETAILS_ACTION_SPACING, 0)
+    expect(noteBox!.y - saveBox!.y - saveBox!.height).toBeCloseTo(DETAILS_ACTION_SPACING, 0)
+    expect(cancelBox!.y).toBeCloseTo(saveBox!.y, 0)
+    expect(saveBox!.x).toBeGreaterThan(cancelBox!.x + cancelBox!.width)
+  }
+  await openTags(page)
+  await page.getByRole('button', { name: 'Remove tag sample', exact: true }).click()
+  await expectSpacing(tagsControl(page).locator('.field__hint'))
+  await page.getByLabel('Add tag', { exact: true }).fill(TAG)
+  await openTags(page)
+  await expectSpacing(tagsControl(page).locator('summary'))
+  await cancel.click()
+  await form.getByRole('button', { name: 'Rename', exact: true }).click()
+  await expectSpacing(tagsControl(page).locator('summary'))
+  await cancel.click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test('optional tags persist independently, round-trip in backups, and match both searches', async ({ page }) => {

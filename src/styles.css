@@ -430,12 +430,13 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-title-control__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .build-title-control__heading h2 { min-width: 0; overflow-wrap: anywhere; }
 .build-title-control__heading .button { flex: 0 0 auto; }
-.build-details-control { display: grid; min-width: 0; gap: 8px; }
-.build-tags-control { margin-block: 4px 8px; }
+.build-details-control { display: grid; min-width: 0; gap: 8px; margin-bottom: 16px; }
+.build-details-control__actions { padding-top: 8px; }
+.build-tags-control { margin-block: 4px 0; }
 .build-tags-control > summary { width: fit-content; padding-block: 6px; color: var(--text-faint); font-size: .76rem; cursor: pointer; }
 .build-tags-control__count { margin-left: 6px; font-size: .7rem; }
 .build-tags-control__editor, .build-tags-field { display: grid; min-width: 0; gap: 10px; }
-.build-tags-control__editor { padding-block: 8px; }
+.build-tags-control__editor { padding-top: 8px; }
 .build-tags-field__list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .build-tags-field__list li { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding-left: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-800); font-size: .76rem; }
 .build-tags-field__list li > span { min-width: 0; overflow-wrap: anywhere; }
