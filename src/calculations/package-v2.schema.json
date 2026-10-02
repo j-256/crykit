@@ -1,0 +1,1038 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:crykit:calculation-package:2",
+  "title": "Crystal Project character and combat calculation package",
+  "description": "Portable rules and numeric inputs; describes export structure and arithmetic syntax, not permission to execute imported rules",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "crystal-project-calculations"
+    },
+    "schemaVersion": {
+      "const": 2
+    },
+    "id": {
+      "const": "pc-1.6.9-package-v2"
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "id": {
+          "const": "pc-1.6.9-v1"
+        },
+        "formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/formula"
+          }
+        },
+        "sheetStages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sheetStep"
+          }
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/stat"
+          }
+        },
+        "statMods": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/statMod"
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "levelCap": {
+              "type": "integer"
+            },
+            "expressionDepth": {
+              "type": "integer"
+            },
+            "expressionNodes": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "levelCap",
+            "expressionDepth",
+            "expressionNodes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "source",
+        "semantics",
+        "limits",
+        "coreStats",
+        "stats",
+        "formulas",
+        "sheetStages",
+        "statMods",
+        "equipment",
+        "contexts",
+        "benchmarks",
+        "coverage",
+        "operators",
+        "modifierDefaults",
+        "genders"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "engine": {
+          "const": "pc-1.6.9-v1"
+        },
+        "records": {
+          "$ref": "#/$defs/records"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/binding"
+          }
+        },
+        "patches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "records": {
+                "$ref": "#/$defs/records"
+              }
+            },
+            "required": [
+              "name",
+              "records"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "engine",
+        "gameVersion",
+        "executableSha256",
+        "nativeDataDigest",
+        "inputs",
+        "crosswalkDigest",
+        "wikiDigest",
+        "starterDigest",
+        "catalogId",
+        "battleConfig",
+        "records",
+        "patches",
+        "bindings",
+        "checksum"
+      ]
+    },
+    "legacy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "const": "guide-v1"
+        },
+        "formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/formula"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "growth",
+        "formulas"
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "type": "string"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "formula": {
+                "type": "string"
+              },
+              "input": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "expected": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "formula",
+              "input",
+              "expected"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "evidence",
+        "cases"
+      ]
+    },
+    "combat": {
+      "$ref": "#/$defs/combatRules"
+    },
+    "combatData": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "engine": {
+          "const": "pc-1.6.9-combat-v1"
+        },
+        "source": {
+          "type": "object"
+        },
+        "nativeDataDigest": {
+          "type": "string"
+        },
+        "enums": {
+          "type": "object"
+        },
+        "records": {
+          "type": "object"
+        },
+        "patches": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "checksum": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "engine",
+        "source",
+        "nativeDataDigest",
+        "enums",
+        "records",
+        "patches",
+        "checksum"
+      ],
+      "additionalProperties": false
+    },
+    "combatVerification": {
+      "$ref": "#/$defs/combatVerification"
+    },
+    "example": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/combatValue"
+        },
+        "target": {
+          "$ref": "#/$defs/combatValue"
+        },
+        "ability": {
+          "$ref": "#/$defs/combatValue"
+        },
+        "context": {
+          "$ref": "#/$defs/combatValue"
+        }
+      },
+      "required": [
+        "user",
+        "target",
+        "ability",
+        "context"
+      ],
+      "additionalProperties": false
+    },
+    "enemy": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "id",
+    "rules",
+    "data",
+    "legacy",
+    "verification",
+    "combat",
+    "combatData",
+    "combatVerification",
+    "example",
+    "enemy"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "expression": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 10000,
+          "prefixItems": [
+            {
+              "enum": [
+                "add",
+                "sub",
+                "mul",
+                "div",
+                "pow",
+                "min",
+                "max",
+                "trunc",
+                "roundEven",
+                "lte",
+                "and",
+                "if",
+                "call",
+                "floor",
+                "ceil",
+                "eq"
+              ]
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/expression"
+          }
+        }
+      ]
+    },
+    "formula": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/expression"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "inputs",
+        "steps",
+        "result",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "sheetStep": {
+      "type": "object",
+      "properties": {
+        "stat": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "stat",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "statMod": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "stat": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "flat",
+            "percent",
+            "allCore",
+            "ttMultiplier",
+            "hpMultiplier",
+            "tag"
+          ]
+        },
+        "scale": {
+          "enum": [
+            "direct",
+            "PerLevel",
+            "PerTurn"
+          ]
+        },
+        "scope": {
+          "enum": [
+            "sheet",
+            "battle",
+            "permission",
+            "context"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "stat": {
+      "type": "object",
+      "properties": {
+        "rating": {
+          "type": "string"
+        },
+        "gender": {
+          "type": "string"
+        },
+        "formula": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "base": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "additionalProperties": false
+    },
+    "nativeRecord": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "type": "integer"
+        },
+        "Name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ID",
+        "Name"
+      ]
+    },
+    "records": {
+      "type": "object",
+      "properties": {
+        "job": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "passive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "gender": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "ability": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeRecord"
+          }
+        }
+      },
+      "required": [
+        "job",
+        "equipment",
+        "passive",
+        "gender",
+        "ability",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "enum": [
+            "job",
+            "equipment",
+            "passive",
+            "gender",
+            "ability",
+            "status"
+          ]
+        },
+        "id": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "family",
+        "id",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "combatExpression": {
+      "anyOf": [
+        {
+          "type": [
+            "number",
+            "boolean",
+            "null",
+            "string"
+          ]
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "if"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 4,
+          "items": false,
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "not",
+                "trunc",
+                "floor",
+                "ceil",
+                "abs",
+                "f32",
+                "i32",
+                "length"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 2,
+          "items": false,
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "sub",
+                "div",
+                "mod",
+                "pow",
+                "lt",
+                "lte",
+                "gt",
+                "gte",
+                "eq",
+                "ne",
+                "at",
+                "includes"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 3,
+          "items": false,
+          "maxItems": 3
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "add",
+                "mul",
+                "min",
+                "max",
+                "and",
+                "or"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 3,
+          "items": {
+            "$ref": "#/$defs/combatExpression"
+          },
+          "maxItems": 10001
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "array"
+              ]
+            }
+          ],
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/combatExpression"
+          },
+          "maxItems": 10001
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "call"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            }
+          ],
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/combatExpression"
+          },
+          "maxItems": 10001
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "field"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 4,
+          "items": false,
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "find",
+                "sum"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 4,
+          "items": false,
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "fold"
+              ]
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            },
+            {
+              "$ref": "#/$defs/combatExpression"
+            }
+          ],
+          "minItems": 7,
+          "items": false,
+          "maxItems": 7
+        }
+      ]
+    },
+    "combatValue": {
+      "anyOf": [
+        {
+          "type": [
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/combatValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/combatValue"
+          }
+        }
+      ]
+    },
+    "combatFormula": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+              },
+              "value": {
+                "$ref": "#/$defs/combatExpression"
+              }
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/combatExpression"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition": {
+                "$ref": "#/$defs/combatExpression"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "condition",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "title",
+        "inputs",
+        "steps",
+        "result",
+        "evidence",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "combatRules": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "id": {
+          "const": "pc-1.6.9-combat-v1"
+        },
+        "source": {
+          "type": "object"
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "nodes": {
+              "type": "integer"
+            },
+            "collection": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "depth",
+            "nodes",
+            "collection"
+          ],
+          "additionalProperties": false
+        },
+        "semantics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "operators": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "contracts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "coverage": {
+          "type": "object"
+        },
+        "curveTables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "formulas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/combatFormula"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "source",
+        "limits",
+        "semantics",
+        "operators",
+        "contracts",
+        "coverage",
+        "curveTables",
+        "formulas"
+      ],
+      "additionalProperties": false
+    },
+    "combatVerification": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "engine": {
+          "const": "pc-1.6.9-combat-v1"
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/combatValue"
+          }
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "formula": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+              },
+              "input": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "expected": {
+                "$ref": "#/$defs/combatValue"
+              }
+            },
+            "required": [
+              "label",
+              "formula",
+              "input",
+              "expected"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "engine",
+        "evidence",
+        "values",
+        "cases"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

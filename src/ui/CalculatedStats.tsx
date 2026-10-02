@@ -1,7 +1,7 @@
 import { resolveGameRules } from '../domain/game-rules'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { benchmarkDamage, calculatePCStats, selectedPCStats } from '../domain/pc-stats'
-import { PC_LEVEL_CAP, PC_MODEL, PC_RULES, calculationPackage } from '../domain/calculation-rules'
+import { PC_LEVEL_CAP, PC_MODEL, PC_RULES } from '../domain/calculation-rules'
 import { CALCULATION_GENDER_LABELS, changeCalculationLevel, changeGrowthLevels, defaultCalculation, growthAllowance } from '../domain/calculation-plan'
 import { STAT_LABELS, type CalculatedStat } from '../domain/build-stats'
 import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, LocalData, GameSetupRevision, ObservedStat, SlotDefinition } from '../domain/types'
@@ -23,7 +23,21 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
   const estimate = useMemo(() => calculatePCStats(content, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
   const allocated = plan?.growth.reduce((total, row) => total + (row.levels ?? 0), 0) ?? 0
   const baseline = useMemo(() => plan?.model ? calculatePCStats({ ...content, calculation: { ...plan, growth: [{ classRef: content.primaryClass, levels: plan.level }] } }, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), unknownInputs, unknownSecondaryClass, rules) : undefined, [content, plan, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
-  const exportRules = () => downloadBytes(new TextEncoder().encode(JSON.stringify(calculationPackage(), null, 2) + '\n'), `crystal-project-calculations-${PC_MODEL}.json`, 'application/json')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string>()
+  const exportRules = async () => {
+    setExporting(true)
+    setExportError(undefined)
+    try {
+      const { calculationPackage } = await import('../domain/calculation-package')
+      const data = calculationPackage()
+      downloadBytes(new TextEncoder().encode(JSON.stringify(data, null, 2) + '\n'), `crystal-project-calculations-${data.id}.json`, 'application/json')
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'Unable to export the calculation package')
+    } finally {
+      setExporting(false)
+    }
+  }
   if (!plan?.model && !onChange) return <section aria-label="Calculated stats" className="calculated-stats"><h3>Calculated stats</h3><p>{plan ? 'This checkpoint retains its original guide calculation. Its estimates are in Checks & notes.' : 'No calculation inputs saved. Calculated character totals remain unknown.'}</p></section>
   if (!plan?.model) return <section aria-label="Calculated stats" className="calculated-stats"><h3>Calculated stats</h3><p>{plan ? 'This checkpoint retains its original guide calculation. Switch explicitly to use the verified PC formulas.' : 'Calculate a level-60 loadout with all growth assigned to its primary class.'}</p><Button onClick={() => onChange?.(plan ? { ...plan, model: PC_MODEL, growthMode: 'manual', pcMode: 'standard', bonuses: [] } : defaultCalculation(content.primaryClass))} type="button">Use verified PC calculations</Button></section>
   const update = (patch: Partial<BuildCalculationPlan>) => onChange?.({ ...plan, ...patch })
@@ -35,7 +49,8 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
     return Object.entries(recorded ?? {}).find(([key]) => labels.includes(key.toLowerCase()))?.[1]
   }
   return <section aria-label="Calculated stats" className="calculated-stats stack">
-    <div className="split"><h3>Calculated stats</h3><Button onClick={exportRules} tone="quiet" type="button">Export calculation package</Button></div>
+    <div className="split"><h3>Calculated stats</h3><Button disabled={exporting} onClick={exportRules} tone="quiet" type="button">{exporting ? 'Preparing calculation package...' : 'Export calculation package'}</Button></div>
+    {exportError && <InlineNotice title="Calculation export failed"><p role="alert">{exportError}</p><p>Save any pending edits, restore your connection, and reload the page before trying again. Offline preparation includes the calculation package.</p></InlineNotice>}
     <p className="field__hint">PC 1.6.9.0 formulas. Resting loadout, no active statuses or accumulated battle effects. Switch and mod parity remain unverified. Calculation assumptions are saved separately from recorded in-game totals.</p>
     <p className="field__hint">Balance mode: {rules.mode ?? plan.pcMode ?? 'standard'} · {rules.mode ? 'from Game Setup' : 'calculation assumption; choose Game mode in Game Setup to confirm'}</p>
     {onChange ? <><div className="cluster"><Field label="Calculation level"><input aria-label="Calculation level" max={PC_LEVEL_CAP} min="1" onChange={event => onChange?.(changeCalculationLevel(plan, event.target.value === '' ? null : Math.max(1, Math.min(PC_LEVEL_CAP, Math.trunc(Number(event.target.value)))), content.primaryClass))} type="number" value={plan.level ?? ''}/></Field></div>
