@@ -1,6 +1,6 @@
 # Human-readable calculation reference
 
-This is the readable equivalent of the bundled Windows PC 1.6.9.0 calculation package, generated from the same formula definitions. It does not establish Switch or modded-game parity. See [package format and source policy](calculations.md) for installation-free export, compatibility, and input requirements.
+This is the readable equivalent of the bundled Windows PC 1.6.9.0 calculation package, generated from the same formula definitions. It does not establish Switch or modded-game parity. Detailed source evidence and verification fixtures remain in the machine-readable package. See [package format and source policy](calculations.md) for installation-free export, compatibility, and input requirements.
 
 ## Reading the equations
 
@@ -216,8 +216,6 @@ gain = (((level * 9.533) + ((seed * 11.3) / 100)) + if boost then (level * 1.5) 
 result = roundEven((base + gain))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculateMemberHP`.
-
 <a id="sheet-membercore"></a>
 
 ### Base attribute
@@ -230,8 +228,6 @@ base = ((5 + ((rating * 10) / 100)) + if boost then 3 else 0)
 gain = (((level * 1.25) + ((seed * 2.75) / 100)) + if boost then (level * 0.2) else 0)
 result = roundEven((base + gain))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculateMemberStat`.
 
 <a id="sheet-membermp"></a>
 
@@ -246,8 +242,6 @@ gain = (((level * 0.25) + ((seed * 3.55) / 100)) + if boost then (level * 0.233)
 result = roundEven((base + gain))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculateMemberMP`.
-
 <a id="sheet-addpercent"></a>
 
 ### addPercent
@@ -257,8 +251,6 @@ Formula ID: `addPercent`. Inputs, in order: `base`, `percent`.
 ```text
 result = (base + trunc(((base * percent) / 100)))
 ```
-
-Evidence: `Sang/Battle/BattlerStats.cs: ApplyBonus_BaseStats, ApplyBonus_EquipStats`.
 
 <a id="sheet-multiplypercent"></a>
 
@@ -270,8 +262,6 @@ Formula ID: `multiplyPercent`. Inputs, in order: `base`, `percent`.
 result = trunc(((base * percent) / 100))
 ```
 
-Evidence: `Sang/Battle/BattlerStats.cs: Add, ApplyStatMod`.
-
 <a id="sheet-perlevel"></a>
 
 ### perLevel
@@ -281,8 +271,6 @@ Formula ID: `perLevel`. Inputs, in order: `value`, `level`, `denominator`.
 ```text
 result = trunc(((value * level) / denominator))
 ```
-
-Evidence: `Sang/Battle/BattlerStats.cs: ApplyStatMod *_PerLevel`.
 
 <a id="sheet-perturn"></a>
 
@@ -294,8 +282,6 @@ Formula ID: `perTurn`. Inputs, in order: `value`, `turn`, `limit`.
 result = (value * min(turn, limit))
 ```
 
-Evidence: `Sang/Battle/BattlerStats.cs: ApplyStatMod *_PerTurn`.
-
 <a id="sheet-critchance"></a>
 
 ### Attribute-derived critical chance
@@ -306,8 +292,6 @@ Formula ID: `critChance`. Inputs, in order: `seed`.
 x = max(0, seed)
 result = trunc((75 * (x / (x + 150))))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculatePCritChanceBonus`.
 
 <a id="sheet-critdamage"></a>
 
@@ -321,8 +305,6 @@ slope = (atCap - (25 + ((299 / 15) ^ 1.35)))
 result = trunc(if (seed <= 300) then (25 + ((seed / 15) ^ 1.35)) else (atCap + ((seed - 300) * slope)))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculatePCritDmgBonus`.
-
 <a id="sheet-penetration"></a>
 
 ### Attribute-derived penetration
@@ -333,8 +315,6 @@ Formula ID: `penetration`. Inputs, in order: `seed`.
 x = max(0, seed)
 result = trunc(((100 * x) / (x + 300)))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculatePPenBonus, CalculateMPenBonus`.
 
 <a id="sheet-turntime"></a>
 
@@ -348,8 +328,6 @@ tt = (((34 + ((0.0175 * (speed - 600)) ^ 2)) * multiplier) / 100)
 result = trunc(max(20, tt))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculateTTBonus`.
-
 <a id="sheet-unarmedattack"></a>
 
 ### Unarmed attack bonus
@@ -359,8 +337,6 @@ Formula ID: `unarmedAttack`. Inputs, in order: `strength`.
 ```text
 result = trunc(((strength * 400) / 250))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculateUnarmedPAtkBonus`.
 
 <a id="sheet-twohandedattack"></a>
 
@@ -372,8 +348,6 @@ Formula ID: `twoHandedAttack`. Inputs, in order: `base`, `flat`, `rate`.
 result = (flat + trunc(((base * rate) / 100)))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculateTwoHandedPAtkBonus`.
-
 <a id="sheet-defenseseed"></a>
 
 ### Defense seed
@@ -383,8 +357,6 @@ Formula ID: `defenseSeed`. Inputs, in order: `stat`.
 ```text
 result = (500 - trunc((250000 / (500 + trunc(((stat * 3) / 2))))))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculateDefenseReduction`.
 
 <a id="sheet-defenserate"></a>
 
@@ -404,8 +376,6 @@ else:
   result = trunc(((100 * scale) / (scale + defense)))
 ```
 
-Evidence: `Sang/Battle/Calculator.cs: CalculateDefenseReduction; single physical or magical defense coefficient 100`.
-
 <a id="sheet-benchmarkdamage"></a>
 
 ### Isolated damage benchmark
@@ -418,8 +388,6 @@ raw = (power + trunc(((power * trunc(((main * statRate) / 100))) / 100)))
 weighted = trunc(((main * statRate) / 100))
 result = trunc(((raw * defenseRate(if (weighted = 0) then main else weighted, targetMain, defense, pierce)) / 100))
 ```
-
-Evidence: `Sang/Battle/Calculator.cs: CalculateBaseAttack, CalculateDefenseReduction; isolated benchmark excludes damage modifications`.
 
 ## Combat equations
 
@@ -435,8 +403,6 @@ Rates are percentage points: 100 means unchanged, 0 means zero. Truncate every d
 result = trunc(((amount * rate) / 100))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamage`.
-
 <a id="combat-effectivemaximum"></a>
 
 ### Maximum resource used by periodic effects
@@ -446,8 +412,6 @@ Formula ID: `effectiveMaximum`. Inputs, in order: `maximum`.
 ```text
 result = maximum
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateEffectiveDamagePerTurnMaxHP`, `Sang.Battle.Calculator.CalculateEffectiveDamagePerTurnMaxMP`, `Sang.Battle.Calculator.CalculateEffectiveDamagePerTurnMaxAP`.
 
 <a id="combat-dotresistance"></a>
 
@@ -466,8 +430,6 @@ else:
   else:
     result = 0
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateDamagePerTurnResistance`.
 
 <a id="combat-periodichp"></a>
 
@@ -497,8 +459,6 @@ else:
   result = bounded
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveDamagePerTurn`.
-
 <a id="combat-periodicresource"></a>
 
 ### MP or AP periodic change
@@ -514,8 +474,6 @@ else:
   result = (trunc(((maximum * rate) / 100)) + flat)
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveDamagePerTurn`.
-
 <a id="combat-heals"></a>
 
 ### Classify an ability as healing
@@ -527,8 +485,6 @@ Healing classification uses the ability definition, not the sign of its final da
 ```text
 result = ((ability.BasePower < 0) or (ability.BasePAtkRate < 0) or ((ability.ScalingPower != none) and (ability.ScalingPower < 0)) or ((ability.ScalingPAtkRate != none) and (ability.ScalingPAtkRate < 0)) or (first(ability.AbilityMods, where mod: (includes([37, 38, 39, 42, 43, 44], mod.Tag) and (mod.Value1 < 0))) != none))
 ```
-
-Evidence: `Sang.SangData.HAbility.Heals`.
 
 <a id="combat-actualscope"></a>
 
@@ -546,8 +502,6 @@ else:
     result = ability.Scope
 ```
 
-Evidence: `Sang.SangData.HAbility.GetActualScope`.
-
 <a id="combat-hpcost"></a>
 
 ### HP cost
@@ -557,8 +511,6 @@ Formula ID: `hpCost`. Inputs, in order: `user`, `ability`.
 ```text
 result = max(0, trunc(((trunc(((user.Stats.HP * ability.HPCost) / 100)) * user.Stats.PercentDmgTakenMult) / 100)))
 ```
-
-Evidence: `Sang.SangData.HAbility.CalculateAbilityFlatHPCost`.
 
 <a id="combat-mpcost"></a>
 
@@ -575,8 +527,6 @@ else:
   result = trunc(((max(0, (ability.MPCost + user.Stats.MPCostsFlat + first(user.Stats.AbilityMPCostFlat, where pair: (pair.ID = ability.ID)).Value (if record is none: 0))) * user.Stats.MPCostsMult) / 100))
 ```
 
-Evidence: `Sang.SangData.HAbility.CalculateAbilityMPCost`.
-
 <a id="combat-apcost"></a>
 
 ### AP cost
@@ -592,8 +542,6 @@ else:
   result = trunc(((max(0, (ability.APCost + user.Stats.APCostsFlat + first(user.Stats.AbilityAPCostFlat, where pair: (pair.ID = ability.ID)).Value (if record is none: 0))) * user.Stats.APCostsMult) / 100))
 ```
 
-Evidence: `Sang.SangData.HAbility.CalculateAbilityAPCost`.
-
 <a id="combat-chargetime"></a>
 
 ### Charge time
@@ -606,8 +554,6 @@ if user has InstantCT:
 else:
   result = trunc(((ability.CTCost * user.Stats.CTMult) / 100))
 ```
-
-Evidence: `Sang.SangData.HAbility.CalculateAbilityCTCost`.
 
 <a id="combat-cooldown"></a>
 
@@ -635,8 +581,6 @@ else:
 result = max(0, limited)
 ```
 
-Evidence: `Sang.SangData.HAbility.CalculateAbilityCooldown`.
-
 <a id="combat-itemconsumption"></a>
 
 ### Item consumption
@@ -649,8 +593,6 @@ if halved:
 else:
   result = baseCount
 ```
-
-Evidence: `Sang.SangData.HAbility.CalculateAbilityItemConsumptionCount`.
 
 <a id="combat-nextturn"></a>
 
@@ -666,8 +608,6 @@ if (freeAction or instantTurn):
 else:
   result = trunc(((turnTime * abilityMultiplier) / 100))
 ```
-
-Evidence: `Sang.Battle.HTurn.GetNextTurnTT`.
 
 <a id="combat-resourceterm"></a>
 
@@ -685,8 +625,6 @@ if (targetHP and (trunc(((if (mode = 0) then current else if (mode = 1) then (ma
 else:
   result = trunc(((if (mode = 0) then current else if (mode = 1) then (maximum - current) else maximum * rate) / 100))
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateBaseAttack`.
 
 <a id="combat-basedamage"></a>
 
@@ -709,8 +647,6 @@ resources = sum(ability.AbilityMods, for each mod: if (mod.Tag = 42) then if (if
 result = (base + attributes + resources)
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateBaseAttack`.
-
 <a id="combat-defenseseed"></a>
 
 ### Nonlinear defense seed
@@ -720,8 +656,6 @@ Formula ID: `defenseSeed`. Inputs, in order: `stat`.
 ```text
 result = (500 - trunc((250000 / (500 + trunc(((stat * 3) / 2))))))
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateDefenseReduction`.
 
 <a id="combat-defense"></a>
 
@@ -795,8 +729,6 @@ else:
 result = trunc(((damage * rate) / 100))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDefenseReduction`.
-
 <a id="combat-criticaldamage"></a>
 
 ### Damage on a critical hit
@@ -822,8 +754,6 @@ else:
 result = (damage + extra)
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamageCrit`.
-
 <a id="combat-noncriticaldamage"></a>
 
 ### Damage on a noncritical hit
@@ -836,8 +766,6 @@ The given/taken percentages combine with integer truncation before multiplying t
 result = trunc(((damage * if ability.IsPAbil then trunc(((trunc(((100 * user.Stats.PNonCritDmgGivenMult) / 100)) * target.Stats.PNonCritDmgTakenMult) / 100)) else 100) / 100))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamageNonCrit`.
-
 <a id="combat-elementpass"></a>
 
 ### One element-multiplier pass
@@ -849,8 +777,6 @@ Element bonuses within a pass all use the same entering damage and add. The give
 ```text
 result = (damage + if (ability.Element = none) then 0 else (trunc(((damage * multipliers[ability.Element]) / 100)) - damage) + if ability.IsPAbil then sum(user.Stats.PElements, for each element: if (element = ability.Element) then 0 else (trunc(((damage * multipliers[element]) / 100)) - damage)) else 0)
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateDamageModification`.
 
 <a id="combat-repeatmultiplier"></a>
 
@@ -874,8 +800,6 @@ else:
     else:
       result = rate
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateDamageModification`.
 
 <a id="combat-threatdamage"></a>
 
@@ -915,8 +839,6 @@ else:
     topBonus = 0
 result = (damage + bottomBonus + topBonus)
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateDamageModification`.
 
 <a id="combat-damagemodifiers"></a>
 
@@ -1059,8 +981,6 @@ else:
 result = onKill
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamageModification`.
-
 <a id="combat-damage"></a>
 
 ### Complete deterministic damage before randomness
@@ -1079,8 +999,6 @@ else:
 result = damageModifiers(critical, user, target, ability, context)
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamage`.
-
 <a id="combat-variance"></a>
 
 ### Signed variance amplitude
@@ -1096,8 +1014,6 @@ else:
 result = trunc(((damage * max(0, rate)) / 100))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateVariance`.
-
 <a id="combat-luckfactor"></a>
 
 ### Luck factor for a roll
@@ -1110,8 +1026,6 @@ activeLuckUp is the first LuckUp Value1 only while the user turn state is beyond
 result = max(0, trunc(f32((f32((trunc(((userLuck * (100 + activeLuckUp)) / 100)) - trunc((targetLuck / 2)))) * 0.75))))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateLuckFactor`.
-
 <a id="combat-luckchance"></a>
 
 ### Chance after consecutive failures
@@ -1123,8 +1037,6 @@ Do not truncate after multiplying by failures: the percentage increment truncate
 ```text
 result = (chance + (trunc(((chance * luck) / 100)) * failures))
 ```
-
-Evidence: `Sang.Battle.RollResolver.ResolveHit`, `Sang.Battle.RollResolver.ResolveCrit`, `Sang.Battle.RollResolver.ResolveStatusApply`, `Sang.Battle.RollResolver.ResolveSteal`, `Sang.Battle.RollResolver.ResolveEscape`, `Sang.Battle.RollResolver.ResolveDamage`.
 
 <a id="combat-difficultyhit"></a>
 
@@ -1141,8 +1053,6 @@ else:
   result = chance
 ```
 
-Evidence: `Sang.Battle.RollResolver.ResolveHit`.
-
 <a id="combat-rollsuccess"></a>
 
 ### Resolve a percent roll
@@ -1157,8 +1067,6 @@ Input requirements: Percent roll must be an integer from 1 through 100.
 result = (roll <= threshold)
 ```
 
-Evidence: `Sang.Battle.RollResolver.RollDie`.
-
 <a id="combat-failurecounter"></a>
 
 ### Update a failure counter
@@ -1171,8 +1079,6 @@ if success:
 else:
   result = (previous + 1)
 ```
-
-Evidence: `Sang.Battle.RollResolver.ResolveHit`.
 
 <a id="combat-varianceroll"></a>
 
@@ -1193,8 +1099,6 @@ else:
   result = best
 ```
 
-Evidence: `Sang.Battle.RollResolver.ResolveVariance`.
-
 <a id="combat-variancedelta"></a>
 
 ### Variance added to a signed amount
@@ -1204,8 +1108,6 @@ Formula ID: `varianceDelta`. Inputs, in order: `amplitude`, `roll`.
 ```text
 result = trunc(((amplitude * (roll - 100)) / 100))
 ```
-
-Evidence: `Sang.Battle.RollResolver.ResolveVariance`.
 
 <a id="combat-resolveddamage"></a>
 
@@ -1245,8 +1147,6 @@ else:
   result = cannotKill
 ```
 
-Evidence: `Sang.Battle.RollResolver.ResolveDamage`.
-
 <a id="combat-curvesegment"></a>
 
 ### Native single-precision curve interpolation
@@ -1266,8 +1166,6 @@ c = f32((f32((f32((3 * t2)) - f32((2 * t3)))) * f32(rightY)))
 d = f32((f32((t3 - t2)) * tangent))
 result = f32((f32((f32((a + b)) + c)) + d))
 ```
-
-Evidence: `Microsoft.Xna.Framework.Curve.GetCurvePosition; ComputeTangents(Linear)`.
 
 <a id="combat-hitcurve"></a>
 
@@ -1305,8 +1203,6 @@ else:
                 result = f32(1)
 ```
 
-Evidence: `Sang.Battle.CBattle.Initialize`.
-
 <a id="combat-explevelcurve"></a>
 
 ### exp Level Curve
@@ -1334,8 +1230,6 @@ else:
           result = f32(1.2)
 ```
 
-Evidence: `Sang.Battle.CBattle.Initialize`.
-
 <a id="combat-jplevelcurve"></a>
 
 ### jp Level Curve
@@ -1362,8 +1256,6 @@ else:
         else:
           result = f32(1.4)
 ```
-
-Evidence: `Sang.Battle.CBattle.Initialize`.
 
 <a id="combat-cumulativejpcurve"></a>
 
@@ -1395,8 +1287,6 @@ else:
             result = f32(1)
 ```
 
-Evidence: `Sang.Battle.CBattle.Initialize`.
-
 <a id="combat-trooprewardcurve"></a>
 
 ### troop Reward Curve
@@ -1426,8 +1316,6 @@ else:
           else:
             result = f32(0.75)
 ```
-
-Evidence: `Sang.Battle.CBattle.Initialize`.
 
 <a id="combat-defeatlosscapcurve"></a>
 
@@ -1486,8 +1374,6 @@ else:
                               result = f32(10000)
 ```
 
-Evidence: `Sang.Battle.CBattle.Initialize`.
-
 <a id="combat-ordinaryhitchance"></a>
 
 ### Hit chance without early-exit flags
@@ -1517,8 +1403,6 @@ else:
     result = min(100, max(0, chance))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateHitChance`.
-
 <a id="combat-hitchance"></a>
 
 ### Hit chance with flags and status requirements
@@ -1540,8 +1424,6 @@ else:
       result = ordinaryHitChance(user, target, ability, context)
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateHitChance`.
-
 <a id="combat-critchance"></a>
 
 ### Critical-hit chance
@@ -1560,8 +1442,6 @@ else:
     result = min(100, max(0, if ability.IsPAbil then trunc(((trunc((((ability.BaseCritChance + user.Stats.PCritChance) * user.Stats.PCritChanceGivenMult) / 100)) * target.Stats.PCritChanceTakenMult) / 100)) else ability.BaseCritChance))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateCritChance`.
-
 <a id="combat-statuschance"></a>
 
 ### Status chance after immunities
@@ -1574,8 +1454,6 @@ if (immuneByID or immuneByCategory or (resistsReapplication and previouslyApplie
 else:
   result = chance
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateStatusApplyChance`.
 
 <a id="combat-statusduration"></a>
 
@@ -1597,8 +1475,6 @@ else:
     result = min(254, max(0, modified))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateStatusApplyCount`.
-
 <a id="combat-statusroll"></a>
 
 ### Status application or removal roll
@@ -1617,8 +1493,6 @@ else:
     result = false
 ```
 
-Evidence: `Sang.Battle.RollResolver.ResolveStatusApply`.
-
 <a id="combat-stealchance"></a>
 
 ### Steal chance for one available loot entry
@@ -1631,8 +1505,6 @@ This is not LootChance, the separate availability roll. A StealChanceUp total of
 result = trunc(((100 * (baseChance + stealChanceUp)) / (100 + stealChanceUp)))
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateStealChance`.
-
 <a id="combat-combinedstealchance"></a>
 
 ### Displayed chance to steal at least one remaining item
@@ -1644,8 +1516,6 @@ Pass per-entry steal chances for the remaining available loot entries in their n
 ```text
 result = trunc(fold(chances, start acc = 0; for each item at index: f32((acc + f32((f32((f32((100 - acc)) * f32(item))) / 100))))))
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateStealChance`.
 
 <a id="combat-escapechance"></a>
 
@@ -1661,8 +1531,6 @@ if perfectEscape:
 else:
   result = min(100, max(20, (80 + ((userLevel - trunc((sum(livingPresentEnemyLevels, for each level: level) / sum(livingPresentEnemyLevels, for each level: 1)))) * 5))))
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateEscapeChance`.
 
 <a id="combat-damagereturn"></a>
 
@@ -1702,8 +1570,6 @@ else:
     result = total
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateDamageReturn`.
-
 <a id="combat-assistrewardrate"></a>
 
 ### Select an EXP or JP assist multiplier
@@ -1721,8 +1587,6 @@ else:
   else:
     result = 100
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateExpReward`.
 
 <a id="combat-expreward"></a>
 
@@ -1750,8 +1614,6 @@ if (reward > 0):
 else:
   result = 0
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculateExpReward`.
 
 <a id="combat-jpreward"></a>
 
@@ -1786,8 +1648,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculateJPReward`.
-
 <a id="combat-defeatcurrencyloss"></a>
 
 ### Currency lost on defeat
@@ -1803,8 +1663,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.VoxelBattle.CalculateCurrencyLoss`.
-
 <a id="combat-difficultystat"></a>
 
 ### Enemy attribute or equipment input after difficulty
@@ -1814,8 +1672,6 @@ Formula ID: `difficultyStat`. Inputs, in order: `base`, `rate`.
 ```text
 result = trunc(((base * rate) / 100))
 ```
-
-Evidence: `Sang.Battle.BattlerMonster.RecalcBaseStats; RecalcEquipStats`.
 
 <a id="combat-difficultyvital"></a>
 
@@ -1836,8 +1692,6 @@ else:
     result = (trunc(((scaled + 5) / 10)) * 10)
 ```
 
-Evidence: `Sang.Battle.BattlerMonster.RecalcBaseStats`.
-
 <a id="combat-applyresource"></a>
 
 ### Resource remaining after signed damage
@@ -1852,8 +1706,6 @@ if locked:
 else:
   result = min(maximum, max(0, (current - damage)))
 ```
-
-Evidence: `Sang.Battle.BattlerBase.ApplyDamage`.
 
 <a id="combat-actualresourcedamage"></a>
 
@@ -1873,8 +1725,6 @@ else:
     result = damage
 ```
 
-Evidence: `Sang.Battle.BattlerBase.ApplyDamage`.
-
 <a id="combat-spendresource"></a>
 
 ### Resource remaining after paying a positive cost
@@ -1890,8 +1740,6 @@ else:
   result = current
 ```
 
-Evidence: `Sang.Battle.BattlerBase.SpendAbilityCost`.
-
 <a id="combat-accumulateap"></a>
 
 ### AP after an accumulation event
@@ -1903,8 +1751,6 @@ Base gain is 6 on turn, basic attack, or surviving opposing physical damage; 0 o
 ```text
 result = min(maximum, max(0, (current + trunc((((baseGain + bonus) * multiplier) / 100)))))
 ```
-
-Evidence: `Sang.Battle.BattlerBase.AccumulateAP`.
 
 <a id="combat-aphprecovery"></a>
 
@@ -1919,8 +1765,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.BattlerBase.RecoverHPForAP`.
-
 <a id="combat-apmprecovery"></a>
 
 ### MP recovered from an actual AP gain
@@ -1934,8 +1778,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.BattlerBase.RecoverMPForAP`.
-
 <a id="combat-hpalert"></a>
 
 ### Low-HP threshold
@@ -1946,8 +1788,6 @@ Formula ID: `hpAlert`. Inputs, in order: `maximumHP`.
 result = trunc((maximumHP / 2))
 ```
 
-Evidence: `Sang.Battle.BattlerBase.RecalcStats`.
-
 <a id="combat-hpcritical"></a>
 
 ### Critical-HP threshold
@@ -1957,8 +1797,6 @@ Formula ID: `hpCritical`. Inputs, in order: `maximumHP`.
 ```text
 result = trunc((maximumHP / 4))
 ```
-
-Evidence: `Sang.Battle.BattlerBase.RecalcStats`.
 
 <a id="combat-absorbedhp"></a>
 
@@ -1975,8 +1813,6 @@ else:
   result = previous
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveMaxHPAbsorb`.
-
 <a id="combat-absorbedhpdecay"></a>
 
 ### Remaining absorbed maximum HP
@@ -1990,8 +1826,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveMaxHPAbsorbDecay`.
-
 <a id="combat-convertresourcegain"></a>
 
 ### Resource gained by conversion
@@ -2003,8 +1837,6 @@ MP to HP rate is 1000. MP to AP and AP to MP rate is 100. Application still obey
 ```text
 result = min(trunc(((sourceCurrent * rate) / 100)), targetMissing)
 ```
-
-Evidence: `Sang.Battle.AbilityProcessor.ResolveAbilityMod`.
 
 <a id="combat-convertresourcecost"></a>
 
@@ -2019,8 +1851,6 @@ else:
   result = trunc(((targetMissing * 100) / rate))
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveAbilityMod`.
-
 <a id="combat-secondaryattributedamage"></a>
 
 ### Additional HP, MP, or AP damage
@@ -2032,8 +1862,6 @@ Sum AttributeDamageRate Value2 for the desired resource, excluding modifiers who
 ```text
 result = trunc(((potentialDamage * sum(rates, for each rate: rate)) / 100))
 ```
-
-Evidence: `Sang.Battle.AbilityProcessor.ResolveDamage`.
 
 <a id="combat-statusapplicationdamage"></a>
 
@@ -2050,8 +1878,6 @@ else:
   result = value
 ```
 
-Evidence: `Sang.Battle.BattlerBase.ApplyStatus`.
-
 <a id="combat-stancerecovery"></a>
 
 ### Resource change on a stance change
@@ -2061,8 +1887,6 @@ Formula ID: `stanceRecovery`. Inputs, in order: `maximum`, `rate`.
 ```text
 result = trunc(((maximum * (0 - rate)) / 100))
 ```
-
-Evidence: `Sang.Battle.AbilityProcessor.ResolveStatusApplication`.
 
 <a id="combat-threatgain"></a>
 
@@ -2077,8 +1901,6 @@ else:
   result = amount
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveThreatGainRate`.
-
 <a id="combat-threatstatbonus"></a>
 
 ### Attribute scaling for flat ability threat
@@ -2088,8 +1910,6 @@ Formula ID: `threatStatBonus`. Inputs, in order: `amount`, `user`, `ability`.
 ```text
 result = (amount + trunc(((user.Stats.Str * ability.StrRate) / 100)) + trunc(((user.Stats.Vit * ability.VitRate) / 100)) + trunc(((user.Stats.Dex * ability.DexRate) / 100)) + trunc(((user.Stats.Agi * ability.AgiRate) / 100)) + trunc(((user.Stats.Mnd * ability.MndRate) / 100)) + trunc(((user.Stats.Spi * ability.SpiRate) / 100)) + trunc(((user.Stats.Spd * ability.SpdRate) / 100)) + trunc(((user.Stats.Lck * ability.LckRate) / 100)))
 ```
-
-Evidence: `Sang.Battle.AbilityProcessor.ResolveThreatStatBonus`.
 
 <a id="combat-threatcurrentchange"></a>
 
@@ -2101,8 +1921,6 @@ Formula ID: `threatCurrentChange`. Inputs, in order: `current`, `additiveRate`, 
 result = (trunc(((current * additiveRate) / 100)) + flat)
 ```
 
-Evidence: `Sang.Battle.AbilityProcessor.ResolveCurrentThreatChange`.
-
 <a id="combat-threatdecay"></a>
 
 ### Threat after decay
@@ -2112,8 +1930,6 @@ Formula ID: `threatDecay`. Inputs, in order: `current`, `decayMultiplier`.
 ```text
 result = trunc(((current * (100 - min(100, max(0, trunc(((20 * decayMultiplier) / 100)))))) / 100))
 ```
-
-Evidence: `Sang.Battle.ThreatCollection.Decay`.
 
 <a id="combat-threatmissinghp"></a>
 
@@ -2128,8 +1944,6 @@ else:
   result = 0
 ```
 
-Evidence: `Sang.Battle.ThreatCollection.GenerateFromMissingHP`.
-
 <a id="combat-threathealing"></a>
 
 ### Threat generated by healing a threatened ally
@@ -2141,8 +1955,6 @@ Use the positive magnitude after threat-gain modifiers. Only alive, present mons
 ```text
 result = trunc(f32((f32(targetThreat) * min(1, max(0, f32((f32(healing) / f32(targetMaximumHP))))))))
 ```
-
-Evidence: `Sang.Battle.ThreatCollection.GenerateFromHealing`.
 
 <a id="combat-threatapply"></a>
 
@@ -2156,8 +1968,6 @@ Accumulate all deltas before clamping. Damage threat contributes the threat-gain
 result = max(0, (current + sum(deltas, for each delta: delta)))
 ```
 
-Evidence: `Sang.Battle.ThreatCollection.ApplyGeneratedThreatDelta`.
-
 <a id="combat-defensestatbonus"></a>
 
 ### Attribute-derived flat DEF or RES bonus
@@ -2170,8 +1980,6 @@ The native flat bonuses are zero. Vitality and Spirit instead affect defense red
 result = 0
 ```
 
-Evidence: `Sang.Battle.Calculator.CalculatePDefBonus`, `Sang.Battle.Calculator.CalculateMDefBonus`.
-
 <a id="combat-agilityratingbonus"></a>
 
 ### Attribute-derived accuracy or evasion
@@ -2181,8 +1989,6 @@ Formula ID: `agilityRatingBonus`. Inputs, in order: `agility`.
 ```text
 result = agility
 ```
-
-Evidence: `Sang.Battle.Calculator.CalculatePAccRatingBonus`, `Sang.Battle.Calculator.CalculatePEvaRatingBonus`.
 
 ## Legacy guide equations
 
@@ -2198,8 +2004,6 @@ Formula ID: `critChance`. Inputs, in order: `dex`.
 result = ((100 * dex) / (dex + 250))
 ```
 
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
-
 <a id="legacy-critdamage"></a>
 
 ### Attribute-derived extra critical damage
@@ -2209,8 +2013,6 @@ Formula ID: `critDamage`. Inputs, in order: `dex`.
 ```text
 result = (25 + ((dex / 15) ^ 1.35))
 ```
-
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
 
 <a id="legacy-penetration"></a>
 
@@ -2222,8 +2024,6 @@ Formula ID: `penetration`. Inputs, in order: `stat`.
 result = ((100 * stat) / (stat + 300))
 ```
 
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
-
 <a id="legacy-turntime"></a>
 
 ### Speed-derived turn time
@@ -2233,8 +2033,6 @@ Formula ID: `turnTime`. Inputs, in order: `speed`.
 ```text
 result = (34 + ((0.0175 * (speed - 600)) ^ 2))
 ```
-
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
 
 <a id="legacy-flatbeforepercent"></a>
 
@@ -2246,8 +2044,6 @@ Formula ID: `flatBeforePercent`. Inputs, in order: `base`, `flat`, `percent`.
 result = ((base + flat) * (1 + (percent / 100)))
 ```
 
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
-
 <a id="legacy-flatafterpercent"></a>
 
 ### flatAfterPercent
@@ -2257,8 +2053,6 @@ Formula ID: `flatAfterPercent`. Inputs, in order: `base`, `flat`, `percent`.
 ```text
 result = ((base * (1 + (percent / 100))) + flat)
 ```
-
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
 
 <a id="legacy-abilitybase"></a>
 
@@ -2270,8 +2064,6 @@ Formula ID: `abilityBase`. Inputs, in order: `base`, `attack`, `attackRate`, `sc
 result = (base + ((attack * attackRate) / 100) + (((scaling + ((attack * scalingAttack) / 100)) * scaledStats) / 100))
 ```
 
-Evidence: `Legacy community guide estimate; preserved without native rounding`.
-
 <a id="legacy-growthbase"></a>
 
 ### growthBase
@@ -2281,8 +2073,6 @@ Formula ID: `growthBase`. Inputs, in order: `rating`, `base`, `baseRating`.
 ```text
 result = (base + (baseRating * rating))
 ```
-
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
 
 <a id="legacy-growthlevel"></a>
 
@@ -2294,8 +2084,6 @@ Formula ID: `growthLevel`. Inputs, in order: `level`, `coefficient`.
 result = (coefficient * level)
 ```
 
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
-
 <a id="legacy-growthhistory"></a>
 
 ### growthHistory
@@ -2305,8 +2093,6 @@ Formula ID: `growthHistory`. Inputs, in order: `level`, `rating`, `history`, `co
 ```text
 result = ((coefficient * ((primaryWeight * rating * level) + (historyWeight * history))) / divisor)
 ```
-
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
 
 <a id="legacy-growthbonus"></a>
 
@@ -2318,8 +2104,6 @@ Formula ID: `growthBonus`. Inputs, in order: `level`, `base`, `coefficient`.
 result = (base + (coefficient * level))
 ```
 
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
-
 <a id="legacy-growthtotal"></a>
 
 ### growthTotal
@@ -2329,8 +2113,6 @@ Formula ID: `growthTotal`. Inputs, in order: `base`, `levelPart`, `growth`, `bon
 ```text
 result = (base + levelPart + growth + bonus)
 ```
-
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
 
 <a id="legacy-displayedlp"></a>
 
@@ -2342,8 +2124,6 @@ Formula ID: `displayedLP`. Inputs, in order: `jp`.
 result = floor((jp / 100))
 ```
 
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
-
 <a id="legacy-requiredlp"></a>
 
 ### requiredLP
@@ -2353,8 +2133,6 @@ Formula ID: `requiredLP`. Inputs, in order: `jp`.
 ```text
 result = ceil((jp / 100))
 ```
-
-Evidence: `Preserved legacy community guide estimate; not native integer rounding`.
 
 ## Ordered character-sheet stages
 

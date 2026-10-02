@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { fromJSONSchema } from 'zod'
 import { calculationPackage } from '../src/domain/calculation-package.ts'
+import { buildCalculationReference } from './lib/calculation-reference.mjs'
 
 const hash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 test('export CLI and browser package share the pinned numeric sources without private inputs', () => {
@@ -170,6 +171,20 @@ test('every arithmetic formula has valid calls, source evidence, and a generated
         Object.hasOwn(ability, field),
         `Ability ${ability.ID} is missing required field ${field}`,
       )
+})
+
+test('human reference keeps provenance separate from its equations and input contracts', () => {
+  const exported = calculationPackage()
+  const reference = buildCalculationReference(exported)
+  assert.equal(reference, readFileSync('docs/calculation-reference.md', 'utf8'))
+  assert.doesNotMatch(reference, /^Evidence:/m)
+  const annotated = structuredClone(exported)
+  for (const rules of [annotated.rules, annotated.combat, annotated.legacy])
+    for (const formula of Object.values(rules.formulas))
+      formula.evidence = Array.isArray(formula.evidence)
+        ? ['Machine-only source annotation']
+        : 'Machine-only source annotation'
+  assert.equal(buildCalculationReference(annotated), reference)
 })
 
 test('calculation CLIs separate help, usage errors and runtime checks', () => {
