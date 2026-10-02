@@ -58,7 +58,9 @@ Tags are optional labels for organizing your Build library, such as `healer` or 
 
 Library cards display saved tags, and both library search and Cmd+K / Ctrl+K search match them. Clones retain tags and complete backups preserve them; share links omit these library labels.
 
-Cloning makes a separate draft within the same Game Setup; editing creates a new immutable checkpoint. Builds from another Game Setup remain directly editable using their checkpoint's pinned behavior and catalog definitions.
+Cloning makes a separate Build within the same Game Setup; editing creates a new immutable checkpoint. Builds from another Game Setup remain directly editable using their checkpoint's pinned behavior and catalog definitions.
+
+Builds have no lifecycle classifications. Use optional tags such as `template` or `theorycraft` to organize them; any saved Build can be cloned as a starting point. Save status and checkpoint history describe the actual saved configuration, while tracked party plans retain their separate draft and hypothetical contexts.
 
 When one equipped item occupies several slots, mark those selections as the same copy. On narrow screens the library starts collapsed and selection evidence appears directly below its field.
 

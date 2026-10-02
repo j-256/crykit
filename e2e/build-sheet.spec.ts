@@ -51,7 +51,7 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   const before = await exportLocalData(page)
   const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(page.url())?.[1] ?? '')
   const build = before.builds[buildId]
-  expect(build).toMatchObject({ title: 'Warrior build', kind: 'build' })
+  expect(build).toMatchObject({ title: 'Warrior build', archived: false })
   const originalRevision = Object.values(before.buildRevisions).find(revision => revision.buildId === buildId)!
   for (const key of ['inventory', 'inventoryEvents', 'characters', 'scenarios', 'progress'] as const) expect(selectedPlaythrough(before)[key]).toEqual({})
   expect(before.personalDefinitions).toEqual({})

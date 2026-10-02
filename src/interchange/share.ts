@@ -8,10 +8,10 @@ import { modCatalogRevision } from '../domain/mod-layers'
 import { sameCorrectionValue } from '../domain/corrections'
 import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
 import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
-import { NativeLocalDataSchema } from './native-schema'
+import { NativeLocalDataSchema, StoredBuildSchema } from './native-schema'
 import { parseBoundedJson } from './json'
 
-const SHARE_FORMAT_VERSION = 2
+const SHARE_FORMAT_VERSION = 3
 export const SHARE_VERSION = `v${SHARE_FORMAT_VERSION}`
 export const SHARE_ROUTE_PREFIX = `#/share/${SHARE_VERSION}/`
 export const MAX_SHARE_URL_LENGTH = 64 * 1024
@@ -20,17 +20,21 @@ const LENGTH_HEADER_BYTES = 4
 const BASE64_CHUNK_BYTES = 8192
 const SHARE_COMPRESSION_LEVEL = 9
 const SHARE_RECORDS_SCHEMA = NativeLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true })
-const ShareSchema = z.object({
-  version: z.union([z.literal(1), z.literal(SHARE_FORMAT_VERSION)]),
+const CurrentShareSchema = z.object({
+  version: z.literal(SHARE_FORMAT_VERSION),
   kind: z.enum(['build', 'team']),
   title: NativeLocalDataSchema.shape.builds.valueType.shape.title,
   records: SHARE_RECORDS_SCHEMA,
   slots: z.array(z.string().min(1).nullable()).length(TEAM_SIZE).optional(),
   teamGameSetupRevisionId: z.string().min(1).optional(),
 }).strict()
+const ShareSchema = z.union([
+  CurrentShareSchema,
+  CurrentShareSchema.extend({ version: z.union([z.literal(1), z.literal(2)]), records: SHARE_RECORDS_SCHEMA.extend({ builds: z.record(NativeLocalDataSchema.shape.builds.keyType, StoredBuildSchema) }) }),
+])
 
 export interface SharePayload {
-  readonly version: 1 | 2
+  readonly version: 1 | 2 | 3
   readonly kind: 'build' | 'team'
   readonly title: string
   readonly records: Pick<LocalData, 'personalDefinitions' | 'gameSetups' | 'builds' | 'buildRevisions'>

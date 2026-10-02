@@ -20,7 +20,7 @@ describe('authored Build tags', () => {
 
   it('updates metadata independently of checkpoints and preserves stored labels during unrelated edits', () => {
     const id = asId<BuildId>('synthetic-tagged-build')
-    let data = createBuild(createTestLocalData(), { id, title: 'Synthetic Build', kind: 'build', gameSetupId: TEST_GAME_SETUP_ID, tags: [' support ', 'SUPPORT', ''] })
+    let data = createBuild(createTestLocalData(), { id, title: 'Synthetic Build', gameSetupId: TEST_GAME_SETUP_ID, tags: [' support ', 'SUPPORT', ''] })
     expect(data.builds[id]!.tags).toEqual(['support'])
     data = saveBuildRevision(data, { buildId: id, id: asId<BuildRevisionId>('synthetic-checkpoint'), gameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID, content: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] } })
     const before = data

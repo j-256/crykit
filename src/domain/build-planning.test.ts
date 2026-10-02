@@ -13,7 +13,7 @@ const content: BuildRevisionContent = { primaryClass: null, secondaryClass: null
 describe('build planning without observations', () => {
   it('creates a complete saved plan without inventory, characters, or verified rules', () => {
     const before = createBlankLocalData()
-    const localData = createBuildPlan(before, { title: 'Synthetic plan', kind: 'template', content, catalogLock })
+    const localData = createBuildPlan(before, { title: 'Synthetic plan', content, catalogLock })
     const build = Object.values(localData.builds)[0]!
     expect(localData.buildRevisions[build.latestRevisionId!]!.content).toEqual(content)
     const gameSetup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
@@ -48,7 +48,7 @@ describe('build planning without observations', () => {
   it('leaves the original localData unchanged if the initial revision is invalid', () => {
     const localData = createBlankLocalData()
     const original = structuredClone(localData)
-    expect(() => createBuildPlan(localData, { title: 'Synthetic plan', kind: 'template', catalogLock, content: { ...content, equipment: { invalid: { ref } } } })).toThrow('unknown Game Setup slot')
+    expect(() => createBuildPlan(localData, { title: 'Synthetic plan', catalogLock, content: { ...content, equipment: { invalid: { ref } } } })).toThrow('unknown Game Setup slot')
     expect(localData).toEqual(original)
   })
 })

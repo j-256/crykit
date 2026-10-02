@@ -362,9 +362,6 @@ export interface PartyProgressRecord {
   readonly updatedAt: Timestamp
 }
 
-export type BuildKind = 'build' | 'template'
-export type BuildState = 'draft' | 'hypothetical' | 'archived'
-
 export interface BuildSelection {
   readonly ref: EntityRef
   readonly observedName?: string
@@ -411,8 +408,7 @@ export interface Build {
   readonly gameSetupId: GameSetupId
   readonly revision: number
   readonly title: string
-  readonly kind: BuildKind
-  readonly state: BuildState
+  readonly archived: boolean
   readonly tags: readonly string[]
   readonly favorite: boolean
   readonly latestRevisionId?: BuildRevisionId
@@ -517,8 +513,10 @@ export interface Playthrough {
   readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>
 }
 
+export const LOCAL_DATA_SCHEMA_VERSION = '2.3.0'
+
 export interface LocalData {
-  readonly schemaVersion: '2.2.0'
+  readonly schemaVersion: typeof LOCAL_DATA_SCHEMA_VERSION
   readonly id: LocalDataId
   readonly revision: number
   readonly createdAt: Timestamp

@@ -8,7 +8,7 @@ import { BuildDetailsControl } from './BuildDetailsControl'
 
 const BUILD: Build = {
   id: asId<BuildId>('synthetic-build'), gameSetupId: TEST_GAME_SETUP_ID, revision: 1,
-  title: 'Synthetic build', kind: 'build', state: 'draft', tags: [], favorite: false,
+  title: 'Synthetic build', archived: false, tags: [], favorite: false,
   createdAt: TEST_NOW, updatedAt: TEST_NOW,
 }
 const RENAMED_TITLE = 'Renamed build'

@@ -60,7 +60,7 @@ A build can be recorded as a current observation after a visible diff and explic
 
 ### Builds and teams
 
-Provide a searchable library, drafts/templates, clone, named immutable checkpoints, configurable ordered slots, passive selection, class selection, notes, and contextual pickers. Keep recorded current, draft, and hypothetical contexts visible. A class change retains selections and displays resulting issues.
+Provide a searchable Build library, optional tags, cloning, named immutable checkpoints, configurable ordered slots, passive selection, class selection, notes, and contextual pickers. Builds have no draft, template, or hypothetical classification; any saved Build can be cloned. Keep recorded observations separate from planned Builds, and retain recorded current, draft, and hypothetical contexts for tracked party plans. A class change retains selections and displays resulting issues.
 
 Compare two checkpointed alternatives by selections, known costs, raw/typed listed contributions, documented effects, missing learning, and stock. Missing values remain unresolved rather than tying at zero. Provide a basic actionable requirements list that separates known shortages from facts needing confirmation.
 

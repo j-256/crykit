@@ -422,7 +422,7 @@ export default function App() {
     await commitLocalData((current) => {
       if (current.buildRevisions[revisionId]?.buildId === buildId) return current
       const configured = saveBuildBehavior(current, behavior, undefined, behaviorRevisionId)
-      const created = createBuild(configured.localData, { id: buildId, title: draft.title, kind: draft.kind, state: draft.state, tags: draft.tags, gameSetupId: configured.setup.gameSetupId, expectedRevision: configured.localData.revision })
+      const created = createBuild(configured.localData, { id: buildId, title: draft.title, tags: draft.tags, gameSetupId: configured.setup.gameSetupId, expectedRevision: configured.localData.revision })
       return saveBuildRevision(created, { buildId, id: revisionId, content, note, gameSetupRevisionId: configured.setup.id, expectedRevision: created.revision })
     })
     return { buildId, revisionId }

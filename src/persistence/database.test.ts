@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
-import { addGameSetupRevision, createPersonalDefinition } from '../domain'
-import { createTestLocalData, TEST_NOW } from '../domain/test-helpers'
+import { addGameSetupRevision, createPersonalDefinition, updateBuild } from '../domain'
+import { addTestBuild, createTestLocalData, TEST_NOW } from '../domain/test-helpers'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { compactModCatalog } from '../domain/mod-layers'
 import type { LocalData } from '../domain/types'
@@ -12,6 +12,21 @@ import { exportBackup, loadLocalData, prepareModCatalogs, previewImport, undoLoc
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
 const names: string[] = []
 const legacy = (data: LocalData) => { const { teams, ...rest } = data; return { ...rest, schemaVersion: '2.0.0' } }
+const classified = (data: LocalData) => ({ ...data, schemaVersion: '2.2.0', builds: Object.fromEntries(Object.entries(data.builds).map(([id, { archived, ...build }]) => [id, { ...build, kind: 'template', state: archived ? 'archived' : 'hypothetical' }])) })
+
+async function classifiedDatabase(badHistory = false) {
+  const name = `classification-migration-${crypto.randomUUID()}`
+  names.push(name)
+  const database = new Dexie(name)
+  database.version(3).stores(TABLES)
+  let before = addTestBuild(addTestBuild(createTestLocalData(), 'visible', '', {}), 'archived', '', {})
+  before = updateBuild(before, { buildId: before.builds.visible!.id, tags: ['template', 'sample'], now: TEST_NOW })
+  const after = updateBuild(before, { buildId: before.builds.archived!.id, archived: true, now: TEST_NOW })
+  await database.table('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: classified(after), lineage: { rootLocalDataId: before.id } })
+  await database.table('history').put({ id: 'history', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before: classified(before), after: badHistory ? { ...classified(after), schemaVersion: 'unsupported' } : classified(after), recordedAt: TEST_NOW })
+  database.close()
+  return { name, before, after }
+}
 
 async function oldDatabase(badHistory = false) {
   const name = `migration-${crypto.randomUUID()}`
@@ -32,12 +47,43 @@ afterEach(async () => {
 })
 
 describe('persisted behavior format migration', () => {
+  it('discards Build classifications from stored data and history while retaining archive visibility', async () => {
+    const fixture = await classifiedDatabase()
+    const database = new CryKitDatabase(fixture.name)
+    setDatabaseForTests(database)
+    const loaded = await loadLocalData()
+    expect(database.verno).toBe(4)
+    expect(loaded.localData).toEqual(fixture.after)
+    expect((await database.localDatas.get('local-data-record'))?.localData).toEqual(fixture.after)
+    const history = await database.history.get('history')
+    expect(history?.before).toEqual(fixture.before)
+    expect(history?.after).toEqual(fixture.after)
+    const undone = await undoLocalDataWithStatus(loaded.revision)
+    expect(undone.localData.builds.archived!.archived).toBe(false)
+    expect(undone.localData.builds.visible!.tags).toEqual(['template', 'sample'])
+    expect(undone.localData.buildRevisions).toEqual(fixture.before.buildRevisions)
+    database.close()
+  })
+
+  it('keeps version 3 data intact if classification cleanup fails', async () => {
+    const fixture = await classifiedDatabase(true)
+    const database = new CryKitDatabase(fixture.name)
+    await expect(database.open()).rejects.toThrow()
+    database.close()
+    const original = new Dexie(fixture.name)
+    original.version(3).stores(TABLES)
+    expect((await original.table('localDatas').get('local-data-record')).localData).toEqual(classified(fixture.after))
+    expect(original.verno).toBe(3)
+    expect((await original.table('history').get('history')).before).toEqual(classified(fixture.before))
+    original.close()
+  })
+
   it('upgrades legacy data and undo history transactionally without changing pinned records', async () => {
     const fixture = await oldDatabase()
     const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
-    expect(database.verno).toBe(3)
+    expect(database.verno).toBe(4)
     expect(loaded.localData).toEqual(fixture.after)
     expect(loaded.canUndo).toBe(true)
     const history = await database.history.get('history')

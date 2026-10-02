@@ -73,7 +73,7 @@ export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Time
     })
     localData = createBuild(localData, {
       id: buildId, gameSetupId, title: `${member.name}: sample ${catalog.entities[member.classId]!.name}`,
-      kind: 'build', tags: ['sample'], now,
+      tags: ['sample'], now,
     })
     localData = saveBuildRevision(localData, {
       buildId, id: revisionId, gameSetupRevisionId, catalogLock, note: SAMPLE_NOTE, now,

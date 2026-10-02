@@ -187,6 +187,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await page.getByRole('button', { name: 'New party plan', exact: true }).click()
   const team = page.getByRole('dialog', { name: 'Create party plan' })
   await team.getByLabel('Party plan name').fill('Synthetic simultaneous team')
+  await team.getByRole('combobox', { name: /^Context\b/ }).selectOption('hypothetical')
   await chooseFourTeamMembers(team)
   await team.getByRole('button', { name: 'Create party plan', exact: true }).click()
   await expect(team).not.toBeVisible()
@@ -195,6 +196,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await page.getByRole('combobox', { name: 'Synthetic Vale', exact: true }).selectOption(firstRevision.id)
   await expect(page.getByText('Confirmed stock cannot cover simultaneous assignments', { exact: false }).first()).toBeVisible()
   const simultaneous = await exportLocalData(page)
+  expect(Object.values(selectedPlaythrough(simultaneous).scenarios).find(scenario => scenario.label === 'Synthetic simultaneous team')?.kind).toBe('hypothetical')
   expect(simultaneous.buildRevisions[firstRevision.id]).toEqual(firstRevision)
   expect(Object.values(selectedPlaythrough(simultaneous).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 1 })
   expect(Object.values(selectedPlaythrough(simultaneous).characters).every((character) => !character.currentSnapshotId)).toBe(true)
@@ -332,7 +334,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   const after = await exportLocalData(page)
   const copy = Object.values(after.builds).find((build) => build.id !== originalBuild.id && build.title === 'Two-slot template (copy)')!
   const copiedRevision = after.buildRevisions[copy.latestRevisionId!]!
-  expect(copy.state).toBe('draft')
+  expect(copy.archived).toBe(false)
   expect(copiedRevision.id).not.toBe(originalRevision.id)
   expect(copiedRevision.revision).toBe(1)
   expect(copiedRevision.content).toEqual(originalRevision.content)
