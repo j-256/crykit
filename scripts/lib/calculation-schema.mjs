@@ -16,7 +16,10 @@ const node = (names, args, rest) => ({
   ...(rest ? { items: rest, maxItems: 10001 } : { items: false, maxItems: args.length + 1 }),
 })
 
-export function buildCalculationSchema(legacy) {
+export function buildCalculationSchema(characterSchema) {
+  const nativeProperties = Object.fromEntries(
+    Object.entries(characterSchema.properties).filter(([name]) => name !== 'legacy'),
+  )
   const expression = ref('combatExpression')
   const value = ref('combatValue')
   const definitions = {
@@ -92,13 +95,18 @@ export function buildCalculationSchema(legacy) {
         }),
       ),
     }),
+    previewVerification: object({
+      schemaVersion: { const: 1 },
+      evidence: { type: 'object' },
+      cases: list(object({ formula: identifier, input: list(value), expected: value })),
+    }),
   }
   return {
-    ...legacy,
+    ...characterSchema,
     $id: 'urn:crykit:calculation-package:2',
     title: 'Crystal Project character and combat calculation package',
     properties: {
-      ...legacy.properties,
+      ...nativeProperties,
       schemaVersion: { const: 2 },
       id: { const: 'pc-1.6.9-package-v2' },
       combat: ref('combatRules'),
@@ -113,17 +121,19 @@ export function buildCalculationSchema(legacy) {
         checksum: text,
       }),
       combatVerification: ref('combatVerification'),
+      previewVerification: ref('previewVerification'),
       example: object({ user: value, target: value, ability: value, context: value }),
       enemy: { type: 'object' },
     },
     required: [
-      ...legacy.required,
+      ...characterSchema.required.filter((name) => name !== 'legacy'),
       'combat',
       'combatData',
       'combatVerification',
+      'previewVerification',
       'example',
       'enemy',
     ],
-    $defs: { ...legacy.$defs, ...definitions },
+    $defs: { ...characterSchema.$defs, ...definitions },
   }
 }

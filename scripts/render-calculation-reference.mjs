@@ -31,16 +31,15 @@ try {
 }
 try {
   const read = async (path) => JSON.parse(await readFile(join(ROOT, path), 'utf8'))
-  const [rules, legacy, combat, combatData, example] = await Promise.all(
+  const [rules, combat, combatData, example] = await Promise.all(
     [
       'src/calculations/pc-1.6.9-v1.json',
-      'src/calculations/guide-v1.json',
       'src/calculations/combat-v1.json',
       'src/catalog/native-combat-v1.json',
       'src/calculations/combat-example-v1.json',
     ].map(read),
   )
-  const markdown = buildCalculationReference({ rules, legacy, combat, combatData, example })
+  const markdown = buildCalculationReference({ rules, combat, combatData, example })
   if (values.check) {
     if ((await readFile(OUTPUT, 'utf8')) !== markdown)
       throw new Error('Human calculation reference differs from its machine rules; regenerate it')

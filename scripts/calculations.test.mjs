@@ -36,9 +36,11 @@ test('export CLI and browser package share the pinned numeric sources without pr
       exported.rules,
       JSON.parse(readFileSync('src/calculations/pc-1.6.9-v1.json', 'utf8')),
     )
+    assert.equal(Object.hasOwn(exported, 'legacy'), false)
+    assert.equal(schema.safeParse({ ...exported, legacy: calculationPackage(1).legacy }).success, false)
     assert.deepEqual(
-      exported.legacy,
-      JSON.parse(readFileSync('src/calculations/guide-v1.json', 'utf8')),
+      exported.previewVerification,
+      JSON.parse(readFileSync('src/calculations/preview-parity-v1.json', 'utf8')),
     )
     const data = JSON.stringify(exported)
     assert.doesNotMatch(data, /\/Users\/|playthroughs|personalDefinitions|displayedStats/)
@@ -87,6 +89,13 @@ test('export CLI and browser package share the pinned numeric sources without pr
         ),
       )
     }
+    assert.equal(exported.previewVerification.evidence.executableSha256, exported.data.executableSha256)
+    for (const { file, sha256 } of exported.previewVerification.evidence.files)
+      assert.equal(exported.combat.source.files[file], sha256)
+    for (const vector of exported.previewVerification.cases) {
+      assert.ok(exported.combat.formulas[vector.formula])
+      assert.equal(vector.input.length, exported.combat.formulas[vector.formula].inputs.length)
+    }
     const malformed = structuredClone(exported)
     malformed.combat.formulas.periodicHP.result = ['execute', 1]
     assert.equal(schema.safeParse(malformed).success, false)
@@ -108,6 +117,7 @@ test('format 1 remains byte-equivalent to the original package shape', () => {
     JSON.parse(readFileSync('src/calculations/package-v1.schema.json', 'utf8')),
   )
   assert.ok(schema.safeParse(JSON.parse(exported)).success)
+  assert.deepEqual(JSON.parse(exported).legacy, JSON.parse(readFileSync('src/calculations/guide-v1.json', 'utf8')))
   for (const version of ['', '0', '3', '2.5'])
     assert.equal(
       spawnSync(process.execPath, ['scripts/export-calculations.mjs', '--schema-version', version])
@@ -123,7 +133,6 @@ test('every arithmetic formula has valid calls, source evidence, and a generated
   for (const [section, rules] of [
     ['sheet', exported.rules],
     ['combat', exported.combat],
-    ['legacy', exported.legacy],
   ]) {
     const visit = (expression) => {
       if (
@@ -178,8 +187,9 @@ test('human reference keeps provenance separate from its equations and input con
   const reference = buildCalculationReference(exported)
   assert.equal(reference, readFileSync('docs/calculation-reference.md', 'utf8'))
   assert.doesNotMatch(reference, /^Evidence:/m)
+  assert.doesNotMatch(reference, /Legacy guide equations|id="legacy-/)
   const annotated = structuredClone(exported)
-  for (const rules of [annotated.rules, annotated.combat, annotated.legacy])
+  for (const rules of [annotated.rules, annotated.combat])
     for (const formula of Object.values(rules.formulas))
       formula.evidence = Array.isArray(formula.evidence)
         ? ['Machine-only source annotation']

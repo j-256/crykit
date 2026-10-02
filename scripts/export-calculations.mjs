@@ -39,11 +39,10 @@ try {
 
 try {
   const read = async (file) => JSON.parse(await readFile(join(ROOT, file), 'utf8'))
-  const [rules, data, legacy, verification] = await Promise.all(
+  const [rules, data, verification] = await Promise.all(
     [
       'src/calculations/pc-1.6.9-v1.json',
       'src/catalog/native-stats-v1.json',
-      'src/calculations/guide-v1.json',
       'src/calculations/pc-parity-v1.json',
     ].map(read),
   )
@@ -55,15 +54,16 @@ try {
     id: rules.id,
     rules,
     data,
-    legacy,
-    verification,
   }
-  if (values['schema-version'] === '2') {
-    const [combat, combatData, combatVerification, example, enemy] = await Promise.all(
+  if (values['schema-version'] === '1') {
+    exported = { ...exported, legacy: await read('src/calculations/guide-v1.json'), verification }
+  } else {
+    const [combat, combatData, combatVerification, previewVerification, example, enemy] = await Promise.all(
       [
         'src/calculations/combat-v1.json',
         'src/catalog/native-combat-v1.json',
         'src/calculations/combat-parity-v1.json',
+        'src/calculations/preview-parity-v1.json',
         'src/calculations/combat-example-v1.json',
         'src/calculations/enemy-difficulty-v1.json',
       ].map(read),
@@ -73,6 +73,10 @@ try {
       combat.id !== combatVerification.engine ||
       combat.source.executableSha256 !== data.executableSha256 ||
       combatData.nativeDataDigest !== data.nativeDataDigest ||
+      previewVerification.evidence.executableSha256 !== data.executableSha256 ||
+      previewVerification.evidence.files.some(
+        ({ file, sha256 }) => combat.source.files[file] !== sha256,
+      ) ||
       enemy.source.executableSha256 !== data.executableSha256
     )
       throw new Error('Combat calculation identities differ')
@@ -80,9 +84,11 @@ try {
       ...exported,
       schemaVersion: 2,
       id: 'pc-1.6.9-package-v2',
+      verification,
       combat,
       combatData,
       combatVerification,
+      previewVerification,
       example,
       enemy,
     }

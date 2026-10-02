@@ -95,11 +95,10 @@ function formulaSection(section, id, formula, enums) {
   ].join('\n\n')
 }
 
-export function buildCalculationReference({ rules, legacy, combat, combatData, example }) {
+export function buildCalculationReference({ rules, combat, combatData, example }) {
   const sections = [
     { id: 'sheet', title: 'Character-sheet equations', formulas: rules.formulas },
     { id: 'combat', title: 'Combat equations', formulas: combat.formulas },
-    { id: 'legacy', title: 'Legacy guide equations', formulas: legacy.formulas },
   ]
   const index = sections
     .map((section) =>
@@ -124,11 +123,6 @@ export function buildCalculationReference({ rules, legacy, combat, combatData, e
     .map((section) =>
       [
         '## ' + section.title,
-        ...(section.id === 'legacy'
-          ? [
-              'These formulas preserve older saved plans. They are a separate community-guide model, not additional verified PC mechanics.',
-            ]
-          : []),
         ...Object.entries(section.formulas).map(([id, formula]) =>
           formulaSection(section, id, formula, combatData.enums),
         ),
