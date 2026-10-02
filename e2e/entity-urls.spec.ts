@@ -60,3 +60,9 @@ test('slugless pre-release entity URLs show recovery', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toHaveCount(0)
 })
+
+test('retired encoded-colon entity URLs show recovery', async ({ page }) => {
+  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/mod%3Amoonlight-project%3Aability%3A565')
+  await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toHaveCount(0)
+})
