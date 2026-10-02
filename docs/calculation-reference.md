@@ -78,6 +78,9 @@ The arithmetic engine evaluates only bundled rules. Importing a description or f
 
 ### Combat equations
 
+- [LP cost displayed in the native learn tree](#combat-learninglp)
+- [Whole LP sufficient for a JP cost](#combat-learningwholelp)
+- [JP affordability before learning prerequisites](#combat-learningeligible)
 - [Apply a percentage, truncating toward zero](#combat-percent)
 - [Maximum resource used by periodic effects](#combat-effectivemaximum)
 - [Vitality and Spirit adjustment to periodic HP](#combat-dotresistance)
@@ -93,6 +96,7 @@ The arithmetic engine evaluates only bundled rules. Importing a description or f
 - [Item consumption](#combat-itemconsumption)
 - [Time until the next turn](#combat-nextturn)
 - [Percentage-resource contribution to base damage](#combat-resourceterm)
+- [Native coefficient power before resource and contextual effects](#combat-abilitypower)
 - [Base ability damage or healing](#combat-basedamage)
 - [Nonlinear defense seed](#combat-defenseseed)
 - [Damage after defense and penetration](#combat-defense)
@@ -119,6 +123,7 @@ The arithmetic engine evaluates only bundled rules. Importing a description or f
 - [cumulative J P Curve](#combat-cumulativejpcurve)
 - [troop Reward Curve](#combat-trooprewardcurve)
 - [defeat Loss Cap Curve](#combat-defeatlosscapcurve)
+- [Base physical accuracy/evasion curve](#combat-physicalhitcurve)
 - [Hit chance without early-exit flags](#combat-ordinaryhitchance)
 - [Hit chance with flags and status requirements](#combat-hitchance)
 - [Critical-hit chance](#combat-critchance)
@@ -391,6 +396,42 @@ result = trunc(((raw * defenseRate(if (weighted = 0) then main else weighted, ta
 
 ## Combat equations
 
+<a id="combat-learninglp"></a>
+
+### LP cost displayed in the native learn tree
+
+Formula ID: `learningLP`. Inputs, in order: `jp`.
+
+Fractional costs display two decimal places; stored costs and affordability use exact JP.
+
+```text
+result = (jp / 100)
+```
+
+<a id="combat-learningwholelp"></a>
+
+### Whole LP sufficient for a JP cost
+
+Formula ID: `learningWholeLP`. Inputs, in order: `jp`.
+
+A conversion for whole LP input, not a rounded game cost.
+
+```text
+result = ceil((jp / 100))
+```
+
+<a id="combat-learningeligible"></a>
+
+### JP affordability before learning prerequisites
+
+Formula ID: `learningEligible`. Inputs, in order: `currentJP`, `costJP`.
+
+Learning also requires unlocked skills and satisfied prerequisites.
+
+```text
+result = (currentJP >= costJP)
+```
+
 <a id="combat-percent"></a>
 
 ### Apply a percentage, truncating toward zero
@@ -626,6 +667,21 @@ else:
   result = trunc(((if (mode = 0) then current else if (mode = 1) then (maximum - current) else maximum * rate) / 100))
 ```
 
+<a id="combat-abilitypower"></a>
+
+### Native coefficient power before resource and contextual effects
+
+Formula ID: `abilityPower`. Inputs, in order: `attack`, `ability`, `extraPower`, `user`.
+
+Each core-stat term truncates twice before the terms are added. extraPower is supplied by the contextual modifier stage.
+
+```text
+base = (ability.BasePower + trunc(((attack * ability.BasePAtkRate) / 100)) + extraPower)
+scaling = (if (ability.ScalingPower = none) then ability.BasePower else ability.ScalingPower + trunc(((attack * if (ability.ScalingPAtkRate = none) then ability.BasePAtkRate else ability.ScalingPAtkRate) / 100)) + extraPower)
+attributes = (trunc(((scaling * trunc(((user.Stats.Str * ability.StrRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Vit * ability.VitRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Dex * ability.DexRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Agi * ability.AgiRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Mnd * ability.MndRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Spi * ability.SpiRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Spd * ability.SpdRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Lck * ability.LckRate) / 100))) / 100)))
+result = (base + attributes)
+```
+
 <a id="combat-basedamage"></a>
 
 ### Base ability damage or healing
@@ -640,11 +696,9 @@ if ability.PDefAsPAtk:
 else:
   attack = user.Stats.PAtk
 extraPower = (if (ability modifier DamagePerTargetDebuff != none) then if (ability modifier DamagePerTargetDebuff.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier DamagePerTargetDebuff.Value1 (if record is none: 0) * context.targetDebuffCount)) / 100)) else (ability modifier DamagePerTargetDebuff.Value1 (if record is none: 0) * context.targetDebuffCount) else 0 + if (ability modifier DamagePerSelfBuff != none) then if (ability modifier DamagePerSelfBuff.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier DamagePerSelfBuff.Value1 (if record is none: 0) * context.userBuffCount)) / 100)) else (ability modifier DamagePerSelfBuff.Value1 (if record is none: 0) * context.userBuffCount) else 0 + if (ability modifier ConsumeComboTokens != none) then if (ability modifier ConsumeComboTokens.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier ConsumeComboTokens.Value1 (if record is none: 0) * first(target.Statuses, where status: (status.ID = 46)).Count (if record is none: 0))) / 100)) else (ability modifier ConsumeComboTokens.Value1 (if record is none: 0) * first(target.Statuses, where status: (status.ID = 46)).Count (if record is none: 0)) else 0)
-base = (ability.BasePower + trunc(((attack * ability.BasePAtkRate) / 100)) + extraPower)
-scaling = (if (ability.ScalingPower = none) then ability.BasePower else ability.ScalingPower + trunc(((attack * if (ability.ScalingPAtkRate = none) then ability.BasePAtkRate else ability.ScalingPAtkRate) / 100)) + extraPower)
-attributes = (trunc(((scaling * trunc(((user.Stats.Str * ability.StrRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Vit * ability.VitRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Dex * ability.DexRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Agi * ability.AgiRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Mnd * ability.MndRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Spi * ability.SpiRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Spd * ability.SpdRate) / 100))) / 100)) + trunc(((scaling * trunc(((user.Stats.Lck * ability.LckRate) / 100))) / 100)))
+power = abilityPower(attack, ability, extraPower, user)
 resources = sum(ability.AbilityMods, for each mod: if (mod.Tag = 42) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 0, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 0, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 0, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 37) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 43) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 1, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 1, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 1, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 38) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 44) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 2, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 2, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 2, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 39) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else 0)
-result = (base + attributes + resources)
+result = (power + resources)
 ```
 
 <a id="combat-defenseseed"></a>
@@ -1374,6 +1428,21 @@ else:
                               result = f32(10000)
 ```
 
+<a id="combat-physicalhitcurve"></a>
+
+### Base physical accuracy/evasion curve
+
+Formula ID: `physicalHitCurve`. Inputs, in order: `accuracy`, `evasion`.
+
+Zero evasion yields 100 before ability accuracy, modifiers, difficulty, Luck and miss protection.
+
+```text
+if (evasion > 0):
+  result = trunc(f32((hitCurve(f32((f32(accuracy) / f32(evasion)))) * 100)))
+else:
+  result = 100
+```
+
 <a id="combat-ordinaryhitchance"></a>
 
 ### Hit chance without early-exit flags
@@ -1384,7 +1453,7 @@ Physical takes precedence over magical for hybrid abilities. Zero target evasion
 
 ```text
 if (target.Stats.PEvaRating > 0):
-  physical = trunc(((trunc((((ability.BaseAcc + trunc(f32((hitCurve(f32((f32(user.Stats.PAccRating) / f32(target.Stats.PEvaRating)))) * 100))) + user.Stats.PHitChanceGivenAddi + target.Stats.PHitChanceTakenAddi) * user.Stats.PHitChanceGivenMult) / 100)) * target.Stats.PHitChanceTakenMult) / 100))
+  physical = trunc(((trunc((((ability.BaseAcc + physicalHitCurve(user.Stats.PAccRating, target.Stats.PEvaRating) + user.Stats.PHitChanceGivenAddi + target.Stats.PHitChanceTakenAddi) * user.Stats.PHitChanceGivenMult) / 100)) * target.Stats.PHitChanceTakenMult) / 100))
 else:
   physical = (ability.BaseAcc + 100)
 if ability.IsPAbil:
