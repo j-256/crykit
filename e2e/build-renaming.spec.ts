@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -34,7 +35,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
 })
 
-test('renaming persists the title while preserving every checkpoint and team assignment', async ({ page, isMobile }) => {
+test('renaming persists the title while preserving every checkpoint and team assignment', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const before = await exportLocalData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
   await rename(page, `  ${RENAMED_TITLE}  `)

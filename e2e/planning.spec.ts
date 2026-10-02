@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -212,7 +213,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('build drafts resist navigation and recording current preserves level and the existing party plan', async ({ page, isMobile }) => {
+test('build drafts resist navigation and recording current preserves level and the existing party plan', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await configureGameSetup(page)
   await addCharacter(page, 'Synthetic Rowan')
   await addCharacter(page, 'Synthetic Vale')

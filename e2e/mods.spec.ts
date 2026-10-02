@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -51,7 +52,7 @@ async function search(page: Page, query: string) {
   return palette
 }
 
-test('recorded mod help opens settings and preserves the snapshot after a mod choice changes', async ({ page, isMobile }) => {
+test('recorded mod help opens settings and preserves the snapshot after a mod choice changes', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const original = createTestLocalData()
   let localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, slots: original.gameSetups[TEST_GAME_SETUP_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
   localData = createCharacter(localData, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
@@ -197,7 +198,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await page.keyboard.press('Escape')
 })
 
-test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', async ({ page, context }) => {
+test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const externalRequests: string[] = []
   const appOrigin = new URL(test.info().project.use.baseURL!).origin
   page.on('request', request => { if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url()) })

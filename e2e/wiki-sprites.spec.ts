@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -12,7 +13,7 @@ async function expectArtwork(page: Page, name: string, source: 'game' | 'wiki' =
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-test('native artwork stays quiet and wiki fallbacks retain attribution offline', async ({ page, context }) => {
+test('native artwork stays quiet and wiki fallbacks retain attribution offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const external: string[] = []
   page.on('request', request => { if (!new URL(request.url()).hostname.match(/^(127\.0\.0\.1|localhost)$/)) external.push(request.url()) })
   await page.goto(WARRIOR)

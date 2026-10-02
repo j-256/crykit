@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
@@ -49,7 +50,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('universal search focuses the input on shortcuts, reopening, and the search button', async ({ page, isMobile }) => {
+test('universal search focuses the input on shortcuts, reopening, and the search button', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const trigger = page.getByRole('button', { name: isMobile ? 'Search planner' : /^Search/ }).filter({ visible: true })
   const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   const input = palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })
@@ -71,7 +72,7 @@ test('universal search focuses the input on shortcuts, reopening, and the search
   await expect(trigger).toBeFocused()
 })
 
-test('starter picklists and universal search work without importing or inventing personal state', async ({ page, isMobile, baseURL }) => {
+test('starter picklists and universal search work without importing or inventing personal state', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile, baseURL }) => {
   const externalRequests: string[] = []
   const appOrigin = new URL(baseURL!).origin
   page.on('request', (request) => {

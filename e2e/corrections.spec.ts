@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -49,7 +50,7 @@ async function importProposal(page: Page, entries: readonly CatalogCorrection[])
   await expect(manager.getByText('Corrections imported locally.', { exact: true })).toBeVisible()
 }
 
-test('edits in place with minimal input, adds provenance later, and exports exact decisions', async ({ page, baseURL }, testInfo) => {
+test('edits in place with minimal input, adds provenance later, and exports exact decisions', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }, testInfo) => {
   const external: string[] = []
   page.on('request', request => { if (!request.url().startsWith(`${baseURL}/`)) external.push(request.url()) })
   await page.goto(ITEM_PATH)

@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -42,7 +43,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('character learning and nested definition routes restore exact UI state', async ({ page }) => {
+test('character learning and nested definition routes restore exact UI state', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await addCharacter(page, 'Synthetic route keeper')
   await expect(page).toHaveURL(/#\/characters\/[^/]+\/current$/)
 

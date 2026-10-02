@@ -1,6 +1,7 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 
-test('home opens the build library and separates tracking on desktop and touch', async ({ page, isMobile }, testInfo) => {
+test('home opens the build library and separates tracking on desktop and touch', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/')
   await expect(page).toHaveURL(/#\/builds\/library$/)
@@ -64,7 +65,7 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
 })
 
-test('direct settings return to Builds and saved build tracking requires an explicit choice', async ({ page, isMobile }) => {
+test('direct settings return to Builds and saved build tracking requires an explicit choice', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/settings/data')
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await expect(settings).toBeVisible()

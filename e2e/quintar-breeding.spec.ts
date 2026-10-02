@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_STEP } from '../src/catalog/quintar-breeding'
@@ -69,7 +70,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('step tiles toggle with mouse and keyboard, persist, and keep other records independent', async ({ page }) => {
+test('step tiles toggle with mouse and keyboard, persist, and keep other records independent', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = await readLocalData(page)
   const tiles = page.locator('.quintar-tile')
   await expect(tiles).toHaveCount(QUINTAR_BREEDING_STEPS.length)
@@ -126,7 +127,7 @@ test('step reference links open exact local details without marking progress', a
   }
 })
 
-test('rapid toggles hold the final requested state without flashing or changing unrelated tiles and controls', async ({ page }) => {
+test('rapid toggles hold the final requested state without flashing or changing unrelated tiles and controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const target = page.locator(`[data-step="${QUINTAR_STEP.babel}"]`)
   const queuedState = await page.evaluate(({ targetId, untouchedId, clicks }) => {
     const tile = document.querySelector<HTMLElement>(`[data-step="${targetId}"]`)!
@@ -190,7 +191,7 @@ test('rapid toggles hold the final requested state without flashing or changing 
   await expect(target).toHaveAttribute('data-complete', 'true')
 })
 
-test('a failed tile save rolls back and can be retried in place', async ({ page }) => {
+test('a failed tile save rolls back and can be retried in place', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = await readLocalData(page)
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
