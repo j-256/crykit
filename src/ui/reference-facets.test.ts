@@ -29,6 +29,13 @@ describe('reference facet organization', () => {
     expect(projected.slots.state).toBe('notApplicable')
   })
 
+  it('classifies native source origins without treating vanilla records as possible mod matches', () => {
+    const entity = Object.values(DEFAULT_CATALOG.entities).find(value => value.name === 'Warrior' && value.id === 'base:class:warrior')!
+    expect(referenceFieldFacets(entity).mods).toEqual({ state: 'known', value: ['Base game'] })
+    expect(referenceFieldFacets(entity, [], 'Reviewed mod replacement').mods).toEqual({ state: 'known', value: ['Reviewed mod replacement'] })
+    expect(referenceFieldFacets({ kind: 'item', name: 'Warrior', fields: {} }).mods.state).toBe('unknown')
+  })
+
   it('retains a documented mod candidate alongside conflicting imported evidence', () => {
     const projected = referenceFieldFacets({ kind: 'item', fields: { 'Source mod': { state: 'conflicting', claims: [{ value: 'Pack A', sources: [] }, { value: 'Pack B', sources: [] }] } } }, [], 'Documented expansion')
     expect(projected.mods).toEqual({ state: 'conflicting', claims: [{ value: ['Pack A'], sources: [] }, { value: ['Pack B'], sources: [] }, { value: ['Documented expansion'], sources: [] }] })

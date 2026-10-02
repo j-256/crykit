@@ -1,6 +1,8 @@
 import { importedGameRules, IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { z } from 'zod'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
+import { MAX_MOD_SOURCE_NODES } from '../domain/mod-library'
+import { steamWorkshopFileId } from '../domain/mod-workshop'
 import { bundledModEntityId } from '../domain/bundled-mods'
 import { gameRecordFacts } from '../domain/game-record-facts'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
@@ -13,6 +15,8 @@ import type { ImportPreview, ImportProblem } from './types'
 import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
 
 export const CRYSTAL_EDIT_FORMAT = CRYSTAL_EDIT_CATALOG_SCHEMA
+export const CRYSTAL_EDIT_JSON_LIMITS = Object.freeze({ maxNodes: MAX_MOD_SOURCE_NODES })
+export const MOD_LIBRARY_IMPORT_REVISION = 'library-v1'
 const MAX_MODELS = 20_000
 const modelId = z.number().int().min(0).max(0xffffffff)
 const ids = z.array(modelId).max(MAX_MODELS)
@@ -36,7 +40,7 @@ export function isCrystalEdit(value: JsonValue): boolean {
 }
 
 export async function previewCrystalEdit(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
-  const root = parseBoundedJson(bytes, filename)
+  const root = parseBoundedJson(bytes, filename, CRYSTAL_EDIT_JSON_LIMITS)
   if (!isCrystalEdit(root) || !jsonRecord(root) || typeof root.ID !== 'string' || !root.ID.trim() || root.ID.length > 512 || !Number.isSafeInteger(root.EditorVersion) || (root.EditorVersion as number) < 0) {
     throw new AppDataError('schema-mismatch', 'Crystal Edit JSON requires a project ID, editor version, and model arrays', { recoverable: true })
   }
@@ -76,7 +80,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
       entities[id] = { id, kind, name: record.Name as string, aliases: [], fields, sources: [source], ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}) }
     }
   }
-  if (!total && !hasRuleData(root)) throw new AppDataError('schema-mismatch', 'This export contains no supported reference models or game settings', { recoverable: true })
+  if (!total && !hasRuleData(root)) warnings.push({ severity: 'warning', code: 'unmodeled-mod-content', message: 'This mod has no supported planning definitions or calculation settings. Its complete source is saved for editing; other game effects remain unmodeled.' })
   for (const entity of Object.values(entities).filter(entity => entity.kind === 'class')) {
     const record = entity.fields['Crystal Edit source record']
     if (record?.state !== 'known' || !jsonRecord(record.value) || !Array.isArray(record.value.PassiveIDs)) continue
@@ -104,14 +108,14 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
   }
   if (missing.size) warnings.push({ severity: 'warning', code: 'external-model-references', message: `${missing.size} referenced ability or passive definitions are absent. Their IDs and tree positions are retained; names, costs, and effects remain unresolved.` })
   const catalog: CatalogSnapshot = {
-    id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}:${IMPORTED_RULES_REVISION}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
+    id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
     checksum: `sha256:${digest}`, importedAt, entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
-    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities },
+    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion: root.EditorVersion!, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities, ...(steamWorkshopFileId(root.SteamWorkshopFileID) ? { steamWorkshopFileId: steamWorkshopFileId(root.SteamWorkshopFileID)! } : {}) },
   }
   const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
-  const receiptId = asImportReceiptId(`import:${digest}:${IMPORTED_RULES_REVISION}`)
+  const receiptId = asImportReceiptId(`import:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
   const localData: LocalData = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, importedAt, localDataRevision: 0 } } }
   return {
     id: randomId('import-preview'), filename, detectedFormat: CRYSTAL_EDIT_FORMAT, detectedSchema: `Crystal Edit ${root.EditorVersion}`, sourceDigest: digest,

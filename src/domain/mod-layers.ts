@@ -1,6 +1,9 @@
 import { DomainError } from './core'
 import { jsonRecord, LEARN_NODE_TYPES } from './crystal-edit'
 import { catalogEntity } from './entity-identities'
+import { bundledModIdentity } from './bundled-mods'
+import type { BundledLibraryMod } from './mod-library'
+import { nativeIdentity } from './native-game'
 import type { CatalogEntity, CatalogRevisionId, CatalogSnapshot, EntityId, GameSetupRevision, ModCatalogPin, ModComposition } from './types'
 
 export const MOD_CATALOG_SCHEMA = 'game-setup-mod-catalog-1'
@@ -9,6 +12,7 @@ export const MAX_MOD_LAYERS = 100
 const MAX_NATIVE_ID = 0xffffffff
 const MODEL_KEY = /^crystal-edit:(Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes):(0|[1-9]\d*)$/
 const BASELINE_METADATA_KEYS = ['nativeIdentityBindings', 'nativeModeIdentityBindings', 'nativeEnums'] as const
+const NATIVE_MOD_FAMILIES: Readonly<Record<string, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', equipment: 'Equipment', item: 'Items', monster: 'Monsters', status: 'Statuses', recipe: 'Recipes', biome: 'Biomes' })
 
 export function modCatalogTitle(catalog: CatalogSnapshot): string {
   return jsonRecord(catalog.legacy) && typeof catalog.legacy.projectTitle === 'string' ? catalog.legacy.projectTitle : catalog.id.replace(/^crystal-edit:/, '')
@@ -37,6 +41,37 @@ export function modModelRecords(catalog: CatalogSnapshot): ReadonlyMap<string, C
 
 export function modCatalogRevision(id: GameSetupRevision['id']): CatalogRevisionId {
   return `mod-setup:${id}` as CatalogRevisionId
+}
+
+export function modReplacementKindMatches(target: CatalogEntity, incoming: CatalogEntity): boolean {
+  const source = incoming.fields['Crystal Edit source record']
+  return target.kind === incoming.kind || target.kind === 'innate' && incoming.kind === 'passive' && source?.state === 'known' && jsonRecord(source.value) && source.value.IsInnate === true
+}
+
+export function bundledModReplacementLinks(baseline: CatalogSnapshot, incoming: CatalogSnapshot, bundled: readonly BundledLibraryMod[]): ModComposition['links'] {
+  const mod = bundled.find(value => value.id === incoming.id)
+  if (!mod) return []
+  const models = modModelRecords(incoming)
+  const candidates = new Map<string, { readonly rank: number; readonly entities: readonly CatalogEntity[] }>()
+  for (const entity of Object.values(baseline.entities)) {
+    const identity = bundledModIdentity(entity)
+    const source = mod.sourceRecordField && entity.fields[mod.sourceRecordField]
+    const native = mod.nativeBaseReplacements && nativeIdentity(entity)
+    const family = native && native.mode === 'base' ? NATIVE_MOD_FAMILIES[native.database] : undefined
+    const modelKey = identity?.key === mod.key ? `crystal-edit:${identity.family}:${identity.modelId}`
+      : source && source.state === 'known' && jsonRecord(source.value) && typeof source.value.ID === 'number' ? `crystal-edit:Passives:${source.value.ID}`
+      : family && native && mod.models[family]?.includes(native.databaseId) ? `crystal-edit:${family}:${native.databaseId}` : undefined
+    if (modelKey) {
+      const rank = identity?.key === mod.key ? 3 : source && source.state === 'known' ? 2 : 1
+      const previous = candidates.get(modelKey)
+      if (!previous || rank > previous.rank) candidates.set(modelKey, { rank, entities: [entity] })
+      else if (rank === previous.rank) candidates.set(modelKey, { rank, entities: [...previous.entities, entity] })
+    }
+  }
+  return [...models].flatMap(([modelKey, entity]) => {
+    const targets = candidates.get(modelKey)?.entities
+    return targets?.length === 1 && modReplacementKindMatches(targets[0]!, entity) ? [{ modelKey, targetEntityId: targets[0]!.id }] : []
+  })
 }
 
 export function assertModComposition(composition: ModComposition): void {
@@ -94,7 +129,7 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     if (link.targetEntityId === null) continue
     const target = catalogEntity(baseline, link.targetEntityId)
     const definition = availableModels.get(link.modelKey)
-    if (!target || target.kind !== definition?.kind) throw new DomainError('INVALID_INPUT', 'A bundled replacement target must exist and have the same definition kind')
+    if (!target || !definition || !modReplacementKindMatches(target, definition)) throw new DomainError('INVALID_INPUT', 'A bundled replacement target must exist and have the same definition kind')
     if (occupiedTargets.has(target.id)) throw new DomainError('INVALID_INPUT', 'Different native model identities cannot replace the same bundled definition')
     occupiedTargets.set(target.id, link.modelKey)
   }
@@ -105,7 +140,7 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     const target = links.get(modelKey)
     const targetEntityId = target ?? winner.entity.id
     const targetState = target ? 'linked' : links.has(modelKey) ? 'separate' : 'unresolved'
-    const entity: CatalogEntity = { ...winner.entity, id: targetEntityId, fields: { ...winner.entity.fields, 'Effective mod layer': { state: 'known', value: winner.sourceTitle, sources: winner.entity.sources } } }
+    const entity: CatalogEntity = { ...winner.entity, id: targetEntityId, ...(target ? { kind: baseline.entities[target]!.kind } : {}), fields: { ...winner.entity.fields, 'Effective mod layer': { state: 'known', value: winner.sourceTitle, sources: winner.entity.sources } } }
     entities[targetEntityId] = entity
     identities[modelKey] = targetEntityId
     changes.push({ ...winner, entity, targetEntityId, targetState, superseded: target ? [baseline.entities[target]!.name + ' (bundled)', ...winner.superseded] : winner.superseded })

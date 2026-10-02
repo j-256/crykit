@@ -1,8 +1,9 @@
+import type { DefinitionModAvailability } from './mods'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, EQUIPMENT_TYPES, jsonRecord } from './crystal-edit'
 import { nativeRecord, nativeSourceRecord } from './native-game'
 import type { CatalogEntity, EquipmentRole, JsonValue, Knowledge, PersonalDefinition, SlotDefinition, SourceRef } from './types'
 
-export type MechanicsDefinition = CatalogEntity | PersonalDefinition
+export type MechanicsDefinition = (CatalogEntity | PersonalDefinition) & { readonly modAvailability?: DefinitionModAvailability }
 export type EquipmentType = typeof EQUIPMENT_TYPES[number]
 export const GUIDE_MECHANICS_SOURCE: SourceRef = { sourceId: 'community:geef-modding-guide', locator: 'Game synopsis; Equipment; Jobs; Stat Mod glossary', applicability: 'Documented planning mechanics; effects outside the supported calculation are listed separately' }
 export const EQUIPMENT_ROLE_LABELS: Readonly<Record<EquipmentRole, string>> = Object.freeze({ mainHand: 'Main hand', offHand: 'Off hand', head: 'Head', body: 'Body', accessory: 'Accessory' })

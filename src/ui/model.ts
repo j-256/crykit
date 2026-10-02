@@ -1,3 +1,4 @@
+import { definitionModAvailability } from '../catalog/mods'
 import type { CatalogSnapshot, EntityRef, Knowledge, LocalData, Quantity, GameSetupRevision } from '../domain/types'
 import { AppDataError } from '../interchange/errors'
 import { catalogEntity } from '../domain/entity-identities'
@@ -31,6 +32,11 @@ export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSn
   if (ref.kind === 'personal') return ownRecordValue(localData.personalDefinitions, ref.definitionId)
   const snapshot = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
   return snapshot ? catalogEntity(snapshot, ref.entityId) : undefined
+}
+
+export function resolveCalculationEntity(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef, gameSetup?: GameSetupRevision) {
+  const definition = resolveEntity(localData, catalogs, ref)
+  return definition ? { ...definition, modAvailability: definitionModAvailability(localData, ref, gameSetup, catalogs) } : undefined
 }
 
 export function entityName(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined, fallback = 'Unresolved entry') {

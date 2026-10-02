@@ -10,7 +10,7 @@ import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, GameS
 import { formatStatRange } from './BuildMechanics'
 import { Field } from './components'
 import { DefinitionArtwork } from './GameIcon'
-import { resolveEntity } from './model'
+import { resolveEntity, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
 import { KnowledgeValue } from './KnowledgeValue'
 
@@ -19,7 +19,7 @@ const COLUMN_LABELS = Object.freeze({ base: 'Base', equipment: 'Equipment', leve
 
 export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onCalculationChange, usesDefaultLevel = false, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; usesDefaultLevel?: boolean; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
   const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
-  const breakdown = useMemo(() => calculateStatBreakdown(content, slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules])
+  const breakdown = useMemo(() => calculateStatBreakdown(content, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), ref => logicalEntityKey(localData, ref), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
   const primary = content.primaryClass ? resolveEntity(localData, catalogs, content.primaryClass) : undefined
   if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Primary class is unknown. Numeric stats need a recorded class.' : 'No primary class selected. Numeric stats need a primary class.'}</p></section>
   const plan = content.calculation

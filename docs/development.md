@@ -71,6 +71,19 @@ Original workbooks, trackers, personal exports, and private screenshots do not b
 
 Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. The [correction guide](corrections.md) explains how to export reference corrections separately from playthrough records.
 
+## Bundle a mod source directory
+
+Package a directory of Crystal Edit exports without maintaining a filename list:
+
+```sh
+npm run mods:library:bundle -- --input-directory /path/to/mods
+npm run mods:library:check
+```
+
+The bundler scans JSON files recursively, skips symlinks and unrelated JSON, deduplicates identical bytes, and preserves distinct revisions of the same project. Refreshing retains previously bundled revisions. Invalid JSON, unsafe identities, or detected private content fail before writing. Review the sources and attribution before committing; automated privacy checks do not establish content rights.
+
+Generated sources live in `src/assets/mod-sources/` as immutable digest-named gzip/base64 JSON assets. `src/catalog/bundled-mod-sources.json` records project metadata, model IDs, and source digests without input paths. Runtime loaders discover these assets by directory glob and recover the exact UTF-8 bytes, including BOM and line endings. The check command decompresses and validates every source against its manifest without needing the input directory, and is included in `npm run check`. Full sources load on demand and are included in offline preparation. Mod catalog browsing decodes only the selected source in a temporary Reference provider, without writing to the local archive. Saved project revisions take precedence over the bundled source. Explicit **Add to Reference**, editor saves, and imports persist supported definitions and original bytes. Reference membership uses optional versioned settings in local planner data; removal preserves the archive and game configuration. Importing a previously removed source preserves its exclusion unless an explicit Add action atomically restores membership. This pipeline does not change the default planning catalog or enable mods automatically; reviewed normalized definitions retain their separate generation commands.
+
 ## Interface and artwork
 
 Immediate-save tile boards use the shared [queued tile update pattern](queued-tile-updates.md). Reuse its hook, application save queue, stable rendering, and verification approach when adding another board.

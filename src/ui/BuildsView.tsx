@@ -9,7 +9,7 @@ import { buildBehavior, sameBuildBehavior, compareBuildRevisions, createId, effe
 import type { Build, BuildId, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, GameSetupId, GameSetupRevision, GameSetupRevisionId, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
-import { formatAppError, activeGameSetup, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
+import { formatAppError, activeGameSetup, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity, resolveCalculationEntity } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionProvider, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
@@ -537,8 +537,8 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
       { label: 'Descriptions and documented effects', left: leftSummary.effects, right: rightSummary.effects },
       { label: 'Scenario readiness', left: leftSummary.validation, right: rightSummary.validation },
     ]
-    const leftStats = calculateBuildStats(left.content, ownRecordValue(localData.gameSetups, left.gameSetupRevisionId)?.slots ?? [], ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref), resolveGameRules(localData.gameSetups[left.gameSetupRevisionId], catalogs))
-    const rightStats = calculateBuildStats(right.content, ownRecordValue(localData.gameSetups, right.gameSetupRevisionId)?.slots ?? [], ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref), resolveGameRules(localData.gameSetups[right.gameSetupRevisionId], catalogs))
+    const leftStats = calculateBuildStats(left.content, ownRecordValue(localData.gameSetups, left.gameSetupRevisionId)?.slots ?? [], ref => resolveCalculationEntity(localData, catalogs, ref, localData.gameSetups[left.gameSetupRevisionId]), ref => logicalEntityKey(localData, ref), resolveGameRules(localData.gameSetups[left.gameSetupRevisionId], catalogs))
+    const rightStats = calculateBuildStats(right.content, ownRecordValue(localData.gameSetups, right.gameSetupRevisionId)?.slots ?? [], ref => resolveCalculationEntity(localData, catalogs, ref, localData.gameSetups[right.gameSetupRevisionId]), ref => logicalEntityKey(localData, ref), resolveGameRules(localData.gameSetups[right.gameSetupRevisionId], catalogs))
     const statRows = left.content.calculation || right.content.calculation ? CALCULATED_STATS.map(stat => ({ label: `${STAT_LABELS[stat]} (supported estimate)`, left: formatStatRange(leftStats.stats[stat].value), right: formatStatRange(rightStats.stats[stat].value) })) : []
     const calculationLabel = (revision: BuildRevision) => {
       const plan = revision.content.calculation

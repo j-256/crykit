@@ -2,10 +2,13 @@ import { normalizeWeaponType, WEAPON_TYPES } from '../domain/skill-weapons'
 import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity, nativeRecord, nativeRelationships } from '../domain/native-game'
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { entityDefinitionKey, requirePlaythrough } from '../domain'
+import { modListPriority } from '../domain/mods'
 import type { DefinitionModAvailability } from '../catalog/mods'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { Badge, Button, InlineNotice } from './components'
 import { DefinitionEditor, definitionKindLabel, useDefinitionLibrary } from './definitions'
+import { useOptionalCorrections } from './corrections-context'
+import { standingReferenceOptions } from './reference-library'
 import { Icon } from './icons'
 import { routeForSearchTarget, type UniversalSearchTarget } from './search-navigation'
 import { Sheet } from './Sheet'
@@ -50,7 +53,9 @@ function itemScore(item: UniversalSearchItem, query: string) {
 
 export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
-  const { localData, options, availableOptions } = useDefinitionLibrary()
+  const { localData, options } = useDefinitionLibrary()
+  const corrections = useOptionalCorrections()
+  const referenceOptions = useMemo(() => standingReferenceOptions(options, catalogs, corrections?.hiddenKeys ?? new Set(), localData), [options, catalogs, corrections?.hiddenKeys, localData])
   const [error, setError] = useState<string>()
   const [createdName, setCreatedName] = useState<string>()
   const [includeOtherSources, setIncludeOtherSources] = useState(false)
@@ -69,7 +74,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
   const items = useMemo(() => {
     const names = new Map(options.map((option) => [option.key, option.name]))
     const snapshots = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog]))
-    const definitionChoices = includeOtherSources ? availableOptions : preferredDefinitionChoices(availableOptions)
+    const definitionChoices = includeOtherSources ? referenceOptions : preferredDefinitionChoices(referenceOptions)
     const definitions: UniversalSearchItem[] = definitionChoices.map((option) => {
       const identity = nativeIdentity(option.record)
       const catalog = option.ref.kind === 'catalog' ? snapshots.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId])) : undefined
@@ -87,12 +92,12 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     const progress: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).progress).map((record) => ({ key: `progress:${record.id}`, title: record.displayName, subtitle: 'Party progress', keywords: `${record.stage.state === 'known' ? record.stage.value : ''} ${definitionName(localData, names, record.subject)}`, section: 'Progress', target: { kind: 'progress', recordId: record.id } }))
     const skillLists: UniversalSearchItem[] = WEAPON_TYPES.map(weapon => ({ key: `weapon-skills:${weapon}`, title: `Skills usable with ${weapon}`, subtitle: 'Weapon skills · all classes', keywords: `${weapon}s ${weapon === 'Staff' ? 'staves' : ''} weapon skills abilities`, section: 'Skill lists', target: { kind: 'weaponSkills', weapon } }))
     return [...skillLists, ...definitions, ...inventory, ...characters, ...builds, ...teams, ...scenarios, ...progress]
-  }, [availableOptions, options, localData, catalogs, includeOtherSources])
+  }, [referenceOptions, options, localData, catalogs, includeOtherSources])
   const results = useMemo(() => {
     const normalizedQuery = normalize(query.trim())
     if (!normalizedQuery) return []
     const tokens = normalizedQuery.split(/\s+/).filter(Boolean)
-    return items.filter((item) => tokens.every((token) => normalize(`${item.title} ${item.subtitle} ${item.keywords}`).includes(token))).sort((left, right) => itemScore(left, normalizedQuery) - itemScore(right, normalizedQuery) || Number(right.preferred ?? true) - Number(left.preferred ?? true) || left.title.localeCompare(right.title) || left.key.localeCompare(right.key)).slice(0, UNIVERSAL_RESULT_LIMIT)
+    return items.filter((item) => tokens.every((token) => normalize(`${item.title} ${item.subtitle} ${item.keywords}`).includes(token))).sort((left, right) => modListPriority(left.modAvailability) - modListPriority(right.modAvailability) || itemScore(left, normalizedQuery) - itemScore(right, normalizedQuery) || Number(right.preferred ?? true) - Number(left.preferred ?? true) || left.title.localeCompare(right.title) || left.key.localeCompare(right.key)).slice(0, UNIVERSAL_RESULT_LIMIT)
   }, [items, query])
   const choose = (target: UniversalSearchTarget) => {
     if (document.querySelector(OPEN_PARENT_DIALOG_SELECTOR)) {
@@ -116,7 +121,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
       <label className="check-row universal-search__sources"><input checked={includeOtherSources} onChange={event => setIncludeOtherSources(event.target.checked)} type="checkbox"/><span>Include other sources and mode variants</span></label>
       {error && <InlineNotice title="Navigation blocked" tone="warning">{error} Your search and open draft remain unchanged.</InlineNotice>}
       {createdName && <InlineNotice title="Personal definition created">{createdName} is saved. Select its exact result when you are ready to navigate.</InlineNotice>}
-      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Type a name, weapon type, alias, description, or planner record.</p><small>{catalogs.length} local reference {catalogs.length === 1 ? 'pack' : 'packs'} available</small><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <NavigationLink className="universal-search__result" data-universal-result="true" key={item.key} route={routeForSearchTarget(item.target)} onNavigate={() => choose(item.target)}><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="universal-search__result-meta">{item.modAvailability?.requiredMod && <ModBadge name={item.modAvailability.requiredMod} state={item.modAvailability.state}/>}<Badge>{item.section}</Badge></span></NavigationLink>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
+      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Type a name, weapon type, alias, description, or planner record.</p><small>{catalogs.length} local reference {catalogs.length === 1 ? 'pack' : 'packs'} available</small><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <NavigationLink className="universal-search__result" data-universal-result="true" data-mod-state={item.modAvailability?.requiredMod ? item.modAvailability.state : undefined} key={item.key} route={routeForSearchTarget(item.target)} onNavigate={() => choose(item.target)}><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="universal-search__result-meta">{item.modAvailability?.requiredMod && <ModBadge name={item.modAvailability.requiredMod} state={item.modAvailability.state}/>}<Badge>{item.section}</Badge></span></NavigationLink>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
     </div></Sheet>
     {creating && <DefinitionEditor allowedKinds={ALL_DEFINITION_KINDS} initialName={query} key={`universal-create:${query}`} onClose={() => navigation.close()} onSaved={() => { const savedName = query.trim() || 'The new definition'; navigation.close(); setCreatedName(savedName); setQuery(savedName) }} open routeIndex={searchIndex + 1}/>}
   </>
