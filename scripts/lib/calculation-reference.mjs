@@ -75,7 +75,6 @@ const codeBlock = (value) =>
   String.fromCharCode(96).repeat(3) + 'text\n' + value + '\n' + String.fromCharCode(96).repeat(3)
 
 function formulaSection(section, id, formula, enums) {
-  const evidence = Array.isArray(formula.evidence) ? formula.evidence : [formula.evidence]
   const equations = [
     ...formula.steps.map((step) => assignment(step.name, step.value, enums)),
     assignment('result', formula.result, enums),
@@ -93,7 +92,6 @@ function formulaSection(section, id, formula, enums) {
       ? ['Input requirements: ' + formula.requirements.map((rule) => rule.message).join('; ') + '.']
       : []),
     codeBlock(equations),
-    'Evidence: ' + evidence.map(inline).join(', ') + '.',
   ].join('\n\n')
 }
 
