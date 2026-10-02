@@ -59,7 +59,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onDraftChange }: Props 
   }
   actionsRef.current = { save, discard: () => { setTitle(team?.title ?? ''); setSlots(team?.slots ?? emptyTeamSlots()); dirtyRef.current = false; onDraftChange(false); setError(undefined) } }
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
-  const builds = Object.values(localData.builds).filter(build => build.state !== 'archived' || slots.some(id => id && localData.buildRevisions[id]?.buildId === build.id)).sort((left, right) => left.title.localeCompare(right.title))
+  const builds = Object.values(localData.builds).filter(build => !build.archived || slots.some(id => id && localData.buildRevisions[id]?.buildId === build.id)).sort((left, right) => left.title.localeCompare(right.title))
   return <form className="stack" onSubmit={submit}>
     <ScreenHeader eyebrow="Buildcrafting" title={team ? team.title : 'New Team'} description="Choose four build checkpoints. You can reuse the same build in multiple slots." actions={<Button disabled={busy} onClick={back} tone="quiet" type="button">{dirty ? 'Discard and return' : 'All Teams'}</Button>}/>
     {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}

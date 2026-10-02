@@ -158,7 +158,6 @@ export function addTestBuild(
     id: buildId,
     gameSetupId: TEST_GAME_SETUP_ID,
     title: buildValue,
-    kind: 'build',
     now: TEST_NOW,
   })
   next = saveBuildRevision(next, {

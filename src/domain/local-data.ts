@@ -22,6 +22,7 @@ import {
 import { MAX_ID_LENGTH, MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import { assertModConfiguration } from './mods'
 import { assertModComposition, modCatalogRevision } from './mod-layers'
+import { LOCAL_DATA_SCHEMA_VERSION } from './types'
 import { sameCorrectionValue, synchronizePlanningField } from './corrections'
 import type {
   CatalogSnapshot,
@@ -53,7 +54,7 @@ export interface CreateBlankLocalDataInput {
 export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): LocalData {
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   return {
-    schemaVersion: '2.2.0',
+    schemaVersion: LOCAL_DATA_SCHEMA_VERSION,
     id: input.id ?? createId<LocalDataId>('localData'),
     revision: 0,
     createdAt: at,

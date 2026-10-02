@@ -1,10 +1,11 @@
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { requirePlaythrough } from '../domain'
-import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
+import { requirePlaythrough, updateScenario } from '../domain'
+import { addTestBuild, addTestCharacter, addTestScenario, createTestLocalData, TEST_NOW } from '../domain/test-helpers'
 import { previewNativeBackup, resolveBundledCatalogPins } from './native'
 import { STARTER_CATALOG } from '../catalog/starter'
 import { catalogSnapshotKey } from './identity'
+import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-schema'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
@@ -82,9 +83,22 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
+  it('normalizes old Build labels without changing party-plan contexts or checkpoint pins', () => {
+    const initial = addTestScenario(addTestBuild(createTestLocalData(), 'build', '', {}), {})
+    const data = updateScenario(initial, { scenarioId: requirePlaythrough(initial).scenarios.scenario!.id, kind: 'hypothetical', now: TEST_NOW })
+    const { archived: _archived, ...build } = data.builds.build!
+    const old = { ...data, schemaVersion: '2.2.0', builds: { build: { ...build, kind: 'template', state: 'hypothetical' } } }
+    expect(StoredNativeLocalDataSchema.parse(old)).toEqual(data)
+    const archived = StoredNativeLocalDataSchema.parse({ ...old, builds: { build: { ...old.builds.build, state: 'archived' } } })
+    expect(archived.builds.build).toEqual({ ...data.builds.build, archived: true })
+    expect(archived.playthroughs).toEqual(data.playthroughs)
+    expect(archived.buildRevisions).toEqual(data.buildRevisions)
+    expect(NativeLocalDataSchema.safeParse({ ...old, schemaVersion: data.schemaVersion }).success).toBe(false)
+  })
+
   it('migrates legacy planner payloads without changing pinned records', async () => {
     const preview = await previewNativeBackup(nativeFixture({ mutateLocalData: data => { data.schemaVersion = '2.0.0'; delete data.teams } }), 'legacy.zip')
-    expect(preview.proposed.localData.schemaVersion).toBe('2.2.0')
+    expect(preview.proposed.localData.schemaVersion).toBe(createTestLocalData().schemaVersion)
     expect(preview.proposed.localData.gameSetups).toEqual(createTestLocalData().gameSetups)
     expect(preview.proposed.localData.playthroughs).toEqual(createTestLocalData().playthroughs)
   })

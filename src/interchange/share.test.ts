@@ -41,6 +41,24 @@ describe('sharing snapshots', () => {
     expect(decodeSharePayload(encodeSharePayload(payload))).toEqual(payload)
   })
 
+  it.each([1, 2])('discards obsolete Build classifications from version %s links', version => {
+    const current = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
+    const builds = Object.fromEntries(Object.entries(current.records.builds).map(([id, { archived: _archived, ...build }]) => [id, { ...build, kind: 'template', state: 'hypothetical' }]))
+    const decoded = decodeSharePayload(envelope(JSON.stringify({ ...current, version, records: { ...current.records, builds } })))
+    expect(decoded.records.builds).toEqual(current.records.builds)
+    expect(decoded.records.buildRevisions).toEqual(current.records.buildRevisions)
+  })
+
+  it('writes only the current Build shape and rejects classifications in version 3', () => {
+    const payload = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
+    expect(payload.version).toBe(3)
+    expect(payload.records.builds.build).toHaveProperty('archived', false)
+    expect(payload.records.builds.build).not.toHaveProperty('kind')
+    expect(payload.records.builds.build).not.toHaveProperty('state')
+    const builds = { ...payload.records.builds, build: { ...payload.records.builds.build, kind: 'template', state: 'hypothetical' } }
+    expect(() => validateSharePayload({ ...payload, records: { ...payload.records, builds } })).toThrow('malformed format')
+  })
+
   it('round trips only a pinned checkpoint and its transitive dependencies', () => {
     const data = fixture()
     const payload = createSharePayload(data, { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
@@ -143,7 +161,7 @@ describe('sharing snapshots', () => {
     data = updateGameSetupRevision(data, { sourceRevisionId: originId, label: 'Derived setup', now: TEST_NOW })
     const setup = data.gameSetups[data.planningGameSetupRevisionId!]!
     const buildId = asId<BuildId>('mod-build')
-    data = createBuild(data, { id: buildId, title: 'Mod build', kind: 'build', gameSetupId: setup.gameSetupId, now: TEST_NOW })
+    data = createBuild(data, { id: buildId, title: 'Mod build', gameSetupId: setup.gameSetupId, now: TEST_NOW })
     data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content: { primaryClass: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: asId<EntityId>('base:class:warrior') }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, now: TEST_NOW })
     const payload = decodeSharePayload(encodeSharePayload(createSharePayload(data, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! })))
     expect(Object.keys(payload.records.gameSetups)).toContain(originId)
@@ -314,7 +332,7 @@ describe('sharing snapshots', () => {
 
   it('rejects malformed, truncated, dangerous and unsupported payloads', () => {
     const payload = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
-    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 3 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
+    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 4 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
     expect(() => validateSharePayload({ ...payload, records: { ...payload.records, personalDefinitions: {} } })).toThrow('missing')
     expect(() => validateSharePayload({ ...payload, kind: 'team', slots: [null], teamGameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })).toThrow()
   })
