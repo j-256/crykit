@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 const SLIME_PATH = referencePath('base:monster:2')
 
 test('enemy rewards use coins, technical details use integers, and editing keeps copper values', async ({ page }) => {
-  await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
+  await page.goto(referencePath('base:monster:179'))
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-rewards')).not.toContainText('20000')
   await page.getByText('Technical details', { exact: false }).click()
@@ -13,7 +13,7 @@ test('enemy rewards use coins, technical details use integers, and editing keeps
   await expect(money.locator('dd')).toHaveText('20000')
   await expect(money.locator('.money-amount')).toHaveCount(0)
   await expect(page.getByText('Complete native source record', { exact: true })).toHaveCount(0)
-  await page.goto(SLIME_PATH.replace('base/monster/2', 'base/item/ether'))
+  await page.goto(referencePath('base:item:ether'))
   const cost = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
   await expect(cost.getByRole('img', { name: '2 silver, 50 copper', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
@@ -46,9 +46,9 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
 })
 
 test('enemy loot supports modifier-click in a new tab and ordinary in-app navigation', async ({ page, context }) => {
-  await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
+  await page.goto(referencePath('base:monster:179'))
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
-  await expect(cookie).toHaveAttribute('href', /^#\/reference\/catalog\//)
+  await expect(cookie).toHaveAttribute('href', referencePath('base:item:quintar-cookie').slice(1))
   const opened = context.waitForEvent('page')
   await cookie.click({ modifiers: ['ControlOrMeta'] })
   const tab = await opened
@@ -146,14 +146,14 @@ test('enemy actions and editing stay reachable without crowding the bestiary', a
 })
 
 test('bestiary entries retain zero values and keep large boss rewards on one line', async ({ page }, testInfo) => {
-  await page.goto(SLIME_PATH.replace('monster/2', 'monster/0'))
+  await page.goto(referencePath('base:monster:0'))
   await expect(page.getByRole('heading', { name: 'Dummy', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-vitals dd').filter({ hasText: /^0$/ })).toHaveCount(2)
   await expect(page.locator('.enemy-rewards dd').filter({ hasText: /^0$/ })).toHaveCount(3)
   await expect(page.getByRole('region', { name: 'Drops', exact: true })).toContainText('None listed in this record.')
   await expect(page.getByRole('region', { name: 'Steals', exact: true })).toContainText('None listed in this record.')
   await page.setViewportSize({ width: 320, height: 800 })
-  await page.goto(SLIME_PATH.replace('monster/2', 'monster/201'))
+  await page.goto(referencePath('base:monster:201'))
   await expect(page.getByRole('heading', { name: 'Akamanto', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-vitals')).toContainText('27000')
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '8 gold', exact: true })).toBeVisible()

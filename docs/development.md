@@ -4,7 +4,7 @@ To use the planner, [open the app](https://crykit.lasers.app/). This guide is fo
 
 ## Set up the repository
 
-Use Node.js 22.12 or later and npm. Clone the repository, then install the locked dependencies and the privacy hook:
+Use Node.js 22.12 or later and npm. Clone the repository, then install the locked dependencies and the repository hooks:
 
 ```sh
 git clone https://github.com/j-256/crykit.git
@@ -39,7 +39,27 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`npm run verify` runs both groups. Browser tests use the production build and include desktop and mobile emulation. They do not establish physical-device installation or verify a phone's native file picker.
+`npm run verify` runs both groups without test filters and records publication evidence for a clean, committed tree. Browser tests use the production build and include desktop and mobile emulation. They do not establish physical-device installation or verify a phone's native file picker.
+
+## Publication verification
+
+During implementation, run focused checks for the affected flows. When changing shared routes, presentation, catalog interpretation, or persistence, review assertions in every consumer and tests introduced by synchronization. Establish the intended behavior before updating an expectation: a failing assertion may identify a regression rather than an obsolete test.
+
+Feature tests use `referencePath` and `referenceUrlPattern` from `e2e/reference-helpers.ts`; these delegate formatting to the application's route formatter. Explicit URL strings and regexes remain in `e2e/entity-urls.spec.ts` and the navigation unit contracts, so a shared formatter bug can still fail independent expectations. `npm run check:e2e-contracts` rejects duplicated catalog paths and colon-based identity serialization in ordinary E2E source. It runs in deterministic checks, CI, and the pre-push hook. The reviewed contract-file exception is narrow; expanding it requires treating the new tests as independent format contracts.
+
+Before publication, commit the finished changes, synchronize with the integration branch, and run:
+
+```sh
+npm run verify
+```
+
+The command executes deterministic checks followed by every desktop and mobile browser test. It records success only when the source starts committed and clean and remains on the same Git tree throughout verification. A dirty checkout can be tested, but it produces no publication evidence. A failed or interrupted rerun invalidates prior evidence before checks begin. `npm run check` and focused Playwright runs do not create this record.
+
+The pre-push hook checks the actual object IDs supplied by Git, including explicit task-branch pushes from another linked worktree. Every published tree requires a successful record for the repository and the same Node version, platform, and architecture. Any changed tree, including files added by synchronization, requires another complete run. Commit metadata changes that preserve the tested tree reuse its evidence. Deleting a ref does not require a record. The hook reports the missing tree and the command to run; it never starts browser tests or silently publishes changes.
+
+Records use schema version 1 under `${XDG_CACHE_HOME:-$HOME/.cache}/crykit-verification/`, scoped by the Git common directory, tree, and runtime. Linked worktrees share records, while separate clones do not. They are regenerable local cache files and contain no credentials or test artifacts. Removing the cache requires re-verification. These records do not certify ignored files or arbitrary dependency mutations, and Git hooks can be deliberately bypassed; the protected `release-ready` CI check remains the authoritative merge gate. Keep dependencies consistent with the lockfile using `npm ci`.
+
+On a fresh checkout, install the hooks with `npm run hooks:install` and Chromium with `npx playwright install chromium`. `CRYKIT_E2E_PORT` selects the preview port when another local task uses the default. Queue approval remains separate from implementation and verification. Under the CI-only queue policy, the local pre-push check enforces publication evidence while hosted checks independently verify the synchronized PR head.
 
 The [revision 2 specification](spec-v2.md) defines data boundaries, core workflows, and acceptance gates. [Build mechanics](planner-mechanics.md) documents the supported calculations and their limits.
 

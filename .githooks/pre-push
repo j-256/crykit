@@ -1,3 +1,5 @@
 #!/bin/bash
 set -eu
 node scripts/privacy-check.mjs
+node scripts/check-e2e-contracts.mjs
+node scripts/check-push-verification.mjs
