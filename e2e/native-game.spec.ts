@@ -4,13 +4,14 @@ import { expect, test } from '@playwright/test'
 
 const SLIME_PATH = referencePath('base:monster:2')
 
-test('enemy rewards and item costs share coin denominations while editing keeps copper values', async ({ page }) => {
+test('enemy rewards use coins, technical details use integers, and editing keeps copper values', async ({ page }) => {
   await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-rewards')).not.toContainText('20000')
   await page.getByText('Technical details', { exact: false }).click()
   const money = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Money \(copper\)$/ }) })
-  await expect(money.getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
+  await expect(money.locator('dd')).toHaveText('20000')
+  await expect(money.locator('.money-amount')).toHaveCount(0)
   await expect(page.getByText('Complete native source record', { exact: true })).toHaveCount(0)
   await page.goto(SLIME_PATH.replace('base/monster/2', 'base/item/ether'))
   const cost = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
@@ -89,6 +90,8 @@ test('native enemy facts, separate steal rates, identity links, and offline scop
   await expect(page.getByRole('heading', { name: 'Tonic', exact: true })).toBeVisible()
   await expect(page.getByText('Complete native source record', { exact: true })).toHaveCount(0)
   await page.goto(SLIME_PATH)
+  await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption({ label: 'Vanilla' })
+  await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption({ label: 'Easy' })
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -100,6 +103,16 @@ test('native enemy facts, separate steal rates, identity links, and offline scop
   await expect(details.getByRole('region', { name: 'Steals', exact: true })).toContainText('75%')
   await expect(page.locator('.enemy-technical')).not.toHaveAttribute('open')
   await expect(page.getByRole('heading', { name: 'Slime', exact: true })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Game mode', exact: true })).toHaveValue('vanilla')
+  await expect(page.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue('1')
+  await expect(page.locator('.enemy-metric--hp dd')).toHaveText('40')
+  await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption({ label: 'Chaos' })
+  await expect(page.getByRole('heading', { name: 'Slime (Chaos mode)', exact: true })).toBeVisible()
+  await expect(page.locator('.enemy-metric--hp dd')).toHaveText('10')
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: 'Game mode', exact: true })).toHaveValue('chaos')
+  await expect(page.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue('1')
+  await expect(page.locator('.enemy-metric--hp dd')).toHaveText('10')
 })
 
 test('enemy actions and editing stay reachable without crowding the bestiary', async ({ page }) => {
