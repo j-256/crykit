@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage } from './native-artwork.mjs'
+import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeUiArtwork } from './native-artwork.mjs'
 
 const textures = new Map([
   ['Icon/Test', { width: 240, height: 104, sha256: 'icon-hash' }],
@@ -59,4 +59,25 @@ test('artwork uses catalog identities and patch source records from the native s
   const chaos = entries.find(e => e.id === 'base:monster:179:mode:Chaos')
   assert.match(chaos.nativeRecord.locator, /^Database\/patch\.dat\//)
   assert.equal(chaos.nativeRecord.databaseSha256, snapshot.source.files.find(f => f.path === 'Database/patch.dat').sha256)
+})
+
+test('UI artwork rejects changed currency cells, swapped coins, and seal identity drift', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../src/catalog/game-assets.json', import.meta.url)))
+  const textures = new Map(Object.values(manifest.sources.texturePacks).flatMap(pack => pack.textures.map(texture => [texture.path, texture])))
+  assert.doesNotThrow(() => validateNativeUiArtwork(manifest, textures))
+  assert.equal(manifest.uiArtwork.classSeal.asset, manifest.entities['base:item:warrior-seal'].asset)
+  for (const [key, x] of [['goldCoin', 1], ['silverCoin', 19], ['copperCoin', 37]]) {
+    assert.deepEqual(manifest.uiArtwork[key].rendering.sourceTextures[0].region, { x, y: 0, width: 16, height: 18 })
+    assert.equal(manifest.uiArtwork[key].rendering.sourceTextures[0].texturePath, 'GUI/Currency')
+  }
+  for (const mutate of [
+    m => { m.uiArtwork.goldCoin.rendering.sourceTextures[0].region.x = 0 },
+    m => { m.uiArtwork.goldCoin.asset = m.uiArtwork.silverCoin.asset },
+    m => { m.uiArtwork.classSeal.entityId = 'base:item:quintar-pass' },
+    m => { delete m.uiArtwork.copperCoin },
+  ]) {
+    const changed = structuredClone(manifest)
+    mutate(changed)
+    assert.throws(() => validateNativeUiArtwork(changed, textures), /invalid|stale/)
+  }
 })

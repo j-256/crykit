@@ -16494,20 +16494,6 @@
       },
       "reasons": []
     },
-    "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223": {
-      "disposition": "claim-specific",
-      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
-      "files": [
-        "src/catalog/wiki-sprites.json"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
     "https://crystal-project.fandom.com/wiki/File%3AMonk-vest-icon.webp?oldid=10816": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
@@ -21241,20 +21227,6 @@
       "reasons": []
     },
     "https://crystal-project.fandom.com/wiki/File%3AWarlock-world-sprites.webp?oldid=6793": {
-      "disposition": "claim-specific",
-      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
-      "files": [
-        "src/catalog/wiki-sprites.json"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
-    "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
@@ -59169,20 +59141,6 @@
       },
       "reasons": []
     },
-    "https://static.wikia.nocookie.net/crystal-project/images/7/7d/Warrior_Equipment.png/revision/latest?cb=20220405043410&format=original": {
-      "disposition": "retain",
-      "reason": "Artwork attribution and redistribution rights are independent of gameplay corroboration",
-      "files": [
-        "src/catalog/wiki-sprites.json"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
     "https://static.wikia.nocookie.net/crystal-project/images/7/7e/Adjudicator-icon.gif/revision/latest?cb=20240904165022&format=original": {
       "disposition": "retain",
       "reason": "Artwork attribution and redistribution rights are independent of gameplay corroboration",
@@ -61116,20 +61074,6 @@
       "reasons": []
     },
     "https://static.wikia.nocookie.net/crystal-project/images/a/ab/Legend-spike-icon.gif/revision/latest?cb=20240907134212&format=original": {
-      "disposition": "retain",
-      "reason": "Artwork attribution and redistribution rights are independent of gameplay corroboration",
-      "files": [
-        "src/catalog/wiki-sprites.json"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
-    "https://static.wikia.nocookie.net/crystal-project/images/a/ab/Monk_Equipment.png/revision/latest?cb=20220405054001&format=original": {
       "disposition": "retain",
       "reason": "Artwork attribution and redistribution rights are independent of gameplay corroboration",
       "files": [

@@ -3,6 +3,33 @@ import { actorIconRegion, gameIconRegion, validateRegion } from './game-assets.m
 
 export const NO_NATIVE_ARTWORK = 'Native record has no supported direct artwork reference'
 const INDEXED_FAMILIES = new Set(['item', 'equipment', 'ability', 'status'])
+export const NATIVE_UI_ARTWORK = Object.freeze({
+  classSeal: { label: 'Class mastery seal', entityId: 'base:item:warrior-seal' },
+  // WindowHelper.DrawCurrency uses these exact GUI/Currency rectangles
+  goldCoin: { label: 'Gold coin', texturePath: 'GUI/Currency', region: { x: 1, y: 0, width: 16, height: 18 } },
+  silverCoin: { label: 'Silver coin', texturePath: 'GUI/Currency', region: { x: 19, y: 0, width: 16, height: 18 } },
+  copperCoin: { label: 'Copper coin', texturePath: 'GUI/Currency', region: { x: 37, y: 0, width: 16, height: 18 } },
+})
+export const CURRENCY_ARTWORK_EXTRACTION = 'WindowHelper.DrawCurrency source rectangle'
+
+export function validateNativeUiArtwork(manifest, textures) {
+  if (JSON.stringify(Object.keys(manifest.uiArtwork ?? {})) !== JSON.stringify(Object.keys(NATIVE_UI_ARTWORK))) throw new Error('Native UI artwork coverage is invalid')
+  for (const [key, source] of Object.entries(NATIVE_UI_ARTWORK)) {
+    const binding = manifest.uiArtwork[key]
+    const asset = manifest.assets[binding?.asset]
+    if (!binding || !asset || binding.label !== source.label) throw new Error(`Native UI artwork binding is invalid: ${key}`)
+    if (source.entityId) {
+      const entity = manifest.entities[source.entityId]
+      if (!entity || binding.entityId !== source.entityId || binding.asset !== entity.asset) throw new Error(`Native UI artwork entity binding is stale: ${key}`)
+      continue
+    }
+    const texture = textures.get(source.texturePath)
+    if (!texture) throw new Error(`Native UI artwork texture is absent: ${source.texturePath}`)
+    validateRegion(source.region, texture, `Native UI artwork ${key}`)
+    const expectedSource = { texturePath: source.texturePath, textureSha256: texture.sha256, region: source.region }
+    if (binding.entityId !== undefined || asset.width !== source.region.width || asset.height !== source.region.height || JSON.stringify(binding.rendering) !== JSON.stringify({ extraction: CURRENCY_ARTWORK_EXTRACTION, sourceTextures: [expectedSource] }) || !asset.sourceTextures.some(entry => JSON.stringify(entry) === JSON.stringify(expectedSource)) || !asset.extractions.includes(CURRENCY_ARTWORK_EXTRACTION)) throw new Error(`Native UI artwork crop is stale: ${key}`)
+  }
+}
 
 export function nativeArtworkEntries(snapshot) {
   const files = new Map(snapshot.source.files.map(file => [file.path, file]))
