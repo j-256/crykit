@@ -45,8 +45,9 @@
     "deploy": "npm run check:assets && wrangler deploy",
     "check:assets": "node scripts/check-assets.mjs",
     "calculations:export": "node scripts/export-calculations.mjs",
-    "calculations:update": "node scripts/update-native-stats.mjs",
-    "calculations:check": "node scripts/update-native-stats.mjs --check",
+    "calculations:update": "node scripts/update-native-stats.mjs && node scripts/update-combat-calculations.mjs",
+    "calculations:check": "node scripts/update-native-stats.mjs --check && node scripts/update-combat-calculations.mjs --check && node scripts/render-calculation-reference.mjs --check",
+    "calculations:reference": "node scripts/render-calculation-reference.mjs",
     "certainty:audit": "node scripts/audit-certainty.mjs",
     "certainty:check": "node scripts/audit-certainty.mjs --check",
     "mods:bundle": "node scripts/bundle-mod.mjs"
