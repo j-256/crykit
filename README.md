@@ -17,6 +17,8 @@ No account or installation is needed. Your saved builds and records stay in your
 
 **Progress** has a class-seal mastery board and a **Travel & unlocks** checklist for mount instruments, reusable shrine stones, and capability items such as Treasure Finder, Babel Quintar, fishing rods, and passes. Bundled checklist items display their exact extracted game icons. Mark each item acquired or not acquired for the active Playthrough. Search or filter the checklist to review what remains, and follow **Location & requirements** to its attributed reference. These observations are included in backups and stay separate from inventory quantities and character learning. Imported acquisition values that are unknown or conflicting need explicit confirmation.
 
+**Progress > Summons** tracks Summoner skill availability in the game's skill-tree layout. Pinga stays gold because it is the starting summon and cannot be unlearned. The other tiles begin gray; click one to mark it gold (unlocked), or click it again to undo. The board omits passives and the intermediate blue stage. These observations belong to the active Playthrough, are included in backups, and do not record character learning.
+
 ## Try your first build
 
 1. **Open the app.** It starts in **Builds** with a labeled sample Playthrough. The example characters and builds let you explore before entering your own records.

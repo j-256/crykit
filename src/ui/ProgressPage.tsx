@@ -32,6 +32,14 @@ const VARIANTS: Readonly<Record<ProgressVariant, {
     summaryLabel: 'Travel and unlock totals',
     countLabel: 'Items acquired',
   },
+  summons: {
+    title: 'Progress',
+    eyebrow: 'Summons',
+    description: 'Track Summoner skill unlocks for this Playthrough in the shape of the in-game skill tree.',
+    icon: <Icon name="spark"/>,
+    summaryLabel: 'Summon unlock totals',
+    countLabel: 'Summons unlocked',
+  },
   quintar: {
     title: 'Quintar breeding',
     eyebrow: 'Golden Quintar guide',
@@ -56,7 +64,7 @@ export function ProgressPage({ variant, count, total, actions, notices, summaryI
   const details = VARIANTS[variant]
   return <>
     <ScreenHeader actions={actions} description={details.description} eyebrow={details.eyebrow} title={details.title}/>
-    <ProgressBoards/>
+    <ProgressBoards activeSegment={variant}/>
     {notices}
     <section aria-label={details.summaryLabel} className="progress-summary">
       <div aria-live="polite" className="progress-summary__primary"><span aria-hidden="true" className="progress-summary__icon">{summaryIcon ?? details.icon}</span><div><div className="progress-summary__number"><strong>{count}</strong><span> / {total}</span></div><p>{details.countLabel}</p>{summaryNote && <small>{summaryNote}</small>}</div></div>

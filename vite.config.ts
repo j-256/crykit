@@ -14,6 +14,7 @@ const DOM_TEST_FILES = [
   'src/ui/components.test.tsx',
   'src/ui/navigation-controller.test.tsx',
   'src/ui/TravelUnlocksView.test.tsx',
+  'src/ui/SummonsView.test.tsx',
   'src/ui/route-state.test.ts',
   'src/ui/useQueuedTileUpdates.test.tsx',
   'src/ui/BuildTitleControl.test.tsx',

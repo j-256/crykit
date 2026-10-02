@@ -1,6 +1,6 @@
 # Queued tile updates
 
-Use [useQueuedTileUpdates](../src/ui/useQueuedTileUpdates.ts) for tiles that save each click immediately and allow repeated clicks while earlier saves finish. Class seals, Travel & unlocks, and Quintar breeding share this pattern. Forms with an explicit submit action keep their own draft and submit behavior.
+Use [useQueuedTileUpdates](../src/ui/useQueuedTileUpdates.ts) for tiles that save each click immediately and allow repeated clicks while earlier saves finish. Class seals, Travel & unlocks, Summons, and Quintar breeding share this pattern. Forms with an explicit submit action keep their own draft and submit behavior.
 
 ## Display the latest requested state
 
@@ -29,7 +29,7 @@ The hook calls each commit callback immediately, in click order. It tracks the d
 
 Use `{ showSavingState: false }` for these immediate tile transactions. The application still records pending work and reports errors. The shared context bar should not cycle through saving labels or disable its controls for every click. Set `aria-busy` on the affected tile while its key is pending, keep the tile button enabled, and keep its action and status labels tied to the requested state. A transient spinner or "Saving..." label would reintroduce visible flashes.
 
-Choose failure behavior in the save layer. Quintar breeding uses `rollbackOnFailure: true` and reveals the saved state after the tile's queue drains. Class seals retains a failed draft for the application's recovery workflow. The hook reports rejections, including synchronous callback failures, and drains their counts without silently retrying. A visible error is required; queued optimism does not prove that a write succeeded. Disable a separate retry action until the failed tile's remaining operations settle, then retry against the revealed state.
+Choose failure behavior in the save layer. Quintar breeding and Summons use `rollbackOnFailure: true` and reveal the saved state after the tile's queue drains. Class seals retains a failed draft for the application's recovery workflow. The hook reports rejections, including synchronous callback failures, and drains their counts without silently retrying. A visible error is required; queued optimism does not prove that a write succeeded. Disable a separate retry action until the failed tile's remaining operations settle, then retry against the revealed state.
 
 Mount the board with a key for its owning Playthrough so its display overlay cannot carry into another Playthrough. Keep context changes ordered with saves, and capture explicit record or Playthrough targets before deferring operations that could otherwise resolve against a different context.
 
@@ -43,6 +43,6 @@ Use `pendingCount` to guard conflicting bulk actions. Do not disable ordinary ti
 
 ## Verify the behavior
 
-The [hook tests](../src/ui/useQueuedTileUpdates.test.tsx) hold save promises open and acknowledge them individually. They check batched clicks, immediate registration, intermediate acknowledgments, independent keys, and failed operations. The [Class seals](../e2e/progress-board.spec.ts), [Travel & unlocks](../e2e/travel-unlocks.spec.ts), and [Quintar breeding](../e2e/quintar-breeding.spec.ts) browser tests verify repeated clicks, persisted results, the tab-close guard, and unchanged unrelated tiles and context controls. Quintar tests also observe completion attributes and rendered frames while the queue drains.
+The [hook tests](../src/ui/useQueuedTileUpdates.test.tsx) hold save promises open and acknowledge them individually. They check batched clicks, immediate registration, intermediate acknowledgments, independent keys, and failed operations. The [Class seals](../e2e/progress-board.spec.ts), [Travel & unlocks](../e2e/travel-unlocks.spec.ts), [Summons](../e2e/summons.spec.ts), and [Quintar breeding](../e2e/quintar-breeding.spec.ts) browser tests verify repeated clicks, persisted results, the tab-close guard, and unchanged unrelated tiles and context controls. Quintar tests also observe completion attributes and rendered frames while the queue drains.
 
 For a new board, verify an odd and even toggle sequence or a full state cycle, keep its button interactive, and confirm the final requested state stays visible through intermediate saves. Exercise save failure and recovery, reload persistence, and Playthrough switching. Use the shared [offline readiness helper](../e2e/offline-helpers.ts) to allow a bounded wait for downloading and checking bundled assets before disconnecting. Check desktop and narrow layouts in the running app. Static source checks cannot establish that intermediate states never reach the screen; controlled save tests and browser observations cover that behavior.

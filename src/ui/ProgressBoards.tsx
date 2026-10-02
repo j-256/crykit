@@ -1,8 +1,9 @@
 import { PROGRESS_PAGES, useNavigation } from './navigation'
 
-export function ProgressBoards({ sidebar = false }: { readonly sidebar?: boolean }) {
+export function ProgressBoards({ sidebar = false, activeSegment }: { readonly sidebar?: boolean; readonly activeSegment?: typeof PROGRESS_PAGES[number]['segment'] }) {
   const navigation = useNavigation()
-  const activeView = navigation.route.page.page === 'progress' ? (navigation.route.page.view === 'quintar' || navigation.route.page.view === 'unlocks' ? navigation.route.page.view : 'list') : undefined
+  const page = navigation.route.page
+  const activeView = activeSegment ? PROGRESS_PAGES.find(board => board.segment === activeSegment)?.page.view : page.page === 'progress' ? PROGRESS_PAGES.find(board => board.page.view === page.view)?.page.view ?? 'list' : undefined
   const links = PROGRESS_PAGES.map(board => {
     const route = { page: board.page, overlays: [], query: {} }
     const link = <a aria-current={activeView === board.page.view ? 'page' : undefined} className={sidebar ? 'nav-sublink' : undefined} href={navigation.href(route)} key={board.page.view} onClick={event => {

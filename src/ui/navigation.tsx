@@ -64,6 +64,7 @@ export type TeamsPageRoute =
 export type ProgressPageRoute =
   | { readonly page: 'progress'; readonly view: 'list' }
   | { readonly page: 'progress'; readonly view: 'unlocks' }
+  | { readonly page: 'progress'; readonly view: 'summons' }
   | { readonly page: 'progress'; readonly view: 'quintar' }
   | { readonly page: 'progress'; readonly view: 'new' }
   | { readonly page: 'progress'; readonly view: 'edit'; readonly recordId: ProgressRecordId }
@@ -71,6 +72,7 @@ export type ProgressPageRoute =
 export const PROGRESS_PAGES = [
   { label: 'Class seals', segment: 'seals', page: { page: 'progress', view: 'list' } },
   { label: 'Travel & unlocks', segment: 'unlocks', page: { page: 'progress', view: 'unlocks' } },
+  { label: 'Summons', segment: 'summons', page: { page: 'progress', view: 'summons' } },
   { label: 'Quintar breeding', segment: 'quintar', page: { page: 'progress', view: 'quintar' } },
 ] as const satisfies readonly { readonly label: string; readonly segment: string; readonly page: ProgressPageRoute }[]
 
@@ -629,7 +631,7 @@ export function routeTitle(route: AppRoute): string {
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | CryKit`
   if (page.page === 'characters') return `${page.view === 'new' ? 'Add character' : page.view === 'snapshot-new' ? 'Capture character' : page.view === 'snapshot' ? 'Recorded snapshot' : page.view === 'snapshot-compare' || page.view === 'snapshot-pair' ? 'Compare snapshots' : page.view === 'skill-screenshots' ? 'Import skill screenshots' : page.view === 'class-new' ? 'Add class progress' : page.view === 'class-edit' ? 'Edit class progress' : page.view === 'learning-new' ? 'Add learned ability' : page.view === 'learning-edit' ? 'Edit learned ability' : page.view === 'character' ? 'Character' : 'Characters'} | CryKit`
   if (page.page === 'builds') return `${page.view === 'build-new' ? 'Create Build' : page.view === 'revision-new' ? 'New Build revision' : page.view === 'revision-edit' ? 'Edit Build revision' : page.view === 'record-current' ? 'Record current Build' : page.view === 'scenario-new' ? 'Create party plan' : page.view === 'scenario' ? 'Party plan' : page.view === 'compare' || page.view === 'compare-pair' ? 'Compare Builds' : page.view === 'teams' ? 'Party plans' : page.view === 'build' || page.view === 'revision' ? 'Build' : 'Builds'} | CryKit`
-  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : 'Progress'} | CryKit`
+  if (page.page === 'progress') return `${page.view === 'new' ? 'Add progress' : page.view === 'edit' ? 'Edit progress' : page.view === 'unlocks' ? 'Travel & unlocks' : page.view === 'quintar' ? 'Quintar breeding' : page.view === 'summons' ? 'Summons' : 'Progress'} | CryKit`
   return `${page.view === 'detail' ? 'Reference definition' : page.view === 'promote' ? 'Collect definitions' : 'Reference'} | CryKit`
 }
 
