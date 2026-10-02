@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 import { MAX_ID_LENGTH } from '../domain'
+import { bundledEntityRouteName, entityRouteSlug, isEntityRouteSlug, type EntityRouteNameResolver } from './entity-route-names'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 import type {
   BuildId,
@@ -178,12 +179,13 @@ function entityIdentitySegments(entityId: string): readonly string[] | undefined
   return minimum && parts.length >= minimum && parts.every(part => boundedOpaque(part)) ? parts : undefined
 }
 
-export function formatEntityRefPath(ref: EntityRef): string {
+export function formatEntityRefPath(ref: EntityRef, resolveName: EntityRouteNameResolver = bundledEntityRouteName): string {
   if (ref.kind === 'personal') return `personal/${encodeSegment(ref.definitionId)}`
   if (!boundedOpaque(ref.entityId)) throw new Error('Route identifier is invalid')
   const parts = entityIdentitySegments(ref.entityId)
   const entityPath = parts ? parts.map(part => encodeIdentitySegment(part, ENTITY_ID_RESERVED_SEGMENTS)).join('/') : `${OPAQUE_ENTITY_ID_SEGMENT}/${encodeSegment(ref.entityId)}`
-  return `catalog/${encodeSegment(ref.catalogId)}/revisions/${encodeSegment(ref.catalogRevisionId)}/entities/${entityPath}`
+  const slug = encodeIdentitySegment(entityRouteSlug(resolveName(ref)), ENTITY_ID_RESERVED_SEGMENTS)
+  return `catalog/${encodeSegment(ref.catalogId)}/revisions/${encodeSegment(ref.catalogRevisionId)}/entities/${entityPath}/${slug}`
 }
 
 export function parseEntityRefPath(segments: readonly string[], offset = 0): { readonly ref: EntityRef; readonly consumed: number } | undefined {
@@ -200,7 +202,9 @@ export function parseEntityRefPath(segments: readonly string[], offset = 0): { r
   if (segments[identityOffset] === OPAQUE_ENTITY_ID_SEGMENT) {
     const opaque = decodeSegment(segments[identityOffset + 1] ?? '')
     if (opaque && !entityIdentitySegments(opaque)) entityId = opaque
-    consumed += 2
+    const slug = decodeSegment(segments[identityOffset + 2] ?? '')
+    if (!slug || !isEntityRouteSlug(slug)) return undefined
+    consumed += 3
   } else if (ENTITY_ID_MIN_SEGMENTS.has(segments[identityOffset] ?? '')) {
     const parts: string[] = []
     for (let cursor = identityOffset; cursor < segments.length && !ENTITY_ID_RESERVED_SEGMENTS.has(segments[cursor]!); cursor += 1) {
@@ -208,9 +212,11 @@ export function parseEntityRefPath(segments: readonly string[], offset = 0): { r
       if (!part || part.includes(':')) return undefined
       parts.push(part)
     }
+    const slug = parts.pop()
+    if (!slug || !isEntityRouteSlug(slug)) return undefined
     const joined = parts.join(':')
     if (boundedOpaque(joined) && entityIdentitySegments(joined)) entityId = joined
-    consumed += parts.length
+    consumed += parts.length + 1
   }
   return catalogId && catalogRevisionId && entityId
     ? { ref: { kind: 'catalog', catalogId: catalogId as CatalogId, catalogRevisionId: catalogRevisionId as CatalogRevisionId, entityId: entityId as EntityId }, consumed }
@@ -519,7 +525,7 @@ export function parseAppRoute(hash: string): AppRoute {
   return { page: parsed.page, overlays, query, ...(parsed.legacy ? { legacy: true as const } : {}) }
 }
 
-function formatPage(page: PageRoute): string {
+function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver): string {
   if (page.page === 'mods') return page.view === 'editor' ? '/mods/editor' : '/mods'
   if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : ''}`
   if (page.page === 'share') {
@@ -542,9 +548,9 @@ function formatPage(page: PageRoute): string {
     if (page.view === 'snapshot-pair') return `${root}/history/compare/${encodeIdentitySegment(page.leftSnapshotId, COMPARE_LEFT_ID_RESERVED_SEGMENTS)}/${encodeSegment(page.rightSnapshotId)}`
     if (page.view === 'skill-screenshots') return `${root}/current/skills/screenshots`
     if (page.view === 'class-new') return `${root}/current/classes/new`
-    if (page.view === 'class-edit') return `${root}/current/classes/${formatEntityRefPath(page.ref)}/edit`
+    if (page.view === 'class-edit') return `${root}/current/classes/${formatEntityRefPath(page.ref, resolveName)}/edit`
     if (page.view === 'learning-new') return `${root}/current/skills/${page.learningKind}/new`
-    if (page.view === 'learning-edit') return `${root}/current/skills/${page.learningKind}/${formatEntityRefPath(page.ref)}/edit`
+    if (page.view === 'learning-edit') return `${root}/current/skills/${page.learningKind}/${formatEntityRefPath(page.ref, resolveName)}/edit`
     return `${root}/${page.tab}`
   }
   if (page.page === 'builds') {
@@ -569,20 +575,20 @@ function formatPage(page: PageRoute): string {
   }
   if (page.page === 'reference') {
     if (page.view === 'promote') return '/reference/promote'
-    if (page.view === 'detail') return `/reference/${formatEntityRefPath(page.ref)}`
+    if (page.view === 'detail') return `/reference/${formatEntityRefPath(page.ref, resolveName)}`
     return '/reference'
   }
   if (page.page === 'settings') return `/settings/${page.section}${'previewId' in page ? `/import/${encodeSegment(page.previewId)}` : ''}`
   return page.requestedPath.startsWith('/') ? page.requestedPath : '/inventory'
 }
 
-function formatOverlayPath(overlays: readonly RouteOverlay[]): string {
+function formatOverlayPath(overlays: readonly RouteOverlay[], resolveName: EntityRouteNameResolver): string {
   return overlays.map((overlay) => {
     if (overlay.kind === 'corrections') return '/corrections'
-    if (overlay.kind === 'correction-editor') return `/correct/${formatEntityRefPath(overlay.ref)}${overlay.field ? `/field/${encodeSegment(overlay.field)}` : ''}`
+    if (overlay.kind === 'correction-editor') return `/correct/${formatEntityRefPath(overlay.ref, resolveName)}${overlay.field ? `/field/${encodeSegment(overlay.field)}` : ''}`
     if (overlay.kind === 'search') return '/search'
     if (overlay.kind === 'definition-picker') return overlay.fieldKey.startsWith('slot:') ? `/pick/slot/${encodeSegment(overlay.fieldKey.slice(5))}` : `/pick/${encodeSegment(overlay.fieldKey)}`
-    return overlay.mode === 'new' ? '/definitions/new' : `/definitions/override/${formatEntityRefPath(overlay.ref)}`
+    return overlay.mode === 'new' ? '/definitions/new' : `/definitions/override/${formatEntityRefPath(overlay.ref, resolveName)}`
   }).join('')
 }
 
@@ -594,7 +600,7 @@ function hasOverlayQuery(overlay: RouteOverlay): overlay is SearchOverlay | Defi
   return overlay.kind === 'search' || overlay.kind === 'definition-picker'
 }
 
-export function formatAppRoute(route: AppRoute): string {
+export function formatAppRoute(route: AppRoute, resolveName: EntityRouteNameResolver = bundledEntityRouteName): string {
   const params = new URLSearchParams()
   appendQuery(params, route.query, route.overlays.length ? 'page.' : '')
   const queryOverlays = route.overlays.flatMap((overlay, index) => hasOverlayQuery(overlay) ? [{ overlay, index }] : [])
@@ -605,7 +611,7 @@ export function formatAppRoute(route: AppRoute): string {
     if (overlay.kind === 'definition-picker' && overlay.resultLimit !== DEFAULT_PICKER_LIMIT) params.set(index === lastQueryOverlay ? 'limit' : `picker.${index}.limit`, String(overlay.resultLimit))
   }
   const query = params.toString()
-  return `#${formatPage(route.page)}${formatOverlayPath(route.overlays)}${query ? `?${query}` : ''}`
+  return `#${formatPage(route.page, resolveName)}${formatOverlayPath(route.overlays, resolveName)}${query ? `?${query}` : ''}`
 }
 
 export function routeDestination(route: AppRoute): Destination {
@@ -702,7 +708,7 @@ function withNavigationState(state: unknown, navigation: NavigationHistoryState)
   return state && typeof state === 'object' ? { ...state, [NAVIGATION_STATE_KEY]: navigation } : { [NAVIGATION_STATE_KEY]: navigation }
 }
 
-function writeRouteHistory(next: AppRoute, replace: boolean, notify: boolean): number {
+function writeRouteHistory(next: AppRoute, replace: boolean, notify: boolean, resolveName: EntityRouteNameResolver = bundledEntityRouteName): number {
   const currentRoute = parseAppRoute(window.location.hash)
   const currentState = navigationState(window.history.state)
   const currentIndex = currentState?.index ?? 0
@@ -711,12 +717,12 @@ function writeRouteHistory(next: AppRoute, replace: boolean, notify: boolean): n
   const remainingInSettings = next.page.page === 'settings' && currentRoute.page.page === 'settings'
   const state = withNavigationState(window.history.state, {
     index: nextIndex,
-    ...(replace && currentState?.parentHash ? { parentHash: currentState.parentHash } : !replace ? { parentHash: formatAppRoute(currentRoute) } : {}),
-    ...(enteringSettings ? { returnHash: formatAppRoute(currentRoute), returnIndex: currentIndex }
+    ...(replace && currentState?.parentHash ? { parentHash: currentState.parentHash } : !replace ? { parentHash: formatAppRoute(currentRoute, resolveName) } : {}),
+    ...(enteringSettings ? { returnHash: formatAppRoute(currentRoute, resolveName), returnIndex: currentIndex }
       : remainingInSettings && currentState?.returnHash && currentState.returnIndex !== undefined ? { returnHash: currentState.returnHash, returnIndex: currentState.returnIndex }
       : {}),
   })
-  window.history[replace ? 'replaceState' : 'pushState'](state, '', formatAppRoute(next))
+  window.history[replace ? 'replaceState' : 'pushState'](state, '', formatAppRoute(next, resolveName))
   if (notify) notifyNavigationWrite()
   return nextIndex
 }
@@ -747,7 +753,7 @@ export interface NavigationController {
   readonly hasOpenDraft: () => boolean
 }
 
-export function useNavigationController(options: { readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: (to: AppRoute) => void } = {}): NavigationController {
+export function useNavigationController(options: { readonly resolveEntityName?: EntityRouteNameResolver; readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: (to: AppRoute) => void } = {}): NavigationController {
   const [route, setRoute] = useState(() => typeof window === 'undefined' ? BUILDS_ROUTE : parseAppRoute(window.location.hash))
   const acceptedRef = useRef(route)
   const acceptedIndexRef = useRef(0)
@@ -770,12 +776,20 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
     return false
   }, [])
 
+  const href = useCallback((value: AppRoute) => formatAppRoute(value, optionsRef.current.resolveEntityName), [])
+
   const accept = useCallback((next: AppRoute) => {
     const canonical = next.legacy ? { ...next, legacy: undefined } : next
     acceptedRef.current = canonical
     setRoute(canonical)
-    if (next.legacy) window.history.replaceState(window.history.state, '', formatAppRoute(canonical))
-  }, [])
+    const canonicalHash = href(canonical)
+    if (canonical.page.page !== 'unresolved' && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+  }, [href])
+
+  useEffect(() => {
+    const canonicalHash = href(acceptedRef.current)
+    if (acceptedRef.current.page.page !== 'unresolved' && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+  }, [href, options.resolveEntityName])
 
   useEffect(() => {
     const existing = navigationState(window.history.state)
@@ -785,7 +799,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
     if (acceptedRef.current.legacy) accept(acceptedRef.current)
     const restore = (event: Event) => {
       const next = parseAppRoute(window.location.hash)
-      const nextHash = formatAppRoute(next)
+      const nextHash = href(next)
       const state = navigationState(event instanceof PopStateEvent ? event.state : window.history.state)
       const pending = pendingReversalRef.current
       if (pending) {
@@ -796,13 +810,14 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
         }
         return
       }
-      if (!next.legacy && nextHash === formatAppRoute(acceptedRef.current)) {
+      if (!next.legacy && nextHash === href(acceptedRef.current)) {
+        if (window.location.hash !== nextHash) accept(next)
         if (state) acceptedIndexRef.current = state.index
         return
       }
       if (blocked(acceptedRef.current, next)) {
         const delta = state ? acceptedIndexRef.current - state.index : -1
-        pendingReversalRef.current = { index: acceptedIndexRef.current, hash: formatAppRoute(acceptedRef.current) }
+        pendingReversalRef.current = { index: acceptedIndexRef.current, hash: href(acceptedRef.current) }
         window.history.go(delta || -1)
         return
       }
@@ -822,15 +837,15 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
       window.removeEventListener('hashchange', restore)
       window.removeEventListener(NAVIGATION_EVENT, restore)
     }
-  }, [accept, blocked])
+  }, [accept, blocked, href])
 
   const navigate = useCallback((next: AppRoute, navigateOptions?: { readonly replace?: boolean }) => {
     if (blocked(acceptedRef.current, next)) return false
     const replace = navigateOptions?.replace === true
-    acceptedIndexRef.current = writeRouteHistory(next, replace, false)
+    acceptedIndexRef.current = writeRouteHistory(next, replace, false, optionsRef.current.resolveEntityName)
     accept(next)
     return true
-  }, [accept, blocked])
+  }, [accept, blocked, href])
 
   const close = useCallback(() => {
     const currentState = navigationState(window.history.state)
@@ -845,9 +860,9 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
     }
     const parent = parentRoute(acceptedRef.current)
     if (!parent || blocked(acceptedRef.current, parent)) return false
-    if (currentState?.parentHash === formatAppRoute(parent)) { window.history.back(); return true }
+    if (currentState?.parentHash === href(parent)) { window.history.back(); return true }
     return navigate(parent, { replace: true })
-  }, [blocked, navigate])
+  }, [blocked, navigate, href])
 
   const registerBlocker = useCallback((blocker: NavigationBlocker) => {
     blockersRef.current.add(blocker)
@@ -856,7 +871,7 @@ export function useNavigationController(options: { readonly shouldBlock?: (from:
 
   const hasOpenDraft = useCallback(() => [...blockersRef.current].some((blocker) => blocker.blocked()), [])
 
-  return useMemo(() => ({ route, destination: routeDestination(route), navigate, close, href: formatAppRoute, registerBlocker, hasOpenDraft }), [close, navigate, registerBlocker, hasOpenDraft, route])
+  return useMemo(() => ({ route, destination: routeDestination(route), navigate, close, href, registerBlocker, hasOpenDraft }), [close, navigate, registerBlocker, hasOpenDraft, href, options.resolveEntityName, route])
 }
 
 const NavigationContext = createContext<NavigationController | undefined>(undefined)

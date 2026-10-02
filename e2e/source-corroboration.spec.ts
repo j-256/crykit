@@ -4,7 +4,7 @@ import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import type { CatalogCorrection } from '../src/domain/corrections'
 import { exportCorrections } from '../src/interchange/corrections'
 
-const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior'
+const WARRIOR_PATH = referencePath('base:class:warrior')
 
 function fact(page: Page, name: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })

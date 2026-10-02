@@ -1,3 +1,4 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -8,7 +9,7 @@ import type { LocalData } from '../src/domain/types'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { nativeSourceRecord } from '../src/domain/native-game'
 
-const WARRIOR_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior'
+const WARRIOR_PATH = referencePath('base:class:warrior')
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -142,7 +143,7 @@ test('Scholar tree names monster learning and keeps its Adrenaline reference sep
   await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const adrenaline = tree.getByRole('link', { name: 'Monster magic Adrenaline Monster learning', exact: true })
   await expect(adrenaline).toBeVisible()
-  await expect(adrenaline).toHaveAttribute('href', /base\/scholar\/monster-magic\/adrenaline$/)
+  await expect(adrenaline).toHaveAttribute('href', /base\/scholar\/monster-magic\/adrenaline\/adrenaline$/)
   await expect(tree.getByRole('link', { name: 'Monster magic Reflection Monster learning', exact: true })).toBeVisible()
   await expect(tree.getByText(/^(Gate|Empty|Ability #|Passive #)/)).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
@@ -157,7 +158,7 @@ test('native class trees retain named skills and exact links in the native catal
   await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const taunt = tree.getByRole('link', { name: 'ability Taunt 0 LP', exact: true })
   await expect(taunt).toBeVisible()
-  await expect(taunt).toHaveAttribute('href', /catalog-v1\/entities\/base\/warrior\/ability\/taunt$/)
+  await expect(taunt).toHaveAttribute('href', /catalog-v1\/entities\/base\/warrior\/ability\/taunt\/taunt$/)
   await expect(tree.getByRole('link', { name: 'passive Equip Axe 2 LP', exact: true })).toBeVisible()
   await taunt.click()
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
@@ -218,7 +219,7 @@ test('draws every simultaneous prerequisite into its skill and keeps arrows alig
 
 
 test('native learn trees resolve game names and draw simultaneous incoming arrows', async ({ page }) => {
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/aegis')
+  await page.goto(referencePath('base:class:aegis'))
   const research = page.getByRole('region', { name: 'Class growth and learning', exact: true })
   await research.getByText('Learn tree', { exact: true }).click()
   const destination = research.locator('[data-position="2:1"]')

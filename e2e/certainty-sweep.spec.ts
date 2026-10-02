@@ -1,9 +1,10 @@
+import { referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { expectOfflineReady } from './offline-helpers'
 
 const CATALOG_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/'
-const PUN_STORM_PATH = `${CATALOG_PATH}catalog-v1/entities/mod/moonlight-project/ability/565`
-const FREELANCER_PATH = `${CATALOG_PATH}catalog-v1/entities/mod/moonlight-project/class/26`
+const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
+const FREELANCER_PATH = referencePath('mod:moonlight-project:class:26')
 
 function fact(page: Page, label: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
@@ -31,7 +32,7 @@ test('Moonlight definitions open directly with relevant known facts', async ({ p
   expect(external).toEqual([])
   await page.reload()
   await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toBeVisible()
-  await expect(page).toHaveURL(new RegExp('/entities/mod/moonlight-project/ability/565$'))
+  await expect(page).toHaveURL(new RegExp('/entities/mod/moonlight-project/ability/565/100-pun-storm$'))
 })
 
 test('Moonlight trees stay named offline and do not imply personal learning', async ({ page, context }) => {
@@ -62,12 +63,12 @@ test('Moonlight trees stay named offline and do not imply personal learning', as
 })
 
 test('explicit null is a known absent value and travel tools use base identities', async ({ page }) => {
-  await page.goto(`${CATALOG_PATH}catalog-v1/entities/base/item/tonic`)
+  await page.goto(referencePath('base:item:tonic'))
   const capacity = fact(page, 'Increase Max Capacity By')
   await expect(capacity).toContainText('Not set in source')
   await expect(capacity.getByText('unknown', { exact: true })).toHaveCount(0)
-  await page.goto(`${CATALOG_PATH}catalog-v1/entities/base/item/treasure-finder`)
-  await expect(page).toHaveURL(/catalog-v1\/entities\/base\/item\/treasure-finder$/)
+  await page.goto(referencePath('base:item:treasure-finder'))
+  await expect(page).toHaveURL(/catalog-v1\/entities\/base\/item\/treasure-finder\/treasure-finder$/)
   await expect(page.getByRole('heading', { name: 'Treasure Finder', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

@@ -4,6 +4,7 @@ import type { AppRoute, PageRoute } from './navigation'
 import { formatAppRoute, parentRoute, parseAppRoute, routeForDestination } from './navigation'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { createEntityRouteNameResolver, entityRouteSlug, isEntityRouteSlug, MAX_ENTITY_SLUG_LENGTH } from './entity-route-names'
 import { MAX_ID_LENGTH } from '../domain/limits'
 
 const catalogRef = { kind: 'catalog' as const, catalogId: 'pack / alpha', catalogRevisionId: 'revision:1', entityId: 'item ? one' } as EntityRef
@@ -27,12 +28,47 @@ describe('semantic navigation routes', () => {
     ]) {
       const ref = { kind: 'catalog', catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId } as CatalogRef
       const value = route({ page: 'reference', view: 'detail', ref })
-      expect(formatAppRoute(value)).toBe(`#/reference/catalog/fixture/revisions/revision-a/entities/${path}`)
+      expect(formatAppRoute(value)).toBe(`#/reference/catalog/fixture/revisions/revision-a/entities/${path}/definition`)
       expectRoundTrip(value)
     }
     for (const entityId of Object.keys(DEFAULT_CATALOG.entities)) {
       expectRoundTrip(route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entityId as CatalogRef['entityId'] } }))
     }
+  })
+
+  it('keeps the exact numeric identity independent of the readable slug', () => {
+    const root = '#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/'
+    const desert = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:monster:316' as CatalogRef['entityId'] } })
+    expect(formatAppRoute(desert)).toBe(`${root}base/monster/316/brutish-quintar-desert`)
+    expect(parseAppRoute(`${root}base/monster/316/completely-wrong-name`)).toEqual(desert)
+    expect(formatAppRoute(parseAppRoute(`${root}base/monster/316/completely-wrong-name`))).toBe(formatAppRoute(desert))
+    const red = parseAppRoute(`${root}base/monster/57/brutish-quintar-desert`)
+    expect(formatAppRoute(red)).toBe(`${root}base/monster/57/brutish-quintar-red`)
+    for (const path of ['base/monster/316', 'base/item/tonic', 'mod/moonlight-project/ability/565', 'id/foreign-record', 'base/monster/316/bad%2Fslug', 'base/monster/316/%00', 'base/monster/316/%E0%A4%A', 'base/monster/316/' + 'a'.repeat(MAX_ENTITY_SLUG_LENGTH + 1)]) expect(parseAppRoute(root + path).page.page).toBe('unresolved')
+  })
+
+  it('resolves names from exact imported revisions and keeps action-shaped names out of overlays', () => {
+    const ref = { kind: 'catalog', catalogId: 'synthetic-import', catalogRevisionId: 'r1', entityId: 'foreign:record:1' } as CatalogRef
+    const imported = { ...DEFAULT_CATALOG, id: ref.catalogId, revisionId: ref.catalogRevisionId, entities: { [ref.entityId]: { ...DEFAULT_CATALOG.entities['base:item:tonic']!, id: ref.entityId, name: 'Café / Wind & Rain' } } }
+    const otherRevision = { ...imported, revisionId: 'r2' as CatalogRef['catalogRevisionId'], entities: { [ref.entityId]: { ...imported.entities[ref.entityId]!, name: 'Another name' } } }
+    const resolveName = createEntityRouteNameResolver([otherRevision, imported])
+    const detail = route({ page: 'reference', view: 'detail', ref })
+    const hash = formatAppRoute(detail, resolveName)
+    expect(hash).toContain('/entities/id/foreign%3Arecord%3A1/cafe-wind-rain')
+    expect(parseAppRoute(hash)).toEqual(detail)
+    expect(resolveName({ ...ref, catalogRevisionId: 'missing' as CatalogRef['catalogRevisionId'] })).toBeUndefined()
+    for (const name of ['edit', 'search', 'field', 'correct', 'definitions']) {
+      const editor = { ...detail, overlays: [{ kind: 'correction-editor' as const, ref, field: 'Location' }] }
+      const formatted = formatAppRoute(editor, () => name)
+      expect(parseAppRoute(formatted)).toEqual(editor)
+      expect(formatted).toContain(`/foreign%3Arecord%3A1/%${name.charCodeAt(0).toString(16).toUpperCase()}${name.slice(1)}`)
+    }
+    expect(entityRouteSlug('東京の風')).toBe('東京の風')
+    expect(entityRouteSlug('?!')).toBe('definition')
+    expect(entityRouteSlug('x'.repeat(MAX_ENTITY_SLUG_LENGTH + 1))).toHaveLength(MAX_ENTITY_SLUG_LENGTH)
+    const unicodeBoundary = entityRouteSlug('a' + '\u{10400}'.repeat(MAX_ENTITY_SLUG_LENGTH))
+    expect(isEntityRouteSlug(unicodeBoundary)).toBe(true)
+    expect(() => encodeURIComponent(unicodeBoundary)).not.toThrow()
   })
 
   it('keeps action words and escaped data distinct from entity path boundaries', () => {

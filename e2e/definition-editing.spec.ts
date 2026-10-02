@@ -1,8 +1,8 @@
+import { referencePath } from './reference-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-const REFERENCE = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/'
-const RAPIER = `${REFERENCE}base/item/artisan-rapier`
-const SWORD = `${REFERENCE}base/item/iron-sword`
+const RAPIER = referencePath('base:item:artisan-rapier')
+const SWORD = referencePath('base:item:iron-sword')
 
 async function edit(page: Page, personal = false) {
   const action = personal ? 'Create personal version' : page.url().includes('/reference/personal/') ? 'Edit personal version' : 'Correct shared reference'
@@ -85,7 +85,7 @@ test('keeps validation and close recovery beside the fixed save controls', async
 })
 
 test('keeps class research available and uses the exact personal class for growth', async ({ page }) => {
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior')
+  await page.goto(referencePath('base:class:warrior'))
   const editor = await edit(page, true)
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
   await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()
@@ -109,6 +109,10 @@ test('continues the requested navigation after saving a quick correction', async
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await page.goto(RAPIER)
   await expect(page.getByRole('heading', { name: 'Synthetic quick correction', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/artisan-rapier\/synthetic-quick-correction(?:\?|$)/)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Synthetic quick correction', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/artisan-rapier\/synthetic-quick-correction(?:\?|$)/)
 })
 
 test('merges unrelated tab edits and preserves a draft when the same definition changes', async ({ page, context }) => {

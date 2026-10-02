@@ -1,3 +1,4 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -67,7 +68,7 @@ test('supplemental reference audiences stay hidden by default and remain directl
   await expect(technical).toHaveCount(0)
   await expect(page).not.toHaveURL(/audience=technical/)
 
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/mechanic/stat/AbilityItemConsumptionDown?v=1')
+  await page.goto(referencePath('base:mechanic:stat:AbilityItemConsumptionDown') + '?v=1')
   await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
   await expect(page).not.toHaveURL(/audience=technical/)
 

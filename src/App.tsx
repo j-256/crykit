@@ -80,6 +80,7 @@ import { QuintarBreedingView } from './ui/QuintarBreedingView'
 import { summonEntries } from './ui/SummonsView'
 import type { SummonId } from './catalog/summons'
 import type { QuintarBreedingStepId } from './catalog/quintar-breeding'
+import { createEntityRouteNameResolver } from './ui/entity-route-names'
 import { CorrectionsContext, useCorrectionStore } from './ui/corrections-context'
 import { CorrectionSurfaces } from './ui/Corrections'
 import { ReferenceView } from './ui/ReferenceView'
@@ -158,7 +159,9 @@ export default function App() {
   const [importError, setImportError] = useState<string>()
   const [importBusy, setImportBusy] = useState(false)
   const [externalUpdate, setExternalUpdate] = useState(false)
+  const resolveEntityName = useMemo(() => createEntityRouteNameResolver(corrections.catalogs), [corrections.catalogs])
   const navigation = useNavigationController({
+    resolveEntityName,
     shouldBlock: (from, to) => {
       if (!formDirtyRef.current) return false
       if (buildDraftRouteRef.current && !dirtyRef.current) return !isReferenceResearchRoute(to) && !isRouteWithin(to, buildDraftRouteRef.current)

@@ -1,3 +1,4 @@
+import { referencePath } from './reference-helpers'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
 import { expectOfflineReady } from './offline-helpers'
@@ -8,8 +9,8 @@ import { strFromU8, unzipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 
-const ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/assassin-seal'
-const EQUIVALENT_ITEM_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/adjudicator'
+const ITEM_PATH = referencePath('base:item:assassin-seal')
+const EQUIVALENT_ITEM_PATH = referencePath('base:item:adjudicator')
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
 const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'

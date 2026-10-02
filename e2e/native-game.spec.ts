@@ -2,7 +2,7 @@ import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
 
-const SLIME_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/monster/2'
+const SLIME_PATH = referencePath('base:monster:2')
 
 test('enemy rewards and item costs share coin denominations while editing keeps copper values', async ({ page }) => {
   await page.goto(SLIME_PATH.replace('monster/2', 'monster/179'))
@@ -31,8 +31,8 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(reserve).toContainText('Record #179')
   await expect(overpass).toContainText('Overpass')
   await expect(overpass).toContainText('Record #318')
-  await expect(reserve).toHaveAttribute('href', /monster\/179$/)
-  await expect(overpass).toHaveAttribute('href', /monster\/318$/)
+  await expect(reserve).toHaveAttribute('href', referencePath('base:monster:179').slice(1))
+  await expect(overpass).toHaveAttribute('href', referencePath('base:monster:318').slice(1))
   await search.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(enemies).toHaveCount(6)
   await expect(enemies.filter({ hasText: 'Chaos mode' })).toHaveCount(2)
