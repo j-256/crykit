@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "platform": "Windows",
+    "gameVersion": "1.6.9",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "file": "Sang/Battle/BattlerMonster.cs",
+    "fileSha256": "212a5980b93e409ce67f6c9770dcd287294cf0d2020b3d796d7f622c416f8ba9",
+    "methods": ["RecalcBaseStats", "RecalcEquipStats"]
+  },
+  "percentageScale": 100,
+  "maxSignedInteger": 2147483647,
+  "vitalRounding": {
+    "threshold": 100,
+    "below": { "step": 5, "offset": 2 },
+    "above": { "step": 10, "offset": 5 }
+  },
+  "attributes": {
+    "Str": "MonsterStrRate",
+    "Vit": "MonsterVitRate",
+    "Dex": "MonsterDexRate",
+    "Agi": "MonsterAgiRate",
+    "Mnd": "MonsterMndRate",
+    "Spi": "MonsterSpiRate",
+    "Spd": "MonsterSpdRate",
+    "Lck": "MonsterLckRate"
+  },
+  "combatInputs": {
+    "Physical attack input": "MonsterPAtkRate",
+    "Physical defense input": "MonsterPDefRate",
+    "Magical defense input": "MonsterMDefRate"
+  }
+}

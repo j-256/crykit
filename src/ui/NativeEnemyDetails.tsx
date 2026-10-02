@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useMemo, type CSSProperties, type ReactNode } from 'react'
+import { previewEnemyDifficulty, referenceEnemyDifficulties, referenceEnemyGameMode, referenceEnemyModes, type EnemyDifficultyPreview } from '../domain/enemy-difficulty'
 import { nativeDefinitionLabel, nativeIdentity, nativeRecord, nativeRelationships, nativeSourceRecord, type NativeRelationship } from '../domain/native-game'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, JsonValue, Knowledge } from '../domain/types'
 import { Badge } from './components'
@@ -6,29 +7,52 @@ import { Icon, type IconName } from './icons'
 import { KnowledgeValue } from './KnowledgeValue'
 import { CatalogArtwork } from './WikiSprite'
 import { DefinitionLink } from './NavigationLink'
+import { useNavigation } from './navigation'
 
 const UNKNOWN: Knowledge<JsonValue> = Object.freeze({ state: 'unknown' })
 const ATTRIBUTE_LABELS: Readonly<Record<string, string>> = Object.freeze({ Str: 'Strength', Vit: 'Vitality', Dex: 'Dexterity', Agi: 'Agility', Mnd: 'Mind', Spi: 'Spirit', Spd: 'Speed', Lck: 'Luck' })
 const COMBAT_LABELS: Readonly<Record<string, string>> = Object.freeze({ 'Physical attack input': 'Attack', 'Physical defense input': 'Defense', 'Magical defense input': 'Magic defense', 'Physical accuracy rating input': 'Accuracy rating', 'Physical critical chance input': 'Critical chance', 'Physical evasion rating input': 'Evasion rating', 'Physical critical damage input': 'Critical damage', 'Physical variance input': 'Attack variance', 'Physical penetration input': 'Physical penetration', 'Magical penetration input': 'Magical penetration' })
+const DIFFICULTY_QUERY = 'difficulty'
+export const ENEMY_MODE_QUERY = 'mode'
+
+export function useEnemySettings(catalog: CatalogSnapshot | undefined, entity: CatalogEntity | undefined) {
+  const navigation = useNavigation()
+  const modes = useMemo(() => referenceEnemyModes(catalog, entity), [catalog, entity])
+  const requestedMode = navigation.route.query[ENEMY_MODE_QUERY]?.[0]
+  const mode = modes.find(entry => entry.value === (requestedMode ?? referenceEnemyGameMode(entity)))
+  const resolvedMode = mode?.entityId === entity?.id ? mode : undefined
+  const difficulties = useMemo(() => referenceEnemyDifficulties(entity, mode?.value), [entity, mode?.value])
+  const requested = navigation.route.query[DIFFICULTY_QUERY]?.[0]
+  const difficulty = resolvedMode?.entityId ? requested === undefined ? difficulties.find(entry => entry.isDefault) : difficulties.find(entry => String(entry.id) === requested) : undefined
+  const preview = useMemo(() => entity && difficulty ? previewEnemyDifficulty(entity, difficulty) : undefined, [entity, difficulty])
+  const changeMode = (value: string) => {
+    const next = modes.find(entry => entry.value === value)
+    if (!catalog || !next?.entityId) return
+    const page = next.entityId === entity?.id ? navigation.route.page : { page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: next.entityId } } as const
+    navigation.navigate({ ...navigation.route, page, query: { ...navigation.route.query, [ENEMY_MODE_QUERY]: [next.value] } }, { replace: true })
+  }
+  const control = modes.length > 0 ? <div aria-label="Enemy display settings" className="enemy-settings" role="group"><label className="enemy-setting"><span>Game mode</span><select onChange={event => changeMode(event.target.value)} value={resolvedMode?.entityId ? resolvedMode.value : ''}>{!resolvedMode?.entityId && <option value="">Choose game mode</option>}{modes.map(entry => <option disabled={!entry.entityId} key={entry.value} value={entry.value}>{entry.name}</option>)}</select></label><label className="enemy-setting"><span>Difficulty</span><select onChange={event => navigation.navigate({ ...navigation.route, query: { ...navigation.route.query, [DIFFICULTY_QUERY]: [event.target.value] } }, { replace: true })} value={difficulty?.id ?? ''}>{!difficulty && <option value="">Choose difficulty</option>}{difficulties.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label></div> : undefined
+  return { preview, control, nativeMode: resolvedMode?.entityId ? resolvedMode.nativeMode : undefined }
+}
 
 export function isNativeEnemy(entity: CatalogEntity): boolean {
   return entity.kind === 'monster' && nativeIdentity(entity)?.database === 'monster' && Boolean(nativeSourceRecord(entity))
 }
 
-function EnemyMetric({ entity, field, label, className = '' }: { entity: CatalogEntity; field: string; label: string; className?: string }) {
-  const value = entity.fields[field] ?? UNKNOWN
+function EnemyMetric({ entity, field, label, className = '', preview }: { entity: CatalogEntity; field: string; label: string; className?: string; preview?: Knowledge<JsonValue> }) {
+  const value = preview ?? entity.fields[field] ?? UNKNOWN
   const numeric = value.state === 'known' && typeof value.value === 'number'
   return <div className={`enemy-metric ${className}`} data-numeric={numeric || undefined}><dt>{label}</dt><dd><KnowledgeValue compact field={field} value={value}/></dd></div>
 }
 
-export function NativeEnemyHero({ catalog, entity, name, description, meta }: { catalog: CatalogSnapshot; entity: CatalogEntity; name: ReactNode; description?: ReactNode; meta?: ReactNode }) {
-  const vitalDigits = Math.max(1, ...['Level', 'HP', 'MP'].map(field => { const value = entity.fields[field]; return value?.state === 'known' && typeof value.value === 'number' ? String(value.value).length : 1 }))
+export function NativeEnemyHero({ catalog, entity, name, description, meta, preview, settingsControl }: { catalog: CatalogSnapshot; entity: CatalogEntity; name: ReactNode; description?: ReactNode; meta?: ReactNode; preview?: EnemyDifficultyPreview; settingsControl?: ReactNode }) {
+  const vitalDigits = Math.max(1, ...[entity.fields.Level, preview?.hp ?? entity.fields.HP, preview?.mp ?? entity.fields.MP].map(value => value?.state === 'known' && typeof value.value === 'number' ? String(value.value).length : 1))
   const boss = entity.fields.Boss
   const location = nativeRelationships(catalog, entity).find(link => link.label === '/LocationBiomeID')
   return <header className="enemy-hero">
     <div className="enemy-hero__identity"><div className="enemy-hero__art"><CatalogArtwork catalogId={catalog.id} detailed entity={entity}/></div><div className="enemy-hero__copy"><p className="eyebrow">Bestiary{boss?.state === 'known' && boss.value === true ? ' / Boss' : ''}</p>{name}<div className="reference-card__meta"><Badge>{nativeDefinitionLabel(entity)}</Badge>{meta}{boss && (boss.state === 'unknown' || boss.state === 'conflicting') && <Badge tone="warning">Boss status unresolved</Badge>}</div>{description}</div></div>
-    <dl aria-label="Enemy overview" className="enemy-vitals" style={{ '--vital-digits': vitalDigits } as CSSProperties}><EnemyMetric entity={entity} field="Level" label="Level"/><EnemyMetric className="enemy-metric--hp" entity={entity} field="HP" label="HP"/><EnemyMetric className="enemy-metric--mp" entity={entity} field="MP" label="MP"/></dl>
-    <div className="enemy-hero__footer"><dl aria-label="Enemy rewards" className="enemy-rewards"><EnemyMetric entity={entity} field="Experience" label="EXP"/><EnemyMetric entity={entity} field="JP reward" label="JP"/><EnemyMetric className="enemy-metric--money" entity={entity} field="Money (copper)" label="Money"/></dl>{location?.name && <span className="enemy-location"><Icon name="compass"/>{location.name}</span>}</div>
+    <dl aria-label="Enemy overview" className="enemy-vitals" style={{ '--vital-digits': vitalDigits } as CSSProperties}><EnemyMetric entity={entity} field="Level" label="Level"/><EnemyMetric className="enemy-metric--hp" entity={entity} field="HP" label="HP" preview={preview?.hp}/><EnemyMetric className="enemy-metric--mp" entity={entity} field="MP" label="MP" preview={preview?.mp}/></dl>
+    <div className="enemy-hero__footer"><dl aria-label="Enemy rewards" className="enemy-rewards"><EnemyMetric entity={entity} field="Experience" label="EXP"/><EnemyMetric entity={entity} field="JP reward" label="JP"/><EnemyMetric className="enemy-metric--money" entity={entity} field="Money (copper)" label="Money"/></dl>{settingsControl}{location?.name && <span className="enemy-location"><Icon name="compass"/>{location.name}</span>}</div>
   </header>
 }
 
@@ -36,16 +60,17 @@ function EnemySection({ title, icon, children, className = '' }: { title: string
   return <section aria-label={title} className={`enemy-section ${className}`}><h3><Icon name={icon}/>{title}</h3>{children}</section>
 }
 
-function StatGrid({ entity, field, labels }: { entity: CatalogEntity; field: string; labels: Readonly<Record<string, string>> }) {
-  const value = entity.fields[field] ?? UNKNOWN
+function StatGrid({ entity, field, labels, preview }: { entity: CatalogEntity; field: string; labels: Readonly<Record<string, string>>; preview?: Knowledge<JsonValue> }) {
+  const value = preview ?? entity.fields[field] ?? UNKNOWN
   if (value.state !== 'known' || !nativeRecord(value.value)) return <KnowledgeValue field={field} value={value}/>
   const values = value.value
   const keys = [...Object.keys(labels).filter(key => Object.hasOwn(values, key)), ...Object.keys(values).filter(key => !Object.hasOwn(labels, key))]
   return <dl className="enemy-stat-grid">{keys.map(key => { const number = values[key]!; return <div key={key}><dt>{labels[key] ?? key}</dt><dd><KnowledgeValue value={{ state: 'known', value: number }}/></dd></div> })}</dl>
 }
 
-export function NativeEnemyStats({ entity }: { entity: CatalogEntity }) {
-  return <div aria-label="Enemy stats" className="enemy-stats" role="region"><EnemySection icon="shield" title="Combat inputs"><p className="enemy-section__note">Raw database values</p><StatGrid entity={entity} field="Raw combat inputs" labels={COMBAT_LABELS}/></EnemySection><EnemySection icon="spark" title="Attributes"><p className="enemy-section__note">Raw database values</p><StatGrid entity={entity} field="Raw attributes" labels={ATTRIBUTE_LABELS}/></EnemySection></div>
+export function NativeEnemyStats({ entity, preview }: { entity: CatalogEntity; preview?: EnemyDifficultyPreview }) {
+  const note = preview ? 'With selected difficulty' : 'Raw database values'
+  return <><p className="enemy-input-note"><Icon name="info"/>{preview ? 'Difficulty-adjusted inputs are shown below. Stat modifiers and battle effects can change final values.' : 'Database inputs are shown below. Difficulty and modes can change battle values.'}</p><div aria-label="Enemy stats" className="enemy-stats" role="region"><EnemySection icon="shield" title="Combat inputs"><p className="enemy-section__note">{note}</p><StatGrid entity={entity} field="Raw combat inputs" labels={COMBAT_LABELS} preview={preview?.combatInputs}/></EnemySection><EnemySection icon="spark" title="Attributes"><p className="enemy-section__note">{note}</p><StatGrid entity={entity} field="Raw attributes" labels={ATTRIBUTE_LABELS} preview={preview?.attributes}/></EnemySection></div></>
 }
 
 function definitionRef(catalog: CatalogSnapshot, link: NativeRelationship): EntityRef | undefined {
@@ -71,9 +96,9 @@ function EnemyLoot({ catalog, entity, field, relationships, onOpenDefinition }: 
   </EnemySection>
 }
 
-export function NativeEnemyBehavior({ catalog, entity, onOpenDefinition, describeConditions }: { catalog: CatalogSnapshot; entity: CatalogEntity; onOpenDefinition: (ref: EntityRef) => void; describeConditions: (value: JsonValue) => JsonValue }) {
+export function NativeEnemyBehavior({ catalog, entity, nativeMode, onOpenDefinition, describeConditions }: { catalog: CatalogSnapshot; entity: CatalogEntity; nativeMode?: string; onOpenDefinition: (ref: EntityRef) => void; describeConditions: (value: JsonValue) => JsonValue }) {
   const record = nativeSourceRecord(entity)!
-  const relationships = nativeRelationships(catalog, entity)
+  const relationships = nativeRelationships(catalog, entity, nativeMode)
   const actions = record.Actions
   return <div className="enemy-behavior"><div className="enemy-loot-grid"><EnemyLoot catalog={catalog} entity={entity} field="ItemDrops" relationships={relationships} onOpenDefinition={onOpenDefinition}/><EnemyLoot catalog={catalog} entity={entity} field="ItemSteals" relationships={relationships} onOpenDefinition={onOpenDefinition}/></div>
     <p className="enemy-loot-note">Availability is the loot entry's chance. Steal success is a separate per-attempt value.</p>

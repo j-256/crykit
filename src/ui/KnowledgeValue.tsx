@@ -11,12 +11,13 @@ import { StatRatings } from './StatRatings'
 const COPPER_FIELD = /(?:^copper$|\(copper\)$)/i
 const NATIVE_COPPER_FIELDS = new Set(['Money', 'Cost'])
 const GROWTH_RATING_FIELDS = new Set([CLASS_FIELDS.ratings, CRYSTAL_EDIT_FIELDS.ratings, 'Growth ratings'])
+export type MoneyFormat = 'coins' | 'integer'
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function StructuredValue({ value, field, nativeSource = false }: { value: unknown; field?: string; nativeSource?: boolean }) {
+function StructuredValue({ value, field, nativeSource = false, moneyFormat = 'coins' }: { value: unknown; field?: string; nativeSource?: boolean; moneyFormat?: MoneyFormat }) {
   if (field && isStatRatingField(field)) return <StatRatings field={field} value={value}/>
   const native = nativeSource || field === NATIVE_RECORD_FIELD
   if (value === null) return <span>Not set in source</span>
@@ -25,17 +26,17 @@ function StructuredValue({ value, field, nativeSource = false }: { value: unknow
     if (field && parts.some(part => fieldIconKey(field, part))) return <span className="icon-values">{parts.map((part, index) => /^,\s*$/.test(part) ? <span key={index}>{part}</span> : <span className="icon-label" key={index}><GameIcon iconKey={fieldIconKey(field, part)}/><span><MoneyText>{part}</MoneyText></span></span>)}</span>
     return <span className="structured-value__text"><MoneyText>{value}</MoneyText></span>
   }
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && (COPPER_FIELD.test(field ?? '') || native && NATIVE_COPPER_FIELDS.has(field ?? ''))) return <Money copper={value}/>
+  if (moneyFormat === 'coins' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && (COPPER_FIELD.test(field ?? '') || native && NATIVE_COPPER_FIELDS.has(field ?? ''))) return <Money copper={value}/>
   if (typeof value === 'number' || typeof value === 'boolean') return <span>{String(value)}</span>
   if (Array.isArray(value)) {
     if (value.length === 0) return <span>None</span>
     if (value.every(isRecord)) {
       const columns = Array.from(new Set(value.flatMap((row) => Object.keys(row))))
-      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} nativeSource={native} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
+      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} moneyFormat={moneyFormat} nativeSource={native} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
     }
-    return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} nativeSource={native} value={entry}/></li>)}</ul>
+    return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} moneyFormat={moneyFormat} nativeSource={native} value={entry}/></li>)}</ul>
   }
-  if (isRecord(value)) return <dl className={`structured-value__record${GROWTH_RATING_FIELDS.has(field ?? '') ? ' structured-value__record--ratings' : ''}`}>{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} nativeSource={native} value={nested}/></dd></div>)}</dl>
+  if (isRecord(value)) return <dl className={`structured-value__record${GROWTH_RATING_FIELDS.has(field ?? '') ? ' structured-value__record--ratings' : ''}`}>{Object.entries(value).map(([name, nested]) => <div key={name}><dt>{name}</dt><dd><StructuredValue field={name} moneyFormat={moneyFormat} nativeSource={native} value={nested}/></dd></div>)}</dl>
   return <span>{String(value)}</span>
 }
 
@@ -70,18 +71,18 @@ interface ClaimSelection {
   readonly onChange: (index: number) => void
 }
 
-export function ClaimList({ claims, selection, field }: { claims: readonly KnowledgeClaim<unknown>[]; selection?: ClaimSelection; field?: string }) {
+export function ClaimList({ claims, selection, field, moneyFormat = 'coins' }: { claims: readonly KnowledgeClaim<unknown>[]; selection?: ClaimSelection; field?: string; moneyFormat?: MoneyFormat }) {
   return <ol className="knowledge-claims">{claims.map((claim, index) => <li className="knowledge-claim" key={index}>
     {selection ? <label className="check-row"><input aria-describedby={`${selection.name}-claim-${index}`} checked={selection.index === index} name={selection.name} onChange={() => selection.onChange(index)} type="radio" value={index}/><strong>Use claim {index + 1}</strong></label> : <strong className="knowledge-claim__label">Claim {index + 1}</strong>}
-    <div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} value={claim.value}/></div>
+    <div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} moneyFormat={moneyFormat} value={claim.value}/></div>
     {claim.note && <p className="knowledge-claim__note"><MoneyText>{claim.note}</MoneyText></p>}
     <SourceReferences includeGameExports sources={claim.sources}/>
   </li>)}</ol>
 }
 
-export function KnowledgeValue({ value, field, compact = false, showSources = false }: { value: Knowledge<unknown>; field?: string; compact?: boolean; showSources?: boolean }) {
-  if (value.state === 'known') return <><StructuredValue field={field} value={value.value}/>{showSources && value.sources?.length ? <SourceReferences sources={value.sources}/> : null}</>
-  if (value.state === 'conflicting') return <><span>{value.claims.length} differing source values</span>{!compact && <ClaimList claims={value.claims} field={field}/>}</>
+export function KnowledgeValue({ value, field, compact = false, showSources = false, moneyFormat = 'coins' }: { value: Knowledge<unknown>; field?: string; compact?: boolean; showSources?: boolean; moneyFormat?: MoneyFormat }) {
+  if (value.state === 'known') return <><StructuredValue field={field} moneyFormat={moneyFormat} value={value.value}/>{showSources && value.sources?.length ? <SourceReferences sources={value.sources}/> : null}</>
+  if (value.state === 'conflicting') return <><span>{value.claims.length} differing source values</span>{!compact && <ClaimList claims={value.claims} field={field} moneyFormat={moneyFormat}/>}</>
   if (value.state === 'notApplicable') return <span><MoneyText>{value.reason ?? 'Not applicable'}</MoneyText></span>
   return <span><MoneyText>{value.reason ?? 'Unknown'}</MoneyText></span>
 }

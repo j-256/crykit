@@ -61,6 +61,16 @@ describe('source-backed field icons', () => {
 })
 
 describe('coin price presentation', () => {
+  it('renders integer money in technical details, including nested records and competing claims', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(<><KnowledgeValue field="Native source record" moneyFormat="integer" value={{ state: 'known', value: { Money: 20000, Cost: 250, Actions: [{ Money: 100 }] } }}/><KnowledgeValue field="Money (copper)" moneyFormat="integer" value={{ state: 'conflicting', claims: [{ value: 20000, sources: [] }, { value: 10250, sources: [] }] }}/></>)
+    expect(container.querySelectorAll('.money-amount')).toHaveLength(0)
+    expect(container.textContent).toContain('Money20000')
+    expect(container.textContent).toContain('Cost250')
+    expect([...container.querySelectorAll('.knowledge-claim__value')].map(element => element.textContent)).toEqual(['20000', '10250'])
+    expect(container.querySelector('td')?.textContent).toBe('100')
+  })
+
   it('formats numeric copper fields and native record prices without changing their values', () => {
     const value = { Money: 20000, Cost: 10250, HP: 20000, Actions: [{ Cost: 100, Weight: 100 }] }
     const container = document.createElement('div')

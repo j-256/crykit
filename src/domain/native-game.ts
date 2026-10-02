@@ -172,7 +172,7 @@ export function validateNativeSnapshot(snapshot: NativeGameSnapshot): void {
   }
 }
 
-export function nativeRelationships(catalog: CatalogSnapshot, entity: Pick<CatalogEntity, 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>): readonly NativeRelationship[] {
+export function nativeRelationships(catalog: CatalogSnapshot, entity: Pick<CatalogEntity, 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>, mode?: string): readonly NativeRelationship[] {
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
   if (!identity || !record) return []
@@ -182,8 +182,9 @@ export function nativeRelationships(catalog: CatalogSnapshot, entity: Pick<Catal
     const bindings = nativeRecord(catalog.legacy) && nativeRecord(catalog.legacy.nativeIdentityBindings) ? catalog.legacy.nativeIdentityBindings : {}
     const modeBindings = nativeRecord(catalog.legacy) && nativeRecord(catalog.legacy.nativeModeIdentityBindings) ? catalog.legacy.nativeModeIdentityBindings : {}
     const baseId = bindings[`${database}:${id}`]
-    const modeId = modeBindings[`${identity.mode}:${database}:${id}`]
-    const target = catalog.entities[typeof modeId === 'string' ? modeId : nativeEntityId(database, id as number, identity.mode)] ?? catalog.entities[typeof baseId === 'string' ? baseId : nativeEntityId(database, id as number)]
+    const activeMode = mode ?? identity.mode
+    const modeId = modeBindings[`${activeMode}:${database}:${id}`]
+    const target = catalog.entities[typeof modeId === 'string' ? modeId : nativeEntityId(database, id as number, activeMode)] ?? catalog.entities[typeof baseId === 'string' ? baseId : nativeEntityId(database, id as number)]
     result.push({ label: path, database, databaseId: id as number, ...(target ? { targetId: target.id, name: target.name } : {}) })
   }
   const visit = (value: JsonValue, path: string) => {

@@ -14,7 +14,7 @@ const MAX_NATIVE_INTEGER = 2_147_483_647
 const SHEET_CONSTANTS = new Set(['TwoHandedPAtkFlat', 'TwoHandedPAtkRate', 'DualWieldPAtkRate', 'StrWhileUnarmedBonusFlat'])
 const DIFFICULTY_FIELDS = ['MonsterHPRate', 'BossHPRate', 'MonsterMPRate', 'BossMPRate', 'MonsterStrRate', 'MonsterVitRate', 'MonsterDexRate', 'MonsterAgiRate', 'MonsterMndRate', 'MonsterSpiRate', 'MonsterSpdRate', 'MonsterLckRate', 'MonsterPAtkRate', 'MonsterPDefRate', 'MonsterMDefRate', 'MemberHitChanceMod', 'MonsterHitChanceMod'] as const
 export interface GameRuleChange { readonly field: string; readonly value: number | boolean; readonly baseline: number | boolean; readonly source: string; readonly calculated: boolean }
-export interface DifficultyDefinition { readonly id: number; readonly name: string; readonly order: number; readonly source: string; readonly values: Readonly<Record<string, number>>; readonly issues: readonly string[] }
+export interface DifficultyDefinition { readonly id: number; readonly name: string; readonly order: number; readonly isDefault: boolean; readonly source: string; readonly values: Readonly<Record<string, number>>; readonly issues: readonly string[] }
 export interface GameRuleResolution {
   readonly mode?: BuildCalculationPlan['pcMode']
   readonly battleConfig: Readonly<Record<string, number | boolean>>
@@ -40,7 +40,7 @@ export function importedGameRules(root: Readonly<Record<string, JsonValue>>): Js
 
 function difficultyDefinition(record: Readonly<Record<string, JsonValue>>, source: string): DifficultyDefinition {
   const invalid = DIFFICULTY_FIELDS.filter(key => !nativeInteger(record[key]))
-  return { id: record.ID as number, name: typeof record.Name === 'string' ? record.Name : `Difficulty ${record.ID}`, order: nativeInteger(record.SortOrder) ? record.SortOrder : record.ID as number, source, values: Object.fromEntries(DIFFICULTY_FIELDS.filter(key => nativeInteger(record[key])).map(key => [key, record[key] as number])), issues: invalid.length ? [`${source}: difficulty ${record.ID} has missing or invalid values (${invalid.join(', ')}).`] : [] }
+  return { id: record.ID as number, name: typeof record.Name === 'string' ? record.Name : `Difficulty ${record.ID}`, order: nativeInteger(record.SortOrder) ? record.SortOrder : record.ID as number, isDefault: record.IsDefault === true, source, values: Object.fromEntries(DIFFICULTY_FIELDS.filter(key => nativeInteger(record[key])).map(key => [key, record[key] as number])), issues: invalid.length ? [`${source}: difficulty ${record.ID} has missing or invalid values (${invalid.join(', ')}).`] : [] }
 }
 
 export function resolveGameRules(setup: SetupRules | undefined, catalogs: readonly CatalogSnapshot[]): GameRuleResolution {

@@ -34,7 +34,7 @@ export function NativeClassSourceDetails({ catalog, entity, onOpenDefinition }: 
   </div>
 }
 
-export function NativeDefinitionDetails({ catalog, entity, onOpenDefinition, technicalDetails }: { catalog: CatalogSnapshot; entity: CatalogEntity; onOpenDefinition: (ref: EntityRef) => void; technicalDetails?: ReactNode }) {
+export function NativeDefinitionDetails({ catalog, entity, enemyMode, onOpenDefinition, technicalDetails }: { catalog: CatalogSnapshot; entity: CatalogEntity; enemyMode?: string; onOpenDefinition: (ref: EntityRef) => void; technicalDetails?: ReactNode }) {
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
   if (!identity || !record || identity.database === 'job') return null
@@ -44,7 +44,7 @@ export function NativeDefinitionDetails({ catalog, entity, onOpenDefinition, tec
   const related = <NativeRelatedDefinitions catalog={catalog} relationships={relationships} onOpenDefinition={onOpenDefinition}/>
   if (identity.database === 'monster') return <section aria-label="Game details" className="enemy-details">
     {identity.mode !== 'base' && <p className="enemy-scope-note">This is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
-    <NativeEnemyBehavior catalog={catalog} entity={entity} onOpenDefinition={onOpenDefinition} describeConditions={value => describeCodes(value, enums)}/>
+    <NativeEnemyBehavior catalog={catalog} entity={entity} nativeMode={enemyMode} onOpenDefinition={onOpenDefinition} describeConditions={value => describeCodes(value, enums)}/>
     <details className="enemy-technical"><summary>Technical details <span>Engine fields and related definitions</span></summary><div className="stack">{entity.aliases.length > 0 && <p>Aliases: {entity.aliases.join(', ')}</p>}<p>Stats are raw database inputs. Difficulty, automatic stat generation, modes, and mods can change effective battle values. Test records and repeated enemy names retain distinct IDs.</p>{technicalDetails}{related}</div></details>
   </section>
   return <section aria-label="Game details" className="panel"><div className="panel__header"><h3>Game details</h3></div><div className="panel__body stack">
