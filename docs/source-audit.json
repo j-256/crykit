@@ -52732,7 +52732,8 @@
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
-        "src/calculations/package-v1.schema.json"
+        "src/calculations/package-v1.schema.json",
+        "src/calculations/package-v2.schema.json"
       ],
       "catalogs": [],
       "outcomes": {

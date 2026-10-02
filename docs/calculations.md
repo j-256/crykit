@@ -1,6 +1,6 @@
 # Calculation package
 
-Crystal Kit's numeric character calculations use versioned JSON rules and data. The package is available from **Export calculation package** on the character and Build calculation panels, or without a game installation:
+Crystal Kit's numeric character and combat calculations use versioned JSON rules and data. The [human-readable equivalent](calculation-reference.md) includes a stat overview, worked periodic-effect examples, equations, input contracts, and ordered stages generated from those rules. The package is available from **Export calculation package** on the character and Build calculation panels, or without a game installation:
 
 ```sh
 npm run calculations:export -- --output calculations.json
@@ -11,7 +11,7 @@ Running `node scripts/export-calculations.mjs` without an output option writes J
 
 ## Contents and evidence
 
-The `crystal-project-calculations` format has `schemaVersion: 1`. Its `id` identifies the verified rules, `pc-1.6.9-v1`. The [JSON Schema](../src/calculations/package-v1.schema.json) describes its structure. Exported sections are:
+The `crystal-project-calculations` format defaults to `schemaVersion: 2`, with package ID `pc-1.6.9-package-v2`. The [version 2 JSON Schema](../src/calculations/package-v2.schema.json) describes its structure and combat expression grammar. The saved character model remains `pc-1.6.9-v1`; the combat module has its own ID, `pc-1.6.9-combat-v1`. Exported sections are:
 
 | Section | Purpose |
 | --- | --- |
@@ -19,6 +19,15 @@ The `crystal-project-calculations` format has `schemaVersion: 1`. Its `id` ident
 | `data` | Job ratings and innate IDs, equipment and passive modifiers, gender bonuses, ability coefficients and costs, status modifiers, balance patches, and battle configuration |
 | `legacy` | The separate community guide model retained for older saved plans, including its fractional estimates and incomplete hit-chance curve |
 | `verification` | Synthetic input/output vectors from compiled, unchanged methods extracted from the inspected executable, with evidence describing the probe |
+| `combat` | Executable arithmetic for every native Calculator method not supplied by the character module, plus periodic effects, costs, random resolution, resource application, threat, difficulty, and rewards |
+| `combatData` | Numeric monster/difficulty/status records and mode patches, native enum identities, source digest, and checksum |
+| `combatVerification` | Independent compiled-native vectors, source hashes, and audited Calculator method inventory; each case's `input` indexes the shared `values` array |
+| `example` | An explicitly synthetic complete actor, recipient, ability, and battle-context fixture |
+| `enemy` | Preserved source evidence and constants for the difficulty-adjusted bestiary inputs |
+
+Existing consumers can request the unchanged version 1 shape with `node scripts/export-calculations.mjs --schema-version 1`. The [version 1 schema](../src/calculations/package-v1.schema.json), character rules, guide rules, and their numeric semantics remain unchanged. Version 2 does not migrate saved plans or turn resting character previews into battle simulations.
+
+The browser loads the expanded package only when exporting. Offline preparation caches that module alongside the application, so a first export also works after an offline reload. Export errors remain visible with recovery instructions: save pending edits, restore the connection, and reload before retrying a failed module load. The [package API](../src/domain/calculation-package.ts) provides both versions without changing the original character-rule API.
 
 The [PC rules](../src/calculations/pc-1.6.9-v1.json) identify the inspected executable by SHA-256 and name the relevant methods. [Numeric data](../src/catalog/native-stats-v1.json) is a generated projection of the [shared native game snapshot](../src/catalog/native-game-data.json), which supplies the catalog's base facts. Routine checks regenerate the projection in memory and reject drift from that shared source. The export records its source digest, database hashes, identity sources, and a checksum. Native catalog records carry explicit identities, and reviewed catalog bindings attach canonical base IDs to native database IDs with evidence. The pinned crosswalk establishes item and job identities. Additional passive bindings require the wiki's explicit owning class, membership in that native job's passive list, a normalized label, and the exact innate flag. Starter records with the same kind and normalized label receive the same reviewed binding. Foreign catalogs and similarly named personal definitions do not inherit these bindings.
 
@@ -52,6 +61,10 @@ This is the integer growth seed `(rating * level + growth) / 2`. A formula decla
 
 Use IEEE-754 doubles and preserve the expression's operation order. Integer divisions appear explicitly as `trunc(div(...))`; do not combine or move rounding steps. Native integer products are verified over ordinary character and game-data inputs, not arbitrary values that overflow the game's signed integer arithmetic. Missing variables, invalid operations, nonfinite values, division by zero, and evaluation-budget exhaustion produce unresolved calculations. Depth and operation limits are part of the rules. The [reference evaluator](../src/domain/calculation-rules.ts) uses a finite operator list; it does not use `eval`, `Function`, or imported code. Crystal Kit evaluates only its bundled arithmetic data and never executes imported descriptions or formula packages.
 
+The combat module extends this syntax with explicit booleans/null, own-property paths, comparisons, collection operations, requirements, checked signed-integer intermediates (`i32`), and single-precision rounding (`f32`). Its `operators` section defines the argument order and semantics, including lexical `find`, `sum`, and `fold`. Formula `requirements` run before its sequential steps. See the [combat interpreter](../src/domain/combat-expression.ts) and [bundled-rule API](../src/domain/combat-calculations.ts). `calculateCombat(name, inputs)` returns the result; `traceCombat(name, inputs)` also returns ordered, formula-qualified intermediate steps. This preserves outputs such as `damageModifiers.mpShieldReduction`, which the game applies separately to MP.
+
+For example, `calculateCombat('periodicHP', [1000, 15, 0, 100, 100, 100, 100, 100, false])` returns 135. The arguments are max HP, combined percentage rate, combined flat amount, percentage-damage multiplier, DoT multiplier, periodic-healing multiplier, Vitality, Spirit, and recovery suppression. A negative rate represents regeneration. Formula inputs and notes are exported and rendered in the human reference.
+
 ## Sheet inputs and order
 
 Growth history sums each allocated class rating multiplied by its assigned levels. Allocations must total the player level, including level 1. The equipped primary class also supplies the current job rating. Gender bonuses apply before base-stat rounding. Neutral, male, and female totals each run through the complete sheet pipeline, so their differences include rounding and derived effects on accuracy, evasion, penetration, critical values, and turn time.
@@ -70,7 +83,9 @@ Unknown equipment observations, unknown passive lists, unmapped selected definit
 
 The physical benchmark uses base power 0, Attack rate 100, and Strength rate 100. The magical benchmark uses base power 100, Attack rate 0, and Mind rate 100. Both use a synthetic target with DEF/RES 100 and VIT/SPI 100. They preserve native integer steps and the inspected single-defense reduction formula. They show the consequences of stat changes without simulating an encounter.
 
-Damage multipliers, elements, critical outcomes, variance, reactions, target selection, status timing, HP-dependent defenses, and ability-specific modifiers require battle context and are excluded. Benchmark values are before those effects. Ability and status records in the export provide base data for further work; their presence does not mean every battle calculation is implemented. [Steal mechanics](steal-mechanics.md) remain separate source research.
+The benchmarks exclude battle effects and remain numerically unchanged. The separate `combat` module supplies hit/crit chances, full deterministic ability damage, ordered modifiers, HP-dependent defense, elements, variance/Luck, returns, status chance/duration, costs, DoT/regeneration, resource arithmetic, threat, difficulty, EXP/JP, and escape/steal arithmetic. Its `coverage.calculator` maps the audited native method inventory to the owning formula module. The two native steal overloads correspond to `stealChance` and `combinedStealChance`; the latter describes the display, not the sequence of actual rolls. [Steal mechanics](steal-mechanics.md) provides additional source context.
+
+The caller supplies effective stats, active status counts, resolved source groups, threat relationships, eligibility, selected mode/difficulty, and explicit random draws. Target selection, cover/reflection, status timing, action/reaction scheduling, state persistence, and runtime mod resolution are not simulated. The package never substitutes an absent input with a guessed zero. The exported synthetic example is a test fixture, not default state for a real encounter. Percent rolls must be integers 1 through 100, variance rolls 0 through 200, and the number of full variance draws must match the supplied Luck factor. Source-group collection and saved character semantics remain documented above.
 
 ## Compatibility and maintenance
 
@@ -84,8 +99,11 @@ To reproduce the numeric projection offline from the shared native snapshot:
 
 ```sh
 npm run calculations:update
+npm run calculations:reference
 ```
 
-The updater verifies the source executable identity and modifier enum labels, projects the reviewed fields, and writes atomically. Optionally pass `--input "$CRYSTAL_PROJECT_INSTALL_DIR"` to verify the installed executable and database hashes against the bundled source. Updating the shared snapshot follows the [native catalog workflow](catalog-sources.md). A different executable requires a new calculation version rather than overwriting this dataset. Routine checks need no private inputs or network requests. The parity vectors cover growth, gender rounding, crit curves, penetration, speed bounds, turn multipliers, and isolated defense benchmarks. Domain tests additionally exercise modifier order, growth allocation intent, identity boundaries, shared equipment, persistence, and rollback.
+The updaters verify source identity, project reviewed numeric fields, and replace generated files atomically. Use `node scripts/update-native-stats.mjs --input "$CRYSTAL_PROJECT_INSTALL_DIR"` to verify the installed executable and database hashes against the bundled source. Updating the shared snapshot follows the [native catalog workflow](catalog-sources.md). A different executable requires a new calculation version rather than overwriting this dataset. Routine checks need no private inputs or network requests.
+
+Authored combat expressions live in [the rule definitions](../scripts/lib/combat-rules.mjs). The readable reference is generated from those definitions, the unchanged character and guide formulas, and a maintained plain-language introduction. `calculations:check` rejects rule, projection, schema, or documentation drift. Schema tests validate both exported formats and reject malformed combat operations. Domain tests compare the bundled rules with synthetic results from unchanged native Calculator methods, selected native costs/periodic methods, and native FNA curve methods compiled in a private .NET harness. Source stubs supply explicit state and do not establish scheduler parity. Only numerical fixtures and portable source hashes are checked in; the harness and decompiled code are not. Existing growth, persistence, identity, and rollback tests retain coverage of saved-plan compatibility.
 
 Mod applicability follows the selected Game Setup revision. Only enabled imported layers supply supported constants. Definitions selected from a disabled, unknown, or conflicting mod remain in the saved loadout, but their effects are not applied and totals remain unresolved with a reason. Catalog browsing and personal definitions do not enable a mod. Imported formulas remain inert; custom calculations use only supported typed fields and versioned rules.
