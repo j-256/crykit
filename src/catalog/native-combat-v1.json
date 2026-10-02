@@ -7,6 +7,7 @@
     "platform": "Windows PC",
     "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
     "files": {
+      "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs": "8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf",
       "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
       "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b",
       "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
@@ -54109,5 +54110,5 @@
       }
     }
   ],
-  "checksum": "3009900c8322d9b4e47e9bd1902c097739b659f664c9f131c1fb9f1dd3dba27b"
+  "checksum": "109dd5b2caa3d148cecf118aae75d7d261b2a86a276d40bf4632a6be48513a89"
 }

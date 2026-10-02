@@ -1,0 +1,795 @@
+{
+  "schemaVersion": 1,
+  "evidence": {
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "method": "Synthetic coefficient and curve stages compared with unchanged compiled native CalculateDamage.BaseAttack and CalculateHitChance methods. Learning arithmetic verified against inspected native learn-tree rendering and exact JP affordability expressions.",
+    "files": [
+      {
+        "file": "Sang/Battle/Calculator.cs",
+        "sha256": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6"
+      },
+      {
+        "file": "Sang/Battle/CBattle.cs",
+        "sha256": "3cb4fb5614a8e9b61a43b0508a96a32abc527bdb71a92cd15de971593a4cc225"
+      },
+      {
+        "file": "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs",
+        "sha256": "8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 37,
+            "Vit": 38,
+            "Dex": 39,
+            "Agi": 40,
+            "Mnd": 41,
+            "Spi": 42,
+            "Spd": 43,
+            "Lck": 44
+          }
+        }
+      ],
+      "expected": 107
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 40,
+            "Vit": 41,
+            "Dex": 42,
+            "Agi": 43,
+            "Mnd": 44,
+            "Spi": 45,
+            "Spd": 46,
+            "Lck": 47
+          }
+        }
+      ],
+      "expected": 47
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 43,
+            "Vit": 44,
+            "Dex": 45,
+            "Agi": 46,
+            "Mnd": 47,
+            "Spi": 48,
+            "Spd": 49,
+            "Lck": 50
+          }
+        }
+      ],
+      "expected": 110
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 46,
+            "Vit": 47,
+            "Dex": 48,
+            "Agi": 49,
+            "Mnd": 50,
+            "Spi": 51,
+            "Spd": 52,
+            "Lck": 53
+          }
+        }
+      ],
+      "expected": 94
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 49,
+            "Vit": 50,
+            "Dex": 51,
+            "Agi": 52,
+            "Mnd": 53,
+            "Spi": 54,
+            "Spd": 55,
+            "Lck": 56
+          }
+        }
+      ],
+      "expected": 72
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 52,
+            "Vit": 53,
+            "Dex": 54,
+            "Agi": 55,
+            "Mnd": 56,
+            "Spi": 57,
+            "Spd": 58,
+            "Lck": 59
+          }
+        }
+      ],
+      "expected": 106
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 55,
+            "Vit": 56,
+            "Dex": 57,
+            "Agi": 58,
+            "Mnd": 59,
+            "Spi": 60,
+            "Spd": 61,
+            "Lck": 62
+          }
+        }
+      ],
+      "expected": 123
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 58,
+            "Vit": 59,
+            "Dex": 60,
+            "Agi": 61,
+            "Mnd": 62,
+            "Spi": 63,
+            "Spd": 64,
+            "Lck": 65
+          }
+        }
+      ],
+      "expected": 59
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 61,
+            "Vit": 62,
+            "Dex": 63,
+            "Agi": 64,
+            "Mnd": 65,
+            "Spi": 66,
+            "Spd": 67,
+            "Lck": 68
+          }
+        }
+      ],
+      "expected": 138
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 64,
+            "Vit": 65,
+            "Dex": 66,
+            "Agi": 67,
+            "Mnd": 68,
+            "Spi": 69,
+            "Spd": 70,
+            "Lck": 71
+          }
+        }
+      ],
+      "expected": 110
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 67,
+            "Vit": 68,
+            "Dex": 69,
+            "Agi": 70,
+            "Mnd": 71,
+            "Spi": 72,
+            "Spd": 73,
+            "Lck": 74
+          }
+        }
+      ],
+      "expected": 85
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 70,
+            "Vit": 71,
+            "Dex": 72,
+            "Agi": 73,
+            "Mnd": 74,
+            "Spi": 75,
+            "Spd": 76,
+            "Lck": 77
+          }
+        }
+      ],
+      "expected": 135
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 73,
+            "Vit": 74,
+            "Dex": 75,
+            "Agi": 76,
+            "Mnd": 77,
+            "Spi": 78,
+            "Spd": 79,
+            "Lck": 80
+          }
+        }
+      ],
+      "expected": 139
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 76,
+            "Vit": 77,
+            "Dex": 78,
+            "Agi": 79,
+            "Mnd": 80,
+            "Spi": 81,
+            "Spd": 82,
+            "Lck": 83
+          }
+        }
+      ],
+      "expected": 72
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 79,
+            "Vit": 80,
+            "Dex": 81,
+            "Agi": 82,
+            "Mnd": 83,
+            "Spi": 84,
+            "Spd": 85,
+            "Lck": 86
+          }
+        }
+      ],
+      "expected": 167
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": 13,
+          "BasePAtkRate": 37,
+          "ScalingPower": null,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 82,
+            "Vit": 83,
+            "Dex": 84,
+            "Agi": 85,
+            "Mnd": 86,
+            "Spi": 87,
+            "Spd": 88,
+            "Lck": 89
+          }
+        }
+      ],
+      "expected": 129
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        163,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 0,
+          "ScalingPAtkRate": 23,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 85,
+            "Vit": 86,
+            "Dex": 87,
+            "Agi": 88,
+            "Mnd": 89,
+            "Spi": 90,
+            "Spd": 91,
+            "Lck": 92
+          }
+        }
+      ],
+      "expected": 96
+    },
+    {
+      "formula": "abilityPower",
+      "input": [
+        107,
+        {
+          "BasePower": -19,
+          "BasePAtkRate": 37,
+          "ScalingPower": 51,
+          "ScalingPAtkRate": null,
+          "StrRate": 33,
+          "VitRate": 27,
+          "DexRate": 0,
+          "AgiRate": 33,
+          "MndRate": 27,
+          "SpiRate": 0,
+          "SpdRate": 33,
+          "LckRate": 27
+        },
+        0,
+        {
+          "Stats": {
+            "Str": 88,
+            "Vit": 89,
+            "Dex": 90,
+            "Agi": 91,
+            "Mnd": 92,
+            "Spi": 93,
+            "Spd": 94,
+            "Lck": 95
+          }
+        }
+      ],
+      "expected": 164
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        0,
+        1000
+      ],
+      "expected": 0
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1,
+        1000
+      ],
+      "expected": 0
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        13,
+        1000
+      ],
+      "expected": 1
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        250,
+        1000
+      ],
+      "expected": 20
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        333,
+        1000
+      ],
+      "expected": 29
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        500,
+        1000
+      ],
+      "expected": 50
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        623,
+        1000
+      ],
+      "expected": 64
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        750,
+        1000
+      ],
+      "expected": 80
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        811,
+        1000
+      ],
+      "expected": 84
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        875,
+        1000
+      ],
+      "expected": 90
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        930,
+        1000
+      ],
+      "expected": 92
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1000,
+        1000
+      ],
+      "expected": 95
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1100,
+        1000
+      ],
+      "expected": 96
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1250,
+        1000
+      ],
+      "expected": 98
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1333,
+        1000
+      ],
+      "expected": 98
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        1500,
+        1000
+      ],
+      "expected": 100
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        2000,
+        1000
+      ],
+      "expected": 100
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        0,
+        0
+      ],
+      "expected": 100
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        100,
+        0
+      ],
+      "expected": 100
+    },
+    {
+      "formula": "physicalHitCurve",
+      "input": [
+        16777217,
+        16777219
+      ],
+      "expected": 94
+    }
+  ]
+}
