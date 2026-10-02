@@ -52546,20 +52546,6 @@
       },
       "reasons": []
     },
-    "https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/ability.yaml": {
-      "disposition": "claim-specific",
-      "reason": "Reviewed IDs and format facts can corroborate fields; upstream attribution and format documentation remain",
-      "files": [
-        "docs/planner-mechanics.md"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
     "https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml": {
       "disposition": "claim-specific",
       "reason": "Reviewed IDs and format facts can corroborate fields; upstream attribution and format documentation remain",
