@@ -1,93 +1,43 @@
-import { definitionSourceRecord, knownField, type MechanicsDefinition } from './mechanics-facts'
+import { definitionSourceRecord, type MechanicsDefinition } from './mechanics-facts'
 import type { BuildStatEstimate, CalculatedStat, StatRange } from './build-stats'
-import { calculateFormula, GUIDE_RULES } from './calculation-rules'
+import { calculateCombat } from './combat-calculations'
+import type { CombatValue } from './combat-expression'
+import { nativeInteger } from './native-number'
+import type { NativeRecord } from './pc-stats'
 
-const COEFFICIENT_STATS: Readonly<Record<string, CalculatedStat>> = Object.freeze({ Hp: 'HP', Mp: 'MP', Atk: 'ATK', Def: 'DEF', Res: 'RES', Str: 'STR', Vit: 'VIT', Dex: 'DEX', Agi: 'AGI', Mnd: 'MND', Spi: 'SPI', Spd: 'SPD', Luk: 'LUK' })
-const NATIVE_RATES = Object.freeze({ STR: 'StrRate', VIT: 'VitRate', DEX: 'DexRate', AGI: 'AgiRate', MND: 'MndRate', SPI: 'SpiRate', SPD: 'SpdRate', LUK: 'LckRate' })
-const COEFFICIENT_FACTOR = '(?:\\d+(?:\\.\\d+)?(?: (?:Hp|Mp|Atk|Def|Res|Str|Vit|Dex|Agi|Mnd|Spi|Spd|Luk))?|(?:Hp|Mp|Atk|Def|Res|Str|Vit|Dex|Agi|Mnd|Spi|Spd|Luk))'
-const COEFFICIENT_TERM = new RegExp(`^${COEFFICIENT_FACTOR}(?: x ${COEFFICIENT_FACTOR})*$`)
+const NATIVE_STATS = Object.freeze({ STR: 'Str', VIT: 'Vit', DEX: 'Dex', AGI: 'Agi', MND: 'Mnd', SPI: 'Spi', SPD: 'Spd', LUK: 'Lck' })
 export const ABILITY_COSTS = ['HP', 'MP', 'AP', 'CT', 'CD'] as const
 export interface AbilityEstimate {
-  readonly formula?: string
   readonly baseAmount: StatRange | null
   readonly costs: Readonly<Record<typeof ABILITY_COSTS[number], number | null>>
   readonly learning: { readonly jp: number; readonly displayedLp: number; readonly requiredWholeLp: number } | null
   readonly notes: readonly string[]
 }
-const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
-function documentedCoefficients(text: string, stats: BuildStatEstimate['stats']): StatRange | null {
-  if (text.length > 500) return null
-  const sums: StatRange[] = []
-  for (const term of text.split(/\s+\+\s+/)) {
-    if (!COEFFICIENT_TERM.test(term.trim())) return null
-    let low = 1
-    let high = 1
-    const tokens = term.trim().split(/\s+/)
-    if (!tokens.length) return null
-    let factors = 0
-    for (const token of tokens) {
-      if (token === 'x') continue
-      if (/^\d+(?:\.\d+)?$/.test(token)) { low *= Number(token); high *= Number(token); factors += 1; continue }
-      const stat = COEFFICIENT_STATS[token]
-      const value = stat ? stats[stat].value : undefined
-      if (!value) return null
-      low *= value.low
-      high *= value.high
-      factors += 1
-    }
-    if (!factors || !Number.isFinite(low) || !Number.isFinite(high)) return null
-    sums.push({ low, high })
-  }
-  return { low: sums.reduce((sum, term) => sum + term.low, 0), high: sums.reduce((sum, term) => sum + term.high, 0) }
+export function learningCost(jp: unknown): AbilityEstimate['learning'] {
+  return nativeInteger(jp) && jp >= 0 ? { jp, displayedLp: calculateCombat('learningLP', [jp]) as number, requiredWholeLp: calculateCombat('learningWholeLP', [jp]) as number } : null
 }
 
-export function estimateAbility(definition: MechanicsDefinition, stats: BuildStatEstimate['stats']): AbilityEstimate {
-  const record = definitionSourceRecord(definition)
+export function estimateAbility(definition: MechanicsDefinition, stats: BuildStatEstimate['stats'], numericRecord: NativeRecord | undefined = definitionSourceRecord(definition)): AbilityEstimate {
+  const record = numericRecord
   const notes: string[] = []
-  const costs = Object.fromEntries(ABILITY_COSTS.map(cost => {
-    const direct = record ? record[`${cost}Cost`] : knownField(definition, cost === 'CT' || cost === 'CD' ? cost : `${cost} cost`)
-    const text = knownField(definition, 'Cost')
-    const match = !record && typeof text === 'string' ? new RegExp(`(?:^|\\n)(\\d+(?:\\.\\d+)?)(%?) ${cost}(?:$|\\n)`).exec(text) : null
-    const value = finite(direct) && direct >= 0 ? direct : match ? Number(match[1]) : null
-    return [cost, value]
-  })) as unknown as AbilityEstimate['costs']
-  const jp = record?.JP
-  const learning = finite(jp) && jp >= 0 ? { jp, displayedLp: calculateFormula('displayedLP', [jp], GUIDE_RULES), requiredWholeLp: calculateFormula('requiredLP', [jp], GUIDE_RULES) } : null
-  if (learning && learning.displayedLp !== learning.requiredWholeLp) notes.push('The displayed LP cost rounds down; unlocking requires more whole LP than shown')
+  const costs = Object.fromEntries(ABILITY_COSTS.map(cost => [cost, nativeInteger(record?.[`${cost}Cost`]) && (record![`${cost}Cost`] as number) >= 0 ? record![`${cost}Cost`] : null])) as AbilityEstimate['costs']
+  const learning = learningCost(record?.JP)
   let baseAmount: StatRange | null = null
-  let formula: string | undefined
   if (record) {
-    const base = record.BasePower
-    const attackRate = record.BasePAtkRate
-    const scaling = record.ScalingPower === null ? base : record.ScalingPower
-    const scalingAttack = record.ScalingPAtkRate === null ? attackRate : record.ScalingPAtkRate
-    if ([base, attackRate, scaling, scalingAttack, ...Object.values(NATIVE_RATES).map(key => record[key])].every(finite)) {
-      const attack = stats.ATK.value
-      const rates = Object.entries(NATIVE_RATES).map(([stat, field]) => ({ value: stats[stat as CalculatedStat].value, rate: record[field] as number }))
-      if (((attackRate === 0 && scalingAttack === 0) || attack) && rates.every(entry => entry.rate === 0 || entry.value)) {
-        try {
-          const endpoints = [0, 1].map(end => {
-            const atk = attack ? end ? attack.high : attack.low : 0
-            const scaledStats = rates.reduce((sum, entry) => sum + (entry.value ? end ? entry.value.high : entry.value.low : 0) * entry.rate / 100, 0)
-            return calculateFormula('abilityBase', [base as number, atk, attackRate as number, scaling as number, scalingAttack as number, scaledStats], GUIDE_RULES)
-          })
-          if ((attackRate as number) >= 0 && (scalingAttack as number) >= 0 && (scaling as number) >= 0 && rates.every(entry => entry.rate >= 0)) baseAmount = { low: Math.min(...endpoints), high: Math.max(...endpoints) }
-        } catch { notes.push('The base amount exceeds the supported finite arithmetic range') }
-      }
-      formula = 'Base power + Attack contribution + scaled core-stat contribution'
+    const coefficients = ['BasePower', 'BasePAtkRate', ...Object.values(NATIVE_STATS).map(stat => `${stat}Rate`)]
+    const complete = coefficients.every(key => nativeInteger(record[key])) && ['ScalingPower', 'ScalingPAtkRate'].every(key => record[key] === null || nativeInteger(record[key])) && typeof record.PDefAsPAtk === 'boolean'
+    const attackKey = record.PDefAsPAtk ? 'DEF' : 'ATK'
+    const relevant = [attackKey, ...Object.keys(NATIVE_STATS)] as CalculatedStat[]
+    if (complete && relevant.every(key => stats[key].value?.low === stats[key].value?.high && nativeInteger(stats[key].value?.low))) {
+      const user = { Stats: Object.fromEntries(Object.entries(NATIVE_STATS).map(([key, name]) => [name, stats[key as CalculatedStat].value!.low])) }
+      try {
+        const value = calculateCombat('abilityPower', [stats[attackKey].value!.low, record as CombatValue, 0, user]) as number
+        baseAmount = { low: value, high: value }
+      } catch { notes.push('Native coefficient arithmetic could not be evaluated with these inputs') }
     }
-    if (Array.isArray(record.AbilityMods) && record.AbilityMods.length) notes.push('Ability modifiers are retained in the export but are outside this base-amount estimate')
-    notes.push('Native weapon requirements, damage kind, targeting, and statuses remain available in the source record')
-  } else {
-    const description = knownField(definition, 'Description')
-    if (typeof description === 'string') {
-      const line = description.split('\n').find(line => /^(Damage|Recovery): /.test(line))
-      formula = line?.replace(/^(Damage|Recovery): /, '')
-      if (formula) baseAmount = documentedCoefficients(formula, stats)
-      notes.push(...description.split('\n').filter(line => line.trim() && line !== `Damage: ${formula}` && line !== `Recovery: ${formula}`))
-    }
+    if (Array.isArray(record.AbilityMods) && record.AbilityMods.length) notes.push('Ability modifiers need battle context and are excluded from this coefficient stage')
   }
-  if (!baseAmount) notes.push('The base amount needs missing stats or a formula outside the supported coefficient patterns')
-  return { formula, baseAmount, costs, learning, notes }
+  if (!baseAmount) notes.push('Native coefficient power needs a supported numeric ability record and complete integer loadout stats')
+  return { baseAmount, costs, learning, notes }
 }

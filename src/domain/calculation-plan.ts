@@ -1,26 +1,19 @@
-import { NATIVE_DATA, PC_LEVEL_CAP, PC_MODEL, PC_RULES } from './calculation-rules'
+import { PC_LEVEL_CAP, PC_MODEL } from './calculation-rules'
 import type { BuildCalculationPlan, EntityRef } from './types'
 import { DomainError } from './core'
-import { STAT_KEYS, type GrowthStat } from './crystal-edit'
-import { GUIDE_LEVEL_CAP } from './growth'
+import { STAT_KEYS } from './crystal-edit'
 
 export const CALCULATION_GENDERS = ['male', 'female'] as const
 export const CALCULATION_GENDER_LABELS = Object.freeze({ male: 'Male', female: 'Female' })
-
-export function guideGenderBonuses(plan: BuildCalculationPlan): readonly GrowthStat[] {
-  if (!plan.gender) return plan.bonuses
-  const gender: Readonly<Record<string, unknown>> | undefined = NATIVE_DATA.records.gender.find(record => record.ID === PC_RULES.genders[plan.gender!])
-  const bonuses = STAT_KEYS.filter(stat => gender?.[PC_RULES.stats[stat]!.gender!] === true)
-  return [...new Set([...plan.bonuses, ...bonuses])]
-}
 
 export function defaultCalculation(primaryClass: EntityRef | null, level: number | null = PC_LEVEL_CAP): BuildCalculationPlan {
   return { model: PC_MODEL, growthMode: 'primary', pcMode: 'standard', level, growth: [{ classRef: primaryClass, levels: level }], bonuses: [], statuses: [] }
 }
 
-export function followPrimary(plan: BuildCalculationPlan | undefined, primaryClass: EntityRef | null): BuildCalculationPlan {
-  const current = plan ?? defaultCalculation(primaryClass)
-  return current.growthMode === 'primary' ? { ...current, growth: [{ classRef: primaryClass, levels: current.level }] } : current
+export function followPrimary(plan: BuildCalculationPlan, primaryClass: EntityRef | null): BuildCalculationPlan
+export function followPrimary(plan: BuildCalculationPlan | undefined, primaryClass: EntityRef | null): BuildCalculationPlan | undefined
+export function followPrimary(plan: BuildCalculationPlan | undefined, primaryClass: EntityRef | null): BuildCalculationPlan | undefined {
+  return plan?.growthMode === 'primary' ? { ...plan, growth: [{ classRef: primaryClass, levels: plan.level }] } : plan
 }
 
 export function changeCalculationLevel(plan: BuildCalculationPlan, level: number | null, primaryClass: EntityRef | null): BuildCalculationPlan {
@@ -40,12 +33,12 @@ export function changeGrowthLevels(plan: BuildCalculationPlan, index: number, le
 }
 
 export function validateCalculationPlan(plan: BuildCalculationPlan, assertRef: (ref: EntityRef, label: string) => void): void {
-  if (plan.level !== null && (!Number.isInteger(plan.level) || plan.level < 1 || plan.level > GUIDE_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Calculation level must be a whole number from 1 to ${GUIDE_LEVEL_CAP} or unknown`)
-  if (plan.growth.length > GUIDE_LEVEL_CAP) throw new DomainError('INVALID_INPUT', 'Too many growth allocations')
+  if (plan.level !== null && (!Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Calculation level must be a whole number from 1 to ${PC_LEVEL_CAP} or unknown`)
+  if (plan.growth.length > PC_LEVEL_CAP) throw new DomainError('INVALID_INPUT', 'Too many growth allocations')
   if (plan.bonuses.some(stat => !STAT_KEYS.includes(stat)) || new Set(plan.bonuses).size !== plan.bonuses.length) throw new DomainError('INVALID_INPUT', 'Calculation stat bonuses must be unique supported stats')
   for (const row of plan.growth) {
     if (row.classRef) assertRef(row.classRef, 'Growth class')
-    if (row.levels !== null && (!Number.isInteger(row.levels) || row.levels < 0 || row.levels > GUIDE_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Growth levels must be a whole number from 0 to ${GUIDE_LEVEL_CAP} or unknown`)
+    if (row.levels !== null && (!Number.isInteger(row.levels) || row.levels < 0 || row.levels > PC_LEVEL_CAP)) throw new DomainError('INVALID_INPUT', `Growth levels must be a whole number from 0 to ${PC_LEVEL_CAP} or unknown`)
   }
   for (const ref of plan.statuses) assertRef(ref, 'Calculation status')
   if (plan.ability) assertRef(plan.ability, 'Calculation ability')

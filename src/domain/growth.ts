@@ -1,37 +1,34 @@
-import { MAX_GROWTH_RATING, STAT_KEYS, type GrowthRatings, type GrowthStat } from './crystal-edit'
-import { calculateFormula, GUIDE_RULES } from './calculation-rules'
+import { STAT_KEYS, MAX_GROWTH_RATING, type GrowthStat } from './crystal-edit'
+import { calculateFormula, NATIVE_DATA, PC_LEVEL_CAP, PC_RULES } from './calculation-rules'
+import { nativeInteger } from './native-number'
+import type { NativeRecord } from './pc-stats'
+import type { BuildCalculationPlan } from './types'
 
-export const GUIDE_GROWTH_SOURCE = Object.freeze({ sourceId: 'community:geef-modding-guide', locator: 'Game synopsis > Growths', applicability: 'Community formula estimate before equipment and passive effects; game rounding is unspecified' })
-export const GUIDE_LEVEL_CAP = GUIDE_RULES.levelCap
-const GUIDE_FORMULAS = GUIDE_RULES.growth
-export interface GrowthAllocation { readonly levels: number; readonly ratings: GrowthRatings }
-export interface GrowthEstimate {
-  readonly stats: Readonly<Record<GrowthStat, { readonly value: number | null; readonly base: number | null; readonly level: number; readonly growth: number | null; readonly bonus: number }>>
+export interface GrowthAllocation { readonly levels: number; readonly record?: NativeRecord }
+export interface GrowthResult {
+  readonly stats: Readonly<Record<GrowthStat, number | null>>
   readonly issues: readonly string[]
 }
 
-export function estimateGrowth(level: number, primary: GrowthRatings, history: readonly GrowthAllocation[], bonuses: readonly GrowthStat[] = []): GrowthEstimate {
+export function calculateGrowth(level: number, primary: NativeRecord | undefined, history: readonly GrowthAllocation[], gender?: BuildCalculationPlan['gender']): GrowthResult {
   const issues: string[] = []
-  const levelValid = Number.isInteger(level) && level >= 1 && level <= GUIDE_LEVEL_CAP
-  if (!levelValid) issues.push(`Level must be a whole number from 1 to ${GUIDE_LEVEL_CAP}`)
-  const historyValid = history.every(entry => Number.isInteger(entry.levels) && entry.levels >= 0 && entry.levels <= GUIDE_LEVEL_CAP)
+  const levelValid = Number.isInteger(level) && level >= 1 && level <= PC_LEVEL_CAP
+  if (!levelValid) issues.push(`Level must be a whole number from 1 to ${PC_LEVEL_CAP}`)
+  const historyValid = history.every(row => Number.isInteger(row.levels) && row.levels >= 0 && row.levels <= PC_LEVEL_CAP)
   if (!historyValid) issues.push('Growth levels must be nonnegative whole numbers within the level limit')
-  const total = history.reduce((sum, entry) => sum + entry.levels, 0)
+  const total = history.reduce((sum, row) => sum + row.levels, 0)
   if (historyValid && levelValid && total !== level) issues.push(`Allocate ${level} growth levels; ${total} assigned`)
-  const validRating = (rating: number | undefined): rating is number => typeof rating === 'number' && Number.isFinite(rating) && rating >= 0 && rating <= MAX_GROWTH_RATING
+  const genderRecord = gender ? NATIVE_DATA.records.gender.find(record => record.ID === PC_RULES.genders[gender]) as NativeRecord | undefined : undefined
   const stats = Object.fromEntries(STAT_KEYS.map(stat => {
-    const rating = primary[stat]
-    const formula = GUIDE_FORMULAS[stat === 'HP' || stat === 'MP' ? stat : 'core']
-    const relevant = history.filter(entry => entry.levels > 0)
-    const complete = validRating(rating) && relevant.every(entry => validRating(entry.ratings[stat]))
-    if (!complete) issues.push(`${stat}: a class growth rating is missing or invalid`)
-    const accumulated = complete ? relevant.reduce((sum, entry) => sum + entry.levels * entry.ratings[stat]!, 0) : null
-    const base = validRating(rating) ? calculateFormula('growthBase', [rating, formula.base, formula.baseRating], GUIDE_RULES) : null
-    const levelPart = levelValid ? calculateFormula('growthLevel', [level, formula.level], GUIDE_RULES) : 0
-    const growth = accumulated !== null && validRating(rating) && levelValid ? calculateFormula('growthHistory', [level, rating, accumulated, formula.growth, formula.primaryWeight, formula.historyWeight, formula.divisor], GUIDE_RULES) : null
-    const bonus = bonuses.includes(stat) && levelValid ? calculateFormula('growthBonus', [level, formula.bonus, formula.bonusLevel], GUIDE_RULES) : 0
-    const value = levelValid && historyValid && total === level && base !== null && growth !== null ? calculateFormula('growthTotal', [base, levelPart, growth, bonus], GUIDE_RULES) : null
-    return [stat, { value, base, level: levelPart, growth, bonus }]
-  })) as unknown as GrowthEstimate['stats']
+    const descriptor = PC_RULES.stats[stat]!
+    const rating = primary?.[descriptor.rating!]
+    const relevant = history.filter(row => row.levels > 0)
+    const validRating = (value: unknown): value is number => nativeInteger(value) && value >= 0 && value <= MAX_GROWTH_RATING
+    const complete = validRating(rating) && relevant.every(row => validRating(row.record?.[descriptor.rating!]))
+    if (!complete) issues.push(`${stat}: a native class growth rating is missing or invalid`)
+    const accumulated = complete ? relevant.reduce((sum, row) => sum + row.levels * (row.record![descriptor.rating!] as number), 0) : null
+    const value = levelValid && historyValid && total === level && complete && nativeInteger(accumulated) ? calculateFormula(descriptor.formula!, [level, rating as number, accumulated!, Number(genderRecord?.[descriptor.gender!] === true)]) : null
+    return [stat, value]
+  })) as Record<GrowthStat, number | null>
   return { stats, issues }
 }

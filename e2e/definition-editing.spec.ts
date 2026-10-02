@@ -85,7 +85,7 @@ test('keeps validation and close recovery beside the fixed save controls', { tag
   await expect(fact(page, 'Attack')).toContainText('99')
 })
 
-test('keeps class research available and uses the exact personal class for growth', async ({ page }) => {
+test('keeps class research available and uses the exact personal class for growth', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(referencePath('base:class:warrior'))
   const editor = await edit(page, true)
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
@@ -94,7 +94,7 @@ test('keeps class research available and uses the exact personal class for growt
   await research.getByText('Growth calculator', { exact: true }).click()
   await research.getByRole('button', { name: 'Use Synthetic personal Warrior for all growth levels', exact: true }).click()
   await expect(research.getByRole('button', { name: 'Choose Growth class 1', exact: true })).toContainText('Synthetic personal Warrior')
-  await expect(research.getByRole('table', { name: 'Estimated base stats', exact: true })).toContainText('1,244.38')
+  await expect(research.getByRole('table', { name: 'Native base stats', exact: true })).toContainText('1,244')
   await research.getByText('Learn tree', { exact: true }).click()
   await expect(research.getByRole('list', { name: 'Learn tree skills' })).toBeVisible()
 })

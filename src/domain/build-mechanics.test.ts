@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { analyzeBuildEquipment, innateEffects, assessEquipmentPermission, buildEquipmentPermissions } from './build-mechanics'
-import { calculateBuildStats, physicalHitChance, statContributions } from './build-stats'
-import { estimateAbility } from './ability-estimates'
+import { calculateBuildStats } from './build-stats'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, STAT_KEYS } from './crystal-edit'
 import { definitionWithMechanics, equipmentFacts, equipmentRole, passivePointCost } from './mechanics-facts'
@@ -61,7 +60,7 @@ describe('equipment planning from source facts', () => {
     const shared = { ref: ref('greatsword'), allocationId: 'both-hands' }
     const grouped = { ...content, equipment: { ...content.equipment, 'plan-main-hand': shared, 'plan-off-hand': shared } }
     expect(analyze(grouped)).toEqual([])
-    expect(calculateBuildStats(grouped, SUGGESTED_BUILD_SLOTS, resolve).stats.ATK.value).toEqual({ low: 30, high: 30 })
+    expect(calculateBuildStats(grouped, SUGGESTED_BUILD_SLOTS, resolve).stats.ATK.value).toBeNull()
   })
 
   it('detects wrong roles, duplicate passives, unique copies, and invalid shared allocations', () => {
@@ -79,7 +78,7 @@ describe('equipment planning from source facts', () => {
     const content = { ...base, equipment: { 'plan-main-hand': { ref: ref('sword') }, 'plan-off-hand': { ref: ref('sword') } } }
     const custom = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === job.id ? ninja : resolve(reference)
     expect(analyzeBuildEquipment(content, SUGGESTED_BUILD_SLOTS, custom)).toEqual([])
-    expect(calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, custom).stats.ATK.value).toEqual({ low: 39, high: 39 })
+    expect(calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, custom).stats.ATK.value).toBeNull()
     const mimic = { ...job, fields: { ...job.fields, 'Innate passive(s)': known("Synthetic innate: Gain the innate passive(s) of your current Sub-Command's Class.") } }
     const mimicResolver = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === 'mimic' ? mimic : custom(reference)
     const findings = analyzeBuildEquipment({ ...content, primaryClass: ref('mimic'), secondaryClass: ref('job') }, SUGGESTED_BUILD_SLOTS, mimicResolver)
@@ -119,80 +118,11 @@ describe('equipment planning from source facts', () => {
   })
 })
 
-describe('supported build calculations', () => {
-  it('calculates guide growth, innate percentages, and derived stats without creating observations', () => {
+describe('native numeric input boundaries', () => {
+  it('keeps community descriptions and ratings available as facts without treating them as native numeric inputs', () => {
     const result = calculateBuildStats(base, SUGGESTED_BUILD_SLOTS, resolve)
-    expect(result.stats.STR.value).toEqual({ low: 69, high: 69 })
-    expect(result.stats.MP.base?.low).toBeCloseTo(68)
-    expect(result.stats.MP.value?.low).toBeCloseTo(81.6)
-    expect(result.stats.CRIT.value?.low).toBeCloseTo(100 * 69 / 319)
-    expect(result.stats.CRIT_DAMAGE.value?.low).toBeCloseTo(25 + (69 / 15) ** 1.35)
-    expect(result.stats.PPEN.value?.low).toBeCloseTo(100 * 69 / 369)
-    expect(result.stats.TT.value?.low).toBeCloseTo(34 + (0.0175 * (69 - 600)) ** 2)
-  })
-
-  it('keeps incomplete growth unknown, reports mixed flat/percent order, and refuses conflicting duplicate fields', () => {
-    const gear = { ...sword, fields: { ...sword.fields, 'Max mp': known(10), 'Attack/Pierce/Hands': known('Attack: +30\n1-Handed') } }
-    const custom = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === sword.id ? gear : resolve(reference)
-    const result = calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, custom)
-    expect(result.stats.ATK.flat).toBe(30)
-    expect(result.stats.MP.value?.low).toBeCloseTo(91.6)
-    expect(result.stats.MP.value?.high).toBeCloseTo(93.6)
-    expect(result.issues.some(issue => issue.includes('stacking order'))).toBe(true)
-    const incomplete = calculateBuildStats({ ...base, calculation: { ...base.calculation!, growth: [] } }, SUGGESTED_BUILD_SLOTS, resolve)
-    expect(incomplete.stats.STR.value).toBeNull()
-    expect(incomplete.stats.CRIT.value).toBeNull()
-    const conflict = statContributions({ ...gear, fields: { ...gear.fields, Stat: known('Attack +90') } })
-    expect(conflict.contributions.some(entry => entry.stat === 'ATK')).toBe(false)
-    expect(conflict.excluded.some(message => message.includes('conflicting Attack'))).toBe(true)
-    const conflictResolver = (reference: EntityRef) => reference.kind === 'catalog' && reference.entityId === sword.id ? { ...gear, fields: { ...gear.fields, Stat: known('Attack +90') } } : resolve(reference)
-    expect(calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, conflictResolver).stats.ATK.value).toBeNull()
-  })
-
-  it('uses percentage-point units for crits and preserves unknown numeric modifier tags', () => {
-    expect(statContributions({ ...passive, fields: { Description: known('Crit. Chance +20%.') } }).contributions).toMatchObject([{ stat: 'CRIT', kind: 'flat', value: 20 }])
-    const native = statContributions({ ...passive, fields: { 'Crystal Edit source record': known({ StatMods: [{ Tag: 999, Value1: 50 }] }) } })
-    expect(native.contributions).toEqual([])
-    expect(native.excluded[0]).toContain('not applied')
+    expect(result.issues).toContain('Primary class has no verified numeric record.')
+    expect(Object.values(result.stats).every(stat => stat.value === null)).toBe(true)
     expect(passivePointCost({ ...passive, fields: { 'Crystal Edit source record': known({ PP: 0 }) } })).toMatchObject({ state: 'known', value: 0 })
-  })
-
-  it('reads bundled data without doubling repeated fields or hiding disagreements', () => {
-    const shoes = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Acrobat Shoes' && entity.kind === 'item')!
-    expect(equipmentFacts(shoes).unique).toBe(true)
-    expect(statContributions(shoes).contributions).toMatchObject([{ stat: 'DEX', kind: 'flat', value: 14 }, { stat: 'AGI', kind: 'flat', value: 16 }])
-    expect(statContributions(shoes).excluded).toEqual([])
-    const sword = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Short Sword' && entity.kind === 'item')!
-    expect(statContributions(sword).contributions).toMatchObject([{ stat: 'ATK', kind: 'flat', value: 30 }])
-    expect(statContributions(sword).excluded).toEqual([])
-  })
-
-  it('only evaluates documented hit-rate intervals and handles boundaries', () => {
-    expect([150, 125, 100, 87.5, 75, 50, 25, 0].map(acc => physicalHitChance(acc, 100))).toEqual([100, 98, 95, 90, 80, 50, 20, 0])
-    expect([110, 1, -1, NaN].map(acc => physicalHitChance(acc, 100))).toEqual([null, null, null, null])
-    expect(physicalHitChance(100, 0)).toBeNull()
-  })
-
-  it('previews allowed ability coefficients and native costs, never executing source text', () => {
-    const stats = calculateBuildStats(base, SUGGESTED_BUILD_SLOTS, resolve).stats
-    const cure: CatalogEntity = { ...passive, kind: 'ability', fields: { Description: known('Recovery: 50 + 1.5 Spi\nCan use out of combat.'), Cost: known('6 MP\n10 CT') } }
-    const result = estimateAbility(cure, stats)
-    expect(result.baseAmount).toEqual({ low: 153.5, high: 153.5 })
-    expect(result.costs).toEqual({ HP: null, MP: 6, AP: null, CT: 10, CD: null })
-    expect(estimateAbility({ ...cure, fields: { Description: known('Damage: globalThis.fetch("/leak")') } }, stats).baseAmount).toBeNull()
-    expect(estimateAbility({ ...cure, fields: { Description: known('Damage: 50 x x Spi') } }, stats).baseAmount).toBeNull()
-    const native = estimateAbility({ ...cure, fields: { 'Crystal Edit source record': known({ JP: 150, HPCost: 10, MPCost: 0, APCost: 6, CTCost: 10, CDCost: 1, BasePower: 50, BasePAtkRate: 0, ScalingPower: null, ScalingPAtkRate: null, StrRate: 0, VitRate: 0, DexRate: 0, AgiRate: 0, MndRate: 0, SpiRate: 300, SpdRate: 0, LckRate: 0 }) } }, stats)
-    expect(native.learning).toEqual({ jp: 150, displayedLp: 1, requiredWholeLp: 2 })
-    expect(native.baseAmount).toEqual({ low: 153.5, high: 153.5 })
-    expect(native.costs.MP).toBe(0)
-  })
-
-  it('keeps overflowing imported numeric effects unresolved', () => {
-    const oversized: CatalogEntity = { ...sword, fields: { 'Crystal Edit source record': known({ StatMods: [{ Tag: 40, Value1: Number.MAX_VALUE }, { Tag: 60, Value1: Number.MAX_VALUE }] }) } }
-    const result = calculateBuildStats({ ...base, equipment: { 'plan-main-hand': { ref: ref('sword') } } }, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === sword.id ? oversized : resolve(reference))
-    expect(result.stats.ATK.value).toBeNull()
-    expect(result.issues.some(issue => issue.includes('supported nonnegative stat range'))).toBe(true)
-    const ability: CatalogEntity = { ...passive, kind: 'ability', fields: { 'Crystal Edit source record': known({ BasePower: Number.MAX_VALUE, BasePAtkRate: 0, ScalingPower: null, ScalingPAtkRate: null, StrRate: 0, VitRate: 0, DexRate: 0, AgiRate: 0, MndRate: 0, SpiRate: 300, SpdRate: 0, LckRate: 0 }) } }
-    expect(estimateAbility(ability, calculateBuildStats(base, SUGGESTED_BUILD_SLOTS, resolve).stats).baseAmount).toBeNull()
   })
 })

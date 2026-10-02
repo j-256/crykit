@@ -20,8 +20,7 @@ import { DefinitionModLabel } from './DefinitionModLabel'
 import { FIELD_FOCUS_QUERY_KEY, focusFieldElement } from './field-focus'
 import { LoadoutSheet, LoadoutSelectionDetails, type LoadoutView } from './LoadoutSheet'
 import { PassiveCapacityMeter } from './BuildLoadoutSummary'
-import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
-import { PC_LEVEL_CAP } from '../domain/calculation-rules'
+import { followPrimary } from '../domain/calculation-plan'
 
 const PRIMARY_CLASS = 'primary-class'
 const SECONDARY_CLASS = 'secondary-class'
@@ -102,7 +101,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
 }) {
   const navigation = useNavigation()
   const { options } = useDefinitionLibrary()
-  const initialDraft = (): Pick<CharacterSnapshot, 'primaryClass' | 'secondaryClass' | 'equipment' | 'passives' | 'calculation'> => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives, calculation: snapshot.calculation ?? defaultCalculation(knownRef(snapshot.primaryClass) ?? null, snapshot.level.state === 'known' && snapshot.level.value >= 1 && snapshot.level.value <= PC_LEVEL_CAP ? snapshot.level.value : undefined) })
+  const initialDraft = (): Pick<CharacterSnapshot, 'primaryClass' | 'secondaryClass' | 'equipment' | 'passives' | 'calculation'> => ({ primaryClass: snapshot.primaryClass, secondaryClass: snapshot.secondaryClass, equipment: snapshot.equipment, passives: snapshot.passives, calculation: snapshot.calculation })
   const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState(PRIMARY_CLASS)
   const [inspected, setInspected] = useState<DefinitionOption>()
@@ -222,7 +221,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   return <div className="recorded-sheet member-sheet">
     {warning && <InlineNotice title="Unsaved member changes" tone="warning">Save changes or discard them before leaving this member.</InlineNotice>}
     {!gameSetup || gameSetup.id !== localData.planningGameSetupRevisionId ? <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the current Game Setup. This snapshot keeps its original slot labels. <Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record under current Game Setup</Button></InlineNotice> : null}
-    <section aria-label="Equipment and equipped passives"><LoadoutSheet gameSetup={gameSetup} allowClearCalculation={false} catalogs={catalogs} content={content} localData={localData} slots={gameSetup?.slots ?? []} view={view} onViewChange={setView} viewLabel="Character sheet view" selection={selectedOption}
+    <section aria-label="Equipment and equipped passives"><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} slots={gameSetup?.slots ?? []} view={view} onViewChange={setView} viewLabel="Character sheet view" selection={selectedOption}
       classFields={<>{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</>}
       equipmentFields={<>{slots.map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</>}
       passiveTools={pp ? <PassiveCapacityMeter pp={pp}/> : <p>Equipped passive list: Unknown</p>}

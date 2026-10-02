@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { calculateBuildStats } from './build-stats'
-import { defaultCalculation, guideGenderBonuses, validateCalculationPlan } from './calculation-plan'
+import { defaultCalculation, validateCalculationPlan } from './calculation-plan'
 import { STAT_KEYS } from './crystal-edit'
 import { calculatePCStats, selectedPCStats } from './pc-stats'
 import { calculateStatBreakdown } from './stat-breakdown'
@@ -49,7 +49,7 @@ describe('stat contributions and gender selection', () => {
     const selected = calculateBuildStats(fixed, SUGGESTED_BUILD_SLOTS, resolve)
     expect(selected.stats.HP.value).toEqual(leveled.HP.total)
     const unspecified = calculateBuildStats(content(), SUGGESTED_BUILD_SLOTS, resolve)
-    expect(unspecified.stats.HP.value!.high).toBeGreaterThan(unspecified.stats.HP.value!.low)
+    expect(unspecified.stats.HP.value).toEqual({ low: calculatePCStats(content(), SUGGESTED_BUILD_SLOTS, resolve).neutral.HP, high: calculatePCStats(content(), SUGGESTED_BUILD_SLOTS, resolve).neutral.HP })
   })
 
   it('shows net gender effects after caps and keeps unknown loadout and growth unresolved', () => {
@@ -70,18 +70,17 @@ describe('stat contributions and gender selection', () => {
     expect(incomplete.HP.total).toBeNull()
   })
 
-  it('uses the guide gender bonuses without duplicating retained per-stat bonuses', () => {
+  it('evaluates model-less native plans without rewriting inputs and retains unsupported custom assumptions', () => {
     const build = content('female', 20)
-    const guide = { ...build, calculation: { ...build.calculation!, model: undefined, bonuses: ['MP' as const] } }
-    expect(guideGenderBonuses(guide.calculation)).toEqual(['MP', 'AGI', 'SPD'])
-    expect(guideGenderBonuses({ ...guide.calculation, gender: 'male', bonuses: [] })).toEqual(['HP', 'SPI', 'LUK'])
-    const prior = { ...guide, calculation: { ...guide.calculation, gender: undefined } }
-    const estimate = calculateBuildStats(guide, SUGGESTED_BUILD_SLOTS, resolve)
-    const retained = calculateBuildStats(prior, SUGGESTED_BUILD_SLOTS, resolve)
-    expect(estimate.stats.MP.value).toEqual(retained.stats.MP.value)
-    expect(estimate.stats.AGI.value!.low).toBeGreaterThan(retained.stats.AGI.value!.low)
-    const breakdown = calculateStatBreakdown(guide, SUGGESTED_BUILD_SLOTS, resolve)
-    expect(breakdown.MP.total).toEqual(estimate.stats.MP.value)
-    expect(() => validateCalculationPlan({ ...guide.calculation, gender: 'invalid' as BuildCalculationPlan['gender'] }, () => undefined)).toThrow('Unsupported calculation gender')
+    const modelLess = { ...build, calculation: { ...build.calculation!, model: undefined } }
+    const before = structuredClone(modelLess)
+    expect(calculateBuildStats(modelLess, SUGGESTED_BUILD_SLOTS, resolve)).toEqual(calculateBuildStats(build, SUGGESTED_BUILD_SLOTS, resolve))
+    expect(calculateStatBreakdown(modelLess, SUGGESTED_BUILD_SLOTS, resolve)).toEqual(calculateStatBreakdown(build, SUGGESTED_BUILD_SLOTS, resolve))
+    const unsupported = { ...modelLess, calculation: { ...modelLess.calculation, bonuses: ['MP' as const] } }
+    const estimate = calculateBuildStats(unsupported, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(estimate.stats.MP.value).toBeNull()
+    expect(estimate.issues).toContain('Per-stat bonus assumptions are outside the native gender comparisons.')
+    expect(modelLess).toEqual(before)
+    expect(() => validateCalculationPlan({ ...modelLess.calculation, gender: 'invalid' as BuildCalculationPlan['gender'] }, () => undefined)).toThrow('Unsupported calculation gender')
   })
 })

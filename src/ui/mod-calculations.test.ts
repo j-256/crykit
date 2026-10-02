@@ -26,15 +26,18 @@ it('applies exact enabled imported equipment and leaves disabled or unselected e
   const empty = calculatePCStats({ ...content, equipment: {} }, SUGGESTED_BUILD_SLOTS, resolve(setup(true)))
   expect(enabled.issues).toEqual([])
   expect(enabled.neutral.HP).toBe(empty.neutral.HP! + 101)
+  const modelLess = { ...content, calculation: { ...content.calculation!, model: undefined } }
+  const modelLessEnabled = calculateBuildStats(modelLess, SUGGESTED_BUILD_SLOTS, resolve(setup(true)))
+  expect(modelLessEnabled.stats.HP.value).toEqual({ low: enabled.neutral.HP, high: enabled.neutral.HP })
+  expect(modelLessEnabled.issues).toEqual([])
   for (const context of [setup(false), original]) {
     const pc = calculatePCStats(content, SUGGESTED_BUILD_SLOTS, resolve(context))
     expect(pc.neutral.HP).toBeNull()
     expect(pc.issues.join(' ')).toContain('Synthetic stat mod')
     expect(pc.issues.join(' ')).toContain('effects are not applied')
-    const guide = calculateBuildStats({ ...content, calculation: { ...content.calculation!, model: undefined } }, SUGGESTED_BUILD_SLOTS, resolve(context))
-    expect(guide.stats.HP.value).toBeNull()
-    expect(guide.contributions.some(entry => entry.value === 101)).toBe(false)
-    expect(guide.issues.join(' ')).toContain('effects are not applied')
+    const native = calculateBuildStats(modelLess, SUGGESTED_BUILD_SLOTS, resolve(context))
+    for (const stat of Object.values(native.stats)) expect(stat.value).toBeNull()
+    expect(native.issues.join(' ')).toContain('effects are not applied')
   }
   const options = buildDefinitionOptions(data, catalogs)
   expect(definitionOptionsForSetup(options, catalogs, setup(false)).some(option => option.ref.kind === 'catalog' && option.ref.catalogId === imported.id)).toBe(true)

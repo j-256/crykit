@@ -38,6 +38,7 @@ describe('versioned arithmetic package', () => {
 
 describe('growth input intent', () => {
   it('follows primary class and level until edited, then retains allocations including an over-budget level change', () => {
+    expect(followPrimary(undefined, warrior)).toBeUndefined()
     const automatic = followPrimary(defaultCalculation(warrior), wizard)
     expect(automatic.growth).toEqual([{ classRef: wizard, levels: 60 }])
     expect(changeCalculationLevel(automatic, 30, wizard).growth[0]?.levels).toBe(30)
