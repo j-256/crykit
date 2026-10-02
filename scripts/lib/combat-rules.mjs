@@ -75,6 +75,9 @@ export function buildCombatRules(native) {
   const simple = (id, title, inputs, result, evidence, notes = []) =>
     rule(id, title, inputs, [], result, evidence, notes)
 
+  simple('learningLP', 'LP cost displayed in the native learn tree', ['jp'], div('jp', 100), 'Sang.Window.Field.Learn.WindowLearnAbilitySelect.Draw', ['Fractional costs display two decimal places; stored costs and affordability use exact JP.'])
+  simple('learningWholeLP', 'Whole LP sufficient for a JP cost', ['jp'], op('ceil', div('jp', 100)), 'Sang.Window.Field.Learn.WindowLearnAbilitySelect.UpdateInput', ['A conversion for whole LP input, not a rounded game cost.'])
+  simple('learningEligible', 'JP affordability before learning prerequisites', ['currentJP', 'costJP'], ge('currentJP', 'costJP'), 'Sang.Window.Field.Learn.WindowLearnAbilitySelect.UpdateInput', ['Learning also requires unlocked skills and satisfied prerequisites.'])
   simple(
     'percent',
     'Apply a percentage, truncating toward zero',
@@ -374,19 +377,10 @@ export function buildCombatRules(native) {
       0,
     )
   rule(
-    'baseDamage',
-    'Base ability damage or healing',
-    common,
+    'abilityPower',
+    'Native coefficient power before resource and contextual effects',
+    ['attack', 'ability', 'extraPower', 'user'],
     [
-      ['attack', iff('ability.PDefAsPAtk', 'user.Stats.PDef', 'user.Stats.PAtk')],
-      [
-        'extraPower',
-        add(
-          bonus('DamagePerTargetDebuff', 'context.targetDebuffCount'),
-          bonus('DamagePerSelfBuff', 'context.userBuffCount'),
-          bonus('ConsumeComboTokens', statusCount('target', 46)),
-        ),
-      ],
       ['base', add('ability.BasePower', pct('attack', 'ability.BasePAtkRate'), 'extraPower')],
       [
         'scaling',
@@ -409,9 +403,29 @@ export function buildCombatRules(native) {
           ...core.map((stat) => pct('scaling', pct(`user.Stats.${stat}`, `ability.${stat}Rate`))),
         ),
       ],
+    ],
+    add('base', 'attributes'),
+    calc('CalculateBaseAttack'),
+    ['Each core-stat term truncates twice before the terms are added. extraPower is supplied by the contextual modifier stage.'],
+  )
+  rule(
+    'baseDamage',
+    'Base ability damage or healing',
+    common,
+    [
+      ['attack', iff('ability.PDefAsPAtk', 'user.Stats.PDef', 'user.Stats.PAtk')],
+      [
+        'extraPower',
+        add(
+          bonus('DamagePerTargetDebuff', 'context.targetDebuffCount'),
+          bonus('DamagePerSelfBuff', 'context.userBuffCount'),
+          bonus('ConsumeComboTokens', statusCount('target', 46)),
+        ),
+      ],
+      ['power', call('abilityPower', 'attack', 'ability', 'extraPower', 'user')],
       ['resources', sum('ability.AbilityMods', 'mod', resourceExpr)],
     ],
-    add('base', 'attributes', 'resources'),
+    add('power', 'resources'),
     calc('CalculateBaseAttack'),
     [
       'Each of the eight attribute terms truncates twice and is added separately. An absent scaling override inherits the base coefficient; an explicit zero does not. Debuff and buff bonuses count unique statuses; Combo uses the target count.',
@@ -1218,6 +1232,14 @@ export function buildCombatRules(native) {
       ['Outside the table, retain the nearest endpoint value.'],
     )
   }
+  simple(
+    'physicalHitCurve',
+    'Base physical accuracy/evasion curve',
+    ['accuracy', 'evasion'],
+    iff(gt('evasion', 0), trunc(fmul(call('hitCurve', fdiv(f32('accuracy'), f32('evasion'))), 100)), 100),
+    calc('CalculateHitChance'),
+    ['Zero evasion yields 100 before ability accuracy, modifiers, difficulty, Luck and miss protection.'],
+  )
   rule(
     'ordinaryHitChance',
     'Hit chance without early-exit flags',
@@ -1231,15 +1253,7 @@ export function buildCombatRules(native) {
             pct(
               add(
                 'ability.BaseAcc',
-                trunc(
-                  fmul(
-                    call(
-                      'hitCurve',
-                      fdiv(f32('user.Stats.PAccRating'), f32('target.Stats.PEvaRating')),
-                    ),
-                    100,
-                  ),
-                ),
+                call('physicalHitCurve', 'user.Stats.PAccRating', 'target.Stats.PEvaRating'),
                 'user.Stats.PHitChanceGivenAddi',
                 'target.Stats.PHitChanceTakenAddi',
               ),
@@ -2063,6 +2077,7 @@ export function buildCombatRules(native) {
       platform: 'Windows PC',
       executableSha256: native.source.executable.sha256,
       files: {
+        'Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs': '8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf',
         'Sang/Battle/Calculator.cs':
           'eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6',
         'Sang/Battle/RollResolver.cs':

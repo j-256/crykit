@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import parity from '../calculations/combat-parity-v1.json'
+import previewParity from '../calculations/preview-parity-v1.json'
 import example from '../calculations/combat-example-v1.json'
 import rules from '../calculations/combat-v1.json'
 import data from '../catalog/native-combat-v1.json'
@@ -75,6 +76,11 @@ describe('native combat parity', () => {
     }
   })
 
+  it('matches independently compiled coefficient-power and physical-curve boundaries', () => {
+    expect(previewParity.evidence.executableSha256).toBe(rules.source.executableSha256)
+    for (const vector of previewParity.cases) expect(calculateCombat(vector.formula, vector.input as CombatValue[]), vector.formula).toEqual(vector.expected)
+  })
+
   it('retains damage stage traces and the separately applied MP shield amount', () => {
     const fixture = makeFixture()
     fixture.target.Stats.Tags.push(statTag('MPShield'))
@@ -95,6 +101,10 @@ describe('native combat parity', () => {
 
 const kernelExamples: readonly [string, CombatValue[], CombatValue][] = [
   ['percent', [-19, 15], -2],
+  ['learningLP', [150], 1.5],
+  ['learningWholeLP', [150], 2],
+  ['learningEligible', [149, 150], false],
+  ['physicalHitCurve', [1100, 1000], 96],
   ['effectiveMaximum', [1003], 1003],
   ['dotResistance', [15, 101, 30], -15],
   ['dotResistance', [-15, 101, 30], -4],

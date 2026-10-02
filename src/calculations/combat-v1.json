@@ -6,6 +6,7 @@
     "platform": "Windows PC",
     "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
     "files": {
+      "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs": "8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf",
       "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
       "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b",
       "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
@@ -400,6 +401,64 @@
     ]
   },
   "formulas": {
+    "learningLP": {
+      "title": "LP cost displayed in the native learn tree",
+      "inputs": [
+        "jp"
+      ],
+      "steps": [],
+      "result": [
+        "div",
+        "jp",
+        100
+      ],
+      "evidence": [
+        "Sang.Window.Field.Learn.WindowLearnAbilitySelect.Draw"
+      ],
+      "notes": [
+        "Fractional costs display two decimal places; stored costs and affordability use exact JP."
+      ]
+    },
+    "learningWholeLP": {
+      "title": "Whole LP sufficient for a JP cost",
+      "inputs": [
+        "jp"
+      ],
+      "steps": [],
+      "result": [
+        "ceil",
+        [
+          "div",
+          "jp",
+          100
+        ]
+      ],
+      "evidence": [
+        "Sang.Window.Field.Learn.WindowLearnAbilitySelect.UpdateInput"
+      ],
+      "notes": [
+        "A conversion for whole LP input, not a rounded game cost."
+      ]
+    },
+    "learningEligible": {
+      "title": "JP affordability before learning prerequisites",
+      "inputs": [
+        "currentJP",
+        "costJP"
+      ],
+      "steps": [],
+      "result": [
+        "gte",
+        "currentJP",
+        "costJP"
+      ],
+      "evidence": [
+        "Sang.Window.Field.Learn.WindowLearnAbilitySelect.UpdateInput"
+      ],
+      "notes": [
+        "Learning also requires unlocked skills and satisfied prerequisites."
+      ]
+    },
     "percent": {
       "title": "Apply a percentage, truncating toward zero",
       "inputs": [
@@ -1476,6 +1535,342 @@
         }
       ]
     },
+    "abilityPower": {
+      "title": "Native coefficient power before resource and contextual effects",
+      "inputs": [
+        "attack",
+        "ability",
+        "extraPower",
+        "user"
+      ],
+      "steps": [
+        {
+          "name": "base",
+          "value": [
+            "i32",
+            [
+              "add",
+              "ability.BasePower",
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "attack",
+                      "ability.BasePAtkRate"
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              "extraPower"
+            ]
+          ]
+        },
+        {
+          "name": "scaling",
+          "value": [
+            "i32",
+            [
+              "add",
+              [
+                "if",
+                [
+                  "eq",
+                  "ability.ScalingPower",
+                  null
+                ],
+                "ability.BasePower",
+                "ability.ScalingPower"
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "attack",
+                      [
+                        "if",
+                        [
+                          "eq",
+                          "ability.ScalingPAtkRate",
+                          null
+                        ],
+                        "ability.BasePAtkRate",
+                        "ability.ScalingPAtkRate"
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              "extraPower"
+            ]
+          ]
+        },
+        {
+          "name": "attributes",
+          "value": [
+            "i32",
+            [
+              "add",
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Str",
+                              "ability.StrRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Vit",
+                              "ability.VitRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Dex",
+                              "ability.DexRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Agi",
+                              "ability.AgiRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Mnd",
+                              "ability.MndRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Spi",
+                              "ability.SpiRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Spd",
+                              "ability.SpdRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ],
+              [
+                "trunc",
+                [
+                  "div",
+                  [
+                    "i32",
+                    [
+                      "mul",
+                      "scaling",
+                      [
+                        "trunc",
+                        [
+                          "div",
+                          [
+                            "i32",
+                            [
+                              "mul",
+                              "user.Stats.Lck",
+                              "ability.LckRate"
+                            ]
+                          ],
+                          100
+                        ]
+                      ]
+                    ]
+                  ],
+                  100
+                ]
+              ]
+            ]
+          ]
+        }
+      ],
+      "result": [
+        "i32",
+        [
+          "add",
+          "base",
+          "attributes"
+        ]
+      ],
+      "evidence": [
+        "Sang.Battle.Calculator.CalculateBaseAttack"
+      ],
+      "notes": [
+        "Each core-stat term truncates twice before the terms are added. extraPower is supplied by the contextual modifier stage."
+      ]
+    },
     "baseDamage": {
       "title": "Base ability damage or healing",
       "inputs": [
@@ -1826,314 +2221,14 @@
           ]
         },
         {
-          "name": "base",
+          "name": "power",
           "value": [
-            "i32",
-            [
-              "add",
-              "ability.BasePower",
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "attack",
-                      "ability.BasePAtkRate"
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              "extraPower"
-            ]
-          ]
-        },
-        {
-          "name": "scaling",
-          "value": [
-            "i32",
-            [
-              "add",
-              [
-                "if",
-                [
-                  "eq",
-                  "ability.ScalingPower",
-                  null
-                ],
-                "ability.BasePower",
-                "ability.ScalingPower"
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "attack",
-                      [
-                        "if",
-                        [
-                          "eq",
-                          "ability.ScalingPAtkRate",
-                          null
-                        ],
-                        "ability.BasePAtkRate",
-                        "ability.ScalingPAtkRate"
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              "extraPower"
-            ]
-          ]
-        },
-        {
-          "name": "attributes",
-          "value": [
-            "i32",
-            [
-              "add",
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Str",
-                              "ability.StrRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Vit",
-                              "ability.VitRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Dex",
-                              "ability.DexRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Agi",
-                              "ability.AgiRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Mnd",
-                              "ability.MndRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Spi",
-                              "ability.SpiRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Spd",
-                              "ability.SpdRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ],
-              [
-                "trunc",
-                [
-                  "div",
-                  [
-                    "i32",
-                    [
-                      "mul",
-                      "scaling",
-                      [
-                        "trunc",
-                        [
-                          "div",
-                          [
-                            "i32",
-                            [
-                              "mul",
-                              "user.Stats.Lck",
-                              "ability.LckRate"
-                            ]
-                          ],
-                          100
-                        ]
-                      ]
-                    ]
-                  ],
-                  100
-                ]
-              ]
-            ]
+            "call",
+            "abilityPower",
+            "attack",
+            "ability",
+            "extraPower",
+            "user"
           ]
         },
         {
@@ -2690,8 +2785,7 @@
         "i32",
         [
           "add",
-          "base",
-          "attributes",
+          "power",
           "resources"
         ]
       ],
@@ -7632,6 +7726,57 @@
         "Outside the table, retain the nearest endpoint value."
       ]
     },
+    "physicalHitCurve": {
+      "title": "Base physical accuracy/evasion curve",
+      "inputs": [
+        "accuracy",
+        "evasion"
+      ],
+      "steps": [],
+      "result": [
+        "if",
+        [
+          "gt",
+          "evasion",
+          0
+        ],
+        [
+          "trunc",
+          [
+            "f32",
+            [
+              "mul",
+              [
+                "call",
+                "hitCurve",
+                [
+                  "f32",
+                  [
+                    "div",
+                    [
+                      "f32",
+                      "accuracy"
+                    ],
+                    [
+                      "f32",
+                      "evasion"
+                    ]
+                  ]
+                ]
+              ],
+              100
+            ]
+          ]
+        ],
+        100
+      ],
+      "evidence": [
+        "Sang.Battle.Calculator.CalculateHitChance"
+      ],
+      "notes": [
+        "Zero evasion yields 100 before ability accuracy, modifiers, difficulty, Luck and miss protection."
+      ]
+    },
     "ordinaryHitChance": {
       "title": "Hit chance without early-exit flags",
       "inputs": [
@@ -7672,32 +7817,10 @@
                                 "add",
                                 "ability.BaseAcc",
                                 [
-                                  "trunc",
-                                  [
-                                    "f32",
-                                    [
-                                      "mul",
-                                      [
-                                        "call",
-                                        "hitCurve",
-                                        [
-                                          "f32",
-                                          [
-                                            "div",
-                                            [
-                                              "f32",
-                                              "user.Stats.PAccRating"
-                                            ],
-                                            [
-                                              "f32",
-                                              "target.Stats.PEvaRating"
-                                            ]
-                                          ]
-                                        ]
-                                      ],
-                                      100
-                                    ]
-                                  ]
+                                  "call",
+                                  "physicalHitCurve",
+                                  "user.Stats.PAccRating",
+                                  "target.Stats.PEvaRating"
                                 ],
                                 "user.Stats.PHitChanceGivenAddi",
                                 "target.Stats.PHitChanceTakenAddi"
