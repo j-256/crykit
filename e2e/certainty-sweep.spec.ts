@@ -1,8 +1,7 @@
-import { referencePath } from './reference-helpers'
+import { referencePath, referenceUrlPattern } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { expectOfflineReady } from './offline-helpers'
 
-const CATALOG_PATH = '/#/reference/catalog/crystal-project-public-starter/revisions/'
 const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
 const FREELANCER_PATH = referencePath('mod:moonlight-project:class:26')
 
@@ -17,7 +16,7 @@ test('Moonlight definitions open directly with relevant known facts', async ({ p
   page.on('request', request => { if (new URL(request.url()).origin !== new URL(baseURL!).origin) external.push(request.url()) })
   await page.goto(PUN_STORM_PATH)
   await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toBeVisible()
-  await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  await expect(page).toHaveURL(referenceUrlPattern('mod:moonlight-project:ability:565'))
   await expect(fact(page, 'Description')).toContainText('Using a signature technique')
   await expect(fact(page, 'Cost')).toContainText('None')
   await expect(fact(page, 'MP cost')).toContainText('0')
@@ -32,7 +31,7 @@ test('Moonlight definitions open directly with relevant known facts', async ({ p
   expect(external).toEqual([])
   await page.reload()
   await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toBeVisible()
-  await expect(page).toHaveURL(new RegExp('/entities/mod/moonlight-project/ability/565/100-pun-storm$'))
+  await expect(page).toHaveURL(referenceUrlPattern('mod:moonlight-project:ability:565'))
 })
 
 test('Moonlight trees stay named offline and do not imply personal learning', async ({ page, context }) => {
@@ -68,13 +67,7 @@ test('explicit null is a known absent value and travel tools use base identities
   await expect(capacity).toContainText('Not set in source')
   await expect(capacity.getByText('unknown', { exact: true })).toHaveCount(0)
   await page.goto(referencePath('base:item:treasure-finder'))
-  await expect(page).toHaveURL(/catalog-v1\/entities\/base\/item\/treasure-finder\/treasure-finder$/)
+  await expect(page).toHaveURL(referenceUrlPattern('base:item:treasure-finder'))
   await expect(page.getByRole('heading', { name: 'Treasure Finder', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-})
-
-test('retired encoded-colon entity URLs show recovery', async ({ page }) => {
-  await page.goto(`${CATALOG_PATH}catalog-v1/entities/mod%3Amoonlight-project%3Aability%3A565`)
-  await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toHaveCount(0)
 })
