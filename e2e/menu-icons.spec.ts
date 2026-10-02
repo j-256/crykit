@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
@@ -20,7 +21,7 @@ async function characterDetails(page: Page) {
   return desktop
 }
 
-test('game icons accompany character equipment, inventory, and both pickers without external requests', async ({ page, context, isMobile }) => {
+test('game icons accompany character equipment, inventory, and both pickers without external requests', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }) => {
   const external: string[] = []
   page.on('request', request => { if (!['127.0.0.1', 'localhost'].includes(new URL(request.url()).hostname)) external.push(request.url()) })
   await page.goto('/#/inventory')

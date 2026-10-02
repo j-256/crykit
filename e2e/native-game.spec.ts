@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
@@ -59,7 +60,7 @@ test('enemy loot supports modifier-click in a new tab and ordinary in-app naviga
   await expect(page.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible()
 })
 
-test('native enemy facts, separate steal rates, identity links, and offline scope are readable', async ({ page, context }, testInfo) => {
+test('native enemy facts, separate steal rates, identity links, and offline scope are readable', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   await page.goto(SLIME_PATH)
   await expect(page.getByRole('heading', { name: 'Slime', exact: true })).toBeVisible()
   const details = page.getByRole('region', { name: 'Game details', exact: true })
@@ -145,7 +146,7 @@ test('enemy actions and editing stay reachable without crowding the bestiary', a
   await expect(page.locator('.enemy-technical')).not.toHaveAttribute('open')
 })
 
-test('bestiary entries retain zero values and keep large boss rewards on one line', async ({ page }, testInfo) => {
+test('bestiary entries retain zero values and keep large boss rewards on one line', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto(referencePath('base:monster:0'))
   await expect(page.getByRole('heading', { name: 'Dummy', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-vitals dd').filter({ hasText: /^0$/ })).toHaveCount(2)
@@ -184,7 +185,7 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await expect(page.getByLabel('Ability estimate', { exact: true })).toContainText('MP cost')
 })
 
-test('new native loot icons, status cells, and distinct enemy sprites stay available offline', async ({ page, context }) => {
+test('new native loot icons, status cells, and distinct enemy sprites stay available offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const expectImage = async (name: string) => {
     const image = page.getByRole('img', { name: `${name} game artwork`, exact: true })
     await expect(image).toBeVisible()

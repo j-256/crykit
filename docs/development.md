@@ -39,7 +39,20 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`npm run verify` runs both groups without test filters and records publication evidence for a clean, committed tree. Browser tests use the production build and include desktop and mobile emulation. They do not establish physical-device installation or verify a phone's native file picker.
+`npm run verify` runs both groups without command-line test filters and records publication evidence for a clean, committed tree. Browser tests use the production build. The desktop project runs every scenario; the mobile project selects tests tagged with `MOBILE_TEST_TAG` from `e2e/test-tags.ts`. Mobile coverage exercises responsive layouts, touch controls, queued tile boards, and representative editing, import, sharing, and offline journeys. Detailed data, validation, calculation, persistence, and recovery combinations run on desktop alongside their unit and component coverage.
+
+Run one project or a focused spec while developing:
+
+```sh
+npm run test:e2e -- --project=mobile
+npm run test:e2e -- e2e/build-sheet.spec.ts --project=desktop
+```
+
+Use `npm run test:e2e:all-devices` to run every scenario on both devices. Its dedicated Playwright configuration removes the mobile tag filter, making the exhaustive matrix available for a broad UI change or a device-specific investigation. Mobile emulation does not establish physical-device installation or verify a phone's native file picker.
+
+Tag a test for mobile when its assertions depend on viewport geometry, touch behavior, mobile navigation or disclosures, or when it supplies a representative mobile journey for a user-facing surface. A generic overflow assertion alone does not require repeating a detailed behavior matrix on mobile. Keep real browser coverage for reload persistence, transactional import and backup recovery, stale-tab conflicts, quota failures, queued clicks, and service-worker updates. Test catalog facts and pure calculation or validation combinations in unit tests, and component state transitions in DOM tests, adding browser scenarios when the integration itself introduces risk.
+
+Each test receives an isolated browser context and establishes its own data. Keep fixtures independent so `fullyParallel` can distribute individual tests across shards. Avoid shared mutable files, external services, or suite-wide state. CI runs each shard with one worker, retains per-test durations in a `browser-timings` artifact, and preserves traces and screenshots on failure. Compare timings on the same runner and build before changing workers, diagnostic capture, or timeouts; local performance does not establish CI runtime.
 
 ## Publication verification
 
@@ -53,7 +66,7 @@ Before publication, commit the finished changes, synchronize with the integratio
 npm run verify
 ```
 
-The command executes deterministic checks followed by every desktop and mobile browser test. It records success only when the source starts committed and clean and remains on the same Git tree throughout verification. A dirty checkout can be tested, but it produces no publication evidence. A failed or interrupted rerun invalidates prior evidence before checks begin. `npm run check` and focused Playwright runs do not create this record.
+The command executes deterministic checks followed by the complete configured browser suite: every desktop scenario and the selected mobile scenarios. It records success only when the source starts committed and clean and remains on the same Git tree throughout verification. A dirty checkout can be tested, but it produces no publication evidence. A failed or interrupted rerun invalidates prior evidence before checks begin. `npm run check` and focused Playwright runs do not create this record.
 
 The pre-push hook checks the actual object IDs supplied by Git, including explicit task-branch pushes from another linked worktree. Every published tree requires a successful record for the repository and the same Node version, platform, and architecture. Any changed tree, including files added by synchronization, requires another complete run. Commit metadata changes that preserve the tested tree reuse its evidence. Deleting a ref does not require a record. The hook reports the missing tree and the command to run; it never starts browser tests or silently publishes changes.
 

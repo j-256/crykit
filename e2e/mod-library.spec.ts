@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
@@ -157,7 +158,7 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
   await expect(page.getByRole('region', { name: 'Synthetic calculation mod', exact: true })).toBeVisible()
 })
 
-test('shows the generated bundled library and opens exact full originals offline with Workshop links', async ({ page, context }) => {
+test('shows the generated bundled library and opens exact full originals offline with Workshop links', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto('/#/mods')
   await expect.poll(() => page.locator('.mod-library > .mod-library__card').count()).toBeGreaterThanOrEqual(new Set(bundledSources.mods.map(mod => mod.projectId)).size)
   await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toHaveCount(1)
@@ -302,7 +303,7 @@ test('keeps an unavailable mod scope empty until the filter is cleared', async (
   await expect(page).not.toHaveURL(/library-mod=/)
 })
 
-test('browses one temporary catalog without saving it, then explicitly adds it to Reference', async ({ page }) => {
+test('browses one temporary catalog without saving it, then explicitly adds it to Reference', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
   const count = Object.values(source.models).reduce((sum, ids) => sum + ids.length, 0)
   await page.goto('/#/reference')

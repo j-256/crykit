@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -46,7 +47,7 @@ test('shows a loaded native icon for every travel unlock', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('rapid acquisition changes keep the checklist interactive and persist the final state', async ({ page }) => {
+test('rapid acquisition changes keep the checklist interactive and persist the final state', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.evaluate(() => {
     document.body.dataset.unlockDisabledFlash = 'false'
     new MutationObserver(records => {
@@ -100,7 +101,7 @@ test('tracks mount instruments, shrine stones, and capability items independentl
   await expect(page.locator('.progress-other')).not.toContainText('Treasure Finder')
 })
 
-test('filters unfinished items and opens an acquisition search result on its own checklist', async ({ page }) => {
+test('filters unfinished items and opens an acquisition search result on its own checklist', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const toggle = page.getByRole('checkbox', { name: 'Treasure Finder: acquired', exact: true })
   await toggle.check()
   await expect(toggle).toBeEnabled()

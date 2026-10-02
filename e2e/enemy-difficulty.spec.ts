@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 import { referencePath, referenceUrlPattern } from './reference-helpers'
 
@@ -53,7 +54,7 @@ test('boss entries use their exact mode difficulty rates', async ({ page }) => {
   await expect(page.locator('.enemy-metric--mp dd')).toHaveText('740')
 })
 
-test('game mode switches enemy records, rewards, and actions while preserving difficulty and reloads', async ({ page }) => {
+test('game mode switches enemy records, rewards, and actions while preserving difficulty and reloads', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(`${DESERT_QUINTAR}?difficulty=2`)
   const mode = page.getByRole('combobox', { name: 'Game mode', exact: true })
   const difficulty = page.getByRole('combobox', { name: 'Difficulty', exact: true })

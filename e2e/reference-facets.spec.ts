@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -6,7 +7,7 @@ async function showFilters(page: Page, isMobile: boolean) {
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
 }
 
-test('category families remain searchable, preserve alternatives, and expose hidden selections', async ({ page, isMobile }) => {
+test('category families remain searchable, preserve alternatives, and expose hidden selections', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1')
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await showFilters(page, isMobile)
@@ -50,7 +51,7 @@ test('category families remain searchable, preserve alternatives, and expose hid
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('supplemental reference audiences stay hidden by default and remain directly reachable', async ({ page, isMobile }) => {
+test('supplemental reference audiences stay hidden by default and remain directly reachable', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1&q=AbilityItemConsumptionDown')
   await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })).toHaveCount(0)
   const hidden = page.getByRole('status').filter({ hasText: 'additional match is hidden' })
@@ -80,7 +81,7 @@ test('supplemental reference audiences stay hidden by default and remain directl
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('class facets combine with definition types and survive details and offline reloads', async ({ page, context, isMobile }) => {
+test('class facets combine with definition types and survive details and offline reloads', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }) => {
   await page.goto('/#/reference?v=1&kind=ability')
   await showFilters(page, isMobile)
   await page.getByRole('button', { name: 'Class', exact: true }).click()
@@ -116,7 +117,7 @@ test('class facets combine with definition types and survive details and offline
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('active filters remain removable when their values are absent from the library', async ({ page, isMobile }) => {
+test('active filters remain removable when their values are absent from the library', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1&kind=item&category=Synthetic&class=Synthetic&slot=Synthetic&element=Synthetic&mod=Synthetic&source=Synthetic&ppMin=1&ppMax=4&q=Synthetic&weapon=Dagger&uncertainSkills=1')
   const active = page.getByRole('group', { name: 'Active reference filters', exact: true })
   await expect(active.getByRole('button', { name: 'Remove Equipment slot: Synthetic filter', exact: true })).toBeVisible()
@@ -127,7 +128,7 @@ test('active filters remain removable when their values are absent from the libr
   await expect(page.locator('.reference-card').first()).toBeVisible()
 })
 
-test('source mod facets include established catalog associations and agree with result badges', async ({ page, isMobile }) => {
+test('source mod facets include established catalog associations and agree with result badges', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1&kind=item')
   await showFilters(page, isMobile)
   await page.getByRole('button', { name: 'Source mod', exact: true }).click()

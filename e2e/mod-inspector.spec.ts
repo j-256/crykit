@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
@@ -33,7 +34,7 @@ async function downloadText(page: Page, buttonName: string) {
   return readFile((await result.path())!, 'utf8')
 }
 
-test('switches between document and shared dictionary tabs by keyboard without importing', async ({ page }) => {
+test('switches between document and shared dictionary tabs by keyboard without importing', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(ROUTE)
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   const documentTab = page.getByRole('tab', { name: 'JSON document', exact: true })
@@ -69,7 +70,7 @@ test('switches between document and shared dictionary tabs by keyboard without i
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
 })
 
-test('edits a tag through its picklist, restores a saved draft, and exports only that exact change', async ({ page }) => {
+test('edits a tag through its picklist, restores a saved draft, and exports only that exact change', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
   await importMod(page)
@@ -158,7 +159,7 @@ test('keeps a conflicting tab recoverable without overwriting the winning draft'
   expect(await downloadText(other, 'Download original')).toBe(SOURCE)
 })
 
-test('opens saved originals, edits, and exports while offline', async ({ page, context }) => {
+test('opens saved originals, edits, and exports while offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await importMod(page)
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })

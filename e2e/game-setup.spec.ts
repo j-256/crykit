@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { zipSync } from 'fflate'
@@ -45,7 +46,7 @@ test('Playthrough assignment and Game Setup editing open distinct screens', asyn
   expect(await readData(page)).toEqual(data)
 })
 
-test('context is visible, unchanged drafts do not save, and discard protects navigation', async ({ page, isMobile }) => {
+test('context is visible, unchanged drafts do not save, and discard protects navigation', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/#/settings/game-setup')
   await settings(page).getByRole('button', { name: 'Edit setup', exact: true }).first().click()

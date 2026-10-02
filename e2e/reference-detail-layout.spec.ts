@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
 const WARRIOR = referencePath('base:class:warrior')
@@ -47,7 +48,7 @@ async function checkDetailLayout(page: Page, desktop: boolean) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-test('gives reference tables the detail width and restores filtered browsing', async ({ page }, testInfo) => {
+test('gives reference tables the detail width and restores filtered browsing', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/#/reference')
   await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Warrior')
   await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Warrior', exact: true }) }).click()
@@ -58,7 +59,7 @@ test('gives reference tables the detail width and restores filtered browsing', a
   await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Warrior', exact: true }) })).toBeVisible()
 })
 
-test('uses the same wide tables and clean headings for personal definitions', async ({ page }, testInfo) => {
+test('uses the same wide tables and clean headings for personal definitions', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto(WARRIOR)
   await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
   const editor = page.getByRole('dialog', { name: 'Create personal version: Warrior', exact: true })

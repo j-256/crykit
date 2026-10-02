@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -42,7 +43,7 @@ async function expectClassProvenance(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-test('bundled class calculations respond to explicit mixed growth and work offline', async ({ page, context, baseURL }, testInfo) => {
+test('bundled class calculations respond to explicit mixed growth and work offline', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }, testInfo) => {
   const externalRequests: string[] = []
   page.on('request', request => { if (!request.url().startsWith(`${baseURL}/`)) externalRequests.push(request.url()) })
   await page.goto(WARRIOR_PATH)
@@ -164,7 +165,7 @@ test('native class trees retain named skills and exact links in the native catal
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
 })
 
-test('draws every simultaneous prerequisite into its skill and keeps arrows aligned after resizing', async ({ page }, testInfo) => {
+test('draws every simultaneous prerequisite into its skill and keeps arrows aligned after resizing', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/')
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
