@@ -9,6 +9,7 @@ import {
   updateLocalData,
 } from './core'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
+import { normalizeBuildTags } from './build-tags'
 import { validateCalculationPlan } from './calculation-plan'
 import { definitionLineageRootRef } from './definitions'
 import type {
@@ -60,7 +61,7 @@ export function createBuild(localData: LocalData, input: CreateBuildInput): Loca
     title,
     kind: input.kind,
     state: input.state ?? 'draft',
-    tags: input.tags ?? [],
+    tags: normalizeBuildTags(input.tags ?? []),
     favorite: input.favorite ?? false,
     createdAt: at,
     updatedAt: at,
@@ -100,7 +101,7 @@ export function updateBuild(localData: LocalData, input: UpdateBuildInput): Loca
     ...current,
     title,
     state: input.state ?? current.state,
-    tags: input.tags ?? current.tags,
+    tags: input.tags === undefined ? current.tags : normalizeBuildTags(input.tags),
     favorite: input.favorite ?? current.favorite,
     revision: current.revision + 1,
     updatedAt: at,

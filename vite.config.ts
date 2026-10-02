@@ -17,7 +17,7 @@ const DOM_TEST_FILES = [
   'src/ui/SummonsView.test.tsx',
   'src/ui/route-state.test.ts',
   'src/ui/useQueuedTileUpdates.test.tsx',
-  'src/ui/BuildTitleControl.test.tsx',
+  'src/ui/BuildDetailsControl.test.tsx',
   'src/ui/mod-inspector/inspector.test.tsx',
 ]
 
