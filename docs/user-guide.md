@@ -52,7 +52,11 @@ Build validity sums the PP costs of every equipped passive against the pinned Ga
 
 **Save build** creates the Build and its first checkpoint together. Choose **Checks & notes** to find the title and notes under **Build details & notes**; an unnamed Build uses its class name. The sheet stays directly editable on desktop and mobile, and further passive rows appear as selections are added.
 
-Choose **Rename** beside a saved Build's heading to change its title. **Save title** updates the library name without creating a checkpoint or saving unfinished loadout edits. Canceling leaves the saved name intact; leaving with an edited title offers **Save and continue** or **Discard and continue**.
+Choose **Rename** beside a saved Build's heading to change its title. Title and tags share one **Save details** action. This updates the Build's library metadata without creating a checkpoint or saving unfinished loadout edits. **Cancel details** discards both title and tag edits; leaving with either edited offers **Save and continue** or **Discard and continue**.
+
+Tags are optional labels for organizing your Build library, such as `healer` or `early game`. Open **Tags** below a saved Build's title to add or remove them. Type one tag at a time and press Enter or choose **Add tag**; suggestions reuse tags from your library. **Save details** also includes a tag still typed in the input. Spaces at the ends are trimmed, blank tags are ignored, and duplicate tags are combined without regard to letter case. New Builds offer **Tags** under **Checks & notes > Build details & notes**, saving them with the first checkpoint.
+
+Library cards display saved tags, and both library search and Cmd+K / Ctrl+K search match them. Clones retain tags and complete backups preserve them; share links omit these library labels.
 
 Cloning makes a separate draft within the same Game Setup; editing creates a new immutable checkpoint. Builds from another Game Setup remain directly editable using their checkpoint's pinned behavior and catalog definitions.
 
