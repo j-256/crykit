@@ -1,0 +1,62 @@
+import { expect, test } from '@playwright/test'
+import { referencePath } from './reference-helpers'
+
+const DESERT_PATH = referencePath('base:monster:316')
+const RED_PATH = referencePath('base:monster:57')
+const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
+
+test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
+  await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
+  const desert = page.locator(`a[href="${DESERT_PATH.slice(1)}"]`)
+  const red = page.locator(`a[href="${RED_PATH.slice(1)}"]`)
+  await expect(desert).toBeVisible()
+  await expect(red).toBeVisible()
+  await expect(desert).toHaveAttribute('href', /\/316\/brutish-quintar-desert$/)
+  await expect(red).toHaveAttribute('href', /\/57\/brutish-quintar-red$/)
+  const other = await context.newPage()
+  await other.goto(DESERT_PATH)
+  await expect(other.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
+  await expect(other.locator('.enemy-hero')).toContainText('4900')
+  await other.reload()
+  await expect(other).toHaveURL(new RegExp(`${DESERT_PATH}$`))
+  await expect(other.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
+  await desert.click()
+  await expect(page).toHaveURL(/\/316\/brutish-quintar-desert(?:\?|$)/)
+  await expect(page).toHaveURL(/q=Brutish\+Quintar/)
+})
+
+test('a wrong slug resolves by ID and normalizes without an extra history entry', async ({ page }) => {
+  await page.goto('/#/reference')
+  await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
+  const initialLength = await page.evaluate(() => history.length)
+  await page.evaluate(path => { location.hash = path.slice(1) }, DESERT_PATH.replace('brutish-quintar-desert', 'brutish-quintar-red'))
+  await expect(page).toHaveURL(new RegExp(`${DESERT_PATH}$`))
+  await expect(page.locator('.enemy-hero')).toContainText('4900')
+  expect(await page.evaluate(() => history.length)).toBe(initialLength + 1)
+  await page.goBack()
+  await expect(page).toHaveURL(/#\/reference$/)
+  await page.goForward()
+  await expect(page).toHaveURL(new RegExp(`${DESERT_PATH}$`))
+  await expect(page.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
+})
+
+test('mod names survive nested editor and search routes', async ({ page }) => {
+  await page.goto(PUN_STORM_PATH)
+  await expect(page).toHaveURL(/\/mod\/moonlight-project\/ability\/565\/100-pun-storm$/)
+  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
+  await expect(page).toHaveURL(/\/565\/100-pun-storm\/definitions\/override\/catalog\/.+\/565\/100-pun-storm$/)
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH}$`))
+  await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
+  await expect(page).toHaveURL(/\/565\/100-pun-storm\/search$/)
+  await page.reload()
+  await expect(page.getByRole('dialog', { name: 'Search CryKit', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH}$`))
+})
+
+test('slugless pre-release entity URLs show recovery', async ({ page }) => {
+  await page.goto(DESERT_PATH.replace('/brutish-quintar-desert', ''))
+  await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toHaveCount(0)
+})

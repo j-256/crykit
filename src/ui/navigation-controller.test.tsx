@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain'
 import { DefinitionEditor, DefinitionProvider } from './definitions'
 import { NavigationProvider, parseAppRoute, routeWithOverlay, useNavigation, useNavigationController, type NavigationController } from './navigation'
+import type { EntityRouteNameResolver } from './entity-route-names'
 import { Sheet } from './Sheet'
 
 let container: HTMLDivElement
@@ -16,8 +17,8 @@ function tick() {
   return new Promise((resolve) => window.setTimeout(resolve, 10))
 }
 
-function Harness({ block = false }: { block?: boolean }) {
-  const navigation = useNavigationController({ shouldBlock: () => block })
+function Harness({ block = false, resolveEntityName }: { block?: boolean; resolveEntityName?: EntityRouteNameResolver }) {
+  const navigation = useNavigationController({ resolveEntityName, shouldBlock: () => block })
   controller = navigation
   return <NavigationProvider controller={navigation}><Draft/></NavigationProvider>
 }
@@ -63,6 +64,30 @@ afterEach(() => {
 })
 
 describe('navigation controller history', () => {
+  it('normalizes descriptive slugs without adding history and refreshes imported names after loading', async () => {
+    const hash = '#/reference/catalog/synthetic/revisions/r1/entities/id/foreign%3A1/incorrect-name'
+    window.history.replaceState({ retained: true }, '', hash)
+    const length = window.history.length
+    const root = createRoot(container)
+    await act(async () => { root.render(<Harness resolveEntityName={() => undefined}/>); await tick() })
+    expect(window.location.hash).toBe(hash.replace('incorrect-name', 'definition'))
+    const exact = controller.route
+    await act(async () => { root.render(<Harness resolveEntityName={() => 'Synthetic imported name'}/>); await tick() })
+    expect(window.location.hash).toBe(hash.replace('incorrect-name', 'synthetic-imported-name'))
+    expect(window.history.length).toBe(length)
+    expect(window.history.state.retained).toBe(true)
+    expect(controller.route).toEqual(exact)
+    expect(controller.href(exact)).toBe(window.location.hash)
+    await act(async () => {
+      window.location.hash = hash.replace('incorrect-name', 'another-wrong-name')
+      await tick()
+    })
+    expect(window.location.hash).toBe(hash.replace('incorrect-name', 'synthetic-imported-name'))
+    expect(controller.route).toEqual(exact)
+    expect(window.history.length).toBe(length + 1)
+    await act(async () => root.unmount())
+  })
+
   it('protects query-selected editors while allowing navigation after their draft is resolved', async () => {
     const root = createRoot(container)
     const scope = parseAppRoute('#/settings/game-setup?gameSetup=synthetic-source')

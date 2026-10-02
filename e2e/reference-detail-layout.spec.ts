@@ -1,6 +1,7 @@
+import { referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR = '/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior'
+const WARRIOR = referencePath('base:class:warrior')
 
 async function checkDetailLayout(page: Page, desktop: boolean) {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
