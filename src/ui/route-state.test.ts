@@ -42,7 +42,7 @@ describe('reference route state', () => {
       resultLimit: 300,
     }
     const hash = formatReferenceRoute(state)
-    expect(hash).toMatch(/^#\/reference\/catalog\/pack%3Aalpha\/revisions\/r%2F1\/entities\/id\/item%3F2\?v=1/)
+    expect(hash).toMatch(/^#\/reference\/catalog\/pack%3Aalpha\/revisions\/r%2F1\/entities\/id\/item%3F2\/definition\?v=1/)
     expect(hash).not.toContain('selected=')
     expect(parseReferenceRoute(hash)).toEqual(state)
   })

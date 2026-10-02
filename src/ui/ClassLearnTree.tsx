@@ -52,7 +52,7 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
             const descriptionId = `${arrowId}-${key}`
             const definition = skill.definition
             return <li className={`learn-tree__node learn-tree__node--${skill.kind}${definition ? '' : ' learn-tree__node--unresolved'}`} data-position={key} key={key} style={{ left: `${node.column / columns * 100}%`, top: node.row * TREE_LAYOUT.rowHeight, width: `${100 / columns}%`, height: TREE_LAYOUT.nodeHeight }}>
-              {definition && catalog ? <a aria-describedby={requirement ? descriptionId : undefined} className="learn-tree__skill" href={formatAppRoute({ page: { page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: definition.id } }, overlays: [], query: {} })} title={requirement || undefined}>{contents}</a> : <div aria-describedby={requirement ? descriptionId : undefined} className="learn-tree__skill" title={requirement || undefined}>{contents}</div>}
+              {definition && catalog ? <a aria-describedby={requirement ? descriptionId : undefined} className="learn-tree__skill" href={formatAppRoute({ page: { page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: definition.id } }, overlays: [], query: {} }, () => definition.name)} title={requirement || undefined}>{contents}</a> : <div aria-describedby={requirement ? descriptionId : undefined} className="learn-tree__skill" title={requirement || undefined}>{contents}</div>}
               {requirement && <span className="learn-tree__requirement" id={descriptionId}>{requirement}</span>}
             </li>
           })}

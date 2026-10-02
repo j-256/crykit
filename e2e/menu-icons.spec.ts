@@ -1,3 +1,4 @@
+import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
@@ -65,7 +66,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
-  await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior')
+  await page.goto(referencePath('base:class:warrior'))
   await page.reload()
   await loadedIcons(page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' }), 4)
   expect(external).toEqual([])
@@ -75,7 +76,7 @@ test('failed menu icons retain readable equipment labels', async ({ browser, bas
   const context = await browser.newContext({ serviceWorkers: 'block' })
   const page = await context.newPage()
   await page.route(/\.(?:gif|png|webp)(?:\?|$)/, route => route.abort())
-  await page.goto(`${baseURL}/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/class/warrior`)
+  await page.goto(`${baseURL}${referencePath('base:class:warrior')}`)
   const weapons = page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' })
   await expect(weapons).toBeVisible()
   await expect(weapons.locator('img')).toHaveCount(0)
