@@ -144,25 +144,6 @@
         "checksum"
       ]
     },
-    "legacy": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "const": "guide-v1"
-        },
-        "formulas": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/formula"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "growth",
-        "formulas"
-      ]
-    },
     "verification": {
       "type": "object",
       "properties": {
@@ -250,6 +231,9 @@
     "combatVerification": {
       "$ref": "#/$defs/combatVerification"
     },
+    "previewVerification": {
+      "$ref": "#/$defs/previewVerification"
+    },
     "example": {
       "type": "object",
       "properties": {
@@ -284,11 +268,11 @@
     "id",
     "rules",
     "data",
-    "legacy",
     "verification",
     "combat",
     "combatData",
     "combatVerification",
+    "previewVerification",
     "example",
     "enemy"
   ],
@@ -1030,6 +1014,50 @@
         "engine",
         "evidence",
         "values",
+        "cases"
+      ],
+      "additionalProperties": false
+    },
+    "previewVerification": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "formula": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+              },
+              "input": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/combatValue"
+                }
+              },
+              "expected": {
+                "$ref": "#/$defs/combatValue"
+              }
+            },
+            "required": [
+              "formula",
+              "input",
+              "expected"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidence",
         "cases"
       ],
       "additionalProperties": false

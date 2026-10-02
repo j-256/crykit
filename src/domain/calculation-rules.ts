@@ -29,7 +29,6 @@ export const PC_RULES = rulesData as unknown as CalculationRules
 export const PC_MODEL = PC_RULES.id
 export const PC_LEVEL_CAP = PC_RULES.limits.levelCap
 export const NATIVE_DATA = nativeData
-export const GUIDE_RULES = guideData as unknown as Omit<typeof guideData, 'formulas'> & { readonly formulas: Readonly<Record<string, Formula>> }
 type ArithmeticRules = { readonly limits: Pick<CalculationRules['limits'], 'expressionDepth' | 'expressionNodes'>; readonly formulas: CalculationRules['formulas'] }
 
 function roundEven(value: number): number {
