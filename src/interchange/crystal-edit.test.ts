@@ -3,6 +3,7 @@ import { IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { previewImport } from './import'
+import { MOD_LIBRARY_IMPORT_REVISION } from './crystal-edit'
 import { NativeCatalogSnapshotSchema } from './native-schema'
 import { requirePlaythrough } from '../domain'
 import type { CatalogSnapshot } from '../domain/types'
@@ -29,7 +30,7 @@ describe('Crystal Edit reference import', () => {
     expect(preview.counts).toMatchObject({ reference: 2, personal: 0, mixed: 0 })
     const catalog = preview.proposed.catalogs[0]!
     expect(Object.keys(catalog.entities).every(id => id.startsWith(`mod:${encodeURIComponent(input.ID)}:`))).toBe(true)
-    expect(catalog.revisionId).toBe(`sha256:${preview.sourceDigest}:${IMPORTED_RULES_REVISION}`)
+    expect(catalog.revisionId).toBe(`sha256:${preview.sourceDigest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
     expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
     const job = modModelEntity(catalog, 'crystal-edit:Jobs:40')!
     expect(growthRatings(job)).toEqual({ HP: 70, MP: 20 })

@@ -11,9 +11,17 @@ const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], stri
 })
 export const LEARNABLE_INNATE_SKILLS_MOD_LABEL = 'Learnable Innate Skills'
 
+function modStateTone(state?: DefinitionModAvailability['state']) {
+  return state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
+}
+
+export function ModStateBadge({ state }: { readonly state: DefinitionModAvailability['state'] }) {
+  return <Badge tone={modStateTone(state)}>{MOD_STATE_LABELS[state]}</Badge>
+}
+
 export function ModBadge({ name, state, className = '', showState = true }: { readonly name: string; readonly state?: DefinitionModAvailability['state']; readonly className?: string; readonly showState?: boolean }) {
   const status = state ? MOD_STATE_LABELS[state] : undefined
-  const tone = !showState ? 'info' : state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
+  const tone = !showState ? 'info' : modStateTone(state)
   return <span aria-label={`Mod: ${name}${showState && status ? `. ${status}.` : ''}`} className={`mod-badge ${className}`.trim()} data-mod-badge={name} data-mod-state={state}><Badge tone={tone}>Mod: {name}</Badge>{showState && status && <small className="mod-badge__state">{status}</small>}</span>
 }
 

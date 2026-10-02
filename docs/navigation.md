@@ -26,4 +26,6 @@ Import previews depend on the file selected in that browser session. Their URLs 
 
 Reference and inventory filter parameters remain in the address where needed. Source filters display readable labels while retaining the exact source values for filtering and provenance. Search results and reference selections use semantic paths; JSON-encoded target and selection queries do not navigate to records.
 
+Mods open temporary Reference pages with a `library-mod` identity in the query. List searches, filters, and detail links retain that catalog scope. A reload decodes the selected bundled source again or reuses its latest explicitly saved revision; it does not import the mod. Temporary filters are omitted from the standing Reference's session storage. Clearing search filters keeps the selected catalog; **Return to Reference** restores the standing library and its previous search.
+
 A slot action in the recorded character sheet opens the capture route with its definition-picker descendant. The picker focuses search on opening and returns focus to its field on closing. A changed snapshot form blocks outside dismissal, Escape, and navigation away until saved or explicitly cancelled, and warns before browser refresh. After a storage failure, closing the form leaves the application recovery draft available for Retry save or backup export.

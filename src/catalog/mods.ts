@@ -1,6 +1,6 @@
 import { definitionLineageRootRef } from '../domain/definitions'
-import { modState, type ModState } from '../domain/mods'
-import type { CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
+import { modState, normalizeModName, type DefinitionModAvailability } from '../domain/mods'
+import type { CatalogId, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
 import { EQUIPMENT_EXPANSION_ENTITY_IDS } from './equipment-expansion'
 import { SWITCH_CLASS_RECORDS } from './switch'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
@@ -8,6 +8,9 @@ import { bundledModIdentity } from '../domain/bundled-mods'
 import { nativeRecord } from '../domain/native-game'
 import { catalogEntity } from '../domain/entity-identities'
 import moonlightLinks from './moonlight-project-links-v1.json' with { type: 'json' }
+import { BUNDLED_MOD_LIBRARY } from './mod-library-metadata'
+import { MOD_PROJECT_FIELD } from '../domain/mod-library'
+import { CRYSTAL_EDIT_CATALOG_SCHEMA, modCatalogTitle } from '../domain/mod-layers'
 
 export const MOONLIGHT_PROJECT_MOD = 'Moonlight Project'
 
@@ -99,15 +102,32 @@ const REQUIRED_MOD_BY_ENTITY: ReadonlyMap<string, string> = new Map([
   ['mod:additional-boss-elder-entities:monster:elder-entities', 'Additional Boss: Elder Entities'],
 ])
 
-export interface DefinitionModAvailability {
-  readonly state: ModState
-  readonly requiredMod?: string
+export type { DefinitionModAvailability } from '../domain/mods'
+
+export function projectModAvailability(projectId: CatalogId, title: string, gameSetup?: GameSetupRevision, revisionId?: string): DefinitionModAvailability {
+  const layers = gameSetup?.modComposition?.layers.filter(layer => layer.catalogId === projectId) ?? []
+  if (layers.length) {
+    const enabled = layers.some(layer => layer.enabled && (!revisionId || layer.catalogRevisionId === revisionId))
+    return { requiredMod: title, state: enabled ? 'enabled' : layers.every(layer => !layer.enabled) ? 'disabled' : 'unknown' }
+  }
+  const names = BUNDLED_MOD_LIBRARY.find(mod => mod.id === projectId)?.catalogNames ?? []
+  const states = names.map(name => modState(gameSetup, name))
+  const state = states.includes('conflicting') || states.includes('enabled') && states.includes('disabled') ? 'conflicting' : states.includes('enabled') ? 'enabled' : states.includes('disabled') ? 'disabled' : 'unknown'
+  return { requiredMod: title, state }
 }
 
 export function definitionModAvailability(localData: LocalData, ref: EntityRef, gameSetup?: GameSetupRevision, catalogs: readonly CatalogSnapshot[] = []): DefinitionModAvailability {
   const root = definitionLineageRootRef(localData, ref)
   const catalog = root.kind === 'catalog' ? catalogs.find(value => value.id === root.catalogId && value.revisionId === root.catalogRevisionId) : undefined
   const entity = root.kind === 'catalog' && catalog ? catalogEntity(catalog, root.entityId) : undefined
+  if (catalog?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA) return projectModAvailability(catalog.id, modCatalogTitle(catalog), gameSetup, catalog.revisionId)
+  const personal = ref.kind === 'personal' ? localData.personalDefinitions[ref.definitionId] : undefined
+  const project = (personal ?? entity)?.fields[MOD_PROJECT_FIELD]
+  const sourceMod = (personal ?? entity)?.fields['Source mod']
+  if (project?.state === 'known' && typeof project.value === 'string') {
+    const title = sourceMod?.state === 'known' && typeof sourceMod.value === 'string' ? sourceMod.value : BUNDLED_MOD_LIBRARY.find(mod => mod.id === project.value)?.title ?? 'Source mod'
+    return projectModAvailability(project.value as CatalogId, title, gameSetup)
+  }
   const effectiveLayer = entity?.fields['Effective mod layer']
   if (effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string') return { requiredMod: effectiveLayer.value, state: gameSetup?.catalogLock[catalog!.id] === catalog!.revisionId ? 'enabled' : 'unknown' }
   const bundledMod = entity && bundledModIdentity(entity)
@@ -118,7 +138,8 @@ export function definitionModAvailability(localData: LocalData, ref: EntityRef, 
   const validCatalog = root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && baselineRevision !== undefined && baselineRevision === STARTER_CATALOG_REVISION_ID
   const equipmentExpansion = validCatalog && CURRENT_EQUIPMENT_EXPANSION_IDS.has(root.entityId)
   const requiredMod = validCatalog ? equipmentExpansion ? 'Equipment Expansion' : REQUIRED_MOD_BY_ENTITY.get(root.entityId) : undefined
-  return requiredMod ? { state: modState(gameSetup, requiredMod), requiredMod } : { state: 'unknown' }
+  const namedMod = requiredMod ?? (sourceMod?.state === 'known' && typeof sourceMod.value === 'string' && normalizeModName(sourceMod.value) !== 'base game' ? sourceMod.value : undefined)
+  return namedMod ? { state: modState(gameSetup, namedMod), requiredMod: namedMod } : { state: 'unknown' }
 }
 
 export function modAvailabilityLabel(availability: DefinitionModAvailability): string | undefined {

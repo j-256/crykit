@@ -1,0 +1,20 @@
+.mod-library__card { min-width: 0; }
+.mod-library__header h2 { margin: 0; }
+.mod-library__card h3 { margin: 0; overflow-wrap: anywhere; }
+.mod-library__card small { display: block; overflow-wrap: anywhere; }
+.mod-library__summary { margin: 0; color: var(--muted); }
+.mod-library__versions > summary { cursor: pointer; }
+.mod-library__versions > .stack { margin-top: .75rem; }
+.mod-library__revision { border-top: 1px solid var(--line); padding-top: .75rem; }
+.mod-library__revision strong { display: block; margin-top: .35rem; }
+.mod-library__revision p { margin: .35rem 0; }
+@media (max-width: 600px) {
+  .mod-library__header { flex-direction: column; align-items: stretch; gap: .75rem; }
+  .mod-library__header > .cluster { display: grid; grid-template-columns: 1fr 1fr; }
+  .mod-library__header > .cluster > .button:last-child { grid-column: 1 / -1; }
+  .mod-library__card .split { flex-direction: column; align-items: stretch; gap: .75rem; }
+  .mod-library__card .split > .button { width: 100%; }
+  .mod-library__card .split > .badge { align-self: flex-start; }
+  .mod-library__actions { display: grid; grid-template-columns: 1fr; }
+  .mod-library__actions > .button { width: 100%; }
+}

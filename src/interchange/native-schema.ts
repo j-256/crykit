@@ -3,6 +3,7 @@ import { CALCULATION_GENDERS } from '../domain/calculation-plan'
 import { QUINTAR_BREEDING_STEP_IDS } from '../catalog/quintar-breeding'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { MAX_MOD_LAYERS } from '../domain/mod-layers'
+import { REFERENCE_LIBRARY_SETTINGS_VERSION } from '../domain/reference-library'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
 import { TEAM_SIZE } from '../domain/scenarios'
@@ -446,6 +447,7 @@ export const NativeLocalDataSchema = z.object({
   importReceipts: z.record(id, importReceipt),
   changes: z.array(changeEntry).max(500),
   skillTreeLayouts: z.record(id, skillLayout).optional(),
+  referenceLibrary: z.object({ version: z.literal(REFERENCE_LIBRARY_SETTINGS_VERSION), excludedMods: z.array(id).max(MAX_COLLECTION_LENGTH).refine(values => new Set(values).size === values.length, 'Mod identities must be unique') }).strict().optional(),
 }).strict()
 
 const ClassifiedNativeLocalDataSchema = NativeLocalDataSchema.extend({ schemaVersion: z.literal('2.2.0'), builds: z.record(id, StoredBuildSchema) })

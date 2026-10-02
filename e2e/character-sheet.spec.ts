@@ -188,6 +188,7 @@ test('member details stay pinned during pointer transit and follow deliberate fo
   await page.getByRole('button', { name: 'Choose Off hand', exact: true }).click()
   await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()
   const picker = page.getByRole('dialog', { name: 'Choose Off hand', exact: true })
+  await picker.getByRole('searchbox').fill('Ace of Diamonds')
   const candidate = picker.locator('[data-definition-result="true"]').filter({ has: page.getByText('Ace of Diamonds', { exact: true }) })
   await candidate.hover()
   await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()

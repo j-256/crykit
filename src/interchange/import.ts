@@ -3,7 +3,8 @@ import { isJsonObject, parseBoundedJson } from './json'
 import { previewNativeBackup } from './native'
 import { previewXlsx } from './normalize-xlsx'
 import { previewResearchJson } from './research'
-import { isCrystalEdit, previewCrystalEdit } from './crystal-edit'
+import { CRYSTAL_EDIT_JSON_LIMITS, isCrystalEdit, previewCrystalEdit } from './crystal-edit'
+import { MAX_MOD_SOURCE_BYTES } from '../domain/mod-library'
 import type { ImportPreview } from './types'
 import { inspectZip, NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
@@ -31,14 +32,16 @@ function looksLikeResearchJson(bytes: Uint8Array, label: string): boolean {
 }
 
 export async function previewImport(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
-  if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMPORT_BYTES) {
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_MOD_SOURCE_BYTES) {
     throw new AppDataError('unsupported-format', 'The selected file is empty or larger than the import limit', {
       recoverable: true,
-      details: { limit: MAX_IMPORT_BYTES },
+      details: { limit: MAX_MOD_SOURCE_BYTES },
     })
   }
   const leadingByte = firstJsonByte(bytes)
-  if (leadingByte === 0x7b) return isCrystalEdit(parseBoundedJson(bytes, filename)) ? previewCrystalEdit(bytes, filename) : previewResearchJson(bytes, filename)
+  if (leadingByte === 0x7b && isCrystalEdit(parseBoundedJson(bytes, filename, CRYSTAL_EDIT_JSON_LIMITS))) return previewCrystalEdit(bytes, filename)
+  if (bytes.byteLength > MAX_IMPORT_BYTES) throw new AppDataError('unsupported-format', 'The selected file is larger than the import limit', { recoverable: true, details: { limit: MAX_IMPORT_BYTES } })
+  if (leadingByte === 0x7b) return previewResearchJson(bytes, filename)
   if (!isZip(bytes)) {
     throw new AppDataError('unsupported-format', 'Select Crystal Edit JSON, research JSON, research ZIP, XLSX, or a native backup', {
       recoverable: true,

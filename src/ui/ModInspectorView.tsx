@@ -7,12 +7,13 @@ import { deriveInspectorFileInfo } from '../mod-inspector/file-info'
 import type { DocumentChange, InspectorDraft, InspectorDraftSummary, InspectorRelationship, InspectorResolver, JsonNode, JsonPath, ParsedDocument } from '../mod-inspector/types'
 import { Button, Field, InlineNotice, ScreenHeader } from './components'
 import type { DraftActions, DraftChangeHandler } from './drafts'
+import type { CatalogId } from '../domain/types'
 import { readModFile } from './mod-inspector/import-file'
 import { createSearchScheduler } from './mod-inspector/search-scheduler'
 import { isExpanded, prepareVisibleTree, revealPath, setExpansion, type ExpansionRule, type VisibleTreeRow } from './mod-inspector/tree'
 import './mod-inspector/inspector.css'
 
-export type SaveModToLibrary = (text: string, filename: string) => Promise<{ readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }>
+export type SaveModToLibrary = (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference?: boolean) => Promise<{ readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }>
 
 const PAGE_SIZE = 80
 const TREE_ROW_PAGE_SIZE = 240

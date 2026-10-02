@@ -1,7 +1,8 @@
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
 import { modRevision } from './domain/mod-library'
+import { setModInReference } from './domain/reference-library'
 import { adoptTeam, recordBuildForCharacter, saveTeam, type SaveTeamInput } from './domain/teams'
-import type { TeamId } from './domain/types'
+import type { CatalogId, TeamId } from './domain/types'
 import { TeamsView } from './ui/TeamsView'
 import { createPlaythroughWithSetup } from './domain/game-setups'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -92,6 +93,7 @@ import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions
 import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
 
 const ModsView = lazy(() => import('./ui/ModsView').then(module => ({ default: module.ModsView })))
+const ModCatalogReference = lazy(() => import('./ui/ModCatalogReference'))
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 const PAINT_WAIT_FALLBACK_MS = 250
@@ -160,7 +162,8 @@ export default function App() {
   const [importError, setImportError] = useState<string>()
   const [importBusy, setImportBusy] = useState(false)
   const [externalUpdate, setExternalUpdate] = useState(false)
-  const resolveEntityName = useMemo(() => createEntityRouteNameResolver(corrections.catalogs), [corrections.catalogs])
+  const [routeCatalogs, setRouteCatalogs] = useState<readonly CatalogSnapshot[]>([])
+  const resolveEntityName = useMemo(() => createEntityRouteNameResolver([...corrections.catalogs, ...routeCatalogs]), [corrections.catalogs, routeCatalogs])
   const navigation = useNavigationController({
     resolveEntityName,
     shouldBlock: (from, to) => {
@@ -573,21 +576,27 @@ export default function App() {
     } catch (error) { setImportError(formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
   }, [closeData, installLoadedData, waitForSafeTransition])
 
-  const saveModDraft = useCallback(async (text: string, filename: string) => {
+  const saveModDraft = useCallback(async (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference = false) => {
     setImportBusy(true)
     try {
       const preview = await previewImport(new TextEncoder().encode(text), filename)
       const revision = preview.proposed.catalogs[0] && modRevision(preview.proposed.catalogs[0])
-      if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a Crystal Edit project ID, editor version, and supported records or game settings before it can be used for planning.')
+      if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a Crystal Edit project ID, editor version, and recognized project structure before it can be saved to the mod library.')
+      if (expectedCatalogId && revision.catalogId !== expectedCatalogId) throw new Error('This file has a different Crystal Edit project ID. Open it in the mod editor to save it as a separate mod.')
       await waitForSafeTransition()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
       const unchanged = current.catalogs.some(catalog => catalog.id === revision.catalogId && catalog.revisionId === revision.catalogRevisionId)
-      const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
+      const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current, ...(includeInReference ? { includeModInReference: revision.catalogId } : {}) })
       installLoadedData(loaded)
       return { title: revision.title, unchanged, warnings: preview.warnings.map(warning => warning.message) }
     } finally { setImportBusy(false) }
   }, [installLoadedData, waitForSafeTransition])
+
+  const setReferenceMembership = useCallback(async (modId: string, included: boolean) => {
+    await waitForSafeTransition()
+    await commitLocalData(data => setModInReference(data, modId, included, data.revision), { rollbackOnFailure: true })
+  }, [commitLocalData, waitForSafeTransition])
 
   const saveShare = useCallback(async (payload: SharePayload) => {
     await waitForSafeTransition()
@@ -629,7 +638,7 @@ export default function App() {
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
   const content = sharedPage ? <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Kit did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onAdopt={adoptPlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onSetReference={setReferenceMembership}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onAdopt={adoptPlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={corrections.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current

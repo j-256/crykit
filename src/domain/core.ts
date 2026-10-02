@@ -120,6 +120,7 @@ type LocalDataUpdate = Partial<
     | 'playthroughs'
     | 'importReceipts'
     | 'skillTreeLayouts'
+    | 'referenceLibrary'
   >
 >
 

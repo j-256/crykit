@@ -65406,6 +65406,22 @@
         "Pairing results, capacity and distinct-track counting agree; Desert and Highland require one partner win in Windows code versus two in the community route. Capture directions and route choice retain separate provenance"
       ]
     },
+    "https://steamcommunity.com/workshop/browse/?appid=1637730": {
+      "disposition": "claim-specific",
+      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
+      "files": [
+        "NOTICE.md",
+        "docs/mods.md",
+        "src/domain/mod-workshop.ts"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://store.steampowered.com/app/1637730/Crystal_Project/": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",

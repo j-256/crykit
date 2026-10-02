@@ -1,4 +1,5 @@
 import { mergeCorrections } from '../domain/corrections'
+import { referenceLibraryWithMod } from '../domain/reference-library'
 import { loadCorrections, saveCorrections } from './corrections'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
@@ -479,8 +480,11 @@ export async function commitImport(
           if (preview.detectedFormat !== 'crystal-edit-json-1' || preview.counts.personal || preview.counts.mixed) {
             throw new AppDataError('import-conflict', 'Only a reference-only Crystal Edit preview can be added to existing planner data', { recoverable: true })
           }
-          const receiptsAlreadyImported = Object.values(preview.proposed.localData.importReceipts)
-          if (receiptsAlreadyImported.length > 0 && receiptsAlreadyImported.every(candidate => target.localData.importReceipts[candidate.id]?.sourceIdentity === candidate.sourceIdentity)) {
+          if (options.includeModInReference && !preview.proposed.catalogs.some(catalog => catalog.id === options.includeModInReference)) throw new AppDataError('import-conflict', 'Reference membership must match the imported mod identity', { recoverable: true })
+          const candidateReceipts = Object.values(preview.proposed.localData.importReceipts)
+          const alreadyImported = candidateReceipts.length > 0 && candidateReceipts.every(candidate => target.localData.importReceipts[candidate.id]?.sourceIdentity === candidate.sourceIdentity)
+          const inclusionChanged = Boolean(options.includeModInReference && target.localData.referenceLibrary?.excludedMods.includes(options.includeModInReference))
+          if (alreadyImported && !inclusionChanged) {
             committed = true
             return
           }
@@ -492,10 +496,12 @@ export async function commitImport(
             const existing = await database.sources.get(source.id)
             return existing ? { ...source, importedAt: existing.importedAt, filename: existing.filename } : source
           }))
-          await putCandidateData(database, { ...preview.proposed, catalogs, sources })
+          if (!alreadyImported) await putCandidateData(database, { ...preview.proposed, catalogs, sources })
           const timestamp = nowTimestamp()
-          const receipts = Object.fromEntries(Object.entries(preview.proposed.localData.importReceipts).map(([id, receipt]) => [id, { ...receipt, importedAt: timestamp, localDataRevision: target.revision + 1 }]))
-          const updated = changedLocalData(target.localData, { ...target.localData, importReceipts: { ...target.localData.importReceipts, ...receipts } }, 'add-reference-catalog', timestamp)
+          const receipts = alreadyImported ? {} : Object.fromEntries(Object.entries(preview.proposed.localData.importReceipts).map(([id, receipt]) => [id, { ...receipt, importedAt: timestamp, localDataRevision: target.revision + 1 }]))
+          const command = alreadyImported ? 'reference.mod-membership' : 'add-reference-catalog'
+          const membership = inclusionChanged ? { referenceLibrary: referenceLibraryWithMod(target.localData.referenceLibrary, options.includeModInReference!, true) } : {}
+          const updated = changedLocalData(target.localData, { ...target.localData, importReceipts: { ...target.localData.importReceipts, ...receipts }, ...membership }, command, timestamp)
           const storedCatalogs = [
             ...BUNDLED_CATALOGS,
             ...(await database.catalogs.toArray())
@@ -504,8 +510,8 @@ export async function commitImport(
           ]
           validateNativeLocalDataGraph(updated, storedCatalogs)
           await database.localDatas.put({ ...target, revision: updated.revision, updatedAt: timestamp, localData: updated })
-          await database.history.add(historyEntry(target.localData, updated, 'add-reference-catalog', timestamp))
-          await database.imports.put({ id: preview.id, sourceDigest: preview.sourceDigest, localDataId: target.localData.id, importedAt: timestamp })
+          await database.history.add(historyEntry(target.localData, updated, command, timestamp))
+          if (!alreadyImported) await database.imports.put({ id: preview.id, sourceDigest: preview.sourceDigest, localDataId: target.localData.id, importedAt: timestamp })
           committed = true
           return
         }

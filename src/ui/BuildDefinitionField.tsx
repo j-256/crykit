@@ -3,6 +3,7 @@ import { isPotentiallyLearnableInnate } from '../catalog/switch'
 import { nativeDefinitionLabel, nativeDisplayName } from '../domain/native-game'
 import { entityDefinitionKey } from '../domain'
 import type { CatalogEntityKind, EntityRef, GameSetupRevision, SlotDefinition } from '../domain/types'
+import { modListPriority } from '../domain/mods'
 import { definitionModAvailability, modPlanningReason } from '../catalog/mods'
 import { assessEquipmentPermission, type BuildEquipmentPermissions } from '../domain/build-mechanics'
 import { Dropdown } from './Dropdown'
@@ -52,7 +53,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
     const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selected?.key)
     return choices.filter((option) => allowedKinds.includes(option.kind) && (option.kind !== 'innate' || (includeInnates && isPotentiallyLearnableInnate(option.record))) && !isReferenceArticle(localData, option.ref) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)) && tokens.every((token) => `${optionName(option)} ${option.name} ${commandName(option) ?? ''} ${option.aliases.join(' ')} ${option.description ?? ''}`.toLowerCase().includes(token)))
-      .sort((a, b) => Number(permissionAssessments.get(a.key)?.status === 'invalid') - Number(permissionAssessments.get(b.key)?.status === 'invalid') || Number(Boolean(modPlanningReason(a.modAvailability))) - Number(Boolean(modPlanningReason(b.modAvailability))) || Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
+      .sort((a, b) => modListPriority(a.modAvailability) - modListPriority(b.modAvailability) || Number(permissionAssessments.get(a.key)?.status === 'invalid') - Number(permissionAssessments.get(b.key)?.status === 'invalid') || Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)))
   }, [allowedKinds, availableOptions, includeAlternatives, includeInnates, equipmentSlot, label, open, localData, permissionAssessments, query, selected?.key])
   const visible = candidates.slice(0, resultLimit)
   const hasMore = candidates.length > resultLimit

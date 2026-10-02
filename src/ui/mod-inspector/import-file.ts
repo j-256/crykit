@@ -1,4 +1,6 @@
-export const MAX_IMPORT_BYTES = 96 * 1024 * 1024
+import { MAX_MOD_SOURCE_BYTES } from '../../domain/mod-library'
+
+export const MAX_IMPORT_BYTES = MAX_MOD_SOURCE_BYTES
 
 export async function readModFile(file: Pick<File, 'size' | 'arrayBuffer'>): Promise<string> {
   if (file.size > MAX_IMPORT_BYTES) throw new Error('Mod exceeds the 96 MiB import size limit. Split the mod into smaller documents before importing.')

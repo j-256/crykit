@@ -1,6 +1,7 @@
 import type { JsonNode, JsonNodeKind, JsonPath, ParsedDocument } from './types'
+import { MAX_MOD_SOURCE_BYTES, MAX_MOD_SOURCE_NODES } from '../domain/mod-library'
 
-export const DOCUMENT_LIMITS = Object.freeze({ textLength: 96 * 1024 * 1024, nodes: 3_000_000, depth: 128 })
+export const DOCUMENT_LIMITS = Object.freeze({ textLength: MAX_MOD_SOURCE_BYTES, nodes: MAX_MOD_SOURCE_NODES, depth: 128 })
 const MAX_CACHED_CHILD_NODES = 4096
 const MAX_PINNED_CHILD_NODES = 32_768
 const MAX_PINNED_COLLECTIONS = 128

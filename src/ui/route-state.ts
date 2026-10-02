@@ -11,6 +11,7 @@ const ROUTE_VERSION = '1'
 const MAX_QUERY_LENGTH = 500
 const MAX_FACET_LENGTH = 256
 const MAX_FACET_VALUES = 64
+const MAX_MOD_LIBRARY_KEY_LENGTH = 1_024
 export const ROUTE_MAX_RESULT_LIMIT = 2_000
 const KINDS = new Set<CatalogEntityKind>([
   'item',
@@ -38,6 +39,7 @@ export interface ReferenceRouteState extends ReferenceFacetFilters {
   readonly ppMin?: number
   readonly ppMax?: number
   readonly selectedKey?: string
+  readonly libraryMod?: string
   readonly resultLimit: number
 }
 
@@ -113,6 +115,7 @@ export function normalizeReferenceRouteState(value: unknown): ReferenceRouteStat
     ...(finiteNumber(record.ppMin) === undefined ? {} : { ppMin: finiteNumber(record.ppMin) }),
     ...(finiteNumber(record.ppMax) === undefined ? {} : { ppMax: finiteNumber(record.ppMax) }),
     ...(selectedKey(record.selectedKey) === undefined ? {} : { selectedKey: selectedKey(record.selectedKey) }),
+    ...(opaqueString(record.libraryMod, MAX_MOD_LIBRARY_KEY_LENGTH) ? { libraryMod: opaqueString(record.libraryMod, MAX_MOD_LIBRARY_KEY_LENGTH) } : {}),
     resultLimit: resultLimit(record.resultLimit),
   }
 }
@@ -120,7 +123,8 @@ export function normalizeReferenceRouteState(value: unknown): ReferenceRouteStat
 function parseStoredState(stored: string | null | undefined): ReferenceRouteState | undefined {
   if (!stored || stored.length > 32_768) return undefined
   try {
-    return normalizeReferenceRouteState(JSON.parse(stored))
+    const state = normalizeReferenceRouteState(JSON.parse(stored))
+    return state.libraryMod ? undefined : state
   } catch {
     return undefined
   }
@@ -148,6 +152,7 @@ function routeQueryFromParams(params: URLSearchParams): RouteQuery {
 function referenceQuery(state: ReferenceRouteState): RouteQuery {
   const params = new URLSearchParams({ v: ROUTE_VERSION })
   if (state.query) params.set('q', state.query)
+  if (state.libraryMod) params.set('library-mod', state.libraryMod)
   for (const kind of state.kinds) params.append('kind', kind)
   for (const category of state.categories) params.append('category', category)
   for (const source of state.sources) params.append('source', source)
@@ -171,6 +176,7 @@ export function parseReferenceRoute(hash: string, stored?: string | null): Refer
     : undefined
   return normalizeReferenceRouteState({
     query: params.get('q') ?? '',
+    libraryMod: params.get('library-mod'),
     kinds: params.getAll('kind'),
     categories: params.getAll('category'),
     sources: params.getAll('source'),
@@ -210,7 +216,7 @@ export function commitReferenceRouteState(value: ReferenceRouteState, mode: 'pus
   const state = normalizeReferenceRouteState(value)
   if (typeof window === 'undefined') return state
   try {
-    window.sessionStorage.setItem(REFERENCE_ROUTE_STORAGE_KEY, JSON.stringify(state))
+    if (!state.libraryMod) window.sessionStorage.setItem(REFERENCE_ROUTE_STORAGE_KEY, JSON.stringify(state))
   } catch {
     // Route state remains in browser history when session storage is unavailable
   }

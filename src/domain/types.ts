@@ -513,6 +513,11 @@ export interface Playthrough {
   readonly skillTreeCaptures?: Readonly<Record<string, SkillTreeCapture>>
 }
 
+export interface ReferenceLibrarySettings {
+  readonly version: 1
+  readonly excludedMods: readonly string[]
+}
+
 export const LOCAL_DATA_SCHEMA_VERSION = '2.3.0'
 
 export interface LocalData {
@@ -532,6 +537,7 @@ export interface LocalData {
   readonly importReceipts: Readonly<Record<string, ImportReceipt>>
   readonly changes: readonly ChangeEntry[]
   readonly skillTreeLayouts?: Readonly<Record<string, SkillTreeLayout>>
+  readonly referenceLibrary?: ReferenceLibrarySettings
 }
 
 export type TruthValue = 'true' | 'false' | 'unknown'

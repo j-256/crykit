@@ -1,3 +1,4 @@
+import { calculationModResolver } from './calculation-mods'
 import type { GameRuleResolution } from './game-rules'
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES } from './calculation-rules'
 import { definitionSourceRecord, knownField, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
@@ -55,7 +56,9 @@ export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve:
   return undefined
 }
 
-export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
+export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
+  const modScope = calculationModResolver(sourceResolve)
+  const resolve = modScope.resolve
   const plan = content.calculation
   const issues = [...unknownInputs, ...(gameRules?.issues ?? [])]
   const effects = new Set<string>()
@@ -64,7 +67,7 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   const empty = unknownStats()
   if (plan?.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
     issues.push(!primary ? 'Primary class has no verified numeric record.' : 'Choose a supported calculation model and level.')
-    return { base: empty, neutral: empty, male: empty, female: empty, issues, effects: [] }
+    return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
   }
   const level = plan.level
   const growth: Record<string, number> = Object.fromEntries(PC_RULES.coreStats.map(stat => [stat, 0]))
@@ -173,6 +176,7 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   const vars: Record<string, number> = { hpMultiplier: equipment.hp + passives.hp, ttMultiplier: calculateFormula('multiplyPercent', [equipment.tt, passives.tt]), 'context.unarmed': Number(unarmed), 'context.dualWield': Number(unarmed || Boolean(isWeapon(main?.record) && isWeapon(off?.record))), 'context.twoHanded': Number(Boolean(main?.record && isWeapon(main.record) && main.record.IsTwoHanded === false && !off?.selection && weaponAttack !== undefined)), 'context.weaponAttack': weaponAttack ?? 0 }
   for (const [key, value] of Object.entries(gameRules?.battleConfig ?? NATIVE_DATA.battleConfig)) if (typeof value === 'number') vars[`config.${key}`] = value
   for (const mod of Object.values(PC_RULES.statMods)) vars[`tag.${mod.name}`] = Number(tags.has(mod.name))
+  issues.push(...modScope.issues)
   const base: Record<string, number | null> = { ...empty }
   const sheet = (gender?: NativeRecord): PCStats => {
     const scope = { ...vars }

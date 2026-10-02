@@ -1,3 +1,4 @@
+import { modListPriority, type DefinitionModAvailability } from '../domain/mods'
 import { definitionModAvailability } from '../catalog/mods'
 import { historicalCatalogKeys } from '../domain/corrections'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -11,7 +12,7 @@ import { Sheet } from './Sheet'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker } from './navigation'
 import { CONFIRMED_SKILL_MAP_SETS, skillMapSetForGameSetup, suggestSkillTreeMap } from '../catalog/skill-maps'
 
-interface Choice { readonly ref: EntityRef; readonly name: string; readonly kind: CatalogEntityKind; readonly className?: string; readonly requiredMod?: string }
+interface Choice { readonly ref: EntityRef; readonly name: string; readonly kind: CatalogEntityKind; readonly className?: string; readonly requiredMod?: string; readonly modAvailability?: DefinitionModAvailability }
 interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: CharacterId; readonly classRef?: EntityRef; readonly classMatch?: ScreenshotClassNameMatch<Choice>; readonly mappings: readonly SkillTreeMapping[]; readonly reviewed: boolean; readonly included: boolean }
 const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
 
@@ -32,11 +33,10 @@ function choices(localData: LocalData, catalogs: readonly CatalogSnapshot[]): re
     const entity = resolveDefinition(localData, catalogs, ref)
     if (!entity || !['class', 'ability', 'passive', 'innate', 'monsterMagic'].includes(entity.kind)) continue
     const modAvailability = definitionModAvailability(localData, ref, gameSetup, catalogs)
-    if (modAvailability.state === 'disabled') continue
     const field = entity.fields.Class
-    result.set(entityDefinitionKey(ref), { ref, name: entity.name, kind: entity.kind, ...(field?.state === 'known' && typeof field.value === 'string' ? { className: field.value } : {}), ...(modAvailability.requiredMod ? { requiredMod: modAvailability.requiredMod } : {}) })
+    result.set(entityDefinitionKey(ref), { ref, name: entity.name, kind: entity.kind, modAvailability, ...(field?.state === 'known' && typeof field.value === 'string' ? { className: field.value } : {}), ...(modAvailability.requiredMod ? { requiredMod: modAvailability.requiredMod } : {}) })
   }
-  return [...result.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return [...result.values()].sort((a, b) => modListPriority(a.modAvailability) - modListPriority(b.modAvailability) || a.name.localeCompare(b.name))
 }
 
 function uniqueName<T extends { readonly name: string }>(items: readonly T[], name?: string): T | undefined {
@@ -45,7 +45,7 @@ function uniqueName<T extends { readonly name: string }>(items: readonly T[], na
 }
 
 function choiceLabel(choice: Choice): string {
-  return `${choice.name}${choice.requiredMod ? ` (${choice.requiredMod} mod)` : ''}`
+  return `${choice.name}${choice.requiredMod ? ` (${choice.requiredMod} mod${choice.modAvailability?.state === 'enabled' ? '' : `: ${choice.modAvailability?.state}`})` : ''}`
 }
 
 export function SkillScreenshotImport({ localData, catalogs, onImport }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onImport: (captures: readonly ReviewedSkillTree[], expectedRevision: number) => Promise<void> }) {
@@ -153,7 +153,7 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
             <label className="check-row"><input checked={active.included} onChange={event => update({ included: event.target.checked })} type="checkbox"/>Include this screenshot</label>
             <div className="grid-2">
               <Field hint={`Screenshot reads: ${active.preview.characterName || 'Unrecognized'}`} label="Screenshot character"><select aria-label="Screenshot character" onChange={event => update({ characterId: event.target.value as CharacterId || undefined, reviewed: false })} value={active.characterId ?? ''}><option value="">Choose a character</option>{Object.values(requirePlaythrough(localData).characters).map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select></Field>
-              <Field hint={classHint} label="Screenshot class"><select aria-label="Screenshot class" onChange={event => setClass(classes.find(choice => entityDefinitionKey(choice.ref) === event.target.value)?.ref)} value={active.classRef ? entityDefinitionKey(active.classRef) : ''}><option value="">Choose a class</option>{classes.map(choice => <option key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choiceLabel(choice)}</option>)}</select></Field>
+              <Field hint={classHint} label="Screenshot class"><select aria-label="Screenshot class" onChange={event => setClass(classes.find(choice => entityDefinitionKey(choice.ref) === event.target.value)?.ref)} value={active.classRef ? entityDefinitionKey(active.classRef) : ''}><option value="">Choose a class</option>{classes.map(choice => <option data-mod-state={choice.modAvailability?.requiredMod ? choice.modAvailability.state : undefined} key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choiceLabel(choice)}</option>)}</select></Field>
             </div>
             <div className="skill-review-layout">
               <div>
@@ -170,7 +170,7 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
                   <Field label="Square state"><select aria-label="Square state" onChange={event => update({ preview: { ...active.preview, squares: active.preview.squares.map(entry => squareKey(entry) === squareKey(square) ? { ...entry, state: event.target.value as SkillSquareState } : entry) }, reviewed: false })} value={square.state}>{Object.entries(SQUARE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
                   <Field label="Find an ability"><input disabled={!active.classRef} onChange={event => setSearch(event.target.value)} type="search" value={search}/></Field>
                   <label className="check-row"><input checked={allClasses} onChange={event => setAllClasses(event.target.checked)} type="checkbox"/>Show definitions from all classes</label>
-                  <Field label="Ability for selected square"><select aria-label="Ability for selected square" disabled={!active.classRef} onChange={event => setMapping(options.find(choice => entityDefinitionKey(choice.ref) === event.target.value))} value={mapping ? entityDefinitionKey(mapping.ref) : ''}><option value="">Unresolved ability</option>{mapping && !candidates.some(choice => sameLogicalEntity(localData, choice.ref, mapping.ref)) && <option value={entityDefinitionKey(mapping.ref)}>{resolveDefinition(localData, catalogs, mapping.ref)?.name}</option>}{candidates.map(choice => <option key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choiceLabel(choice)} ({choice.kind})</option>)}</select></Field>
+                  <Field label="Ability for selected square"><select aria-label="Ability for selected square" disabled={!active.classRef} onChange={event => setMapping(options.find(choice => entityDefinitionKey(choice.ref) === event.target.value))} value={mapping ? entityDefinitionKey(mapping.ref) : ''}><option value="">Unresolved ability</option>{mapping && !candidates.some(choice => sameLogicalEntity(localData, choice.ref, mapping.ref)) && <option value={entityDefinitionKey(mapping.ref)}>{resolveDefinition(localData, catalogs, mapping.ref)?.name}</option>}{candidates.map(choice => <option data-mod-state={choice.modAvailability?.requiredMod ? choice.modAvailability.state : undefined} key={entityDefinitionKey(choice.ref)} value={entityDefinitionKey(choice.ref)}>{choiceLabel(choice)} ({choice.kind})</option>)}</select></Field>
                 </>}
               </div>
             </div>
