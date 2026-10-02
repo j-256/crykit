@@ -6,7 +6,7 @@ import { useOptionalCorrections } from './corrections-context'
 import { MoneyText } from './MoneyText'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { buildBehavior, sameBuildBehavior, compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, requirePlaythrough, sameLogicalEntity, TEAM_SIZE, validateBuildContent } from '../domain'
-import type { Build, BuildId, BuildKind, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, BuildState, GameSetupId, GameSetupRevision, GameSetupRevisionId, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
+import type { Build, BuildId, BuildRevision, BuildRevisionId, BuildRevisionContent, BuildSelection, GameSetupId, GameSetupRevision, GameSetupRevisionId, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData, ScenarioKind, TeamScenario, ValidationReport } from '../domain/types'
 import { Badge, Button, EmptyState, Field, IconButton, InlineNotice, ScreenHeader, Segmented } from './components'
 import { Icon } from './icons'
 import { formatAppError, activeGameSetup, catalogLocksMatch, entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
@@ -34,7 +34,7 @@ import type { BuildBehavior } from '../domain/build-behavior'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 
-export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly kind: BuildKind; readonly state: BuildState; readonly tags: readonly string[] }
+export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly behavior: BuildBehavior; readonly behaviorRevisionId?: GameSetupRevisionId; readonly note?: string }
 export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<ScenarioKind, 'recordedCurrent'>; readonly memberIds: readonly string[]; readonly baseline: 'empty' | 'recordedParty'; readonly enforceStock: boolean; readonly includeProtected: boolean; readonly buildRevisionId?: BuildRevisionId }
 
@@ -48,7 +48,7 @@ function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit,
   const createdRef = useRef<BuildId>(undefined)
   return <section className="build-column build-sheet-panel"><header className="build-column__header"><h2>New Build</h2><p>Start with any slot. Character learning and inventory can be checked when the Build is assigned to a team.</p></header><div className="build-column__body"><RevisionEditor catalogs={catalogs} locked={Boolean(localData.buildRevisions[revisionId])} onCancel={onCancel} onDirtyChange={onDirtyChange} onSaved={(revisionId) => { if (createdRef.current) onSaved(createdRef.current, revisionId) }} onSubmit={async (revision) => {
     const automaticTitle = revision.primaryClass ? `${entityName(localData, catalogs, revision.primaryClass)} build` : 'Untitled build'
-    const created = await onSubmit({ id, revisionId, title: title.trim() || automaticTitle, kind: 'build', state: 'draft', tags: buildTagsFromDraft(tags) }, revision)
+    const created = await onSubmit({ id, revisionId, title: title.trim() || automaticTitle, tags: buildTagsFromDraft(tags) }, revision)
     createdRef.current = created.buildId
     return created.revisionId
   }} localData={localData}>
@@ -70,10 +70,8 @@ function BuildCard({ build, selected, onSelect, onSlotSelect, localData, catalog
   const revision = build.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined
   const pinnedRevision = revision?.buildId === build.id ? revision : undefined
   const gameSetup = pinnedRevision ? ownRecordValue(localData.gameSetups, pinnedRevision.gameSetupRevisionId) : undefined
-  const stateLabel = build.state === 'hypothetical' ? 'Hypothetical' : build.kind === 'template' ? 'Template' : 'Draft'
-  const stateTone = build.state === 'hypothetical' ? 'warning' : 'info'
   return <article aria-current={selected ? 'true' : undefined} className="build-card" onClick={event => { if (event.currentTarget.contains(event.target as Node) && !(event.target as HTMLElement).closest('button, a, input, select, textarea')) onSelect() }}>
-    <span className="build-card__header"><button className="build-card__open" onClick={event => { event.stopPropagation(); onSelect() }} type="button"><strong>{build.title}</strong></button><Badge tone={stateTone}>{stateLabel}</Badge></span>
+    <span className="build-card__header"><button className="build-card__open" onClick={event => { event.stopPropagation(); onSelect() }} type="button"><strong>{build.title}</strong></button></span>
     <small className="build-card__meta">{gameSetup?.label ?? 'Game Setup unavailable'} · {pinnedRevision ? `revision ${pinnedRevision.revision}` : build.latestRevisionId ? 'checkpoint unavailable' : 'no revision'}</small>
     {pinnedRevision ? <BuildLoadoutSummary catalogs={catalogs} content={pinnedRevision.content} onEquipmentSelect={onSlotSelect} localData={localData} gameSetup={gameSetup}/> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
     {(build.tags.length > 0 || showShare && pinnedRevision) && <div className="build-card__actions">{build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}{showShare && pinnedRevision && <ShareButton disabled={shareBlocked} localData={localData} target={{ kind: 'build', revisionId: pinnedRevision.id }}/>}</div>}
@@ -339,7 +337,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const navigation = useNavigation()
   const page = navigation.route.page.page === 'builds' ? navigation.route.page : { page: 'builds', view: 'library' } as const
   const playthrough = requirePlaythrough(localData)
-  const allBuilds = Object.values(localData.builds).filter((build) => build.state !== 'archived')
+  const allBuilds = Object.values(localData.builds).filter((build) => !build.archived)
   const tagSuggestions = useMemo(() => [...new Set(Object.values(localData.builds).flatMap(build => build.tags))].sort((left, right) => left.localeCompare(right)), [localData.builds])
   const scenarios = Object.values(playthrough.scenarios)
   const revisions = Object.values(localData.buildRevisions).sort((a, b) => b.createdAt.localeCompare(a.createdAt))

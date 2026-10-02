@@ -11,6 +11,7 @@ import {
   MAX_SHORT_TEXT_LENGTH,
   requirePlaythrough,
   saveBuildRevision,
+  updateBuild,
 } from './index'
 import {
   HAND_SLOT,
@@ -18,6 +19,7 @@ import {
   TEST_NOW,
   TEST_GAME_SETUP_REVISION_ID,
   addTestCharacter,
+  addTestBuild,
   addTestDefinition,
   createTestLocalData,
   known,
@@ -37,13 +39,27 @@ import type {
 } from './types'
 
 describe('build revisions and descriptive comparison', () => {
+  it('changes archive visibility without rewriting checkpoints, tags or tracked records', () => {
+    let original = addTestBuild(createTestLocalData(), 'build', '', {})
+    original = updateBuild(original, { buildId: original.builds.build!.id, tags: ['template'], now: TEST_NOW })
+    const archived = updateBuild(original, { buildId: original.builds.build!.id, archived: true, now: TEST_NOW })
+    expect(archived.builds.build!.archived).toBe(true)
+    expect(archived.builds.build!.tags).toBe(original.builds.build!.tags)
+    expect(archived.builds.build!.latestRevisionId).toBe(original.builds.build!.latestRevisionId)
+    expect(archived.buildRevisions).toBe(original.buildRevisions)
+    expect(archived.playthroughs).toBe(original.playthroughs)
+    const restored = updateBuild(archived, { buildId: archived.builds.build!.id, archived: false, now: TEST_NOW })
+    expect(restored.builds.build!.archived).toBe(false)
+    expect(restored.buildRevisions).toBe(original.buildRevisions)
+    expect(original.builds.build!.archived).toBe(false)
+  })
+
   it('forks an immutable checkpoint into a distinct logical Game Setup', () => {
     let localData = createTestLocalData()
     localData = createBuild(localData, {
       id: asId<BuildId>('original-build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Original Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -86,7 +102,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('source-build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Source Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -141,8 +156,7 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('source-build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Source build',
-      kind: 'build',
-      state: 'hypothetical',
+      archived: true,
       tags: ['support', 'test'],
       favorite: true,
       now: TEST_NOW,
@@ -192,8 +206,7 @@ describe('build revisions and descriptive comparison', () => {
       revision: 1,
       latestRevisionId: 'cloned-revision',
       title: 'Source build (copy)',
-      kind: 'build',
-      state: 'draft',
+      archived: false,
       tags: ['support', 'test'],
       favorite: true,
     }))
@@ -216,7 +229,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('source-build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'x'.repeat(MAX_SHORT_TEXT_LENGTH),
-      kind: 'template',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -263,7 +275,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -314,7 +325,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -356,7 +366,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -403,7 +412,6 @@ describe('build revisions and descriptive comparison', () => {
         id: asId<BuildId>('build'),
         gameSetupId: TEST_GAME_SETUP_ID,
         title: 'Build',
-        kind: 'template',
         expectedRevision: localData.revision - 1,
         now: TEST_NOW,
       }),
@@ -417,7 +425,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     expect(() => saveBuildRevision(localData, {
@@ -455,7 +462,6 @@ describe('build revisions and descriptive comparison', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'build',
       now: TEST_NOW,
     })
     expect(() => saveBuildRevision(localData, {

@@ -306,7 +306,6 @@ describe('immutable personal definition overrides', () => {
       id: asId<BuildId>('passive-build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Passive build',
-      kind: 'build',
       now: TEST_NOW,
     })
     localData = saveBuildRevision(localData, {
@@ -352,7 +351,6 @@ describe('immutable personal definition overrides', () => {
       id: asId<BuildId>('build'),
       gameSetupId: TEST_GAME_SETUP_ID,
       title: 'Build',
-      kind: 'template',
       now: TEST_NOW,
     })
     const input = {

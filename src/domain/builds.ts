@@ -15,11 +15,9 @@ import { definitionLineageRootRef } from './definitions'
 import type {
   Build,
   BuildId,
-  BuildKind,
   BuildRevision,
   BuildRevisionContent,
   BuildRevisionId,
-  BuildState,
   CatalogRevisionId,
   GameSetupId,
   LocalData,
@@ -31,8 +29,7 @@ export interface CreateBuildInput {
   readonly id?: BuildId
   readonly gameSetupId: GameSetupId
   readonly title: string
-  readonly kind: BuildKind
-  readonly state?: BuildState
+  readonly archived?: boolean
   readonly tags?: readonly string[]
   readonly favorite?: boolean
   readonly now?: Timestamp | string
@@ -59,8 +56,7 @@ export function createBuild(localData: LocalData, input: CreateBuildInput): Loca
     gameSetupId: input.gameSetupId,
     revision: 0,
     title,
-    kind: input.kind,
-    state: input.state ?? 'draft',
+    archived: input.archived ?? false,
     tags: normalizeBuildTags(input.tags ?? []),
     favorite: input.favorite ?? false,
     createdAt: at,
@@ -78,7 +74,7 @@ export function createBuild(localData: LocalData, input: CreateBuildInput): Loca
 export interface UpdateBuildInput {
   readonly buildId: BuildId
   readonly title?: string
-  readonly state?: BuildState
+  readonly archived?: boolean
   readonly tags?: readonly string[]
   readonly favorite?: boolean
   readonly now?: Timestamp | string
@@ -100,7 +96,7 @@ export function updateBuild(localData: LocalData, input: UpdateBuildInput): Loca
   const build: Build = {
     ...current,
     title,
-    state: input.state ?? current.state,
+    archived: input.archived ?? current.archived,
     tags: input.tags === undefined ? current.tags : normalizeBuildTags(input.tags),
     favorite: input.favorite ?? current.favorite,
     revision: current.revision + 1,
@@ -177,8 +173,7 @@ export function cloneBuild(localData: LocalData, input: CloneBuildInput): LocalD
     gameSetupId: source.gameSetupId,
     revision: 1,
     title,
-    kind: source.kind,
-    state: 'draft',
+    archived: false,
     tags: [...source.tags],
     favorite: source.favorite,
     latestRevisionId: revisionId,
@@ -263,8 +258,7 @@ export function forkBuildToGameSetup(localData: LocalData, input: ForkBuildToGam
     id,
     gameSetupId: targetSetup.gameSetupId,
     title,
-    kind: source.kind,
-    state: 'draft',
+    archived: false,
     tags: [...source.tags],
     favorite: source.favorite,
     now: at,
