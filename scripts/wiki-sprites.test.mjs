@@ -88,6 +88,7 @@ test('semantic icons keep equipment, elements, and class command evidence separa
   assert.equal(result.find(icon => icon.id === 'skill:passive').title, 'File:passive.gif')
   assert.equal(result.find(icon => icon.id === 'command:knight arts').sources[0].revisionId, 21)
   assert.equal(result.find(icon => icon.id === 'equipment:swords').title, 'File:SwordAbilityIcon.png')
+  assert.equal(result.some(icon => /Warrior Equipment|Monk Equipment/.test(icon.title)), false)
   assert.throws(() => iconCandidates([], [], []), /Missing semantic/)
 })
 

@@ -4,7 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import sharp from 'sharp'
-import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage } from './native-artwork.mjs'
+import { CURRENCY_ARTWORK_EXTRACTION, NATIVE_UI_ARTWORK, NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeUiArtwork } from './native-artwork.mjs'
 import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
 import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, REVIEWED_NATIVE_IDENTITY_SOURCE, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, validateRegion, verifyReviewedNativeDatabase } from './game-assets.mjs'
 
@@ -39,7 +39,7 @@ const QUINTAR_GUIDE_ARTWORK = Object.freeze({
 const USAGE = `Usage: node --experimental-strip-types scripts/update-game-assets.mjs -i|--input <Content> [-u|--unpack <directory>] [-h|--help]
        node --experimental-strip-types scripts/update-game-assets.mjs --check [-h|--help]
 Inventory an installed Crystal Project Windows Content directory and extract exact
-catalog and Quintar guide artwork from native database IDs and texture regions,
+catalog, UI, and Quintar guide artwork from native database IDs and texture regions,
 using the fingerprinted native gameplay snapshot and hash-pinned reviewed identities.
 The committed manifest contains hashes and provenance, never the machine-local path.
 Requires Node >=22.12 with TypeScript stripping and committed native gameplay data.
@@ -303,6 +303,27 @@ async function buildQuintarGuideArtwork(databases, textures, assets, outputs) {
   return guide
 }
 
+async function buildUiArtwork(textures, built) {
+  const artwork = {}
+  for (const [key, source] of Object.entries(NATIVE_UI_ARTWORK)) {
+    if (source.entityId) {
+      const entity = built.entities[source.entityId]
+      if (!entity) throw new Error(`Native UI artwork entity is absent: ${source.entityId}`)
+      artwork[key] = { label: source.label, asset: entity.asset, entityId: source.entityId }
+      continue
+    }
+    const texture = textures.get(source.texturePath)
+    if (!texture) throw new Error(`Native UI artwork texture is absent: ${source.texturePath}`)
+    const region = source.region
+    validateRegion(region, texture, `Native UI artwork ${key}`)
+    const bytes = await sharp(texture.bytes).extract({ left: region.x, top: region.y, width: region.width, height: region.height }).png({ compressionLevel: 9 }).toBuffer()
+    const rendered = { bytes, sources: [{ texturePath: texture.path, textureSha256: texture.sha256, region }], extraction: CURRENCY_ARTWORK_EXTRACTION }
+    const asset = await addArtwork(built.assets, built.outputs, rendered)
+    artwork[key] = { label: source.label, asset, rendering: { extraction: rendered.extraction, sourceTextures: rendered.sources } }
+  }
+  return artwork
+}
+
 function visualReferenceInventory(databases, texturePaths) {
   const references = []
   const unresolved = []
@@ -360,6 +381,7 @@ function runtimeArtworkManifest(manifest) {
     })),
     entities: manifest.entities,
     quintarGuide: manifest.quintarGuide,
+    uiArtwork: manifest.uiArtwork,
   }
 }
 
@@ -425,6 +447,7 @@ async function checkManifest() {
     if (mapping) coveredMappings.add(id)
   }
   validateNativeArtworkCoverage(manifest, nativeArtworkEntries(snapshot), textureByPath)
+  validateNativeUiArtwork(manifest, textureByPath)
   for (const gap of manifest.coverage?.unmappedNativeIdentities ?? []) {
     if (!mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
     coveredMappings.add(gap.id)
@@ -476,6 +499,8 @@ async function update(flags) {
   const nativeDefinitionGaps = await buildNativeDefinitionArtwork(snapshot, textureData.paths, built)
   console.error('Extracting Quintar guide artwork from reviewed game sources')
   const quintarGuide = await buildQuintarGuideArtwork(game.databases, textureData.paths, built.assets, built.outputs)
+  console.error('Extracting UI artwork from exact catalog bindings and game currency rectangles')
+  const uiArtwork = await buildUiArtwork(textureData.paths, built)
   let total = 0
   for (const bytes of built.outputs.values()) total += bytes.length
   if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
@@ -498,6 +523,7 @@ async function update(flags) {
     assets: built.assets,
     entities: built.entities,
     quintarGuide,
+    uiArtwork,
     coverage: {
       nativeDefinitionGaps,
       identityGaps: identityManifest.unresolved,

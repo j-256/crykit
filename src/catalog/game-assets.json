@@ -43796,6 +43796,93 @@
           }
         }
       ]
+    },
+    "531b3ad1f766191afe9c0195940d702a81a054bb6a20b5d31f1a4424fbe4e4c9": {
+      "file": "531b3ad1f766191afe9c0195940d702a81a054bb6a20b5d31f1a4424fbe4e4c9.png",
+      "sha256": "531b3ad1f766191afe9c0195940d702a81a054bb6a20b5d31f1a4424fbe4e4c9",
+      "size": 179,
+      "width": 16,
+      "height": 18,
+      "contentBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 15,
+        "height": 18
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "WindowHelper.DrawCurrency source rectangle"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "GUI/Currency",
+          "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+          "region": {
+            "x": 1,
+            "y": 0,
+            "width": 16,
+            "height": 18
+          }
+        }
+      ]
+    },
+    "d569e7894113df98798b4fc9b3f816e0c249a3de9fe566fe6bdb8e01c5a3bb40": {
+      "file": "d569e7894113df98798b4fc9b3f816e0c249a3de9fe566fe6bdb8e01c5a3bb40.png",
+      "sha256": "d569e7894113df98798b4fc9b3f816e0c249a3de9fe566fe6bdb8e01c5a3bb40",
+      "size": 173,
+      "width": 16,
+      "height": 18,
+      "contentBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 15,
+        "height": 18
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "WindowHelper.DrawCurrency source rectangle"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "GUI/Currency",
+          "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+          "region": {
+            "x": 19,
+            "y": 0,
+            "width": 16,
+            "height": 18
+          }
+        }
+      ]
+    },
+    "16e06b4d9562642b5f6dd497d74bcf70916085dafddfdd7e7ddd942c7ba7b0da": {
+      "file": "16e06b4d9562642b5f6dd497d74bcf70916085dafddfdd7e7ddd942c7ba7b0da.png",
+      "sha256": "16e06b4d9562642b5f6dd497d74bcf70916085dafddfdd7e7ddd942c7ba7b0da",
+      "size": 173,
+      "width": 16,
+      "height": 18,
+      "contentBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 15,
+        "height": 18
+      },
+      "rights": "Copyrighted Crystal Project game artwork; no separate license grant asserted",
+      "extractions": [
+        "WindowHelper.DrawCurrency source rectangle"
+      ],
+      "sourceTextures": [
+        {
+          "texturePath": "GUI/Currency",
+          "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+          "region": {
+            "x": 37,
+            "y": 0,
+            "width": 16,
+            "height": 18
+          }
+        }
+      ]
     }
   },
   "entities": {
@@ -104123,6 +104210,70 @@
               "y": 75,
               "width": 40,
               "height": 23
+            }
+          }
+        ]
+      }
+    }
+  },
+  "uiArtwork": {
+    "classSeal": {
+      "label": "Class mastery seal",
+      "asset": "fd09143e8ce983ae3713e9726c2131202f8c4a6db4884163096c8f14797ea6c8",
+      "entityId": "base:item:warrior-seal"
+    },
+    "goldCoin": {
+      "label": "Gold coin",
+      "asset": "531b3ad1f766191afe9c0195940d702a81a054bb6a20b5d31f1a4424fbe4e4c9",
+      "rendering": {
+        "extraction": "WindowHelper.DrawCurrency source rectangle",
+        "sourceTextures": [
+          {
+            "texturePath": "GUI/Currency",
+            "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+            "region": {
+              "x": 1,
+              "y": 0,
+              "width": 16,
+              "height": 18
+            }
+          }
+        ]
+      }
+    },
+    "silverCoin": {
+      "label": "Silver coin",
+      "asset": "d569e7894113df98798b4fc9b3f816e0c249a3de9fe566fe6bdb8e01c5a3bb40",
+      "rendering": {
+        "extraction": "WindowHelper.DrawCurrency source rectangle",
+        "sourceTextures": [
+          {
+            "texturePath": "GUI/Currency",
+            "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+            "region": {
+              "x": 19,
+              "y": 0,
+              "width": 16,
+              "height": 18
+            }
+          }
+        ]
+      }
+    },
+    "copperCoin": {
+      "label": "Copper coin",
+      "asset": "16e06b4d9562642b5f6dd497d74bcf70916085dafddfdd7e7ddd942c7ba7b0da",
+      "rendering": {
+        "extraction": "WindowHelper.DrawCurrency source rectangle",
+        "sourceTextures": [
+          {
+            "texturePath": "GUI/Currency",
+            "textureSha256": "33cdc697633b407693910c77a6e1103ce54ad678ac86d86c58cfae5b0952de35",
+            "region": {
+              "x": 37,
+              "y": 0,
+              "width": 16,
+              "height": 18
             }
           }
         ]

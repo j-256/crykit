@@ -17393,36 +17393,6 @@
       "originalSize": 2067,
       "license": "No reviewed license declaration on the wiki file page"
     },
-    "file:warrior equipment.png": {
-      "file": "abd55833a754c4425ca1df2c05b52a957f40d97634ffb4ee428877c599a5638f.png",
-      "sha256": "abd55833a754c4425ca1df2c05b52a957f40d97634ffb4ee428877c599a5638f",
-      "title": "File:Warrior Equipment.png",
-      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/7d/Warrior_Equipment.png/revision/latest?cb=20220405043410&format=original",
-      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
-      "descriptionRevisionId": 215,
-      "uploadedAt": "2022-04-05T04:34:10Z",
-      "sha1": "b753dc59cdca2f17cb76a97675cba7e9706bca08",
-      "mime": "image/png",
-      "width": 322,
-      "height": 89,
-      "size": 4695,
-      "license": "No reviewed license declaration on the wiki file page"
-    },
-    "file:monk equipment.png": {
-      "file": "5427b3b0b3ee962f3e991ae749d5e5ff7d44dc4c337b3aa24c19757581046757.png",
-      "sha256": "5427b3b0b3ee962f3e991ae749d5e5ff7d44dc4c337b3aa24c19757581046757",
-      "title": "File:Monk Equipment.png",
-      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/ab/Monk_Equipment.png/revision/latest?cb=20220405054001&format=original",
-      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
-      "descriptionRevisionId": 223,
-      "uploadedAt": "2022-04-05T05:40:01Z",
-      "sha1": "2a8021859d7264acd5549225a141ec8bf9d27133",
-      "mime": "image/png",
-      "width": 251,
-      "height": 87,
-      "size": 2886,
-      "license": "No reviewed license declaration on the wiki file page"
-    },
     "file:ability-icon.gif": {
       "file": "d0162714edf54c419738ff2b8a6cb0438a15539db17242f93623b170be9826b6.gif",
       "sha256": "d0162714edf54c419738ff2b8a6cb0438a15539db17242f93623b170be9826b6",
@@ -30680,96 +30650,6 @@
           "locator": "Named weapon glyph"
         }
       ]
-    },
-    "equipment:shields": {
-      "name": "shields",
-      "asset": "file:warrior equipment.png",
-      "sources": [
-        {
-          "title": "File:Warrior Equipment.png",
-          "revisionId": 215,
-          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
-          "locator": "Equipment menu glyph region"
-        }
-      ],
-      "region": {
-        "x": 164,
-        "y": 52,
-        "width": 32,
-        "height": 34
-      }
-    },
-    "equipment:heavy helmets": {
-      "name": "heavy helmets",
-      "asset": "file:warrior equipment.png",
-      "sources": [
-        {
-          "title": "File:Warrior Equipment.png",
-          "revisionId": 215,
-          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
-          "locator": "Equipment menu glyph region"
-        }
-      ],
-      "region": {
-        "x": 204,
-        "y": 52,
-        "width": 32,
-        "height": 34
-      }
-    },
-    "equipment:heavy armor": {
-      "name": "heavy armor",
-      "asset": "file:warrior equipment.png",
-      "sources": [
-        {
-          "title": "File:Warrior Equipment.png",
-          "revisionId": 215,
-          "url": "https://crystal-project.fandom.com/wiki/File%3AWarrior_Equipment.png?oldid=215",
-          "locator": "Equipment menu glyph region"
-        }
-      ],
-      "region": {
-        "x": 244,
-        "y": 52,
-        "width": 32,
-        "height": 34
-      }
-    },
-    "equipment:light hats": {
-      "name": "light hats",
-      "asset": "file:monk equipment.png",
-      "sources": [
-        {
-          "title": "File:Monk Equipment.png",
-          "revisionId": 223,
-          "url": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
-          "locator": "Equipment menu glyph region"
-        }
-      ],
-      "region": {
-        "x": 168,
-        "y": 48,
-        "width": 34,
-        "height": 34
-      }
-    },
-    "equipment:light armor": {
-      "name": "light armor",
-      "asset": "file:monk equipment.png",
-      "sources": [
-        {
-          "title": "File:Monk Equipment.png",
-          "revisionId": 223,
-          "url": "https://crystal-project.fandom.com/wiki/File%3AMonk_Equipment.png?oldid=223",
-          "locator": "Equipment menu glyph region"
-        }
-      ],
-      "region": {
-        "x": 208,
-        "y": 48,
-        "width": 34,
-        "height": 34
-      }
     },
     "skill:ability": {
       "name": "ability",

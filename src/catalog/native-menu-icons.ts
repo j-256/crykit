@@ -6,8 +6,13 @@ const ICON_STRIDE = 34
 const ICON_INSET = 2
 const ICON_SIZE = 32
 const EQUIPMENT_ICON_INDICES: Readonly<Record<string, number>> = Object.freeze({
+  'equipment:shields': 39,
+  'equipment:heavy helmets': 40,
+  'equipment:heavy armor': 41,
   'equipment:medium headgear': 42,
   'equipment:medium armor': 43,
+  'equipment:light hats': 44,
+  'equipment:light armor': 45,
 })
 export const NATIVE_MENU_ICON_KEYS = Object.keys(EQUIPMENT_ICON_INDICES)
 

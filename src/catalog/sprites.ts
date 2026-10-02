@@ -57,9 +57,11 @@ interface GameArtworkManifest {
   readonly assets: Readonly<Record<string, GameArtworkAsset>>
   readonly entities: Readonly<Record<string, GameArtworkBinding>>
   readonly quintarGuide: Readonly<Record<QuintarGuideArtworkKey, { readonly label: string; readonly asset: string }>>
+  readonly uiArtwork: Readonly<Record<NativeUiArtworkKey, { readonly label: string; readonly asset: string }>>
 }
 
 export type QuintarGuideArtworkKey = 'babel' | 'ocarina' | 'egg' | 'trustyBlue' | 'trustyRed' | 'wokeRiver' | 'brutishDesert' | 'golden'
+export type NativeUiArtworkKey = 'classSeal' | 'goldCoin' | 'silverCoin' | 'copperCoin'
 
 interface SpriteManifest {
   readonly assets: Readonly<Record<string, SpriteAsset>>
@@ -162,6 +164,13 @@ export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): Cata
 
 export function quintarGuideArtwork(key: QuintarGuideArtworkKey): { readonly asset: GameArtworkAsset; readonly url: string } | undefined {
   const binding = gameArtwork.quintarGuide[key]
+  const asset = binding && gameArtwork.assets[binding.asset]
+  const url = asset && gameArtworkUrls[`../assets/game-assets/${asset.file}`]
+  return asset && url ? { asset, url } : undefined
+}
+
+export function nativeUiArtwork(key: NativeUiArtworkKey): { readonly asset: GameArtworkAsset; readonly url: string } | undefined {
+  const binding = gameArtwork.uiArtwork[key]
   const asset = binding && gameArtwork.assets[binding.asset]
   const url = asset && gameArtworkUrls[`../assets/game-assets/${asset.file}`]
   return asset && url ? { asset, url } : undefined

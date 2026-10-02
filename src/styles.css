@@ -840,7 +840,7 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .game-icon img { position: absolute; display: block; max-width: none; image-rendering: pixelated; }
 .money-amount { display: inline-flex; align-items: baseline; gap: .4em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .money-coin { display: inline-flex; align-items: center; gap: 2px; }
-.money-coin img { flex: none; width: 11px; height: 14px; image-rendering: pixelated; }
+.money-coin img { flex: none; height: 14px; width: auto; image-rendering: pixelated; }
 .money-coin__fallback { font-size: .85em; }
 .icon-label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
 .icon-values { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 2px; max-width: 100%; }

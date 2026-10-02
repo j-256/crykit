@@ -2,9 +2,11 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
 import { createBlankPlaythrough } from './local-data-helpers'
+import gameArtwork from '../src/catalog/game-artwork.json' with { type: 'json' }
 
 const QUEUED_SAVE_DRAIN_TIMEOUT_MS = 120_000
 const QUEUED_SAVE_TEST_TIMEOUT_MS = 150_000
+const CLASS_SEAL_ASSET = new RegExp(`${gameArtwork.uiArtwork.classSeal.asset}-[^/]+\\.png$`)
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/progress')
@@ -56,8 +58,9 @@ test('the vanilla mastery board cycles one class through all four playthrough st
   await expect(board.getByRole('link', { name: 'Warrior Seal', exact: true })).toHaveAttribute('href', /#\/reference\//)
   await expect(board.locator('.class-seal-tile__seal img')).toHaveCount(24)
   await expect(board.locator('[data-artwork-placeholder="item"]')).toHaveCount(0)
-  await expect(board.locator('.class-seal-tile__seal img').first()).toHaveAttribute('src', /class-seal/)
-  await expect(page.locator('.progress-summary__icon img')).toHaveAttribute('src', /class-seal/)
+  await expect(board.locator('.class-seal-tile__seal img').first()).toHaveAttribute('src', CLASS_SEAL_ASSET)
+  await expect(page.locator('.progress-summary__icon img')).toHaveAttribute('src', CLASS_SEAL_ASSET)
+  await expect.poll(() => board.locator('.class-seal-tile__seal img').first().evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(32)
 
   const warrior = tiles.filter({ has: page.getByRole('button', { name: /^Warrior:/ }) })
   const advance = warrior.getByRole('button', { name: /^Warrior:/ })
