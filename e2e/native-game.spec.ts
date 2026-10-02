@@ -159,7 +159,6 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await expect(cleric).toContainText('Windows 1.6.9')
   await cleric.click()
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await page.getByText('Stats & combat estimates', { exact: true }).click()
   await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   await page.getByRole('combobox', { name: 'Preview ability', exact: true }).fill('Cure')
   const abilities = page.getByRole('listbox', { name: 'Choose Preview ability', exact: true })
@@ -168,6 +167,8 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await expect(cure).toContainText('Windows 1.6.9')
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(cure).toHaveCount(1)
+  await cure.click()
+  await expect(page.getByLabel('Ability estimate', { exact: true })).toContainText('MP cost')
 })
 
 test('new native loot icons, status cells, and distinct enemy sprites stay available offline', async ({ page, context }) => {

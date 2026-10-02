@@ -60,7 +60,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   await page.goto('/')
   await importBackup(page, backup(localData))
   await page.goto(`/#/characters/${CHARACTER}/current`)
-  const help = page.locator('.member-menu .recorded-mod')
+  const help = page.getByRole('region', { name: 'Equipment', exact: true }).locator('.recorded-mod').filter({ has: page.locator('[data-mod-badge="Equipment Expansion"]') })
   const summary = help.locator('summary')
   await expect(summary.locator('[data-mod-badge="Equipment Expansion"] .badge')).toHaveText('Mod: Equipment Expansion')
   await expect(summary.locator('.mod-badge__state')).toHaveText('Enabled status not recorded')
