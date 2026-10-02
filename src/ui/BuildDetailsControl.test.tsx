@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { asId } from '../domain'
 import { TEST_GAME_SETUP_ID, TEST_NOW } from '../domain/test-helpers'
 import type { Build, BuildId } from '../domain/types'
-import { BuildTitleControl } from './BuildTitleControl'
+import { BuildDetailsControl } from './BuildDetailsControl'
 
 const BUILD: Build = {
   id: asId<BuildId>('synthetic-build'), gameSetupId: TEST_GAME_SETUP_ID, revision: 1,
@@ -51,16 +51,43 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-describe('build title focus', () => {
+describe('Build details and focus', () => {
+  it('saves tags without rewriting an untouched imported title', async () => {
+    const build = { ...BUILD, title: '  Imported title  ' }
+    const onSave = vi.fn(async () => undefined)
+    await act(async () => root.render(<BuildDetailsControl build={build} suggestions={[]} onDirtyChange={() => undefined} onSave={onSave}/>))
+    await act(async () => {
+      const details = container.querySelector('details')!
+      details.open = true
+      details.dispatchEvent(new Event('toggle'))
+    })
+    const input = container.querySelector<HTMLInputElement>('[aria-label="Add tag"]')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'support')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () => button('Save details').click())
+    expect(onSave).toHaveBeenCalledWith(BUILD.id, { tags: ['support'] })
+  })
+
+  it('preserves untouched imported tag values when saving only a title', async () => {
+    const build = { ...BUILD, tags: [' Support ', 'support', ''] }
+    const onSave = vi.fn(async () => undefined)
+    await act(async () => root.render(<BuildDetailsControl build={build} suggestions={[]} onDirtyChange={() => undefined} onSave={onSave}/>))
+    await begin(RENAMED_TITLE)
+    await act(async () => button('Save details').click())
+    expect(onSave).toHaveBeenCalledWith(BUILD.id, { title: RENAMED_TITLE })
+  })
+
   it('restores focus after asynchronous persistence even when an animation frame precedes the render', async () => {
     let resolveSave!: () => void
     const saved = new Promise<void>(resolve => { resolveSave = resolve })
-    const onRename = vi.fn(() => saved)
+    const onSave = vi.fn(() => saved)
     const onDirtyChange = vi.fn()
-    await act(async () => root.render(<StrictMode><BuildTitleControl build={BUILD} onDirtyChange={onDirtyChange} onRename={onRename}/></StrictMode>))
+    await act(async () => root.render(<StrictMode><BuildDetailsControl build={BUILD} suggestions={[]} onDirtyChange={onDirtyChange} onSave={onSave}/></StrictMode>))
     const input = await begin(RENAMED_TITLE)
-    await act(async () => button('Save title').click())
-    expect(onRename).toHaveBeenCalledWith(BUILD.id, RENAMED_TITLE)
+    await act(async () => button('Save details').click())
+    expect(onSave).toHaveBeenCalledWith(BUILD.id, { title: RENAMED_TITLE })
     expect(input.disabled).toBe(true)
     await act(async () => {
       resolveSave()
@@ -73,28 +100,28 @@ describe('build title focus', () => {
     expect(onDirtyChange).toHaveBeenLastCalledWith(false)
   })
 
-  it.each(['Cancel rename', 'Save title'])('returns focus after %s without writing an unchanged title', async action => {
-    const onRename = vi.fn(async () => undefined)
-    await act(async () => root.render(<BuildTitleControl build={BUILD} onDirtyChange={() => undefined} onRename={onRename}/>))
+  it.each(['Cancel details', 'Save details'])('returns focus after %s without writing an unchanged title', async action => {
+    const onSave = vi.fn(async () => undefined)
+    await act(async () => root.render(<BuildDetailsControl build={BUILD} suggestions={[]} onDirtyChange={() => undefined} onSave={onSave}/>))
     await begin()
     await act(async () => button(action).click())
     flushFrames()
     expect(document.activeElement).toBe(button('Rename'))
-    expect(onRename).not.toHaveBeenCalled()
+    expect(onSave).not.toHaveBeenCalled()
   })
 
   it('keeps a failed rename open for retry and returns focus only after it succeeds', async () => {
-    const onRename = vi.fn().mockRejectedValueOnce(new Error('Synthetic save failure')).mockResolvedValueOnce(undefined)
+    const onSave = vi.fn().mockRejectedValueOnce(new Error('Synthetic save failure')).mockResolvedValueOnce(undefined)
     const onDirtyChange = vi.fn()
-    await act(async () => root.render(<BuildTitleControl build={BUILD} onDirtyChange={onDirtyChange} onRename={onRename}/>))
+    await act(async () => root.render(<BuildDetailsControl build={BUILD} suggestions={[]} onDirtyChange={onDirtyChange} onSave={onSave}/>))
     const input = await begin(RENAMED_TITLE)
-    await act(async () => button('Save title').click())
+    await act(async () => button('Save details').click())
     expect(container.textContent).toContain('Synthetic save failure')
     expect(container.querySelector('input')).toBe(input)
     expect(input.value).toBe(RENAMED_TITLE)
     expect(input.disabled).toBe(false)
     expect(onDirtyChange).not.toHaveBeenCalledWith(false)
-    await act(async () => button('Save title').click())
+    await act(async () => button('Save details').click())
     expect(container.querySelector('input')).toBeNull()
     flushFrames()
     expect(document.activeElement).toBe(button('Rename'))
@@ -105,10 +132,10 @@ describe('build title focus', () => {
     document.body.append(other)
     try {
       other.focus()
-      const onRename = async () => undefined
-      await act(async () => root.render(<StrictMode><BuildTitleControl build={BUILD} onDirtyChange={() => undefined} onRename={onRename}/></StrictMode>))
+      const onSave = async () => undefined
+      await act(async () => root.render(<StrictMode><BuildDetailsControl build={BUILD} suggestions={[]} onDirtyChange={() => undefined} onSave={onSave}/></StrictMode>))
       expect(document.activeElement).toBe(other)
-      await act(async () => root.render(<StrictMode><BuildTitleControl build={{ ...BUILD, title: RENAMED_TITLE }} onDirtyChange={() => undefined} onRename={onRename}/></StrictMode>))
+      await act(async () => root.render(<StrictMode><BuildDetailsControl build={{ ...BUILD, title: RENAMED_TITLE }} suggestions={[]} onDirtyChange={() => undefined} onSave={onSave}/></StrictMode>))
       expect(document.activeElement).toBe(other)
     } finally {
       other.remove()
