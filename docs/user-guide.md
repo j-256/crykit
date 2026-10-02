@@ -116,6 +116,12 @@ The inventory form starts with focus on the item picker and uses the selected it
 
 Inventory records what you have observed about your current stock. A historical acquisition is kept separately from current stock. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+### Track summons
+
+Open **Progress > Summons** to mark Summoner skills available for the active Playthrough. The board follows the game's skill-tree layout, omits the passive nodes, and labels each summon with its deity title. Pinga is the starting summon and stays gold (unlocked); its tile cannot be toggled. The other tiles start gray; click a tile to turn it gold, then click again to undo. There is no intermediate blue stage and no record of which characters learned the skills. For the other summons, defeat the deity with a Summoner in your party before marking the skill available.
+
+Follow **Skill** or **Deity** beneath a tile to open its matching Reference page without changing its unlock state. Marks save automatically, remain separate between Playthroughs, and are included in backups. Imported unknown or conflicting unlock values show **Needs confirmation** until you choose a state. If a save fails, the tile returns to its saved state and offers **Retry summon**. The board and bundled artwork work offline after preparing the app. See [summon reference evidence](summons.md) for the source scope.
+
 ### Track travel and capability unlocks
 
 Open **Progress > Travel & unlocks** to mark mount instruments, reusable shrine stones, and capability items acquired or not acquired for the selected Playthrough. Each tile shows a game icon and links to its attributed location and requirements in Reference. Search and filter the checklist to review what remains. Imported values that are unknown or conflicting stay unconfirmed until you choose a state. These marks save automatically and remain separate from inventory quantities and character learning.
