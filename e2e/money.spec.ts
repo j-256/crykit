@@ -1,6 +1,9 @@
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import gameArtwork from '../src/catalog/game-artwork.json' with { type: 'json' }
+
+const COIN_ARTWORK = { gold: gameArtwork.uiArtwork.goldCoin.asset, silver: gameArtwork.uiArtwork.silverCoin.asset, copper: gameArtwork.uiArtwork.copperCoin.asset }
 
 function costRow(page: Page) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
@@ -11,8 +14,12 @@ async function loadedCoins(container: Locator, count: number) {
   await expect(images).toHaveCount(count)
   await expect.poll(() => images.evaluateAll(nodes => nodes.every(node => {
     const image = node as HTMLImageElement
-    return image.complete && image.naturalWidth === 11 && image.naturalHeight === 14 && new URL(image.src).origin === location.origin
+    return image.complete && image.naturalWidth === 16 && image.naturalHeight === 18 && new URL(image.src).origin === location.origin
   }))).toBe(true)
+  for (const [coin, asset] of Object.entries(COIN_ARTWORK)) {
+    const image = container.locator(`.money-coin[data-coin="${coin}"] img`)
+    if (await image.count()) await expect(image).toHaveAttribute('src', new RegExp(`${asset}-[^/]+\\.png$`))
+  }
 }
 
 test('whole and mixed coin prices use local icons and remain available offline', async ({ page, context }) => {
@@ -77,7 +84,7 @@ test('definition picker descriptions use the same coin display', async ({ page }
 test('failed coin images preserve readable denomination labels', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ serviceWorkers: 'block' })
   const page = await context.newPage()
-  await page.route(/\/assets\/(?:gold|silver|copper)-coin-[^/]+\.png$/, route => route.abort())
+  await page.route(url => Object.values(COIN_ARTWORK).some(asset => url.pathname.startsWith(`/assets/${asset}-`)), route => route.abort())
   await page.goto(`${baseURL}${referencePath('base:item:acrobat-shoes')}`)
   const cost = costRow(page)
   await expect(cost.getByRole('img', { name: '3 gold, 50 silver', exact: true })).toBeVisible()

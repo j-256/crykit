@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { coinAmounts, moneyTextParts, type Coin } from '../domain/money'
-import goldCoinUrl from '../assets/coins/gold-coin.png?url&no-inline'
-import silverCoinUrl from '../assets/coins/silver-coin.png?url&no-inline'
-import copperCoinUrl from '../assets/coins/copper-coin.png?url&no-inline'
+import { nativeUiArtwork } from '../catalog/sprites'
 
-const COIN_URLS: Readonly<Record<Coin, string>> = Object.freeze({ gold: goldCoinUrl, silver: silverCoinUrl, copper: copperCoinUrl })
+const COIN_URLS: Readonly<Record<Coin, string | undefined>> = Object.freeze({ gold: nativeUiArtwork('goldCoin')?.url, silver: nativeUiArtwork('silverCoin')?.url, copper: nativeUiArtwork('copperCoin')?.url })
+const COIN_ICON_WIDTH = 12
+const COIN_ICON_HEIGHT = 14
 
 function CoinIcon({ coin }: { coin: Coin }) {
   const [failed, setFailed] = useState(false)
-  return failed ? <span className="money-coin__fallback">{coin}</span> : <img alt="" draggable={false} height={14} onError={() => setFailed(true)} src={COIN_URLS[coin]} width={11}/>
+  const url = COIN_URLS[coin]
+  return failed || !url ? <span className="money-coin__fallback">{coin}</span> : <img alt="" draggable={false} height={COIN_ICON_HEIGHT} onError={() => setFailed(true)} src={url} width={COIN_ICON_WIDTH}/>
 }
 
 export function Money({ copper }: { copper: number }) {

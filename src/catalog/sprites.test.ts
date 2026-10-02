@@ -1,18 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
-import { catalogArtwork, menuIcon, wikiSprite } from './sprites'
+import { catalogArtwork, menuIcon, nativeUiArtwork, wikiSprite } from './sprites'
 import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
   const entity = { id: 'base:item:short-sword' as EntityId, kind: 'item' as const }
   const builtin = 'crystal-project-public-starter'
 
-  it('resolves both medium armor types to their exact native equipment-menu cells', () => {
-    for (const [name, x] of [['Medium headgear', 2], ['Medium armor', 36]] as const) {
+  it('uses the native seal binding and local currency rectangles for UI artwork', () => {
+    const seal = nativeUiArtwork('classSeal')!
+    const warriorSeal = catalogArtwork(builtin, { id: 'base:item:warrior-seal' as EntityId, kind: 'item' })!
+    expect(seal.url).toBe(warriorSeal.url)
+    expect(seal.asset.sha256).toBe('fd09143e8ce983ae3713e9726c2131202f8c4a6db4884163096c8f14797ea6c8')
+    const coins = (['goldCoin', 'silverCoin', 'copperCoin'] as const).map(key => nativeUiArtwork(key)!)
+    expect(new Set(coins.map(coin => coin.url)).size).toBe(coins.length)
+    for (const coin of coins) {
+      expect(coin.url).toMatch(/game-assets\/[a-f0-9]{64}\.png/)
+      expect(coin.url).not.toMatch(/^https?:/)
+      expect(coin.asset).toMatchObject({ width: 16, height: 18 })
+      expect(coin.asset.rights).toContain('Copyrighted Crystal Project')
+    }
+  })
+
+  it('resolves shield and armor types to their exact native equipment-menu cells', () => {
+    for (const [name, x, y] of [['Shields', 138, 172], ['Heavy helmets', 172, 172], ['Heavy armor', 206, 172], ['Medium headgear', 2, 206], ['Medium armor', 36, 206], ['Light hats', 70, 206], ['Light armor', 104, 206]] as const) {
       const key = fieldIconKey('Armor', name)!
       const icon = menuIcon(key)!
       expect(icon.provenance).toBe('installed-game')
-      expect(icon.binding.region).toEqual({ x, y: 206, width: 32, height: 32 })
+      expect(icon.binding.region).toEqual({ x, y, width: 32, height: 32 })
       expect(icon.url).toContain('/menu-icons/equipment-types.png')
       expect(icon.asset.descriptionUrl).toBeUndefined()
     }

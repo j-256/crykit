@@ -10,18 +10,9 @@ const EQUIPMENT_GLYPHS = [
   ['wands', 'WandAbilityIcon.png'], ['books', 'BookAbilityIcon.png'],
   ['katanas', 'Katana-skill-icon.gif'], ['unarmed', 'UnarmedAbilityIcon.png'],
 ]
-// Regions retain the original public menu image bytes and their attribution
-const EQUIPMENT_REGIONS = [
-  ['shields', 'Warrior Equipment.png', [164, 52, 32, 34]],
-  ['heavy helmets', 'Warrior Equipment.png', [204, 52, 32, 34]],
-  ['heavy armor', 'Warrior Equipment.png', [244, 52, 32, 34]],
-  ['light hats', 'Monk Equipment.png', [168, 48, 34, 34]],
-  ['light armor', 'Monk Equipment.png', [208, 48, 34, 34]],
-]
 
 export function iconCandidates(entities, pages, templates) {
   const candidates = EQUIPMENT_GLYPHS.map(([name, file]) => ({ id: `equipment:${name}`, name, title: `File:${file}`, sources: [] }))
-  for (const [name, file, [x, y, width, height]] of EQUIPMENT_REGIONS) candidates.push({ id: `equipment:${name}`, name, title: `File:${file}`, region: { x, y, width, height }, sources: [] })
   const template = templates.find(page => page.title === ICON_TEMPLATE)
   if (!template) throw new Error('Missing semantic icon template')
   for (const mapping of switchMappings(template)) {

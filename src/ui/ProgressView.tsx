@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState, type FormEvent } from 'react'
-import classSealUrl from '../assets/class-seal.png?url&no-inline'
+import { nativeUiArtwork } from '../catalog/sprites'
 import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
 import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
@@ -20,6 +20,7 @@ import { ProgressPage } from './ProgressPage'
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 
 const UNKNOWN_LOCATION: Knowledge<string> = { state: 'unknown' }
+const classSealUrl = nativeUiArtwork('classSeal')?.url
 
 const STAGE_DETAILS: Readonly<Record<ProgressStage, {
   readonly label: string

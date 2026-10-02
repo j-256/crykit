@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import classSealUrl from '../assets/class-seal.png?url&no-inline'
+import { nativeUiArtwork } from '../catalog/sprites'
 import { ScreenHeader } from './components'
 import { Icon } from './icons'
 import type { PROGRESS_PAGES } from './navigation'
@@ -7,6 +7,7 @@ import { ProgressBoards } from './ProgressBoards'
 import './progress-page.css'
 
 type ProgressVariant = typeof PROGRESS_PAGES[number]['segment']
+const classSealUrl = nativeUiArtwork('classSeal')?.url
 
 const VARIANTS: Readonly<Record<ProgressVariant, {
   readonly title: string
