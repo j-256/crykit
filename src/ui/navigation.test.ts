@@ -79,7 +79,7 @@ describe('semantic navigation routes', () => {
     expect(root).toMatchObject({ page: { page: 'progress', view: 'list' }, legacy: true })
     expect(formatAppRoute(root)).toBe('#/progress/seals')
     expect(formatAppRoute(routeForDestination('progress'))).toBe('#/progress/seals')
-    for (const [segment, view] of [['seals', 'list'], ['unlocks', 'unlocks'], ['quintar', 'quintar']]) {
+    for (const [segment, view] of [['seals', 'list'], ['unlocks', 'unlocks'], ['summons', 'summons'], ['quintar', 'quintar']]) {
       const hash = `#/progress/${segment}`
       expect(parseAppRoute(hash)).toEqual(route({ page: 'progress', view } as PageRoute))
       expect(formatAppRoute(parseAppRoute(hash))).toBe(hash)

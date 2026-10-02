@@ -14,6 +14,8 @@ import { useNavigation, type ProgressPageRoute } from './navigation'
 import { ReferenceLink } from './ReferenceLink'
 import { ClassWorldArtwork } from './WikiSprite'
 import { TravelUnlocksView, travelUnlockEntries } from './TravelUnlocksView'
+import { SummonsView, summonEntries } from './SummonsView'
+import type { SummonId } from '../catalog/summons'
 import { ProgressPage } from './ProgressPage'
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 
@@ -46,6 +48,7 @@ export interface ProgressViewProps {
   readonly catalogs: readonly CatalogSnapshot[]
   readonly onAdd: (draft: ProgressDraft) => Promise<void>
   readonly onAdvance: (subject: EntityRef, displayName: string) => Promise<void>
+  readonly onToggleSummon: (id: SummonId) => Promise<void>
   readonly onSetStage: (selections: readonly ClassSealProgressSelection[], stage: ProgressStage) => Promise<void>
   readonly onUpdate: (recordId: ProgressRecordId, draft: ProgressDraft) => Promise<void>
   readonly saveBlocked: boolean
@@ -189,6 +192,9 @@ export function ProgressView(props: ProgressViewProps) {
   const navigation = useNavigation()
   const page = navigation.route.page
   const focusedRecordId = page.page === 'progress' && page.view === 'edit' ? page.recordId : undefined
+  const summons = page.page === 'progress' && page.view === 'summons'
+    || focusedRecordId !== undefined && summonEntries(props.localData, props.catalogs).some(entry => entry.record?.id === focusedRecordId)
+  if (summons) return <SummonsView catalogs={props.catalogs} focusedRecordId={focusedRecordId} localData={props.localData} onToggle={props.onToggleSummon}/>
   const unlocks = page.page === 'progress' && page.view === 'unlocks'
     || focusedRecordId !== undefined && travelUnlockEntries(props.localData, props.catalogs).some(entry => entry.record?.id === focusedRecordId)
   return unlocks ? <TravelUnlocksView catalogs={props.catalogs} focusedRecordId={focusedRecordId} key={focusedRecordId ?? 'unlocks'} localData={props.localData} onSetAcquired={props.onSetAcquired} saveBlocked={props.saveBlocked}/> : <ClassSealProgressView {...props}/>
@@ -215,7 +221,8 @@ function ClassSealProgressView({ localData, catalogs, onAdd, onAdvance, onSetSta
   const navigate = useCallback((next: ProgressPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] }), [navigation])
   const boardKeys = useMemo(() => new Set(entries.map(entry => logicalEntityKey(localData, entry.classRef))), [entries, localData])
   const unlockKeys = new Set(travelUnlockEntries(localData, catalogs).map(entry => entry.key))
-  const otherRecords = records.filter(record => !boardKeys.has(logicalEntityKey(localData, record.subject)) && !unlockKeys.has(logicalEntityKey(localData, record.subject)))
+  const summonKeys = new Set(summonEntries(localData, catalogs).map(entry => entry.key))
+  const otherRecords = records.filter(record => !boardKeys.has(logicalEntityKey(localData, record.subject)) && !unlockKeys.has(logicalEntityKey(localData, record.subject)) && !summonKeys.has(logicalEntityKey(localData, record.subject)))
   const counts = Object.fromEntries(CLASS_SEAL_STAGES.map(stage => [stage, displayedEntries.filter(entry => entry.stage === stage).length])) as Record<ProgressStage, number>
   const add = async (draft: ProgressDraft) => { await onAdd(draft); navigation.close() }
   const update = async (draft: ProgressDraft) => { if (!editing) return; await onUpdate(editing.id, draft); navigation.close() }
