@@ -1423,7 +1423,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 .universal-search__sources { margin: 10px 0 14px; font-size: .78rem; color: var(--text-dim); }
 .universal-search__result { text-decoration: none; }
 .universal-search__result-meta { flex-shrink: 0; max-width: 35%; }
-a.reference-card { display: block; text-decoration: none; }
+a.reference-card { display: block; color: inherit; text-decoration: none; }
 /* Shared snapshots */
 .build-card__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px }
 .build-card__actions .cluster { min-width: 0; max-width: 100% }
@@ -1462,3 +1462,10 @@ a.reference-card { display: block; text-decoration: none; }
   .bottom-nav__tracking button { display: flex; justify-content: center; gap: 6px; }
   .bottom-nav__tracking button svg { width: 18px; height: 18px; }
 }
+
+.reference-card[data-mod-state]:not([data-mod-state="enabled"]), .universal-search__result[data-mod-state]:not([data-mod-state="enabled"]) { color: var(--text-faint); background-color: rgba(128, 128, 128, .04); }
+.reference-card[data-mod-state]:not([data-mod-state="enabled"]) h3, .reference-card[data-mod-state]:not([data-mod-state="enabled"]) p { color: var(--text-faint); }
+.reference-card[data-mod-state]:not([data-mod-state="enabled"]) .game-icon, .reference-card[data-mod-state]:not([data-mod-state="enabled"]) .wiki-sprite, .reference-card[data-mod-state]:not([data-mod-state="enabled"]) .artwork-placeholder { filter: grayscale(1); opacity: .55; }
+select option[data-mod-state]:not([data-mod-state="enabled"]) { color: var(--text-faint); }
+
+.mod-library__card[data-mod-state]:not([data-mod-state="enabled"]) h3, .mod-library__card[data-mod-state]:not([data-mod-state="enabled"]) .mod-library__summary { color: var(--text-faint); }

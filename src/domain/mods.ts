@@ -3,6 +3,16 @@ import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import type { Knowledge, GameSetupRevision } from './types'
 
 export type ModState = 'enabled' | 'disabled' | 'unknown' | 'conflicting'
+
+export interface DefinitionModAvailability {
+  readonly state: ModState
+  readonly requiredMod?: string
+}
+
+export function modListPriority(availability: DefinitionModAvailability | undefined): number {
+  return Number(Boolean(availability?.requiredMod && availability.state !== 'enabled'))
+}
+
 export type ModConfiguration = Pick<GameSetupRevision, 'mods' | 'disabledMods' | 'customMods'>
 export interface ModSelection {
   readonly name: string

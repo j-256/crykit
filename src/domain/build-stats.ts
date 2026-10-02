@@ -1,3 +1,4 @@
+import { calculationModResolver } from './calculation-mods'
 import type { GameRuleResolution } from './game-rules'
 import { entityDefinitionKey } from './core'
 import { growthRatings, STAT_KEYS } from './crystal-edit'
@@ -128,10 +129,12 @@ function transform(range: StatRange | null, fn: (value: number) => number): Stat
   } catch { return null }
 }
 
-export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey, gameRules?: GameRuleResolution): BuildStatEstimate {
+export function calculateBuildStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: DefinitionResolver, identity: (ref: EntityRef) => string = entityDefinitionKey, gameRules?: GameRuleResolution): BuildStatEstimate {
+  const modScope = calculationModResolver(sourceResolve)
+  const resolve = modScope.resolve
   const plan = content.calculation
   if (plan?.model) {
-    const result = calculatePCStats(content, slots, resolve, [], false, gameRules)
+    const result = calculatePCStats(content, slots, sourceResolve, [], false, gameRules)
     return { stats: Object.fromEntries(CALCULATED_STATS.map(stat => {
       const values = plan.gender ? [selectedPCStats(result, plan.gender)[stat]] : [result.neutral[stat], result.male[stat], result.female[stat]]
       const base = result.base[stat]
@@ -243,6 +246,10 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
   apply('TT', speed && speed.high <= TURN_TIME_SPEED_LIMIT ? transform(speed, spd => calculateFormula('turnTime', [spd], GUIDE_RULES)) : null)
   if (speed && speed.high > TURN_TIME_SPEED_LIMIT) issues.push(`Turn time above ${TURN_TIME_SPEED_LIMIT} Speed requires a verified cap rule`)
   if (stats.CRIT.value && stats.CRIT.value.high > 100) issues.push('Crit chance exceeds 100%; the game cap is not applied')
+  if (modScope.issues.size) {
+    issues.push(...modScope.issues)
+    for (const stat of CALCULATED_STATS) stats[stat] = { ...stats[stat], value: null }
+  }
   return { stats, contributions, excluded: [...new Set(excluded)], issues: [...new Set(issues)] }
 }
 

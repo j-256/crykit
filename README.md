@@ -11,7 +11,7 @@ No account or installation is needed. Your saved builds and records stay in your
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
-- **Manage mods:** save exact mod versions for planning, inspect their records, edit a browser draft, and save it directly to CryKit or export standard mod JSON. See [Mods and the editor workspace](docs/mod-inspector.md).
+- **Manage mods:** browse bundled and imported versions, import updates, edit full project JSON, and follow links to Steam Workshop. Mods without a source file retain catalog entries and support manual observations. See [Mods](docs/mods.md) and [the editor workspace](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.
 

@@ -1,7 +1,7 @@
 import type { CatalogClaim, CatalogEntity, CatalogEntityKind, JsonValue, Knowledge, QueryValue } from '../domain/types'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { EQUIPMENT_TYPES } from '../domain/crystal-edit'
-import { nativeSourceRecord } from '../domain/native-game'
+import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 
 export const REFERENCE_FACETS = [
   { key: 'classes', label: 'Class', parameter: 'class', fields: ['class', 'associated class'], kinds: ['class', 'command', 'ability', 'passive', 'innate', 'monsterMagic'] },
@@ -12,7 +12,7 @@ export const REFERENCE_FACETS = [
 
 export type ReferenceFacetKey = typeof REFERENCE_FACETS[number]['key']
 export type ReferenceFacetFilters = Readonly<Partial<Record<ReferenceFacetKey, readonly string[]>>>
-export type FacetRecord = Pick<CatalogEntity, 'kind' | 'fields'> & Partial<Pick<CatalogEntity, 'name' | 'slotKinds'>>
+export type FacetRecord = Pick<CatalogEntity, 'kind' | 'fields'> & Partial<Pick<CatalogEntity, 'name' | 'slotKinds' | 'legacy'>>
 
 export const OPTIONAL_REFERENCE_AUDIENCES = [
   { value: 'technical', label: 'Technical mechanics', description: 'Engine modifier identifiers for modding and mechanics research' },
@@ -89,6 +89,7 @@ export function referenceFieldFacets(entity: FacetRecord, claims: readonly Catal
     if (facet.key === 'classes' && entity.kind === 'class' && entity.name) values.push({ state: 'known', value: entity.name })
     if (facet.key === 'slots' && entity.kind === 'item' && entity.slotKinds) values.push(entity.slotKinds)
     if (facet.key === 'mods' && requiredMod) values.push({ state: 'known', value: requiredMod })
+    else if (facet.key === 'mods' && !values.length && nativeIdentity(entity)) values.push({ state: 'known', value: 'Base game' })
     const applicable = !facet.kinds.length || (facet.kinds as readonly CatalogEntityKind[]).includes(entity.kind)
     return [facet.key, values.length || applicable ? combineFacetKnowledge(values) : { state: 'notApplicable' }]
   })) as Record<ReferenceFacetKey, QueryValue>

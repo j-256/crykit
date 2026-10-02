@@ -31,6 +31,7 @@ describe('reference route state', () => {
       kinds: ['item', 'passive'],
       categories: ['Two handed'],
       sources: ['pack:alpha'],
+      libraryMod: 'crystal-edit:project & identity',
       audiences: ['technical', 'about'],
       classes: ['Scribe', 'Mage'],
       elements: ['Wind'],
@@ -57,6 +58,7 @@ describe('reference route state', () => {
       slots: [' slot:id '],
       elements: [' element:value '],
       mods: [' Mod & Pack '],
+      libraryMod: 'name: Mod：Name ',
       selectedKey,
     }
     expect(parseReferenceRoute(formatReferenceRoute(state))).toEqual(state)
@@ -84,6 +86,7 @@ describe('reference route state', () => {
     expect(parsed.resultLimit).toBe(2_000)
     expect(parsed.ppMin).toBeUndefined()
     expect(parsed.selectedKey).toBeUndefined()
+    expect(parseReferenceRoute(`#/reference?library-mod=${'x'.repeat(1_025)}`).libraryMod).toBeUndefined()
     expect(parseReferenceRoute('#/reference?class=&class=Scribe&class=Scribe&slot=offHand&element=Wind&mod=Pack')).toMatchObject({ classes: ['Scribe'], slots: ['offHand'], elements: ['Wind'], mods: ['Pack'] })
   })
 
@@ -95,6 +98,18 @@ describe('reference route state', () => {
     expect(readReferenceRouteState()).toEqual(second)
     expect(JSON.parse(window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY) ?? '{}')).toMatchObject({ query: 'second' })
     expect(parseReferenceRoute(formatReferenceRoute(first))).toEqual(first)
+  })
+
+  it('keeps temporary catalog searches out of the standing reference route', () => {
+    const standing = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'vanilla search', kinds: ['class' as const] }
+    commitReferenceRouteState(standing)
+    const stored = window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY)
+    const temporary = { ...DEFAULT_REFERENCE_ROUTE_STATE, libraryMod: 'crystal-edit:synthetic', query: 'temporary search' }
+    commitReferenceRouteState(temporary)
+    expect(readReferenceRouteState()).toEqual(temporary)
+    expect(window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY)).toBe(stored)
+    expect(parseReferenceRoute('#/reference', stored)).toEqual(standing)
+    expect(parseReferenceRoute('#/reference', JSON.stringify(temporary))).toEqual(DEFAULT_REFERENCE_ROUTE_STATE)
   })
 
   it('keeps the app destination readable when the hash carries reference state', () => {

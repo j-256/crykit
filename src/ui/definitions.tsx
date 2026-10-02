@@ -4,6 +4,8 @@ import { nativeDefinitionLabel, nativeDisplayDescription, nativeDisplayName, nat
 import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
 import { bundledModLabel } from '../domain/bundled-mods'
+import { modListPriority } from '../domain/mods'
+import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
@@ -142,15 +144,18 @@ export function definitionOptionsForRevisions(options: readonly DefinitionOption
   })
 }
 
-function optionsForModSetup(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], gameSetup?: GameSetupRevision, planning = false): readonly DefinitionOption[] {
+export function definitionOptionsForSetup(options: readonly DefinitionOption[], catalogs: readonly CatalogSnapshot[], gameSetup?: GameSetupRevision): readonly DefinitionOption[] {
+  const lock = { ...gameSetup?.catalogLock, ...Object.fromEntries((gameSetup?.modComposition?.layers ?? []).map(layer => [layer.catalogId, layer.catalogRevisionId])) }
+  const revisions = definitionOptionsForRevisions(options, catalogs, lock)
   const schemas = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog.schemaVersion]))
-  return options.filter(option => {
+  return revisions.filter(option => {
     if (option.ref.kind !== 'catalog') return true
     const schema = schemas.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId]))
     if (schema === MOD_CATALOG_SCHEMA) return gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
-    if (!gameSetup?.modComposition) return !planning || schema !== CRYSTAL_EDIT_CATALOG_SCHEMA || gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
+    if (!gameSetup?.modComposition) return true
     if (option.ref.catalogId === gameSetup.modComposition.baseline.catalogId) return gameSetup?.catalogLock[option.ref.catalogId] === option.ref.catalogRevisionId
-    return schema !== CRYSTAL_EDIT_CATALOG_SCHEMA
+    const catalogId = option.ref.catalogId
+    return schema !== CRYSTAL_EDIT_CATALOG_SCHEMA || !gameSetup.modComposition.layers.some(layer => layer.catalogId === catalogId && layer.enabled)
   })
 }
 
@@ -166,14 +171,14 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, chil
   const availableOptions = useMemo(() => {
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(catalogs)
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
-    return optionsForModSetup(definitionOptionsForRevisions(options, catalogs, gameSetup?.modComposition ? gameSetup.catalogLock : undefined), catalogs, gameSetup).filter(option => option.modAvailability?.state !== 'disabled' && !hidden.has(option.key))
+    return definitionOptionsForSetup(options, catalogs, gameSetup).filter(option => !hidden.has(option.key))
   }, [catalogs, options, corrections?.hiddenKeys, localData])
   const baseline = planningCatalogs ?? corrections?.baseline ?? catalogs
   const planningOptions = useMemo(() => buildDefinitionOptions(localData, baseline), [baseline, localData])
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     const hidden = corrections?.hiddenKeys ?? bundledHiddenEntityKeys(baseline)
-    return optionsForModSetup(definitionOptionsForRevisions(planningOptions, baseline, gameSetup?.catalogLock), baseline, gameSetup, true).filter(option => !hidden.has(option.key))
+    return definitionOptionsForSetup(planningOptions, baseline, gameSetup).filter(option => !hidden.has(option.key))
   }, [baseline, corrections?.hiddenKeys, planningOptions, localData])
   const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
@@ -194,7 +199,7 @@ export function definitionKindLabel(kind: CatalogEntityKind) {
   return kind === 'monsterMagic' ? 'Monster Magic' : kind.charAt(0).toLocaleUpperCase() + kind.slice(1)
 }
 
-export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', routeIndex, onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; routeIndex?: number; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
+export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = '', initialSourceMod, initialSourceModProjectId, routeIndex, onClose, onSaved }: { open: boolean; baseRef?: EntityRef; allowedKinds: readonly CatalogEntityKind[]; initialName?: string; initialSourceMod?: string; initialSourceModProjectId?: string; routeIndex?: number; onClose: () => void; onSaved: (ref: EntityRef) => void }) {
   const navigation = useNavigation()
   const { options, onSaveDefinition } = useDefinitionLibrary()
   const ownedEditorIndex = routeIndex ?? navigation.route.overlays.findLastIndex(overlay => overlay.kind === 'definition-editor')
@@ -212,6 +217,8 @@ export function DefinitionEditor({ open, baseRef, allowedKinds, initialName = ''
     return {
       ...(!Object.keys(fields).some(field => field.toLowerCase() === 'category') ? { Category: fieldDraft(undefined) } : {}),
       ...(!Object.keys(fields).some(field => ['pp', 'pp cost'].includes(field.toLowerCase())) ? { PP: fieldDraft(base?.ppCost) } : {}),
+      ...(!base && initialSourceMod ? { 'Source mod': fieldDraft({ state: 'known', value: initialSourceMod }, true) } : {}),
+      ...(!base && initialSourceModProjectId ? { [MOD_PROJECT_FIELD]: fieldDraft({ state: 'known', value: initialSourceModProjectId }, true) } : {}),
       ...fields,
     }
   })
@@ -315,7 +322,7 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
     if (!open) return []
     const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
     const choices = includeAlternatives ? availableOptions : preferredDefinitionChoices(availableOptions, selectedOption?.key)
-    return choices.filter((option) => allowedKinds.includes(option.kind) && (!filterOption || filterOption(option)) && (!tokens.length || tokens.every((token) => `${optionLabel(option)} ${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token))))
+    return choices.filter((option) => allowedKinds.includes(option.kind) && (!filterOption || filterOption(option)) && (!tokens.length || tokens.every((token) => `${optionLabel(option)} ${option.name} ${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel}`.toLocaleLowerCase().includes(token)))).sort((a, b) => modListPriority(a.modAvailability) - modListPriority(b.modAvailability))
   }, [allowedKinds, availableOptions, filterOption, includeAlternatives, open, optionLabel, query, selectedOption?.key])
   const visible = candidates.slice(0, limit)
   const selectedVisible = selectedOption && allowedKinds.includes(selectedOption.kind) && visible.some((option) => option.key === selectedOption.key)
@@ -347,7 +354,7 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
         {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>Unknown</strong><small>No selection has been recorded</small></span></button>}
         {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
         {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{nativeDisplayName(selectedOption.record)}</strong>{selectedOption.modAvailability?.requiredMod && <ModBadge name={selectedOption.modAvailability.requiredMod} state={selectedOption.modAvailability.state}/>}</span><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{displayOptionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{displayOptionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
         {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>

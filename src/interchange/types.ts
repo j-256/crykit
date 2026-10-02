@@ -1,5 +1,6 @@
 import type { CorrectionCollection } from '../domain/corrections'
 import type {
+  CatalogId,
   CatalogSnapshot,
   JsonValue,
   LocalData,
@@ -99,6 +100,7 @@ export interface CommitImportOptions {
   readonly mode?: ImportCommitMode
   readonly targetLocalDataId?: LocalDataId
   readonly expectedRevision?: number
+  readonly includeModInReference?: CatalogId
 }
 
 export interface LoadedLocalData {
