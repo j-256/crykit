@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -55,7 +56,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Playthrough: Sample playthrough', exact: true })).toBeVisible()
 })
 
-test('all context selectors fit, search, support keyboard and touch, and dismiss to their trigger', async ({ page, isMobile }, testInfo) => {
+test('all context selectors fit, search, support keyboard and touch, and dismiss to their trigger', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   for (const label of ['Playthrough', 'Party plan'] as const) {
     const trigger = page.getByRole('button', { name: new RegExp(`^${label}:`) })

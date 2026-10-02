@@ -15,6 +15,7 @@
     "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/bundle-mod.test.mjs scripts/bundle-mod-library.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs scripts/calculations.test.mjs scripts/update-entity-reference.test.mjs scripts/check-e2e-contracts.test.mjs scripts/integration-verification.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:all-devices": "playwright test --config=playwright.all-devices.config.ts",
     "corrections:review": "node scripts/review-corrections.mjs",
     "catalog:update": "node scripts/update-wiki-catalog.mjs",
     "sprites:update": "node scripts/update-wiki-sprites.mjs",

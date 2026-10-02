@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
@@ -157,7 +158,7 @@ for (const ambiguous of [false, true]) {
   })
 }
 
-test('screenshots compile reviewed names offline, skip duplicates, and preserve unknowns', async ({ page, context }) => {
+test('screenshots compile reviewed names offline, skip duplicates, and preserve unknowns', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const original = await loadFixture(page)
   const pixels = await syntheticScreenshot(page)
   const wrong = await syntheticScreenshot(page, 'Equip')
@@ -229,7 +230,7 @@ for (const fixture of [
   { squareCount: 14, mappedCount: 14, className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']], unresolvedLearned: [] },
   { squareCount: 23, mappedCount: 22, className: 'Scholar', layout: 'scholar', labels: ['1. Learning Learned', '3. Studious Learned', '12. Unresolved ability Learned'], learned: [['Learning', 'innate'], ['Studious', 'innate']], unresolvedLearned: [{ row: 3, column: 0, state: 'learned' }] },
 ] as const) {
-  test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, async ({ page }) => {
+  test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, { tag: MOBILE_TEST_TAG }, async ({ page }) => {
     await loadFixture(page)
     await useConfirmedSwitchSetup(page)
     await page.goto(`/#/characters/${CHARACTER}/current`)

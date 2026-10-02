@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { selectWithSeparateEvents } from './select-helpers'
@@ -117,7 +118,7 @@ test('character growth calculations save separately from observed level and disp
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', async ({ page }) => {
+test('recorded sheets inspect and compare exact snapshots without changing observations or proposals', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const original = await loadFixture(page)
   const lp = page.locator('.member-vital').filter({ has: page.locator('dt', { hasText: /^LP$/ }) })
   await expect(lp).toContainText('12')
@@ -196,7 +197,7 @@ test('member details stay pinned during pointer transit and follow deliberate fo
   await expect(details.getByRole('heading', { name: 'Ace of Diamonds', exact: true })).toBeVisible()
 })
 
-test('direct slot editing protects a draft and saves a new observation offline', async ({ page, context }) => {
+test('direct slot editing protects a draft and saves a new observation offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const original = await loadFixture(page)
   const storage = await dataPanel(page)
   await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -395,7 +396,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
   })
 }
 
-test('the grouped member sheet aligns loadout sections and learning shares a single view', async ({ page }) => {
+test('the grouped member sheet aligns loadout sections and learning shares a single view', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/characters')
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()

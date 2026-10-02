@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { createBlankPlaythrough, selectedPlaythrough } from './local-data-helpers'
@@ -25,7 +26,7 @@ async function failNextSave(page: Page) {
   })
 }
 
-test('plans and shares four checkpoints with no tracked characters and retries a failed save', async ({ page }) => {
+test('plans and shares four checkpoints with no tracked characters and retries a failed save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/teams')
   await expect(page.getByRole('heading', { name: 'Teams', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)

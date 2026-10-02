@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH } from '../src/interchange/share'
 import { asId } from '../src/domain/core'
@@ -21,7 +22,7 @@ async function storedData(page: Page): Promise<LocalData> {
   }))
 }
 
-test('shared PC stats and personal definition details match the saved editor offline', async ({ page, baseURL, context }, testInfo) => {
+test('shared PC stats and personal definition details match the saved editor offline', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, context }, testInfo) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -154,7 +155,7 @@ test('a default level preview preserves absent and unknown saved inputs until ex
   expect(saved.buildRevisions[saved.builds[copy.id]!.latestRevisionId!]!.content.calculation).toMatchObject({ level: 24, growth: [{ levels: 24 }] })
 })
 
-test('shares a saved build, supports manual copying, previews without writes and adds a copy', async ({ page }) => {
+test('shares a saved build, supports manual copying, previews without writes and adds a copy', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
@@ -204,7 +205,7 @@ test('shares a saved build, supports manual copying, previews without writes and
   expect(errors).toEqual([])
 })
 
-test('opens four portable team slots in a fresh browser and saves them as an independent Team', async ({ page, browser, baseURL, isMobile }) => {
+test('opens four portable team slots in a fresh browser and saves them as an independent Team', { tag: MOBILE_TEST_TAG }, async ({ page, browser, baseURL, isMobile }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const source = await storedData(page)

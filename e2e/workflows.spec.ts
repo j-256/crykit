@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -65,7 +66,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('settings keeps keyboard focus within its sheet and returns focus on escape', async ({ page }) => {
+test('settings keeps keyboard focus within its sheet and returns focus on escape', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const trigger = page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true })
   await trigger.focus()
   await page.keyboard.press('Enter')
@@ -84,7 +85,7 @@ test('settings keeps keyboard focus within its sheet and returns focus on escape
   await expect(trigger).toBeFocused()
 })
 
-test('manual observations preserve unknowns and survive reload without horizontal overflow', async ({ page }) => {
+test('manual observations preserve unknowns and survive reload without horizontal overflow', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await addItem(page, 'Unknown keepsake')
@@ -130,7 +131,7 @@ test('empty and oversized imports reject before reading file bytes', async ({ pa
   await expect(page.getByText('Retained notebook', { exact: true })).toBeVisible()
 })
 
-test('import previews before writing and native restore keeps original source bytes', async ({ page }) => {
+test('import previews before writing and native restore keeps original source bytes', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-research.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
@@ -192,7 +193,7 @@ test('an imported Game Setup preserves unknown rules while difficulty remains ed
   expect(setup.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 2 } })
 })
 
-test('large previews bound warning and facet elements while keeping every facet reachable', async ({ page, isMobile }) => {
+test('large previews bound warning and facet elements while keeping every facet reachable', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const reference = {
     schema_version: '1.1.0',
     base_equipment: Array.from({ length: 250 }, (_, index) => ({
@@ -267,7 +268,7 @@ test('Playthrough switching isolates records and undo restores the previous obse
   await expect(page.getByText('Second Playthrough keepsake', { exact: true })).not.toBeVisible()
 })
 
-test('reference facets combine alternatives and keep unknown numeric values as possible matches', async ({ page, isMobile }) => {
+test('reference facets combine alternatives and keep unknown numeric values as possible matches', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
@@ -336,7 +337,7 @@ test('inventory facets and search survive browser back navigation', async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('a production shell reloads and exports after going offline', async ({ page, context }) => {
+test('a production shell reloads and exports after going offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await addItem(page, 'Offline keepsake', 1)
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()

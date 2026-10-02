@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -125,7 +126,7 @@ test('progress edit routes hydrate exact records and reject missing identities',
   await expect(page.getByRole('dialog', { name: 'Edit progress record', exact: true })).not.toBeVisible()
 })
 
-test('direct nested modal routes restore the top layer and close one layer at a time', async ({ page }) => {
+test('direct nested modal routes restore the top layer and close one layer at a time', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/inventory/new/pick/item-definition/definitions/new?q=Synthetic')
   await page.reload()
   const inventoryForm = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
@@ -157,7 +158,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await expectActiveDialog(page, 'Data & settings')
 })
 
-test('reference source options remain readable, bounded, and exact', async ({ page, isMobile }) => {
+test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await navigate(page, 'Reference')
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
   await page.getByRole('button', { name: 'Source', exact: true }).click()

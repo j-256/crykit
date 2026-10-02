@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createBlankPlaythrough } from './local-data-helpers'
 
@@ -15,7 +16,7 @@ async function clickOutside(page: Page, panel: Locator, touch: boolean) {
   await activatePoint(page, touch, { x: bounds!.x / 2, y: bounds!.y + bounds!.height / 2 })
 }
 
-test('backdrop dismissal ignores panel clicks and drags and restores focus without activating the page', async ({ page, isMobile }) => {
+test('backdrop dismissal ignores panel clicks and drags and restores focus without activating the page', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.setViewportSize(BACKDROP_VIEWPORT)
   await page.goto('/#/inventory')
   const reference = page.getByRole('button', { name: 'Reference', exact: true }).filter({ visible: true })
@@ -68,7 +69,7 @@ test('definition search is ready for typing on opening, reopening, and direct li
   await expect(search).toHaveValue('Potion')
 })
 
-test('backdrop dismissal closes only the top layer and respects unsaved definition guards', async ({ page, isMobile }) => {
+test('backdrop dismissal closes only the top layer and respects unsaved definition guards', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.setViewportSize(BACKDROP_VIEWPORT)
   await page.goto('/#/inventory/new/pick/item-definition/definitions/new?q=Synthetic')
   const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
@@ -96,7 +97,7 @@ test('backdrop dismissal closes only the top layer and respects unsaved definiti
   await expect(page).toHaveURL(/#\/inventory\/new$/)
 })
 
-test('definition dropdowns stay anchored, support keyboard selection, and leave the form usable', async ({ page, isMobile }) => {
+test('definition dropdowns stay anchored, support keyboard selection, and leave the form usable', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/inventory/new')
   const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   const trigger = form.getByRole('button', { name: 'Choose Item definition', exact: true })
@@ -139,7 +140,7 @@ test('definition dropdowns stay anchored, support keyboard selection, and leave 
   await expect(form.getByRole('combobox', { name: 'Current possession', exact: true })).toHaveValue('owned')
 })
 
-test('dropdown scrolling and Tab preserve keyboard access and dialogs are centered', async ({ page }) => {
+test('dropdown scrolling and Tab preserve keyboard access and dialogs are centered', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/inventory/new')
   const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   const bounds = (await form.boundingBox())!
@@ -162,7 +163,7 @@ test('dropdown scrolling and Tab preserve keyboard access and dialogs are center
   await expect(form.getByRole('button', { name: 'Close dialog', exact: true })).toBeFocused()
 })
 
-test('class dropdowns switch fields directly and a lower field opens upward', async ({ page }) => {
+test('class dropdowns switch fields directly and a lower field opens upward', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/inventory')
   await createBlankPlaythrough(page)
   await page.goto('/#/characters/new')

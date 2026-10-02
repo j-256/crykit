@@ -1,6 +1,7 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 
-test('inventory filters stay compact and item artwork aligns with its label', async ({ page }) => {
+test('inventory filters stay compact and item artwork aligns with its label', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/inventory')
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
 

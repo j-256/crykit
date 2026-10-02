@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -26,7 +27,7 @@ async function addCharacter(page: Page, name: string) {
   await expect(form).not.toBeVisible()
 }
 
-test('build choices expose native facts, mod scope, and explicit innate costs', async ({ page, isMobile }, testInfo) => {
+test('build choices expose native facts, mod scope, and explicit innate costs', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   await page.goto('/#/builds/library/new')
   await expect(page.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
   const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
@@ -180,7 +181,7 @@ test('build edit warnings save or discard before continuing to another section',
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
 })
 
-test('new and existing build drafts survive Reference research, history, and return navigation', async ({ page, isMobile }) => {
+test('new and existing build drafts survive Reference research, history, and return navigation', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')

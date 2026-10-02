@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
 const COLLAPSED_RAIL_MAX_WIDTH_PX = 80
@@ -70,7 +71,7 @@ async function visibleArtworkOffset(locator: ReturnType<Page['locator']>) {
   })
 }
 
-test('team and library summaries show every equipment slot and PP crystal', async ({ page }) => {
+test('team and library summaries show every equipment slot and PP crystal', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/teams')
   const rowan = page.getByRole('region', { name: 'Rowan loadout', exact: true })
   await expect(rowan.locator('.build-card__equipment .build-card__selection')).toHaveCount(6)

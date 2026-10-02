@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const RAPIER = referencePath('base:item:artisan-rapier')
@@ -20,7 +21,7 @@ function fact(page: Page, name: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
 }
 
-test('uses matching detail sections and typed editors for catalog and personal definitions', async ({ page }) => {
+test('uses matching detail sections and typed editors for catalog and personal definitions', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(RAPIER)
   const sections = ['Definition facts', 'Source trail', 'Planning fields']
   for (const name of sections) await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
@@ -66,7 +67,7 @@ test('uses matching detail sections and typed editors for catalog and personal d
   for (const card of await personalCards.all()) await expect(card.locator('.reference-title img')).toHaveAttribute('src', artwork!)
 })
 
-test('keeps validation and close recovery beside the fixed save controls', async ({ page }) => {
+test('keeps validation and close recovery beside the fixed save controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(RAPIER)
   const editor = await edit(page)
   await setFact(editor, 'Attack', 'known', '')

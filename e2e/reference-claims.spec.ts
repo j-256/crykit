@@ -1,4 +1,5 @@
 import { referencePath } from './reference-helpers'
+import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
 import { expectOfflineReady } from './offline-helpers'
@@ -52,7 +53,7 @@ test('equivalent source wording is shown as one fact with known implied', async 
   await expect(page.getByRole('link', { name: 'Community wiki · Adjudicator', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Adjudicator?oldid=11911')
 })
 
-test('conflicting fields expose every claim and protect explicit review choices', async ({ page, baseURL }) => {
+test('conflicting fields expose every claim and protect explicit review choices', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   const externalRequests: string[] = []
   page.on('request', (request) => { if (!request.url().startsWith(`${baseURL}/`)) externalRequests.push(request.url()) })
   await page.goto(ITEM_PATH)

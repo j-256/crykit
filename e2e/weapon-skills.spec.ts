@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -18,7 +19,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', async ({ page, context, isMobile }) => {
+test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.keyboard.press('Meta+k')

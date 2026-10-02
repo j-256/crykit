@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -76,7 +77,7 @@ function field(container: Locator, label: string) {
   return container.locator('dl > div').filter({ has: container.page().locator('dt', { hasText: new RegExp(`^${label}$`) }) }).locator('dd')
 }
 
-test('overview preserves the selected snapshot, slot context, knowledge states and independent learning records', async ({ page }, testInfo) => {
+test('overview preserves the selected snapshot, slot context, knowledge states and independent learning records', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/')
   const original = syntheticOverview()
   await importLocalData(page, original)
@@ -134,7 +135,7 @@ test('desktop overview fits the roster in one comparison row with every equipmen
   await expect(cards.first().getByTitle(/^Main hand: Short Sword/)).toBeVisible()
 })
 
-test('overview links support keyboard, history, offline reload and dirty member guards', async ({ page, context, isMobile }, testInfo) => {
+test('overview links support keyboard, history, offline reload and dirty member guards', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }, testInfo) => {
   const errors: string[] = []
   const external: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -202,7 +203,7 @@ test('overview links support keyboard, history, offline reload and dirty member 
   expect(external).toEqual([])
 })
 
-test('blank Playthroughs and new characters stay blank and the roster is independent of scenario selection', async ({ page, isMobile }) => {
+test('blank Playthroughs and new characters stay blank and the roster is independent of scenario selection', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/#/characters')
   await page.getByRole('button', { name: /^Party plan:/ }).click()

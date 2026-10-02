@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -27,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('a blank playthrough can plan unowned gear directly and reopen it offline', async ({ page, context }, testInfo) => {
+test('a blank playthrough can plan unowned gear directly and reopen it offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
@@ -76,7 +77,7 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('inline search accepts only exact choices and supports keyboard, touch, and history', async ({ page, isMobile }, testInfo) => {
+test('inline search accepts only exact choices and supports keyboard, touch, and history', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   await page.goto('/#/builds/library/new')
   const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await hand.click()
@@ -184,7 +185,7 @@ test('failed creation retains the sheet and retry saves one build and checkpoint
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
 })
 
-test('direct links reveal the next passive position and restore its inline search', async ({ page }) => {
+test('direct links reveal the next passive position and restore its inline search', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new/pick/slot/passive-1?q=Counter')
   const passive = page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })
   await expect(passive).toBeFocused()

@@ -50,8 +50,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [desktop, mobile]
-        shard: [1, 2]
+        include:
+          - { project: desktop, shard: 1, shards: 4 }
+          - { project: desktop, shard: 2, shards: 4 }
+          - { project: desktop, shard: 3, shards: 4 }
+          - { project: desktop, shard: 4, shards: 4 }
+          - { project: mobile, shard: 1, shards: 2 }
+          - { project: mobile, shard: 2, shards: 2 }
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,7 +77,15 @@ jobs:
       - name: Install test browser
         run: npx playwright install --with-deps chromium
       - name: Verify browser workflows
-        run: npm run test:e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2 --workers=1
+        run: npm run test:e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.shards }} --workers=1
+      - name: Save browser timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-timings-${{ matrix.project }}-${{ matrix.shard }}
+          path: test-results/timings.json
+          if-no-files-found: ignore
+          retention-days: 1
       - name: Save browser failure evidence
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

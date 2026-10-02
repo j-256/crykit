@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { expect, test, type Page } from '@playwright/test'
@@ -34,7 +35,7 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
-test('uses native artwork and the game tree layout with only gray and gold states', async ({ page }) => {
+test('uses native artwork and the game tree layout with only gray and gold states', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await expect(page).toHaveTitle('Summons | CryKit')
   await expect(page.getByRole('navigation', { name: 'Progress guides' }).getByRole('link', { name: 'Summons', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('.summon-tile[data-unlocked="false"]')).toHaveCount(SUMMONS.filter(summon => !summon.starting).length)
@@ -89,7 +90,7 @@ test('opens skill and deity Reference pages without changing unlock progress', a
   expect(selectedPlaythrough(localData).progress).toEqual({})
 })
 
-test('rapid odd and even clicks preserve the final request and keep neighboring tiles and controls stable', async ({ page }) => {
+test('rapid odd and even clicks preserve the final request and keep neighboring tiles and controls stable', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.evaluate(() => {
     const neighbor = document.querySelector('[data-summon="base:summoner:ability:pah"]')!
     const context = document.querySelector('.context-bar')!
@@ -140,7 +141,7 @@ test('opens saved summon search results on their own board instead of the class 
   await expect(page.getByRole('navigation', { name: 'Progress guides' }).getByRole('link', { name: 'Summons', exact: true })).toHaveAttribute('aria-current', 'page')
 })
 
-test('rolls back a failed save, reports it, and persists a retry', async ({ page }) => {
+test('rolls back a failed save, reports it, and persists a retry', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
@@ -186,7 +187,7 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
   expect(selectedPlaythrough(restored.localData).progress).toEqual(first.progress)
 })
 
-test('records summon unlocks and reads their artwork offline', async ({ page, context }) => {
+test('records summon unlocks and reads their artwork offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()

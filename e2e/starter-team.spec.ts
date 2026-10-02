@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -20,7 +21,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
 }
 
-test('a fresh guest can explore and edit the sample team, then reopen it offline without duplicates', async ({ page, context, baseURL }, testInfo) => {
+test('a fresh guest can explore and edit the sample team, then reopen it offline without duplicates', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }, testInfo) => {
   const errors: string[] = []
   const externalRequests: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -97,7 +98,7 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   expect(Object.values(localData.builds)).toHaveLength(4)
 })
 
-test('Game Setup starts with core fields and reveals optional settings on demand', async ({ page }, testInfo) => {
+test('Game Setup starts with core fields and reveals optional settings on demand', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await openCurrentGameSetup(panel)

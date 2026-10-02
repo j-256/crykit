@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -40,7 +41,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
 })
 
-test('details actions have balanced spacing before the checkpoint controls', async ({ page }) => {
+test('details actions have balanced spacing before the checkpoint controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const form = page.locator('.build-details-control')
   const cancel = form.getByRole('button', { name: 'Cancel details', exact: true })
   const save = form.getByRole('button', { name: 'Save details', exact: true })
@@ -69,7 +70,7 @@ test('details actions have balanced spacing before the checkpoint controls', asy
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('optional tags persist independently, round-trip in backups, and match both searches', async ({ page }) => {
+test('optional tags persist independently, round-trip in backups, and match both searches', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
   await expect(tagsControl(page).locator('summary')).toHaveAccessibleName('Tags (1)')
@@ -208,7 +209,7 @@ test('new Builds offer optional tags and save pending text through the navigatio
   expect(Object.values(data.builds).find(build => build.title === NEW_TITLE)!.tags).toEqual([TAG, 'early game'])
 })
 
-test('long tags wrap on cards and in the editor, survive cloning, and can all be removed', async ({ page, isMobile }) => {
+test('long tags wrap on cards and in the editor, survive cloning, and can all be removed', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const longTag = 'synthetic-label'.repeat(12)
   await openTags(page)
   await addTag(page, longTag)

@@ -1,7 +1,8 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 import { selectWithSeparateEvents } from './select-helpers'
 
-test('build details separate fixed class ratings from level stats and keep editing usable across viewport sizes', async ({ page, isMobile }) => {
+test('build details separate fixed class ratings from level stats and keep editing usable across viewport sizes', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/builds/library')
   await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })

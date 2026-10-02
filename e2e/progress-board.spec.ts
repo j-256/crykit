@@ -1,3 +1,4 @@
+import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
 import { createBlankPlaythrough } from './local-data-helpers'
@@ -46,7 +47,7 @@ async function expectStableProgressRegions(page: Page): Promise<void> {
   expect(renderResult).toEqual({ sameTile: true, untouchedMutations: [], contextMutations: [] })
 }
 
-test('the vanilla mastery board cycles one class through all four playthrough states', async ({ page }) => {
+test('the vanilla mastery board cycles one class through all four playthrough states', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const board = page.getByRole('region', { name: 'Vanilla class mastery board', exact: true })
   const tiles = board.locator('.class-seal-tile')
   await expect(tiles).toHaveCount(24)
@@ -87,7 +88,7 @@ test('the vanilla mastery board cycles one class through all four playthrough st
   expect(columnCount).toBeGreaterThanOrEqual(2)
 })
 
-test('rapid class clicks stay interactive, drain in order, and guard tab close while queued', async ({ page }) => {
+test('rapid class clicks stay interactive, drain in order, and guard tab close while queued', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   test.setTimeout(QUEUED_SAVE_TEST_TIMEOUT_MS)
   const board = page.getByRole('region', { name: 'Vanilla class mastery board', exact: true })
   const warrior = board.locator('.class-seal-tile').filter({ hasText: 'Warrior' }).first()
@@ -120,7 +121,7 @@ test('rapid class clicks stay interactive, drain in order, and guard tab close w
   await expect(board.locator('.class-seal-tile').filter({ hasText: 'Warrior' }).first()).toHaveAttribute('data-stage', 'sealAcquired')
 })
 
-test('bulk edit sets selected classes to one explicit state and persists them together', async ({ page }) => {
+test('bulk edit sets selected classes to one explicit state and persists them together', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const board = page.getByRole('region', { name: 'Vanilla class mastery board', exact: true })
   await page.getByRole('button', { name: 'Edit multiple', exact: true }).click()
   const bulkEditor = page.getByRole('region', { name: 'Bulk edit class mastery', exact: true })
