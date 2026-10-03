@@ -22,7 +22,7 @@ export function ShareButton({ localData, target, disabled = false }: { readonly 
     catch { setCopyState('manual'); inputRef.current?.focus(); inputRef.current?.select() }
   }
   return <>
-    <Button disabled={disabled} onClick={() => { setCopyState('idle'); setOpen(true) }} tone="secondary">{target.kind === 'team' ? 'Share team' : 'Share build'}</Button>
+    <Button disabled={disabled} onClick={() => { setCopyState('idle'); setOpen(true) }} tone="secondary" type="button">{target.kind === 'team' ? 'Share team' : 'Share build'}</Button>
     <Sheet description="Anyone with this link can view the saved snapshot. Further edits need a new link." footer={<><Button onClick={() => setOpen(false)} tone="quiet">Close</Button><Button disabled={!result?.url} onClick={() => void copy()}>{copyState === 'copied' ? 'Copied' : 'Copy link'}</Button></>} onClose={() => setOpen(false)} open={open} title={target.kind === 'team' ? 'Share team' : 'Share build'}>
       <div className="stack">
         <p>The link includes the pinned loadout, calculation inputs, Game Setup, and required personal definitions. Teams use four ordered slots. Character records, inventory, learning, and history stay in this browser.</p>

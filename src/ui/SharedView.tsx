@@ -88,7 +88,7 @@ export function SharedView({ encoded, catalogs, onSave }: { readonly encoded: st
     } catch (reason) { setSaveError(formatAppError(reason, 'The shared copy could not be saved.')) }
     finally { setBusy(false) }
   }
-  if (error) return <section className="panel"><div className="panel__body stack"><h1>Shared snapshot unavailable</h1><InlineNotice title="Link could not be opened" tone="danger">{error} Missing catalog revisions are not replaced by another version.</InlineNotice><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })}>Open build library</Button></div></section>
+  if (error) return <><ScreenHeader title="Shared snapshot unavailable" description="The shared snapshot could not be opened." actions={<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })}>Open build library</Button>}/><section className="panel"><div className="panel__body stack"><InlineNotice title="Link could not be opened" tone="danger">{error} Missing catalog revisions are not replaced by another version.</InlineNotice></div></section></>
   if (!preview) return <p role="status">Opening shared snapshot...</p>
   const { payload } = preview
   const slots = payload.kind === 'team' ? payload.slots! : [Object.values(payload.records.buildRevisions)[0]!.id]
