@@ -35,6 +35,8 @@ import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
 
+const STACKED_BUILD_LAYOUT_QUERY = '(max-width: 1120px)'
+
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly behavior: BuildBehavior; readonly behaviorRevisionId?: GameSetupRevisionId; readonly note?: string }
 export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<ScenarioKind, 'recordedCurrent'>; readonly memberIds: readonly string[]; readonly baseline: 'empty' | 'recordedParty'; readonly enforceStock: boolean; readonly includeProtected: boolean; readonly buildRevisionId?: BuildRevisionId }
@@ -353,10 +355,10 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const selectedId = 'buildId' in page ? page.buildId : undefined
   const buildQuery = navigation.route.query.q?.[0] ?? ''
   const editingRoute = page.view === 'revision-new' || page.view === 'revision-edit'
-  const [libraryOpen, setLibraryOpen] = useState(() => window.matchMedia('(min-width: 821px)').matches)
+  const [libraryOpen, setLibraryOpen] = useState(() => !window.matchMedia(STACKED_BUILD_LAYOUT_QUERY).matches)
   useEffect(() => {
-    const media = window.matchMedia('(min-width: 821px)')
-    const update = () => setLibraryOpen(media.matches)
+    const media = window.matchMedia(STACKED_BUILD_LAYOUT_QUERY)
+    const update = () => setLibraryOpen(!media.matches)
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
@@ -419,7 +421,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const updateDetailsDirty: DraftChangeHandler = (value, actions) => updateDraftDirty('details', value, actions)
   const guardDraft = (message: string, continuation: () => void) => { draftContinuationRef.current = continuation; setDraftGuard(message) }
   const changeSection = (value: BuildsSection) => { if (editorDirty && value !== section) { guardDraft('Choose whether to save or discard the build edits, then continue to the selected section.', () => navigate({ page: 'builds', view: value })); return } navigate({ page: 'builds', view: value }) }
-  const selectBuild = (value: string, focusField?: string) => { const build = ownRecordValue(localData.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build), false, focusField ? fieldFocusQuery(focusField) : {}); if (window.matchMedia('(max-width: 820px)').matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
+  const selectBuild = (value: string, focusField?: string) => { const build = ownRecordValue(localData.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build), false, focusField ? fieldFocusQuery(focusField) : {}); if (window.matchMedia(STACKED_BUILD_LAYOUT_QUERY).matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
   const resolveDraft = async (resolution: 'save' | 'discard') => {
     const actions = editorActionsRef.current
     const continuation = draftContinuationRef.current
