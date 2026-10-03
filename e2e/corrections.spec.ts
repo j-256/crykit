@@ -1,3 +1,4 @@
+import { openReferenceActions } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -23,6 +24,7 @@ async function editLocation(page: Page, value: string) {
   return editor
 }
 async function openCorrections(page: Page) {
+  await openReferenceActions(page)
   await page.getByRole('button', { name: /^Corrections(?: \(\d+\))?$/ }).click()
   return page.getByRole('dialog', { name: 'Corrections', exact: true })
 }

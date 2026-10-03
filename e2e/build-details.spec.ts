@@ -1,3 +1,4 @@
+import { openBuildActions } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { selectWithSeparateEvents } from './select-helpers'
@@ -49,12 +50,14 @@ test('build details separate fixed class ratings from level stats and keep editi
   const factLabels = body.locator('.build-selection-details > .definition-list > .definition-row > dt')
   await expect(factLabels.last()).toHaveText('Cost')
   if (isMobile) {
+    await openBuildActions(page)
     for (const button of ['New Build', 'Clone Build']) {
       await page.getByRole('button', { name: button, exact: true }).scrollIntoViewIfNeeded()
       const bounds = await page.getByRole('button', { name: button, exact: true }).boundingBox()
       expect(bounds!.x).toBeGreaterThanOrEqual(0)
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
     }
+    await page.keyboard.press('Escape')
   } else {
     const library = await page.locator('.build-layout > .build-library').boundingBox()
     expect(library!.width).toBeGreaterThanOrEqual(310)

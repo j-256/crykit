@@ -61,7 +61,7 @@ test('home opens the build library and separates tracking on desktop and touch',
   if (isMobile) await inspector.tap()
   else await inspector.press('Enter')
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  await expect(page.getByText('Mod workspace', { exact: true })).toBeVisible()
+  await expect(page.locator('.context-bar').getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
 })
 

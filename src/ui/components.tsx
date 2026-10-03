@@ -1,8 +1,10 @@
-import { forwardRef, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
+import { forwardRef, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ComponentPropsWithRef, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
 import { Dropdown } from './Dropdown'
 import { Icon, type IconName } from './icons'
+import { createPortal } from 'react-dom'
+import { useWorkspaceHeader } from './WorkspaceHeader'
 
-export function Button({ children, className = '', tone = 'primary', icon, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: 'primary' | 'secondary' | 'quiet' | 'danger'; icon?: IconName }) {
+export function Button({ children, className = '', tone = 'primary', icon, ...props }: ComponentPropsWithRef<'button'> & { tone?: 'primary' | 'secondary' | 'quiet' | 'danger'; icon?: IconName }) {
   return <button className={`button button--${tone} ${className}`} {...props}>{icon && <Icon name={icon} />}{children}</button>
 }
 
@@ -14,8 +16,13 @@ export function Badge({ children, tone = 'neutral', icon }: PropsWithChildren<{ 
   return <span className={`badge badge--${tone}`}>{icon && <Icon name={icon} />}{children}</span>
 }
 
-export function ScreenHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description: string; actions?: ReactNode }) {
-  return <header className="screen-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="screen-header__description">{description}</p></div>{actions && <div className="screen-header__actions">{actions}</div>}</header>
+export function ScreenHeader({ eyebrow, title, description, actions, breadcrumb, context }: { eyebrow?: string; title: string; description: string; actions?: ReactNode; breadcrumb?: ReactNode; context?: ReactNode }) {
+  const workspace = useWorkspaceHeader()
+  const header = <header className={`screen-header${workspace ? ' workspace-header' : ''}`} hidden={workspace ? !workspace.active : undefined}>
+    <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<h1 title={title}>{title}</h1></div>{context}<p className="screen-header__description">{description}</p></div>
+    {(workspace || actions) && <div className="screen-header__actions">{workspace && <span className="workspace-header__primary" ref={workspace.setPrimaryTarget}/>} {actions}</div>}
+  </header>
+  return workspace ? workspace.target ? createPortal(header, workspace.target) : null : header
 }
 
 export function EmptyState({ icon, title, description, children, aside, className = '' }: PropsWithChildren<{ icon: IconName; title: string; description: string; aside?: ReactNode; className?: string }>) {

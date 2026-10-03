@@ -1,3 +1,4 @@
+import { clickBuildAction } from './planning-header-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 
@@ -34,7 +35,7 @@ test('saved and cloned Builds have no classification badges', async ({ page }) =
   await expect(page.getByRole('button', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
   await expect(page.locator('.build-card__header .badge')).toHaveCount(0)
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
-  await page.getByRole('button', { name: 'Clone Build', exact: true }).click()
+  await clickBuildAction(page, 'Clone Build')
   await expect(page.getByRole('heading', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await expect(page.getByRole('button', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()

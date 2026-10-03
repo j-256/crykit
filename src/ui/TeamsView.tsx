@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createId, entityDefinitionKey, requirePlaythrough, validateScenario } from '../domain'
 import { createScenario, TEAM_SIZE } from '../domain/scenarios'
 import { sameBuildBehavior } from '../domain/build-behavior'
@@ -12,6 +12,7 @@ import { Button, EmptyState, Field, InlineNotice, ScreenHeader } from './compone
 import { formatAppError } from './model'
 import { ShareButton } from './ShareButton'
 import { useNavigation, useNavigationBlocker } from './navigation'
+import { WorkspacePrimaryAction } from './WorkspaceHeader'
 
 const emptyTeamSlots = (): readonly (BuildRevisionId | null)[] => Array.from({ length: TEAM_SIZE }, () => null)
 
@@ -24,6 +25,7 @@ interface Props {
 }
 
 function TeamEditor({ team, localData, catalogs, onSave, onDraftChange }: Props & { readonly team?: Team }) {
+  const formId = useId()
   const navigation = useNavigation()
   const [id] = useState(() => team?.id ?? createId<TeamId>('team'))
   const [title, setTitle] = useState(team?.title ?? '')
@@ -60,8 +62,8 @@ function TeamEditor({ team, localData, catalogs, onSave, onDraftChange }: Props 
   actionsRef.current = { save, discard: () => { setTitle(team?.title ?? ''); setSlots(team?.slots ?? emptyTeamSlots()); dirtyRef.current = false; onDraftChange(false); setError(undefined) } }
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
   const builds = Object.values(localData.builds).filter(build => !build.archived || slots.some(id => id && localData.buildRevisions[id]?.buildId === build.id)).sort((left, right) => left.title.localeCompare(right.title))
-  return <form className="stack" onSubmit={submit}>
-    <ScreenHeader eyebrow="Buildcrafting" title={team ? team.title : 'New Team'} description="Choose four build checkpoints. You can reuse the same build in multiple slots." actions={<Button disabled={busy} onClick={back} tone="quiet" type="button">{dirty ? 'Discard and return' : 'All Teams'}</Button>}/>
+  return <form className="stack" id={formId} onSubmit={submit}>
+    <ScreenHeader eyebrow="Buildcrafting" title={team ? team.title : 'New Team'} description="Choose four build checkpoints. You can reuse the same build in multiple slots." breadcrumb={<Button disabled={busy} icon="arrow-left" onClick={back} tone="quiet" type="button">{dirty ? 'Discard and return' : 'All Teams'}</Button>} actions={team && <ShareButton disabled={busy || dirty || !slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/>}/>
     {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
     <Field label="Team name" required><input disabled={busy} required value={title} onChange={event => setTitle(event.target.value)}/></Field>
     <div className="share-team-grid">{slots.map((id, index) => {
@@ -70,7 +72,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onDraftChange }: Props 
       return <section aria-label={`Team slot ${index + 1} loadout`} className="panel team-loadout-card" key={index}><header className="panel__header"><h2>Slot {index + 1}</h2></header><div className="panel__body stack"><Field label={`Team slot ${index + 1}`}><select disabled={busy} value={id ?? ''} onChange={event => setSlots(values => values.map((value, slotIndex) => slotIndex === index ? event.target.value as BuildRevisionId || null : value))}><option value="">Choose a build checkpoint</option>{builds.map(build => <optgroup key={build.id} label={build.title}>{Object.values(localData.buildRevisions).filter(revision => revision.buildId === build.id).sort((left, right) => right.revision - left.revision).map(revision => <option key={revision.id} value={revision.id}>{build.title} · r{revision.revision}</option>)}</optgroup>)}</select></Field>{revision && <><BuildLoadoutSummary content={revision.content} catalogs={catalogs} localData={localData} gameSetup={setup}/><Button tone="quiet" type="button" disabled={busy || dirty} onClick={() => navigation.navigate({ page: { page: 'builds', view: 'revision', buildId: revision.buildId, revisionId: revision.id }, overlays: [], query: {} })}>Open checkpoint</Button></>}</div></section>
     })}</div>
     {builds.length === 0 && <p>Create a Build first, or save an empty Team and fill its slots later.</p>}
-    <div className="form-actions"><Button disabled={busy || !title.trim() || !!team && !dirty} icon="check" type="submit">{busy ? 'Saving...' : 'Save Team'}</Button>{team && <ShareButton disabled={busy || dirty || !slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/>}</div>
+    <WorkspacePrimaryAction><Button disabled={busy || !title.trim() || !!team && !dirty} form={formId} icon="check" type="submit">{busy ? 'Saving...' : 'Save Team'}</Button></WorkspacePrimaryAction>
     {team && <details><summary>Use with Tracking</summary><div className="stack"><p>Compare these builds with tracked characters, then record the Team as their current loadouts.</p><Button disabled={busy || dirty || slots.some(id => !id)} onClick={() => navigation.navigate({ page: { page: 'teams', view: 'adopt', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Adopt Team</Button></div></details>}
   </form>
 }
@@ -129,7 +131,7 @@ export function TeamsView(props: Props) {
   const page = navigation.route.page
   if (page.page !== 'teams') return null
   const team = 'teamId' in page ? props.localData.teams[page.teamId] : undefined
-  if ('teamId' in page && !team) return <InlineNotice title="Team unavailable">The requested Team is not saved in this browser.</InlineNotice>
+  if ('teamId' in page && !team) return <><ScreenHeader title="Teams" description="The requested Team is not saved in this browser." actions={<Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="secondary">All Teams</Button>}/><InlineNotice title="Team unavailable">The requested Team is not saved in this browser.</InlineNotice></>
   if (page.view === 'adopt' && team) return <AdoptTeam {...props} team={team} key={`${team.id}:${props.localData.selectedPlaythroughId}`}/>
   if (page.view !== 'list') return <TeamEditor {...props} team={team} key={team?.id ?? 'new'}/>
   const teams = Object.values(props.localData.teams).sort((left, right) => left.title.localeCompare(right.title))
