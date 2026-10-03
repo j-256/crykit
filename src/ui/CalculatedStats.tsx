@@ -1,3 +1,4 @@
+import { buildModRequirements } from '../domain/build-mods'
 import { ASSUMED_COMPATIBLE_PC_VERSIONS, resolveGameRules } from '../domain/game-rules'
 import { useMemo, useState } from 'react'
 import { benchmarkDamage, calculatePCStats, selectedPCStats } from '../domain/pc-stats'
@@ -10,6 +11,7 @@ import { CalculationPicker } from './BuildMechanics'
 import { CalculationInputs } from './CalculationInputs'
 import { CalculationStatus } from './CalculationStatus'
 import { downloadBytes, knowledgeLabel, resolveCalculationEntity } from './model'
+import { useBuildModSelection } from './BuildModSelectionGate'
 import './calculated-stats.css'
 
 const STEPS = [10, 5, 1] as const
@@ -21,6 +23,8 @@ const STAT_NAMES = { ...STAT_LABELS, AP: 'Max AP' }
 export function CalculatedStats({ content, slots, localData, catalogs, gameSetup, onChange, onReviewGameSetup, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, recorded }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; recorded?: Readonly<Record<string, ObservedStat>> }) {
   const plan = content.calculation
   const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
+  const modSelection = useBuildModSelection()
+  const requiredMod = useMemo(() => buildModRequirements(content, localData, catalogs, gameSetup).find(requirement => requirement.state !== 'enabled'), [content, localData, catalogs, gameSetup])
   const estimate = useMemo(() => calculatePCStats(content, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
   const allocated = plan?.growth.reduce((total, row) => total + (row.levels ?? 0), 0) ?? 0
   const baseline = useMemo(() => plan ? calculatePCStats({ ...content, calculation: { ...plan, growth: [{ classRef: content.primaryClass, levels: plan.level }] } }, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), unknownInputs, unknownSecondaryClass, rules) : undefined, [content, plan, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
@@ -71,7 +75,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
       <div className="cluster"><Button disabled={plan.growth.length >= PC_LEVEL_CAP} onClick={() => update({ growthMode: 'manual', growth: [...plan.growth, { classRef: null, levels: 0 }] })} tone="secondary" type="button">Add growth class</Button><Button onClick={() => update({ growthMode: 'primary', growth: [{ classRef: content.primaryClass, levels: plan.level }] })} tone="quiet" type="button">Follow primary class for all growth</Button></div>
     </div></details></> : <details className="growth-controls"><summary>Level-up growth · {allocated}/{plan.level ?? '?'}</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={plan}/></details>}
     {(plan.statuses.length > 0 || plan.bonuses.length > 0) && <InlineNotice title="Additional saved assumptions"><p>Resting totals require no active statuses or custom per-stat bonuses. These saved assumptions have been retained.</p>{onChange && <Button onClick={() => update({ statuses: [], bonuses: [] })} tone="quiet" type="button">Clear active statuses and custom bonuses</Button>}</InlineNotice>}
-    {!hasResults && <CalculationStatus issues={estimate.issues} onReviewGameSetup={rules.issues.length ? onReviewGameSetup : undefined}/>}
+    {!hasResults && (modSelection && !content.primaryClass ? <p>Choose a primary class to calculate stats.</p> : <CalculationStatus issues={estimate.issues} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>)}
     {hasResults && estimate.issues.length > 0 && <InlineNotice title="Some calculation values unavailable" tone="warning"><ul>{estimate.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
     {!hasResults && availableRecorded.length > 0 && <div className="calculated-stats__table"><table aria-label="Recorded character stats"><thead><tr><th>Stat</th><th>Recorded</th></tr></thead><tbody>{availableRecorded.map(stat => <tr key={stat}><th scope="row">{STAT_NAMES[stat as CalculatedStat] ?? stat}</th><td>{knowledgeLabel(recordedStat(stat)!.value)} {recordedStat(stat)!.unit ?? ''}</td></tr>)}</tbody></table></div>}
     {hasResults && <>

@@ -4,11 +4,14 @@ import { nativeInteger } from './native-number'
 import { jsonRecord } from './crystal-edit'
 import { modCatalogForPin } from './mod-layers'
 import { modRevision } from './mod-library'
+import { CURRENT_CRYSTAL_EDIT_VERSION, interpretCrystalEditBattleConfig, supportsCrystalEditVersion } from './crystal-edit-compatibility'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import { normalizeModName } from './mods'
 import type { BuildCalculationPlan, CatalogSnapshot, GameSetupRevision, JsonValue } from './types'
 
 export const IMPORTED_RULES_VERSION = 1
 export const IMPORTED_RULES_REVISION = `rules-v${IMPORTED_RULES_VERSION}`
-export const SUPPORTED_EDITOR_VERSION = 34
+export const SUPPORTED_EDITOR_VERSION = CURRENT_CRYSTAL_EDIT_VERSION
 export const PC_GAME_RULES = Object.freeze({ ppLimit: 10, equipmentSlots: 6, version: '1.6.9' })
 export const ASSUMED_COMPATIBLE_PC_VERSIONS = ['1.6.6', '1.6.6.0'] as const
 const SUPPORTED_PC_CALCULATION_VERSIONS: readonly string[] = [PC_GAME_RULES.version, `${PC_GAME_RULES.version}.0`, ...ASSUMED_COMPATIBLE_PC_VERSIONS]
@@ -51,7 +54,11 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   const issues: string[] = []
   if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`Native Windows PC calculations do not establish parity for ${setup.platform.value}.`)
   if (setup?.gameVersion?.state === 'known' && !SUPPORTED_PC_CALCULATION_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
-  if (setup?.mods?.state === 'known' && setup.mods.value.length) issues.push('Named mod choices lack calculation settings. Import their files and select exact revisions to establish their effects.')
+  const unboundNames = setup?.mods?.state === 'known' ? setup.mods.value.filter(name => {
+    const projects = [...new Set(BUNDLED_MOD_LIBRARY.filter(mod => mod.catalogNames?.some(alias => normalizeModName(alias) === normalizeModName(name))).map(mod => mod.id))]
+    return projects.length !== 1 || !setup.modComposition?.layers.some(layer => layer.enabled && layer.catalogId === projects[0])
+  }) : []
+  if (unboundNames.length) issues.push(`Select source versions for enabled mods: ${unboundNames.join(', ')}. Named choices alone do not establish their calculation settings.`)
   const difficultyIssues: string[] = [...issues]
   const difficulties = new Map<number, DifficultyDefinition>()
   const applyDifficulties = (records: JsonValue | undefined, title: string) => {
@@ -77,7 +84,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
     const revision = catalog ? modRevision(catalog) : undefined
     if (!revision) { const issue = 'An enabled mod revision is unavailable.'; issues.push(issue); difficultyIssues.push(issue); continue }
     const { title, rules: metadata } = revision
-    if (metadata?.version !== IMPORTED_RULES_VERSION || revision.editorVersion !== SUPPORTED_EDITOR_VERSION) {
+    if (metadata?.version !== IMPORTED_RULES_VERSION || !supportsCrystalEditVersion(revision.editorVersion)) {
       const issue = metadata?.version !== IMPORTED_RULES_VERSION ? `${title}: calculation settings are unavailable in this imported revision. Reimport and explicitly select the new revision.` : `${title}: calculation settings for editor format ${revision.editorVersion ?? 'unknown'} are unsupported.`
       issues.push(issue)
       difficultyIssues.push(issue)
@@ -89,7 +96,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
     if (metadata.battleConfig === null) continue
     source = title
     configIssues = []
-    const config = metadata.battleConfig
+    const config = interpretCrystalEditBattleConfig(metadata.battleConfig, revision.editorVersion)
     if (!jsonRecord(config)) { configIssues.push(`${title}: battle settings are not a supported object.`); continue }
     const invalid = Object.keys(baseline).filter(key => typeof config[key] !== typeof baseline[key] || typeof config[key] === 'number' && !nativeInteger(config[key]))
     const unsupported = Object.keys(config).filter(key => !Object.hasOwn(baseline, key))

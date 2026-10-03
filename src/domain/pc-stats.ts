@@ -1,7 +1,7 @@
 import { calculationModResolver } from './calculation-mods'
 import type { GameRuleResolution } from './game-rules'
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES } from './calculation-rules'
-import { definitionSourceRecord, knownField, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
+import { definitionSourceRecord, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
 import { nativeIdentity } from './native-game'
 import { nativeInteger } from './native-number'
 import { jsonRecord, MAX_GROWTH_RATING } from './crystal-edit'
@@ -9,6 +9,7 @@ import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, SlotDefinit
 import { entityDefinitionKey } from './core'
 import { catalogClassSource } from './build-mechanics'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
+import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 
 export type NativeRecord = Readonly<Record<string, unknown>>
 type Family = 'job' | 'equipment' | 'passive' | 'gender' | 'ability'
@@ -29,8 +30,7 @@ export function selectedPCStats(result: PCStatResult, gender: BuildCalculationPl
 const number = (record: NativeRecord | undefined, key: string) => nativeInteger(record?.[key]) ? record[key] as number : undefined
 const unknownStats = (): PCStats => Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, null]))
 const crystalRecord = (definition: MechanicsDefinition | undefined): NativeRecord | undefined => {
-  const record = knownField(definition, 'Crystal Edit source record')
-  return jsonRecord(record) ? record : undefined
+  return crystalEditPlanningRecord(definition)
 }
 
 function nativeById(family: Family, id: number, mode: string): NativeRecord | undefined {
@@ -76,7 +76,8 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
   const empty = unknownStats()
   if (gameRules?.issues.length) return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
   if (!plan || plan.model !== undefined && plan.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
-    issues.push(!primary ? 'Primary class has no verified numeric record.' : 'Choose a supported native calculation level.')
+    if (!primary && !modScope.issues.size) issues.push('Primary class has no verified numeric record.')
+    else if (primary) issues.push('Choose a supported native calculation level.')
     return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
   }
   const level = plan.level

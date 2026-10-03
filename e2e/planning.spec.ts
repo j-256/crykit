@@ -1,6 +1,6 @@
 import { clickBuildAction } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -162,6 +162,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
   await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
@@ -238,6 +239,7 @@ test('build drafts resist navigation and recording current preserves level and t
   await expect(currentTeam).not.toBeVisible()
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 / 10 PP')
@@ -290,6 +292,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await addCharacter(page, 'Synthetic Nia')
   await navigate(page, 'Builds')
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
