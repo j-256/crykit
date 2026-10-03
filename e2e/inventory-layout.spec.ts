@@ -1,5 +1,25 @@
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
+import { EQUIPMENT_CATEGORIES } from '../src/ui/reference-categories'
+
+test('inventory category filters use equipment identities while keeping readable labels', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/inventory')
+  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Linked category: All categories', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Filter by linked category', exact: true }).getByRole('button', { name: 'Shields (1)', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Linked category: Shields', exact: true })).toBeVisible()
+  await expect(page.locator('.inventory-item-label__name')).toHaveText(['Buckler'])
+  expect(new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('category')).toBe(EQUIPMENT_CATEGORIES.Shield.key)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Linked category: Shields', exact: true })).toBeVisible()
+  await expect(page.locator('.inventory-item-label__name')).toHaveText(['Buckler'])
+  await page.getByRole('button', { name: 'Linked category: Shields', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Filter by linked category', exact: true }).getByRole('button', { name: 'Swords (1)', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.inventory-item-label__name')).toHaveText(['Short Sword', 'Buckler'])
+  await expect(page.getByRole('button', { name: 'Linked category: 2 selected', exact: true })).toBeVisible()
+})
 
 test('inventory filters stay compact and item artwork aligns with its label', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/inventory')

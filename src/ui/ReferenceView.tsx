@@ -37,6 +37,7 @@ import { Dropdown } from './Dropdown'
 import { NavigationLink } from './NavigationLink'
 import { routeForSearchTarget } from './search-navigation'
 import { ReferenceCategoryFilters, ReferenceFacetSection } from './ReferenceFacets'
+import { referenceCategoryLabel } from './reference-categories'
 import { DEFINITION_KIND_GROUPS, DEFINITION_KIND_LABELS, OPTIONAL_REFERENCE_AUDIENCES, referenceCategoryGroup, referenceFieldFacets, REFERENCE_FACETS, type OptionalReferenceAudience, type ReferenceFacetKey } from './reference-facets'
 import {
   projectReferenceEntity,
@@ -215,7 +216,7 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
   const facetItems = useMemo(() => searchableItems.filter(item => !route.kinds.length || route.kinds.includes(item.entity.kind)), [searchableItems, route.kinds])
   const facetPersonalOptions = useMemo(() => availablePersonalOptions.filter(option => !route.kinds.length || route.kinds.includes(option.kind)), [availablePersonalOptions, route.kinds])
   const kindOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(searchableItems, 'kind'), availablePersonalOptions.map((option) => option.kind)), [searchableItems, availablePersonalOptions])
-  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(facetItems, 'category'), facetPersonalOptions.flatMap(personalDefinitionCategoryValues)), [facetItems, facetPersonalOptions])
+  const categoryOptions = useMemo(() => mergeFacetOptions(buildFacetOptions(facetItems, 'category'), facetPersonalOptions.flatMap(personalDefinitionCategoryValues)).sort((left, right) => referenceCategoryLabel(left.value).localeCompare(referenceCategoryLabel(right.value))), [facetItems, facetPersonalOptions])
   const categoryGroups = useMemo(() => {
     const kindsByCategory = new Map<string, Set<CatalogEntityKind>>()
     for (const entry of [...facetItems.map(item => ({ kind: item.entity.kind, categories: item.categories })), ...facetPersonalOptions.map(option => ({ kind: option.kind, categories: personalDefinitionCategoryValues(option) }))]) {
@@ -293,7 +294,7 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
     ...(route.libraryMod ? [{ key: 'libraryMod', label: `Mod: ${scopedMod?.title ?? 'Unavailable mod'}`, clear: { libraryMod: undefined } }] : []),
     ...(route.query ? [{ key: 'query', label: `Search: ${route.query}`, clear: { query: '' } }] : []),
     ...route.kinds.map(kind => ({ key: `kind:${kind}`, label: DEFINITION_KIND_LABELS[kind], clear: { kinds: route.kinds.filter(value => value !== kind) } })),
-    ...route.categories.map(category => ({ key: `category:${category}`, label: category, clear: { categories: route.categories.filter(value => value !== category) } })),
+    ...route.categories.map(category => ({ key: `category:${category}`, label: referenceCategoryLabel(category), clear: { categories: route.categories.filter(value => value !== category) } })),
     ...route.audiences.map(audience => ({ key: `audience:${audience}`, label: `Include ${OPTIONAL_REFERENCE_AUDIENCES.find(option => option.value === audience)!.label}`, clear: { audiences: route.audiences.filter(value => value !== audience) } })),
     ...REFERENCE_FACETS.flatMap(facet => (route[facet.key] ?? []).map(value => ({ key: `${facet.key}:${value}`, label: `${facet.label}: ${value}`, clear: { [facet.key]: route[facet.key]?.filter(entry => entry !== value) } }))),
     ...route.sources.map(source => ({ key: `source:${source}`, label: `Source: ${sourceDisplay(source).label}`, clear: { sources: route.sources.filter(value => value !== source) } })),
