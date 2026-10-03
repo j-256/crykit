@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
-import { formatAppRoute, parentRoute, parseAppRoute, routeForDestination } from './navigation'
+import { formatAppRoute, isReferenceResearchRoute, parentRoute, parseAppRoute, routeDestination, routeForDestination, routeTitle } from './navigation'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createEntityRouteNameResolver, entityRouteSlug, isEntityRouteSlug, MAX_ENTITY_SLUG_LENGTH } from './entity-route-names'
@@ -40,6 +40,28 @@ describe('semantic navigation routes', () => {
     expect(formatAppRoute(revision)).toBe('#/reference/catalog/crystal-project-public-starter/other-revision/base/item/203/definition')
     expectRoundTrip(revision)
     for (const hash of ['#/reference/catalog/v2/base/item/203/name', '#/reference/catalog/v1/r1/base/item/203/name', '#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/203/name']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+  })
+
+  it('retains map selection, layer, and mod preview queries through reloads and search overlays', () => {
+    const hash = '#/map?gameSetup=synthetic-setup&layer=caves&marker=chest%3A123&mods=first&mods=second'
+    const map = parseAppRoute(hash)
+    expect(map).toEqual({ page: { page: 'map' }, overlays: [], query: { gameSetup: ['synthetic-setup'], layer: ['caves'], marker: ['chest:123'], mods: ['first', 'second'] } })
+    expect(formatAppRoute(map)).toBe(hash)
+    expect(routeDestination(map)).toBe('map')
+    expect(routeTitle(map)).toBe('World Map | CryKit')
+    expect(formatAppRoute(routeForDestination('map'))).toBe('#/map')
+    const searching = parseAppRoute('#/map/search?page.gameSetup=synthetic-setup&page.marker=chest%3A123&q=tonic')
+    expect(searching).toMatchObject({ page: { page: 'map' }, overlays: [{ kind: 'search', query: 'tonic' }], query: { gameSetup: ['synthetic-setup'], marker: ['chest:123'] } })
+    expect(parentRoute(searching)).toEqual({ page: { page: 'map' }, overlays: [], query: { gameSetup: ['synthetic-setup'], marker: ['chest:123'] } })
+    expect(parseAppRoute('#/map/unknown').page).toEqual({ page: 'unresolved', requestedPath: '/map/unknown', reason: 'unknown-route', recovery: 'map' })
+  })
+
+  it('allows view-only map research while preserving build draft guards for editing routes', () => {
+    expect(isReferenceResearchRoute(parseAppRoute('#/map?marker=chest%3A123'))).toBe(true)
+    expect(isReferenceResearchRoute(parseAppRoute('#/reference'))).toBe(true)
+    expect(isReferenceResearchRoute(parseAppRoute('#/map/search?q=tonic'))).toBe(false)
+    expect(isReferenceResearchRoute(parseAppRoute('#/reference/promote'))).toBe(false)
+    expect(isReferenceResearchRoute(parseAppRoute('#/mods/editor'))).toBe(false)
   })
 
   it('uses readable entity segments while retaining exact catalog and revision pins', () => {
@@ -160,6 +182,7 @@ describe('semantic navigation routes', () => {
   })
   it('round-trips every page and action identity', () => {
     const pages = [
+      { page: 'map' },
       { page: 'mods', view: 'library' },
       { page: 'mods', view: 'editor' },
       { page: 'inventory', view: 'list' },

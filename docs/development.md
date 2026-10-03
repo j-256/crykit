@@ -103,6 +103,21 @@ The bundler scans JSON files recursively, skips symlinks and unrelated JSON, ded
 
 Generated sources live in `src/assets/mod-sources/` as immutable digest-named gzip/base64 JSON assets. `src/catalog/bundled-mod-sources.json` records project metadata, model IDs, and source digests without input paths. Runtime loaders discover these assets by directory glob and recover the exact UTF-8 bytes, including BOM and line endings. The check command decompresses and validates every source against its manifest without needing the input directory, and is included in `npm run check`. Full sources load on demand and are included in offline preparation. Mod catalog browsing decodes only the selected source in a temporary Reference provider, without writing to the local archive. Saved project revisions take precedence over the bundled source. Explicit **Add to Reference**, editor saves, and imports persist supported definitions and original bytes. Reference membership uses optional versioned settings in local planner data; removal preserves the archive and game configuration. Importing a previously removed source preserves its exclusion unless an explicit Add action atomically restores membership. This pipeline does not change the default planning catalog or enable mods automatically; reviewed normalized definitions retain their separate generation commands.
 
+## Native world map
+
+The map source pipeline produces `src/catalog/world-map.json` and layer PNGs in `src/assets/world-map/` from a fingerprinted Windows PC 1.6.9 installation. Use .NET SDK 10 and the locked Node dependencies to regenerate it:
+
+```sh
+npm run world-map:update -- --input <installation-or-Content>
+npm run world-map:check
+```
+
+The offline check uses committed assets and does not need an installation. See [native map sources](catalog-sources.md#native-world-map) for rendering, provenance, and rights. Keep installation paths, raw world exports, and player saves outside tracked content.
+
+`src/domain/world-map.ts` projects source-backed markers and composes ordered Crystal Edit entity and definition overrides without React or saved-data mutations. Preserve exact source revisions and numeric entity identities when applying mod layers; later layers replace the same entity instead of creating duplicate vanilla markers. An invalid replacement must remain unresolved rather than silently restoring a vanilla placement. Terrain overrides and unknown layer assignments need explicit diagnostics. Source text, scripts, and formulas are data and must never execute.
+
+The map page is lazy-loaded. The viewport uses a spatial index, clusters nearby markers, and limits rendering to visible placements. Search reveals the selected marker and its layer, with source details and supported Reference links. Marker colors have separate source labels. Keep map previews independent of persisted Game Setup selection and Playthrough observations, and preserve Build drafts during research navigation. Browser coverage checks desktop and mobile navigation, zoom and layers, source previews, imported placements, reference links, draft detours, and prepared offline rendering.
+
 ## Interface and artwork
 
 Immediate-save tile boards use the shared [queued tile update pattern](queued-tile-updates.md). Reuse its hook, application save queue, stable rendering, and verification approach when adding another board.

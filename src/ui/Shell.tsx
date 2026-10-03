@@ -17,6 +17,7 @@ const MAIN_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'builds', label: 'Builds', icon: 'sword' },
   { id: 'teams', label: 'Teams', icon: 'team' },
   { id: 'reference', label: 'Reference', icon: 'tome' },
+  { id: 'map', label: 'World Map', icon: 'compass' },
   { id: 'mods', label: 'Mods', icon: 'edit' },
 ]
 const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
@@ -99,10 +100,10 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     </aside>
     <main className="main-shell" ref={mainRef}>
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
-      <header className={`context-bar${tracking ? '' : ' context-bar--planning'}`} ref={contextRef}>
+      <header className={`context-bar${tracking ? '' : ' context-bar--planning'}${destination === 'map' ? ' context-bar--map' : ''}`} ref={contextRef}>
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
-          {destination !== 'mods' && <div aria-live="polite" className={`context-status context-status--${saveState}`} title={saveLabel}><span className="context-status__dot"/>{saveLabel}</div>}
+          {destination !== 'mods' && destination !== 'map' && <div aria-live="polite" className={`context-status context-status--${saveState}`} title={saveLabel}><span className="context-status__dot"/>{saveLabel}</div>}
           {developmentPort && <span role="note" aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
         </div>
       </header>
