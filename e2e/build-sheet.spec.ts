@@ -28,6 +28,44 @@ test.beforeEach(async ({ page }) => {
   await createBlankPlaythrough(page)
 })
 
+test('loadout columns stay stable before inspection and after clearing or reopening a build', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  const details = page.getByRole('complementary', { name: 'Selection details', exact: true })
+  const slots = page.locator('.build-sheet__slots')
+  await expect(details).toContainText('Choose a selection to inspect its definition.')
+  const initialSlots = (await slots.boundingBox())!
+  const initialDetails = (await details.boundingBox())!
+  if (isMobile) expect(initialDetails.y).toBeGreaterThanOrEqual(initialSlots.y + initialSlots.height)
+  else expect(initialDetails.x).toBeGreaterThanOrEqual(initialSlots.x + initialSlots.width)
+  const expectStableWidths = async () => {
+    await expect.poll(async () => {
+      const slotsBox = (await slots.boundingBox())!
+      const detailsBox = (await details.boundingBox())!
+      return [slotsBox.x, slotsBox.width, detailsBox.x, detailsBox.width]
+    }).toEqual([initialSlots.x, initialSlots.width, initialDetails.x, initialDetails.width])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
+  await hand.click()
+  await expectStableWidths()
+  await choose(page, 'Main hand', 'Muramasa')
+  await expect(details.getByRole('heading', { name: 'Muramasa', exact: true })).toBeVisible()
+  await expectStableWidths()
+  await page.getByRole('button', { name: 'Clear Main hand', exact: true }).click()
+  await expect(details).toContainText('Choose a selection to inspect its definition.')
+  await expectStableWidths()
+  await choose(page, 'Main hand', 'Muramasa')
+  await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(hand).toHaveValue('Muramasa')
+  await expect(details).toContainText('Choose a selection to inspect its definition.')
+  const reopenedWidth = (await slots.boundingBox())!.width
+  await hand.click()
+  await expect(details.getByRole('heading', { name: 'Muramasa', exact: true })).toBeVisible()
+  expect((await slots.boundingBox())!.width).toBe(reopenedWidth)
+})
+
 test('a blank playthrough can plan unowned gear directly and reopen it offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
