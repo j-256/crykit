@@ -40943,7 +40943,7 @@
       },
       "reasons": []
     },
-    "https://developers.cloudflare.com/rules/configuration-rules/": {
+    "https://developers.cloudflare.com/rules/configuration-rules/#availability": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
@@ -40957,7 +40957,7 @@
       },
       "reasons": []
     },
-    "https://developers.cloudflare.com/rules/url-forwarding/single-redirects/": {
+    "https://developers.cloudflare.com/rules/url-forwarding/#availability": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [

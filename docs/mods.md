@@ -1,12 +1,16 @@
-# Playthrough mods
+# Mods and Game Setups
 
-Open **Data & settings > Saved setups > Edit setup > Mods** to choose **Enabled**, **Disabled**, or **Unknown** for each mod in the fixed Nintendo Switch list. Mods are grouped under **Mod Pack 1: Quality Fun** and **Mod Pack 2: New Challenges**. A single choice moves the mod between enabled and disabled without allowing both states; **Unknown** clears only that mod's setting. Installing a pack does not establish which included mods are enabled in a save. Saving creates an immutable Game Setup revision. To use it for a tracked game, open **Playthrough**, choose the revision under **Game Setup to apply**, and choose **Apply**. Saving alone preserves the Playthrough's selected rules.
+Use **Mods** to browse bundled projects, import exact source revisions, and edit JSON. Use a Build's **Game Setup** or **Data & settings > Saved setups** to select the rules for planning. Adding a source to the library, including it in Reference, and enabling it in a Game Setup are separate choices. Builds and character snapshots keep their pinned setup revisions.
+
+## Named mod choices
+
+Open **Data & settings > Saved setups > Edit setup > Mods > Mods without imported files** to choose **Enabled**, **Disabled**, or **Unknown** for each mod in the fixed Nintendo Switch list. Mods are grouped under **Mod Pack 1: Quality Fun** and **Mod Pack 2: New Challenges**. A single choice moves the mod between enabled and disabled without allowing both states; **Unknown** clears only that mod's setting. Installing a pack does not establish which included mods are enabled in a save. Saving creates an immutable Game Setup revision. To use it for a tracked game, open **Playthrough**, choose the revision under **Game Setup to apply**, and choose **Apply to** followed by the Playthrough's name. Saving alone preserves the Playthrough's selected rules.
 
 The list displays **Moonlight Project** and retains **Learnable Innate Skill**. Existing backups retain the earlier Moonlight Project setting key so upgrades preserve the recorded choice. Nintendo's publisher listings for [Mod Pack 1](https://www.nintendo.com/us/store/products/mod-pack-1-quality-fun-70050000048696-switch/) and [Mod Pack 2](https://www.nintendo.com/us/store/products/mod-pack-2-new-challenges-70050000051088-switch/) use **Learnable Innate Skills** and **Moonlight Project Custom Classes** respectively. Display names do not establish mechanics or definition identities.
 
 Case and extra whitespace do not change a recorded name's identity. Imported names outside the Switch list are shown separately and retained, including when applying the confirmed setup. Unedited knowledge stays intact. A choice resolves only that mod across imported alternatives; other disagreements remain conflicting. Revised claims are manual choices, while their original source attribution remains in the previous Game Setup revision.
 
-**Mod sources & Nintendo preset > Apply Nintendo mod preset** applies the named mod choices shown alongside the preset. Review the choices against your save before applying them. The preset preserves platform, game version, PP rules, equipment slots, other named mods, and imported layers. The sample playthrough leaves mod settings unknown and does not apply this setup automatically.
+**Mods > Mods without imported files > Nintendo preset > Apply Nintendo mod preset** applies the named mod choices shown alongside the preset. Review the choices against your save before applying them. The preset preserves platform, game version, PP rules, equipment slots, other named mods, and imported layers. The sample Playthrough leaves mod settings unknown and does not apply this setup automatically.
 
 ## Definition visibility
 
