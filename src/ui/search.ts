@@ -4,6 +4,7 @@ import { nativeIdentity, nativeRecord } from '../domain/native-game'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { projectSourceSemantics } from '../catalog/source-semantics'
+import { referenceCategoryKeys, referenceCategoryLabel } from './reference-categories'
 import { combineFacetKnowledge, facetStringValues, isReferenceArtifact, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
 import type {
   CatalogClaim,
@@ -276,11 +277,11 @@ export function partitionReferenceItems(
 }
 
 export function personalDefinitionCategoryValues(option: PersonalDefinitionSearchOption): readonly string[] {
-  return Array.from(new Set(personalCategoryKnowledge(option).flatMap(facetStringValues))).sort(compareText)
+  return Array.from(new Set(personalDefinitionCategoryKnowledge(option).flatMap(facetStringValues))).sort(compareText)
 }
 
-function personalCategoryKnowledge(option: PersonalDefinitionSearchOption): readonly Knowledge<JsonValue>[] {
-  return [...(option.record ? referenceCategoryKnowledge(option.record) : []), ...(option.category ? [option.category] : [])]
+export function personalDefinitionCategoryKnowledge(option: PersonalDefinitionSearchOption): readonly Knowledge<JsonValue>[] {
+  return [...(option.record ? referenceCategoryKnowledge(option.record) : []), ...(option.category ? [referenceCategoryKeys(option.category)] : [])]
 }
 
 export function personalDefinitionFacetValues(option: PersonalDefinitionSearchOption, field: ReferenceFacetKey): readonly string[] {
@@ -298,7 +299,7 @@ export function partitionPersonalDefinitionOptions<Option extends PersonalDefini
       return {
         text: { state: 'known', value: [option.name, ...option.aliases, option.description ?? '', option.kind, option.sourceLabel].join('\n').normalize('NFKC') },
         kind: { state: 'known', value: option.kind },
-        category: combineFacetKnowledge(personalCategoryKnowledge(option)),
+        category: combineFacetKnowledge(personalDefinitionCategoryKnowledge(option)),
         ...referenceFieldFacets(option.record ?? { kind: option.kind, name: option.name, fields: {} }, [], option.modAvailability?.requiredMod),
         source: { state: 'known', value: ['Personal definitions'] },
         ppCost,
@@ -316,7 +317,7 @@ export function buildFacetOptions(items: readonly ReferenceSearchItem[], field: 
     const values = field === 'kind' ? [item.entity.kind] : field === 'category' ? item.categories : field === 'source' ? item.sources : facetStringValues(item.projection[field] ?? { state: 'unknown' })
     for (const value of new Set(values)) counts.set(value, (counts.get(value) ?? 0) + 1)
   }
-  return Array.from(counts, ([value, count]) => ({ value, count })).sort((left, right) => compareText(left.value, right.value))
+  return Array.from(counts, ([value, count]) => ({ value, count })).sort((left, right) => compareText(field === 'category' ? referenceCategoryLabel(left.value) : left.value, field === 'category' ? referenceCategoryLabel(right.value) : right.value))
 }
 
 export function aggregateKnowledgeCounts(items: readonly ReferenceSearchItem[]): KnowledgeCounts {
