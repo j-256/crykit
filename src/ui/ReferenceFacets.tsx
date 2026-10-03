@@ -2,6 +2,7 @@ import { useId, useMemo, useState, type PropsWithChildren } from 'react'
 import { FACET_OPTION_DOM_LIMIT } from './components'
 import { Icon } from './icons'
 import { CATEGORY_GROUPS, type CategoryGroup } from './reference-facets'
+import { referenceCategoryLabel, referenceCategorySearchText } from './reference-categories'
 import type { FacetOption } from './search'
 
 export function ReferenceFacetSection({ title, active = 0, summary = 'Any', children }: PropsWithChildren<{ title: string; active?: number; summary?: string }>) {
@@ -18,7 +19,7 @@ export function ReferenceCategoryFilters({ options, groups, selected, onClear, o
   const [expanded, setExpanded] = useState<CategoryGroup>()
   const id = useId()
   const normalized = query.trim().toLocaleLowerCase()
-  const matching = useMemo(() => options.filter(option => !normalized || [option.value, groups.get(option.value)].some(value => value?.toLocaleLowerCase().includes(normalized))), [groups, normalized, options])
+  const matching = useMemo(() => options.filter(option => !normalized || [referenceCategorySearchText(option.value), groups.get(option.value)].some(value => value?.toLocaleLowerCase().includes(normalized))), [groups, normalized, options])
   const visible = normalized ? matching.slice(0, FACET_OPTION_DOM_LIMIT) : matching.filter(option => groups.get(option.value) === expanded).slice(0, FACET_OPTION_DOM_LIMIT)
   const total = normalized ? matching.length : matching.filter(option => groups.get(option.value) === expanded).length
   return <div className="reference-category-filters">
@@ -33,7 +34,7 @@ export function ReferenceCategoryFilters({ options, groups, selected, onClear, o
         const open = Boolean(normalized) || expanded === group
         return <div className="reference-category-group" key={group}>
           {normalized ? entries.length > 0 && <h4>{group}</h4> : <button aria-controls={`${id}-${index}`} aria-expanded={open} className="reference-category-group__toggle" onClick={() => setExpanded(open ? undefined : group)} type="button"><Icon name="chevron-down"/><span>{group}</span><small>{active ? `${active} selected` : all.length}</small></button>}
-          <div hidden={!open || !entries.length} id={`${id}-${index}`}>{open && entries.length > 0 && <div className="bounded-facet-options"><div className="filter-chips">{entries.map(option => <button aria-label={`${option.value} (${option.count})`} aria-pressed={selected.includes(option.value)} className="filter-chip" key={option.value} onClick={() => onToggle(option.value)} type="button"><span className="filter-chip__label">{option.value}</span><span aria-hidden="true" className="filter-chip__count">{option.count}</span></button>)}</div></div>}</div>
+          <div hidden={!open || !entries.length} id={`${id}-${index}`}>{open && entries.length > 0 && <div className="bounded-facet-options"><div className="filter-chips">{entries.map(option => <button aria-label={`${referenceCategoryLabel(option.value)} (${option.count})`} aria-pressed={selected.includes(option.value)} className="filter-chip" key={option.value} onClick={() => onToggle(option.value)} type="button"><span className="filter-chip__label">{referenceCategoryLabel(option.value)}</span><span aria-hidden="true" className="filter-chip__count">{option.count}</span></button>)}</div></div>}</div>
         </div>
       })}
     </div>

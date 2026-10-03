@@ -148,6 +148,8 @@ A searchable, revision-attributed community reference catalog covers items, clas
 
 Reference groups categories into equipment families, classes and skills, combat effects, world and enemy details, and mods. Search reaches every category, including imported categories and detailed source tags. Definition types are grouped by purpose; choosing a type narrows the category suggestions.
 
+Equipment categories combine base-game and mod definitions under the same type. Choose **Axes**, for example, to see both base and mod axes, then use **Source mod** to narrow the results to **Base game** or a particular mod.
+
 Separate class, equipment-slot, element, source-mod, source, and PP filters use recorded fields and documented associations where available. Alternatives within a filter are combined; different filters narrow results together.
 
 Active selections remain visible above the results and can be removed individually or cleared together, including when mobile filters are closed. Filters survive details, browser navigation, and reloads. Unknown and conflicting values remain possible matches where appropriate; missing facts are not inferred from names or descriptions.

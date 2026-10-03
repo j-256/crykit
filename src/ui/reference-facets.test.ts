@@ -2,23 +2,24 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
 import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceCategoryKnowledge, referenceFieldFacets } from './reference-facets'
+import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_KEY, referenceCategoryKey } from './reference-categories'
 
 describe('reference facet organization', () => {
   it('uses native equipment codes for categories without carrying supplemental classifications', () => {
-    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 15 } }, 'Equipment type': { state: 'known', value: 'Light Armor' } } })).toEqual([{ state: 'known', value: ['Equipment', 'Heavy armor'] }])
-    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 0 } } } })).toEqual([{ state: 'known', value: ['Equipment', 'Swords'] }])
+    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 15 } }, 'Equipment type': { state: 'known', value: 'Light Armor' } } })).toEqual([{ state: 'known', value: [EQUIPMENT_CATEGORY_KEY, EQUIPMENT_CATEGORIES['Heavy Body'].key] }])
+    expect(referenceCategoryKnowledge({ kind: 'item', fields: { 'Native source record': { state: 'known', value: { EquipmentType: 0 } } } })).toEqual([{ state: 'known', value: [EQUIPMENT_CATEGORY_KEY, EQUIPMENT_CATEGORIES.Sword.key] }])
   })
-  it('groups equipment aliases and technical wiki tags without changing their values', () => {
-    expect(referenceCategoryGroup('Staff', ['item'])).toBe('Weapons')
-    expect(referenceCategoryGroup('Staves', ['item'])).toBe('Weapons')
-    expect(referenceCategoryGroup('Heavy Armor', ['item'])).toBe('Armor & headgear')
-    expect(referenceCategoryGroup('Heavy armor', ['item'])).toBe('Armor & headgear')
-    expect(referenceCategoryGroup('Accessory', ['item'])).toBe('Accessories & shields')
-    expect(referenceCategoryGroup('Monsters found in Synthetic Valley', ['monster'])).toBe('Enemy locations & levels')
-    expect(referenceCategoryGroup('Monsters that use Ability Synthetic Strike', ['monster', 'item'])).toBe('Enemy drops & abilities')
-    expect(referenceCategoryGroup('Abilities that inflict Armor Up', ['ability'])).toBe('Skill types & effects')
-    expect(referenceCategoryGroup('Synthetic skill tree', ['command', 'passive'])).toBe('Classes & skills')
-    expect(referenceCategoryGroup('Imported custom group', ['other'])).toBe('Other categories')
+  it('groups equipment identities and source-defined category tags', () => {
+    expect(referenceCategoryGroup(referenceCategoryKey('Staff'), ['item'])).toBe('Weapons')
+    expect(referenceCategoryGroup(referenceCategoryKey('Staves'), ['item'])).toBe('Weapons')
+    expect(referenceCategoryGroup(referenceCategoryKey('Heavy Armor'), ['item'])).toBe('Armor & headgear')
+    expect(referenceCategoryGroup(referenceCategoryKey('Heavy armor'), ['item'])).toBe('Armor & headgear')
+    expect(referenceCategoryGroup(referenceCategoryKey('Accessory'), ['item'])).toBe('Accessories & shields')
+    expect(referenceCategoryGroup(referenceCategoryKey('Monsters found in Synthetic Valley'), ['monster'])).toBe('Enemy locations & levels')
+    expect(referenceCategoryGroup(referenceCategoryKey('Monsters that use Ability Synthetic Strike'), ['monster', 'item'])).toBe('Enemy drops & abilities')
+    expect(referenceCategoryGroup(referenceCategoryKey('Abilities that inflict Armor Up'), ['ability'])).toBe('Skill types & effects')
+    expect(referenceCategoryGroup(referenceCategoryKey('Synthetic skill tree'), ['command', 'passive'])).toBe('Classes & skills')
+    expect(referenceCategoryGroup(referenceCategoryKey('Imported custom group'), ['other'])).toBe('Other categories')
   })
 
   it('leaves unsupported facts unknown while respecting explicit inapplicability and conflicts', () => {

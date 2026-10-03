@@ -22,6 +22,12 @@ describe('reference route state', () => {
     window.sessionStorage.clear()
   })
 
+  it('serializes equipment category identities independently of their display labels', () => {
+    const state = { ...DEFAULT_REFERENCE_ROUTE_STATE, categories: ['equipment:axe', 'equipment:heavy-body'] }
+    expect(formatReferenceRoute(state)).toBe('#/reference?v=1&category=equipment%3Aaxe&category=equipment%3Aheavy-body')
+    expect(parseReferenceRoute(formatReferenceRoute(state)).categories).toEqual(state.categories)
+  })
+
   it('round-trips filters, pagination, and selection through a semantic detail path', () => {
     const selectedKey = encodeReferenceEntityKey({ catalogId: 'pack:alpha', catalogRevisionId: 'r/1', entityId: 'item?2' })
     const state: ReferenceRouteState = {

@@ -60,6 +60,8 @@ During implementation, run focused checks for the affected flows. When changing 
 
 Feature tests use `referencePath` and `referenceUrlPattern` from `e2e/reference-helpers.ts`; these delegate formatting to the application's route formatter. Explicit URL strings and regexes remain in `e2e/entity-urls.spec.ts` and the navigation unit contracts, so a shared formatter bug can still fail independent expectations. `npm run check:e2e-contracts` rejects duplicated catalog paths and colon-based identity serialization in ordinary E2E source. It runs in deterministic checks, CI, and the pre-push hook. The reviewed contract-file exception is narrow; expanding it requires treating the new tests as independent format contracts.
 
+Reference and Inventory category filters exchange stable keys rather than display labels. `reference-categories.ts` defines equipment keys, labels, and source taxonomy adapters. Native and Crystal Edit equipment records resolve their numeric `EquipmentType` through the same registry; imported source tags use a separate escaped namespace. Source labels support imports and category searches; they do not define URL values. Category projection leaves immutable catalogs and saved personal records unchanged. Keep label rendering separate from query matching, URL values, facet counts, and selected-state comparisons.
+
 Before publication, commit the finished changes, synchronize with the integration branch, and run:
 
 ```sh

@@ -1,7 +1,8 @@
 import type { CatalogClaim, CatalogEntity, CatalogEntityKind, JsonValue, Knowledge, QueryValue } from '../domain/types'
 import { normalizeImportedFieldName } from '../interchange/field-names'
-import { EQUIPMENT_TYPES } from '../domain/crystal-edit'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
+import { bundledModRecord } from '../domain/bundled-mods'
+import { equipmentCategory, EQUIPMENT_CATEGORY_KEY, referenceCategoryKeys, referenceCategoryLabel, referenceEquipmentCategoryGroup } from './reference-categories'
 
 export const REFERENCE_FACETS = [
   { key: 'classes', label: 'Class', parameter: 'class', fields: ['class', 'associated class'], kinds: ['class', 'command', 'ability', 'passive', 'innate', 'monsterMagic'] },
@@ -45,7 +46,6 @@ export function isReferenceArtifact(entity: Pick<CatalogEntity, 'id'>): boolean 
 }
 
 const CATEGORY_FIELDS = new Set(['category', 'categories', 'class category', 'equipment type', 'item type', 'type'])
-const EQUIPMENT_CATEGORY_LABELS: Readonly<Record<string, string>> = Object.freeze({ Sword: 'Swords', Axe: 'Axes', Dagger: 'Daggers', Rapier: 'Rapiers', Katana: 'Katanas', Spear: 'Spears', Scythe: 'Scythes', Bow: 'Bows', Staff: 'Staves', Wand: 'Wands', Book: 'Books', Shield: 'Shields', 'Heavy Head': 'Heavy helmets', 'Medium Head': 'Medium headgear', 'Light Head': 'Light hats', 'Heavy Body': 'Heavy armor', 'Medium Body': 'Medium armor', 'Light Body': 'Light armor', Accessory: 'Accessories' })
 
 export function facetStringValues(value: Knowledge<JsonValue>): readonly string[] {
   if (value.state === 'conflicting') return value.claims.flatMap(claim => facetStringValues({ state: 'known', value: claim.value }))
@@ -73,13 +73,12 @@ function fieldEntries(entity: FacetRecord, claims: readonly CatalogClaim[]) {
 }
 
 export function referenceCategoryKnowledge(entity: FacetRecord, claims: readonly CatalogClaim[] = []): readonly Knowledge<JsonValue>[] {
-  const record = nativeSourceRecord(entity)
-  if (record && typeof record.EquipmentType === 'number') {
-    const type = EQUIPMENT_TYPES[record.EquipmentType]
-    const category = type && EQUIPMENT_CATEGORY_LABELS[type]
-    return [{ state: 'known', value: category ? ['Equipment', category] : ['Equipment'] }]
+  const record = nativeSourceRecord(entity) ?? bundledModRecord(entity)
+  if (entity.kind === 'item' && record && typeof record.EquipmentType === 'number') {
+    const category = equipmentCategory(record.EquipmentType)
+    return [{ state: 'known', value: category ? [EQUIPMENT_CATEGORY_KEY, category.key] : [EQUIPMENT_CATEGORY_KEY] }]
   }
-  return fieldEntries(entity, claims).filter(([field]) => CATEGORY_FIELDS.has(field)).map(([, value]) => value)
+  return fieldEntries(entity, claims).filter(([field]) => CATEGORY_FIELDS.has(field)).map(([, value]) => referenceCategoryKeys(value))
 }
 
 export function referenceFieldFacets(entity: FacetRecord, claims: readonly CatalogClaim[] = [], requiredMod?: string): Record<ReferenceFacetKey, QueryValue> {
@@ -109,7 +108,9 @@ export const CATEGORY_GROUPS = ['Weapons', 'Armor & headgear', 'Accessories & sh
 export type CategoryGroup = typeof CATEGORY_GROUPS[number]
 
 export function referenceCategoryGroup(value: string, kinds: readonly CatalogEntityKind[]): CategoryGroup {
-  const name = value.trim().toLocaleLowerCase()
+  const equipmentGroup = referenceEquipmentCategoryGroup(value)
+  if (equipmentGroup) return equipmentGroup
+  const name = referenceCategoryLabel(value).trim().toLocaleLowerCase()
   if (/^(?:weapons?|axes?|books?|bows?|daggers?|katanas?|rapiers?|scythes?|spears?|staves|staff|staffs|swords?|wands?|two-handed staff)$/.test(name)) return 'Weapons'
   if (/^(?:(?:heavy|medium|light) )?(?:armou?r|helmets?|headgear|hats?)$/.test(name)) return 'Armor & headgear'
   if (/^(?:accessor(?:y|ies)|shields?)$/.test(name)) return 'Accessories & shields'

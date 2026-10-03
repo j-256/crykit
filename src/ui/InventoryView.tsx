@@ -4,10 +4,12 @@ import { entityDefinitionKey, partitionQuery, requirePlaythrough } from '../doma
 import type { CatalogSnapshot, EntityRef, InventoryEventKind, InventoryPosition, Knowledge, PossessionState, LocalData, Quantity, QueryNode, QueryRecord, QueryValue } from '../domain/types'
 import { Badge, Button, EmptyState, FacetDropdown, Field, IconButton, InlineNotice, ScreenHeader } from './components'
 import { Icon } from './icons'
-import { expandCategoryFacetValues, groupCategoryFacetValues, selectedCategoryFacetValues } from './inventory-facets'
+import { groupCategoryFacetValues } from './inventory-facets'
 import { activeGameSetup, entityName, formatRelativeDate, knowledgeLabel, ownRecordValue, quantityLabel } from './model'
 import { INVENTORY_PAGE_SIZE, ROUTE_MAX_RESULT_LIMIT, commitInventoryRouteState, readInventoryRouteState, type InventoryRouteState } from './route-state'
-import { buildFacetOptions, buildReferenceSearchItems } from './search'
+import { buildFacetOptions, buildReferenceSearchItems, personalDefinitionCategoryKnowledge, personalDefinitionCategoryValues } from './search'
+import { combineFacetKnowledge } from './reference-facets'
+import { referenceCategoryLabel } from './reference-categories'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { useNavigation, type InventoryPageRoute } from './navigation'
@@ -167,9 +169,7 @@ function stringFacetValues(value: unknown) {
 }
 
 function categoryFacetValues(option: DefinitionOption | undefined) {
-  if (option?.category?.state === 'known') return stringFacetValues(option.category.value)
-  if (option?.category?.state === 'conflicting') return option.category.claims.flatMap((claim) => stringFacetValues(claim.value))
-  return []
+  return option ? personalDefinitionCategoryValues(option) : []
 }
 
 function categoryQueryValues(value: QueryValue | undefined) {
@@ -179,17 +179,7 @@ function categoryQueryValues(value: QueryValue | undefined) {
 }
 
 function categoryQueryValue(option: DefinitionOption | undefined): QueryValue {
-  const category = option?.category
-  if (!category) return { state: 'unknown', reason: 'No linked definition category' }
-  if (category.state === 'known') {
-    const values = categoryFacetValues(option)
-    return values.length > 0 ? { ...category, value: values } : { state: 'unknown', reason: 'The linked definition category is not text' }
-  }
-  if (category.state === 'conflicting') {
-    const claims = category.claims.map((claim) => ({ ...claim, value: typeof claim.value === 'string' ? [claim.value] : Array.isArray(claim.value) ? claim.value.filter((entry): entry is string => typeof entry === 'string') : [] }))
-    return claims.every((claim) => claim.value.length > 0) ? { state: 'conflicting', claims } : { state: 'unknown', reason: 'The linked definition category claims are not all text' }
-  }
-  return category
+  return option ? combineFacetKnowledge(personalDefinitionCategoryKnowledge(option)) : { state: 'unknown', reason: 'No linked definition category' }
 }
 
 export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEvent, onOpenData }: InventoryViewProps) {
@@ -221,8 +211,6 @@ export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEv
     const key = entityDefinitionKey(position.ref)
     return position.ref.kind === 'catalog' ? categoryQueryValues(referenceByDefinition.get(key)?.projection.category) : categoryFacetValues(optionByDefinition.get(key))
   })), [optionByDefinition, positions, referenceByDefinition])
-  const selectedCategoryGroups = useMemo(() => selectedCategoryFacetValues(categoryGroups, route.categories), [categoryGroups, route.categories])
-  const selectedCategoryValues = useMemo(() => expandCategoryFacetValues(categoryGroups, route.categories), [categoryGroups, route.categories])
   const sourceOptions = useMemo(() => {
     const imported = buildFacetOptions(linkedReferenceItems, 'source')
     const personalCount = positions.filter((position) => position.ref.kind === 'personal').length
@@ -239,14 +227,14 @@ export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEv
     if (route.filter === 'Unknown') children.push({ kind: 'or', children: [{ kind: 'predicate', field: 'possession', operator: 'eq', value: 'unknown' }, { kind: 'predicate', field: 'quantityKind', operator: 'eq', value: 'unknown' }] })
     if (route.filter === 'Wishlist') children.push({ kind: 'predicate', field: 'wishlist', operator: 'eq', value: true })
     if (route.filter === 'Protected') children.push({ kind: 'predicate', field: 'protectedQuantity', operator: 'gt', value: 0 })
-    if (selectedCategoryValues.length) children.push({ kind: 'or', children: selectedCategoryValues.map((value) => ({ kind: 'predicate', field: 'category', operator: 'eq', value })) })
+    if (route.categories.length) children.push({ kind: 'or', children: route.categories.map((value) => ({ kind: 'predicate', field: 'category', operator: 'eq', value })) })
     if (route.sources.length) children.push({ kind: 'or', children: route.sources.map((value) => ({ kind: 'predicate', field: 'source', operator: 'eq', value })) })
     const tree: QueryNode = { kind: 'and', children }
     return partitionQuery(positions, tree, (position): QueryRecord => {
       const reference = referenceByDefinition.get(entityDefinitionKey(position.ref))
       const personalDefinition = position.ref.kind === 'personal' ? optionByDefinition.get(entityDefinitionKey(position.ref)) : undefined
       const name = position.observedName ?? entityName(localData, catalogs, position.ref)
-      const referenceText = reference ? `${reference.entity.name} ${reference.entity.aliases.join(' ')} ${reference.entity.rawDescription ?? ''}` : personalDefinition ? `${personalDefinition.name} ${personalDefinition.aliases.join(' ')} ${personalDefinition.description ?? ''} ${categoryFacetValues(personalDefinition).join(' ')}` : ''
+      const referenceText = reference ? `${reference.entity.name} ${reference.entity.aliases.join(' ')} ${reference.entity.rawDescription ?? ''}` : personalDefinition ? `${personalDefinition.name} ${personalDefinition.aliases.join(' ')} ${personalDefinition.description ?? ''} ${categoryFacetValues(personalDefinition).map(referenceCategoryLabel).join(' ')}` : ''
       return {
         text: { state: 'known', value: `${name} ${referenceText}` },
         possession: { state: 'known', value: position.possession },
@@ -257,7 +245,7 @@ export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEv
         source: position.ref.kind === 'personal' ? { state: 'known', value: ['Personal entry'] } : reference?.projection.source ?? { state: 'unknown', reason: 'No linked catalog source' },
       }
     })
-  }, [catalogs, optionByDefinition, positions, localData, referenceByDefinition, route, selectedCategoryValues])
+  }, [catalogs, optionByDefinition, positions, localData, referenceByDefinition, route])
   const visible = [...partition.confirmed, ...partition.possible]
 
   const add = async (draft: InventoryDraft) => {
@@ -276,7 +264,7 @@ export function InventoryView({ localData, catalogs, onAdd, onUpdate, onRecordEv
     {missingPosition && <InlineNotice title="Inventory entry unavailable" tone="warning">The requested inventory entry is not part of the active Playthrough. It may have been removed or the link may belong to another Playthrough. <Button onClick={() => navigate({ page: 'inventory', view: 'list' })} tone="quiet">Return to inventory</Button></InlineNotice>}
     {positions.length === 0 ? <EmptyState className="empty-state--inventory" aside={<><strong>Not sure how many you own?</strong>Leave the quantity unknown. Looking up an item in Reference never adds it to your inventory.</>} description="Found a new weapon, a piece of armor, or a useful consumable? Record it here to keep track of what your party can use." icon="chest" title="Record your first item"><Button icon="plus" onClick={() => navigate({ page: 'inventory', view: 'new' })}>Add an item</Button><Button icon="upload" onClick={onOpenData} tone="secondary">Import a record</Button></EmptyState> : <div className="panel">
       <div className="panel__header toolbar"><div className="search-field"><Icon name="search"/><input aria-label="Search inventory" onChange={(event) => updateFilter({ query: event.target.value })} placeholder="Search names and linked descriptions" type="search" value={route.query}/></div><div className="cluster"><Badge tone={visible.some((item) => item.quantity.kind === 'unknown') ? 'warning' : 'neutral'}>{partition.confirmed.length} confirmed</Badge>{partition.possible.length > 0 && <Badge tone="warning">{partition.possible.length} possible</Badge>}</div></div>
-      <div className="panel__body inventory-facets"><div className="inventory-facets__state"><h3>Inventory state</h3><div aria-label="Inventory filters" className="filter-chips inventory-state-filters" role="group">{filters.map((value) => <button aria-pressed={route.filter === value} className="filter-chip" key={value} onClick={() => updateFilter({ filter: value }, 'push')} type="button">{value}</button>)}</div></div>{categoryGroups.length > 0 && <FacetDropdown allLabel="All categories" groupLabel="Inventory category filters" label="Linked category" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(selectedCategoryGroups, value) }, 'push')} options={categoryGroups} searchLabel="Search inventory categories" selected={selectedCategoryGroups}/>} {sourceOptions.length > 0 && <FacetDropdown allLabel="All sources" formatOption={sourceDisplay} groupLabel="Inventory source filters" label="Linked source" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search inventory sources" selected={route.sources}/>}</div>
+      <div className="panel__body inventory-facets"><div className="inventory-facets__state"><h3>Inventory state</h3><div aria-label="Inventory filters" className="filter-chips inventory-state-filters" role="group">{filters.map((value) => <button aria-pressed={route.filter === value} className="filter-chip" key={value} onClick={() => updateFilter({ filter: value }, 'push')} type="button">{value}</button>)}</div></div>{categoryGroups.length > 0 && <FacetDropdown allLabel="All categories" groupLabel="Inventory category filters" label="Linked category" onClear={() => updateFilter({ categories: [] }, 'push')} onToggle={(value) => updateFilter({ categories: toggleValue(route.categories, value) }, 'push')} options={categoryGroups} searchLabel="Search inventory categories" selected={route.categories}/>} {sourceOptions.length > 0 && <FacetDropdown allLabel="All sources" formatOption={sourceDisplay} groupLabel="Inventory source filters" label="Linked source" onClear={() => updateFilter({ sources: [] }, 'push')} onToggle={(value) => updateFilter({ sources: toggleValue(route.sources, value) }, 'push')} options={sourceOptions} searchLabel="Search inventory sources" selected={route.sources}/>}</div>
       {visible.length ? <><ul aria-live="polite" className="list">{visible.slice(0, route.resultLimit).map((position) => {
         const name = position.observedName ?? entityName(localData, catalogs, position.ref)
         const tone = position.possession === 'owned' ? 'positive' : position.possession === 'notOwned' ? 'neutral' : 'warning'

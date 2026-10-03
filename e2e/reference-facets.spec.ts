@@ -2,10 +2,45 @@ import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
+import { EQUIPMENT_CATEGORIES } from '../src/ui/reference-categories'
 
 async function showFilters(page: Page, isMobile: boolean) {
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
 }
+
+test('equipment categories combine base and mod records using stable keys', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  await page.goto('/#/reference?v=1&kind=item')
+  await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
+  await showFilters(page, isMobile)
+  const categories = page.getByRole('group', { name: 'Reference category filters', exact: true })
+  const search = page.getByRole('searchbox', { name: 'Search reference categories', exact: true })
+  await search.fill('Staff')
+  await expect(categories.getByRole('button', { name: /^Staves \(\d+\)$/ })).toHaveCount(1)
+  await search.fill('axe')
+  const axes = categories.getByRole('button', { name: /^Axes \(\d+\)$/ })
+  await expect(axes).toHaveCount(1)
+  await expect(categories.getByRole('button', { name: /^Axe \(\d+\)$/ })).toHaveCount(0)
+  await axes.click()
+  const active = page.getByRole('group', { name: 'Active reference filters', exact: true })
+  await expect(active.getByRole('button', { name: 'Remove Axes filter', exact: true })).toBeVisible()
+  const card = (name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
+  await expect(card('Hand Axe')).toBeVisible()
+  await expect(card('Backbreaker')).toBeVisible()
+  await expect(card('Short Sword')).toHaveCount(0)
+  expect(new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('category')).toBe(EQUIPMENT_CATEGORIES.Axe.key)
+  await page.reload()
+  await expect(active.getByRole('button', { name: 'Remove Axes filter', exact: true })).toBeVisible()
+  await showFilters(page, isMobile)
+  await page.getByRole('button', { name: 'Source mod', exact: true }).click()
+  const mods = page.getByRole('group', { name: 'Reference mods filters', exact: true })
+  await mods.getByRole('button', { name: /^Base game \(\d+\)$/ }).click()
+  await expect(card('Hand Axe')).toBeVisible()
+  await expect(card('Backbreaker')).toHaveCount(0)
+  await active.getByRole('button', { name: 'Remove Source mod: Base game filter', exact: true }).click()
+  await mods.getByRole('button', { name: /^Equipment Expansion \(\d+\)$/ }).click()
+  await expect(card('Backbreaker')).toBeVisible()
+  await expect(card('Hand Axe')).toHaveCount(0)
+})
 
 test('category families remain searchable, preserve alternatives, and expose hidden selections', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1')
@@ -40,7 +75,7 @@ test('category families remain searchable, preserve alternatives, and expose hid
     await expect(page.getByRole('button', { name: /^Filters/ })).toContainText('3 active')
   }
   await active.getByRole('button', { name: 'Remove Swords filter', exact: true }).click()
-  await expect(page).not.toHaveURL(/category=Swords/)
+  await expect(active.getByRole('button', { name: 'Remove Swords filter', exact: true })).toHaveCount(0)
   await page.goBack()
   await expect(active.getByRole('button', { name: 'Remove Swords filter', exact: true })).toBeVisible()
   await page.reload()

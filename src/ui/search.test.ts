@@ -20,6 +20,7 @@ import {
   personalDefinitionFacetValues,
   projectReferenceEntity,
 } from './search'
+import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_KEY, referenceCategoryKey } from './reference-categories'
 
 const importedAt = '2026-09-24T00:00:00.000Z' as Timestamp
 
@@ -94,7 +95,7 @@ describe('reference search projection', () => {
     const partition = partitionReferenceItems(items, {
       query: '',
       kinds: ['item', 'passive'],
-      categories: ['Weapon', 'Defense'],
+      categories: [referenceCategoryKey('Weapon'), referenceCategoryKey('Defense')],
       sources: ['pack:alpha', 'equipment-sheet'],
     })
     expect(partition.confirmed.map((item) => item.entity.id)).toEqual(['spear', 'mantle'])
@@ -122,8 +123,8 @@ describe('reference search projection', () => {
     expect(buildFacetOptions(items, 'source')).toContainEqual({ value: 'equipment-sheet', count: 1 })
     expect(buildFacetOptions(items, 'source')).toContainEqual({ value: 'locations-sheet', count: 1 })
     expect(buildFacetOptions(items, 'category')).toEqual([
-      { value: 'Defense', count: 1 },
-      { value: 'Weapon', count: 1 },
+      { value: referenceCategoryKey('Defense'), count: 1 },
+      { value: referenceCategoryKey('Weapon'), count: 1 },
     ])
     expect(aggregateKnowledgeCounts(items)).toMatchObject({ unknown: 2, conflicting: 1 })
     expect(projectReferenceEntity(snapshot, spear).claims).toHaveLength(1)
@@ -196,7 +197,7 @@ describe('reference search projection', () => {
     expect(partition.possible.map(item => item.entity.id)).toEqual(['unclear'])
     expect(partition.excluded.map(item => item.entity.id)).toEqual(['body', 'recipe'])
     expect(buildFacetOptions(items, 'elements')).toEqual([{ value: 'Wind', count: 1 }])
-    expect(buildFacetOptions(items, 'category')).toEqual([{ value: 'Blade', count: 1 }])
+    expect(buildFacetOptions(items, 'category')).toEqual([{ value: referenceCategoryKey('Blade'), count: 1 }])
   })
 
   it('keeps class definitions with their documented skills when filtering by class', () => {
@@ -213,9 +214,9 @@ describe('reference search projection', () => {
       { name: 'Personal blade', kind: 'item' as const, aliases: [], sourceLabel: 'Personal definitions', record: entity('personal', { name: 'Personal blade', kind: 'item', fields: { category: { state: 'known', value: 'Equipment' }, item_type: { state: 'known', value: 'Swords' }, Element: { state: 'known', value: 'Wind' } }, slotKinds: { state: 'known', value: ['mainHand'] } }) },
       { name: 'Personal area', kind: 'location' as const, aliases: [], sourceLabel: 'Personal definitions' },
     ]
-    expect(personalDefinitionCategoryValues(personal[0]!)).toEqual(['Equipment', 'Swords'])
+    expect(personalDefinitionCategoryValues(personal[0]!)).toEqual([EQUIPMENT_CATEGORY_KEY, EQUIPMENT_CATEGORIES.Sword.key])
     expect(personalDefinitionFacetValues(personal[0]!, 'slots')).toEqual(['mainHand'])
-    const partition = partitionPersonalDefinitionOptions(personal, { query: '', kinds: [], categories: ['Swords'], sources: [], elements: ['Wind'], slots: ['mainHand'] })
+    const partition = partitionPersonalDefinitionOptions(personal, { query: '', kinds: [], categories: [EQUIPMENT_CATEGORIES.Sword.key], sources: [], elements: ['Wind'], slots: ['mainHand'] })
     expect(partition.confirmed.map(option => option.name)).toEqual(['Personal blade'])
     expect(partition.possible).toEqual([])
     expect(partition.excluded.map(option => option.name)).toEqual(['Personal area'])
@@ -237,14 +238,14 @@ describe('reference search projection', () => {
     const partition = partitionPersonalDefinitionOptions(personal, {
       query: '',
       kinds: ['passive'],
-      categories: ['Defense'],
+      categories: [referenceCategoryKey('Defense')],
       sources: ['Personal definitions'],
       pp: { min: 3, max: 5, unit: 'PP' },
     })
     expect(partition.confirmed.map((option) => option.name)).toEqual(['Known Ward'])
     expect(partition.possible.map((option) => option.name)).toEqual(['Unknown Ward', 'Conflicted Ward'])
     expect(partition.excluded.map((option) => option.name)).toEqual(['Known Mismatch'])
-    expect(personalDefinitionCategoryValues(personal[1]!)).toEqual(['Defense', 'Support'])
+    expect(personalDefinitionCategoryValues(personal[1]!)).toEqual([referenceCategoryKey('Defense'), referenceCategoryKey('Support')])
   })
 
   it('uses an override lineage mod association without hiding conflicting recorded fields', () => {
