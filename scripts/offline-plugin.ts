@@ -28,11 +28,46 @@ const CACHE_NAME = CACHE_PREFIX + encodeURIComponent(self.registration.scope) + 
 const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
 const indexUrl = new URL('index.html', self.registration.scope).href;
+const refreshPointerUrl = new URL('__crykit_app_cache__', self.registration.scope).href;
+const DOWNLOAD_BATCH_SIZE = 32;
+const refreshPrefix = name => name.replace(CACHE_PREFIX, 'crykit-refresh-') + '-';
+const applicationCache = async (name = CACHE_NAME) => {
+  const cache = await caches.open(name);
+  const pointer = await cache.match(refreshPointerUrl);
+  const refreshed = pointer && await pointer.text();
+  if (refreshed && refreshed.startsWith(refreshPrefix(name)) && await caches.has(refreshed)) return caches.open(refreshed);
+  return cache;
+};
+const downloadFiles = async (cache, urls) => {
+  for (let index = 0; index < urls.length; index += DOWNLOAD_BATCH_SIZE) {
+    await cache.addAll(urls.slice(index, index + DOWNLOAD_BATCH_SIZE).map(url => new Request(url, { cache: 'reload' })));
+  }
+};
 const prepareCache = async () => {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await applicationCache();
   const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
   const missing = assetUrls.filter((_, index) => !matches[index]);
-  if (missing.length) await cache.addAll(missing.map(url => new Request(url, { cache: 'reload' })));
+  await downloadFiles(cache, missing);
+};
+let refreshing;
+const refreshCache = async () => {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    const name = refreshPrefix(CACHE_NAME) + crypto.randomUUID();
+    let committed = false;
+    try {
+      const staged = await caches.open(name);
+      await downloadFiles(staged, assetUrls);
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(refreshPointerUrl, new Response(name));
+      committed = true;
+      const names = await caches.keys();
+      await Promise.allSettled(names.filter(previous => previous !== name && previous.startsWith(refreshPrefix(CACHE_NAME))).map(previous => caches.delete(previous)));
+    } finally {
+      if (!committed) await caches.delete(name);
+    }
+  })().finally(() => { refreshing = undefined; });
+  return refreshing;
 };
 const previousCaches = async () => {
   const names = await caches.keys();
@@ -54,7 +89,9 @@ self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     // Retain one previous build for open tabs and preserve other installations
     const previous = await previousCaches();
-    await Promise.all(previous.slice(0, -1).map(name => caches.delete(name)));
+    const names = await caches.keys();
+    const obsolete = previous.slice(0, -1);
+    await Promise.all(names.filter(name => obsolete.includes(name) || obsolete.some(previous => name.startsWith(refreshPrefix(previous)))).map(name => caches.delete(name)));
     await self.clients.claim();
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) client.postMessage({ type: 'OFFLINE_ACTIVATED' });
@@ -62,14 +99,15 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('message', event => {
   if (event.data?.type === 'ACTIVATE_UPDATE') self.skipWaiting();
-  if (event.data?.type === 'CHECK_READINESS' || event.data?.type === 'PREPARE_CACHE') {
+  if (event.data?.type === 'CHECK_READINESS' || event.data?.type === 'PREPARE_CACHE' || event.data?.type === 'REFRESH_CACHE') {
     event.waitUntil((async () => {
-      if (event.data.type === 'PREPARE_CACHE') {
-        try { await prepareCache(); } catch { event.ports[0]?.postMessage({ ready: false }); return; }
-      }
-      const cache = await caches.open(CACHE_NAME);
-      const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
-      event.ports[0]?.postMessage({ ready: matches.every(Boolean), version: ${JSON.stringify(version)} });
+      try {
+        if (event.data.type === 'PREPARE_CACHE') await prepareCache();
+        if (event.data.type === 'REFRESH_CACHE') await refreshCache();
+        const cache = await applicationCache();
+        const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
+        event.ports[0]?.postMessage({ ready: matches.every(Boolean), version: ${JSON.stringify(version)} });
+      } catch (error) { event.ports[0]?.postMessage({ ready: false, error: error instanceof Error ? error.message : 'Application cache operation failed' }); }
     })());
   }
 });
@@ -82,7 +120,7 @@ self.addEventListener('fetch', event => {
   const isBuildAsset = url.href.startsWith(new URL('assets/', self.registration.scope).href) || url.href.startsWith(new URL('ocr/', self.registration.scope).href);
   if (!isNavigation && !assetUrls.includes(url.href) && !isBuildAsset) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
+    const cache = await applicationCache();
     // Only immutable build assets and the static shell use this URL-only cache
     const cached = await cache.match(isNavigation ? indexUrl : url.href, { ignoreVary: true });
     // Navigation requests reject responses whose fetch followed a redirect
@@ -90,7 +128,7 @@ self.addEventListener('fetch', event => {
     if (cached) return cached;
     if (isBuildAsset) {
       for (const name of await previousCaches()) {
-        const previous = await (await caches.open(name)).match(url.href, { ignoreVary: true });
+        const previous = await (await applicationCache(name)).match(url.href, { ignoreVary: true });
         if (previous) return previous;
       }
     }
