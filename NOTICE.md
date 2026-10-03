@@ -10,8 +10,6 @@ The Quintar breeding guide uses native game quintar, egg, and item icons from th
 
 The wiki labels some files Fairuse and leaves others unspecified. Those labels are retained as source declarations; attribution does not turn the artwork into AGPL or CC-BY-SA material or establish a separate permission grant. For an attribution correction or rights concern, contact the maintainer through the [repository issues](https://github.com/j-256/crykit/issues).
 
-The [currency icons](src/assets/coins/README.md) use the exact native `GUI/Currency` rectangles drawn by the fingerprinted Windows executable, preserving the source pixels and alpha. Their source texture hashes and crop regions are recorded in the native extraction manifest. They retain the game's artwork rights.
-
 ## Reference content
 
 The native gameplay snapshot is extracted from Crystal Project Windows 1.6.9. Database and executable hashes, verified version evidence, and numeric identities are retained in [the gameplay snapshot](src/catalog/native-game-data.json). Game data retains source-specific rights; the application license and wiki license do not grant rights to it.
