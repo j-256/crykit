@@ -18,16 +18,21 @@ const difference = (value: StatRange | null, baseline: StatRange | null): StatRa
 }
 
 export function calculateStatBreakdown(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, _identity: (ref: EntityRef) => string = entityDefinitionKey, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): Readonly<Record<GrowthStat, StatBreakdown>> {
+  return calculateStatBreakdownResult(content, slots, resolve, _identity, unknownInputs, unknownSecondaryClass, gameRules).stats
+}
+
+export function calculateStatBreakdownResult(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, _identity: (ref: EntityRef) => string = entityDefinitionKey, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): { readonly stats: Readonly<Record<GrowthStat, StatBreakdown>>; readonly issues: readonly string[] } {
   const plan = content.calculation
   const initialContent = { ...content, calculation: plan ? { ...plan, level: 1, growth: [{ classRef: content.primaryClass, levels: 1 }], bonuses: [], gender: undefined } : undefined }
   const current = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules)
   const initial = calculatePCStats(initialContent, slots, resolve, [], false, gameRules)
   const total = selectedPCStats(current, plan?.gender)
-  return Object.fromEntries(STAT_KEYS.map(stat => [stat, {
+  const stats = Object.fromEntries(STAT_KEYS.map(stat => [stat, {
     base: exact(initial.base[stat]),
     equipment: difference(exact(current.neutral[stat]), exact(current.base[stat])),
     level: difference(exact(current.base[stat]), exact(initial.base[stat])),
     gender: difference(exact(total[stat]), exact(current.neutral[stat])),
     total: exact(total[stat]),
   }])) as Record<GrowthStat, StatBreakdown>
+  return { stats, issues: current.issues }
 }

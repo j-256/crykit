@@ -60,6 +60,16 @@ describe('native preview stages', () => {
     }
   })
 
+  it.each(['1.6.6', '1.6.6.0'])('treats PC %s as compatible with the native rules under the planning assumption', version => {
+    const rules = resolveGameRules({ platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: version } }, [])
+    const result = calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, resolve, undefined, rules)
+    const baseline = calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(rules.issues).toEqual([])
+    expect(result.issues).toEqual([])
+    expect(result.stats.HP.value).toEqual({ low: 1244, high: 1244 })
+    expect(result.stats).toEqual(baseline.stats)
+  })
+
   it('keeps overflowing imported modifiers unknown before caps can fabricate totals', () => {
     const imported = ref('synthetic-overflowing-equipment')
     const equipped = { ...content, equipment: { 'plan-main-hand': { ref: imported } } }

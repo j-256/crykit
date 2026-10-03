@@ -1,4 +1,4 @@
-import { resolveGameRules } from '../domain/game-rules'
+import { ASSUMED_COMPATIBLE_PC_VERSIONS, resolveGameRules } from '../domain/game-rules'
 import { useMemo, useState } from 'react'
 import { benchmarkDamage, calculatePCStats, selectedPCStats } from '../domain/pc-stats'
 import { PC_LEVEL_CAP, PC_RULES } from '../domain/calculation-rules'
@@ -8,6 +8,7 @@ import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, Local
 import { Button, Field, InlineNotice } from './components'
 import { CalculationPicker } from './BuildMechanics'
 import { CalculationInputs } from './CalculationInputs'
+import { CalculationStatus } from './CalculationStatus'
 import { downloadBytes, knowledgeLabel, resolveCalculationEntity } from './model'
 import './calculated-stats.css'
 
@@ -17,7 +18,7 @@ const format = (value: number | null | undefined) => value == null ? 'Unknown' :
 const delta = (value: number | null | undefined, baseline: number | null | undefined) => value == null || baseline == null ? '' : `${value - baseline >= 0 ? '+' : ''}${value - baseline}`
 const STAT_NAMES = { ...STAT_LABELS, AP: 'Max AP' }
 
-export function CalculatedStats({ content, slots, localData, catalogs, gameSetup, onChange, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, recorded }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; recorded?: Readonly<Record<string, ObservedStat>> }) {
+export function CalculatedStats({ content, slots, localData, catalogs, gameSetup, onChange, onReviewGameSetup, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, recorded }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; recorded?: Readonly<Record<string, ObservedStat>> }) {
   const plan = content.calculation
   const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
   const estimate = useMemo(() => calculatePCStats(content, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), unknownInputs, unknownSecondaryClass, rules), [content, slots, localData, catalogs, unknownInputs, unknownSecondaryClass, rules, gameSetup])
@@ -41,16 +42,21 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
   if (!plan) return <section aria-label="Calculated stats" className="calculated-stats"><h3>Calculated stats</h3><p>No calculation inputs saved. Calculated character totals remain unknown.</p>{onChange && <Button onClick={() => onChange(defaultCalculation(content.primaryClass))} type="button">Plan level-60 native calculations</Button>}</section>
   const update = (patch: Partial<BuildCalculationPlan>) => onChange?.({ ...plan, ...patch })
   const total = selectedPCStats(estimate, plan.gender)
+  const hasResults = Object.values(total).some(value => value !== null)
+  const version = gameSetup?.gameVersion.state === 'known' ? gameSetup.gameVersion.value : undefined
+  const assumedCompatible = version !== undefined && (ASSUMED_COMPATIBLE_PC_VERSIONS as readonly string[]).includes(version)
   const allPrimary = baseline ? selectedPCStats(baseline, plan.gender) : undefined
   const genderLabel = plan.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'No gender bonus preview'
   const recordedStat = (stat: string) => {
     const labels = [stat, STAT_NAMES[stat as CalculatedStat], stat === 'HP' ? 'HP' : stat === 'MP' ? 'MP' : undefined].filter(Boolean).map(value => value!.toLowerCase())
     return Object.entries(recorded ?? {}).find(([key]) => labels.includes(key.toLowerCase()))?.[1]
   }
+  const availableRecorded = Object.keys(PC_RULES.stats).filter(stat => recordedStat(stat)?.value.state === 'known')
   return <section aria-label="Calculated stats" className="calculated-stats stack">
     <div className="split"><h3>Calculated stats</h3><Button disabled={exporting} onClick={exportRules} tone="quiet" type="button">{exporting ? 'Preparing calculation package...' : 'Export calculation package'}</Button></div>
     {exportError && <InlineNotice title="Calculation export failed"><p role="alert">{exportError}</p><p>Save any pending edits, restore your connection, and reload the page before trying again. Offline preparation includes the calculation package.</p></InlineNotice>}
     <p className="field__hint">PC 1.6.9.0 formulas. Resting loadout, no active statuses or accumulated battle effects. Switch and mod parity remain unverified. Calculation assumptions are saved separately from recorded in-game totals.</p>
+    {assumedCompatible && <p className="field__hint">Game version {version} is treated as equivalent to PC 1.6.9 for calculations.</p>}
     <p className="field__hint">Male and female totals assume gender bonuses are enabled in the game. Use no gender bonus when disabled.</p>
     <p className="field__hint">Balance mode: {rules.mode ?? plan.pcMode ?? 'standard'} · {rules.mode ? 'from Game Setup' : 'calculation assumption; choose Game mode in Game Setup to confirm'}</p>
     {onChange ? <><div className="cluster"><Field label="Calculation level"><input aria-label="Calculation level" max={PC_LEVEL_CAP} min="1" onChange={event => onChange?.(changeCalculationLevel(plan, event.target.value === '' ? null : Math.max(1, Math.min(PC_LEVEL_CAP, Math.trunc(Number(event.target.value)))), content.primaryClass))} type="number" value={plan.level ?? ''}/></Field></div>
@@ -65,10 +71,14 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
       <div className="cluster"><Button disabled={plan.growth.length >= PC_LEVEL_CAP} onClick={() => update({ growthMode: 'manual', growth: [...plan.growth, { classRef: null, levels: 0 }] })} tone="secondary" type="button">Add growth class</Button><Button onClick={() => update({ growthMode: 'primary', growth: [{ classRef: content.primaryClass, levels: plan.level }] })} tone="quiet" type="button">Follow primary class for all growth</Button></div>
     </div></details></> : <details className="growth-controls"><summary>Level-up growth · {allocated}/{plan.level ?? '?'}</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={plan}/></details>}
     {(plan.statuses.length > 0 || plan.bonuses.length > 0) && <InlineNotice title="Additional saved assumptions"><p>Resting totals require no active statuses or custom per-stat bonuses. These saved assumptions have been retained.</p>{onChange && <Button onClick={() => update({ statuses: [], bonuses: [] })} tone="quiet" type="button">Clear active statuses and custom bonuses</Button>}</InlineNotice>}
-    {estimate.issues.length > 0 && <InlineNotice title="Calculation inputs unresolved"><ul>{estimate.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
+    {!hasResults && <CalculationStatus issues={estimate.issues} onReviewGameSetup={rules.issues.length ? onReviewGameSetup : undefined}/>}
+    {hasResults && estimate.issues.length > 0 && <InlineNotice title="Some calculation values unavailable" tone="warning"><ul>{estimate.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
+    {!hasResults && availableRecorded.length > 0 && <div className="calculated-stats__table"><table aria-label="Recorded character stats"><thead><tr><th>Stat</th><th>Recorded</th></tr></thead><tbody>{availableRecorded.map(stat => <tr key={stat}><th scope="row">{STAT_NAMES[stat as CalculatedStat] ?? stat}</th><td>{knowledgeLabel(recordedStat(stat)!.value)} {recordedStat(stat)!.unit ?? ''}</td></tr>)}</tbody></table></div>}
+    {hasResults && <>
     <div className="calculated-stats__table"><table aria-label="Calculated character stats"><thead><tr><th>Stat</th><th className="stat-breakdown__total">Total <small>{genderLabel}</small></th><th>No gender bonus</th><th>Male total <small>(difference)</small></th><th>Female total <small>(difference)</small></th>{recorded && <th>Recorded</th>}</tr></thead><tbody>{Object.keys(PC_RULES.stats).map(stat => <tr key={stat}><th scope="row">{STAT_NAMES[stat as keyof typeof STAT_NAMES] ?? stat}</th><td className="stat-breakdown__total"><strong>{format(total[stat])}</strong></td><td>{format(estimate.neutral[stat])}</td>{[estimate.male, estimate.female].map((values, index) => <td key={index}>{format(values[stat])}{values[stat] != null && <small>({delta(values[stat], estimate.neutral[stat])})</small>}</td>)}{recorded && <td>{recordedStat(stat) ? knowledgeLabel(recordedStat(stat)!.value) : 'Not recorded'}</td>}</tr>)}</tbody></table></div>
     <details><summary>Growth and loadout breakdown</summary><p>Compare this allocation against assigning every level to the primary class, with the same gender applied to both totals. Base before gear excludes gender bonuses.</p><div className="calculated-stats__table"><table aria-label="Growth stat differences"><thead><tr><th>Stat</th><th>Base before gear</th><th>All-primary total</th><th>Growth difference</th></tr></thead><tbody>{PC_RULES.coreStats.map(stat => <tr key={stat}><th scope="row">{stat}</th><td>{format(estimate.base[stat])}</td><td>{format(allPrimary?.[stat])}</td><td>{delta(total[stat], allPrimary?.[stat]) || 'Unknown'}</td></tr>)}</tbody></table></div></details>
     <details><summary>Sample damage calculations</summary><p>Synthetic benchmarks with {PC_RULES.benchmarks[0]!.targetMain} target VIT/SPI and {PC_RULES.benchmarks[0]!.defense} DEF/RES. Physical uses ATK + ATK × STR / 100; magic uses 100 + MND. Game integer steps and defense reduction apply. Damage modifiers, crits, variance, elements, buffs, and reactions are excluded.</p><div className="calculated-stats__table"><table aria-label="Damage benchmarks"><thead><tr><th>Benchmark</th><th className="stat-breakdown__total">Total <small>{genderLabel}</small></th><th>No gender bonus</th><th>Male</th><th>Female</th></tr></thead><tbody>{PC_RULES.benchmarks.map(benchmark => <tr key={benchmark.id}><th scope="row">{benchmark.label}</th><td className="stat-breakdown__total"><strong>{format(benchmarkDamage(total, benchmark.id))}</strong></td>{[estimate.neutral, estimate.male, estimate.female].map((stats, index) => <td key={index}>{format(benchmarkDamage(stats, benchmark.id))}</td>)}</tr>)}</tbody></table></div></details>
+    </>}
     {estimate.effects.length > 0 && <details><summary>Effects requiring battle context</summary><ul>{estimate.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></details>}
   </section>
 }

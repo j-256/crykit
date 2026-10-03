@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { buildBehavior, sameBuildBehavior, type BuildBehavior } from '../domain/build-behavior'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -15,7 +15,7 @@ import { gameSetupModSummary, knowledgeLabel } from './model'
 const PRESET = Object.freeze({ CUSTOM: 'custom', VANILLA: 'vanilla', NINTENDO: 'nintendo', PLAYTHROUGH: 'playthrough' })
 const KNOWN_MODS = SWITCH_MOD_PACKS.flatMap(pack => pack.mods)
 
-export function BuildBehaviorEditor({ localData, value, onChange, initiallyOpen = false }: { readonly localData: LocalData; readonly value: BuildBehavior; readonly onChange: (value: BuildBehavior) => void; readonly initiallyOpen?: boolean }) {
+export function BuildBehaviorEditor({ localData, value, onChange, initiallyOpen = false, detailsRef }: { readonly localData: LocalData; readonly value: BuildBehavior; readonly onChange: (value: BuildBehavior) => void; readonly initiallyOpen?: boolean; readonly detailsRef?: Ref<HTMLDetailsElement> }) {
   const [open, setOpen] = useState(initiallyOpen)
   const presets = latestGameSetups(localData)
   const matches = Object.values(localData.gameSetups).filter(setup => sameBuildBehavior(value, setup))
@@ -40,7 +40,7 @@ export function BuildBehaviorEditor({ localData, value, onChange, initiallyOpen 
       ? { ...base, label: 'Unmodified game', mods: { state: 'known', value: [] }, disabledMods: { state: 'known', value: [...new Set([...KNOWN_MODS, ...recordedModNames(value)])] } }
       : { ...base, label: CONFIRMED_SWITCH_MOD_SETUP.label, platform: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.platform }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, mods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.enabledMods }, disabledMods: { state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods } })
   }
-  return <details className="build-behavior panel" onToggle={event => setOpen(event.currentTarget.open)} open={open}>
+  return <details className="build-behavior panel" onToggle={event => setOpen(event.currentTarget.open)} open={open} ref={detailsRef}>
     <summary><span><strong>Game Setup</strong><small>{match?.label ?? value.label} · {knowledgeLabel(value.gameVersion)} · {gameSetupModSummary(value)}</small></span>{!match && <Badge tone="info">Customized</Badge>}<Icon name="chevron-down"/></summary>
     <div className="panel__body stack">
       <p>These rules are saved with this build checkpoint. Copy a Game Setup as a starting point, then adjust it here.</p>
