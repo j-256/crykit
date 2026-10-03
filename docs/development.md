@@ -84,7 +84,7 @@ Keep catalog definitions, personal observations, and planned configurations sepa
 
 Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and unreviewed workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
 
-Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. The [correction guide](corrections.md) explains how to export reference corrections separately from playthrough records.
+Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. Include the reference entry, platform, game version, enabled mods, expected value, and source evidence. Source fixes belong in the catalog extraction or interpretation pipeline. See [reference data boundaries](reference-data.md) for the distinction between source catalogs, standalone custom definitions, and retained catalog versions.
 
 ## Bundle a mod source directory
 

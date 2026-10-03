@@ -6,7 +6,7 @@ Crystal Kit separates reference definitions, personal observations, and hypothet
 
 Quintar breeding guide marks are optional timestamped observations in each Playthrough's `quintarBreeding` record, keyed by the guide's fixed step identities. An absent key means no completion was recorded. Native backups preserve these marks and their undo history; unknown step identities and invalid timestamps are rejected. Completing a guide action does not establish current nursery contents or item possession.
 
-## Starter catalog and personal overrides
+## Catalogs and personal definitions
 
 When browser storage contains no planner data, initialization creates one local data root with a labeled sample Playthrough, character observations, stocked equipment, shared Build checkpoints, an active team, and a versioned Game Setup. Sample records carry synthetic provenance and use the bundled catalog's exact references. They are written atomically and are not recreated on reload. Explicitly created blank Playthroughs are not seeded with tracked records, but they can use the same shared Builds and Game Setups. Native backups preserve sample records like other local records, without an imported source archive or an initial undo checkpoint.
 
@@ -14,7 +14,7 @@ The built-in [native gameplay catalog](catalog-sources.md) is installed locally 
 
 Creating or saving a Game Setup in Data & settings includes the built-in catalog in the new revision's lock when it is not already pinned. Existing catalog pins remain unchanged. A Build belongs to one logical Game Setup, and each Build checkpoint pins an exact Game Setup revision and catalog lock.
 
-Creating a definition adds a locally owned record. Editing a personal definition or choosing **Create personal version** creates another immutable personal record with an exact `baseRef` and, for a personal revision, `previousRevision`. The original catalog or personal definition remains available. Preferred revisions are suggested by ordinary pickers, while existing Build checkpoints and observations keep their exact references. Stock, learning, and progress use the lineage's logical identity so an edit does not create another owned copy or erase learning.
+Creating a custom definition adds a standalone locally owned record. Editing it creates another immutable personal record with an exact personal `baseRef` and `previousRevision`. Catalog entries and saved personal definitions whose lineage resolves to a catalog are read-only. Their existing `baseRef`, `previousRevision`, fields, and sources remain supported for imports, backups, shares, and exact saved references. The original catalog and personal revisions remain available. Preferred revisions are suggested by ordinary pickers, while existing Build checkpoints and observations keep their exact references. Stock, learning, and progress use the lineage's logical identity so an edit does not create another owned copy or erase learning.
 
 Reference can collect selected preferred personal definitions into an immutable Game Setup revision. Its `definitionOverrides` field pins exact personal references and its catalog lock includes required source revisions. Collecting replaces selected logical roots in the source layer and retains its other pins. This is an explicit reviewed collection: it does not rewrite selections, substitute new mechanics into historical Builds, or make the resulting revision current. Original sources and all referenced personal revisions remain in native backups; malformed or branched lineage is rejected.
 
@@ -82,7 +82,3 @@ IndexedDB is scoped to the application's origin, including scheme, hostname, and
 Every planner-data write supplies the revision it was based on. The comparison and write occur in one transaction. A stale tab cannot overwrite newer saved planner data. A failed write keeps the open draft available for a recovery export; that draft is distinct from the last committed database revision.
 
 The service worker stores only the static application shell. Its cache does not contain imported source files or personal records, and changing the shell does not migrate or erase planner data. Offline readiness is checked against the complete built asset list.
-
-## Reference correction deltas
-
-The versioned `crykit-corrections` JSON format transfers immutable correction decisions independently of personal records. Full native backups can also include the global correction registry; its restoration is an explicit import option and commits atomically with planner-data replacement. See [correction editing, provenance, and baseline promotion](corrections.md) for the contribution workflow and source-review boundaries.

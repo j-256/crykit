@@ -69,7 +69,7 @@ For offline use, open **Data & settings > Offline & storage** while connected. C
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
 | Decode IDs and edit mod JSON | [Mods and the editor workspace](docs/mod-inspector.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
-| Correct a reference entry | [Reference corrections](docs/corrections.md) |
+| Report incorrect reference data | [GitHub issues](https://github.com/j-256/crykit/issues) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |
 
 ## Run locally

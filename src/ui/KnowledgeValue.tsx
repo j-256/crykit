@@ -32,7 +32,7 @@ function StructuredValue({ value, field, nativeSource = false, moneyFormat = 'co
     if (value.length === 0) return <span>None</span>
     if (value.every(isRecord)) {
       const columns = Array.from(new Set(value.flatMap((row) => Object.keys(row))))
-      return <div className="structured-value__table"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} moneyFormat={moneyFormat} nativeSource={native} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
+      return <div className="structured-value__table" tabIndex={0}><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{value.map((row, rowIndex) => <tr key={rowIndex}>{columns.map((column) => <td key={column}><StructuredValue field={column} moneyFormat={moneyFormat} nativeSource={native} value={row[column]}/></td>)}</tr>)}</tbody></table></div>
     }
     return <ul className="structured-value__list" role="list">{value.map((entry, index) => <li key={index}><StructuredValue field={field} moneyFormat={moneyFormat} nativeSource={native} value={entry}/></li>)}</ul>
   }

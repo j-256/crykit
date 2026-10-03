@@ -1,4 +1,3 @@
-import { parseCorrectionCollection } from './corrections'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { assertModConfiguration } from '../domain/mods'
@@ -757,7 +756,6 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
       details: { issues: payloadResult.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`) },
     })
   }
-  const corrections = payloadResult.data.corrections === undefined ? undefined : parseCorrectionCollection(JSON.stringify(payloadResult.data.corrections))
   if (manifest.formatVersion === '2.0.0' && payloadResult.data.bundledCatalogs !== undefined) schemaError('Bundled catalog pins require backup format 2.1.0')
   const pinnedCatalogs = resolveBundledCatalogPins((payloadResult.data.bundledCatalogs ?? []) as unknown as readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[], availableBundledCatalogs)
   const allCatalogs = [...payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[], ...pinnedCatalogs]
@@ -836,7 +834,6 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
       ancestry: lineage,
     },
     proposed: {
-      ...(corrections ? { corrections } : {}),
       localData,
       lineage,
       catalogs: catalogs.snapshots,

@@ -1,3 +1,4 @@
+import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
 import { saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -5,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { syntheticModLayers } from '../src/domain/mod-layers.test-helpers'
-import { coalesceDefinitionOverrides, createDefinitionOverride, setPlaythroughGameSetup } from '../src/domain/local-data'
+import { coalesceDefinitionOverrides, setPlaythroughGameSetup } from '../src/domain/local-data'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { EntityId, LocalData } from '../src/domain/types'
 
@@ -108,7 +109,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
 test('changing layers requires an explicit personal override decision and label edits retain the effective catalog', async ({ page }) => {
   const mods = await syntheticModLayers()
   const source = createSampleLocalData(DEFAULT_CATALOG)
-  const override = createDefinitionOverride(source, [DEFAULT_CATALOG], { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
+  const override = savedCatalogVersion(source, [DEFAULT_CATALOG], { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
   const pinned = coalesceDefinitionOverrides(override.localData, { sourceGameSetupRevisionId: source.planningGameSetupRevisionId!, definitionRefs: [override.ref], activate: true })
   const localData = setPlaythroughGameSetup(pinned, { gameSetupRevisionId: pinned.planningGameSetupRevisionId! })
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))

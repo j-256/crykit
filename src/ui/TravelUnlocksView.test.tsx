@@ -1,8 +1,9 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
-import { createDefinitionOverride, setAcquisitionProgress, upsertProgress } from '../domain'
+import { setAcquisitionProgress, upsertProgress } from '../domain'
 import { createTestLocalData } from '../domain/test-helpers'
 import type { Knowledge, LocalData } from '../domain/types'
 import { NavigationProvider, useNavigationController } from './navigation'
@@ -69,7 +70,7 @@ describe('travel acquisition certainty and identity', () => {
 
   it('links to a preferred personal definition while retaining the existing acquisition subject', async () => {
     let localData = setAcquisitionProgress(createTestLocalData(), { subject: SUBJECT, displayName: 'Treasure Finder', acquired: true })
-    const override = createDefinitionOverride(localData, BUNDLED_CATALOGS, { sourceRef: SUBJECT, name: 'Personal chest finder' })
+    const override = savedCatalogVersion(localData, BUNDLED_CATALOGS, { sourceRef: SUBJECT, name: 'Personal chest finder' })
     localData = override.localData
     const entry = travelUnlockEntries(localData, BUNDLED_CATALOGS).find(entry => entry.name === 'Personal chest finder')!
     expect(entry.subject).toEqual(override.ref)

@@ -16,7 +16,6 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:all-devices": "playwright test --config=playwright.all-devices.config.ts",
-    "corrections:review": "node scripts/review-corrections.mjs",
     "catalog:update": "node scripts/update-wiki-catalog.mjs",
     "sprites:update": "node scripts/update-wiki-sprites.mjs",
     "sprites:check": "node scripts/update-wiki-sprites.mjs --check",

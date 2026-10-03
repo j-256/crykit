@@ -1,6 +1,6 @@
 import receipts from './source-corroboration.json' with { type: 'json' }
 import { BUNDLED_CATALOGS } from './bundled'
-import { sameCorrectionValue } from '../domain/corrections'
+import { sameValue } from '../domain/definition-values'
 import { nativeIdentity, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import type { CatalogEntity, CatalogSnapshot, Knowledge } from '../domain/types'
@@ -29,8 +29,8 @@ export function corroboratedFact(target: CorroborationTarget | undefined, field:
   const catalogKey = key(target.catalog)
   const baseline = baselines.get(catalogKey)?.entities[target.entity.id]
   if (!baseline || baseline.kind !== target.entity.kind) return false
-  if (baseline !== target.entity && !sameCorrectionValue(nativeIdentity(baseline), nativeIdentity(target.entity))) return false
-  if (baseline.fields[field] !== knowledge && !sameCorrectionValue(baseline.fields[field], knowledge)) return false
+  if (baseline !== target.entity && !sameValue(nativeIdentity(baseline), nativeIdentity(target.entity))) return false
+  if (baseline.fields[field] !== knowledge && !sameValue(baseline.fields[field], knowledge)) return false
   if (knowledge.sources?.length && knowledge.sources.every(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))) return true
   if (bundledModIdentity(baseline) && knowledge.sources?.length && knowledge.sources.every(source => source.sourceId.startsWith('bundled-mod:') || source.sourceId.startsWith('crystal-edit-export:'))) return true
   const proof = audited.get(catalogKey)?.[target.entity.id]?.[field]

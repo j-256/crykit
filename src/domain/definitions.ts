@@ -38,6 +38,10 @@ export function definitionLineageRootRef(localData: LocalData, ref: EntityRef): 
   return current
 }
 
+export function isEditablePersonalDefinition(localData: LocalData, ref: EntityRef): ref is PersonalRef {
+  return ref.kind === 'personal' && Boolean(localData.personalDefinitions[ref.definitionId]) && definitionLineageRootRef(localData, ref).kind === 'personal'
+}
+
 export function logicalEntityRef(localData: LocalData, ref: EntityRef): EntityRef {
   return definitionLineageRootRef(localData, ref)
 }

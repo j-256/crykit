@@ -1,6 +1,7 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { deflateSync } from 'fflate'
-import { addGameSetupRevision, asId, createBuild, createDefinitionOverride, createPersonalDefinition, createScenario, requirePlaythrough, saveBuildRevision, updateGameSetupRevision } from '../domain'
+import { addGameSetupRevision, asId, createBuild, revisePersonalDefinition, createPersonalDefinition, createScenario, requirePlaythrough, saveBuildRevision, updateGameSetupRevision } from '../domain'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { prepareModCatalogs } from '../persistence'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -130,7 +131,7 @@ describe('sharing snapshots', () => {
   it('preserves explicit unknowns and definition lineage, requirements and provenance', () => {
     let data = fixture()
     data = createPersonalDefinition(data, { id: asId<PersonalDefinitionId>('custom-passive'), kind: 'passive', name: 'Custom passive', ppCost: { state: 'unknown', reason: 'Unverified', sources: [{ sourceId: 'synthetic-evidence' }] }, requirements: { state: 'known', value: [{ kind: 'selected', ref: personalRef('sword') }] }, now: TEST_NOW })
-    const override = createDefinitionOverride(data, [], { sourceRef: personalRef('custom-passive'), id: asId<PersonalDefinitionId>('revised-passive'), name: 'Revised passive', now: TEST_NOW })
+    const override = revisePersonalDefinition(data, { sourceRef: personalRef('custom-passive'), id: asId<PersonalDefinitionId>('revised-passive'), name: 'Revised passive', now: TEST_NOW })
     data = override.localData
     const revision = data.buildRevisions['build-revision']!
     data = saveBuildRevision(data, { buildId: revision.buildId, gameSetupRevisionId: revision.gameSetupRevisionId, content: { ...revision.content, passives: [{ ref: override.ref }] }, now: TEST_NOW })
@@ -282,7 +283,7 @@ describe('sharing snapshots', () => {
 
   it('reuses imported override lineage on repeated saves without merging changed definitions', () => {
     let source = fixture()
-    const override = createDefinitionOverride(source, [], { sourceRef: personalRef('sword'), name: 'Corrected sword', now: TEST_NOW })
+    const override = revisePersonalDefinition(source, { sourceRef: personalRef('sword'), name: 'Corrected sword', now: TEST_NOW })
     source = updateGameSetupRevision(override.localData, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, definitionOverrides: [override.ref], now: TEST_NOW })
     const setup = source.gameSetups[source.planningGameSetupRevisionId!]!
     const revision = source.buildRevisions['build-revision']!
@@ -299,10 +300,10 @@ describe('sharing snapshots', () => {
     validateNativeLocalDataGraph(third.localData, [])
   })
 
-  it('reuses identical catalog corrections and rejects conflicting correction lineage without changing local records', () => {
+  it('reuses identical personal versions and rejects conflicting definition lineage without changing local records', () => {
     let source = createSampleLocalData(DEFAULT_CATALOG, TEST_NOW)
     const revision = Object.values(source.buildRevisions)[0]!
-    const override = createDefinitionOverride(source, [DEFAULT_CATALOG], { sourceRef: revision.content.primaryClass!, rawDescription: 'Synthetic class correction', now: TEST_NOW })
+    const override = savedCatalogVersion(source, [DEFAULT_CATALOG], { sourceRef: revision.content.primaryClass!, rawDescription: 'Synthetic class correction', now: TEST_NOW })
     source = updateGameSetupRevision(override.localData, { sourceRevisionId: revision.gameSetupRevisionId, definitionOverrides: [override.ref], now: TEST_NOW })
     source = saveBuildRevision(source, { buildId: revision.buildId, gameSetupRevisionId: source.planningGameSetupRevisionId!, content: { ...revision.content, primaryClass: override.ref }, now: TEST_NOW })
     const payload = createSharePayload(source, { kind: 'build', revisionId: source.builds[revision.buildId]!.latestRevisionId! })
@@ -313,7 +314,7 @@ describe('sharing snapshots', () => {
     expect(repeated.personalDefinitions).toEqual(first.personalDefinitions)
     const original = structuredClone(repeated)
     const changed = { ...payload, records: { ...payload.records, personalDefinitions: { ...payload.records.personalDefinitions, [override.ref.definitionId]: { ...payload.records.personalDefinitions[override.ref.definitionId]!, rawDescription: 'Different class correction' } } } }
-    expect(() => saveSharedCopy(repeated, changed)).toThrow('different personal correction')
+    expect(() => saveSharedCopy(repeated, changed)).toThrow('different personal version')
     expect(repeated).toEqual(original)
     validateNativeLocalDataGraph(repeated, [DEFAULT_CATALOG])
   })

@@ -1,7 +1,8 @@
+import { savedCatalogVersion } from './legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
 import { SUMMONS, type SummonId } from '../catalog/summons'
-import { createDefinitionOverride, createPlaythrough, requirePlaythrough, upsertProgress } from './index'
+import { createPlaythrough, requirePlaythrough, upsertProgress } from './index'
 import { summonUnlockState, toggleSummonProgress } from './summons'
 import { createTestLocalData } from './test-helpers'
 import type { CatalogRevisionId, EntityId } from './types'
@@ -49,7 +50,7 @@ describe('summon unlock progress', () => {
       let localData = upsertProgress(createTestLocalData(), { subject: oldSubject, displayName: 'Imported summon', unlocked, observedAt: NOW, sources: [{ sourceId: 'synthetic-observation' }], now: NOW })
       const record = Object.values(requirePlaythrough(localData).progress)[0]!
       expect(summonUnlockState(SUMMON, record)).toEqual(unlocked)
-      const override = createDefinitionOverride(localData, BUNDLED_CATALOGS, { sourceRef: SUBJECT, name: 'Personal summon' })
+      const override = savedCatalogVersion(localData, BUNDLED_CATALOGS, { sourceRef: SUBJECT, name: 'Personal summon' })
       localData = toggleSummonProgress(override.localData, { summonId: SUMMON.id, subject: override.ref, displayName: SUMMON.label, playthroughId: requirePlaythrough(localData).id, now: NOW })
       expect(Object.values(requirePlaythrough(localData).progress)).toHaveLength(1)
       expect(Object.values(requirePlaythrough(localData).progress)[0]).toMatchObject({ id: record.id, subject: oldSubject, unlocked: { state: 'known', value: true }, observedAt: NOW, sources: record.sources })

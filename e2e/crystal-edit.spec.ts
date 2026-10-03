@@ -1,3 +1,4 @@
+import { openSavedCatalogVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -234,10 +235,7 @@ test('native learn trees resolve game names and draw simultaneous incoming arrow
 
 test('native personal class versions retain raw provenance below their gameplay sections', async ({ page }) => {
   await page.goto(WARRIOR_PATH)
-  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal version: Warrior', exact: true })
-  await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic personal Warrior')
-  await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()
+  await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic personal Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
   await expectClassProvenance(page)
   await page.getByRole('region', { name: 'Class growth and learning' }).getByText('Learn tree', { exact: true }).click()

@@ -1,8 +1,9 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { CLASS_MAP_FIXTURES } from './skill-maps.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId, requirePlaythrough } from '../domain/core'
 import { createCharacter } from '../domain/characters'
-import { createBlankLocalData, createDefinitionOverride, createPersonalDefinition } from '../domain/local-data'
+import { createBlankLocalData, createPersonalDefinition } from '../domain/local-data'
 import { resolveDefinition } from '../domain/definitions'
 import { importSkillTrees, SKILL_SQUARE_STATES } from '../domain/skill-trees'
 import { createTestLocalData, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
@@ -115,7 +116,7 @@ describe('confirmed class square maps', () => {
     expect(extended.mappings[0]).toBe(partial[0])
     const conflicting = [{ ...warrior.mappings[0], ref: warrior.mappings[2].ref }]
     expect(suggestSkillTreeMap(localData, catalogs, warrior.classRef, squares, SWITCH_MOD_PACKS_MAP_SET, undefined, conflicting)).toEqual({ mappings: conflicting })
-    const override = createDefinitionOverride(localData, catalogs, { sourceRef: warrior.mappings[0].ref, name: 'Personal Taunt label' })
+    const override = savedCatalogVersion(localData, catalogs, { sourceRef: warrior.mappings[0].ref, name: 'Personal Taunt label' })
     expect(suggestSkillTreeMap(override.localData, catalogs, warrior.classRef, squares, SWITCH_MOD_PACKS_MAP_SET).mappings[0].ref).toEqual(override.ref)
   })
 

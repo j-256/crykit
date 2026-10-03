@@ -1,7 +1,8 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
-import { captureCharacter, cloneBuild, compareBuildRevisions, createDefinitionOverride, createId, requirePlaythrough, saveBuildRevision } from '../domain'
+import { captureCharacter, cloneBuild, compareBuildRevisions, createId, requirePlaythrough, saveBuildRevision } from '../domain'
 import { defaultCalculation } from '../domain/calculation-plan'
 import { createBuildPlan } from '../domain/build-planning'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId } from '../domain/types'
@@ -57,7 +58,7 @@ it('round-trips native and earlier bundled catalog revisions together without re
   let data = before.localData
   for (const catalog of BUNDLED_CATALOGS) {
     const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'base:class:warrior' as EntityId }
-    data = createDefinitionOverride(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
+    data = savedCatalogVersion(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
   }
   await saveLocalData(data, before.revision)
   const preview = await previewImport(await exportBackup(), 'synthetic-mixed-catalogs.zip')

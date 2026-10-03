@@ -8,7 +8,6 @@ import { modLibrary } from '../domain/mod-library'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { Dropdown } from './Dropdown'
 import { useDefinitionLibrary } from './definitions'
-import { useOptionalCorrections } from './corrections-context'
 import { formatAppError } from './model'
 import './mod-layers.css'
 
@@ -43,8 +42,7 @@ function TargetPicker({ entity, baseline, target, occupied, onChange }: { entity
 
 export function ModLayersEditor({ composition, onChange }: { composition?: ModComposition; onChange: (value: ModComposition) => void }) {
   const library = useDefinitionLibrary()
-  const corrections = useOptionalCorrections()
-  const catalogs = corrections?.baseline ?? library.catalogs
+  const catalogs = library.catalogs
   const current: ModComposition = useMemo(() => composition ?? { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [], links: [] }, [composition])
   const [project, setProject] = useState('')
   const [query, setQuery] = useState('')

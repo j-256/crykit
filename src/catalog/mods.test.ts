@@ -1,6 +1,7 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId } from '../domain/core'
-import { addGameSetupRevision, createBlankLocalData, createDefinitionOverride, createPersonalDefinition } from '../domain/local-data'
+import { addGameSetupRevision, createBlankLocalData, createPersonalDefinition } from '../domain/local-data'
 import { composeModCatalog, expandModCatalogs } from '../domain/mod-layers'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
@@ -71,8 +72,8 @@ describe('confirmed catalog mod associations', () => {
 
   it('inherits source associations through overrides without classifying unrelated same-name definitions', () => {
     const base = ref('mod:doge-shield:item:doge-shield')
-    const first = createDefinitionOverride(createTestLocalData(), [STARTER_CATALOG], { sourceRef: base, name: 'Personal shield' })
-    const second = createDefinitionOverride(first.localData, [STARTER_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
+    const first = savedCatalogVersion(createTestLocalData(), [STARTER_CATALOG], { sourceRef: base, name: 'Personal shield' })
+    const second = savedCatalogVersion(first.localData, [STARTER_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
     const gameSetup = { ...second.localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Doge Shield']) }
     expect(definitionModAvailability(second.localData, second.ref, gameSetup).state).toBe('disabled')
     const personal = createPersonalDefinition(second.localData, { kind: 'item', name: 'Doge Shield' })
@@ -88,7 +89,7 @@ describe('confirmed catalog mod associations', () => {
       expect(definitionModAvailability(localData, ref(id))).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
       expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: DEFAULT_CATALOG.revisionId })).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
     }
-    const override = createDefinitionOverride(localData, [STARTER_CATALOG], { sourceRef: ref('mod:moonlight-project:class:25'), name: 'Revised Brawler' })
+    const override = savedCatalogVersion(localData, [STARTER_CATALOG], { sourceRef: ref('mod:moonlight-project:class:25'), name: 'Revised Brawler' })
     expect(definitionModAvailability(override.localData, override.ref)).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
     expect(definitionModAvailability(localData, ref('base:monk:passive:brawler'))).toEqual({ state: 'unknown' })
     expect(definitionModAvailability(localData, ref('mod:moonlight-project:class:26'))).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })

@@ -531,7 +531,6 @@ export const NativeManifestSchema = z.object({
 }).strict()
 
 export const NativePayloadSchema = z.object({
-  corrections: z.unknown().optional(),
   localData: StoredNativeLocalDataSchema,
   lineage: NativeLineageSchema,
   catalogs: z.array(NativeCatalogSnapshotSchema).max(MAX_COLLECTION_LENGTH),

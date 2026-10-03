@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from '../catalog/mod-library'
 import { bundledModDefinitionCount, completeModLibrary } from '../domain/mod-library'
 import { modIsInReference } from '../domain/reference-library'
-import { hiddenCorrectionKeys, projectCorrectedCatalogs } from '../domain/corrections'
 import type { CatalogSnapshot } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { Button, InlineNotice } from './components'
-import { CorrectionsContext, useCorrections } from './corrections-context'
 import { DefinitionProvider, useDefinitionLibrary } from './definitions'
 import { buildModLibraryCards } from './mod-library-data'
 import type { SetModReference } from './ModLibrary'
@@ -18,11 +16,10 @@ const EMPTY_CATALOGS: readonly CatalogSnapshot[] = []
 
 export default function ModCatalogReference({ scopeId, onAddReference, onSetReference, onRouteCatalogsChange, ...props }: ReferenceViewProps & { readonly scopeId: string; readonly onAddReference: SaveModToLibrary; readonly onSetReference: SetModReference; readonly onRouteCatalogsChange: (catalogs: readonly CatalogSnapshot[]) => void }) {
   const navigation = useNavigation()
-  const corrections = useCorrections()
   const library = useDefinitionLibrary()
-  const card = useMemo(() => buildModLibraryCards(corrections.baseline, library.options, props.localData).find(card => card.id === scopeId), [corrections.baseline, library.options, props.localData, scopeId])
+  const card = useMemo(() => buildModLibraryCards(library.catalogs, library.options, props.localData).find(card => card.id === scopeId), [library.catalogs, library.options, props.localData, scopeId])
   const inReference = Boolean(card && modIsInReference(props.localData, card))
-  const project = useMemo(() => completeModLibrary(corrections.baseline, BUNDLED_MOD_LIBRARY).find(mod => mod.id === scopeId), [corrections.baseline, scopeId])
+  const project = useMemo(() => completeModLibrary(library.catalogs, BUNDLED_MOD_LIBRARY).find(mod => mod.id === scopeId), [library.catalogs, scopeId])
   const saved = project?.revisions[0]?.catalog
   const bundled = project?.bundled[0]
   const [loaded, setLoaded] = useState<CatalogSnapshot>()
@@ -45,11 +42,8 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
     return () => { active = false }
   }, [saved, bundled, attempt])
   const catalog = saved ?? loaded
-  const baseline = useMemo(() => catalog ? [catalog] : EMPTY_CATALOGS, [catalog])
-  const associations = useMemo(() => catalog ? [...corrections.baseline.filter(source => source.id !== catalog.id || source.revisionId !== catalog.revisionId), catalog] : corrections.baseline, [corrections.baseline, catalog])
-  const catalogs = useMemo(() => projectCorrectedCatalogs(baseline, corrections.collection.entries), [baseline, corrections.collection.entries])
-  const hiddenKeys = useMemo(() => hiddenCorrectionKeys(baseline, corrections.collection.entries), [baseline, corrections.collection.entries])
-  const context = useMemo(() => ({ ...corrections, baseline, catalogs, hiddenKeys }), [corrections, baseline, catalogs, hiddenKeys])
+  const catalogs = useMemo(() => catalog ? [catalog] : EMPTY_CATALOGS, [catalog])
+  const associations = useMemo(() => catalog ? [...library.catalogs.filter(source => source.id !== catalog.id || source.revisionId !== catalog.revisionId), catalog] : library.catalogs, [library.catalogs, catalog])
   useEffect(() => {
     onRouteCatalogsChange(catalogs)
     return () => { onRouteCatalogsChange(EMPTY_CATALOGS) }
@@ -72,8 +66,8 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
   const failure = error && <InlineNotice title="Reference not changed" tone="danger">{error}</InlineNotice>
   if (!project) return <>{failure}<ReferenceView {...props} temporary temporaryAction={action}/></>
   if (!catalog) return <div className="stack"><h1>{project.title}</h1>{error ? <InlineNotice title="Mod catalog unavailable" tone="danger"><p>{error}</p><Button onClick={() => { setError(undefined); setAttempt(value => value + 1) }}>Retry</Button></InlineNotice> : <p role="status">Loading this mod's catalog...</p>}<Button onClick={returnToReference} tone="secondary">Return to Reference</Button></div>
-  return <CorrectionsContext.Provider value={context}><DefinitionProvider catalogs={context.catalogs} localData={props.localData} onSaveDefinition={async () => { throw new Error('Add this mod to Reference before creating a personal version.') }}>
+  return <DefinitionProvider catalogs={catalogs} localData={props.localData} onSaveDefinition={async () => { throw new Error('Definitions cannot be edited in a mod preview.') }}>
     {failure}
-    <ReferenceView {...props} catalogs={context.catalogs} associationCatalogs={associations} temporary temporaryAction={action}/>
-  </DefinitionProvider></CorrectionsContext.Provider>
+    <ReferenceView {...props} catalogs={catalogs} associationCatalogs={associations} temporary temporaryAction={action}/>
+  </DefinitionProvider>
 }

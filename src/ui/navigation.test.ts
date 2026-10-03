@@ -58,7 +58,7 @@ describe('semantic navigation routes', () => {
     expect(parseAppRoute(hash)).toEqual(detail)
     expect(resolveName({ ...ref, catalogRevisionId: 'missing' as CatalogRef['catalogRevisionId'] })).toBeUndefined()
     for (const name of ['edit', 'search', 'field', 'correct', 'definitions']) {
-      const editor = { ...detail, overlays: [{ kind: 'correction-editor' as const, ref, field: 'Location' }] }
+      const editor = { ...detail, overlays: [{ kind: 'search' as const, query: '' }] }
       const formatted = formatAppRoute(editor, () => name)
       expect(parseAppRoute(formatted)).toEqual(editor)
       expect(formatted).toContain(`/foreign%3Arecord%3A1/%${name.charCodeAt(0).toString(16).toUpperCase()}${name.slice(1)}`)
@@ -76,8 +76,6 @@ describe('semantic navigation routes', () => {
       const ref = { kind: 'catalog', catalogId: 'fixture / catalog', catalogRevisionId: 'revision:1', entityId } as CatalogRef
       const detail: AppRoute = { ...route({ page: 'reference', view: 'detail', ref }), overlays: [{ kind: 'search', query: 'cost' }] }
       expectRoundTrip(detail)
-      expectRoundTrip({ ...detail, overlays: [{ kind: 'correction-editor', ref, field: 'Location / source' }] })
-      expectRoundTrip({ ...detail, overlays: [{ kind: 'definition-editor', mode: 'override', ref }] })
       expectRoundTrip(route({ page: 'characters', view: 'class-edit', characterId: 'character' as never, ref }))
       expectRoundTrip(route({ page: 'characters', view: 'learning-edit', characterId: 'character' as never, learningKind: 'knowledge', ref }))
     }
@@ -247,29 +245,20 @@ describe('semantic navigation routes', () => {
     expect(formatAppRoute(value)).toContain('/snapshots/new/pick/slot/')
   })
 
-  it('allows an exact Reference override and rejects picker identities the page cannot render', () => {
+  it('allows personal editors and rejects catalog cloning and invalid picker identities', () => {
     const referenceOverride: AppRoute = {
       page: { page: 'reference', view: 'detail', ref: catalogRef },
-      overlays: [{ kind: 'definition-editor', mode: 'override', ref: catalogRef }],
+      overlays: [{ kind: 'definition-editor', mode: 'override', ref: personalRef }],
       query: {},
     }
     expectRoundTrip(referenceOverride)
+    expect(parseAppRoute(formatAppRoute({ ...referenceOverride, overlays: [{ kind: 'definition-editor', mode: 'override', ref: catalogRef }] })).page.page).toBe('unresolved')
     expect(parseAppRoute('#/inventory/pick/nope').page.page).toBe('unresolved')
     expect(parseAppRoute('#/inventory/new/pick/item-definition').page.page).toBe('inventory')
   })
 
-  it('restores correction review routes and their semantic parents', () => {
-    const value: AppRoute = {
-      page: { page: 'reference', view: 'detail', ref: catalogRef },
-      overlays: [{ kind: 'corrections' }, { kind: 'correction-editor', ref: catalogRef as CatalogRef, field: 'Location / source' }],
-      query: { q: ['Artisan Rapier'] },
-    }
-    expectRoundTrip(value)
-    expectRoundTrip(parentRoute(value)!)
-    expectRoundTrip(parentRoute(parentRoute(value)!)!)
-    expectRoundTrip({ ...value, page: { page: 'settings', section: 'data' } })
-    expectRoundTrip({ ...value, overlays: [value.overlays[1]!] })
-    for (const hash of ['#/reference/corrections/corrections', '#/reference/correct/personal/example', '#/reference/correct/catalog/a/revisions/b/entities/c/field']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+  it('rejects removed correction routes', () => {
+    for (const hash of ['#/reference/corrections', '#/settings/data/corrections', '#/reference/correct/personal/example', '#/reference/correct/catalog/a/revisions/b/entities/c/field']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
   })
 
   it('rejects overlay shapes and disabled picker actions that no view can render', () => {

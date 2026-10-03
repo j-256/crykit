@@ -1,6 +1,5 @@
 import { modListPriority, type DefinitionModAvailability } from '../domain/mods'
 import { definitionModAvailability } from '../catalog/mods'
-import { historicalCatalogKeys } from '../domain/corrections'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { entityDefinitionKey, preferredDefinitionRef, requirePlaythrough, resolveDefinition, sameLogicalEntity, skillTreeShape, squareKey, type ReviewedSkillTree } from '../domain'
 import type { CatalogEntityKind, CatalogSnapshot, CharacterId, EntityRef, LearnedNodeKind, LocalData, SkillSquareState, SkillTreeMapping } from '../domain/types'
@@ -18,10 +17,9 @@ const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Le
 
 function choices(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly Choice[] {
   const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
-  const historical = historicalCatalogKeys(catalogs)
   const availableCatalogs = catalogs.filter(catalog => {
     const pinned = gameSetup?.catalogLock[catalog.id]
-    return pinned ? catalog.revisionId === pinned : !historical.has(JSON.stringify([catalog.id, catalog.revisionId]))
+    return pinned ? catalog.revisionId === pinned : true
   })
   const refs: EntityRef[] = [
     ...availableCatalogs.flatMap(catalog => Object.values(catalog.entities).map(entity => ({ kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }))),

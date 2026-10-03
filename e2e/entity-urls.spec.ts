@@ -41,13 +41,9 @@ test('a wrong slug resolves by ID and normalizes without an extra history entry'
   await expect(page.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
 })
 
-test('mod names survive nested editor and search routes', async ({ page }) => {
+test('mod names survive nested search routes', async ({ page }) => {
   await page.goto(PUN_STORM_PATH)
   await expect(page).toHaveURL(/\/mod\/moonlight-project\/ability\/565\/100-pun-storm$/)
-  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
-  await expect(page).toHaveURL(/\/565\/100-pun-storm\/definitions\/override\/catalog\/.+\/565\/100-pun-storm$/)
-  await page.keyboard.press('Escape')
-  await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH}$`))
   await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/\/565\/100-pun-storm\/search$/)
   await page.reload()
@@ -60,6 +56,12 @@ test('slugless pre-release entity URLs show recovery', async ({ page }) => {
   await page.goto(DESERT_PATH.replace('/brutish-quintar-desert', ''))
   await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toHaveCount(0)
+})
+
+test('retired catalog cloning links show recovery without opening an editor', async ({ page }) => {
+  await page.goto(`${PUN_STORM_PATH}/definitions/override/${PUN_STORM_PATH.split('/reference/')[1]}`)
+  await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Definition name', exact: true })).toHaveCount(0)
 })
 
 test('retired encoded-colon entity URLs show recovery', async ({ page }) => {
