@@ -1,10 +1,9 @@
-import { createId, requirePlaythrough } from '../domain'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
+import { createId } from '../domain'
+import { useCallback, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 import type { LocalData, PlaythroughId, GameSetupRevisionId } from '../domain/types'
 import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
 import type { ImportCommitMode, ImportPreview } from '../interchange/types'
-import { activateOfflineUpdate, getOfflineStatus, requestOfflineReadiness, requestPersistentStorage, subscribeOfflineStatus, type OfflineStatus } from '../offline'
-import { Badge, Button, DefinitionRow, Field, InlineNotice, Spinner } from './components'
+import { Button, DefinitionRow, Field, InlineNotice, Spinner } from './components'
 import { Icon } from './icons'
 import { downloadBytes, formatAppError, formatRelativeDate, ownRecordValue } from './model'
 import { useNavigation, useNavigationBlocker, type SettingsSection } from './navigation'
@@ -13,6 +12,7 @@ import { Sheet } from './Sheet'
 import { CreditsSection } from './CreditsSection'
 import { GameSetupLibrary } from './GameSetupLibrary'
 import { PlaythroughSettings } from './PlaythroughSettings'
+import { APP_REFRESH_PENDING_MESSAGE, StorageSection } from './StorageSection'
 import { GameSetupEditor, type GameSetupDraft, type GameSetupSaveOptions } from './GameSetupEditor'
 
 const IMPORT_WARNING_PRIMARY_COUNT = 8
@@ -45,20 +45,6 @@ function ImportPanel({ preview, importError, busy, disabled, onPreview, onCommit
   return <div className="stack">{(importError || readError) && <InlineNotice title="Data operation could not be completed" tone="danger">{importError ?? readError} Your existing planner data has not been replaced.</InlineNotice>}<button className="import-zone" disabled={busy || disabled} onClick={() => inputRef.current?.click()} type="button">{busy ? <Spinner label="Reading import"/> : <><Icon name="upload"/><span><strong>Choose a JSON, ZIP, or workbook</strong><span>The file is validated and previewed before any write.</span></span></>}</button><input accept=".json,.zip,.xlsx,application/json,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Choose import file" className="sr-only" onChange={(event) => void choose(event)} ref={inputRef} type="file"/><InlineNotice title="Private local import">Imported personal records and evidence stay in this browser. No file is uploaded.</InlineNotice></div>
 }
 
-function StorageSection({ localData, dirty, saveError, onExport }: { localData: LocalData; dirty: boolean; saveError?: string; onExport: () => Promise<Uint8Array> }) {
-  const [offline, setOffline] = useState<OfflineStatus>({ state: 'checking' })
-  const [busy, setBusy] = useState(false)
-  const [persisted, setPersisted] = useState<boolean>()
-  const [exportError, setExportError] = useState<string>()
-  const [storageError, setStorageError] = useState<string>()
-  useEffect(() => { const unsubscribe = subscribeOfflineStatus(setOffline); void getOfflineStatus().then(setOffline).catch(() => setStorageError('Offline readiness could not be inspected.')); return unsubscribe }, [])
-  const prepareOffline = async () => { setBusy(true); setStorageError(undefined); try { setOffline(await requestOfflineReadiness()) } catch (reason) { setStorageError(formatAppError(reason, 'Offline preparation could not be completed.')) } finally { setBusy(false) } }
-  const requestPersistence = async () => { setBusy(true); setStorageError(undefined); try { setPersisted(await requestPersistentStorage()) } catch (reason) { setStorageError(formatAppError(reason, 'Persistent storage could not be requested.')) } finally { setBusy(false) } }
-  const applyUpdate = async () => { setBusy(true); setStorageError(undefined); try { await activateOfflineUpdate() } catch (reason) { setStorageError(formatAppError(reason, 'The application update could not be activated.')) } finally { setBusy(false) } }
-  const exportNow = async () => { setBusy(true); setExportError(undefined); try { const label = requirePlaythrough(localData).label; downloadBytes(await onExport(), `crykit-${label.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-') || 'playthrough'}.zip`, 'application/zip') } catch (error) { setExportError(formatAppError(error, 'The backup could not be prepared.')) } finally { setBusy(false) } }
-  return <div className="stack">{saveError && <InlineNotice title="Local save failed" tone="danger">{saveError} The retained transaction is included in a recovery backup. Fields still only in an unsubmitted form are not included.</InlineNotice>}{dirty && <InlineNotice title="Unsaved changes" tone="warning">Save or submit open form fields before exporting. Backups include retained failed-save transactions, but not fields that still exist only in a form.</InlineNotice>}{storageError && <InlineNotice title="Storage operation failed" tone="danger">{storageError}</InlineNotice>}<section className="settings-section"><div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Export planner data for recovery or transfer. Download Mod Inspector originals and drafts separately.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>{exportError && <InlineNotice title="Export failed" tone="danger">{exportError}</InlineNotice>}</section><section className="settings-section"><div className="split"><div><h3>Offline application</h3><p className="settings-section__intro">{offline.detail ?? 'Checking cached application files...'}</p></div><Badge tone={offline.state === 'ready' ? 'positive' : offline.state === 'error' ? 'danger' : 'warning'}>{offline.state === 'ready' ? 'Offline ready' : offline.state === 'checking' ? 'Checking' : offline.state === 'unsupported' ? 'Unsupported' : offline.state === 'error' ? 'Unavailable' : 'Not ready'}</Badge></div>{offline.state !== 'ready' && offline.state !== 'unsupported' && <Button disabled={busy} icon="download" onClick={() => void prepareOffline()} tone="secondary">Prepare for offline use</Button>}{offline.updateAvailable && <Button disabled={dirty} onClick={() => void applyUpdate()} tone="secondary">{dirty ? 'Save or discard changes before updating' : 'Apply app update'}</Button>}</section><section className="settings-section"><div className="split"><div><h3>Browser storage</h3><p className="settings-section__intro">Persistent storage can reduce eviction risk but is not a backup.</p></div>{persisted !== undefined && <Badge tone={persisted ? 'positive' : 'warning'}>{persisted ? 'Persistence granted' : 'Request not granted'}</Badge>}</div><Button disabled={busy} onClick={() => void requestPersistence()} tone="secondary">Request persistent storage</Button></section></div>
-}
-
 export function DataPanel({ open, localData, preview, importError, busy, canUndo, dirty, saveError, onClose, onPreview, onCommit, onClearPreview, onExport, onSaveGameSetup, onRetrySave, onSelectGameSetup, onCreatePlaythrough, onSelectPlaythrough, onUndo }: { open: boolean; localData: LocalData; preview?: ImportPreview; importError?: string; busy: boolean; canUndo: boolean; dirty: boolean; saveError?: string; onClose: () => void; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode, restoreCorrections?: boolean) => Promise<void>; onClearPreview: () => void; onExport: () => Promise<Uint8Array>; onSaveGameSetup: (draft: GameSetupDraft, options: GameSetupSaveOptions) => Promise<void>; onRetrySave: () => Promise<void>; onSelectGameSetup: (revisionId: GameSetupRevisionId) => Promise<void>; onCreatePlaythrough: (label: string, setupId?: GameSetupRevisionId) => Promise<void>; onSelectPlaythrough: (playthroughId: PlaythroughId) => Promise<void>; onUndo: () => Promise<void> }) {
   const navigation = useNavigation()
   const settingsPage = navigation.route.page.page === 'settings' ? navigation.route.page : undefined
@@ -77,6 +63,8 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
   const [panelError, setPanelError] = useState<string>()
   const [panelDirty, setPanelDirty] = useState(false)
   const panelDirtyRef = useRef(false)
+  const storageReloadingRef = useRef(false)
+  const setStorageReloading = useCallback((value: boolean) => { storageReloadingRef.current = value }, [])
   const [dataBusy, setDataBusy] = useState(false)
   const [undoConfirmed, setUndoConfirmed] = useState(false)
   const [closeRequested, setCloseRequested] = useState(false)
@@ -122,7 +110,7 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
     await onSaveGameSetup(draft, { id })
     finishSetupSave()
   }
-  return <Sheet footer={editingSetup ? <div className="game-setup-footer">{closeRequested && <div className="game-setup-discard" role="alert"><p>Discard your unsaved Game Setup changes and close?</p><div className="cluster"><Button onClick={close} tone="danger">Discard and close</Button><Button onClick={() => setCloseRequested(false)} tone="secondary">Keep editing</Button></div></div>}<div hidden={closeRequested} ref={setSetupFooter}/></div> : undefined} onRequestClose={() => { if (panelDirtyRef.current && !(dirty && saveError)) { setCloseRequested(true); return false } return true }} onClose={close} open={open} title="Data & settings" width="wide">
+  return <Sheet footer={editingSetup ? <div className="game-setup-footer">{closeRequested && <div className="game-setup-discard" role="alert"><p>Discard your unsaved Game Setup changes and close?</p><div className="cluster"><Button onClick={close} tone="danger">Discard and close</Button><Button onClick={() => setCloseRequested(false)} tone="secondary">Keep editing</Button></div></div>}<div hidden={closeRequested} ref={setSetupFooter}/></div> : undefined} onRequestClose={() => { if (storageReloadingRef.current) { setPanelError(APP_REFRESH_PENDING_MESSAGE); return false } if (panelDirtyRef.current && !(dirty && saveError)) { setCloseRequested(true); return false } return true }} onClose={close} open={open} title="Data & settings" width="wide">
     <div className="data-nav" ref={sectionNavigationRef} role="group" aria-label="Data and settings sections">{([{ id: 'playthrough', label: 'Playthrough' }, { id: 'game-setup', label: 'Saved setups' }, { id: 'data', label: 'Import & backup' }, { id: 'history', label: 'History' }, { id: 'storage', label: 'Offline & storage' }, { id: 'credits', label: 'Credits & licenses' }] as const).map((item) => <button aria-pressed={section === item.id} key={item.id} onClick={() => changeSection(item.id)} type="button">{item.label}</button>)}</div>
 
     {panelError && section !== 'game-setup' && <InlineNotice title="Data operation could not be completed" tone="danger">{panelError}</InlineNotice>}
@@ -141,7 +129,7 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
     </>}
 
     {section === 'history' && <div className="stack"><section className="settings-section"><div className="split"><div><h3>Undo latest saved change</h3><p className="settings-section__intro">Undo creates another local revision and keeps the journal auditable.</p></div><Button disabled={blocked || busy || dataBusy || !canUndo || !undoConfirmed} icon="history" onClick={() => void runDataAction(async () => { await onUndo(); setUndoConfirmed(false) })} tone="secondary">Undo latest</Button></div><label className="check-row"><input checked={undoConfirmed} disabled={blocked || busy || dataBusy || !canUndo} onChange={(event) => setUndoConfirmed(event.target.checked)} type="checkbox"/><span><strong>Restore the previous saved planner state</strong><small>{canUndo ? 'The restored state is recorded as a new revision' : 'No retained local checkpoint is available for this revision'}</small></span></label></section>{localData.changes.length ? <ol className="history-list">{[...localData.changes].reverse().slice(0, 100).map((entry) => <li className="history-entry" key={entry.id}><span className="history-entry__mark"><Icon name="history"/></span><div><strong>{entry.command}</strong><p>{entry.changedPaths.slice(0, 3).join(', ')}{entry.changedPaths.length > 3 ? ` and ${entry.changedPaths.length - 3} more` : ''}</p><time>{formatRelativeDate(entry.recordedAt)} · revision {entry.nextRevision}</time></div></li>)}</ol> : <InlineNotice title="No change history">Commands appear here after the first successful local transaction.</InlineNotice>}{localData.changes.length > 100 && <InlineNotice title="Earlier changes not shown">Export the planner data to preserve and inspect the complete bounded journal.</InlineNotice>}</div>}
-    {section === 'storage' && <StorageSection dirty={blocked} onExport={onExport} localData={localData} saveError={saveError}/>}
+    {section === 'storage' && <StorageSection dirty={blocked} saving={busy || dataBusy} onExport={onExport} onReloadingChange={setStorageReloading} localData={localData} saveError={saveError}/>}
     {section === 'credits' && <CreditsSection/>}
   </Sheet>
 }

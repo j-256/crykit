@@ -5,11 +5,15 @@ export interface OfflineStatus {
 }
 
 const READINESS_TIMEOUT_MS = 8_000
+const REFRESH_TIMEOUT_MS = 120_000
+const UPDATE_ACTIVATION_TIMEOUT_MS = 8_000
 const INSTALLATION_FAILURE_MESSAGE = 'Offline installation failed. Reconnect and retry.'
+const REFRESH_FAILURE_MESSAGE = 'App files could not be refreshed. Check your connection and try again. Your saved records have been kept.'
 let registration: ServiceWorkerRegistration | undefined
 let status: OfflineStatus = { state: 'not-ready', detail: 'Prepare the app for use without a connection.' }
 const listeners = new Set<(status: OfflineStatus) => void>()
 let pending: Promise<OfflineStatus> | undefined
+let refreshPending: Promise<void> | undefined
 
 function publish(next: OfflineStatus): OfflineStatus {
   status = next
@@ -23,19 +27,24 @@ export function subscribeOfflineStatus(listener: (value: OfflineStatus) => void)
   return () => { listeners.delete(listener) }
 }
 
+function requestCache(worker: ServiceWorker, type: 'CHECK_READINESS' | 'PREPARE_CACHE' | 'REFRESH_CACHE'): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel()
+    const timer = setTimeout(() => { channel.port1.close(); resolve(false) }, type === 'REFRESH_CACHE' ? REFRESH_TIMEOUT_MS : READINESS_TIMEOUT_MS)
+    channel.port1.onmessage = (event: MessageEvent<{ ready?: boolean; error?: string }>) => {
+      clearTimeout(timer)
+      channel.port1.close()
+      if (type === 'REFRESH_CACHE' && event.data.error) { reject(new Error(event.data.error)); return }
+      resolve(event.data.ready === true)
+    }
+    try { worker.postMessage({ type }, [channel.port2]) } catch (error) { clearTimeout(timer); channel.port1.close(); reject(error) }
+  })
+}
+
 async function inspectCache(prepare = false): Promise<OfflineStatus> {
   const worker = registration?.active
   if (!worker) return publish({ state: 'not-ready', detail: 'The offline download has not finished.' })
-  const ready = await new Promise<boolean>((resolve) => {
-    const channel = new MessageChannel()
-    const timer = setTimeout(() => { channel.port1.close(); resolve(false) }, READINESS_TIMEOUT_MS)
-    channel.port1.onmessage = (event: MessageEvent<{ ready?: boolean }>) => {
-      clearTimeout(timer)
-      channel.port1.close()
-      resolve(event.data.ready === true)
-    }
-    worker.postMessage({ type: prepare ? 'PREPARE_CACHE' : 'CHECK_READINESS' }, [channel.port2])
-  })
+  const ready = await requestCache(worker, prepare ? 'PREPARE_CACHE' : 'CHECK_READINESS')
   return publish({
     state: ready ? 'ready' : 'not-ready',
     detail: ready ? 'The application is cached. Your records stay in this browser.' : 'Some application files are missing from the cache. Reconnect and prepare again.',
@@ -104,6 +113,22 @@ function waitForActiveWorker(value: ServiceWorkerRegistration): Promise<void> {
   })
 }
 
+function waitForInstalledWorker(worker: ServiceWorker): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const inspect = () => {
+      if (worker.state === 'redundant') {
+        worker.removeEventListener('statechange', inspect)
+        reject(new Error(INSTALLATION_FAILURE_MESSAGE))
+      } else if (worker.state !== 'installing' && worker.state !== 'parsed') {
+        worker.removeEventListener('statechange', inspect)
+        resolve()
+      }
+    }
+    worker.addEventListener('statechange', inspect)
+    inspect()
+  })
+}
+
 export function requestOfflineReadiness(): Promise<OfflineStatus> {
   if (pending) return pending
   pending = prepareOffline().finally(() => { pending = undefined })
@@ -130,9 +155,49 @@ async function prepareOffline(): Promise<OfflineStatus> {
 }
 
 export async function activateOfflineUpdate(): Promise<void> {
-  if (!registration?.waiting) return
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
-  registration.waiting.postMessage({ type: 'ACTIVATE_UPDATE' })
+  const worker = registration?.waiting
+  if (!worker) return
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); navigator.serviceWorker.removeEventListener('controllerchange', activated) }
+    const activated = () => {
+      if (navigator.serviceWorker.controller !== worker) return
+      cleanup()
+      window.location.reload()
+      resolve()
+    }
+    const timer = setTimeout(() => { cleanup(); reject(new Error('The app update could not be activated. Try again.')) }, UPDATE_ACTIVATION_TIMEOUT_MS)
+    navigator.serviceWorker.addEventListener('controllerchange', activated)
+    try { worker.postMessage({ type: 'ACTIVATE_UPDATE' }) } catch (error) { cleanup(); reject(error) }
+  })
+}
+
+export function refreshOfflineApplication(): Promise<void> {
+  if (refreshPending) return refreshPending
+  refreshPending = refreshApplication().finally(() => { refreshPending = undefined })
+  return refreshPending
+}
+
+async function refreshApplication(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) throw new Error('App refresh needs a secure browser with offline installation support.')
+  if (import.meta.env.DEV) throw new Error('App refresh is available in the production preview or installed application.')
+  publish({ state: 'checking', detail: 'Downloading the latest app files. Your saved records will be kept.' })
+  try {
+    registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL, updateViaCache: 'none' })
+    watchRegistration(registration)
+    await registration.update()
+    if (registration.installing) await waitForInstalledWorker(registration.installing)
+    if (!registration.active) await waitForActiveWorker(registration)
+    const worker = registration.waiting ?? registration.active
+    if (!worker || !await requestCache(worker, registration.waiting ? 'CHECK_READINESS' : 'REFRESH_CACHE')) throw new Error(REFRESH_FAILURE_MESSAGE)
+    if (registration.waiting) await activateOfflineUpdate()
+    else window.location.reload()
+  } catch (error) {
+    console.warn('Application refresh failed', error)
+    if (registration?.active) {
+      try { await inspectCache() } catch { publish({ state: 'error', detail: REFRESH_FAILURE_MESSAGE }) }
+    } else publish({ state: 'error', detail: REFRESH_FAILURE_MESSAGE })
+    throw new Error(REFRESH_FAILURE_MESSAGE, { cause: error })
+  }
 }
 
 export async function requestPersistentStorage(): Promise<boolean> {

@@ -1,19 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const SLOW_INSTALL_DELAY_MS = 60_000
+const CACHE_REFRESH_TIMEOUT_MS = 120_000
+const UPDATE_ACTIVATION_TIMEOUT_MS = 8_000
 
 type WorkerMessage = { type: string }
 
 class FakeWorker extends EventTarget {
   state: ServiceWorkerState = 'installing'
   readonly messages: WorkerMessage[] = []
+  refreshReady = true
+  onActivate?: () => void
 
   postMessage(message: WorkerMessage, transfer: Transferable[] = []): void {
     this.messages.push(message)
     const port = transfer[0] as MessagePort | undefined
-    if (message.type === 'CHECK_READINESS' || message.type === 'PREPARE_CACHE') {
-      queueMicrotask(() => port?.postMessage({ ready: true }))
+    if (message.type === 'CHECK_READINESS' || message.type === 'PREPARE_CACHE' || message.type === 'REFRESH_CACHE') {
+      queueMicrotask(() => port?.postMessage({ ready: message.type !== 'REFRESH_CACHE' || this.refreshReady }))
     }
+    if (message.type === 'ACTIVATE_UPDATE') this.onActivate?.()
   }
 
   setState(state: ServiceWorkerState): void {
@@ -47,6 +52,7 @@ class FakeRegistration extends EventTarget {
   active: FakeWorker | null = null
   installing: FakeWorker | null = null
   waiting: FakeWorker | null = null
+  update = vi.fn(async () => this as unknown as ServiceWorkerRegistration)
 
   constructor(worker?: FakeWorker, active?: FakeWorker) {
     super()
@@ -65,12 +71,13 @@ function makeServiceWorkerContainer(registration: FakeRegistration) {
   let resolveReady!: (value: ServiceWorkerRegistration) => void
   const ready = new Promise<ServiceWorkerRegistration>(resolve => { resolveReady = resolve })
   if (registration.active) resolveReady(registration as unknown as ServiceWorkerRegistration)
-  return {
+  return Object.assign(new EventTarget(), {
+    controller: registration.active,
     register: vi.fn(async () => registration as unknown as ServiceWorkerRegistration),
     getRegistration: vi.fn(async () => registration as unknown as ServiceWorkerRegistration),
     ready,
     resolveReady: () => resolveReady(registration as unknown as ServiceWorkerRegistration),
-  }
+  })
 }
 
 async function loadOffline(serviceWorker: ReturnType<typeof makeServiceWorkerContainer>) {
@@ -94,6 +101,126 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   vi.resetModules()
+})
+
+describe('manual app refresh', () => {
+  it('redownloads a current build once and reloads after its cache is ready', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    const registration = new FakeRegistration(undefined, active)
+    const serviceWorker = makeServiceWorkerContainer(registration)
+    const offline = await loadOffline(serviceWorker)
+
+    const request = offline.refreshOfflineApplication()
+    expect(offline.refreshOfflineApplication()).toBe(request)
+    await request
+
+    expect(serviceWorker.register).toHaveBeenCalledWith('/sw.js', { scope: '/', updateViaCache: 'none' })
+    expect(registration.update).toHaveBeenCalledTimes(1)
+    expect(active.messages.map(message => message.type)).toEqual(['REFRESH_CACHE'])
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for a slow new build before explicitly activating it and reloading', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    const installing = new FakeWorker()
+    const registration = new FakeRegistration(installing, active)
+    const serviceWorker = makeServiceWorkerContainer(registration)
+    installing.onActivate = () => {
+      registration.waiting = null
+      registration.activate(installing)
+      serviceWorker.controller = installing
+      serviceWorker.dispatchEvent(new Event('controllerchange'))
+    }
+    const offline = await loadOffline(serviceWorker)
+
+    const request = offline.refreshOfflineApplication()
+    await flushMicrotasks()
+    await vi.advanceTimersByTimeAsync(SLOW_INSTALL_DELAY_MS)
+    expect(window.location.reload).not.toHaveBeenCalled()
+    expect(installing.messages).toEqual([])
+    registration.installing = null
+    registration.waiting = installing
+    installing.setState('installed')
+    await request
+
+    const messages = installing.messages.map(message => message.type)
+    expect(messages[0]).toBe('CHECK_READINESS')
+    expect(messages.filter(type => type === 'ACTIVATE_UPDATE')).toHaveLength(1)
+    expect(messages).not.toContain('REFRESH_CACHE')
+    expect(active.messages.map(message => message.type)).not.toContain('REFRESH_CACHE')
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves an active build usable after refresh fails and permits retry', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    active.refreshReady = false
+    const registration = new FakeRegistration(undefined, active)
+    const offline = await loadOffline(makeServiceWorkerContainer(registration))
+
+    await expect(offline.refreshOfflineApplication()).rejects.toThrow(/Check your connection and try again/)
+    expect(window.location.reload).not.toHaveBeenCalled()
+    await expect(offline.getOfflineStatus()).resolves.toMatchObject({ state: 'ready' })
+    active.refreshReady = true
+    await offline.refreshOfflineApplication()
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not activate a failed update or reload the working page', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    const installing = new FakeWorker()
+    const registration = new FakeRegistration(installing, active)
+    const offline = await loadOffline(makeServiceWorkerContainer(registration))
+    const request = offline.refreshOfflineApplication()
+    const rejected = expect(request).rejects.toThrow(/saved records have been kept/)
+    await flushMicrotasks()
+    registration.installing = null
+    installing.setState('redundant')
+    await rejected
+
+    expect(window.location.reload).not.toHaveBeenCalled()
+    expect(installing.messages).toEqual([])
+    await expect(offline.getOfflineStatus()).resolves.toMatchObject({ state: 'ready' })
+  })
+
+  it('times out an unresponsive refresh without reloading and keeps the active installation', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    const original = active.postMessage.bind(active)
+    vi.spyOn(active, 'postMessage').mockImplementation((message, transfer) => {
+      if (message.type !== 'REFRESH_CACHE') original(message, transfer)
+    })
+    const offline = await loadOffline(makeServiceWorkerContainer(new FakeRegistration(undefined, active)))
+    const request = offline.refreshOfflineApplication()
+    const rejected = expect(request).rejects.toThrow(/try again/)
+    await vi.advanceTimersByTimeAsync(CACHE_REFRESH_TIMEOUT_MS)
+    await rejected
+
+    expect(window.location.reload).not.toHaveBeenCalled()
+    await expect(offline.getOfflineStatus()).resolves.toMatchObject({ state: 'ready' })
+  })
+
+  it('removes a failed activation listener so a later update cannot reload a draft', async () => {
+    const active = new FakeWorker()
+    active.state = 'activated'
+    const waiting = new FakeWorker()
+    waiting.state = 'installed'
+    const registration = new FakeRegistration(undefined, active)
+    registration.waiting = waiting
+    const serviceWorker = makeServiceWorkerContainer(registration)
+    const offline = await loadOffline(serviceWorker)
+    await offline.getOfflineStatus()
+    const request = offline.activateOfflineUpdate()
+    const rejected = expect(request).rejects.toThrow(/could not be activated/)
+    await vi.advanceTimersByTimeAsync(UPDATE_ACTIVATION_TIMEOUT_MS)
+    await rejected
+    serviceWorker.controller = waiting
+    serviceWorker.dispatchEvent(new Event('controllerchange'))
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
 })
 
 describe('offline installation readiness', () => {
