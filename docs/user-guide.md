@@ -8,7 +8,7 @@ Start with the [first-build walkthrough](../README.md#try-your-first-build) if y
 
 The app opens to the build library. Builds, Teams, Reference, World Map, and Mods share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
 
-The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample team. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
+The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample party plan. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
 
 ### Choose a Playthrough and Game Setup
 
@@ -18,13 +18,13 @@ The editor puts **Game version** and **Difficulty** first. **Enter exact version
 
 Saving creates a new setup revision. Unchanged forms cannot create duplicate revisions. **Discard changes** restores the opened revision after confirmation. Closing with unsaved changes asks whether to discard or keep editing. A failed save retains the draft for **Retry save**.
 
-A **Playthrough** represents one tracked game save and owns characters, inventory, progress, and party plans. Its selector appears on Tracking pages. Open **Data & settings > Playthrough** to switch saves or create a blank Playthrough. A new Playthrough starts in Standard mode with unknown platform, version, and mods unless you explicitly choose an existing setup. This page displays the selected rules as a read-only summary. Choose a saved revision under **Game Setup to apply**, review its summary, then choose **Apply**. Create or edit version, difficulty, and mods under **Saved setups**. Saving a setup never applies it to a Playthrough automatically.
+A **Playthrough** represents one tracked game save and owns characters, inventory, progress, and party plans. Its selector appears on Tracking pages. Open **Data & settings > Playthrough** to switch saves, or expand **New Playthrough** to create a blank one. A new Playthrough starts in Standard mode with unknown platform, version, and mods unless you explicitly choose an existing setup. This page displays the selected rules as a read-only summary. Choose a saved revision under **Game Setup to apply**, review its summary, then choose **Apply to** followed by the Playthrough's name. Create or edit version, difficulty, and mods under **Saved setups**. Saving a setup never applies it to a Playthrough automatically.
 
 **Party plan** selects the tracked party used for inventory and readiness checks. **None selected** clears the selection without deleting a plan. Finish open drafts or retry failed saves before switching.
 
 ## Manage mods
 
-Open **Mods > Editor workspace**, choose a Crystal Edit JSON file, and inspect or edit its records. Apply edits to save the working draft, then choose **Save to CryKit** to add it to **Mod library**. Saved versions are grouped by project ID; changed contents create another revision. **Edit a copy** opens an exact saved source for further editing. Select the desired revision and order under a Build's **Game Setup > Mods**. Existing checkpoints keep their mod versions.
+Open **Mods > Editor workspace**, choose a Crystal Edit JSON file, and inspect or edit its records. Apply edits to save the working draft, then choose **Save to CryKit** to add it to **Mod library**. Saved versions are grouped by project ID; changed contents create another revision. **Edit mod JSON** opens an exact saved source for further editing. Select the desired revision and order under a Build's **Game Setup > Mods**. Existing checkpoints keep their mod versions.
 
 Supported game and mod data supplies calculation constants and difficulty effects. Incomplete or unsupported changes remain visible in **Rules from game data**. The library is included in planner backups; editor drafts have separate downloads. See [Mods and the editor workspace](mod-inspector.md) for inspection, exports, and recovery.
 
@@ -34,13 +34,13 @@ Choose **Builds > New Build** to open a blank Build sheet. Type into class, sub-
 
 A new Build has independent game settings. Open **Game Setup** to choose version, difficulty, and mods, or **Copy Game Setup** to use a saved setup. Changes save with the checkpoint and leave other builds and Playthroughs unchanged. Equipment uses the standard layout; passives form an ordered list. Named mod choices support Enabled, Disabled, and Unknown, while imported mods supply exact definitions and supported calculation constants.
 
-The primary class's stat ratings appear above the loadout using the game's colored full and half stars. The same ratings appear in Reference, with source details and explicit unknown values. Class ratings describe base-stat scaling and growth; they are separate from a character's recorded stats. Build editing starts at level 60 with all growth in the primary class when no calculation inputs were saved. Adjust level, growth history and gender under **Loadout > Calculated stats**. Explicitly saved unknown levels remain unknown. If an input blocks totals, the page explains what needs attention and keeps available components visible; choose **Review Game Setup** for a setup blocker.
+The primary class's stat ratings appear above the loadout using the game's colored full and half stars. The same ratings appear in Reference, with source details and explicit unknown values. Class ratings describe base-stat scaling and growth; they are separate from a character's recorded stats. Build editing starts at level 60 with all growth in the primary class when no calculation inputs were saved. Adjust level and growth history under **Loadout > Calculated stats**, and choose **Calculation gender** in the stats overview. Explicitly saved unknown levels remain unknown. If an input blocks totals, the page explains what needs attention and keeps available components visible; choose **Review Game Setup** for a setup blocker.
 
 ### Choose equipment and passives
 
 Equipment searches exclude identified category articles. Choices show catalog stats and effects, with full reference fields and attribution available beneath each selection. Similar spellings remain separate identities and are labeled when their relationship is unconfirmed; entries supported only by name evidence sort after detailed records.
 
-Selected fields show definition artwork, and empty fields show their slot's role icon. Class summaries put the command name and icon first, followed by equipment permission icons; hover or focus an icon for its name. Monetary cost appears last in detailed facts and is omitted from compact field summaries. PP remains visible for passive planning. The desktop library keeps class names and equipment slots readable beside the editor; selection details appear beneath the loadout when a definition is inspected.
+Selected fields show definition artwork, and empty fields show their slot's role icon. Class summaries put the command name and icon first, followed by equipment permission icons; hover or focus an icon for its name. Monetary cost appears last in detailed facts and is omitted from compact field summaries. PP remains visible for passive planning. On wide screens the selection inspector stays beside the loadout, showing a prompt until a definition is inspected. Narrow layouts stack the inspector below the fields and keep the library collapsible above the editor.
 
 Equipment searches include every available definition that fits the slot. Choices known to be incompatible with the primary class and selected permission effects appear last in gray with the reason. They remain selectable for planning. Missing or conflicting equipment types and permissions stay explicitly unknown, with their normal appearance; an unrecorded inventory item is separate from an equipment permission conflict.
 
@@ -62,7 +62,7 @@ Choose **More > Clone Build** to make a separate Build within the same Game Setu
 
 Builds have no lifecycle classifications. Use optional tags such as `template` or `theorycraft` to organize them; any saved Build can be cloned as a starting point. Save status and checkpoint history describe the actual saved configuration, while tracked party plans retain their separate draft and hypothetical contexts.
 
-When one equipped item occupies several slots, mark those selections as the same copy. On narrow screens the library starts collapsed and selection evidence appears directly below its field.
+When one equipped item occupies several slots, mark those selections as the same copy. On narrow screens the library starts collapsed; selecting a Build collapses it again to leave room for the editor.
 
 Optional tracking actions live under **Use with Tracking**, including character comparisons, recording, and party readiness. Readiness and recording actions follow the saved checkpoint displayed in the editor. Creating a party plan from readiness uses the saved checkpoint's Game Setup and catalog snapshot, even when the current Playthrough uses another Game Setup. Shared validation causes are grouped, with affected slots and links to the relevant records or settings.
 
@@ -122,6 +122,12 @@ The inventory form starts with focus on the item picker and uses the selected it
 
 Inventory records what you have observed about your current stock. A historical acquisition is kept separately from current stock. Party-wide progress and character learning have separate editors; neither is inferred from the other.
 
+### Track class seals
+
+Open **Progress > Class seals** to track each vanilla class from **Class not acquired** through **Class unlocked**, **Class mastered**, and **Seal acquired**. Click a tile to advance it; clicking an acquired seal resets it to not acquired. The class and seal links open their Reference entries without changing the mark. Use **Edit multiple** to select a group and set it to one state, or **Details** on a recorded tile to inspect its observations and notes.
+
+Marks save automatically to the selected Playthrough and are included in backups. They record party-wide progress without marking any character's skills learned or changing inventory. Imported uncertainty remains available for review. If a save fails, finish recovery through the application's retry or backup controls before switching context.
+
 ### Track summons
 
 Open **Progress > Summons** to mark Summoner skills available for the active Playthrough. The board follows the game's skill-tree layout, omits the passive nodes, and labels each summon with its deity title. Pinga is the starting summon and stays gold (unlocked); its tile cannot be toggled. The other tiles start gray; click a tile to turn it gold, then click again to undo. There is no intermediate blue stage and no record of which characters learned the skills. For the other summons, defeat the deity with a Summoner in your party before marking the skill available.
@@ -152,7 +158,7 @@ The atlas depicts the inspected base game's terrain. Crystal Edit exports can su
 
 ## Browse reference data
 
-A searchable, revision-attributed community reference catalog covers items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
+A searchable, revisioned reference combines native Windows game records, mod exports, and attributed community evidence for items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
 
 ### Search and filter
 
@@ -165,6 +171,16 @@ Separate class, equipment-slot, element, source-mod, source, and PP filters use 
 Active selections remain visible above the results and can be removed individually or cleared together, including when mobile filters are closed. Filters survive details, browser navigation, and reloads. Unknown and conflicting values remain possible matches where appropriate; missing facts are not inferred from names or descriptions.
 
 Opening a definition uses the full content width. Short facts share columns, while tables and longer descriptions have their labels above them and span the page. Source details follow the facts. On narrow screens, wide tables scroll within their own area. **Back to results** returns to the retained search and filters. Catalog and personal definitions use the same layout.
+
+### Find item acquisition routes
+
+Open an item or equipment entry and look under **How to obtain** for supported shops, chests, monster drops, steals, recipes, rewards and trades, starting inventory, and Lost & Found recovery. Follow a monster, recipe, ingredient, or required-item link to inspect its exact reference. **Game mode** selects Standard, Vanilla, or Chaos and stays in acquisition links and the address through reloads.
+
+Routes retain their costs, quantities, conditions, and source limits. Steal availability and per-attempt success are separate values. **No acquisition route found** means the indexed sources did not resolve a route; it does not mean the item is unobtainable. Base-world routes do not establish Switch, modded, or randomized placement. See [acquisition sources and boundaries](catalog-sources.md#finding-acquisition-routes-from-an-item).
+
+### Inspect enemy modes and difficulty
+
+Native monster pages offer separate **Game mode** and **Difficulty** controls. Mode chooses the source record or its native override; difficulty previews supported changes to HP, MP, attributes, and combat inputs. These choices stay in the address and leave saved Game Setups unchanged. Stat modifiers and battle effects can change final values. Action weights are source values, not action probabilities, and missing source facts stay unresolved.
 
 ### Find weapon skills
 

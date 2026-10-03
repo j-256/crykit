@@ -173,7 +173,7 @@ Native exports establish ordinary known facts for their recorded version and pla
 
 ## Crystal Edit class facts and modding guide
 
-The bundled class export supplies vanilla numeric ratings, equipment categories, ability and passive membership, and learn-tree coordinates in the bundled baseline. Its game-release match is a maintainer assumption tied to the export date; the editor version is recorded independently. A versioned Equipment Expansion export supplies mod definitions, and a dated Learnable Innate Skills export supplies historical unlock evidence without overriding newer Switch observations. GEEF's modding guide supplies attributed modifier descriptions and the equations used by the class growth calculator. See [Crystal Edit data and growth estimates](crystal-edit.md) for provenance, custom class imports, and scope.
+The native game snapshot supplies the bundled baseline's class ratings, equipment permissions, skill membership, and learn-tree coordinates. The earlier Crystal Edit class-copy export remains supplemental evidence with its own date and editor version; its assumed release match does not establish platform parity. Versioned mod exports supply supported modifications, and the dated Learnable Innate Skills export preserves historical unlock evidence without overriding newer Switch observations. GEEF's modding guide supplies attributed modifier descriptions and historical equation research. Application growth calculations use the [native PC rules](calculations.md), including integer steps and rounding. See [Crystal Edit data and native growth](crystal-edit.md) for imports and scope.
 
 ## Supporting identity sources
 

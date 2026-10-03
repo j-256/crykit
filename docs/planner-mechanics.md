@@ -14,7 +14,7 @@ A two-handed weapon reserves both hands even when selected in one hand with the 
 
 Passives are stored as an ordered, variable-length list, not as Game Setup slots. Each passive contributes its documented PP cost to one total. The inspected PC executable permits up to 10 PP across all equipped passives, so new Game Setups use that limit. Game Setup does not offer an arbitrary PP override. Imported mods can change individual passive costs through their definitions. Unknown costs keep the total unresolved, and a known nonnegative subtotal over the limit proves the Build invalid even when another selected cost is unknown.
 
-The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The companion prefers those properties from native game source records and retains older export records without changing old catalog snapshots.
+The Crystal Edit [equipment schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/equipment.yaml) identifies equipment type, two-handed occupancy, and unique-equipment fields. The [passive schema](https://github.com/iconmaster5326/CrystalProjector/blob/main/schema/json/passive.yaml) identifies PP and innate/learnable flags. The application prefers those properties from native game source records and retains older export records without changing old catalog snapshots.
 
 ## Game Setup and mod rules
 
@@ -22,7 +22,7 @@ Game Setup records the base game version, difficulty, and enabled mod revisions.
 
 Supported Crystal Edit format 34 imports retain battle settings and difficulty definitions with the exact source revision. Enabled layers apply in order. A non-localization BattleConfig replaces the complete prior configuration; difficulty records replace matching identities. Incomplete or unsupported settings leave affected calculations unresolved. The resolver uses inspected PC 1.6.9 Standard, Vanilla, and Chaos difficulty data without asserting parity for other versions or platforms.
 
-Dual Wield, Two-Handed, and unarmed stat constants feed PC character calculations. The shared loadout sheet uses the same pinned rules for stat contributions and detailed totals in Builds, recorded character snapshots, and read-only share previews; newer mod revisions do not retarget those snapshots. Difficulty-dependent hit previews use the selected difficulty modifier for non-guaranteed hits. Enemy HP and stat multipliers are shown as settings, not applied to player stats or presented as a full encounter simulation. Game Setup lists other retained battle settings and their calculation coverage.
+Dual Wield, Two-Handed, and unarmed stat constants feed PC character calculations. The shared loadout sheet uses the same pinned rules for stat contributions and detailed totals in Builds, recorded character snapshots, and read-only share previews; newer mod revisions do not retarget those snapshots. Game Setup retains difficulty-dependent hit modifiers and enemy HP and stat multipliers with their source. The loadout's base physical hit curve excludes difficulty, and enemy multipliers do not apply to player stats. Bestiary pages provide separate mode and difficulty previews. None of these surfaces simulates a complete encounter.
 
 ## Verified PC calculations
 
@@ -30,7 +30,7 @@ The **Loadout** tab and character current page share calculated totals, level an
 
 ## Saved calculation inputs and previews
 
-Enter level, growth history and gender on **Loadout**. **Checks & notes > Ability and hit-chance preview** selects a numeric ability record and target evasion. Missing levels, incomplete allocations, unknown character selections, and unsupported source records remain unknown. Creating a level-60 plan is an explicit action when no calculation inputs exist; an unknown saved level is never filled in for display.
+Enter level and growth history under **Loadout > Calculated stats**, and choose **Calculation gender** in the stats overview. **Checks & notes > Ability and hit-chance preview** selects a numeric ability record and target evasion. New Builds and edit drafts without saved calculation inputs start with a level-60 plan following the primary class; opening the editor does not change the saved checkpoint. Character sheets offer **Plan level-60 native calculations** explicitly, and read-only shares preserve absent plans. Missing levels, incomplete allocations, unknown character selections, and unsupported source records remain unknown. An unknown saved level is never filled in for display.
 
 Model-less inputs follow the native PC evaluator without modifying the saved checkpoint. Retained active statuses and custom per-stat bonuses are unsupported resting-sheet assumptions and make totals unresolved until explicitly cleared. The editor preserves recorded levels, observed totals, historical snapshots and unrelated imported data. Community descriptions remain reference facts and are never parsed into numeric formulas.
 
@@ -44,6 +44,6 @@ The physical hit preview calculates only the native accuracy/evasion curve. It p
 
 The interface calculates a resting loadout and named native preview stages. Active status lifecycles, accumulated turn effects and complete encounters remain outside its scope. Numeric imports use supported Crystal Edit records; incomplete or unsupported records remain unresolved. A known unsupported platform or game version blocks loadout totals, and named mods without numeric rules cannot establish their effects. The Windows PC package does not establish Nintendo Switch or other platform parity.
 
-The separate [PC steal mechanics research](steal-mechanics.md) records the executable's availability, success, Luck, failure-protection, multi-entry display, and guaranteed-attempt mod formulas. It is source evidence for the inspected PC build rather than a calculation performed by Crystal Kit, and it does not establish Nintendo Switch parity.
+The [PC steal mechanics research](steal-mechanics.md) records availability, success, Luck, failure protection, multi-entry display, and guaranteed-attempt mod formulas. The exportable combat module supplies steal arithmetic for explicit inputs; the planner has no interactive steal-outcome simulation. Both retain the inspected PC scope without establishing Nintendo Switch parity.
 
 PC calculations use the pinned Game Setup's recognized Standard, Vanilla, or Chaos mode. The calculation panel shows that choice without a second mode selector. When Game Setup mode is unknown, a retained calculation mode or the standard model is shown as an explicit calculation assumption; difficulty-dependent estimates remain unresolved.
