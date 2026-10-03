@@ -4,7 +4,9 @@ import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
 import bundledSources from '../src/catalog/bundled-mod-sources.json' with { type: 'json' }
-import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
+import { createSampleLocalData } from '../src/domain/sample-data'
+import { createPersonalDefinition } from '../src/domain'
 import { bundledModIdentity } from '../src/domain/bundled-mods'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
@@ -15,6 +17,70 @@ import { readFile } from 'node:fs/promises'
 
 const MOD_ID = 'synthetic-editor-library'
 const SOURCE = JSON.stringify({ ID: MOD_ID, Title: 'Synthetic calculation mod', Version: '1', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, TwoHandedPAtkFlat: 80, StrWhileUnarmedBonusFlat: 60 } }, Passives: [{ ID: 9000, Name: 'Synthetic unarmed', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [{ Tag: 474, Value1: 0, Value2: 0 }] }] })
+
+test('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  const before = createSampleLocalData(DEFAULT_CATALOG)
+  const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
+  const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
+  const historical = (data: LocalData): LocalData => {
+    let json = JSON.stringify(data)
+    for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
+    return JSON.parse(json) as LocalData
+  }
+  await page.goto('/icon.svg')
+  await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
+    const before = JSON.parse(beforeText) as LocalData
+    const after = JSON.parse(afterText) as LocalData
+    const HISTORICAL_NATIVE_DATABASE_VERSION = 40
+    const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
+    request.onupgradeneeded = () => {
+      const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
+      for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
+        const store = request.result.createObjectStore(name, { keyPath })
+        for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
+      transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
+      transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
+      transaction.oncomplete = () => { database.close(); resolve() }
+      transaction.onabort = () => { database.close(); reject(transaction.error) }
+    }
+  }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
+  await page.goto('/#/mods')
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(canonical)
+  const archive = await archiveDigests(page)
+  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+    const card = page.getByRole('region', { name: title, exact: true })
+    const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
+    const included = await toggle.getAttribute('aria-pressed') === 'true'
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', String(included))
+  }
+  const afterToggles = await storedData(page)
+  expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
+  expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
+  expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
+  expect(await archiveDigests(page)).not.toEqual(archive)
+  await page.goto('/#/builds/library/new')
+  await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /^Warrior Class ·/ }).click()
+  await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
+  const saved = await storedData(page)
+  for (const [id, revision] of Object.entries(canonical.buildRevisions)) expect(saved.buildRevisions[id]).toEqual(revision)
+  expect(saved.playthroughs).toEqual(canonical.playthroughs)
+  expect(saved.personalDefinitions).toEqual(canonical.personalDefinitions)
+  await expect(page.getByRole('alert').filter({ hasText: 'Change not saved' })).toHaveCount(0)
+})
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {

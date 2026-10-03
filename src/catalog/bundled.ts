@@ -13,6 +13,8 @@ export const BUNDLED_CATALOG = immutableCatalogSnapshot(compileCatalogIdentities
 export const BUNDLED_CATALOGS = [BUNDLED_CATALOG]
 export const DEFAULT_CATALOG = BUNDLED_CATALOG
 
+export const BUNDLED_SOURCE_ENTITY_IDS: ReadonlyMap<string, EntityId> = new Map(Object.values(sourceCatalog.entities).map(entity => [entity.id, compiledEntityId(entity, supplementalIds.ids)]))
+
 export function compileBundledSourceId(sourceId: string): EntityId {
   const source = catalogEntity(sourceCatalog, sourceId)
   if (!source) throw new Error(`Missing bundled source definition: ${sourceId}`)

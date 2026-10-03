@@ -86,6 +86,8 @@ The [revision 2 specification](spec-v2.md) defines data boundaries, core workflo
 
 Keep catalog definitions, personal observations, and planned configurations separate. Preserve explicit unknowns. Use synthetic fixtures when testing; do not commit personal records.
 
+IndexedDB format 5 upgrades persisted bundled source identities to the compiled catalog IDs. Planner roots and undo history migrate together in one transaction, including character progress keys and reviewed mod composition link targets. The upgrade uses the source compiler's exact mapping, preserves record IDs, pins, unknown values, and opaque source fields, and rejects collisions or unresolved references without partial writes. Imported catalog snapshots and archived source bytes remain unchanged.
+
 Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and unreviewed workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
 
 Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. Include the reference entry, platform, game version, enabled mods, expected value, and source evidence. Source fixes belong in the catalog extraction or interpretation pipeline. See [reference data boundaries](reference-data.md) for the distinction between source catalogs, standalone custom definitions, and retained catalog versions.
