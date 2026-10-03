@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { Build } from '../domain/types'
 import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { Button, Field, InlineNotice } from './components'
 import { BuildTagsField, buildTagsFromDraft, sameBuildTags, type BuildTagsDraft } from './BuildTagsField'
 import type { DraftActions, DraftChangeHandler } from './drafts'
+import { Dropdown } from './Dropdown'
 
 export interface BuildDetailsPatch {
   readonly title?: string
@@ -28,7 +29,11 @@ function detailsChanged(draft: DetailsDraft) {
   return draft.title !== draft.original.title || tagsChanged(draft)
 }
 
-export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange }: { build: Build; suggestions: readonly string[]; onSave: (buildId: string, patch: BuildDetailsPatch) => Promise<void>; onDirtyChange: DraftChangeHandler }) {
+export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange, compact = false, children }: { build: Build; suggestions: readonly string[]; onSave: (buildId: string, patch: BuildDetailsPatch) => Promise<void>; onDirtyChange: DraftChangeHandler; compact?: boolean; children?: ReactNode }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreId = useId()
+  const moreRef = useRef<HTMLButtonElement>(null)
+  const renameRef = useRef<HTMLButtonElement>(null)
   const [editingTitle, setEditingTitle] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [draft, setDraft] = useState(() => initialDraft(build))
@@ -78,7 +83,7 @@ export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange 
     if (busy) return false
     const current = draftRef.current
     const title = current.title === current.original.title ? build.title : current.title.trim()
-    if (!title) { setError('Enter a Build title.'); setEditingTitle(true); inputRef.current?.focus(); return false }
+    if (!title) { setError('Enter a Build title.'); setEditingTitle(true); if (compact) setMoreOpen(true); inputRef.current?.focus(); return false }
     setBusy(true)
     setError(undefined)
     try {
@@ -89,14 +94,15 @@ export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange 
       return true
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The Build details could not be saved.')
+      if (compact) setMoreOpen(true)
       if (tagsChanged(current)) setTagsOpen(true)
       return false
     } finally { setBusy(false) }
   }
   actionsRef.current = { save, discard: () => finish() }
 
-  return <form className="build-details-control" onSubmit={event => { event.preventDefault(); void save() }}>
-    <div className="build-title-control__heading" ref={headingRef}><h2>{build.title}</h2>{!editingTitle && <Button disabled={busy} icon="edit" onClick={() => { if (!active) reset(build); focusTargetRef.current = 'title'; setEditingTitle(true) }} tone="quiet" type="button">Rename</Button>}</div>
+  const controls = <form className="build-details-control" onSubmit={event => { event.preventDefault(); void save() }}>
+    <div className="build-title-control__heading" ref={headingRef}>{!compact && <h2>{build.title}</h2>}{!editingTitle && <Button disabled={busy} icon="edit" onClick={() => { if (!active) reset(build); focusTargetRef.current = 'title'; setEditingTitle(true) }} ref={renameRef} tone="quiet" type="button">Rename</Button>}</div>
     {editingTitle && <Field label="Build title"><input disabled={busy} maxLength={MAX_SHORT_TEXT_LENGTH} onChange={event => change({ ...draftRef.current, title: event.target.value })} ref={inputRef} required value={draft.title}/></Field>}
     <details className="build-tags-control" open={tagsOpen} onToggle={event => {
       const open = event.currentTarget.open
@@ -110,4 +116,11 @@ export function BuildDetailsControl({ build, suggestions, onSave, onDirtyChange 
     {active && <div className="cluster build-details-control__actions"><Button disabled={busy} onClick={() => finish()} tone="quiet" type="button">Cancel details</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving details...' : 'Save details'}</Button></div>}
     {error && <InlineNotice title="Build details not saved" tone="danger">{error}</InlineNotice>}
   </form>
+  if (!compact) return controls
+  return <>
+    <Button aria-controls={moreOpen ? moreId : undefined} aria-expanded={moreOpen} aria-haspopup="dialog" icon="more" onClick={() => setMoreOpen(open => !open)} ref={moreRef} title="More Build actions" tone="secondary" type="button">More</Button>
+    <Dropdown anchorRef={moreRef} id={moreId} initialFocusRef={editingTitle ? inputRef : renameRef} onClose={() => setMoreOpen(false)} onDismiss={() => setMoreOpen(false)} open={moreOpen} title="Build actions">
+      <div className="workspace-more">{controls}{children && <div className="workspace-more__commands">{children}</div>}</div>
+    </Dropdown>
+  </>
 }

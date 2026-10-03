@@ -1,3 +1,4 @@
+import { closeBuildActions, clickBuildAction, openBuildActions } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -26,7 +27,7 @@ async function storedData(page: Page): Promise<LocalData> {
 }
 
 function tagsControl(page: Page) { return page.locator('.build-tags-control') }
-async function openTags(page: Page) { await tagsControl(page).locator('summary').click() }
+async function openTags(page: Page) { await openBuildActions(page); await tagsControl(page).locator('summary').click() }
 async function addTag(page: Page, value: string) {
   await page.getByLabel('Add tag', { exact: true }).fill(value)
   await page.getByRole('button', { name: 'Add tag', exact: true }).click()
@@ -41,19 +42,19 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
 })
 
-test('details actions have balanced spacing before the checkpoint controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('details actions have balanced spacing within the Build actions popover', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const form = page.locator('.build-details-control')
   const cancel = form.getByRole('button', { name: 'Cancel details', exact: true })
   const save = form.getByRole('button', { name: 'Save details', exact: true })
-  const checkpointNote = page.getByText('Loadout changes save as a new checkpoint', { exact: true })
+  const secondaryCommands = page.locator('.workspace-more__commands')
   const expectSpacing = async (preceding: Locator) => {
-    const [previousBox, cancelBox, saveBox, noteBox] = await Promise.all([preceding.boundingBox(), cancel.boundingBox(), save.boundingBox(), checkpointNote.boundingBox()])
+    const [previousBox, cancelBox, saveBox, commandsBox] = await Promise.all([preceding.boundingBox(), cancel.boundingBox(), save.boundingBox(), secondaryCommands.boundingBox()])
     expect(previousBox).not.toBeNull()
     expect(cancelBox).not.toBeNull()
     expect(saveBox).not.toBeNull()
-    expect(noteBox).not.toBeNull()
+    expect(commandsBox).not.toBeNull()
     expect(cancelBox!.y - previousBox!.y - previousBox!.height).toBeCloseTo(DETAILS_ACTION_SPACING, 0)
-    expect(noteBox!.y - saveBox!.y - saveBox!.height).toBeCloseTo(DETAILS_ACTION_SPACING, 0)
+    expect(commandsBox!.y).toBeGreaterThan(saveBox!.y + saveBox!.height)
     expect(cancelBox!.y).toBeCloseTo(saveBox!.y, 0)
     expect(saveBox!.x).toBeGreaterThan(cancelBox!.x + cancelBox!.width)
   }
@@ -73,6 +74,7 @@ test('details actions have balanced spacing before the checkpoint controls', { t
 test('optional tags persist independently, round-trip in backups, and match both searches', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
+  await openBuildActions(page)
   await expect(tagsControl(page).locator('summary')).toHaveAccessibleName('Tags (1)')
   await expect(page.getByLabel('Add tag', { exact: true })).not.toBeVisible()
   await openTags(page)
@@ -105,6 +107,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   await openTags(page)
   await expect(page.getByRole('list', { name: 'Build tags', exact: true })).toContainText(TAG)
   await page.getByRole('button', { name: 'Cancel details', exact: true }).click()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(TAG)
   await expect(page.locator('.build-card')).toHaveCount(1)
@@ -130,8 +133,10 @@ test('cancel and unchanged saves make no transaction, and collapsing retains pen
   expect(await storedData(page)).toEqual(before)
   await openTags(page)
   await page.getByLabel('Add tag', { exact: true }).fill(TAG)
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Revision A', exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(before)
@@ -141,7 +146,7 @@ test('failed detail saves roll back title and tags together while retaining the 
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
   await chooseWizard(page)
-  await page.getByRole('button', { name: 'Rename', exact: true }).click()
+  await clickBuildAction(page, 'Rename')
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(NEW_TITLE)
   await openTags(page)
   await page.getByLabel('Add tag', { exact: true }).fill(TAG)
@@ -162,7 +167,9 @@ test('failed detail saves roll back title and tags together while retaining the 
   await expect(tagsControl(page)).not.toHaveAttribute('open')
   await expect(page.getByRole('heading', { name: NEW_TITLE, exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   const after = await storedData(page)
   expect(after.builds[build.id]).toMatchObject({ title: NEW_TITLE, tags: ['sample', TAG] })
@@ -175,7 +182,7 @@ test('save and continue handles title, tag, and loadout drafts together', async 
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
   await chooseWizard(page)
-  await page.getByRole('button', { name: 'Rename', exact: true }).click()
+  await clickBuildAction(page, 'Rename')
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(NEW_TITLE)
   await openTags(page)
   await page.getByLabel('Add tag', { exact: true }).fill(TAG)
@@ -192,7 +199,7 @@ test('save and continue handles title, tag, and loadout drafts together', async 
 })
 
 test('new Builds offer optional tags and save pending text through the navigation guard', async ({ page }) => {
-  await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await clickBuildAction(page, 'New Build')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(NEW_TITLE)
   await expect(page.getByLabel('Add tag', { exact: true })).not.toBeVisible()
@@ -216,7 +223,7 @@ test('long tags wrap on cards and in the editor, survive cloning, and can all be
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
   await expect(tagsControl(page)).not.toHaveAttribute('open')
-  await page.getByRole('button', { name: 'Clone Build', exact: true }).click()
+  await clickBuildAction(page, 'Clone Build')
   await expect(page.getByRole('heading', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
   await openTags(page)
   await expect(page.getByRole('list', { name: 'Build tags', exact: true })).toContainText(longTag)
@@ -225,6 +232,7 @@ test('long tags wrap on cards and in the editor, survive cloning, and can all be
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
   await expect(tagsControl(page)).not.toHaveAttribute('open')
   expect(Object.values((await storedData(page)).builds).find(build => build.title === `${ORIGINAL_TITLE} (copy)`)!.tags).toEqual([])
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(longTag)
   await expect(page.locator('.build-card')).toHaveCount(1)

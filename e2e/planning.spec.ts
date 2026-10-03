@@ -1,3 +1,4 @@
+import { clickBuildAction } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -173,7 +174,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   const picker = page.getByRole('listbox', { name: 'Choose Main hand' })
   await page.getByRole('combobox', { name: 'Main hand', exact: true }).fill('Synthetic shared staff')
   await picker.getByRole('option', { name: /^Synthetic shared staff / }).click()
-  await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const first = await exportLocalData(page)
   const sharedStaffBuild = Object.values(first.builds).find((candidate) => candidate.title === 'Shared staff template')!
@@ -182,7 +183,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   editor = await openEditor()
   await editor.getByRole('combobox', { name: 'Main hand', exact: true }).click()
   await page.getByRole('listbox', { name: 'Choose Main hand' }).getByRole('option', { name: /Leave empty/ }).click()
-  await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await page.goto('/#/builds/teams')
   await page.getByRole('button', { name: 'New party plan', exact: true }).click()
@@ -256,7 +257,7 @@ test('build drafts resist navigation and recording current preserves level and t
     await expect(page).toHaveURL(/#\/builds\/library\/new$/)
     await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Retain this unsaved draft')
   }
-  await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await page.locator('.build-readiness > summary').click()
   await page.getByRole('button', { name: 'Compare / record on a character', exact: true }).click()
@@ -315,7 +316,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await editor.getByLabel('Checkpoint name').fill('One physical staff')
   await page.screenshot({ path: testInfo.outputPath('build-editor.png'), fullPage: true })
-  await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   const before = await exportLocalData(page)
   const originalBuild = Object.values(before.builds).find((build) => build.title === 'Two-slot template')!
@@ -326,7 +327,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   expect(equipment[0]?.allocationId).toBe(equipment[1]?.allocationId)
   expect(originalRevision.note).toBe('One physical staff')
 
-  await page.getByRole('button', { name: 'Clone Build', exact: true }).click()
+  await clickBuildAction(page, 'Clone Build')
   await openBuildLibrary(page)
   const library = page.locator('.build-library')
   const copyButton = library.getByRole('button', { name: 'Two-slot template (copy)', exact: true })
@@ -377,7 +378,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await editor.getByText('Build details & notes', { exact: true }).click()
   await editor.getByLabel('Checkpoint name').fill('Separate physical copies')
-  await editor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   const minimumStock = await exportLocalData(page)
   expect(minimumStock.buildRevisions[originalRevision.id]).toEqual(originalRevision)

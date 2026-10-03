@@ -265,7 +265,7 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Return to build draft', exact: true }).click()
   await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Before personal correction')
-  await buildEditor.getByRole('button', { name: /^Save (build|new revision)$/ }).click()
+  await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const before = await exportLocalData(page)
   const checkpointBuild = Object.values(before.localData.builds).find((build) => build.title === 'Synthetic catalog checkpoint')!

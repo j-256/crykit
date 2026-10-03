@@ -1,3 +1,4 @@
+import { closeBuildActions, clickBuildAction } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -19,7 +20,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
 }
 
 async function rename(page: Page, title: string) {
-  await page.getByRole('button', { name: 'Rename', exact: true }).click()
+  await clickBuildAction(page, 'Rename')
   const input = page.getByRole('textbox', { name: 'Build title', exact: true })
   await expect(input).toBeFocused()
   await input.fill(title)
@@ -72,8 +73,10 @@ test('renaming keeps an unfinished loadout and its navigation guard even when th
   await rename(page, RENAMED_TITLE)
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Revision A', exact: true })).toBeVisible()
   const after = await exportLocalData(page)
@@ -121,7 +124,9 @@ test('failed title persistence retains both drafts for retry without creating a 
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
   await expect(page.getByRole('heading', { name: RENAMED_TITLE, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Rename', exact: true })).toBeFocused()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   const after = await exportLocalData(page)
   expect(after.buildRevisions).toEqual(before.buildRevisions)
@@ -131,11 +136,13 @@ test('failed title persistence retains both drafts for retry without creating a 
 test('a blank title cannot pass the navigation guard and discard leaves the name intact', async ({ page }) => {
   const before = await exportLocalData(page)
   await rename(page, '   ')
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
   await expect(page.getByText('Build details not saved', { exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toHaveValue('   ')
   await expect(page.getByRole('heading', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
+  await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Revision A', exact: true })).toBeVisible()
   expect(await exportLocalData(page)).toEqual(before)

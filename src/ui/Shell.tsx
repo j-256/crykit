@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import crystalCricketUrl from '../assets/crystal-cricket.svg'
 import type { CatalogSnapshot, LocalData, PlaythroughId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
@@ -6,6 +6,7 @@ import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
 import { ProgressBoards } from './ProgressBoards'
+import { WorkspaceHeaderContext } from './WorkspaceHeader'
 import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay, useNavigation, type Destination } from './navigation'
 
 export type { Destination } from './navigation'
@@ -40,8 +41,13 @@ function Brand() {
 export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null)
+  const [primaryTarget, setPrimaryTarget] = useState<HTMLElement | null>(null)
+  const contextRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
   const partyPage = navigation.route.page.page === 'builds' && ['teams', 'scenario', 'scenario-new'].includes(navigation.route.page.view)
   const tracking = (navigation.route.page.page === 'teams' && navigation.route.page.view === 'adopt') || partyPage || TRACKING_DESTINATIONS.some(item => item.id === destination)
+  const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget }, [tracking, headerTarget, primaryTarget])
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : partyPage ? 'characters' : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
@@ -63,6 +69,16 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     window.addEventListener('keydown', handleSearchShortcut)
     return () => window.removeEventListener('keydown', handleSearchShortcut)
   })
+  useEffect(() => {
+    const context = contextRef.current
+    const main = mainRef.current
+    if (!context || !main) return
+    const measure = () => main.style.setProperty('--mobile-context-region-height', `${context.getBoundingClientRect().height}px`)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(context)
+    return () => observer.disconnect()
+  }, [])
 
   const sidebarToggleLabel = sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'
 
@@ -81,16 +97,16 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
         <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={() => setSidebarExpanded(expanded => !expanded)} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>
-    <main className="main-shell">
+    <main className="main-shell" ref={mainRef}>
       <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
-      <header className="context-bar">
-        {destination === 'mods' ? <strong>Mod workspace</strong> : tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <span className="field__hint">Buildcrafting workspace</span>}
+      <header className={`context-bar${tracking ? '' : ' context-bar--planning'}`} ref={contextRef}>
+        {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
-          {destination !== 'mods' && <div aria-live="polite" className={`context-status context-status--${saveState}`}><span className="context-status__dot"/>{saveLabel}</div>}
+          {destination !== 'mods' && <div aria-live="polite" className={`context-status context-status--${saveState}`} title={saveLabel}><span className="context-status__dot"/>{saveLabel}</div>}
           {developmentPort && <span role="note" aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
         </div>
       </header>
-      <div className="content">{children}</div>
+      <WorkspaceHeaderContext value={headerSlots}><div className="content">{children}</div></WorkspaceHeaderContext>
     </main>
     <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
