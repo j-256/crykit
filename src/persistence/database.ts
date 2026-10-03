@@ -1,7 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { NativeHistorySchema, StoredNativeLocalDataSchema } from '../interchange/native-schema'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { BUNDLED_CATALOGS } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, BUNDLED_SOURCE_ENTITY_IDS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { upgradeBundledReferences } from '../domain/bundled-reference-upgrade'
 import type { CatalogSnapshot, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import type {
   EvidenceRecord,
@@ -60,16 +61,17 @@ export class CryKitDatabase extends Dexie {
     })
     const migrate = async (transaction: import('dexie').Transaction) => {
       const storedCatalogs = (await transaction.table<CatalogRecord>('catalogs').toArray()).map(record => record.snapshot)
-      const catalogs = [...new Map([...BUNDLED_CATALOGS, ...storedCatalogs].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
+      const catalogs = [...new Map([...storedCatalogs, ...BUNDLED_CATALOGS].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
       const localDatas = transaction.table<LocalDataRecord>('localDatas')
       for (const record of await localDatas.toArray()) {
-        const localData = StoredNativeLocalDataSchema.parse(record.localData) as unknown as LocalData
+        const localData = upgradeBundledReferences(StoredNativeLocalDataSchema.parse(record.localData) as unknown as LocalData, DEFAULT_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
         validateNativeLocalDataGraph(localData, catalogs)
         await localDatas.put({ ...record, localData })
       }
       const history = transaction.table<PersistedHistoryEntry>('history')
       for (const entry of await history.toArray()) {
-        const migrated = NativeHistorySchema.parse(entry) as unknown as PersistedHistoryEntry
+        const parsed = NativeHistorySchema.parse(entry) as unknown as PersistedHistoryEntry
+        const migrated = { ...parsed, before: upgradeBundledReferences(parsed.before, DEFAULT_CATALOG, BUNDLED_SOURCE_ENTITY_IDS), after: upgradeBundledReferences(parsed.after, DEFAULT_CATALOG, BUNDLED_SOURCE_ENTITY_IDS) }
         validateNativeLocalDataGraph(migrated.before, catalogs)
         validateNativeLocalDataGraph(migrated.after, catalogs)
         await history.put(migrated)
@@ -78,6 +80,7 @@ export class CryKitDatabase extends Dexie {
     this.version(2).stores({}).upgrade(migrate)
     this.version(3).stores({}).upgrade(migrate)
     this.version(4).stores({}).upgrade(migrate)
+    this.version(5).stores({}).upgrade(migrate)
   }
 }
 
