@@ -1213,6 +1213,23 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 .reference-detail { grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .reference-detail > .panel, .reference-detail .panel__body.stack { min-width: 0; grid-template-columns: minmax(0, 1fr); }
 .native-loot-table table { width: 100%; table-layout: fixed; }
+.item-acquisition .panel__header { flex-wrap: wrap; gap: 10px; }
+.acquisition-mode { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+.acquisition-mode select { width: auto; }
+.acquisition-group h4 { margin: 0 0 8px; }
+.acquisition-routes { list-style: none; margin: 0; padding: 0; }
+.acquisition-route { padding: 12px 0; border-top: 1px solid var(--line); min-width: 0; }
+.acquisition-route__title, .acquisition-route__facts { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
+.acquisition-route__title .button { padding: 0; min-height: 0; text-align: left; white-space: normal; }
+.acquisition-location { color: var(--text-faint); font-size: .85rem; }
+.acquisition-route__facts { margin-top: 6px; font-size: .8rem; }
+.acquisition-caption { margin: 10px 0 4px; color: var(--text-faint); font-size: .75rem; }
+.acquisition-materials { list-style: none; margin: 0; padding: 0; }
+.acquisition-materials li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.acquisition-materials .button { padding: 0; min-height: 0; white-space: normal; text-align: left; }
+.acquisition-conditions { padding-left: 20px; margin: 8px 0 0; font-size: .85rem; }
+.acquisition-note { color: var(--text-faint); font-size: .8rem; }
+.acquisition-evidence { margin-top: 8px; color: var(--text-faint); font-size: .75rem; overflow-wrap: anywhere; }
 .native-loot-table th, .native-loot-table td { min-width: 0; overflow-wrap: anywhere; }
 .native-loot-table th { white-space: normal; }
 

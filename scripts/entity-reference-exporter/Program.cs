@@ -6,7 +6,8 @@ using System.Text.Json.Nodes;
 
 const int MaxBytes = 32 * 1024 * 1024;
 const int MaxEntries = 100_000;
-if (args.Length != 3) throw new ArgumentException("Expected installation, copied assembly, output");
+if (args.Length is not (3 or 4) || args.Length == 4 && args[3] != "acquisition") throw new ArgumentException("Expected installation, copied assembly, output, optional acquisition projection");
+var acquisition = args.Length == 4;
 var installation = Path.GetFullPath(args[0]);
 AssemblyLoadContext.Default.Resolving += (context, name) => {
     var dependency = Path.Combine(installation, name.Name + ".dll");
@@ -22,7 +23,12 @@ object? ProjectFields(object? value) {
     if (type.IsEnum) return value.ToString();
     if (type.IsPrimitive || value is string) return value;
     if (value is System.Collections.IEnumerable items) return items.Cast<object?>().Select(ProjectFields).ToArray();
-    return type.GetFields(BindingFlags.Public | BindingFlags.Instance).ToDictionary(field => field.Name, field => ProjectFields(field.GetValue(value)));
+    var result = type.GetFields(BindingFlags.Public | BindingFlags.Instance).ToDictionary(field => field.Name, field => ProjectFields(field.GetValue(value)));
+    if (acquisition) foreach (var name in new[] { "ActionType", "ConditionType" }) {
+        var property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        if (property != null && property.CanRead) result[name] = ProjectFields(property.GetValue(value));
+    }
+    return result;
 }
 int Count(BinaryReader reader, int limit = MaxEntries) {
     var count = reader.ReadInt32();
@@ -110,7 +116,7 @@ foreach (var region in regions) {
             }
             record["Name"] = string.IsNullOrEmpty(name) ? type : name;
             record["NameSource"] = string.IsNullOrEmpty(name) ? "EntityType" : source;
-            records.Add(record);
+            records.Add(acquisition ? entity : record);
         }
         if (reader.BaseStream.Position != reader.BaseStream.Length) throw new InvalidDataException("Trailing entity bytes");
     }
