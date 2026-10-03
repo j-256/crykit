@@ -140,7 +140,8 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const navigation = useNavigation()
   const { options, planningOptions } = useDefinitionLibrary()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
-  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest ? latest.content.calculation : defaultCalculation(null), note: undefined })
+  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation ?? defaultCalculation(latest?.content.primaryClass ?? null), note: undefined })
+  const behaviorRef = useRef<HTMLDetailsElement>(null)
   const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
@@ -273,7 +274,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   }
   return <form className="stack build-sheet" data-validity={validity.status} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onInvalid={event => { for (let parent: HTMLElement | null = event.target as HTMLElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
-    <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor initiallyOpen={!build} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
+    <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor detailsRef={behaviorRef} initiallyOpen={!build} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity report={validity}/>
     <fieldset className="build-sheet__fields" disabled={busy || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith}
       classFields={<>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</>}
@@ -282,6 +283,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
       passiveFields={[...draft.passives, undefined].map(passiveField)}
       context={<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>}
       onCalculationChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}
+      onReviewGameSetup={() => { const details = behaviorRef.current; if (details) { details.open = true; details.scrollIntoView({ block: 'start' }); details.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true }) } }}
       notes={<section className="build-details"><h3>Build details & notes</h3><div className="stack">{typeof children === 'function' ? children(() => updateDirty(true)) : children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; review the Game Setup coverage.'}</p></div></section>}
     /></fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}

@@ -11,6 +11,14 @@ async function choose(page: Page, label: string, name: string) {
   if (label !== 'Add planned status') await expect(field).toHaveValue(name)
 }
 
+async function expectIncompleteGrowth(page: Page, allocated: number, level: number) {
+  await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText(`Growth allocates ${allocated} of ${level} levels.`)
+  const overview = page.getByRole('table', { name: 'Planned build stats', exact: true })
+  await expect(overview.getByRole('columnheader')).toHaveText(['Stat', 'Base'])
+  await expect(overview).not.toContainText('Unknown')
+}
+
 test('build mechanics survive checkpoints and offline reload without observed character data', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   await page.goto('/')
   await createBlankPlaythrough(page)
@@ -33,7 +41,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(spirit).not.toContainText('Unknown')
   await page.getByRole('button', { name: 'Decrease growth 1 by 10', exact: true }).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('10')
-  await expect(spirit).toContainText('Unknown')
+  await expectIncompleteGrowth(page, 10, 20)
   await page.getByRole('button', { name: 'Increase growth 1 by 10', exact: true }).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('20')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
@@ -65,7 +73,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('15')
   await page.getByLabel('Calculation level', { exact: true }).fill('10')
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('15')
-  await expect(spirit).toContainText('Unknown')
+  await expectIncompleteGrowth(page, 20, 10)
   await page.getByRole('button', { name: 'Decrease growth 1 by 1', exact: true }).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('14')
   await page.getByLabel('Calculation level', { exact: true }).fill('20')
@@ -90,7 +98,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('20')
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('20')
   await page.getByLabel('Growth levels 1', { exact: true }).fill('19')
-  await expect(spirit).toContainText('Unknown')
+  await expectIncompleteGrowth(page, 19, 20)
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -103,7 +111,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await page.getByText(/^Level-up growth/).click()
   await expect(page.getByLabel('Growth levels 1', { exact: true })).toHaveValue('19')
   await expect(page.getByRole('combobox', { name: 'Growth class 1', exact: true })).toHaveValue('Wizard')
-  await expect(spirit).toContainText('Unknown')
+  await expectIncompleteGrowth(page, 19, 20)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   const offlineDownload = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export calculation package', exact: true }).click()
