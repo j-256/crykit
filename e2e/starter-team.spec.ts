@@ -208,7 +208,10 @@ test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ 
     await form.getByLabel('Party plan name').fill(label)
     await chooseFourTeamMembers(form)
     await form.getByRole('button', { name: 'Create party plan', exact: true }).click()
-    return page.getByRole('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) })
+    await expect(form).not.toBeVisible()
+    const team = page.getByRole('article').filter({ has: page.getByRole('heading', { name: label, exact: true }) })
+    await expect(team).toBeVisible()
+    return team
   }
 
   const windowsTeam = await createTeam('Synthetic Windows context')
