@@ -10,6 +10,8 @@ export const IMPORTED_RULES_VERSION = 1
 export const IMPORTED_RULES_REVISION = `rules-v${IMPORTED_RULES_VERSION}`
 export const SUPPORTED_EDITOR_VERSION = 34
 export const PC_GAME_RULES = Object.freeze({ ppLimit: 10, equipmentSlots: 6, version: '1.6.9' })
+export const ASSUMED_COMPATIBLE_PC_VERSIONS = ['1.6.6', '1.6.6.0'] as const
+const SUPPORTED_PC_CALCULATION_VERSIONS: readonly string[] = [PC_GAME_RULES.version, `${PC_GAME_RULES.version}.0`, ...ASSUMED_COMPATIBLE_PC_VERSIONS]
 const SHEET_CONSTANTS = new Set(['TwoHandedPAtkFlat', 'TwoHandedPAtkRate', 'DualWieldPAtkRate', 'StrWhileUnarmedBonusFlat'])
 const DIFFICULTY_FIELDS = ['MonsterHPRate', 'BossHPRate', 'MonsterMPRate', 'BossMPRate', 'MonsterStrRate', 'MonsterVitRate', 'MonsterDexRate', 'MonsterAgiRate', 'MonsterMndRate', 'MonsterSpiRate', 'MonsterSpdRate', 'MonsterLckRate', 'MonsterPAtkRate', 'MonsterPDefRate', 'MonsterMDefRate', 'MemberHitChanceMod', 'MonsterHitChanceMod'] as const
 export interface GameRuleChange { readonly field: string; readonly value: number | boolean; readonly baseline: number | boolean; readonly source: string; readonly calculated: boolean }
@@ -48,7 +50,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   let configIssues: string[] = []
   const issues: string[] = []
   if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`Native Windows PC calculations do not establish parity for ${setup.platform.value}.`)
-  if (setup?.gameVersion?.state === 'known' && !['1.6.9', '1.6.9.0'].includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
+  if (setup?.gameVersion?.state === 'known' && !SUPPORTED_PC_CALCULATION_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
   if (setup?.mods?.state === 'known' && setup.mods.value.length) issues.push('Named mod choices lack calculation settings. Import their files and select exact revisions to establish their effects.')
   const difficultyIssues: string[] = [...issues]
   const difficulties = new Map<number, DifficultyDefinition>()
