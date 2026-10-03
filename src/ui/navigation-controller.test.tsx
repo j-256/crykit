@@ -65,7 +65,7 @@ afterEach(() => {
 
 describe('navigation controller history', () => {
   it('normalizes descriptive slugs without adding history and refreshes imported names after loading', async () => {
-    const hash = '#/reference/catalog/synthetic/revisions/r1/entities/id/foreign%3A1/incorrect-name'
+    const hash = '#/reference/catalog/synthetic/r1/id/foreign%3A1/incorrect-name'
     window.history.replaceState({ retained: true }, '', hash)
     const length = window.history.length
     const root = createRoot(container)

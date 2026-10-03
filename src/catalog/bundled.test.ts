@@ -23,7 +23,7 @@ describe('bundled catalog assembly', () => {
     expect(DEFAULT_CATALOG.revisionId).toBe(CERTAINTY_CATALOG_REVISION_ID)
     expect(Object.isFrozen(DEFAULT_CATALOG)).toBe(true)
     expect(NativeCatalogSnapshotSchema.parse(DEFAULT_CATALOG)).toEqual(DEFAULT_CATALOG)
-    const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
+    const warrior = DEFAULT_CATALOG.entities['base:job:0']!
     expect(growthRatings(warrior)).toMatchObject({ HP: 80, STR: 80, MND: 10 })
     expect(exportedTree(warrior).find(node => node.row === 0 && node.column === 1)).toMatchObject({ nodeType: 2, dataId: 28 })
     const { checksum, ...content } = DEFAULT_CATALOG
@@ -31,16 +31,16 @@ describe('bundled catalog assembly', () => {
   })
 
   it('retains contradictory guide descriptions as competing claims', () => {
-    const entity = DEFAULT_CATALOG.entities['base:mechanic:ability:KillsUser']!
+    const entity = DEFAULT_CATALOG.entities['base:mechanic:ability:ref-385']!
     expect(entity.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
     expect(entity.sources[0]?.locator).not.toEqual(entity.sources[1]?.locator)
   })
 
   it('projects equivalent source phrasing without rewriting bundled evidence', () => {
-    const adjudicator = DEFAULT_CATALOG.entities['base:item:adjudicator']!
+    const adjudicator = DEFAULT_CATALOG.entities['base:equipment:245']!
     expect(adjudicator.fields.Location?.state).toBe('conflicting')
     expect(projectSourceSemantics(adjudicator).fields.Location).toMatchObject({ state: 'known', value: 'Drop: Anubis in the Ancient Labyrinth' })
-    const assassinSeal = DEFAULT_CATALOG.entities['base:item:assassin-seal']!
+    const assassinSeal = DEFAULT_CATALOG.entities['base:equipment:582']!
     expect(projectSourceSemantics(assassinSeal).fields.Location?.state).toBe('conflicting')
   })
 

@@ -8,11 +8,11 @@ async function expectArtwork(page: Page, name: string, type: 'game' | 'mod') {
 }
 
 test('Equipment Expansion hides base-game proof and retains custom artwork attribution', async ({ page }) => {
-  await page.goto(detail('mod:equipment-expansion:item:heavy-edge'))
+  await page.goto(detail('mod:equipment-expansion:equipment:592'))
   await expectArtwork(page, 'Heavy Edge', 'game')
   await expect(page.getByText('Artwork source', { exact: true })).toHaveCount(0)
 
-  await page.goto(detail('mod:equipment-expansion:item:triton-s-cloak'))
+  await page.goto(detail('mod:equipment-expansion:equipment:642'))
   await expectArtwork(page, "Triton's Cloak", 'mod')
   await page.getByText('Artwork source', { exact: true }).click()
   await expect(page.locator('.wiki-sprite-source')).toContainText('Equipment/zrghr-2-32x32, cell 43')

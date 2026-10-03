@@ -41,14 +41,14 @@ describe('native gameplay definitions', () => {
   })
 
   it('uses verified identities and native mechanical inputs as the default', () => {
-    const sword = DEFAULT_CATALOG.entities['base:item:short-sword']!
+    const sword = DEFAULT_CATALOG.entities['base:equipment:0']!
     expect(nativeIdentity(sword)?.database).toBe('equipment')
     expect(sword.sources[0]!.sourceId).toBe('native-game:windows:1.6.9')
-    const goldBow = DEFAULT_CATALOG.entities['base:item:gold-bow']!
+    const goldBow = DEFAULT_CATALOG.entities['base:equipment:149']!
     expect(goldBow.rawDescription).toContain('Silver Bow')
     expect(goldBow.legacy).toMatchObject({ nativeDescriptionSupplemental: true })
     expect(equipmentFacts(sword)).toMatchObject({ type: 'Sword', twoHanded: false })
-    const equipSword = DEFAULT_CATALOG.entities['base:warrior:passive:equip-sword']!
+    const equipSword = DEFAULT_CATALOG.entities['base:passive:6']!
     expect(definitionPermissionEffects(equipSword)).toEqual({ equipment: ['Sword'], dualWield: false, twoHanded: false, complete: true })
     expect(skillWeaponRule(Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Cure' && nativeIdentity(entity)?.mode === 'base')!)).toMatchObject({ state: 'known', value: { kind: 'nonWeaponAction' } })
   })

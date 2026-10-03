@@ -57,7 +57,7 @@ it('round-trips native and earlier bundled catalog revisions together without re
   const before = await loadLocalData()
   let data = before.localData
   for (const catalog of BUNDLED_CATALOGS) {
-    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'base:class:warrior' as EntityId }
+    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'base:job:0' as EntityId }
     data = savedCatalogVersion(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
   }
   await saveLocalData(data, before.revision)

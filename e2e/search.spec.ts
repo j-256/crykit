@@ -275,7 +275,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await search(page, 'Iron Sword item')
   await palette.locator('[data-universal-result="true"]').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
   await expect(page.getByRole('button', { name: 'Create personal version', exact: true })).toHaveCount(0)
-  await openSavedCatalogVersion(page, 'base:item:iron-sword', 'Synthetic tempered sword', { aliases: ['Iron Sword', 'Synthetic blade'], fields: { Category: { state: 'known', value: 'Synthetic weapons' } } })
+  await openSavedCatalogVersion(page, 'base:equipment:11', 'Synthetic tempered sword', { aliases: ['Iron Sword', 'Synthetic blade'], fields: { Category: { state: 'known', value: 'Synthetic weapons' } } })
 
   await page.getByRole('button', { name: 'Collect into Game Setup revision', exact: true }).click()
   const collection = page.getByRole('dialog', { name: 'Collect into Game Setup revision', exact: true })

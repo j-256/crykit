@@ -34,7 +34,7 @@ describe('local planner persistence', () => {
 
   it('round-trips travel acquisitions through local persistence and native backups', async () => {
     const loaded = await loadLocalData()
-    const entity = DEFAULT_CATALOG.entities['base:item:owl-drum']!
+    const entity = DEFAULT_CATALOG.entities['base:item:49']!
     const subject = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entity.id }
     const changed = setAcquisitionProgress(loaded.localData, { subject, displayName: entity.name, acquired: true, expectedRevision: loaded.revision })
     await saveLocalData(changed, loaded.revision)

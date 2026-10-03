@@ -4,12 +4,12 @@ import { catalogArtwork, menuIcon, nativeUiArtwork, wikiSprite } from './sprites
 import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
-  const entity = { id: 'base:item:short-sword' as EntityId, kind: 'item' as const }
+  const entity = { id: 'base:equipment:0' as EntityId, kind: 'item' as const }
   const builtin = 'crystal-project-public-starter'
 
   it('uses the native seal binding and local currency rectangles for UI artwork', () => {
     const seal = nativeUiArtwork('classSeal')!
-    const warriorSeal = catalogArtwork(builtin, { id: 'base:item:warrior-seal' as EntityId, kind: 'item' })!
+    const warriorSeal = catalogArtwork(builtin, { id: 'base:equipment:564' as EntityId, kind: 'item' })!
     expect(seal.url).toBe(warriorSeal.url)
     expect(seal.asset.sha256).toBe('fd09143e8ce983ae3713e9726c2131202f8c4a6db4884163096c8f14797ea6c8')
     const coins = (['goldCoin', 'silverCoin', 'copperCoin'] as const).map(key => nativeUiArtwork(key)!)
@@ -75,7 +75,7 @@ describe('bundled artwork identity', () => {
   })
 
   it('falls back to pinned wiki artwork when no exact native binding exists', () => {
-    const artwork = catalogArtwork(builtin, { id: 'base:item:captain-s-hat' as EntityId, kind: 'item' })
+    const artwork = catalogArtwork(builtin, { id: 'base:item:ref-76' as EntityId, kind: 'item' })
     expect(artwork?.source).toBe('wiki')
     if (artwork?.source !== 'wiki') throw new Error('Expected wiki artwork')
     expect(artwork.url).toMatch(/wiki-sprites\/[^/]+\.gif/)
@@ -94,7 +94,7 @@ describe('bundled artwork identity', () => {
   })
 
   it('resolves exact Equipment Expansion cells from custom and base-game sheets', () => {
-    const custom = catalogArtwork(builtin, { id: 'mod:equipment-expansion:item:triton-s-cloak' as EntityId, kind: 'item' })
+    const custom = catalogArtwork(builtin, { id: 'mod:equipment-expansion:equipment:642' as EntityId, kind: 'item' })
     expect(custom?.source).toBe('mod')
     if (custom?.source !== 'mod') throw new Error('Expected exact mod artwork')
     expect(custom?.url).toMatch(/mod-sprites\/[a-f0-9]{64}\.png/)
@@ -102,7 +102,7 @@ describe('bundled artwork identity', () => {
     expect(custom?.asset.descriptionUrl).toBeUndefined()
     expect(custom?.binding.sources[0]).toMatchObject({ locator: 'Equipment/zrghr-2-32x32, cell 43' })
     expect(custom?.provenance).toBe('mod-export')
-    const base = catalogArtwork(builtin, { id: 'mod:equipment-expansion:item:heavy-edge' as EntityId, kind: 'item' })
+    const base = catalogArtwork(builtin, { id: 'mod:equipment-expansion:equipment:592' as EntityId, kind: 'item' })
     expect(base?.source).toBe('mod')
     if (base?.source !== 'mod') throw new Error('Expected reused base-game mod artwork')
     expect(base?.url).toMatch(/mod-sprites\/[a-f0-9]{64}\.png/)
@@ -115,7 +115,7 @@ describe('bundled artwork identity', () => {
     expect(catalogArtwork('synthetic-import', entity)).toBeUndefined()
     expect(catalogArtwork(builtin, { ...entity, kind: 'ability' })).toBeUndefined()
     expect(catalogArtwork(builtin, { ...entity, id: 'synthetic:item:short-sword' as EntityId })).toBeUndefined()
-    const mod = { id: 'mod:equipment-expansion:item:heavy-edge' as EntityId, kind: 'item' as const }
+    const mod = { id: 'mod:equipment-expansion:equipment:592' as EntityId, kind: 'item' as const }
     expect(catalogArtwork('synthetic-import', mod)).toBeUndefined()
     expect(catalogArtwork(builtin, { ...mod, kind: 'ability' })).toBeUndefined()
     expect(wikiSprite(builtin, mod)).toBeUndefined()

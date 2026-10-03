@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
 import type { CatalogRef, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
@@ -11,7 +12,7 @@ const option = (name: string) => options.find((entry) => entry.name === name)!
 
 describe('build choice evidence', () => {
   it('excludes only identified reference articles, including their personal lineage', () => {
-    const article = option('Katanas')
+    const article = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(entry => entry.name === 'Katanas')!
     expect(isReferenceArticle(localData, article.ref)).toBe(true)
     expect(isReferenceArticle(localData, option('Muramasa').ref)).toBe(false)
     expect(isReferenceArticle(localData, { ...(article.ref as CatalogRef), catalogId: 'unrelated-catalog' as CatalogRef['catalogId'] })).toBe(false)

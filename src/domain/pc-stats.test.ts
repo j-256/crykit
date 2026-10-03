@@ -10,8 +10,8 @@ import { addTestDefinition, createTestLocalData, personalRef } from './test-help
 import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef } from './types'
 
 const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
-const warrior = ref('base:class:warrior')
-const wizard = ref('base:class:wizard')
+const warrior = ref('base:job:0')
+const wizard = ref('base:job:3')
 const resolve = (value: EntityRef) => value.kind === 'catalog' ? DEFAULT_CATALOG.entities[value.entityId] : undefined
 const content = (primary = warrior): BuildRevisionContent => ({ primaryClass: primary, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: defaultCalculation(primary) })
 
@@ -74,8 +74,8 @@ describe('native sheet calculations', () => {
     expect(changed.neutral.MND).not.toBe(estimate.neutral.MND)
     const foreign = { ...warrior, catalogId: 'unrelated' as CatalogRef['catalogId'] }
     expect(nativeStatRecord(foreign, 'job', () => undefined)).toBeUndefined()
-    expect(nativeStatRecord(ref('base:warrior:passive:equip-sword'), 'passive', resolve)?.Name).toBe('Equip Sword')
-    expect(calculatePCStats({ ...content(ref('base:class:cleric')), passives: [{ ref: ref('base:warrior:passive:equip-sword') }] }, SUGGESTED_BUILD_SLOTS, resolve).issues).toEqual([])
+    expect(nativeStatRecord(ref('base:passive:6'), 'passive', resolve)?.Name).toBe('Equip Sword')
+    expect(calculatePCStats({ ...content(ref('base:job:4')), passives: [{ ref: ref('base:passive:6') }] }, SUGGESTED_BUILD_SLOTS, resolve).issues).toEqual([])
   })
   it('keeps totals unresolved for incomplete growth, unknown observations and absent numeric identities', () => {
     const original = content()
@@ -142,7 +142,7 @@ describe('native sheet calculations', () => {
   })
   it('requires an unknown sub-command only when inherited innates affect the sheet', () => {
     expect(calculatePCStats(content(), SUGGESTED_BUILD_SLOTS, resolve, [], true).issues).toEqual([])
-    const mimic = calculatePCStats(content(ref('base:class:mimic')), SUGGESTED_BUILD_SLOTS, resolve, [], true)
+    const mimic = calculatePCStats(content(ref('base:job:22')), SUGGESTED_BUILD_SLOTS, resolve, [], true)
     expect(mimic.neutral.HP).toBeNull()
     expect(mimic.issues).toContain('Secondary class is unknown and its innates affect this loadout.')
   })

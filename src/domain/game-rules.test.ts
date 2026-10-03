@@ -67,7 +67,7 @@ describe('data-backed game setup rules', () => {
 
   it('feeds mod constants into native sheet calculations and does not apply enemy difficulty multipliers to the player', async () => {
     const mod = await importMod('unarmed', { System: { BattleConfig: { ...NATIVE_DATA.battleConfig, StrWhileUnarmedBonusFlat: 60 } } })
-    const warrior: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:class:warrior' as EntityId }
+    const warrior: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
     const passive: CatalogRef = { ...warrior, entityId: 'synthetic-unarmed' as EntityId }
     const content: BuildRevisionContent = { primaryClass: warrior, secondaryClass: null, equipment: {}, passives: [{ ref: passive }], contextAssumptions: [], calculation: defaultCalculation(warrior) }
     const resolve = (ref: typeof warrior | { kind: 'personal'; definitionId: string }) => ref.kind === 'catalog' && ref.entityId === passive.entityId ? { id: passive.entityId, name: 'Synthetic unarmed', kind: 'passive' as const, aliases: [], sources: [], fields: { 'Crystal Edit source record': { state: 'known' as const, value: { StatMods: [{ Tag: 474, Value1: 0, Value2: 0 }] } } } } : ref.kind === 'catalog' ? DEFAULT_CATALOG.entities[ref.entityId] : undefined
@@ -93,9 +93,9 @@ describe('data-backed game setup rules', () => {
 
   it('uses the Game Setup balance mode before an independent calculation assumption', () => {
     const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
-    const warrior = ref('base:class:warrior')
+    const warrior = ref('base:job:0')
     const body = SUGGESTED_BUILD_SLOTS.find(slot => slot.equipmentRole === 'body')!
-    const content: BuildRevisionContent = { primaryClass: warrior, secondaryClass: null, equipment: { [body.id]: { ref: ref('base:item:plate-of-lion') } }, passives: [], contextAssumptions: [], calculation: defaultCalculation(warrior) }
+    const content: BuildRevisionContent = { primaryClass: warrior, secondaryClass: null, equipment: { [body.id]: { ref: ref('base:equipment:130') } }, passives: [], contextAssumptions: [], calculation: defaultCalculation(warrior) }
     const resolve = (value: CatalogRef | { kind: 'personal'; definitionId: string }) => value.kind === 'catalog' ? DEFAULT_CATALOG.entities[value.entityId] : undefined
     const standard = calculatePCStats(content, SUGGESTED_BUILD_SLOTS, resolve)
     const expected = calculatePCStats({ ...content, calculation: { ...content.calculation!, pcMode: 'vanilla' } }, SUGGESTED_BUILD_SLOTS, resolve)

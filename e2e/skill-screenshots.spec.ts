@@ -131,7 +131,7 @@ for (const ambiguous of [false, true]) {
       await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
       await classChoice.selectOption({ label: 'Ninja' })
     } else {
-      await expect(classChoice).toHaveValue(/base:class:ninja/)
+      await expect(classChoice).toHaveValue(/base:job:18/)
       await expect(dialog.getByText(/Suggested Ninja; check it against the screenshot/)).toBeVisible()
     }
     await expect(dialog.getByText('Ninja names filled', { exact: true })).toBeVisible()

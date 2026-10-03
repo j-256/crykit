@@ -9,8 +9,8 @@ import { calculateStatBreakdown } from './stat-breakdown'
 import type { BuildCalculationPlan, BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef } from './types'
 
 const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
-const warrior = ref('base:class:warrior')
-const wizard = ref('base:class:wizard')
+const warrior = ref('base:job:0')
+const wizard = ref('base:job:3')
 const gear = ref('synthetic-breakdown-gear')
 const passive = ref('synthetic-breakdown-passive')
 const synthetic = new Map<string, CatalogEntity>([
