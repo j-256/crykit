@@ -206,6 +206,8 @@ While connected, open **Data & settings > Offline & storage**. If the app is not
 
 When an update is available, save open drafts and choose **Apply app update** in the same section. Updates wait for your approval.
 
+If an update or artwork change does not appear, save your changes and choose **Refresh app** under **Data & settings > Offline & storage** while connected. This downloads the latest app files and reloads the current tab, keeping saved Playthroughs, Builds, imported references, browser preferences, and Mod Inspector originals and drafts. It also repairs cached files when the app version has not changed. If a download fails, the tab stays open and the existing cached files remain available; reconnect and retry. Clearing all site data in developer tools also deletes your saved records, so use **Refresh app** for app updates.
+
 Updates retain the active and previous offline builds, pruning older caches from the same installation. An update never forces other tabs to reload. Reload older tabs after saving their drafts to pick up the active build; IndexedDB records are separate from these caches.
 
 Offline use requires the hosted app or a [local production build](development.md#preview-the-production-app). Development mode does not install an offline service worker.
