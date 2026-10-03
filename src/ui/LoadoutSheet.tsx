@@ -35,11 +35,11 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
           <section aria-label="Equipment" className="build-sheet__group"><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentFields}</div></section>
           <section aria-label="Passives" className="build-sheet__group"><h3><Icon name="spark"/>Equipped passives</h3>{passiveTools}<div className="build-sheet__passives">{passiveFields}</div></section>
         </div>
-        {selection && <aside aria-label="Selection details" className="build-sheet__preview">
+        <aside aria-label="Selection details" className="build-sheet__preview">
           <span className="eyebrow">Selection details</span>
-          <h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={selection.ref}/>{nativeDisplayName(selection.record)}</h3>
-          <LoadoutSelectionDetails comparedWith={comparedWith} option={selection} showClassRatings={!content.primaryClass || entityDefinitionKey(selection.ref) !== entityDefinitionKey(content.primaryClass)}/>{selectionActions}
-        </aside>}
+          {selection && <h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={selection.ref}/>{nativeDisplayName(selection.record)}</h3>}
+          <LoadoutSelectionDetails comparedWith={comparedWith} option={selection} showClassRatings={!selection || !content.primaryClass || entityDefinitionKey(selection.ref) !== entityDefinitionKey(content.primaryClass)}/>{selection && selectionActions}
+        </aside>
       </div>
       {context}
       <CalculatedStats gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onChange={onCalculationChange} onReviewGameSetup={onReviewGameSetup} recorded={recorded} slots={slots} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
