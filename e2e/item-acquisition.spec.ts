@@ -4,7 +4,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 
 test('an item leads to its shop and required item, with usable mobile layout', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
-  await page.goto(referencePath('base:item:quintar-berries'))
+  await page.goto(referencePath('base:item:203'))
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })
   await expect(section.getByRole('heading', { name: 'Buy', exact: true })).toBeVisible()
   await expect(section).toContainText('Dione Shrine')
@@ -27,7 +27,7 @@ test('an item leads to its shop and required item, with usable mobile layout', {
 })
 
 test('an item leads to its monster source and preserves separate steal rates', async ({ page }) => {
-  await page.goto(referencePath('base:item:tonic'))
+  await page.goto(referencePath('base:item:18'))
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })
   const slime = section.locator('.acquisition-route').filter({ has: page.getByRole('link', { name: 'Slime (level 3)', exact: true }) })
   await expect(slime.filter({ hasText: 'Base drop chance' })).toContainText('50%')
@@ -39,7 +39,7 @@ test('an item leads to its monster source and preserves separate steal rates', a
 })
 
 test('crafting ingredients link to their own acquisition routes and missing routes stay explicit', async ({ page }) => {
-  await page.goto(referencePath('base:item:nans-secret-recipe'))
+  await page.goto(referencePath('base:item:54'))
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })
   await expect(section.getByRole('heading', { name: 'Craft', exact: true })).toBeVisible()
   await section.getByRole('link', { name: 'Secret Veggie', exact: true }).first().click()
@@ -47,14 +47,15 @@ test('crafting ingredients link to their own acquisition routes and missing rout
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText('Gourmet')
   await page.goto(referencePath('base:item:46'))
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText('No acquisition route found')
-  await page.goto(referencePath('base:item:ibek-bell'))
+  await page.goto(referencePath('base:item:50'))
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText('Additional acquisition guidance is recorded in Definition facts below')
   await expect(page.getByText('Reward for clearing the Ancient Reservoir in Poko Poko Desert.', { exact: true })).toBeVisible()
+  await page.getByText('Source and version details', { exact: true }).click()
   await expect(page.getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
 })
 
 test('item sources and prerequisite navigation work offline', async ({ page, context }) => {
-  await page.goto(referencePath('base:item:quintar-berries'))
+  await page.goto(referencePath('base:item:203'))
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()

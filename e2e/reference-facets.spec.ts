@@ -104,7 +104,7 @@ test('supplemental reference audiences stay hidden by default and remain directl
   await expect(technical).toHaveCount(0)
   await expect(page).not.toHaveURL(/audience=technical/)
 
-  await page.goto(referencePath('base:mechanic:stat:AbilityItemConsumptionDown') + '?v=1')
+  await page.goto(referencePath('base:mechanic:stat:ref-445') + '?v=1')
   await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
   await expect(page).not.toHaveURL(/audience=technical/)
 

@@ -163,7 +163,7 @@ describe('sharing snapshots', () => {
     const setup = data.gameSetups[data.planningGameSetupRevisionId!]!
     const buildId = asId<BuildId>('mod-build')
     data = createBuild(data, { id: buildId, title: 'Mod build', gameSetupId: setup.gameSetupId, now: TEST_NOW })
-    data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content: { primaryClass: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: asId<EntityId>('base:class:warrior') }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, now: TEST_NOW })
+    data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content: { primaryClass: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: asId<EntityId>('base:job:0') }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, now: TEST_NOW })
     const payload = decodeSharePayload(encodeSharePayload(createSharePayload(data, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! })))
     expect(Object.keys(payload.records.gameSetups)).toContain(originId)
     const preview = sharePreviewData(payload)

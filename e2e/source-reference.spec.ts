@@ -6,7 +6,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { openCustomDefinition, openSavedCatalogVersion } from './definition-fixtures'
 
 test('reference entries are read-only and offer source issue reporting', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:item:artisan-rapier'))
+  await page.goto(referencePath('base:equipment:160'))
   await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Create personal version', exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
@@ -18,7 +18,7 @@ test('reference entries are read-only and offer source issue reporting', { tag: 
 })
 
 test('unused correction metadata cannot change source values or break planner backups', async ({ page }) => {
-  const path = referencePath('base:item:artisan-rapier')
+  const path = referencePath('base:equipment:160')
   await page.goto(path)
   await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
@@ -47,9 +47,9 @@ test('unused correction metadata cannot change source values or break planner ba
 })
 
 test('pickers only offer editing for standalone custom definitions', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:item:artisan-rapier'))
+  await page.goto(referencePath('base:equipment:160'))
   await openCustomDefinition(page)
-  await openSavedCatalogVersion(page, 'base:item:artisan-rapier', 'Synthetic saved rapier')
+  await openSavedCatalogVersion(page, 'base:equipment:160', 'Synthetic saved rapier')
   await page.goto('/#/inventory/new')
   const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   const picker = page.getByRole('dialog', { name: 'Choose Item definition', exact: true })

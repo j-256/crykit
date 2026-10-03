@@ -3,7 +3,7 @@ import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR = referencePath('base:class:warrior')
+const WARRIOR = referencePath('base:job:0')
 
 async function checkDetailLayout(page: Page, desktop: boolean) {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
@@ -62,7 +62,7 @@ test('gives reference tables the detail width and restores filtered browsing', {
 
 test('uses the same wide tables and clean headings for personal definitions', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto(WARRIOR)
-  await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic wide Warrior')
+  await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic wide Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic wide Warrior', exact: true })).toBeVisible()
   await checkDetailLayout(page, testInfo.project.name === 'desktop')
 })

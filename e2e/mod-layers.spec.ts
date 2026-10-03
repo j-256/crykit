@@ -74,7 +74,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   const old = await exportData(page)
   const build = Object.values(old.localData.builds).find(value => value.title === 'Pinned mod build')!
   const oldRevision = old.localData.buildRevisions[build.latestRevisionId!]!
-  expect(oldRevision.content.primaryClass).toMatchObject({ catalogId: DEFAULT_CATALOG.id, entityId: 'base:class:warrior' })
+  expect(oldRevision.content.primaryClass).toMatchObject({ catalogId: DEFAULT_CATALOG.id, entityId: 'base:job:0' })
   const changed = await openSettings(page, 'Game Setup')
   await changed.getByRole('button', { name: 'Move Layer B earlier', exact: true }).click()
   const priorHeading = await changed.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
@@ -109,7 +109,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
 test('changing layers requires an explicit personal override decision and label edits retain the effective catalog', async ({ page }) => {
   const mods = await syntheticModLayers()
   const source = createSampleLocalData(DEFAULT_CATALOG)
-  const override = savedCatalogVersion(source, [DEFAULT_CATALOG], { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
+  const override = savedCatalogVersion(source, [DEFAULT_CATALOG], { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }, name: 'Personal fighter' })
   const pinned = coalesceDefinitionOverrides(override.localData, { sourceGameSetupRevisionId: source.planningGameSetupRevisionId!, definitionRefs: [override.ref], activate: true })
   const localData = setPlaythroughGameSetup(pinned, { gameSetupRevisionId: pinned.planningGameSetupRevisionId! })
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))

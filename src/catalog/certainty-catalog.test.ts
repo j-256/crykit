@@ -20,11 +20,11 @@ describe('source-backed catalog certainty', () => {
   const sourceCatalog = addNativeBase(assembleBundledCatalog(STARTER_CATALOG))
   it('uses canonical identities directly and rejects obsolete IDs', () => {
     expect(Object.keys(DEFAULT_CATALOG.entities).every(id => /^(base|mod):/.test(id))).toBe(true)
-    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:treasure-finder')?.id).toBe('base:item:treasure-finder')
-    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:item:heavy-edge')?.id).toBe('mod:equipment-expansion:item:heavy-edge')
+    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:196')?.id).toBe('base:item:196')
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:equipment:592')?.id).toBe('mod:equipment-expansion:equipment:592')
     expect(catalogEntity(DEFAULT_CATALOG, nativeEntityId('monster', 2))?.id).toBe(baseGameEntityId('monster', 2))
     expect(catalogEntity(DEFAULT_CATALOG, 'mod:moonlight-project:class:26')?.id).toBe('mod:moonlight-project:class:26')
-    for (const id of ['wiki:item:treasure-finder', 'switch:class:freelancer', 'native:base:monster:2']) expect(catalogEntity(DEFAULT_CATALOG, id)).toBeUndefined()
+    for (const id of ['wiki:item:treasure-finder', 'switch:class:freelancer', 'native:base:monster:2', 'base:item:quintar-berries', 'mod:equipment-expansion:item:heavy-edge']) expect(catalogEntity(DEFAULT_CATALOG, id)).toBeUndefined()
     expect(catalogEntity(DEFAULT_CATALOG, 'wiki:item:nonexistent')).toBeUndefined()
     for (const id of ['__proto__', 'constructor', 'toString']) expect(catalogEntity(DEFAULT_CATALOG, id)).toBeUndefined()
     expect(baseGameEntityId('ability', 34, 'Vanilla')).not.toBe(baseGameEntityId('ability', 34))
@@ -62,19 +62,20 @@ describe('source-backed catalog certainty', () => {
   })
 
   it('joins exact base-tree identities, keeps native relationships, and exposes no duplicate numeric skill', () => {
-    const taunt = DEFAULT_CATALOG.entities['base:warrior:ability:taunt']!
+    const taunt = DEFAULT_CATALOG.entities['base:ability:28']!
     expect(nativeIdentity(taunt)).toEqual({ database: 'ability', databaseId: 28, mode: 'base' })
     expect(nativeSourceRecord(taunt)?.MPCost).toBe(0)
-    expect(DEFAULT_CATALOG.entities[nativeEntityId('ability', 28)]).toBeUndefined()
-    const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
+    expect(DEFAULT_CATALOG.entities[nativeEntityId('ability', 28)]).toBe(taunt)
+    expect(catalogEntity(DEFAULT_CATALOG, 'base:warrior:ability:taunt')).toBeUndefined()
+    const warrior = DEFAULT_CATALOG.entities['base:job:0']!
     expect(nativeRelationships(DEFAULT_CATALOG, warrior)).toEqual(expect.arrayContaining([expect.objectContaining({ targetId: taunt.id, databaseId: 28 })]))
     expect(classTreeSkill(warrior, exportedTree(warrior).find(node => node.dataId === 28 && node.nodeType === 2)!, DEFAULT_CATALOG).definition?.id).toBe(taunt.id)
   })
 
   it('keeps null as documented source absence and lets equipment slots follow the chosen setup', () => {
-    const tonic = DEFAULT_CATALOG.entities['base:item:tonic']!
+    const tonic = DEFAULT_CATALOG.entities['base:item:18']!
     expect(tonic.fields['Increase Max Capacity By']).toMatchObject({ state: 'known', value: null })
-    const sword = DEFAULT_CATALOG.entities['base:item:short-sword']!
+    const sword = DEFAULT_CATALOG.entities['base:equipment:0']!
     expect(sword.fields.Cost).toBeUndefined()
     expect(sword.fields['Cost (copper)']).toMatchObject({ state: 'known', value: nativeSourceRecord(sword)?.Cost })
     expect(sword.slotKinds).toBeUndefined()

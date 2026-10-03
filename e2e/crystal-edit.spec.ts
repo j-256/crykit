@@ -11,7 +11,7 @@ import type { LocalData } from '../src/domain/types'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { nativeSourceRecord } from '../src/domain/native-game'
 
-const WARRIOR_PATH = referencePath('base:class:warrior')
+const WARRIOR_PATH = referencePath('base:job:0')
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -38,7 +38,7 @@ async function expectClassProvenance(page: Page) {
   await expect(sources).toContainText('Native job #0')
   await sources.getByText('Complete native source record', { exact: true }).click()
   await expect(raw).toBeVisible()
-  expect(JSON.parse((await raw.textContent())!)).toEqual(nativeSourceRecord(DEFAULT_CATALOG.entities['base:class:warrior']!))
+  expect(JSON.parse((await raw.textContent())!)).toEqual(nativeSourceRecord(DEFAULT_CATALOG.entities['base:job:0']!))
   await expect(raw.locator('..').locator('table, ol, ul')).toHaveCount(0)
   await expect(page.locator('.class-learn-tree')).toHaveCount(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -141,14 +141,14 @@ test('custom class imports preserve the playthrough and supply tree names and co
 })
 
 test('Scholar tree names monster learning and keeps its Adrenaline reference separate from the Warrior passive', async ({ page }) => {
-  await page.goto(WARRIOR_PATH.replace('warrior', 'scholar'))
+  await page.goto(referencePath('base:job:13'))
   const research = page.getByRole('region', { name: 'Class growth and learning' })
   await research.getByText('Learn tree', { exact: true }).click()
   const tree = research.getByRole('list', { name: 'Learn tree skills' })
   await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const adrenaline = tree.getByRole('link', { name: 'Monster magic Adrenaline Monster learning', exact: true })
   await expect(adrenaline).toBeVisible()
-  await expect(adrenaline).toHaveAttribute('href', referencePath('base:scholar:monster-magic:adrenaline').slice(1))
+  await expect(adrenaline).toHaveAttribute('href', referencePath('base:ability:202').slice(1))
   await expect(tree.getByRole('link', { name: 'Monster magic Reflection Monster learning', exact: true })).toBeVisible()
   await expect(tree.getByText(/^(Gate|Empty|Ability #|Passive #)/)).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
@@ -163,7 +163,7 @@ test('native class trees retain named skills and exact links in the native catal
   await expect(research.locator('.learn-tree-sources')).toHaveCount(0)
   const taunt = tree.getByRole('link', { name: 'ability Taunt 0 LP', exact: true })
   await expect(taunt).toBeVisible()
-  await expect(taunt).toHaveAttribute('href', referencePath('base:warrior:ability:taunt').slice(1))
+  await expect(taunt).toHaveAttribute('href', referencePath('base:ability:28').slice(1))
   await expect(tree.getByRole('link', { name: 'passive Equip Axe 2 LP', exact: true })).toBeVisible()
   await taunt.click()
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
@@ -224,7 +224,7 @@ test('draws every simultaneous prerequisite into its skill and keeps arrows alig
 
 
 test('native learn trees resolve game names and draw simultaneous incoming arrows', async ({ page }) => {
-  await page.goto(referencePath('base:class:aegis'))
+  await page.goto(referencePath('base:job:10'))
   const research = page.getByRole('region', { name: 'Class growth and learning', exact: true })
   await research.getByText('Learn tree', { exact: true }).click()
   const destination = research.locator('[data-position="2:1"]')
@@ -235,7 +235,7 @@ test('native learn trees resolve game names and draw simultaneous incoming arrow
 
 test('native personal class versions retain raw provenance below their gameplay sections', async ({ page }) => {
   await page.goto(WARRIOR_PATH)
-  await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic personal Warrior')
+  await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
   await expectClassProvenance(page)
   await page.getByRole('region', { name: 'Class growth and learning' }).getByText('Learn tree', { exact: true }).click()

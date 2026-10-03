@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
-import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlocks'
+import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlock-groups'
 import { catalogEntity } from '../domain/entity-identities'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId } from '../domain/types'

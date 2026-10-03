@@ -111,6 +111,6 @@ describe('source-backed enemy difficulty previews', () => {
     expect(referenceEnemyDifficulties(withFields({ 'Game version': known('9.9.9') }))).toEqual([])
     expect(referenceEnemyDifficulties(withFields({ 'Game platform': known('Switch') }))).toEqual([])
     for (const mode of ['Unknown', '__proto__', 'toString']) expect(referenceEnemyDifficulties({ ...enemy, legacy: { native: { database: 'monster', databaseId: 316, mode } } })).toEqual([])
-    expect(referenceEnemyDifficulties(DEFAULT_CATALOG.entities['base:item:ether'])).toEqual([])
+    expect(referenceEnemyDifficulties(DEFAULT_CATALOG.entities['base:item:1'])).toEqual([])
   })
 })

@@ -55,7 +55,7 @@ describe('sample starter team', () => {
 
   it('rejects missing or mismatched catalog definitions instead of creating broken references', () => {
     expect(() => createSampleLocalData({ ...DEFAULT_CATALOG, entities: {} })).toThrow('sample team requires')
-    const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
+    const warrior = DEFAULT_CATALOG.entities['base:job:0']!
     expect(() => createSampleLocalData({ ...DEFAULT_CATALOG, entities: { ...DEFAULT_CATALOG.entities, [warrior.id]: { ...warrior, kind: 'item' } } })).toThrow('sample team requires')
   })
 

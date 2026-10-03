@@ -1,5 +1,6 @@
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityId, JsonValue, Knowledge, NumericContribution, SourceRef } from '../domain/types'
 import expansionJson from './equipment-expansion.json' with { type: 'json' }
+import { bundledModEntityId } from '../domain/bundled-mods'
 
 interface ExpansionSource {
   readonly projectId: string
@@ -181,8 +182,8 @@ function addRecord(base: CatalogEntity | undefined, family: string, record: Read
   }
 }
 
-export const EQUIPMENT_EXPANSION_ENTITY_IDS: readonly string[] = Object.freeze(Object.entries(DATA.families).flatMap(([family, records]) => records.map(record => entityId(family, recordName(record)) as string)))
-export const EQUIPMENT_EXPANSION_EQUIPMENT_IDS: readonly string[] = Object.freeze((DATA.families.Equipment ?? []).map(record => entityId('Equipment', recordName(record)) as string))
+export const EQUIPMENT_EXPANSION_ENTITY_IDS: readonly string[] = Object.freeze(Object.entries(DATA.families).flatMap(([family, records]) => records.map(record => bundledModEntityId('equipment-expansion', family, Number(record.ID)) as string)))
+export const EQUIPMENT_EXPANSION_EQUIPMENT_IDS: readonly string[] = Object.freeze((DATA.families.Equipment ?? []).map(record => bundledModEntityId('equipment-expansion', 'Equipment', Number(record.ID)) as string))
 
 export function addEquipmentExpansionFacts(base: CatalogSnapshot): CatalogSnapshot {
   const entities = { ...base.entities }

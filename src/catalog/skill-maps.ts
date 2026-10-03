@@ -5,6 +5,7 @@ import { definitionLineageRootRef, preferredDefinitionRef, resolveDefinition, sa
 import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-trees'
 import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, LocalData, GameSetupRevision, GameSetupRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
 import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { compileBundledSourceId } from './bundled'
 
 export const SWITCH_MOD_PACKS_MAP_SET = CONFIRMED_SWITCH_MOD_SETUP.id
 export const CONFIRMED_SKILL_MAP_SETS = Object.freeze([CONFIRMED_SWITCH_MOD_SETUP])
@@ -18,7 +19,7 @@ export interface ConfirmedSkillMap {
 }
 
 function starterRef(id: string): CatalogRef {
-  return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(id) }
+  return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(compileBundledSourceId(id)) }
 }
 
 function confirmedClassMap(className: string, assignments: readonly (readonly [number, number, LearnedNodeKind, string])[], unresolved: readonly (readonly [number, number])[] = [], classId = `base:class:${className}`): ConfirmedSkillMap {

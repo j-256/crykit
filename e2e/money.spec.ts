@@ -27,10 +27,10 @@ test('whole and mixed coin prices use local icons and remain available offline',
   const external: string[] = []
   page.on('request', request => { if (!['127.0.0.1', 'localhost'].includes(new URL(request.url()).hostname)) external.push(request.url()) })
   for (const [entityId, label, coins] of [
-    ['base:item:cosplay-garb', '10 silver', 1],
-    ['base:item:acrobat-shoes', '3 gold, 50 silver', 2],
-    ['base:item:bronze-suit', '7 silver, 10 copper', 2],
-    ['base:item:archmage-vest', '25 gold', 1],
+    ['base:equipment:336', '10 silver', 1],
+    ['base:equipment:320', '3 gold, 50 silver', 2],
+    ['base:equipment:107', '7 silver, 10 copper', 2],
+    ['base:equipment:337', '25 gold', 1],
   ] as const) {
     await page.goto(referencePath(entityId))
     await expect(costRow(page).getByRole('img', { name: label, exact: true })).toBeVisible()
@@ -46,7 +46,7 @@ test('whole and mixed coin prices use local icons and remain available offline',
   await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
-  await page.goto(referencePath('base:item:bronze-suit'))
+  await page.goto(referencePath('base:equipment:107'))
   await page.reload()
   await expect(costRow(page).getByRole('img', { name: '7 silver, 10 copper', exact: true })).toBeVisible()
   await loadedCoins(costRow(page), 2)
@@ -54,12 +54,12 @@ test('whole and mixed coin prices use local icons and remain available offline',
 })
 
 test('shop tables and descriptions show coins while custom editing retains copper units', async ({ page }) => {
-  await page.goto(referencePath('base:location:delende-camp-armor-shop'))
+  await page.goto(referencePath('base:location:ref-246'))
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Stout Shield', exact: true }) })
   await expect(row.getByRole('img', { name: '30 copper', exact: true })).toBeVisible()
   await loadedCoins(row, 1)
 
-  await page.goto(referencePath('base:item:gold-bow'))
+  await page.goto(referencePath('base:equipment:149'))
   const description = page.locator('.reference-detail > div').filter({ has: page.getByRole('heading', { name: 'Gold Bow', exact: true }) }).locator('p').first()
   await expect(description.getByRole('img', { name: '30 silver', exact: true })).toBeVisible()
   await expect(description).toContainText('Silver Bow x1')
@@ -87,7 +87,7 @@ test('failed coin images preserve readable denomination labels', async ({ browse
   const context = await browser.newContext({ serviceWorkers: 'block' })
   const page = await context.newPage()
   await page.route(url => Object.values(COIN_ARTWORK).some(asset => url.pathname.startsWith(`/assets/${asset}-`)), route => route.abort())
-  await page.goto(`${baseURL}${referencePath('base:item:acrobat-shoes')}`)
+  await page.goto(`${baseURL}${referencePath('base:equipment:320')}`)
   const cost = costRow(page)
   await expect(cost.getByRole('img', { name: '3 gold, 50 silver', exact: true })).toBeVisible()
   await expect(cost.locator('.money-coin img')).toHaveCount(0)

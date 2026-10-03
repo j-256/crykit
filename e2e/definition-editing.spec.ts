@@ -20,7 +20,7 @@ function fact(page: Page, name: string) {
 }
 
 test('custom definitions retain typed facts, failed drafts, and immutable revisions', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:item:artisan-rapier'))
+  await page.goto(referencePath('base:equipment:160'))
   await openCustomDefinition(page)
   const personal = await edit(page)
   await expect(personal.getByRole('region', { name: 'Definition overview' })).toBeVisible()
@@ -59,7 +59,7 @@ test('custom definitions retain typed facts, failed drafts, and immutable revisi
 })
 
 test('keeps custom validation and close recovery beside the fixed save controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:item:artisan-rapier'))
+  await page.goto(referencePath('base:equipment:160'))
   await openCustomDefinition(page)
   const editor = await edit(page)
   await setFact(editor, 'Attack', 'known', '')
@@ -81,8 +81,8 @@ test('keeps custom validation and close recovery beside the fixed save controls'
 })
 
 test('saved catalog versions retain research and reject direct editing', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:class:warrior'))
-  const definition = await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic personal Warrior')
+  await page.goto(referencePath('base:job:0'))
+  const definition = await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('button', { name: /Edit.*(definition|version)/ })).toHaveCount(0)
   await expect(page.getByText(/Saved catalog version. This record is read-only/)).toBeVisible()
   const research = page.getByRole('region', { name: 'Class growth and learning' })

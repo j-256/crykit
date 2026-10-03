@@ -2,8 +2,8 @@ import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
-const ITEM_PATH = referencePath('base:item:assassin-seal')
-const EQUIVALENT_ITEM_PATH = referencePath('base:item:adjudicator')
+const ITEM_PATH = referencePath('base:equipment:582')
+const EQUIVALENT_ITEM_PATH = referencePath('base:equipment:245')
 const ITEM_SOURCE = 'https://crystal-project.fandom.com/wiki/Assassin_Seal?oldid=12583'
 const TABLE_SOURCE = 'https://crystal-project.fandom.com/wiki/Accessories/table?oldid=12905'
 const SELECTED_LOCATION = 'Reward: Master Assassin in Shoudu Province'

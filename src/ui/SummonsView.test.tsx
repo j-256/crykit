@@ -10,9 +10,9 @@ import type { EntityId, LocalData } from '../domain/types'
 import { NavigationProvider, useNavigationController } from './navigation'
 import { summonEntries, SummonsView, type SummonsViewProps } from './SummonsView'
 
-const SHAKU = 'base:summoner:ability:shaku' as const
-const PAH = 'base:summoner:ability:pah' as const
-const PINGA = 'base:summoner:ability:pinga' as const
+const SHAKU = 'base:ability:223' as const
+const PAH = 'base:ability:234' as const
+const PINGA = 'base:ability:230' as const
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 

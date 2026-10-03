@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "catalogId": "crystal-project-public-starter",
   "revisionId": "catalog-v1",
-  "checksum": "builtin:sha256:4a9be9fa05aa2a159a04ef2aad29ace384ea0b9fcdb96997c60a5e2c44fe6531",
+  "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa",
   "states": {
-    "known": 113464,
-    "unknown": 1061,
+    "known": 113446,
+    "unknown": 1042,
     "conflicting": 520,
-    "notApplicable": 7037
+    "notApplicable": 7009
   },
   "scope": "Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states",
   "gaps": [
@@ -18,8 +18,8 @@
       "reason": "Supplemental source claims differ",
       "count": 2,
       "examples": [
-        "base:item:nan-s-cocoa",
-        "base:item:nan-s-stew"
+        "base:item:ref-144",
+        "base:item:ref-146"
       ]
     },
     {
@@ -29,9 +29,9 @@
       "reason": "Supplemental source claims differ",
       "count": 4,
       "examples": [
-        "base:item:shoudu-stew",
-        "base:item:nan-s-cocoa",
-        "base:item:nan-s-secret-recipe"
+        "base:item:132",
+        "base:item:ref-144",
+        "base:item:ref-145"
       ]
     },
     {
@@ -41,9 +41,9 @@
       "reason": "Supplemental source claims differ",
       "count": 513,
       "examples": [
-        "base:item:short-sword",
-        "base:item:iron-sword",
-        "base:item:contract"
+        "base:equipment:0",
+        "base:equipment:11",
+        "base:equipment:71"
       ]
     },
     {
@@ -53,7 +53,7 @@
       "reason": "Supplemental source claims differ",
       "count": 1,
       "examples": [
-        "base:mechanic:ability:KillsUser"
+        "base:mechanic:ability:ref-385"
       ]
     },
     {
@@ -63,9 +63,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 19,
       "examples": [
-        "mod:barbarian:ability:shout",
-        "mod:barbarian:ability:thick-skin",
-        "mod:barbarian:ability:enrage"
+        "mod:barbarian:ability:ref-1076",
+        "mod:barbarian:ability:ref-1077",
+        "mod:barbarian:ability:ref-1070"
       ]
     },
     {
@@ -75,9 +75,9 @@
       "reason": "The scraped wiki sources do not document class for this ability",
       "count": 20,
       "examples": [
-        "base:ability:aid",
-        "base:ability:amnesia",
-        "base:ability:attack"
+        "base:ability:ref-1",
+        "base:ability:ref-2",
+        "base:ability:ref-3"
       ]
     },
     {
@@ -87,9 +87,9 @@
       "reason": "The scraped wiki sources do not document cost for this ability",
       "count": 20,
       "examples": [
-        "base:ability:aid",
-        "base:ability:amnesia",
-        "base:ability:attack"
+        "base:ability:ref-1",
+        "base:ability:ref-2",
+        "base:ability:ref-3"
       ]
     },
     {
@@ -99,9 +99,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 19,
       "examples": [
-        "mod:barbarian:ability:shout",
-        "mod:barbarian:ability:thick-skin",
-        "mod:barbarian:ability:enrage"
+        "mod:barbarian:ability:ref-1076",
+        "mod:barbarian:ability:ref-1077",
+        "mod:barbarian:ability:ref-1070"
       ]
     },
     {
@@ -111,9 +111,9 @@
       "reason": "The scraped wiki sources do not document description for this ability",
       "count": 5,
       "examples": [
-        "base:ability:amnesia",
-        "base:ability:bulk-up",
-        "base:ability:chomp"
+        "base:ability:ref-2",
+        "base:ability:ref-7",
+        "base:ability:ref-8"
       ]
     },
     {
@@ -123,9 +123,9 @@
       "reason": "The scraped wiki sources do not document learning cost for this ability",
       "count": 20,
       "examples": [
-        "base:ability:aid",
-        "base:ability:amnesia",
-        "base:ability:attack"
+        "base:ability:ref-1",
+        "base:ability:ref-2",
+        "base:ability:ref-3"
       ]
     },
     {
@@ -135,9 +135,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 19,
       "examples": [
-        "mod:barbarian:ability:shout",
-        "mod:barbarian:ability:thick-skin",
-        "mod:barbarian:ability:enrage"
+        "mod:barbarian:ability:ref-1076",
+        "mod:barbarian:ability:ref-1077",
+        "mod:barbarian:ability:ref-1070"
       ]
     },
     {
@@ -147,9 +147,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 19,
       "examples": [
-        "mod:barbarian:ability:shout",
-        "mod:barbarian:ability:thick-skin",
-        "mod:barbarian:ability:enrage"
+        "mod:barbarian:ability:ref-1076",
+        "mod:barbarian:ability:ref-1077",
+        "mod:barbarian:ability:ref-1070"
       ]
     },
     {
@@ -159,9 +159,9 @@
       "reason": "The scraped wiki sources do not document type for this ability",
       "count": 20,
       "examples": [
-        "base:ability:aid",
-        "base:ability:amnesia",
-        "base:ability:attack"
+        "base:ability:ref-1",
+        "base:ability:ref-2",
+        "base:ability:ref-3"
       ]
     },
     {
@@ -195,9 +195,9 @@
       "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
       "count": 4,
       "examples": [
-        "mod:bloodmage:class:bloodmage",
-        "mod:tempest:class:tempest",
-        "mod:forcemage:class:forcemage"
+        "mod:bloodmage:class:ref-1083",
+        "mod:tempest:class:ref-1099",
+        "mod:forcemage:class:ref-1085"
       ]
     },
     {
@@ -207,9 +207,9 @@
       "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
       "count": 4,
       "examples": [
-        "mod:bloodmage:class:bloodmage",
-        "mod:tempest:class:tempest",
-        "mod:forcemage:class:forcemage"
+        "mod:bloodmage:class:ref-1083",
+        "mod:tempest:class:ref-1099",
+        "mod:forcemage:class:ref-1085"
       ]
     },
     {
@@ -219,9 +219,9 @@
       "reason": "No matching detail page or structured row was found in the bundled community wiki snapshot",
       "count": 4,
       "examples": [
-        "mod:bloodmage:class:bloodmage",
-        "mod:tempest:class:tempest",
-        "mod:forcemage:class:forcemage"
+        "mod:bloodmage:class:ref-1083",
+        "mod:tempest:class:ref-1099",
+        "mod:forcemage:class:ref-1085"
       ]
     },
     {
@@ -231,9 +231,9 @@
       "reason": "The class page names this command but does not provide a separate command summary",
       "count": 24,
       "examples": [
-        "base:command:battle-skill",
-        "base:command:beatmaker",
-        "base:command:black-magic"
+        "base:command:ref-28",
+        "base:command:ref-29",
+        "base:command:ref-30"
       ]
     },
     {
@@ -243,8 +243,8 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 2,
       "examples": [
-        "mod:barbarian:innate:toughness",
-        "mod:tempest:innate:squall"
+        "mod:barbarian:innate:ref-1079",
+        "mod:tempest:innate:ref-1100"
       ]
     },
     {
@@ -254,8 +254,8 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 2,
       "examples": [
-        "mod:barbarian:innate:toughness",
-        "mod:tempest:innate:squall"
+        "mod:barbarian:innate:ref-1079",
+        "mod:tempest:innate:ref-1100"
       ]
     },
     {
@@ -265,9 +265,9 @@
       "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
       "count": 25,
       "examples": [
-        "base:warrior:innate:fighter",
-        "base:monk:innate:aversive",
-        "base:rogue:innate:pinpoint"
+        "base:innate:ref-1062",
+        "base:innate:ref-640",
+        "base:innate:ref-935"
       ]
     },
     {
@@ -277,8 +277,8 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 2,
       "examples": [
-        "mod:barbarian:innate:toughness",
-        "mod:tempest:innate:squall"
+        "mod:barbarian:innate:ref-1079",
+        "mod:tempest:innate:ref-1100"
       ]
     },
     {
@@ -288,9 +288,9 @@
       "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
       "count": 25,
       "examples": [
-        "base:warrior:innate:fighter",
-        "base:monk:innate:aversive",
-        "base:rogue:innate:pinpoint"
+        "base:innate:ref-1062",
+        "base:innate:ref-640",
+        "base:innate:ref-935"
       ]
     },
     {
@@ -300,8 +300,8 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 2,
       "examples": [
-        "mod:barbarian:innate:toughness",
-        "mod:tempest:innate:squall"
+        "mod:barbarian:innate:ref-1079",
+        "mod:tempest:innate:ref-1100"
       ]
     },
     {
@@ -311,9 +311,9 @@
       "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
       "count": 25,
       "examples": [
-        "base:warrior:innate:fighter",
-        "base:monk:innate:aversive",
-        "base:rogue:innate:pinpoint"
+        "base:innate:ref-1062",
+        "base:innate:ref-640",
+        "base:innate:ref-935"
       ]
     },
     {
@@ -323,7 +323,7 @@
       "reason": "The publisher description does not document the shield location or acquisition method",
       "count": 1,
       "examples": [
-        "mod:doge-shield:item:doge-shield"
+        "mod:doge-shield:item:ref-1084"
       ]
     },
     {
@@ -333,9 +333,9 @@
       "reason": "The scraped wiki sources do not document location for this item",
       "count": 61,
       "examples": [
-        "base:item:nuts",
-        "base:item:tonic-pouch",
-        "base:item:potion-pouch"
+        "base:item:14",
+        "base:item:133",
+        "base:item:134"
       ]
     },
     {
@@ -345,9 +345,9 @@
       "reason": "The source describes acquisition, but does not establish normalized build requirements",
       "count": 5,
       "examples": [
-        "base:item:ibek-bell",
-        "base:item:owl-drum",
-        "base:item:salmon-cello"
+        "base:item:50",
+        "base:item:49",
+        "base:item:114"
       ]
     },
     {
@@ -357,9 +357,9 @@
       "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
       "count": 245,
       "examples": [
-        "base:item:tonic",
-        "base:item:potion",
-        "base:item:z-potion"
+        "base:item:18",
+        "base:item:0",
+        "base:item:102"
       ]
     },
     {
@@ -367,11 +367,11 @@
       "kind": "item",
       "field": "slotKinds",
       "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
-      "count": 166,
+      "count": 147,
       "examples": [
-        "base:item:ancient-labyrinth-map",
-        "base:item:ancient-reservoir-map",
-        "base:item:ancient-tablet-a"
+        "base:item:ref-55",
+        "base:item:ref-56",
+        "base:item:ref-57"
       ]
     },
     {
@@ -381,9 +381,9 @@
       "reason": "The publisher description does not document boss abilities",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -393,9 +393,9 @@
       "reason": "The publisher description does not name or detail the new equipment",
       "count": 3,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-elder-entities:monster:elder-entities"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-elder-entities:monster:ref-1065"
       ]
     },
     {
@@ -405,9 +405,9 @@
       "reason": "The publisher description does not document boss drops",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -417,9 +417,9 @@
       "reason": "The scraped wiki sources do not document drops for this monster",
       "count": 91,
       "examples": [
-        "base:monster:arachlea",
-        "base:monster:bandages",
-        "base:monster:bass-hunter"
+        "base:monster:ref-645",
+        "base:monster:ref-648",
+        "base:monster:ref-649"
       ]
     },
     {
@@ -429,9 +429,9 @@
       "reason": "The publisher description does not document boss HP",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -441,9 +441,9 @@
       "reason": "The publisher description does not document boss level",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -453,9 +453,9 @@
       "reason": "The publisher description does not document boss location",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -465,9 +465,9 @@
       "reason": "The publisher description does not document boss steals",
       "count": 4,
       "examples": [
-        "mod:additional-boss-yasha-tar:monster:yasha-tar",
-        "mod:additional-boss-pinga:monster:pinga",
-        "mod:additional-boss-quintar-husk:monster:quintar-husk"
+        "mod:additional-boss-yasha-tar:monster:ref-1068",
+        "mod:additional-boss-pinga:monster:ref-1066",
+        "mod:additional-boss-quintar-husk:monster:ref-1067"
       ]
     },
     {
@@ -477,9 +477,9 @@
       "reason": "The scraped wiki sources do not document steals for this monster",
       "count": 132,
       "examples": [
-        "base:monster:ancient-sword",
-        "base:monster:anubis",
-        "base:monster:arachlea"
+        "base:monster:ref-643",
+        "base:monster:ref-644",
+        "base:monster:ref-645"
       ]
     },
     {
@@ -489,8 +489,8 @@
       "reason": "The publisher description does not expose the bundled mod source revisions",
       "count": 2,
       "examples": [
-        "mod:quality-fun:other:quality-fun",
-        "mod:new-challenges:other:new-challenges"
+        "mod:quality-fun:other:ref-1088",
+        "mod:new-challenges:other:ref-1086"
       ]
     },
     {
@@ -500,7 +500,7 @@
       "reason": "The community wiki does not establish complete Nintendo Switch or official mod-pack parity",
       "count": 1,
       "examples": [
-        "base:other:catalog-coverage-gaps"
+        "base:other:ref-913"
       ]
     },
     {
@@ -510,9 +510,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -522,9 +522,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -534,9 +534,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -546,9 +546,9 @@
       "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
       "count": 3,
       "examples": [
-        "base:monk:passive:brawler",
-        "base:scholar:passive:learning",
-        "base:summoner:passive:mp-boost"
+        "base:passive:ref-641",
+        "base:passive:ref-939",
+        "base:passive:ref-1056"
       ]
     },
     {
@@ -558,9 +558,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -570,9 +570,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -582,9 +582,9 @@
       "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
       "count": 3,
       "examples": [
-        "base:monk:passive:brawler",
-        "base:scholar:passive:learning",
-        "base:summoner:passive:mp-boost"
+        "base:passive:ref-641",
+        "base:passive:ref-939",
+        "base:passive:ref-1056"
       ]
     },
     {
@@ -594,9 +594,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     },
     {
@@ -606,9 +606,9 @@
       "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
       "count": 3,
       "examples": [
-        "base:monk:passive:brawler",
-        "base:scholar:passive:learning",
-        "base:summoner:passive:mp-boost"
+        "base:passive:ref-641",
+        "base:passive:ref-939",
+        "base:passive:ref-1056"
       ]
     },
     {
@@ -618,9 +618,9 @@
       "reason": "Only names, node kinds, and class associations were confirmed in game",
       "count": 5,
       "examples": [
-        "mod:barbarian:passive:hardy",
-        "mod:barbarian:passive:ferocious",
-        "mod:barbarian:passive:endurance"
+        "mod:barbarian:passive:ref-1082",
+        "mod:barbarian:passive:ref-1081",
+        "mod:barbarian:passive:ref-1080"
       ]
     }
   ]

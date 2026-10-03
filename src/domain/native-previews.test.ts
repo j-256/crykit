@@ -11,7 +11,7 @@ import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef, JsonValue } from './types'
 
 const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
-const warrior = ref('base:class:warrior')
+const warrior = ref('base:job:0')
 const resolve = (ref: EntityRef) => ref.kind === 'catalog' ? DEFAULT_CATALOG.entities[ref.entityId] : undefined
 const content: BuildRevisionContent = { primaryClass: warrior, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: defaultCalculation(warrior) }
 const ability = (record?: JsonValue): CatalogEntity => ({ id: 'synthetic-native-ability' as EntityId, kind: 'ability', name: 'Synthetic power', aliases: [], sources: [], fields: record ? { 'Crystal Edit source record': { state: 'known', value: record } } : { Description: { state: 'known', value: 'Damage: 50 + 1.5 Spi' } } })

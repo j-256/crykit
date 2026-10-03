@@ -5,7 +5,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import { expect, test, type Page } from '@playwright/test'
 import { createBlankPlaythrough, selectedPlaythrough } from './local-data-helpers'
 import type { LocalData } from '../src/domain'
-import { TRAVEL_UNLOCK_GROUPS } from '../src/catalog/travel-unlocks'
+import { TRAVEL_UNLOCK_GROUPS } from '../src/catalog/travel-unlock-groups'
 
 async function openSettings(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -93,6 +93,7 @@ test('tracks mount instruments, shrine stones, and capability items independentl
   await page.getByRole('link', { name: 'Ibek Bell: location & requirements', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Ibek Bell', exact: true })).toBeVisible()
   await expect(page.getByText('Reward for clearing the Ancient Reservoir in Poko Poko Desert.', { exact: true })).toBeVisible()
+  await page.getByText('Source and version details', { exact: true }).click()
   await expect(page.getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
   await page.goBack()
   await expect(page.getByRole('checkbox', { name: 'Treasure Finder: acquired', exact: true })).toBeChecked()

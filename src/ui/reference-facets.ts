@@ -27,10 +27,10 @@ export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[numb
 export type ReferenceAudience = 'default' | OptionalReferenceAudience
 
 const TECHNICAL_REFERENCE_PREFIXES = ['base:mechanic:stat:', 'base:mechanic:ability:'] as const
-const DIAGNOSTIC_REFERENCE_IDS = new Set(['base:other:catalog-coverage-gaps'])
-const ABOUT_REFERENCE_IDS = new Set(['andrew-willman', 'crystal-project-demo', 'crystal-project-game', 'patch-notes', 'soundtrack'].map(name => `base:other:${name}`))
-const TOOLING_REFERENCE_IDS = new Set(['base:other:cheat-engine'])
-const REFERENCE_ARTIFACT_IDS = new Set(['bgtest', 'defender'].map(name => `base:other:${name}`))
+const DIAGNOSTIC_REFERENCE_IDS = new Set(['base:other:ref-913'])
+const ABOUT_REFERENCE_IDS = new Set(['base:other:ref-910', 'base:other:ref-918', 'base:other:ref-919', 'base:other:ref-928', 'base:other:ref-930'])
+const TOOLING_REFERENCE_IDS = new Set(['base:other:ref-915'])
+const REFERENCE_ARTIFACT_IDS = new Set(['base:other:ref-911', 'base:other:ref-920'])
 
 export function referenceAudience(entity: Pick<CatalogEntity, 'id'>): ReferenceAudience {
   const id = String(entity.id)

@@ -49,7 +49,7 @@ describe('reference route state', () => {
       resultLimit: 300,
     }
     const hash = formatReferenceRoute(state)
-    expect(hash).toMatch(/^#\/reference\/catalog\/pack%3Aalpha\/revisions\/r%2F1\/entities\/id\/item%3F2\/definition\?v=1/)
+    expect(hash).toMatch(/^#\/reference\/catalog\/pack%3Aalpha\/r%2F1\/id\/item%3F2\/definition\?v=1/)
     expect(hash).not.toContain('selected=')
     expect(parseReferenceRoute(hash)).toEqual(state)
   })
@@ -77,7 +77,7 @@ describe('reference route state', () => {
   })
 
   it('does not navigate from retired JSON selection queries', () => {
-    const selected = encodeReferenceEntityKey({ catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId: 'base:item:tonic' })
+    const selected = encodeReferenceEntityKey({ catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId: 'base:item:18' })
     const hash = `#/reference?selected=${encodeURIComponent(selected)}`
     expect(parseAppRoute(hash).page).toEqual({ page: 'reference', view: 'list' })
     expect(parseReferenceRoute(hash).selectedKey).toBeUndefined()

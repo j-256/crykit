@@ -6,10 +6,25 @@ import type { DefinitionOption } from './definitions'
 
 type Definition = CatalogEntity | PersonalDefinition
 const REFERENCE_ARTICLES = new Set([
-  'axes', 'books', 'bows', 'daggers', 'heavy-armor', 'heavy-helmets', 'katanas',
-  'light-armor', 'light-hats', 'medium-armor', 'medium-headgear', 'rapiers',
-  'scythes', 'shields', 'spears', 'staves', 'swords', 'wands',
-].map(name => `base:item:${name}`))
+  'base:item:ref-62',
+  'base:item:ref-68',
+  'base:item:ref-70',
+  'base:item:ref-88',
+  'base:item:ref-112',
+  'base:item:ref-113',
+  'base:item:ref-122',
+  'base:item:ref-127',
+  'base:item:ref-128',
+  'base:item:ref-138',
+  'base:item:ref-139',
+  'base:item:ref-169',
+  'base:item:ref-183',
+  'base:item:ref-189',
+  'base:item:ref-194',
+  'base:item:ref-196',
+  'base:item:ref-199',
+  'base:item:ref-217',
+])
 const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost|cost \(copper\))$/i
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
 const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])

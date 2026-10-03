@@ -240,7 +240,7 @@ test('keeps source-less named mods and their catalog entries and supports manual
   await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Remove Mod: Doge Shield filter', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Adventurer', exact: true })).toHaveCount(0)
-  await page.goto(`${referencePath('base:class:warrior')}?library-mod=name%3Adoge%20shield`)
+  await page.goto(`${referencePath('base:job:0')}?library-mod=name%3Adoge%20shield`)
   await expect(page.getByText('Reference definition unavailable', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toHaveCount(0)
   await page.goto('/#/mods')

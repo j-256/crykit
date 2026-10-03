@@ -8,7 +8,7 @@ import { ClassLearnTree } from './ClassLearnTree'
 describe('learn-tree prerequisite text', () => {
   it('describes simultaneous requirements accessibly and retains missing nodes', () => {
     const container = document.createElement('div')
-    const entity = { ...DEFAULT_CATALOG.entities['base:class:aegis']!, fields: { [CLASS_FIELDS.tree]: { state: 'known' as const, value: [
+    const entity = { ...DEFAULT_CATALOG.entities['base:job:10']!, fields: { [CLASS_FIELDS.tree]: { state: 'known' as const, value: [
       { row: 0, column: 0, nodeType: 2, dataId: 7, prerequisites: [] },
       { row: 1, column: 1, nodeType: 2, dataId: 8, prerequisites: [{ row: 0, column: 0 }, { row: 0, column: 2 }] },
     ] } } }
@@ -21,7 +21,7 @@ describe('learn-tree prerequisite text', () => {
   })
 
   it('resolves native names in their own catalog and retains unresolved identities', () => {
-    const entity = DEFAULT_CATALOG.entities['base:class:aegis']!
+    const entity = DEFAULT_CATALOG.entities['base:job:10']!
     const nodes = exportedTree(entity)
     const links = nativeRelationships(DEFAULT_CATALOG, entity)
     const destination = nodes.find(node => node.prerequisites.length > 1 && node.nodeType === 3)!

@@ -67,6 +67,6 @@ describe('summon unlock progress', () => {
     expect(Object.values(localData.playthroughs[first.id]!.progress)[0]?.unlocked).toEqual({ state: 'known', value: true })
     expect(() => toggleSummonProgress(localData, { summonId: SUMMON.id, subject: SUBJECT, displayName: SUMMON.label, playthroughId: first.id, expectedRevision: localData.revision - 1 })).toThrow('LocalData revision does not match')
     expect(() => toggleSummonProgress(localData, { summonId: 'synthetic-invalid' as SummonId, subject: SUBJECT, displayName: 'Unknown', playthroughId: first.id })).toThrow('The summon does not exist')
-    expect(() => toggleSummonProgress(localData, { summonId: SUMMON.id, subject: { ...SUBJECT, entityId: 'base:class:summoner' as EntityId }, displayName: SUMMON.label, playthroughId: first.id })).toThrow('The reference does not match the summon')
+    expect(() => toggleSummonProgress(localData, { summonId: SUMMON.id, subject: { ...SUBJECT, entityId: 'base:job:21' as EntityId }, displayName: SUMMON.label, playthroughId: first.id })).toThrow('The reference does not match the summon')
   })
 })

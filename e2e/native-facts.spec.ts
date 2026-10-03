@@ -3,7 +3,7 @@ import { referencePath } from './reference-helpers'
 import { expect, test } from '@playwright/test'
 
 test('native class facts use plain labels and leave provenance out of routine details', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.goto(referencePath('base:class:warrior'))
+  await page.goto(referencePath('base:job:0'))
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   const ratings = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Growth ratings$/ }) })
   await expect(ratings).toHaveCount(1)

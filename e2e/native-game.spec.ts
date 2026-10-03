@@ -14,7 +14,7 @@ test('enemy rewards use coins, technical details use integers, and source prices
   await expect(money.locator('dd')).toHaveText('20000')
   await expect(money.locator('.money-amount')).toHaveCount(0)
   await expect(page.getByText('Complete native source record', { exact: true })).toHaveCount(0)
-  await page.goto(referencePath('base:item:ether'))
+  await page.goto(referencePath('base:item:1'))
   const cost = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
   await expect(cost.getByRole('img', { name: '2 silver, 50 copper', exact: true })).toBeVisible()
 
@@ -47,7 +47,7 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
 test('enemy loot supports modifier-click in a new tab and ordinary in-app navigation', async ({ page, context }) => {
   await page.goto(referencePath('base:monster:179'))
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
-  await expect(cookie).toHaveAttribute('href', referencePath('base:item:quintar-cookie').slice(1))
+  await expect(cookie).toHaveAttribute('href', referencePath('base:item:205').slice(1))
   const opened = context.waitForEvent('page')
   await cookie.click({ modifiers: ['ControlOrMeta'] })
   const tab = await opened

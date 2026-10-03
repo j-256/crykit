@@ -71,7 +71,7 @@ export async function auditSources({ check = false, reference } = {}) {
   for (const mechanic of Object.values(evidence.mechanics)) if (!['corroborated', 'partial'].includes(mechanic.status) || mechanic.evidence.some(id => !Object.hasOwn(evidence.symbols, id))) throw new Error('Mechanic review has invalid evidence')
   const server = await createServer({ root: ROOT, configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   try {
-    const { BUNDLED_CATALOGS } = await server.ssrLoadModule('/src/catalog/bundled.ts')
+    const { BUNDLED_CATALOGS, compileBundledSourceBindings } = await server.ssrLoadModule('/src/catalog/bundled.ts')
     const { assessCatalogField } = await server.ssrLoadModule('/src/catalog/source-corroboration-rules.ts')
     const trees = JSON.parse(await readFile(join(ROOT, 'src/catalog/class-tree-identities.json'), 'utf8'))
     const identities = Object.fromEntries(Object.entries(snapshot.identityBindings).map(([key, id]) => { const [database, databaseId] = key.split(':'); return [id, { database, databaseId: Number(databaseId) }] }))
@@ -88,7 +88,7 @@ export async function auditSources({ check = false, reference } = {}) {
       identities[node.entityId] = identity
     }
     for (const id of ambiguousIdentities) delete identities[id]
-    const context = { snapshot, identities, mechanics: evidence.mechanics }
+    const context = { snapshot, identities: compileBundledSourceBindings(identities), mechanics: compileBundledSourceBindings(evidence.mechanics) }
     const inventory = new Map()
     const source = id => {
       if (!inventory.has(id)) inventory.set(id, { ...sourceCategory(id), files: new Set(), catalogs: new Set(), outcomes: { corroborated: 0, partial: 0, retained: 0 }, reasons: new Set() })

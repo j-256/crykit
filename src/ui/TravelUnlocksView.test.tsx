@@ -9,7 +9,7 @@ import type { Knowledge, LocalData } from '../domain/types'
 import { NavigationProvider, useNavigationController } from './navigation'
 import { TravelUnlocksView, travelUnlockEntries, type TravelUnlocksViewProps } from './TravelUnlocksView'
 
-const SUBJECT = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities['base:item:treasure-finder']!.id }
+const SUBJECT = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities['base:item:196']!.id }
 
 function Harness(props: TravelUnlocksViewProps) {
   const navigation = useNavigationController()

@@ -1,18 +1,5 @@
 import type { CatalogEntity, CatalogSnapshot, EntityId, Knowledge, JsonValue, SourceRef } from '../domain/types'
 
-export interface TravelUnlockGroup {
-  readonly id: string
-  readonly label: string
-  readonly description: string
-  readonly entityIds: readonly EntityId[]
-}
-
-export const TRAVEL_UNLOCK_GROUPS: readonly TravelUnlockGroup[] = Object.freeze([
-  { id: 'mounts', label: 'Mount instruments', description: 'Permanent mount instruments, including the upgraded Quintar and Salmon calls.', entityIds: ['base:item:quintar-flute', 'base:item:quintar-ocarina', 'base:item:ibek-bell', 'base:item:owl-drum', 'base:item:salmon-violin', 'base:item:salmon-cello'] as EntityId[] },
-  { id: 'stones', label: 'Shrine stones', description: 'Reusable travel stones. Single-use shards are separate inventory items.', entityIds: ['base:item:gaea-stone', 'base:item:mercury-stone', 'base:item:poseidon-stone', 'base:item:mars-stone', 'base:item:ganymede-stone', 'base:item:triton-stone', 'base:item:callisto-stone', 'base:item:europa-stone', 'base:item:dione-stone', 'base:item:neptune-stone', 'base:item:new-world-stone', 'base:item:old-world-stone'] as EntityId[] },
-  { id: 'capabilities', label: 'Capability items', description: 'Exploration tools, fishing rods, and passes that open up more of the game.', entityIds: ['base:item:treasure-finder', 'base:item:home-point-stone', 'base:item:babel-quintar', 'base:item:quintar-pass', 'base:item:skeleton-key', 'base:item:luxury-pass', 'base:item:luxury-pass-v2', 'base:item:watering-can', 'base:item:flimsy-rod', 'base:item:tough-rod', 'base:item:super-rod'] as EntityId[] },
-])
-
 const APPLICABILITY = 'Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified'
 const TOOLS_SOURCE: SourceRef = { sourceId: 'https://crystal-project.fandom.com/wiki/Tools?oldid=7601', snapshot: 'revision 7601', applicability: APPLICABILITY }
 

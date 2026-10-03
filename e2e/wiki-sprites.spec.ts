@@ -3,7 +3,7 @@ import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR = detail('base:class:warrior')
+const WARRIOR = detail('base:job:0')
 
 async function expectArtwork(page: Page, name: string, source: 'game' | 'wiki' = 'game') {
   const image = page.getByRole('img', { name: `${name} ${source} artwork`, exact: true })
@@ -31,7 +31,7 @@ test('native artwork stays quiet and wiki fallbacks retain attribution offline',
   await context.setOffline(true)
   await page.reload()
   await expectArtwork(page, 'Warrior')
-  for (const [id, name, source] of [['base:item:short-sword', 'Short Sword', 'game'], ['base:monster:slime', 'Slime', 'wiki']] as const) {
+  for (const [id, name, source] of [['base:equipment:0', 'Short Sword', 'game'], ['base:monster:ref-849', 'Slime', 'wiki']] as const) {
     await page.goto(detail(id))
     await expectArtwork(page, name, source)
     if (source === 'wiki') {
@@ -50,7 +50,7 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(card.locator('img')).toHaveAttribute('alt', '')
   await card.click()
   await expectArtwork(page, 'Aegis')
-  await page.goto(detail('mod:barbarian:class:barbarian'))
+  await page.goto(detail('mod:barbarian:class:ref-1078'))
   await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
   await expect(page.getByText('No exact artwork linked.', { exact: true })).toBeVisible()
@@ -58,7 +58,7 @@ test('reference results retain names and unmatched definitions use placeholders 
 })
 
 test('the baseline includes the versioned innate unlock evidence', async ({ page }) => {
-  await page.goto(detail('base:warrior:innate:fighter'))
+  await page.goto(detail('base:innate:ref-1062'))
   await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
   const unlockCost = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Learnable Innate Skill v1\.0 JP cost$/ }) })
   await expect(unlockCost).toContainText('500')

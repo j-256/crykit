@@ -89,7 +89,7 @@ it('preserves innate kinds when replacing exported innate passives and links dat
   const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'learnable-innates')!
   const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { Jobs: [{ ID: 0, Name: 'Synthetic revised Warrior' }], Passives: [{ ID: 10, Name: 'Synthetic revised innate', IsInnate: true, PP: 0 }] })
   const links = bundledModReplacementLinks(DEFAULT_CATALOG, update, BUNDLED_MOD_LIBRARY)
-  expect(links).toContainEqual({ modelKey: 'crystal-edit:Jobs:0', targetEntityId: 'base:class:warrior' })
+  expect(links).toContainEqual({ modelKey: 'crystal-edit:Jobs:0', targetEntityId: 'base:job:0' })
   const innate = links.find(link => link.modelKey === 'crystal-edit:Passives:10')!
   expect(innate).toBeDefined()
   const result = composeModLayers({ baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [{ catalogId: update.id, catalogRevisionId: update.revisionId, enabled: true }], links }, [DEFAULT_CATALOG, update])

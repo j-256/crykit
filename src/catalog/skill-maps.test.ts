@@ -12,15 +12,15 @@ import { detectSkillGrid } from '../interchange/skill-grid'
 import { SKILL_BORDER_COLORS, skillGridFixture } from '../interchange/skill-grid.test-helpers'
 import { CONFIRMED_SWITCH_MOD_SETUP } from './mods'
 import { CONFIRMED_SKILL_MAPS, CONFIRMED_SKILL_MAP_SETS, skillMapSetForGameSetup, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
-import { STARTER_CATALOG } from './starter'
+import { DEFAULT_CATALOG as STARTER_CATALOG } from './bundled'
 
 const catalogs = [STARTER_CATALOG]
-const warrior = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:warrior')!
+const warrior = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:job:0')!
 const squares: readonly SkillSquare[] = warrior.mappings.map(mapping => ({ row: mapping.row, column: mapping.column, state: 'unknown' }))
 
 describe('confirmed class square maps', () => {
   it('has an independent fixture for every confirmed class identity', () => {
-    const fixtureClasses = CLASS_MAP_FIXTURES.map(fixture => fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`)
+    const fixtureClasses = CLASS_MAP_FIXTURES.map(fixture => fixture.classId!)
     expect(fixtureClasses.sort()).toEqual(CONFIRMED_SKILL_MAPS.map(map => map.classRef.entityId).sort())
   })
 
@@ -35,7 +35,7 @@ describe('confirmed class square maps', () => {
         disabledMods: known(CONFIRMED_SWITCH_MOD_SETUP.disabledMods),
       }
       const localData = { ...original, gameSetups: { ...original.gameSetups, [gameSetup.id]: gameSetup } }
-      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === (fixture.classId ?? `base:class:${fixture.className.toLowerCase()}`))!
+      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === (fixture.classId!))!
       expect(resolveDefinition(localData, catalogs, map.classRef)).toMatchObject({ kind: 'class', name: fixture.className })
       const offset = SKILL_SQUARE_STATES.indexOf(firstState)
       const expectedSquares: readonly SkillSquare[] = fixture.squares.map(([row, column], index) => ({ row, column, state: SKILL_SQUARE_STATES[(index + offset) % SKILL_SQUARE_STATES.length] }))
@@ -74,7 +74,7 @@ describe('confirmed class square maps', () => {
 
   it('rejects Warrior and Monk maps when the observed shape belongs to the other class', () => {
     const localData = createBlankLocalData()
-    const monk = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:monk')!
+    const monk = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:job:5')!
     const monkFixture = CLASS_MAP_FIXTURES.find(fixture => fixture.className === 'Monk')!
     const observed: readonly SkillSquare[] = monkFixture.squares.map(([row, column]) => ({ row, column, state: 'unknown' }))
     expect(suggestSkillTreeMap(localData, catalogs, warrior.classRef, observed, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
@@ -83,11 +83,11 @@ describe('confirmed class square maps', () => {
 
   it('keeps unconfirmed Scholar positions unresolved while preserving a later reviewed assignment', () => {
     const localData = createBlankLocalData()
-    const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:class:scholar')!
+    const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:job:13')!
     const observed: readonly SkillSquare[] = map.squares.map(square => ({ ...square, state: 'learned' }))
     const suggestion = suggestSkillTreeMap(localData, catalogs, map.classRef, observed, SWITCH_MOD_PACKS_MAP_SET)
     expect(suggestion.mappings.some(mapping => mapping.row === 3 && mapping.column === 0)).toBe(false)
-    const reviewed = { row: 3, column: 0, kind: 'monsterMagic' as const, ref: { ...map.classRef, entityId: asId<typeof map.classRef.entityId>('base:scholar:monster-magic:reflection') } }
+    const reviewed = { row: 3, column: 0, kind: 'monsterMagic' as const, ref: { ...map.classRef, entityId: asId<typeof map.classRef.entityId>('base:ability:366') } }
     const extended = suggestSkillTreeMap(localData, catalogs, map.classRef, observed, SWITCH_MOD_PACKS_MAP_SET, undefined, [reviewed])
     expect(extended.confirmedMap).toBe(map)
     expect(extended.mappings).toContain(reviewed)
@@ -104,7 +104,7 @@ describe('confirmed class square maps', () => {
     const personal = createPersonalDefinition(localData, { kind: 'class', name: 'Warrior' })
     const ref = { kind: 'personal' as const, definitionId: Object.values(personal.personalDefinitions)[0].id }
     expect(suggestSkillTreeMap(personal, catalogs, ref, squares, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
-    const missingAbility = { ...STARTER_CATALOG, entities: Object.fromEntries(Object.entries(STARTER_CATALOG.entities).filter(([id]) => id !== 'base:warrior:ability:taunt')) }
+    const missingAbility = { ...STARTER_CATALOG, entities: Object.fromEntries(Object.entries(STARTER_CATALOG.entities).filter(([id]) => id !== 'base:ability:28')) }
     expect(suggestSkillTreeMap(localData, [missingAbility], warrior.classRef, squares, SWITCH_MOD_PACKS_MAP_SET).mappings).toEqual([])
   })
 
