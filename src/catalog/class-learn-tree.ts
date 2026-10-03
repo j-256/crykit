@@ -4,7 +4,7 @@ import { classFields, CRYSTAL_EDIT_FIELDS, exportedTree, jsonRecord, LEARN_NODE_
 import { modModelEntity } from '../domain/mod-layers'
 import { bundledModEntityId, bundledModIdentity, bundledModRecord } from '../domain/bundled-mods'
 import { nativeIdentity, nativeRelationships, nativeSourceRecord } from '../domain/native-game'
-import { catalogEntity } from '../domain/entity-identities'
+import { baseGameEntityId, catalogEntity } from '../domain/entity-identities'
 import type { CatalogEntity, CatalogSnapshot, PersonalDefinition, SourceRef } from '../domain/types'
 
 export const CLASS_TREE_IDENTITY_SOURCE: SourceRef = identities.source
@@ -45,7 +45,7 @@ export function classTreeSkill(entity: CatalogEntity | PersonalDefinition, node:
   }
   const identity = bundledTreeIdentity(entity)?.nodes.find(entry => entry.row === node.row && entry.column === node.column && entry.nodeType === node.nodeType && entry.dataId === node.dataId)
   if (identity) {
-    const candidate = catalog && catalogEntity(catalog, identity.entityId)
+    const candidate = catalog && catalogEntity(catalog, baseGameEntityId(identity.nodeType === LEARN_NODE_TYPES.ability ? 'ability' : 'passive', identity.dataId))
     const definition = candidate?.kind === identity.kind ? candidate : undefined
     return { name: definition?.name ?? identity.name, kind: identity.kind as CatalogEntity['kind'], definition, jp: identity.jp, monsterLearned: identity.kind === 'monsterMagic' }
   }

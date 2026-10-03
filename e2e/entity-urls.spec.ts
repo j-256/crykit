@@ -5,6 +5,20 @@ const DESERT_PATH = referencePath('base:monster:316')
 const RED_PATH = referencePath('base:monster:57')
 const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
 
+test('base, mod, and supplemental entries use the bundled route contract directly', async ({ page }) => {
+  for (const [path, name] of [
+    ['/#/reference/catalog/v1/base/item/203/quintar-berries', 'Quintar Berries'],
+    ['/#/reference/catalog/v1/mod/equipment-expansion/equipment/592/heavy-edge', 'Heavy Edge'],
+    ['/#/reference/catalog/v1/base/other/ref-909/achievements', 'Achievements'],
+  ]) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`${path}$`))
+  }
+})
+
 test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
   await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
   const desert = page.locator(`a[href^="${DESERT_PATH.slice(1)}?"]`)

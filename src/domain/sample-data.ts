@@ -13,23 +13,23 @@ const SAMPLE_LEVEL = 1
 const SAMPLE_MEMBERS = [
   {
     name: 'Rowan',
-    classId: 'base:class:warrior',
-    equipment: { 'plan-main-hand': 'base:item:short-sword', 'plan-off-hand': 'base:item:buckler', 'plan-body': 'base:item:breastplate' },
+    classId: 'base:job:0',
+    equipment: { 'plan-main-hand': 'base:equipment:0', 'plan-off-hand': 'base:equipment:44', 'plan-body': 'base:equipment:18' },
   },
   {
     name: 'Mira',
-    classId: 'base:class:cleric',
-    equipment: { 'plan-main-hand': 'base:item:short-staff', 'plan-body': 'base:item:hemp-robe' },
+    classId: 'base:job:4',
+    equipment: { 'plan-main-hand': 'base:equipment:5', 'plan-body': 'base:equipment:19' },
   },
   {
     name: 'Tavi',
-    classId: 'base:class:rogue',
-    equipment: { 'plan-main-hand': 'base:item:dirk', 'plan-body': 'base:item:leather-outfit' },
+    classId: 'base:job:2',
+    equipment: { 'plan-main-hand': 'base:equipment:3', 'plan-body': 'base:equipment:17' },
   },
   {
     name: 'Sol',
-    classId: 'base:class:wizard',
-    equipment: { 'plan-main-hand': 'base:item:oak-wand', 'plan-body': 'base:item:hemp-robe' },
+    classId: 'base:job:3',
+    equipment: { 'plan-main-hand': 'base:equipment:16', 'plan-body': 'base:equipment:19' },
   },
 ] as const
 

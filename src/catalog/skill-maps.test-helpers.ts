@@ -3,6 +3,7 @@ import type { LearnedNodeKind } from '../domain/types'
 export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly classId?: string; readonly squares: readonly (readonly [number, number, string | null, LearnedNodeKind | null])[] }[] = [
   {
     className: 'Warrior',
+    classId: 'base:job:0',
     squares: [
       [0, 1, 'Taunt', 'ability'],
       [0, 3, 'Fighter', 'innate'],
@@ -22,6 +23,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Monk',
+    classId: 'base:job:5',
     squares: [
       [0, 1, 'Meditate', 'ability'],
       [0, 2, 'Beat Down', 'ability'],
@@ -41,6 +43,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Rogue',
+    classId: 'base:job:2',
     squares: [
       [0, 0, 'Steal', 'ability'],
       [0, 2, 'Eye Gouge', 'ability'],
@@ -60,6 +63,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Cleric',
+    classId: 'base:job:4',
     squares: [
       [0, 1, 'Cure', 'ability'],
       [0, 2, 'Spark Shine', 'ability'],
@@ -78,6 +82,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Wizard',
+    classId: 'base:job:3',
     squares: [
       [0, 1, 'Fire', 'ability'],
       [0, 2, 'Bolt', 'ability'],
@@ -96,6 +101,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Warlock',
+    classId: 'base:job:14',
     squares: [
       [0, 1, 'Scan', 'ability'],
       [0, 3, 'Chaincaster', 'innate'],
@@ -117,6 +123,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Fencer',
+    classId: 'base:job:1',
     squares: [
       [0, 1, 'Poison Tip', 'ability'],
       [0, 2, 'Barbed Cap', 'ability'],
@@ -135,6 +142,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Shaman',
+    classId: 'base:job:8',
     squares: [
       [0, 0, 'Acid', 'ability'],
       [0, 1, 'Bio', 'ability'],
@@ -152,6 +160,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Scholar',
+    classId: 'base:job:13',
     squares: [
       [0, 1, 'Learning', 'innate'],
       [0, 2, 'Equip Book', 'passive'],
@@ -180,6 +189,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Aegis',
+    classId: 'base:job:10',
     squares: [
       [0, 0, 'Cover', 'ability'],
       [0, 3, 'Entrench', 'ability'],
@@ -200,6 +210,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Hunter',
+    classId: 'base:job:7',
     squares: [
       [0, 0, 'Camouflage', 'innate'],
       [0, 3, 'Quickshot', 'ability'],
@@ -219,6 +230,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Chemist',
+    classId: 'base:job:17',
     squares: [
       [0, 1, 'Tonic', 'ability'],
       [0, 2, 'Tincture', 'ability'],
@@ -243,6 +255,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Reaper',
+    classId: 'base:job:6',
     squares: [
       [0, 0, 'Reaping Cut', 'ability'],
       [0, 1, 'Lifedrink', 'ability'],
@@ -262,6 +275,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Ninja',
+    classId: 'base:job:18',
     squares: [
       [0, 1, 'Utsusemi', 'ability'],
       [0, 2, 'Fuzake', 'ability'],
@@ -280,6 +294,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Dervish',
+    classId: 'base:job:11',
     squares: [
       [0, 1, 'Quakesand', 'ability'],
       [0, 2, 'Tornado', 'ability'],
@@ -298,6 +313,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Beatsmith',
+    classId: 'base:job:9',
     squares: [
       [0, 0, 'Bass Kick', 'ability'],
       [0, 3, 'Rhythm', 'innate'],
@@ -316,6 +332,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Samurai',
+    classId: 'base:job:20',
     squares: [
       [0, 0, 'Swift Wind', 'ability'],
       [0, 1, 'Swift Ember', 'ability'],
@@ -334,6 +351,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Assassin',
+    classId: 'base:job:19',
     squares: [
       [0, 0, 'Bloody Slice', 'ability'],
       [0, 1, 'Assassination', 'innate'],
@@ -352,6 +370,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Valkyrie',
+    classId: 'base:job:15',
     squares: [
       [0, 2, 'Warcry', 'ability'],
       [0, 3, 'Immortal', 'innate'],
@@ -371,6 +390,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Summoner',
+    classId: 'base:job:21',
     squares: [
       [0, 1, 'MP Boost', 'innate'],
       [0, 2, 'Initial Resist', 'passive'],
@@ -388,6 +408,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Beastmaster',
+    classId: 'base:job:23',
     squares: [
       [0, 1, 'Morphology', 'innate'],
       [0, 2, 'Feast', 'ability'],
@@ -408,7 +429,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Barbarian',
-    classId: 'mod:barbarian:class:barbarian',
+    classId: 'mod:barbarian:class:ref-1078',
     squares: [
       [0, 0, 'Shout', 'ability'],
       [1, 0, 'Thick Skin', 'ability'],
@@ -426,7 +447,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
   },
   {
     className: 'Tempest',
-    classId: 'mod:tempest:class:tempest',
+    classId: 'mod:tempest:class:ref-1099',
     squares: [
       [0, 1, 'Flurry', 'ability'],
       [1, 0, 'Preparation', 'passive'],
@@ -479,7 +500,7 @@ export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly
       [1, 1, 'HP Candy', 'ability'],
       [1, 2, 'Mockery', 'ability'],
       [1, 3, 'Quick Thinking', 'passive'],
-      [2, 0, 'See Ya', 'ability'],
+      [2, 0, 'See ya!', 'ability'],
       [2, 1, 'MP Candy', 'ability'],
       [2, 2, 'Scapegoat', 'ability'],
       [3, 0, 'Staring Contest', 'ability'],

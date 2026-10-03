@@ -91,26 +91,29 @@ test('opens skill and deity Reference pages without changing unlock progress', a
 })
 
 test('rapid odd and even clicks preserve the final request and keep neighboring tiles and controls stable', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  await page.evaluate(() => {
-    const neighbor = document.querySelector('[data-summon="base:summoner:ability:pah"]')!
+  const shakuId = SUMMONS.find(summon => summon.name === 'Shaku')!.id
+  const pamoaId = SUMMONS.find(summon => summon.name === 'Pamoa')!.id
+  const neighborId = SUMMONS.find(summon => summon.name === 'Pah')!.id
+  await page.evaluate(({ shakuId, pamoaId, neighborId }) => {
+    const neighbor = document.querySelector(`[data-summon="${neighborId}"]`)!
     const context = document.querySelector('.context-bar')!
     const changes: string[] = []
     const observer = new MutationObserver(records => changes.push(...records.map(record => `${record.type}:${record.attributeName ?? ''}`)))
     observer.observe(neighbor, { attributes: true, childList: true, characterData: true, subtree: true })
     observer.observe(context, { attributes: true, childList: true, characterData: true, subtree: true })
     Object.assign(window, { summonRenderCheck: { neighbor, changes, observer } })
-    const toggle = (name: string) => document.querySelector<HTMLButtonElement>(`[data-summon="base:summoner:ability:${name}"] button`)!
-    for (let index = 0; index < 5; index += 1) toggle('shaku').click()
-    for (let index = 0; index < 4; index += 1) toggle('pamoa').click()
-  })
+    const toggle = (id: string) => document.querySelector<HTMLButtonElement>(`[data-summon="${id}"] button`)!
+    for (let index = 0; index < 5; index += 1) toggle(shakuId).click()
+    for (let index = 0; index < 4; index += 1) toggle(pamoaId).click()
+  }, { shakuId, pamoaId, neighborId })
   await expect(summonTile(page, 'Shaku')).toHaveAttribute('data-unlocked', 'true')
   await expect(summonTile(page, 'Pamoa')).toHaveAttribute('data-unlocked', 'false')
   await expect(page.locator('.summon-tile button[aria-busy="true"]')).toHaveCount(0)
-  expect(await page.evaluate(() => {
+  expect(await page.evaluate(neighborId => {
     const state = (window as unknown as { summonRenderCheck: { neighbor: Element; changes: string[]; observer: MutationObserver } }).summonRenderCheck
     state.observer.disconnect()
-    return { sameNode: state.neighbor === document.querySelector('[data-summon="base:summoner:ability:pah"]'), changes: state.changes }
-  })).toEqual({ sameNode: true, changes: [] })
+    return { sameNode: state.neighbor === document.querySelector(`[data-summon="${neighborId}"]`), changes: state.changes }
+  }, neighborId)).toEqual({ sameNode: true, changes: [] })
   await page.reload()
   await expect(summonTile(page, 'Shaku')).toHaveAttribute('data-unlocked', 'true')
   await expect(summonTile(page, 'Pamoa')).toHaveAttribute('data-unlocked', 'false')

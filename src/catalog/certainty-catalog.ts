@@ -9,6 +9,8 @@ import { definitionWithMechanics } from '../domain/mechanics-facts'
 import { nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import type { CatalogEntity, CatalogRevisionId, CatalogSnapshot, JsonValue, Knowledge } from '../domain/types'
 import { NATIVE_GAME_DATA } from './native-game'
+import supplementalIds from './supplemental-entity-ids.json' with { type: 'json' }
+import { compileCatalogIdentities } from '../domain/catalog-identities'
 
 export const CERTAINTY_CATALOG_REVISION_ID = 'catalog-v1' as CatalogRevisionId
 export const MOONLIGHT_SNAPSHOT = moonlight as unknown as BundledModSnapshot
@@ -43,7 +45,7 @@ function sourcedEntity(entity: CatalogEntity): CatalogEntity {
   return Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as unknown as CatalogEntity
 }
 
-export function assembleCertaintyCatalog(base: CatalogSnapshot): CatalogSnapshot {
+export function assembleSourceCatalog(base: CatalogSnapshot): CatalogSnapshot {
   const entities: Record<string, CatalogEntity> = { ...base.entities }
   const bindings: Record<string, string> = { ...NATIVE_GAME_DATA.identityBindings }
   for (const [family, digest] of Object.entries(treeIdentities.databaseSha256)) if (NATIVE_GAME_DATA.source.files.find(file => file.path === `Database/${family}.dat`)?.sha256 !== digest) throw new Error('Base skill identity evidence does not match native source hashes')
@@ -95,4 +97,8 @@ export function assembleCertaintyCatalog(base: CatalogSnapshot): CatalogSnapshot
     entities[entity.id] = { ...entity, legacy: { ...(nativeRecord(entity.legacy) ? entity.legacy : {}), passiveEntityIds: passives } }
   }
   return { ...base, revisionId: CERTAINTY_CATALOG_REVISION_ID, checksum: receipt.checksum, applicability: { state: 'known', value: `Windows ${NATIVE_GAME_DATA.source.gameVersion} base definitions and versioned mod exports` }, entities: Object.fromEntries(Object.entries(entities).map(([id, entity]) => [id, sourcedEntity(entity)])), claims: base.claims.filter(claim => entities[claim.entityId]), legacy: { ...(nativeRecord(base.legacy) ? base.legacy : {}), nativeIdentityBindings: bindings, nativeModeIdentityBindings: modeBindings, bundledMods: [{ key: MOONLIGHT_SNAPSHOT.key, source: MOONLIGHT_SNAPSHOT.source as unknown as JsonValue }] } }
+}
+
+export function assembleCertaintyCatalog(base: CatalogSnapshot): CatalogSnapshot {
+  return compileCatalogIdentities(assembleSourceCatalog(base), supplementalIds.ids)
 }

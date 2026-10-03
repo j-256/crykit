@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { assembleBundledCatalog } from './bundled-catalog'
+import { DEFAULT_CATALOG } from './bundled'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_NURSERY_CAPACITY, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements } from './quintar-breeding'
 import { QUINTAR_STEP_REFERENCES } from './quintar-references'
-import { STARTER_CATALOG } from './starter'
 import wikiData from './wiki-data.json'
 
 describe('Golden Quintar guided route', () => {
   it('links each step only to exact identities in the bundled reference', () => {
-    const catalog = assembleBundledCatalog(STARTER_CATALOG)
+    const catalog = DEFAULT_CATALOG
     for (const step of QUINTAR_BREEDING_STEPS) {
       const targets = QUINTAR_STEP_REFERENCES[step.id]
       expect(targets.length).toBeGreaterThan(0)

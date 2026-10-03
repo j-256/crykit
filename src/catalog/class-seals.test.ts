@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
 import { VANILLA_CLASS_SEAL_PAIRS } from './class-seals'
 import { STARTER_NAME_RECORDS } from './data'
+import { compileBundledSourceId } from './bundled'
 
 describe('vanilla class seal tracker roster', () => {
   it('maps each declared vanilla class to an explicit class and seal definition', () => {
@@ -21,6 +22,6 @@ describe('vanilla class seal tracker roster', () => {
 
     expect(classIds.size).toBe(VANILLA_CLASS_SEAL_PAIRS.length)
     expect(sealIds.size).toBe(VANILLA_CLASS_SEAL_PAIRS.length)
-    expect([...classIds].sort()).toEqual(STARTER_NAME_RECORDS.filter(([id, kind]) => kind === 'class' && id.startsWith('base:class:')).map(([id]) => id).sort())
+    expect([...classIds].sort()).toEqual(STARTER_NAME_RECORDS.filter(([id, kind]) => kind === 'class' && id.startsWith('base:class:')).map(([id]) => compileBundledSourceId(id)).sort())
   })
 })

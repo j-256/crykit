@@ -19,16 +19,39 @@ function expectRoundTrip(value: AppRoute) {
 }
 
 describe('semantic navigation routes', () => {
+  it('uses one bundled alias with stable IDs and descriptive final segments', () => {
+    for (const [id, path] of [
+      ['base:item:203', 'base/item/203/quintar-berries'],
+      ['mod:equipment-expansion:equipment:592', 'mod/equipment-expansion/equipment/592/heavy-edge'],
+      ['mod:moonlight-project:ability:565', 'mod/moonlight-project/ability/565/100-pun-storm'],
+      ['base:other:ref-909', 'base/other/ref-909/achievements'],
+    ]) {
+      const detail = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as CatalogRef['entityId'] } })
+      expect(formatAppRoute(detail)).toBe(`#/reference/catalog/v1/${path}`)
+      expectRoundTrip(detail)
+    }
+  })
+
+  it('keeps imported pins explicit and reserves aliases without colliding with catalog IDs', () => {
+    const imported = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: 'v1', catalogRevisionId: 'r1', entityId: 'base:item:203' } as CatalogRef })
+    expect(formatAppRoute(imported)).toBe('#/reference/catalog/%761/r1/base/item/203/definition')
+    expectRoundTrip(imported)
+    const revision = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: 'other-revision', entityId: 'base:item:203' } as CatalogRef })
+    expect(formatAppRoute(revision)).toBe('#/reference/catalog/crystal-project-public-starter/other-revision/base/item/203/definition')
+    expectRoundTrip(revision)
+    for (const hash of ['#/reference/catalog/v2/base/item/203/name', '#/reference/catalog/v1/r1/base/item/203/name', '#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/203/name']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+  })
+
   it('uses readable entity segments while retaining exact catalog and revision pins', () => {
     for (const [entityId, path] of [
       ['mod:moonlight-project:ability:565', 'mod/moonlight-project/ability/565'],
-      ['base:item:tonic', 'base/item/tonic'],
-      ['base:warrior:ability:taunt', 'base/warrior/ability/taunt'],
+      ['base:item:18', 'base/item/18'],
+      ['base:ability:28', 'base/ability/28'],
       ['base:monster:179:mode:Chaos', 'base/monster/179/mode/Chaos'],
     ]) {
       const ref = { kind: 'catalog', catalogId: 'fixture', catalogRevisionId: 'revision-a', entityId } as CatalogRef
       const value = route({ page: 'reference', view: 'detail', ref })
-      expect(formatAppRoute(value)).toBe(`#/reference/catalog/fixture/revisions/revision-a/entities/${path}/definition`)
+      expect(formatAppRoute(value)).toBe(`#/reference/catalog/fixture/revision-a/${path}/definition`)
       expectRoundTrip(value)
     }
     for (const entityId of Object.keys(DEFAULT_CATALOG.entities)) {
@@ -37,7 +60,7 @@ describe('semantic navigation routes', () => {
   })
 
   it('keeps the exact numeric identity independent of the readable slug', () => {
-    const root = '#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/'
+    const root = '#/reference/catalog/v1/'
     const desert = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:monster:316' as CatalogRef['entityId'] } })
     expect(formatAppRoute(desert)).toBe(`${root}base/monster/316/brutish-quintar-desert`)
     expect(parseAppRoute(`${root}base/monster/316/completely-wrong-name`)).toEqual(desert)
@@ -49,12 +72,12 @@ describe('semantic navigation routes', () => {
 
   it('resolves names from exact imported revisions and keeps action-shaped names out of overlays', () => {
     const ref = { kind: 'catalog', catalogId: 'synthetic-import', catalogRevisionId: 'r1', entityId: 'foreign:record:1' } as CatalogRef
-    const imported = { ...DEFAULT_CATALOG, id: ref.catalogId, revisionId: ref.catalogRevisionId, entities: { [ref.entityId]: { ...DEFAULT_CATALOG.entities['base:item:tonic']!, id: ref.entityId, name: 'Café / Wind & Rain' } } }
+    const imported = { ...DEFAULT_CATALOG, id: ref.catalogId, revisionId: ref.catalogRevisionId, entities: { [ref.entityId]: { ...DEFAULT_CATALOG.entities['base:item:18']!, id: ref.entityId, name: 'Café / Wind & Rain' } } }
     const otherRevision = { ...imported, revisionId: 'r2' as CatalogRef['catalogRevisionId'], entities: { [ref.entityId]: { ...imported.entities[ref.entityId]!, name: 'Another name' } } }
     const resolveName = createEntityRouteNameResolver([otherRevision, imported])
     const detail = route({ page: 'reference', view: 'detail', ref })
     const hash = formatAppRoute(detail, resolveName)
-    expect(hash).toContain('/entities/id/foreign%3Arecord%3A1/cafe-wind-rain')
+    expect(hash).toContain('/id/foreign%3Arecord%3A1/cafe-wind-rain')
     expect(parseAppRoute(hash)).toEqual(detail)
     expect(resolveName({ ...ref, catalogRevisionId: 'missing' as CatalogRef['catalogRevisionId'] })).toBeUndefined()
     for (const name of ['edit', 'search', 'field', 'correct', 'definitions']) {
@@ -87,13 +110,13 @@ describe('semantic navigation routes', () => {
     for (const entityId of ['item ? one', 'foreign:record:1', 'base::partial', 'base', 'constructor:record', 'id / value']) {
       const ref = { ...catalogRef, entityId } as CatalogRef
       const value = route({ page: 'reference', view: 'detail', ref })
-      expect(formatAppRoute(value)).toContain(`/entities/id/${encodeURIComponent(entityId)}`)
+      expect(formatAppRoute(value)).toContain(`/id/${encodeURIComponent(entityId)}`)
       expectRoundTrip(value)
     }
   })
 
   it('rejects retired entity encodings and malformed structured identities', () => {
-    const root = '#/reference/catalog/fixture/revisions/revision-a/entities/'
+    const root = '#/reference/catalog/fixture/revision-a/'
     for (const identity of ['mod%3Amoonlight-project%3Aability%3A565', 'base%3Aitem%3Atonic', 'base/ability', 'mod/project/ability', 'base/ability/%E0%A4%A', 'base/ability/a%3Ab', 'base/ability/%00', 'id/base%3Aitem%3Atonic', 'constructor/record/1']) {
       expect(parseAppRoute(root + identity).page).toMatchObject({ page: 'unresolved', reason: 'malformed-entity-reference' })
     }

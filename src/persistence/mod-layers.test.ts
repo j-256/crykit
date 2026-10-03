@@ -31,10 +31,10 @@ it('saves immutable effective catalogs, preserves earlier setup values, and roun
   const loadedSaved = await loadLocalData()
   const setup = saved.gameSetups[saved.planningGameSetupRevisionId!]!
   const effective = modCatalogForPin(loadedSaved.catalogs, { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]! })!
-  expect(effective.entities['base:class:warrior']?.name).toBe('Second Fighter')
+  expect(effective.entities['base:job:0']?.name).toBe('Second Fighter')
   const stored = (await database.catalogs.toArray()).find(value => value.snapshot.revisionId === effective.revisionId)!
-  expect(stored.snapshot.entities['base:class:wizard']).toBeUndefined()
-  expect(effective.entities['base:class:wizard']).toEqual(DEFAULT_CATALOG.entities['base:class:wizard'])
+  expect(stored.snapshot.entities['base:job:3']).toBeUndefined()
+  expect(effective.entities['base:job:3']).toEqual(DEFAULT_CATALOG.entities['base:job:3'])
   expect(saved.gameSetups[previousSetup]).toEqual(loaded.localData.gameSetups[previousSetup])
   const draft = updateGameSetupRevision(saved, { sourceRevisionId: setup.id, modComposition: { ...composition, layers: [...composition.layers].reverse() } })
   await saveLocalData(draft, saved.revision)
@@ -55,7 +55,7 @@ it('reuses unchanged layer catalogs for personal overrides and requires review w
   await saveLocalData(updateGameSetupRevision(loaded.localData, { sourceRevisionId: loaded.localData.planningGameSetupRevisionId!, modComposition: composition }), loaded.revision)
   const layered = await loadLocalData()
   const setup = layered.localData.gameSetups[layered.localData.planningGameSetupRevisionId!]!
-  const override = savedCatalogVersion(layered.localData, layered.catalogs, { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
+  const override = savedCatalogVersion(layered.localData, layered.catalogs, { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: 'base:job:0' as EntityId }, name: 'Personal fighter' })
   const pinned = coalesceDefinitionOverrides(override.localData, { sourceGameSetupRevisionId: setup.id, definitionRefs: [override.ref], activate: true })
   const saved = await saveLocalData(pinned, layered.revision)
   const renamed = updateGameSetupRevision(saved, { sourceRevisionId: saved.planningGameSetupRevisionId!, label: 'Renamed setup' })

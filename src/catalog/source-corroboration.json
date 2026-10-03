@@ -5313,715 +5313,715 @@
     {
       "catalogId": "crystal-project-public-starter",
       "revisionId": "catalog-v1",
-      "checksum": "builtin:sha256:4a9be9fa05aa2a159a04ef2aad29ace384ea0b9fcdb96997c60a5e2c44fe6531",
+      "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa",
       "fields": {
-        "base:item:short-sword": {
+        "base:equipment:0": {
           "Attack": 0,
           "Attack/Pierce/Hands": 1,
           "Other effects": 0,
           "Value": 2
         },
-        "base:item:iron-sword": {
+        "base:equipment:11": {
           "Attack": 3,
           "Attack/Pierce/Hands": 4,
           "Other effects": 3,
           "Value": 5
         },
-        "base:item:contract": {
+        "base:equipment:71": {
           "Attack": 6,
           "Attack/Pierce/Hands": 7,
           "Value": 8
         },
-        "base:item:help-the-prince": {
+        "base:equipment:89": {
           "Attack": 9,
           "Attack/Pierce/Hands": 10,
           "Value": 11
         },
-        "base:item:craftwork-sword": {
+        "base:equipment:93": {
           "Attack": 12,
           "Attack/Pierce/Hands": 13,
           "Other effects": 12,
           "Value": 14
         },
-        "base:item:broadsword": {
+        "base:equipment:12": {
           "Attack": 15,
           "Attack/Pierce/Hands": 16,
           "Def pierce": 15,
           "Other effects": 15,
           "Value": 17
         },
-        "base:item:sharp-sword": {
+        "base:equipment:200": {
           "Attack": 18,
           "Attack/Pierce/Hands": 19,
           "Value": 20
         },
-        "base:item:razor-edge": {
+        "base:equipment:199": {
           "Attack": 21,
           "Attack/Pierce/Hands": 22,
           "Value": 23
         },
-        "base:item:silver-sword": {
+        "base:equipment:112": {
           "Attack": 24,
           "Attack/Pierce/Hands": 25,
           "Other effects": 24,
           "Value": 26
         },
-        "base:item:artisan-sword": {
+        "base:equipment:157": {
           "Attack": 27,
           "Attack/Pierce/Hands": 28,
           "Other effects": 27,
           "Value": 29
         },
-        "base:item:longsword": {
+        "base:equipment:378": {
           "Attack": 30,
           "Attack/Pierce/Hands": 31,
           "Def pierce": 30,
           "Value": 32
         },
-        "base:item:boomer-sword": {
+        "base:equipment:177": {
           "Attack": 33,
           "Attack/Pierce/Hands": 34,
           "Def pierce": 33,
           "Value": 35
         },
-        "base:item:digested-sword": {
+        "base:equipment:227": {
           "Value": 36
         },
-        "base:item:scimitar": {
+        "base:equipment:379": {
           "Attack": 37,
           "Attack/Pierce/Hands": 38,
           "Value": 39
         },
-        "base:item:cutlass": {
+        "base:equipment:377": {
           "Attack": 40,
           "Attack/Pierce/Hands": 41,
           "Value": 42
         },
-        "base:item:cold-touch": {
+        "base:equipment:375": {
           "Attack": 43,
           "Attack/Pierce/Hands": 44,
           "Value": 45
         },
-        "base:item:burning-blade": {
+        "base:equipment:497": {
           "Attack": 46,
           "Attack/Pierce/Hands": 47,
           "Value": 48
         },
-        "base:item:gold-sword": {
+        "base:equipment:138": {
           "Attack": 49,
           "Attack/Pierce/Hands": 50,
           "Other effects": 49,
           "Value": 51
         },
-        "base:item:war-sword": {
+        "base:equipment:376": {
           "Attack": 52,
           "Attack/Pierce/Hands": 53,
           "Def pierce": 52,
           "Value": 54
         },
-        "base:item:bloodbind": {
+        "base:equipment:197": {
           "Attack": 55,
           "Attack/Pierce/Hands": 56,
           "Def pierce": 55,
           "Value": 57
         },
-        "base:item:temporal-blade": {
+        "base:equipment:525": {
           "Attack": 58,
           "Attack/Pierce/Hands": 59,
           "Def pierce": 58,
           "Value": 60
         },
-        "base:item:highland-blade": {
+        "base:equipment:370": {
           "Attack": 61,
           "Attack/Pierce/Hands": 62,
           "Def pierce": 61,
           "Value": 63
         },
-        "base:item:hydra-edge": {
+        "base:equipment:371": {
           "Attack": 64,
           "Attack/Pierce/Hands": 65,
           "Def pierce": 64,
           "Value": 66
         },
-        "base:item:defender": {
+        "base:equipment:380": {
           "Attack": 67,
           "Attack/Pierce/Hands": 68,
           "Value": 69
         },
-        "base:item:crystal-sword": {
+        "base:equipment:374": {
           "Attack": 70,
           "Attack/Pierce/Hands": 71,
           "Value": 72
         },
-        "base:item:conquest": {
+        "base:equipment:372": {
           "Attack": 73,
           "Attack/Pierce/Hands": 74,
           "Value": 75
         },
-        "base:item:flame-sword": {
+        "base:equipment:381": {
           "Attack": 76,
           "Attack/Pierce/Hands": 77,
           "Value": 78
         },
-        "base:item:master-sword": {
+        "base:equipment:248": {
           "Attack": 79,
           "Attack/Pierce/Hands": 80,
           "Other effects": 79,
           "Value": 81
         },
-        "base:item:rune-sword": {
+        "base:equipment:382": {
           "Attack": 82,
           "Attack/Pierce/Hands": 83,
           "Value": 84
         },
-        "base:item:auduril": {
+        "base:equipment:270": {
           "Attack": 85,
           "Attack/Pierce/Hands": 86,
           "Def pierce": 85,
           "Value": 87
         },
-        "base:item:master-bigsword": {
+        "base:equipment:249": {
           "Attack": 88,
           "Attack/Pierce/Hands": 89,
           "Def pierce": 88,
           "Other effects": 88,
           "Value": 90
         },
-        "base:item:training-sword": {
+        "base:equipment:532": {
           "Attack": 91,
           "Attack/Pierce/Hands": 92,
           "Value": 93
         },
-        "base:item:life-line": {
+        "base:equipment:302": {
           "Attack": 94,
           "Attack/Pierce/Hands": 95,
           "Value": 96
         },
-        "base:item:soul-keeper": {
+        "base:equipment:303": {
           "Attack": 97,
           "Attack/Pierce/Hands": 98,
           "Value": 99
         },
-        "base:item:diamond-sword": {
+        "base:equipment:135": {
           "Attack": 100,
           "Attack/Pierce/Hands": 101,
           "Other effects": 100,
           "Value": 102
         },
-        "base:item:balrog": {
+        "base:equipment:369": {
           "Attack": 103,
           "Attack/Pierce/Hands": 104,
           "Def pierce": 103,
           "Value": 105
         },
-        "base:item:oily-sword": {
+        "base:equipment:279": {
           "Attack": 106,
           "Attack/Pierce/Hands": 107,
           "Value": 108
         },
-        "base:item:hand-axe": {
+        "base:equipment:55": {
           "Attack": 109,
           "Value": 110
         },
-        "base:item:craftwork-axe": {
+        "base:equipment:94": {
           "Attack": 111,
           "Value": 112
         },
-        "base:item:cleaver": {
+        "base:equipment:2": {
           "Attack": 113,
           "Value": 114
         },
-        "base:item:chopper": {
+        "base:equipment:66": {
           "Attack": 115,
           "Value": 116
         },
-        "base:item:hunting-axe": {
+        "base:equipment:187": {
           "Attack": 117,
           "Value": 118
         },
-        "base:item:silver-axe": {
+        "base:equipment:104": {
           "Attack": 119,
           "Value": 120
         },
-        "base:item:stone-splitter": {
+        "base:equipment:201": {
           "Attack": 121,
           "Value": 122
         },
-        "base:item:broadaxe": {
+        "base:equipment:383": {
           "Attack": 123,
           "Value": 124
         },
-        "base:item:artisan-axe": {
+        "base:equipment:158": {
           "Attack": 125,
           "Value": 126
         },
-        "base:item:hatchet": {
+        "base:equipment:386": {
           "Attack": 127,
           "Value": 128
         },
-        "base:item:axe-of-light": {
+        "base:equipment:387": {
           "Attack": 129,
           "Value": 130
         },
-        "base:item:gold-axe": {
+        "base:equipment:139": {
           "Attack": 131,
           "Value": 132
         },
-        "base:item:war-axe": {
+        "base:equipment:384": {
           "Attack": 133,
           "Value": 134
         },
-        "base:item:berserker-axe": {
+        "base:equipment:390": {
           "Attack": 135,
           "Value": 136
         },
-        "base:item:gaia-axe": {
+        "base:equipment:385": {
           "Attack": 137,
           "Value": 138
         },
-        "base:item:master-axe": {
+        "base:equipment:251": {
           "Attack": 139,
           "Value": 140
         },
-        "base:item:ancient-axe": {
+        "base:equipment:391": {
           "Attack": 141,
           "Value": 142
         },
-        "base:item:master-bigaxe": {
+        "base:equipment:250": {
           "Attack": 143,
           "Value": 144
         },
-        "base:item:aphotic-edge": {
+        "base:equipment:388": {
           "Attack": 145,
           "Value": 146
         },
-        "base:item:diamond-axe": {
+        "base:equipment:136": {
           "Attack": 147,
           "Value": 148
         },
-        "base:item:decapitator": {
+        "base:equipment:280": {
           "Attack": 149,
           "Value": 150
         },
-        "base:item:ragebringer": {
+        "base:equipment:274": {
           "Attack": 151,
           "Value": 152
         },
-        "base:item:dirk": {
+        "base:equipment:3": {
           "Attack": 153,
           "Value": 154
         },
-        "base:item:stabbers": {
+        "base:equipment:63": {
           "Attack": 155,
           "Value": 156
         },
-        "base:item:fishgutter": {
+        "base:equipment:77": {
           "Attack": 157,
           "Value": 158
         },
-        "base:item:poisonkiss": {
+        "base:equipment:40": {
           "Attack": 159,
           "Value": 160
         },
-        "base:item:shank": {
+        "base:equipment:60": {
           "Attack": 161,
           "Value": 162
         },
-        "base:item:craftwork-dagger": {
+        "base:equipment:95": {
           "Attack": 163,
           "Value": 164
         },
-        "base:item:tanto": {
+        "base:equipment:192": {
           "Attack": 165,
           "Attack/Crit. Damage/Evasion": 166,
           "Evasion": 165,
           "Other effects": 165,
           "Value": 167
         },
-        "base:item:butterfly": {
+        "base:equipment:203": {
           "Attack": 168,
           "Value": 169
         },
-        "base:item:kris": {
+        "base:equipment:202": {
           "Attack": 170,
           "Value": 171
         },
-        "base:item:ambush-knife": {
+        "base:equipment:184": {
           "Attack": 172,
           "Value": 173
         },
-        "base:item:rondel": {
+        "base:equipment:204": {
           "Attack": 174,
           "Value": 175
         },
-        "base:item:silver-dagger": {
+        "base:equipment:113": {
           "Attack": 176,
           "Value": 177
         },
-        "base:item:artisan-dagger": {
+        "base:equipment:159": {
           "Attack": 178,
           "Value": 179
         },
-        "base:item:parry-knife": {
+        "base:equipment:397": {
           "Attack": 180,
           "Attack/Crit. Damage/Evasion": 181,
           "Evasion": 180,
           "Value": 182
         },
-        "base:item:janbiya": {
+        "base:equipment:392": {
           "Attack": 183,
           "Attack/Crit. Damage/Evasion": 184,
           "Evasion": 183,
           "Value": 185
         },
-        "base:item:sai": {
+        "base:equipment:396": {
           "Attack": 186,
           "Attack/Crit. Damage/Evasion": 187,
           "Evasion": 186,
           "Value": 188
         },
-        "base:item:kodachi": {
+        "base:equipment:400": {
           "Attack": 189,
           "Attack/Crit. Damage/Evasion": 190,
           "Evasion": 189,
           "Value": 191
         },
-        "base:item:butter-cutter": {
+        "base:equipment:198": {
           "Attack": 192,
           "Value": 193
         },
-        "base:item:soul-kris": {
+        "base:equipment:305": {
           "Attack": 194,
           "Value": 195
         },
-        "base:item:gouger": {
+        "base:equipment:61": {
           "Attack": 196,
           "Value": 197
         },
-        "base:item:fanged-knife": {
+        "base:equipment:526": {
           "Attack": 198,
           "Value": 199
         },
-        "base:item:cinquedea": {
+        "base:equipment:393": {
           "Value": 200
         },
-        "base:item:gold-dagger": {
+        "base:equipment:140": {
           "Attack": 201,
           "Value": 202
         },
-        "base:item:kowakizashi": {
+        "base:equipment:398": {
           "Attack": 203,
           "Attack/Crit. Damage/Evasion": 204,
           "Evasion": 203,
           "Value": 205
         },
-        "base:item:bone-knife": {
+        "base:equipment:395": {
           "Attack": 206,
           "Value": 207
         },
-        "base:item:poignard": {
+        "base:equipment:394": {
           "Attack": 208,
           "Value": 209
         },
-        "base:item:flamespike": {
+        "base:equipment:72": {
           "Attack": 210,
           "Value": 211
         },
-        "base:item:master-dagger": {
+        "base:equipment:269": {
           "Attack": 212,
           "Value": 213
         },
-        "base:item:sange": {
+        "base:equipment:317": {
           "Attack": 214,
           "Attack/Crit. Damage/Evasion": 215,
           "Evasion": 214,
           "Value": 216
         },
-        "base:item:yasha": {
+        "base:equipment:318": {
           "Attack": 217,
           "Attack/Crit. Damage/Evasion": 218,
           "Evasion": 217,
           "Value": 219
         },
-        "base:item:legend-spike": {
+        "base:equipment:315": {
           "Attack": 220,
           "Value": 221
         },
-        "base:item:eclipse": {
+        "base:equipment:41": {
           "Attack": 222,
           "Value": 223
         },
-        "base:item:mage-masher": {
+        "base:equipment:282": {
           "Attack": 224,
           "Value": 225
         },
-        "base:item:diamond-dagger": {
+        "base:equipment:137": {
           "Attack": 226,
           "Value": 227
         },
-        "base:item:rapier": {
+        "base:equipment:73": {
           "Attack": 228,
           "Value": 229
         },
-        "base:item:stinger": {
+        "base:equipment:1": {
           "Attack": 230,
           "Value": 231
         },
-        "base:item:toothpick": {
+        "base:equipment:42": {
           "Attack": 232,
           "Value": 233
         },
-        "base:item:craftwork-rapier": {
+        "base:equipment:96": {
           "Attack": 234,
           "Value": 235
         },
-        "base:item:estoc": {
+        "base:equipment:207": {
           "Attack": 236,
           "Value": 237
         },
-        "base:item:scarlette": {
+        "base:equipment:206": {
           "Attack": 238,
           "Value": 239
         },
-        "base:item:fish-skewer": {
+        "base:equipment:175": {
           "Attack": 240,
           "Value": 241
         },
-        "base:item:silver-rapier": {
+        "base:equipment:114": {
           "Attack": 242,
           "Value": 243
         },
-        "base:item:artisan-rapier": {
+        "base:equipment:160": {
           "Attack": 244,
           "Value": 245
         },
-        "base:item:dueller": {
+        "base:equipment:10": {
           "Attack": 246,
           "Value": 247
         },
-        "base:item:vulture": {
+        "base:equipment:402": {
           "Attack": 248,
           "Value": 249
         },
-        "base:item:falcon-dance": {
+        "base:equipment:408": {
           "Attack": 250,
           "Value": 251
         },
-        "base:item:fleuret": {
+        "base:equipment:404": {
           "Attack": 252,
           "Value": 253
         },
-        "base:item:gold-rapier": {
+        "base:equipment:141": {
           "Attack": 254,
           "Value": 255
         },
-        "base:item:epee": {
+        "base:equipment:405": {
           "Attack": 256,
           "Value": 257
         },
-        "base:item:windsong": {
+        "base:equipment:407": {
           "Attack": 258,
           "Value": 259
         },
-        "base:item:master-rapier": {
+        "base:equipment:252": {
           "Attack": 260,
           "Value": 261
         },
-        "base:item:nightingale": {
+        "base:equipment:401": {
           "Attack": 262,
           "Value": 263
         },
-        "base:item:chartreuse": {
+        "base:equipment:403": {
           "Attack": 264,
           "Value": 265
         },
-        "base:item:murgleys": {
+        "base:equipment:406": {
           "Attack": 266,
           "Value": 267
         },
-        "base:item:diamond-rapier": {
+        "base:equipment:142": {
           "Attack": 268,
           "Value": 269
         },
-        "base:item:craftwork-katana": {
+        "base:equipment:97": {
           "Attack": 270,
           "Value": 271
         },
-        "base:item:tachi": {
+        "base:equipment:399": {
           "Attack": 272,
           "Value": 273
         },
-        "base:item:silver-katana": {
+        "base:equipment:115": {
           "Attack": 274,
           "Value": 275
         },
-        "base:item:artisan-katana": {
+        "base:equipment:161": {
           "Attack": 276,
           "Value": 277
         },
-        "base:item:nansen": {
+        "base:equipment:363": {
           "Value": 278
         },
-        "base:item:mitsutada": {
+        "base:equipment:22": {
           "Attack": 279,
           "Value": 280
         },
-        "base:item:hitofuri": {
+        "base:equipment:364": {
           "Attack": 281,
           "Value": 282
         },
-        "base:item:kokaiji": {
+        "base:equipment:23": {
           "Attack": 283,
           "Value": 284
         },
-        "base:item:gold-katana": {
+        "base:equipment:143": {
           "Attack": 285,
           "Value": 286
         },
-        "base:item:hokuken": {
+        "base:equipment:588": {
           "Attack": 287,
           "Value": 288
         },
-        "base:item:tomokirimaru": {
+        "base:equipment:366": {
           "Attack": 289,
           "Value": 290
         },
-        "base:item:ichimonji": {
+        "base:equipment:362": {
           "Attack": 291,
           "Value": 292
         },
-        "base:item:master-katana": {
+        "base:equipment:253": {
           "Attack": 293,
           "Value": 294
         },
-        "base:item:muramasa": {
+        "base:equipment:367": {
           "Attack": 295,
           "Attack/Element": 296,
           "Other effects": 295,
           "Value": 297
         },
-        "base:item:diamond-katana": {
+        "base:equipment:144": {
           "Attack": 298,
           "Value": 299
         },
-        "base:item:short-spear": {
+        "base:equipment:4": {
           "Attack": 300,
           "Attack/Defense": 301,
           "Defense": 300,
           "Other effects": 300,
           "Value": 302
         },
-        "base:item:craftwork-spear": {
+        "base:equipment:98": {
           "Attack": 303,
           "Attack/Defense": 304,
           "Defense": 303,
           "Other effects": 303,
           "Value": 305
         },
-        "base:item:javelin": {
+        "base:equipment:205": {
           "Attack": 306,
           "Value": 307
         },
-        "base:item:skewer": {
+        "base:equipment:190": {
           "Attack": 308,
           "Attack/Defense": 309,
           "Defense": 308,
           "Value": 310
         },
-        "base:item:prodder": {
+        "base:equipment:183": {
           "Attack": 311,
           "Attack/Defense": 312,
           "Defense": 311,
           "Value": 313
         },
-        "base:item:silver-spear": {
+        "base:equipment:116": {
           "Attack": 314,
           "Attack/Defense": 315,
           "Defense": 314,
           "Other effects": 314,
           "Value": 316
         },
-        "base:item:artisan-spear": {
+        "base:equipment:162": {
           "Attack": 317,
           "Attack/Defense": 318,
           "Defense": 317,
           "Other effects": 317,
           "Value": 319
         },
-        "base:item:trident": {
+        "base:equipment:409": {
           "Attack": 320,
           "Attack/Defense": 321,
           "Defense": 320,
           "Value": 322
         },
-        "base:item:wind-lance": {
+        "base:equipment:410": {
           "Attack": 323,
           "Attack/Defense": 324,
           "Defense": 323,
           "Value": 325
         },
-        "base:item:halberd": {
+        "base:equipment:418": {
           "Attack": 326,
           "Attack/Defense": 327,
           "Defense": 326,
           "Value": 328
         },
-        "base:item:gold-spear": {
+        "base:equipment:145": {
           "Attack": 329,
           "Attack/Defense": 330,
           "Defense": 329,
           "Other effects": 329,
           "Value": 331
         },
-        "base:item:voulge": {
+        "base:equipment:419": {
           "Attack": 332,
           "Attack/Defense": 333,
           "Defense": 332,
           "Value": 334
         },
-        "base:item:radiance": {
+        "base:equipment:417": {
           "Attack": 335,
           "Value": 336
         },
-        "base:item:partizan": {
+        "base:equipment:416": {
           "Attack": 337,
           "Attack/Defense": 338,
           "Defense": 337,
           "Value": 339
         },
-        "base:item:master-spear": {
+        "base:equipment:254": {
           "Attack": 340,
           "Attack/Defense": 341,
           "Defense": 340,
           "Other effects": 340,
           "Value": 342
         },
-        "base:item:incursier": {
+        "base:equipment:563": {
           "Attack": 343,
           "Attack/Defense": 344,
           "Defense": 343,
           "Value": 345
         },
-        "base:item:royal-guard": {
+        "base:equipment:275": {
           "Attack": 346,
           "Attack/Defense": 347,
           "Defense": 346,
           "Value": 348
         },
-        "base:item:gungnir": {
+        "base:equipment:304": {
           "Attack": 349,
           "Attack/Defense": 350,
           "Defense": 349,
           "Value": 351
         },
-        "base:item:diamond-spear": {
+        "base:equipment:146": {
           "Attack": 352,
           "Attack/Defense": 353,
           "Defense": 352,
           "Other effects": 352,
           "Value": 354
         },
-        "base:item:battle-scythe": {
+        "base:equipment:6": {
           "Attack": 355,
           "Attack/Pierce": 356,
           "Def pierce": 355,
@@ -6029,7 +6029,7 @@
           "Res pierce": 355,
           "Value": 357
         },
-        "base:item:craftwork-scythe": {
+        "base:equipment:99": {
           "Attack": 358,
           "Attack/Pierce": 359,
           "Def pierce": 358,
@@ -6037,19 +6037,19 @@
           "Res pierce": 358,
           "Value": 360
         },
-        "base:item:war-scythe": {
+        "base:equipment:208": {
           "Def pierce": 361,
           "Res pierce": 361,
           "Value": 362
         },
-        "base:item:wind-sickle": {
+        "base:equipment:413": {
           "Attack": 363,
           "Attack/Pierce": 364,
           "Def pierce": 363,
           "Res pierce": 363,
           "Value": 365
         },
-        "base:item:silver-scythe": {
+        "base:equipment:117": {
           "Attack": 366,
           "Attack/Pierce": 367,
           "Def pierce": 366,
@@ -6057,7 +6057,7 @@
           "Res pierce": 366,
           "Value": 368
         },
-        "base:item:artisan-scythe": {
+        "base:equipment:163": {
           "Attack": 369,
           "Attack/Pierce": 370,
           "Def pierce": 369,
@@ -6065,7 +6065,7 @@
           "Res pierce": 369,
           "Value": 371
         },
-        "base:item:thresher": {
+        "base:equipment:294": {
           "Attack": 372,
           "Attack/Pierce": 373,
           "Def pierce": 372,
@@ -6073,26 +6073,26 @@
           "Res pierce": 372,
           "Value": 374
         },
-        "base:item:grim-scythe": {
+        "base:equipment:293": {
           "Attack": 375,
           "Attack/Pierce": 376,
           "Def pierce": 375,
           "Res pierce": 375,
           "Value": 377
         },
-        "base:item:great-thresher": {
+        "base:equipment:295": {
           "Attack": 378,
           "Res pierce": 378,
           "Value": 379
         },
-        "base:item:frost-reaper": {
+        "base:equipment:414": {
           "Attack": 380,
           "Attack/Pierce": 381,
           "Def pierce": 380,
           "Res pierce": 380,
           "Value": 382
         },
-        "base:item:gold-scythe": {
+        "base:equipment:147": {
           "Attack": 383,
           "Attack/Pierce": 384,
           "Def pierce": 383,
@@ -6100,28 +6100,28 @@
           "Res pierce": 383,
           "Value": 385
         },
-        "base:item:ember-scythe": {
+        "base:equipment:589": {
           "Attack": 386,
           "Attack/Pierce": 387,
           "Def pierce": 386,
           "Res pierce": 386,
           "Value": 388
         },
-        "base:item:gravedigger": {
+        "base:equipment:415": {
           "Attack": 389,
           "Attack/Pierce": 390,
           "Def pierce": 389,
           "Res pierce": 389,
           "Value": 391
         },
-        "base:item:wind-thresher": {
+        "base:equipment:590": {
           "Attack": 392,
           "Attack/Pierce": 393,
           "Def pierce": 392,
           "Res pierce": 392,
           "Value": 394
         },
-        "base:item:master-scythe": {
+        "base:equipment:255": {
           "Attack": 395,
           "Attack/Pierce": 396,
           "Def pierce": 395,
@@ -6129,27 +6129,27 @@
           "Res pierce": 395,
           "Value": 397
         },
-        "base:item:twilight": {
+        "base:equipment:412": {
           "Attack": 398,
           "Attack/Pierce": 399,
           "Def pierce": 398,
           "Res pierce": 398,
           "Value": 400
         },
-        "base:item:adjudicator": {
+        "base:equipment:245": {
           "Attack": 401,
           "Attack/Pierce": 402,
           "Def pierce": 401,
           "Res pierce": 401,
           "Value": 403
         },
-        "base:item:arctic-chill": {
+        "base:equipment:556": {
           "Attack": 404,
           "Attack/Pierce": 405,
           "Res pierce": 404,
           "Value": 406
         },
-        "base:item:diamond-scythe": {
+        "base:equipment:148": {
           "Attack": 407,
           "Attack/Pierce": 408,
           "Def pierce": 407,
@@ -6157,944 +6157,944 @@
           "Res pierce": 407,
           "Value": 409
         },
-        "base:item:craftwork-bow": {
+        "base:equipment:105": {
           "Accuracy": 410,
           "Attack": 410,
           "Attack/Accuracy": 411,
           "Other effects": 410,
           "Value": 412
         },
-        "base:item:short-bow": {
+        "base:equipment:7": {
           "Accuracy": 413,
           "Attack": 413,
           "Attack/Accuracy": 414,
           "Other effects": 413,
           "Value": 415
         },
-        "base:item:hunting-bow": {
+        "base:equipment:181": {
           "Accuracy": 416,
           "Attack": 416,
           "Attack/Accuracy": 417,
           "Other effects": 416,
           "Value": 418
         },
-        "base:item:long-bow": {
+        "base:equipment:209": {
           "Accuracy": 419,
           "Attack": 419,
           "Attack/Accuracy": 420,
           "Value": 421
         },
-        "base:item:silver-bow": {
+        "base:equipment:118": {
           "Accuracy": 422,
           "Attack": 422,
           "Attack/Accuracy": 423,
           "Other effects": 422,
           "Value": 424
         },
-        "base:item:artisan-bow": {
+        "base:equipment:164": {
           "Accuracy": 425,
           "Attack": 425,
           "Attack/Accuracy": 426,
           "Other effects": 425,
           "Value": 427
         },
-        "base:item:battle-bow": {
+        "base:equipment:297": {
           "Accuracy": 428,
           "Attack": 428,
           "Attack/Accuracy": 429,
           "Other effects": 428,
           "Value": 430
         },
-        "base:item:composite-bow": {
+        "base:equipment:296": {
           "Accuracy": 431,
           "Attack": 431,
           "Attack/Accuracy": 432,
           "Value": 433
         },
-        "base:item:razor-bow": {
+        "base:equipment:298": {
           "Accuracy": 434,
           "Attack": 434,
           "Attack/Accuracy": 435,
           "Other effects": 434,
           "Value": 436
         },
-        "base:item:elven-bow": {
+        "base:equipment:421": {
           "Attack": 437,
           "Value": 438
         },
-        "base:item:gold-bow": {
+        "base:equipment:149": {
           "Accuracy": 439,
           "Attack": 439,
           "Attack/Accuracy": 440,
           "Other effects": 439,
           "Value": 441
         },
-        "base:item:spore-shooter": {
+        "base:equipment:180": {
           "Accuracy": 442,
           "Attack": 442,
           "Attack/Accuracy": 443,
           "Value": 444
         },
-        "base:item:war-bow": {
+        "base:equipment:300": {
           "Accuracy": 445,
           "Attack": 445,
           "Attack/Accuracy": 446,
           "Value": 447
         },
-        "base:item:siege-bow": {
+        "base:equipment:301": {
           "Accuracy": 448,
           "Attack": 448,
           "Attack/Accuracy": 449,
           "Value": 450
         },
-        "base:item:rune-bow": {
+        "base:equipment:299": {
           "Accuracy": 451,
           "Attack": 451,
           "Attack/Accuracy": 452,
           "Value": 453
         },
-        "base:item:master-bow": {
+        "base:equipment:256": {
           "Accuracy": 454,
           "Attack": 454,
           "Attack/Accuracy": 455,
           "Other effects": 454,
           "Value": 456
         },
-        "base:item:panakeia": {
+        "base:equipment:530": {
           "Accuracy": 457,
           "Attack": 457,
           "Attack/Accuracy": 458,
           "Value": 459
         },
-        "base:item:artemis": {
+        "base:equipment:281": {
           "Accuracy": 460,
           "Attack": 460,
           "Attack/Accuracy": 461,
           "Value": 462
         },
-        "base:item:dream-hunter": {
+        "base:equipment:420": {
           "Accuracy": 463,
           "Attack": 463,
           "Attack/Accuracy": 464,
           "Value": 465
         },
-        "base:item:diamond-bow": {
+        "base:equipment:150": {
           "Accuracy": 466,
           "Attack": 466,
           "Attack/Accuracy": 467,
           "Other effects": 466,
           "Value": 468
         },
-        "base:item:short-staff": {
+        "base:equipment:5": {
           "Attack": 469,
           "Attack/Spirit": 470,
           "Other effects": 469,
           "Spirit": 469,
           "Value": 471
         },
-        "base:item:cedar-staff": {
+        "base:equipment:62": {
           "Attack": 472,
           "Attack/Spirit": 473,
           "Other effects": 472,
           "Spirit": 472,
           "Value": 474
         },
-        "base:item:gnarled-root": {
+        "base:equipment:15": {
           "Attack": 475,
           "Attack/Spirit": 476,
           "Spirit": 475,
           "Value": 477
         },
-        "base:item:craftwork-staff": {
+        "base:equipment:100": {
           "Attack": 478,
           "Attack/Spirit": 479,
           "Other effects": 478,
           "Spirit": 478,
           "Value": 480
         },
-        "base:item:bone-smasher": {
+        "base:equipment:14": {
           "Attack": 481,
           "Attack/Spirit": 482,
           "Value": 483
         },
-        "base:item:iron-rod": {
+        "base:equipment:426": {
           "Attack": 484,
           "Attack/Spirit": 485,
           "Value": 486
         },
-        "base:item:quarterstaff": {
+        "base:equipment:210": {
           "Attack": 487,
           "Attack/Spirit": 488,
           "Spirit": 487,
           "Value": 489
         },
-        "base:item:walking-stick": {
+        "base:equipment:188": {
           "Attack": 490,
           "Attack/Spirit": 491,
           "Spirit": 490,
           "Value": 492
         },
-        "base:item:maplewood": {
+        "base:equipment:211": {
           "Attack": 493,
           "Attack/Spirit": 494,
           "Spirit": 493,
           "Value": 495
         },
-        "base:item:silver-staff": {
+        "base:equipment:119": {
           "Attack": 496,
           "Attack/Spirit": 497,
           "Other effects": 496,
           "Spirit": 496,
           "Value": 498
         },
-        "base:item:artisan-staff": {
+        "base:equipment:165": {
           "Attack": 499,
           "Attack/Spirit": 500,
           "Other effects": 499,
           "Spirit": 499,
           "Value": 501
         },
-        "base:item:knockout-stick": {
+        "base:equipment:335": {
           "Attack": 502,
           "Attack/Spirit": 503,
           "Value": 504
         },
-        "base:item:skullbasher": {
+        "base:equipment:427": {
           "Attack": 505,
           "Attack/Spirit": 506,
           "Value": 507
         },
-        "base:item:future-sight": {
+        "base:equipment:561": {
           "Attack": 508,
           "Value": 509
         },
-        "base:item:battle-staff": {
+        "base:equipment:67": {
           "Attack": 510,
           "Attack/Spirit": 511,
           "Value": 512
         },
-        "base:item:digested-staff": {
+        "base:equipment:228": {
           "Attack": 513,
           "Attack/Spirit": 514,
           "Spirit": 513,
           "Value": 515
         },
-        "base:item:life-jewel": {
+        "base:equipment:422": {
           "Attack": 516,
           "Attack/Spirit": 517,
           "Spirit": 516,
           "Value": 518
         },
-        "base:item:gold-staff": {
+        "base:equipment:151": {
           "Attack": 519,
           "Attack/Spirit": 520,
           "Other effects": 519,
           "Spirit": 519,
           "Value": 521
         },
-        "base:item:war-staff": {
+        "base:equipment:428": {
           "Attack": 522,
           "Attack/Spirit": 523,
           "Value": 524
         },
-        "base:item:apprentice": {
+        "base:equipment:424": {
           "Attack": 525,
           "Attack/Spirit": 526,
           "Spirit": 525,
           "Value": 527
         },
-        "base:item:master-staff": {
+        "base:equipment:257": {
           "Attack": 528,
           "Attack/Spirit": 529,
           "Other effects": 528,
           "Spirit": 528,
           "Value": 530
         },
-        "base:item:beats-stick": {
+        "base:equipment:289": {
           "Attack": 531,
           "Attack/Spirit": 532,
           "Value": 533
         },
-        "base:item:staff-of-balance": {
+        "base:equipment:290": {
           "Attack": 534,
           "Attack/Spirit": 535,
           "Spirit": 534,
           "Value": 536
         },
-        "base:item:judgement": {
+        "base:equipment:429": {
           "Attack": 537,
           "Attack/Spirit": 538,
           "Spirit": 537,
           "Value": 539
         },
-        "base:item:diamond-staff": {
+        "base:equipment:152": {
           "Attack": 540,
           "Attack/Spirit": 541,
           "Other effects": 540,
           "Spirit": 540,
           "Value": 542
         },
-        "base:item:ash-wand": {
+        "base:equipment:8": {
           "Attack": 543,
           "Attack/Mind": 544,
           "Mind": 543,
           "Other effects": 543,
           "Value": 545
         },
-        "base:item:cedar-wand": {
+        "base:equipment:13": {
           "Attack": 546,
           "Attack/Mind": 547,
           "Mind": 546,
           "Other effects": 546,
           "Value": 548
         },
-        "base:item:oak-wand": {
+        "base:equipment:16": {
           "Attack": 549,
           "Attack/Mind": 550,
           "Mind": 549,
           "Value": 551
         },
-        "base:item:torch": {
+        "base:equipment:64": {
           "Attack": 552,
           "Attack/Mind": 553,
           "Mind": 552,
           "Value": 554
         },
-        "base:item:ink-stick": {
+        "base:equipment:80": {
           "Attack": 555,
           "Attack/Mind": 556,
           "Mind": 555,
           "Value": 557
         },
-        "base:item:craftwork-wand": {
+        "base:equipment:101": {
           "Attack": 558,
           "Attack/Mind": 559,
           "Mind": 558,
           "Other effects": 558,
           "Value": 560
         },
-        "base:item:soul-wand": {
+        "base:equipment:213": {
           "Attack": 561,
           "Attack/Mind": 562,
           "Mind": 561,
           "Value": 563
         },
-        "base:item:static-rod": {
+        "base:equipment:189": {
           "Attack": 564,
           "Attack/Mind": 565,
           "Mind": 564,
           "Value": 566
         },
-        "base:item:maple-wand": {
+        "base:equipment:212": {
           "Attack": 567,
           "Attack/Mind": 568,
           "Mind": 567,
           "Value": 569
         },
-        "base:item:silver-wand": {
+        "base:equipment:120": {
           "Attack": 570,
           "Attack/Mind": 571,
           "Mind": 570,
           "Other effects": 570,
           "Value": 572
         },
-        "base:item:artisan-wand": {
+        "base:equipment:166": {
           "Attack": 573,
           "Attack/Mind": 574,
           "Mind": 573,
           "Other effects": 573,
           "Value": 575
         },
-        "base:item:storm-rod": {
+        "base:equipment:267": {
           "Attack": 576,
           "Attack/Mind": 577,
           "Mind": 576,
           "Value": 578
         },
-        "base:item:baton": {
+        "base:equipment:434": {
           "Attack": 579,
           "Attack/Mind": 580,
           "Mind": 579,
           "Value": 581
         },
-        "base:item:cursegiver": {
+        "base:equipment:432": {
           "Attack": 582,
           "Attack/Mind": 583,
           "Mind": 582,
           "Value": 584
         },
-        "base:item:effigy": {
+        "base:equipment:433": {
           "Attack": 585,
           "Attack/Mind": 586,
           "Mind": 585,
           "Value": 587
         },
-        "base:item:gold-wand": {
+        "base:equipment:153": {
           "Attack": 588,
           "Attack/Mind": 589,
           "Mind": 588,
           "Other effects": 588,
           "Value": 590
         },
-        "base:item:sentinel-rod": {
+        "base:equipment:431": {
           "Attack": 591,
           "Attack/Mind": 592,
           "Mind": 591,
           "Value": 593
         },
-        "base:item:stardust-wand": {
+        "base:equipment:430": {
           "Attack": 594,
           "Attack/Mind": 595,
           "Mind": 594,
           "Value": 596
         },
-        "base:item:master-wand": {
+        "base:equipment:258": {
           "Attack": 597,
           "Attack/Mind": 598,
           "Mind": 597,
           "Other effects": 597,
           "Value": 599
         },
-        "base:item:aura-focus": {
+        "base:equipment:278": {
           "Attack": 600,
           "Attack/Mind": 601,
           "Mind": 600,
           "Value": 602
         },
-        "base:item:paladin-wand": {
+        "base:equipment:276": {
           "Attack": 603,
           "Attack/Mind": 604,
           "Mind": 603,
           "Value": 605
         },
-        "base:item:obelisk": {
+        "base:equipment:307": {
           "Attack": 606,
           "Value": 607
         },
-        "base:item:flameseeker": {
+        "base:equipment:358": {
           "Attack": 608,
           "Attack/Mind": 609,
           "Value": 610
         },
-        "base:item:diamond-wand": {
+        "base:equipment:154": {
           "Attack": 611,
           "Attack/Mind": 612,
           "Mind": 611,
           "Other effects": 611,
           "Value": 613
         },
-        "base:item:moby-dick": {
+        "base:equipment:51": {
           "Attack": 614,
           "Attack/Max. MP": 615,
           "Max mp": 614,
           "Other effects": 614,
           "Value": 616
         },
-        "base:item:orylei": {
+        "base:equipment:65": {
           "Attack": 617,
           "Attack/Max. MP": 618,
           "Max mp": 617,
           "Other effects": 617,
           "Value": 619
         },
-        "base:item:craftwork-pages": {
+        "base:equipment:102": {
           "Attack": 620,
           "Attack/Max. MP": 621,
           "Max mp": 620,
           "Other effects": 620,
           "Value": 622
         },
-        "base:item:encyclopedia": {
+        "base:equipment:214": {
           "Attack": 623,
           "Attack/Max. MP": 624,
           "Max mp": 623,
           "Value": 625
         },
-        "base:item:gospel": {
+        "base:equipment:194": {
           "Attack": 626,
           "Attack/Max. MP": 627,
           "Max mp": 626,
           "Value": 628
         },
-        "base:item:paypirbak": {
+        "base:equipment:223": {
           "Attack": 629,
           "Attack/Max. MP": 630,
           "Max mp": 629,
           "Value": 631
         },
-        "base:item:art-of-war": {
+        "base:equipment:224": {
           "Attack": 632,
           "Attack/Max. MP": 633,
           "Max mp": 632,
           "Value": 634
         },
-        "base:item:silver-pages": {
+        "base:equipment:121": {
           "Attack": 635,
           "Attack/Max. MP": 636,
           "Max mp": 635,
           "Other effects": 635,
           "Value": 637
         },
-        "base:item:artisan-pages": {
+        "base:equipment:167": {
           "Attack": 638,
           "Attack/Max. MP": 639,
           "Max mp": 638,
           "Other effects": 638,
           "Value": 640
         },
-        "base:item:grimoire": {
+        "base:equipment:438": {
           "Attack": 641,
           "Attack/Max. MP": 642,
           "Max mp": 641,
           "Value": 643
         },
-        "base:item:blank-pages": {
+        "base:equipment:437": {
           "Attack": 644,
           "Attack/Max. MP": 645,
           "Max mp": 644,
           "Value": 646
         },
-        "base:item:tome-of-light": {
+        "base:equipment:439": {
           "Attack": 647,
           "Attack/Max. MP": 648,
           "Max mp": 647,
           "Value": 649
         },
-        "base:item:hydrology": {
+        "base:equipment:441": {
           "Attack": 650,
           "Attack/Max. MP": 651,
           "Max mp": 650,
           "Value": 652
         },
-        "base:item:gold-pages": {
+        "base:equipment:155": {
           "Attack": 653,
           "Attack/Max. MP": 654,
           "Max mp": 653,
           "Other effects": 653,
           "Value": 655
         },
-        "base:item:dark-gospel": {
+        "base:equipment:440": {
           "Attack": 656,
           "Value": 657
         },
-        "base:item:divination": {
+        "base:equipment:442": {
           "Attack": 658,
           "Attack/Max. MP": 659,
           "Max mp": 658,
           "Value": 660
         },
-        "base:item:malifice": {
+        "base:equipment:443": {
           "Attack": 661,
           "Value": 662
         },
-        "base:item:master-pages": {
+        "base:equipment:259": {
           "Attack": 663,
           "Attack/Max. MP": 664,
           "Max mp": 663,
           "Other effects": 663,
           "Value": 665
         },
-        "base:item:codex": {
+        "base:equipment:436": {
           "Attack": 666,
           "Attack/Max. MP": 667,
           "Max mp": 666,
           "Value": 668
         },
-        "base:item:diamond-pages": {
+        "base:equipment:156": {
           "Attack": 669,
           "Attack/Max. MP": 670,
           "Max mp": 669,
           "Other effects": 669,
           "Value": 671
         },
-        "base:item:buckler": {
+        "base:equipment:44": {
           "Defense": 672,
           "Defense/Evasion": 673,
           "Other effects": 672
         },
-        "base:item:stout-shield": {
+        "base:equipment:45": {
           "Defense": 674,
           "Defense/Evasion": 675,
           "Other effects": 674
         },
-        "base:item:iron-guard": {
+        "base:equipment:68": {
           "Defense": 676,
           "Defense/Evasion": 677
         },
-        "base:item:stalwart-shield": {
+        "base:equipment:88": {
           "Defense": 678,
           "Resistance": 678
         },
-        "base:item:craftwork-shield": {
+        "base:equipment:506": {
           "Defense": 679,
           "Defense/Evasion": 680
         },
-        "base:item:vanguard": {
+        "base:equipment:111": {
           "Defense": 681,
           "Defense/Evasion": 682
         },
-        "base:item:duelling-shield": {
+        "base:equipment:215": {
           "Defense": 683,
           "Defense/Evasion": 684
         },
-        "base:item:lucky-platter": {
+        "base:equipment:103": {
           "Defense": 685,
           "Defense/Evasion": 686
         },
-        "base:item:boomer-shield": {
+        "base:equipment:178": {
           "Defense": 687,
           "Defense/Evasion": 688
         },
-        "base:item:silver-shield": {
+        "base:equipment:507": {
           "Defense": 689,
           "Defense/Evasion": 690
         },
-        "base:item:artisan-shield": {
+        "base:equipment:168": {
           "Defense": 691,
           "Defense/Evasion": 692
         },
-        "base:item:cross-shield": {
+        "base:equipment:444": {
           "Defense": 693,
           "Defense/Evasion": 694,
           "Other effects": 693
         },
-        "base:item:brass-cross": {
+        "base:equipment:448": {
           "Defense": 695,
           "Defense/Evasion": 696
         },
-        "base:item:blood-shield": {
+        "base:equipment:560": {
           "Defense": 697
         },
-        "base:item:the-immovable": {
+        "base:equipment:451": {
           "Defense": 698,
           "Defense/Evasion": 699
         },
-        "base:item:cross-guard": {
+        "base:equipment:446": {
           "Defense": 700,
           "Defense/Evasion": 701
         },
-        "base:item:gold-shield": {
+        "base:equipment:447": {
           "Defense": 702,
           "Defense/Evasion": 703
         },
-        "base:item:flame-guard": {
+        "base:equipment:450": {
           "Defense": 704,
           "Defense/Evasion": 705
         },
-        "base:item:master-shield": {
+        "base:equipment:260": {
           "Defense": 706,
           "Defense/Evasion": 707
         },
-        "base:item:turtle-shell": {
+        "base:equipment:445": {
           "Defense": 708,
           "Defense/Evasion": 709
         },
-        "base:item:tower-shield": {
+        "base:equipment:344": {
           "Defense": 710
         },
-        "base:item:ether-shield": {
+        "base:equipment:277": {
           "Defense/Evasion": 711
         },
-        "base:item:mirror-shield": {
+        "base:equipment:246": {
           "Defense": 712,
           "Defense/Evasion": 713
         },
-        "base:item:diamond-shield": {
+        "base:equipment:237": {
           "Defense": 714,
           "Defense/Evasion": 715
         },
-        "base:item:chain-helm": {
+        "base:equipment:25": {
           "Defense": 716,
           "Defense/Resistance/Threat": 717,
           "Other effects": 716,
           "Resistance": 716,
           "Value": 718
         },
-        "base:item:sturdy-helm": {
+        "base:equipment:26": {
           "Defense": 719,
           "Defense/Resistance/Threat": 720,
           "Other effects": 719,
           "Resistance": 719,
           "Value": 721
         },
-        "base:item:storm-helm": {
+        "base:equipment:74": {
           "Defense": 722,
           "Defense/Resistance/Threat": 723,
           "Resistance": 722,
           "Value": 724
         },
-        "base:item:copper-helm": {
+        "base:equipment:69": {
           "Defense": 725,
           "Defense/Resistance/Threat": 726,
           "Resistance": 725,
           "Value": 727
         },
-        "base:item:craftwork-helm": {
+        "base:equipment:508": {
           "Defense": 728,
           "Resistance": 728,
           "Value": 729
         },
-        "base:item:bronze-helm": {
+        "base:equipment:106": {
           "Defense": 730,
           "Resistance": 730,
           "Value": 731
         },
-        "base:item:scale-helm": {
+        "base:equipment:128": {
           "Defense": 732,
           "Resistance": 732,
           "Value": 733
         },
-        "base:item:iron-helm": {
+        "base:equipment:125": {
           "Defense": 734,
           "Value": 735
         },
-        "base:item:battle-helm": {
+        "base:equipment:132": {
           "Defense": 736,
           "Defense/Resistance/Threat": 737,
           "Resistance": 736,
           "Value": 738
         },
-        "base:item:silver-helm": {
+        "base:equipment:509": {
           "Defense": 739,
           "Resistance": 739,
           "Value": 740
         },
-        "base:item:artisan-helm": {
+        "base:equipment:169": {
           "Defense": 741,
           "Resistance": 741,
           "Value": 742
         },
-        "base:item:orion-barbut": {
+        "base:equipment:465": {
           "Defense": 743,
           "Resistance": 743,
           "Value": 744
         },
-        "base:item:iron-barbut": {
+        "base:equipment:468": {
           "Defense": 745,
           "Resistance": 745,
           "Value": 746
         },
-        "base:item:horned-helm": {
+        "base:equipment:464": {
           "Defense": 747,
           "Resistance": 747,
           "Value": 748
         },
-        "base:item:gold-helm": {
+        "base:equipment:469": {
           "Defense": 749,
           "Resistance": 749,
           "Value": 750
         },
-        "base:item:cross-helm": {
+        "base:equipment:466": {
           "Defense": 751,
           "Resistance": 751,
           "Value": 752
         },
-        "base:item:insignia-helm": {
+        "base:equipment:470": {
           "Defense": 753,
           "Resistance": 753,
           "Value": 754
         },
-        "base:item:demon-helm": {
+        "base:equipment:467": {
           "Defense": 755,
           "Defense/Resistance/Threat": 756,
           "Resistance": 755,
           "Value": 757
         },
-        "base:item:master-helm": {
+        "base:equipment:261": {
           "Defense": 758,
           "Resistance": 758,
           "Value": 759
         },
-        "base:item:guts-busby": {
+        "base:equipment:308": {
           "Defense": 760,
           "Resistance": 760,
           "Value": 761
         },
-        "base:item:raid-helm": {
+        "base:equipment:471": {
           "Defense": 762,
           "Resistance": 762,
           "Value": 763
         },
-        "base:item:spellsword-helm": {
+        "base:equipment:292": {
           "Defense": 764,
           "Defense/Resistance/Threat": 765,
           "Resistance": 764,
           "Value": 766
         },
-        "base:item:diamond-helm": {
+        "base:equipment:236": {
           "Defense": 767,
           "Resistance": 767,
           "Value": 768
         },
-        "base:item:breastplate": {
+        "base:equipment:18": {
           "Defense": 769,
           "Defense/Resistance/Threat": 770,
           "Other effects": 769,
           "Resistance": 769
         },
-        "base:item:ring-mail": {
+        "base:equipment:28": {
           "Defense": 771,
           "Defense/Resistance/Threat": 772,
           "Other effects": 771,
           "Resistance": 771
         },
-        "base:item:copper-suit": {
+        "base:equipment:29": {
           "Defense": 773,
           "Defense/Resistance/Threat": 774,
           "Resistance": 773
         },
-        "base:item:plate-of-wolf": {
+        "base:equipment:84": {
           "Defense": 775,
           "Defense/Resistance/Threat": 776,
           "Resistance": 775
         },
-        "base:item:craftwork-mail": {
+        "base:equipment:510": {
           "Defense": 777,
           "Resistance": 777
         },
-        "base:item:bronze-suit": {
+        "base:equipment:107": {
           "Defense": 778,
           "Resistance": 778
         },
-        "base:item:scale-mail": {
+        "base:equipment:127": {
           "Defense": 779,
           "Resistance": 779
         },
-        "base:item:iron-armor": {
+        "base:equipment:126": {
           "Defense": 780
         },
-        "base:item:battleplate": {
+        "base:equipment:43": {
           "Defense": 781,
           "Defense/Resistance/Threat": 782,
           "Resistance": 781
         },
-        "base:item:silver-mail": {
+        "base:equipment:511": {
           "Defense": 783,
           "Resistance": 783
         },
-        "base:item:artisan-mail": {
+        "base:equipment:170": {
           "Defense": 784,
           "Resistance": 784
         },
-        "base:item:orion-armor": {
+        "base:equipment:455": {
           "Defense": 785,
           "Resistance": 785
         },
-        "base:item:plate-of-tiger": {
+        "base:equipment:129": {
           "Defense": 786,
           "Defense/Resistance/Threat": 787
         },
-        "base:item:plate-mail": {
+        "base:equipment:460": {
           "Defense": 788,
           "Resistance": 788
         },
-        "base:item:bone-mail": {
+        "base:equipment:462": {
           "Defense": 789,
           "Resistance": 789
         },
-        "base:item:gold-mail": {
+        "base:equipment:459": {
           "Defense": 790,
           "Resistance": 790
         },
-        "base:item:sky-armor": {
+        "base:equipment:461": {
           "Defense": 791,
           "Defense/Resistance/Threat": 792,
           "Resistance": 791
         },
-        "base:item:plate-of-lion": {
+        "base:equipment:130": {
           "Defense": 793
         },
-        "base:item:dragon-mail": {
+        "base:equipment:457": {
           "Defense": 794,
           "Resistance": 794
         },
-        "base:item:demon-plate": {
+        "base:equipment:458": {
           "Defense": 795,
           "Defense/Resistance/Threat": 796,
           "Resistance": 795
         },
-        "base:item:master-mail": {
+        "base:equipment:262": {
           "Defense": 797,
           "Resistance": 797
         },
-        "base:item:construct-mail": {
+        "base:equipment:272": {
           "Defense": 798,
           "Resistance": 798
         },
-        "base:item:guardian-angel": {
+        "base:equipment:291": {
           "Defense": 799,
           "Resistance": 799
         },
-        "base:item:plate-of-whale": {
+        "base:equipment:131": {
           "Defense": 800,
           "Defense/Resistance/Threat": 801
         },
-        "base:item:lunar-mail": {
+        "base:equipment:463": {
           "Defense": 802,
           "Resistance": 802
         },
-        "base:item:diamond-mail": {
+        "base:equipment:235": {
           "Defense": 803,
           "Resistance": 803
         },
-        "base:item:warrior-mail": {
+        "base:equipment:533": {
           "Defense": 804,
           "Resistance": 804
         },
-        "base:item:warlock-mail": {
+        "base:equipment:534": {
           "Defense": 805,
           "Defense/Resistance/Threat": 806,
           "Resistance": 805
         },
-        "base:item:aegis-mail": {
+        "base:equipment:536": {
           "Defense": 807,
           "Defense/Resistance/Threat": 808,
           "Resistance": 807
         },
-        "base:item:reaper-mail": {
+        "base:equipment:535": {
           "Defense": 809,
           "Defense/Resistance/Threat": 810,
           "Resistance": 809
         },
-        "base:item:samurai-mail": {
+        "base:equipment:538": {
           "Defense": 811,
           "Defense/Resistance/Threat": 812,
           "Resistance": 811
         },
-        "base:item:valkyrie-mail": {
+        "base:equipment:537": {
           "Defense": 813,
           "Defense/Resistance/Threat": 814,
           "Resistance": 813
         },
-        "base:item:beastmaster-mail": {
+        "base:equipment:557": {
           "Defense": 815,
           "Resistance": 815
         },
-        "base:item:mimic-mail": {
+        "base:equipment:548": {
           "Defense": 816,
           "Defense/Resistance/Threat": 817,
           "Resistance": 816
         },
-        "base:item:leather-cap": {
+        "base:equipment:24": {
           "Defense": 818,
           "Defense/Resistance/Attack": 819,
           "Other effects": 818,
           "Resistance": 818,
           "Value": 820
         },
-        "base:item:beret": {
+        "base:equipment:27": {
           "Defense": 821,
           "Defense/Resistance/Attack": 822,
           "Resistance": 821,
           "Value": 823
         },
-        "base:item:storm-cap": {
+        "base:equipment:75": {
           "Defense": 824,
           "Defense/Resistance/Attack": 825,
           "Resistance": 824,
           "Value": 826
         },
-        "base:item:headgear": {
+        "base:equipment:30": {
           "Attack": 827,
           "Defense": 827,
           "Defense/Resistance/Attack": 828,
@@ -7102,7 +7102,7 @@
           "Resistance": 827,
           "Value": 829
         },
-        "base:item:craftwork-cap": {
+        "base:equipment:512": {
           "Attack": 830,
           "Defense": 830,
           "Defense/Resistance/Attack": 831,
@@ -7110,20 +7110,20 @@
           "Resistance": 830,
           "Value": 832
         },
-        "base:item:rugged-hat": {
+        "base:equipment:219": {
           "Defense": 833,
           "Defense/Resistance/Attack": 834,
           "Other effects": 833,
           "Resistance": 833,
           "Value": 835
         },
-        "base:item:spore-blocker": {
+        "base:equipment:195": {
           "Defense": 836,
           "Defense/Resistance/Attack": 837,
           "Resistance": 836,
           "Value": 838
         },
-        "base:item:silver-cap": {
+        "base:equipment:513": {
           "Attack": 839,
           "Defense": 839,
           "Defense/Resistance/Attack": 840,
@@ -7131,7 +7131,7 @@
           "Resistance": 839,
           "Value": 841
         },
-        "base:item:artisan-cap": {
+        "base:equipment:171": {
           "Attack": 842,
           "Defense": 842,
           "Defense/Resistance/Attack": 843,
@@ -7139,20 +7139,20 @@
           "Resistance": 842,
           "Value": 844
         },
-        "base:item:combat-band": {
+        "base:equipment:483": {
           "Attack": 845,
           "Defense": 845,
           "Defense/Resistance/Attack": 846,
           "Resistance": 845,
           "Value": 847
         },
-        "base:item:red-cap": {
+        "base:equipment:233": {
           "Defense": 848,
           "Defense/Resistance/Attack": 849,
           "Resistance": 848,
           "Value": 850
         },
-        "base:item:bandana": {
+        "base:equipment:484": {
           "Attack": 851,
           "Defense": 851,
           "Defense/Resistance/Attack": 852,
@@ -7160,7 +7160,7 @@
           "Resistance": 851,
           "Value": 853
         },
-        "base:item:suitor-hat": {
+        "base:equipment:485": {
           "Attack": 854,
           "Defense": 854,
           "Defense/Resistance/Attack": 855,
@@ -7168,7 +7168,7 @@
           "Resistance": 854,
           "Value": 856
         },
-        "base:item:gold-cap": {
+        "base:equipment:520": {
           "Attack": 857,
           "Defense": 857,
           "Defense/Resistance/Attack": 858,
@@ -7176,20 +7176,20 @@
           "Resistance": 857,
           "Value": 859
         },
-        "base:item:red-hat": {
+        "base:equipment:480": {
           "Defense": 860,
           "Defense/Resistance/Attack": 861,
           "Resistance": 860,
           "Value": 862
         },
-        "base:item:pirate-hat": {
+        "base:equipment:481": {
           "Attack": 863,
           "Defense": 863,
           "Defense/Resistance/Attack": 864,
           "Resistance": 863,
           "Value": 865
         },
-        "base:item:tall-tall-hat": {
+        "base:equipment:486": {
           "Attack": 866,
           "Defense": 866,
           "Defense/Resistance/Attack": 867,
@@ -7197,7 +7197,7 @@
           "Resistance": 866,
           "Value": 868
         },
-        "base:item:master-cap": {
+        "base:equipment:263": {
           "Attack": 869,
           "Defense": 869,
           "Defense/Resistance/Attack": 870,
@@ -7205,20 +7205,20 @@
           "Resistance": 869,
           "Value": 871
         },
-        "base:item:battle-band": {
+        "base:equipment:345": {
           "Attack": 872,
           "Defense": 872,
           "Defense/Resistance/Attack": 873,
           "Resistance": 872,
           "Value": 874
         },
-        "base:item:red-headgear": {
+        "base:equipment:487": {
           "Defense": 875,
           "Defense/Resistance/Attack": 876,
           "Resistance": 875,
           "Value": 877
         },
-        "base:item:diamond-cap": {
+        "base:equipment:238": {
           "Attack": 878,
           "Defense": 878,
           "Defense/Resistance/Attack": 879,
@@ -7226,14 +7226,14 @@
           "Resistance": 878,
           "Value": 880
         },
-        "base:item:leather-outfit": {
+        "base:equipment:17": {
           "Defense": 881,
           "Defense/Resistance/Attack": 882,
           "Other effects": 881,
           "Resistance": 881,
           "Value": 883
         },
-        "base:item:studded-armor": {
+        "base:equipment:35": {
           "Attack": 884,
           "Defense": 884,
           "Defense/Resistance/Attack": 885,
@@ -7241,13 +7241,13 @@
           "Resistance": 884,
           "Value": 886
         },
-        "base:item:leather-mail": {
+        "base:equipment:36": {
           "Defense": 887,
           "Defense/Resistance/Attack": 888,
           "Resistance": 887,
           "Value": 889
         },
-        "base:item:craftwork-vest": {
+        "base:equipment:514": {
           "Attack": 890,
           "Defense": 890,
           "Defense/Resistance/Attack": 891,
@@ -7255,7 +7255,7 @@
           "Resistance": 890,
           "Value": 892
         },
-        "base:item:chain-vest": {
+        "base:equipment:217": {
           "Attack": 893,
           "Defense": 893,
           "Defense/Resistance/Attack": 894,
@@ -7263,31 +7263,31 @@
           "Resistance": 893,
           "Value": 895
         },
-        "base:item:combat-vest": {
+        "base:equipment:218": {
           "Defense": 896,
           "Defense/Resistance/Attack": 897,
           "Resistance": 896,
           "Value": 898
         },
-        "base:item:smelly-gi": {
+        "base:equipment:268": {
           "Defense": 899,
           "Defense/Resistance/Attack": 900,
           "Resistance": 899,
           "Value": 901
         },
-        "base:item:training-gi": {
+        "base:equipment:229": {
           "Defense": 902,
           "Defense/Resistance/Attack": 903,
           "Resistance": 902,
           "Value": 904
         },
-        "base:item:tuxedo": {
+        "base:equipment:176": {
           "Defense": 905,
           "Defense/Resistance/Attack": 906,
           "Resistance": 905,
           "Value": 907
         },
-        "base:item:silver-vest": {
+        "base:equipment:515": {
           "Attack": 908,
           "Defense": 908,
           "Defense/Resistance/Attack": 909,
@@ -7295,7 +7295,7 @@
           "Resistance": 908,
           "Value": 910
         },
-        "base:item:artisan-vest": {
+        "base:equipment:172": {
           "Attack": 911,
           "Defense": 911,
           "Defense/Resistance/Attack": 912,
@@ -7303,7 +7303,7 @@
           "Resistance": 911,
           "Value": 913
         },
-        "base:item:power-vest": {
+        "base:equipment:472": {
           "Attack": 914,
           "Defense": 914,
           "Defense/Resistance/Attack": 915,
@@ -7311,33 +7311,33 @@
           "Resistance": 914,
           "Value": 916
         },
-        "base:item:red-coat": {
+        "base:equipment:57": {
           "Defense": 917,
           "Defense/Resistance/Attack": 918,
           "Resistance": 917,
           "Value": 919
         },
-        "base:item:bandage-wrap": {
+        "base:equipment:558": {
           "Attack": 920,
           "Defense": 920,
           "Defense/Resistance/Attack": 921,
           "Resistance": 920,
           "Value": 922
         },
-        "base:item:gaia-vest": {
+        "base:equipment:473": {
           "Defense": 923,
           "Defense/Resistance/Attack": 924,
           "Resistance": 923,
           "Value": 925
         },
-        "base:item:brigandine": {
+        "base:equipment:477": {
           "Attack": 926,
           "Defense": 926,
           "Defense/Resistance/Attack": 927,
           "Resistance": 926,
           "Value": 928
         },
-        "base:item:gold-vest": {
+        "base:equipment:521": {
           "Attack": 929,
           "Defense": 929,
           "Defense/Resistance/Attack": 930,
@@ -7345,28 +7345,28 @@
           "Resistance": 929,
           "Value": 931
         },
-        "base:item:onion-gi": {
+        "base:equipment:475": {
           "Attack": 932,
           "Defense": 932,
           "Defense/Resistance/Attack": 933,
           "Resistance": 932,
           "Value": 934
         },
-        "base:item:martial-vest": {
+        "base:equipment:478": {
           "Attack": 935,
           "Defense": 935,
           "Defense/Resistance/Attack": 936,
           "Resistance": 935,
           "Value": 937
         },
-        "base:item:judo-gi": {
+        "base:equipment:479": {
           "Attack": 938,
           "Defense": 938,
           "Defense/Resistance/Attack": 939,
           "Resistance": 938,
           "Value": 940
         },
-        "base:item:master-vest": {
+        "base:equipment:264": {
           "Attack": 941,
           "Defense": 941,
           "Defense/Resistance/Attack": 942,
@@ -7374,29 +7374,29 @@
           "Resistance": 941,
           "Value": 943
         },
-        "base:item:quintar-pelt": {
+        "base:equipment:493": {
           "Defense": 944,
           "Defense/Resistance/Attack": 945,
           "Resistance": 944,
           "Value": 946
         },
-        "base:item:shadow-gi": {
+        "base:equipment:347": {
           "Attack": 947,
           "Defense": 947,
           "Defense/Resistance/Attack": 948,
           "Resistance": 947,
           "Value": 949
         },
-        "base:item:rex-vest": {
+        "base:equipment:476": {
           "Defense": 950,
           "Defense/Resistance/Attack": 951,
           "Resistance": 950,
           "Value": 952
         },
-        "base:item:slime-coat": {
+        "base:equipment:524": {
           "Value": 953
         },
-        "base:item:diamond-vest": {
+        "base:equipment:239": {
           "Attack": 954,
           "Defense": 954,
           "Defense/Resistance/Attack": 955,
@@ -7404,64 +7404,64 @@
           "Resistance": 954,
           "Value": 956
         },
-        "base:item:monk-vest": {
+        "base:equipment:539": {
           "Defense": 957,
           "Defense/Resistance/Attack": 958,
           "Resistance": 957,
           "Value": 959
         },
-        "base:item:rogue-vest": {
+        "base:equipment:540": {
           "Attack": 960,
           "Defense": 960,
           "Defense/Resistance/Attack": 961,
           "Resistance": 960,
           "Value": 962
         },
-        "base:item:fencer-vest": {
+        "base:equipment:541": {
           "Defense": 963,
           "Defense/Resistance/Attack": 964,
           "Resistance": 963,
           "Value": 965
         },
-        "base:item:hunter-vest": {
+        "base:equipment:542": {
           "Defense": 966,
           "Defense/Resistance/Attack": 967,
           "Resistance": 966,
           "Value": 968
         },
-        "base:item:ninja-vest": {
+        "base:equipment:543": {
           "Defense": 969,
           "Defense/Resistance/Attack": 970,
           "Resistance": 969,
           "Value": 971
         },
-        "base:item:nomad-vest": {
+        "base:equipment:544": {
           "Attack": 972,
           "Defense": 972,
           "Defense/Resistance/Attack": 973,
           "Resistance": 972,
           "Value": 974
         },
-        "base:item:beatsmith-vest": {
+        "base:equipment:545": {
           "Defense": 975,
           "Defense/Resistance/Attack": 976,
           "Resistance": 975,
           "Value": 977
         },
-        "base:item:assassin-vest": {
+        "base:equipment:546": {
           "Defense": 978,
           "Defense/Resistance/Attack": 979,
           "Resistance": 978,
           "Value": 980
         },
-        "base:item:hemp-hood": {
+        "base:equipment:31": {
           "Defense": 981,
           "Defense/Resistance/Mind/Spirit": 982,
           "Other effects": 981,
           "Resistance": 981,
           "Value": 983
         },
-        "base:item:cotton-hood": {
+        "base:equipment:32": {
           "Defense": 984,
           "Defense/Resistance/Mind/Spirit": 985,
           "Mind": 984,
@@ -7470,13 +7470,13 @@
           "Spirit": 984,
           "Value": 986
         },
-        "base:item:storm-hood": {
+        "base:equipment:76": {
           "Defense": 987,
           "Defense/Resistance/Mind/Spirit": 988,
           "Resistance": 987,
           "Value": 989
         },
-        "base:item:holy-hat": {
+        "base:equipment:33": {
           "Defense": 990,
           "Defense/Resistance/Mind/Spirit": 991,
           "Other effects": 990,
@@ -7484,7 +7484,7 @@
           "Spirit": 990,
           "Value": 992
         },
-        "base:item:craftwork-crown": {
+        "base:equipment:516": {
           "Defense": 993,
           "Defense/Resistance/Mind/Spirit": 994,
           "Mind": 993,
@@ -7493,7 +7493,7 @@
           "Spirit": 993,
           "Value": 995
         },
-        "base:item:silk-hat": {
+        "base:equipment:110": {
           "Defense": 996,
           "Defense/Resistance/Mind/Spirit": 997,
           "Mind": 996,
@@ -7502,13 +7502,13 @@
           "Spirit": 996,
           "Value": 998
         },
-        "base:item:circlet": {
+        "base:equipment:133": {
           "Defense": 999,
           "Defense/Resistance/Mind/Spirit": 1000,
           "Resistance": 999,
           "Value": 1001
         },
-        "base:item:holy-miter": {
+        "base:equipment:109": {
           "Defense": 1002,
           "Defense/Resistance/Mind/Spirit": 1003,
           "Other effects": 1002,
@@ -7516,14 +7516,14 @@
           "Spirit": 1002,
           "Value": 1004
         },
-        "base:item:woven-hood": {
+        "base:equipment:122": {
           "Defense": 1005,
           "Defense/Resistance/Mind/Spirit": 1006,
           "Other effects": 1005,
           "Resistance": 1005,
           "Value": 1007
         },
-        "base:item:silver-crown": {
+        "base:equipment:517": {
           "Defense": 1008,
           "Defense/Resistance/Mind/Spirit": 1009,
           "Mind": 1008,
@@ -7532,7 +7532,7 @@
           "Spirit": 1008,
           "Value": 1010
         },
-        "base:item:artisan-crown": {
+        "base:equipment:173": {
           "Defense": 1011,
           "Defense/Resistance/Mind/Spirit": 1012,
           "Mind": 1011,
@@ -7541,7 +7541,7 @@
           "Spirit": 1011,
           "Value": 1013
         },
-        "base:item:quilted-hat": {
+        "base:equipment:353": {
           "Defense": 1014,
           "Defense/Resistance/Mind/Spirit": 1015,
           "Mind": 1014,
@@ -7550,25 +7550,25 @@
           "Spirit": 1014,
           "Value": 1016
         },
-        "base:item:blood-hat": {
+        "base:equipment:559": {
           "Defense": 1017,
           "Defense/Resistance/Mind/Spirit": 1018,
           "Resistance": 1017,
           "Value": 1019
         },
-        "base:item:plague-mask": {
+        "base:equipment:342": {
           "Defense": 1020,
           "Defense/Resistance/Mind/Spirit": 1021,
           "Resistance": 1020,
           "Value": 1022
         },
-        "base:item:guard-crown": {
+        "base:equipment:356": {
           "Defense": 1023,
           "Defense/Resistance/Mind/Spirit": 1024,
           "Resistance": 1023,
           "Value": 1025
         },
-        "base:item:gold-crown": {
+        "base:equipment:522": {
           "Defense": 1026,
           "Defense/Resistance/Mind/Spirit": 1027,
           "Mind": 1026,
@@ -7577,7 +7577,7 @@
           "Spirit": 1026,
           "Value": 1028
         },
-        "base:item:bronze-hairpin": {
+        "base:equipment:34": {
           "Defense": 1029,
           "Defense/Resistance/Mind/Spirit": 1030,
           "Mind": 1029,
@@ -7585,19 +7585,19 @@
           "Spirit": 1029,
           "Value": 1031
         },
-        "base:item:regen-crown": {
+        "base:equipment:343": {
           "Defense/Resistance/Mind/Spirit": 1032,
           "Resistance": 1033,
           "Spirit": 1033,
           "Value": 1034
         },
-        "base:item:celestial-crown": {
+        "base:equipment:52": {
           "Defense": 1035,
           "Defense/Resistance/Mind/Spirit": 1036,
           "Resistance": 1035,
           "Value": 1037
         },
-        "base:item:master-crown": {
+        "base:equipment:265": {
           "Defense": 1038,
           "Defense/Resistance/Mind/Spirit": 1039,
           "Mind": 1038,
@@ -7606,31 +7606,31 @@
           "Spirit": 1038,
           "Value": 1040
         },
-        "base:item:pointy-hat": {
+        "base:equipment:531": {
           "Defense": 1041,
           "Defense/Resistance/Mind/Spirit": 1042,
           "Resistance": 1041,
           "Value": 1043
         },
-        "base:item:vita-crown": {
+        "base:equipment:271": {
           "Defense": 1044,
           "Defense/Resistance/Mind/Spirit": 1045,
           "Resistance": 1044,
           "Value": 1046
         },
-        "base:item:pact-crown": {
+        "base:equipment:350": {
           "Defense": 1047,
           "Resistance": 1047,
           "Value": 1048
         },
-        "base:item:protector": {
+        "base:equipment:354": {
           "Defense": 1049,
           "Defense/Resistance/Mind/Spirit": 1050,
           "Resistance": 1049,
           "Spirit": 1049,
           "Value": 1051
         },
-        "base:item:diamond-crown": {
+        "base:equipment:240": {
           "Defense": 1052,
           "Defense/Resistance/Mind/Spirit": 1053,
           "Mind": 1052,
@@ -7639,195 +7639,195 @@
           "Spirit": 1052,
           "Value": 1054
         },
-        "base:item:hemp-robe": {
+        "base:equipment:19": {
           "Defense": 1055,
           "Defense/Resistance/Mind/Spirit": 1056,
           "Other effects": 1055,
           "Resistance": 1055
         },
-        "base:item:cotton-robe": {
+        "base:equipment:20": {
           "Defense": 1057,
           "Defense/Resistance/Mind/Spirit": 1058,
           "Other effects": 1057,
           "Resistance": 1057
         },
-        "base:item:craftwork-robe": {
+        "base:equipment:518": {
           "Defense": 1059,
           "Defense/Resistance/Mind/Spirit": 1060,
           "Other effects": 1059,
           "Resistance": 1059
         },
-        "base:item:priest-garb": {
+        "base:equipment:216": {
           "Defense": 1061,
           "Defense/Resistance/Mind/Spirit": 1062,
           "Other effects": 1061,
           "Resistance": 1061
         },
-        "base:item:dress": {
+        "base:equipment:134": {
           "Defense": 1063,
           "Defense/Resistance/Mind/Spirit": 1064,
           "Resistance": 1063
         },
-        "base:item:silk-shirt": {
+        "base:equipment:108": {
           "Defense": 1065,
           "Defense/Resistance/Mind/Spirit": 1066,
           "Other effects": 1065,
           "Resistance": 1065
         },
-        "base:item:woven-shirt": {
+        "base:equipment:230": {
           "Defense": 1067,
           "Defense/Resistance/Mind/Spirit": 1068,
           "Other effects": 1067,
           "Resistance": 1067
         },
-        "base:item:silver-cape": {
+        "base:equipment:519": {
           "Defense": 1069,
           "Defense/Resistance/Mind/Spirit": 1070,
           "Other effects": 1069,
           "Resistance": 1069
         },
-        "base:item:artisan-shirt": {
+        "base:equipment:174": {
           "Defense": 1071,
           "Defense/Resistance/Mind/Spirit": 1072,
           "Other effects": 1071,
           "Resistance": 1071
         },
-        "base:item:cosplay-garb": {
+        "base:equipment:336": {
           "Defense": 1073,
           "Defense/Resistance/Mind/Spirit": 1074,
           "Resistance": 1073
         },
-        "base:item:sturdy-cape": {
+        "base:equipment:359": {
           "Defense": 1075,
           "Defense/Resistance/Mind/Spirit": 1076,
           "Other effects": 1075,
           "Resistance": 1075
         },
-        "base:item:shelter-dress": {
+        "base:equipment:357": {
           "Defense": 1077,
           "Defense/Resistance/Mind/Spirit": 1078,
           "Resistance": 1077
         },
-        "base:item:gold-robe": {
+        "base:equipment:523": {
           "Defense": 1079,
           "Defense/Resistance/Mind/Spirit": 1080,
           "Other effects": 1079,
           "Resistance": 1079
         },
-        "base:item:winter-cape": {
+        "base:equipment:325": {
           "Defense": 1081,
           "Defense/Resistance/Mind/Spirit": 1082,
           "Resistance": 1081
         },
-        "base:item:blue-cape": {
+        "base:equipment:360": {
           "Defense": 1083,
           "Resistance": 1083
         },
-        "base:item:master-cape": {
+        "base:equipment:266": {
           "Defense": 1084,
           "Defense/Resistance/Mind/Spirit": 1085,
           "Other effects": 1084,
           "Resistance": 1084
         },
-        "base:item:archmage-vest": {
+        "base:equipment:337": {
           "Defense": 1086,
           "Defense/Resistance/Mind/Spirit": 1087,
           "Resistance": 1086
         },
-        "base:item:stealth-cape": {
+        "base:equipment:319": {
           "Defense": 1088,
           "Defense/Resistance/Mind/Spirit": 1089,
           "Resistance": 1088
         },
-        "base:item:shell-gown": {
+        "base:equipment:355": {
           "Defense": 1090,
           "Defense/Resistance/Mind/Spirit": 1091,
           "Resistance": 1090
         },
-        "base:item:diamond-robe": {
+        "base:equipment:241": {
           "Defense": 1092,
           "Defense/Resistance/Mind/Spirit": 1093,
           "Other effects": 1092,
           "Resistance": 1092
         },
-        "base:item:cleric-robe": {
+        "base:equipment:547": {
           "Defense": 1094,
           "Defense/Resistance/Mind/Spirit": 1095,
           "Resistance": 1094
         },
-        "base:item:wizard-robe": {
+        "base:equipment:549": {
           "Defense": 1096,
           "Defense/Resistance/Mind/Spirit": 1097,
           "Resistance": 1096
         },
-        "base:item:shaman-robe": {
+        "base:equipment:550": {
           "Defense": 1098,
           "Defense/Resistance/Mind/Spirit": 1099,
           "Resistance": 1098
         },
-        "base:item:scholar-robe": {
+        "base:equipment:551": {
           "Defense": 1100,
           "Defense/Resistance/Mind/Spirit": 1101,
           "Resistance": 1100
         },
-        "base:item:chemist-robe": {
+        "base:equipment:552": {
           "Defense": 1102,
           "Defense/Resistance/Mind/Spirit": 1103,
           "Resistance": 1102
         },
-        "base:item:dervish-robe": {
+        "base:equipment:553": {
           "Defense": 1104,
           "Defense/Resistance/Mind/Spirit": 1105,
           "Resistance": 1104
         },
-        "base:item:weaver-robe": {
+        "base:equipment:554": {
           "Defense": 1106,
           "Defense/Resistance/Mind/Spirit": 1107,
           "Resistance": 1106
         },
-        "base:item:summoner-robe": {
+        "base:equipment:555": {
           "Defense": 1108,
           "Resistance": 1108
         },
-        "base:item:dodge-charm": {
+        "base:equipment:39": {
           "Other effects": 1109
         },
-        "base:item:bracer": {
+        "base:equipment:70": {
           "Other effects": 1110
         },
-        "base:item:jewel-of-defense": {
+        "base:equipment:50": {
           "Defense": 1111,
           "Other effects": 1111,
           "Resistance": 1111
         },
-        "base:item:scope-bit": {
+        "base:equipment:226": {
           "Other effects": 1112
         },
-        "base:item:gem-ring": {
+        "base:equipment:332": {
           "Other effects": 1113
         },
-        "base:item:squirrel-dung": {
+        "base:equipment:85": {
           "Other effects": 1114
         },
-        "base:item:mana-ring": {
+        "base:equipment:38": {
           "Other effects": 1115
         },
-        "base:item:defense-shifter": {
+        "base:equipment:191": {
           "Other effects": 1116
         },
-        "base:item:resist-shifter": {
+        "base:equipment:221": {
           "Other effects": 1117
         },
-        "base:item:scope-specs": {
+        "base:equipment:562": {
           "Other effects": 1118
         },
-        "base:item:beads-of-defense": {
+        "base:equipment:328": {
           "Other effects": 1119
         },
-        "base:item:lockon-lense": {
+        "base:equipment:373": {
           "Other effects": 1120
         },
-        "base:class:warrior": {
+        "base:job:0": {
           "Armor": 1121,
           "Command": 1122,
           "Stat growth": 1123,
@@ -7839,7 +7839,7 @@
           "Crystal Edit learn tree": 1122,
           "Crystal Edit command": 1122
         },
-        "base:class:monk": {
+        "base:job:5": {
           "Command": 1124,
           "Crystal Edit growth ratings": 1124,
           "Crystal Edit equipment types": 1124,
@@ -7848,7 +7848,7 @@
           "Crystal Edit learn tree": 1124,
           "Crystal Edit command": 1124
         },
-        "base:class:rogue": {
+        "base:job:2": {
           "Command": 1125,
           "Stat growth": 1126,
           "Weapons": 1127,
@@ -7859,7 +7859,7 @@
           "Crystal Edit learn tree": 1125,
           "Crystal Edit command": 1125
         },
-        "base:class:cleric": {
+        "base:job:4": {
           "Command": 1128,
           "Weapons": 1129,
           "Crystal Edit growth ratings": 1128,
@@ -7869,7 +7869,7 @@
           "Crystal Edit learn tree": 1128,
           "Crystal Edit command": 1128
         },
-        "base:class:wizard": {
+        "base:job:3": {
           "Command": 1130,
           "Weapons": 1131,
           "Crystal Edit growth ratings": 1130,
@@ -7879,7 +7879,7 @@
           "Crystal Edit learn tree": 1130,
           "Crystal Edit command": 1130
         },
-        "base:class:warlock": {
+        "base:job:14": {
           "Command": 1132,
           "Weapons": 1133,
           "Crystal Edit growth ratings": 1132,
@@ -7889,7 +7889,7 @@
           "Crystal Edit learn tree": 1132,
           "Crystal Edit command": 1132
         },
-        "base:class:fencer": {
+        "base:job:1": {
           "Command": 1134,
           "Weapons": 1135,
           "Crystal Edit growth ratings": 1134,
@@ -7899,7 +7899,7 @@
           "Crystal Edit learn tree": 1134,
           "Crystal Edit command": 1134
         },
-        "base:class:shaman": {
+        "base:job:8": {
           "Command": 1136,
           "Weapons": 1137,
           "Crystal Edit growth ratings": 1136,
@@ -7909,7 +7909,7 @@
           "Crystal Edit learn tree": 1136,
           "Crystal Edit command": 1136
         },
-        "base:class:scholar": {
+        "base:job:13": {
           "Command": 1138,
           "Weapons": 1139,
           "Crystal Edit growth ratings": 1138,
@@ -7919,7 +7919,7 @@
           "Crystal Edit learn tree": 1138,
           "Crystal Edit command": 1138
         },
-        "base:class:aegis": {
+        "base:job:10": {
           "Armor": 1140,
           "Command": 1141,
           "Weapons": 1140,
@@ -7930,7 +7930,7 @@
           "Crystal Edit learn tree": 1141,
           "Crystal Edit command": 1141
         },
-        "base:class:hunter": {
+        "base:job:7": {
           "Command": 1142,
           "Weapons": 1143,
           "Crystal Edit growth ratings": 1142,
@@ -7940,7 +7940,7 @@
           "Crystal Edit learn tree": 1142,
           "Crystal Edit command": 1142
         },
-        "base:class:chemist": {
+        "base:job:17": {
           "Command": 1144,
           "Weapons": 1145,
           "Crystal Edit growth ratings": 1144,
@@ -7950,7 +7950,7 @@
           "Crystal Edit learn tree": 1144,
           "Crystal Edit command": 1144
         },
-        "base:class:reaper": {
+        "base:job:6": {
           "Armor": 1146,
           "Command": 1147,
           "Weapons": 1146,
@@ -7961,7 +7961,7 @@
           "Crystal Edit learn tree": 1147,
           "Crystal Edit command": 1147
         },
-        "base:class:ninja": {
+        "base:job:18": {
           "Command": 1148,
           "Weapons": 1149,
           "Crystal Edit growth ratings": 1148,
@@ -7971,7 +7971,7 @@
           "Crystal Edit learn tree": 1148,
           "Crystal Edit command": 1148
         },
-        "base:class:nomad": {
+        "base:job:12": {
           "Command": 1150,
           "Weapons": 1151,
           "Crystal Edit growth ratings": 1150,
@@ -7981,7 +7981,7 @@
           "Crystal Edit learn tree": 1150,
           "Crystal Edit command": 1150
         },
-        "base:class:dervish": {
+        "base:job:11": {
           "Command": 1152,
           "Weapons": 1153,
           "Crystal Edit growth ratings": 1152,
@@ -7991,7 +7991,7 @@
           "Crystal Edit learn tree": 1152,
           "Crystal Edit command": 1152
         },
-        "base:class:beatsmith": {
+        "base:job:9": {
           "Command": 1154,
           "Weapons": 1155,
           "Crystal Edit growth ratings": 1154,
@@ -8001,7 +8001,7 @@
           "Crystal Edit learn tree": 1154,
           "Crystal Edit command": 1154
         },
-        "base:class:samurai": {
+        "base:job:20": {
           "Armor": 1156,
           "Command": 1157,
           "Crystal Edit growth ratings": 1157,
@@ -8011,7 +8011,7 @@
           "Crystal Edit learn tree": 1157,
           "Crystal Edit command": 1157
         },
-        "base:class:assassin": {
+        "base:job:19": {
           "Command": 1158,
           "Weapons": 1159,
           "Crystal Edit growth ratings": 1158,
@@ -8021,7 +8021,7 @@
           "Crystal Edit learn tree": 1158,
           "Crystal Edit command": 1158
         },
-        "base:class:valkyrie": {
+        "base:job:15": {
           "Armor": 1160,
           "Command": 1161,
           "Weapons": 1160,
@@ -8032,7 +8032,7 @@
           "Crystal Edit learn tree": 1161,
           "Crystal Edit command": 1161
         },
-        "base:class:summoner": {
+        "base:job:21": {
           "Command": 1162,
           "Weapons": 1163,
           "Crystal Edit growth ratings": 1162,
@@ -8042,7 +8042,7 @@
           "Crystal Edit learn tree": 1162,
           "Crystal Edit command": 1162
         },
-        "base:class:beastmaster": {
+        "base:job:23": {
           "Command": 1164,
           "Weapons": 1165,
           "Crystal Edit growth ratings": 1164,
@@ -8052,7 +8052,7 @@
           "Crystal Edit learn tree": 1164,
           "Crystal Edit command": 1164
         },
-        "base:class:weaver": {
+        "base:job:16": {
           "Command": 1166,
           "Weapons": 1167,
           "Crystal Edit growth ratings": 1166,
@@ -8062,7 +8062,7 @@
           "Crystal Edit learn tree": 1166,
           "Crystal Edit command": 1166
         },
-        "base:class:mimic": {
+        "base:job:22": {
           "Command": 1168,
           "Crystal Edit growth ratings": 1168,
           "Crystal Edit equipment types": 1168,
@@ -8071,148 +8071,148 @@
           "Crystal Edit learn tree": 1168,
           "Crystal Edit command": 1168
         },
-        "base:warrior:passive:grudge": {
+        "base:passive:5": {
           "PP cost": 1169
         },
-        "base:warrior:passive:adrenaline": {
+        "base:passive:4": {
           "PP cost": 1170
         },
-        "base:warrior:passive:equip-axe": {
+        "base:passive:7": {
           "PP cost": 1171
         },
-        "base:warrior:passive:equip-sword": {
+        "base:passive:6": {
           "PP cost": 1172
         },
-        "base:monk:passive:hp-boost": {
+        "base:passive:8": {
           "PP cost": 1173
         },
-        "base:monk:passive:counter": {
+        "base:passive:0": {
           "PP cost": 1174
         },
-        "base:rogue:passive:backstabber": {
+        "base:passive:9": {
           "PP cost": 1175
         },
-        "base:rogue:passive:equip-dagger": {
+        "base:passive:11": {
           "PP cost": 1176
         },
-        "base:rogue:passive:pocket-sand": {
+        "base:passive:54": {
           "PP cost": 1177
         },
-        "base:cleric:passive:equip-staff": {
+        "base:passive:16": {
           "PP cost": 1178
         },
-        "base:cleric:passive:inner-warmth": {
+        "base:passive:77": {
           "PP cost": 1179
         },
-        "base:wizard:passive:initial-focus": {
+        "base:passive:71": {
           "PP cost": 1180
         },
-        "base:wizard:passive:equip-wand": {
+        "base:passive:13": {
           "PP cost": 1181
         },
-        "base:warlock:passive:regenerator": {
+        "base:passive:32": {
           "PP cost": 1182
         },
-        "base:warlock:passive:refresher": {
+        "base:passive:37": {
           "PP cost": 1183
         },
-        "base:fencer:passive:eagle-eye": {
+        "base:passive:49": {
           "PP cost": 1184
         },
-        "base:fencer:passive:equip-rapier": {
+        "base:passive:22": {
           "PP cost": 1185
         },
-        "base:shaman:passive:safeguard": {
+        "base:passive:35": {
           "PP cost": 1186
         },
-        "base:scholar:passive:equip-book": {
+        "base:passive:39": {
           "PP cost": 1187
         },
-        "base:aegis:passive:natural-tank": {
+        "base:passive:78": {
           "PP cost": 1188
         },
-        "base:aegis:passive:stalwart": {
+        "base:passive:36": {
           "PP cost": 1189
         },
-        "base:aegis:passive:stance-tank": {
+        "base:passive:69": {
           "PP cost": 1190
         },
-        "base:aegis:passive:equip-shield": {
+        "base:passive:29": {
           "PP cost": 1191
         },
-        "base:hunter:passive:equip-bow": {
+        "base:passive:45": {
           "PP cost": 1192
         },
-        "base:hunter:passive:perfect-vision": {
+        "base:passive:44": {
           "PP cost": 1193
         },
-        "base:hunter:passive:covert": {
+        "base:passive:82": {
           "PP cost": 1194
         },
-        "base:reaper:passive:blood-spiller": {
+        "base:passive:56": {
           "PP cost": 1195
         },
-        "base:reaper:passive:initial-oomph": {
+        "base:passive:1": {
           "PP cost": 1196
         },
-        "base:reaper:passive:equip-scythe": {
+        "base:passive:31": {
           "PP cost": 1197
         },
-        "base:nomad:passive:attack-focus": {
+        "base:passive:27": {
           "PP cost": 1198
         },
-        "base:nomad:passive:frenzy-stance": {
+        "base:passive:83": {
           "PP cost": 1199
         },
-        "base:dervish:passive:critical-power": {
+        "base:passive:70": {
           "PP cost": 1200
         },
-        "base:dervish:passive:focus-shield": {
+        "base:passive:33": {
           "PP cost": 1201
         },
-        "base:beatsmith:passive:auto-speed": {
+        "base:passive:52": {
           "PP cost": 1202
         },
-        "base:beatsmith:passive:critical-turn": {
+        "base:passive:81": {
           "PP cost": 1203
         },
-        "base:samurai:passive:equip-katana": {
+        "base:passive:57": {
           "PP cost": 1204
         },
-        "base:samurai:passive:unreactable": {
+        "base:passive:60": {
           "PP cost": 1205
         },
-        "base:samurai:passive:fury": {
+        "base:passive:40": {
           "PP cost": 1206
         },
-        "base:assassin:passive:crippling-coat": {
+        "base:passive:62": {
           "PP cost": 1207
         },
-        "base:assassin:passive:venom-coat": {
+        "base:passive:61": {
           "PP cost": 1208
         },
-        "base:summoner:passive:initial-resist": {
+        "base:passive:64": {
           "PP cost": 1209
         },
-        "base:beastmaster:passive:duel-ready": {
+        "base:passive:21": {
           "PP cost": 1210
         },
-        "base:beastmaster:passive:threatening": {
+        "base:passive:67": {
           "PP cost": 1211
         },
-        "base:weaver:passive:fast-cast": {
+        "base:passive:47": {
           "PP cost": 1212
         },
-        "base:weaver:passive:preemptive": {
+        "base:passive:3": {
           "PP cost": 1213
         },
-        "base:weaver:passive:delay-20": {
+        "base:passive:46": {
           "PP cost": 1214
         },
-        "base:weaver:passive:delay-40": {
+        "base:passive:48": {
           "PP cost": 1215
         },
-        "base:mimic:passive:equip-all": {
+        "base:passive:68": {
           "PP cost": 1216
         },
         "base:passive:15": {
@@ -8236,76 +8236,76 @@
         "base:passive:51": {
           "PP cost": 1223
         },
-        "base:mechanic:stat:Mult%20BasicAttack%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-557": {
           "Description": 1224
         },
-        "base:mechanic:stat:Mult%20PHitChance%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-581": {
           "Description": 1225
         },
-        "base:mechanic:stat:Mult%20PHitChance%20Taken%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-582": {
           "Description": 1226
         },
-        "base:mechanic:stat:Flat%20TTAtBattleStart%20%5BX%5D": {
+        "base:mechanic:stat:ref-510": {
           "Description": 1227
         },
-        "base:mechanic:stat:Addi%20PHitChance%20Given%20%5BX%5D": {
+        "base:mechanic:stat:ref-462": {
           "Description": 1228
         },
-        "base:mechanic:stat:Addi%20PHitChance%20Taken%20%5BX%5D": {
+        "base:mechanic:stat:ref-463": {
           "Description": 1229
         },
-        "base:mechanic:stat:Addi%20MHitChance%20Given%20%5BX%5D": {
+        "base:mechanic:stat:ref-457": {
           "Description": 1230
         },
-        "base:mechanic:stat:Addi%20MHitChance%20Taken%20%5BX%5D": {
+        "base:mechanic:stat:ref-458": {
           "Description": 1231
         },
-        "base:mechanic:stat:Addi%20PVariance%20%5BX%5D": {
+        "base:mechanic:stat:ref-464": {
           "Description": 1232
         },
-        "base:mechanic:stat:Addi%20MVariance%20%5BX%5D": {
+        "base:mechanic:stat:ref-459": {
           "Description": 1233
         },
-        "base:mechanic:stat:Mult%20PDmg%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-577": {
           "Description": 1234
         },
-        "base:mechanic:stat:Mult%20PDmg%20Taken%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-579": {
           "Description": 1235
         },
-        "base:mechanic:stat:Mult%20MDmg%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-568": {
           "Description": 1236
         },
-        "base:mechanic:stat:Mult%20MDmg%20Taken%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-569": {
           "Description": 1237
         },
-        "base:mechanic:stat:Mult%20PCritChance%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-572": {
           "Description": 1238
         },
-        "base:mechanic:stat:Mult%20PCritChance%20Taken%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-573": {
           "Description": 1239
         },
-        "base:mechanic:stat:Mult%20Healing%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-564": {
           "Description": 1240
         },
-        "base:mechanic:stat:Mult%20PNonCritDmg%20Given%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-583": {
           "Description": 1241
         },
-        "base:mechanic:stat:Mult%20PNonCritDmg%20Taken%20100%20%5BX%5D": {
+        "base:mechanic:stat:ref-584": {
           "Description": 1242
         },
-        "base:mechanic:stat:EnableEquipType%20%5BX%5D": {
+        "base:mechanic:stat:ref-487": {
           "Description": 1243
         },
-        "base:mechanic:stat:RemoveStatusOnApply%20%5BX%5D": {
+        "base:mechanic:stat:ref-619": {
           "Description": 1244
         },
-        "base:mechanic:ability:AddCooldownCountTarget%20%5BX%5D": {
+        "base:mechanic:ability:ref-341": {
           "Description": 1245
         },
-        "base:mechanic:ability:ResetCooldownsTarget": {
+        "base:mechanic:ability:ref-411": {
           "Description": 1246
         },
-        "base:mechanic:ability:ResetCooldownsUser": {
+        "base:mechanic:ability:ref-412": {
           "Description": 1247
         }
       }

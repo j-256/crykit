@@ -4,6 +4,7 @@ import modManifestJson from './mod-sprites.json'
 import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './starter'
 import { nativeMenuIcon, NATIVE_MENU_ICON_KEYS } from './native-menu-icons'
+import { compileBundledSourceBindings } from './bundled'
 
 type ArtworkIdentity = Pick<CatalogEntity, 'id' | 'kind'>
 
@@ -76,10 +77,11 @@ interface MenuIconBinding {
   readonly region?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 }
 
-const gameArtwork: GameArtworkManifest = gameArtworkJson
+const gameArtwork: GameArtworkManifest = { ...gameArtworkJson, entities: compileBundledSourceBindings(gameArtworkJson.entities) }
 const gameArtworkUrls = import.meta.glob<string>('../assets/game-assets/*', { eager: true, query: '?url&no-inline', import: 'default' })
-const wikiManifest: SpriteManifest = wikiManifestJson
-const modManifest: SpriteManifest = { ...(modManifestJson as unknown as Omit<SpriteManifest, 'icons'>), icons: {} }
+const wikiManifest: SpriteManifest = { ...wikiManifestJson, entities: compileBundledSourceBindings(wikiManifestJson.entities) }
+const modSourceManifest = modManifestJson as unknown as Omit<SpriteManifest, 'icons'>
+const modManifest: SpriteManifest = { ...modSourceManifest, entities: compileBundledSourceBindings(modSourceManifest.entities), icons: {} }
 export const MENU_ICON_KEYS = [...new Set([...Object.keys(wikiManifest.icons), ...NATIVE_MENU_ICON_KEYS])]
 const wikiUrls = import.meta.glob<string>('../assets/wiki-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const modUrls = import.meta.glob<string>('../assets/mod-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })

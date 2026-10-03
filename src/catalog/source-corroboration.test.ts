@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import type { CatalogEntity, CatalogSnapshot, Knowledge } from '../domain/types'
 
-const WARRIOR_ID = 'base:class:warrior'
+const WARRIOR_ID = 'base:job:0'
 const WARRIOR = DEFAULT_CATALOG.entities[WARRIOR_ID]!
 const target = { catalog: DEFAULT_CATALOG, entity: WARRIOR }
 
@@ -49,11 +49,11 @@ describe('game-code field corroboration', () => {
   })
 
   it('keeps partial and conflicting mechanic descriptions visible', () => {
-    const full = DEFAULT_CATALOG.entities['base:mechanic:stat:Addi%20PVariance%20%5BX%5D']!
-    const partial = DEFAULT_CATALOG.entities['base:mechanic:stat:StealChanceUp%20%5BX%5D']!
+    const full = DEFAULT_CATALOG.entities['base:mechanic:stat:ref-464']!
+    const partial = DEFAULT_CATALOG.entities['base:mechanic:stat:ref-631']!
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: full }, 'Description', full.fields.Description!)).toBe(true)
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: partial }, 'Description', partial.fields.Description!)).toBe(false)
-    const conflicting = DEFAULT_CATALOG.entities['base:mechanic:ability:KillsUser']!
+    const conflicting = DEFAULT_CATALOG.entities['base:mechanic:ability:ref-385']!
     expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: conflicting }, 'Description', conflicting.fields.Description!)).toBe(false)
   })
 })

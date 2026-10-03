@@ -12,8 +12,8 @@ import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
-const SHIELD: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:doge-shield') }
-const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:item:backbreaker') }
+const SHIELD: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:ref-1084') }
+const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:617') }
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))

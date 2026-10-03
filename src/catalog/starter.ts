@@ -130,6 +130,7 @@ function namesOnlyEntity(record: typeof STARTER_NAME_RECORDS[number]): CatalogEn
     'Wiki coverage': unknown(WIKI_GAP_REASON, [source]),
     ...(officialDescription ? {
       Category: known(['Mod Pack 2 class'], [MOD_PACK_2_SOURCE]),
+      'Source mod': known(name, [MOD_PACK_2_SOURCE]),
       Description: known(officialDescription, [MOD_PACK_2_SOURCE]),
       'Missing wiki details': known(['Crystal', 'Master', 'Command', 'Innate passive(s)', 'Weapons', 'Armor', 'Initial equipment', 'Total LP to master', 'Stat growth', 'Abilities', 'Passives'], [MOD_PACK_2_SOURCE]),
     } : {}),
@@ -332,6 +333,7 @@ const officialEntities: readonly CatalogEntity[] = [
     rawDescription: 'Shield that triggers a counter when its user is attacked, similar to the Duelling Shield.',
     fields: {
       Category: known(['Shields', 'Mod Pack 2 item'], [MOD_PACK_2_SOURCE]),
+      'Source mod': known('Doge Shield', [MOD_PACK_2_SOURCE]),
       Description: known('Triggers a counter when its user is attacked, similar to the Duelling Shield.', [MOD_PACK_2_SOURCE]),
       'Missing details': known(['Stats', 'Counter formula', 'Counter trigger restrictions', 'Location', 'Acquisition'], [MOD_PACK_2_SOURCE]),
       Location: unknown('The publisher description does not document the shield location or acquisition method', [MOD_PACK_2_SOURCE]),
@@ -351,6 +353,7 @@ const officialEntities: readonly CatalogEntity[] = [
     rawDescription: `Additional boss included by Mod Pack 2${addsEquipment ? ' with a new piece of equipment' : ''}.`,
     fields: {
       Category: known(['Mod Pack 2 boss'], [MOD_PACK_2_SOURCE]),
+      'Source mod': known(`Additional Boss: ${String(name)}`, [MOD_PACK_2_SOURCE]),
       Description: known(`Additional boss${addsEquipment ? ' with a new piece of equipment' : ''}.`, [MOD_PACK_2_SOURCE]),
       Level: unknown('The publisher description does not document boss level', [MOD_PACK_2_SOURCE]),
       HP: unknown('The publisher description does not document boss HP', [MOD_PACK_2_SOURCE]),

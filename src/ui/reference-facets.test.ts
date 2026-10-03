@@ -31,7 +31,7 @@ describe('reference facet organization', () => {
   })
 
   it('classifies native source origins without treating vanilla records as possible mod matches', () => {
-    const entity = Object.values(DEFAULT_CATALOG.entities).find(value => value.name === 'Warrior' && value.id === 'base:class:warrior')!
+    const entity = Object.values(DEFAULT_CATALOG.entities).find(value => value.name === 'Warrior' && value.id === 'base:job:0')!
     expect(referenceFieldFacets(entity).mods).toEqual({ state: 'known', value: ['Base game'] })
     expect(referenceFieldFacets(entity, [], 'Reviewed mod replacement').mods).toEqual({ state: 'known', value: ['Reviewed mod replacement'] })
     expect(referenceFieldFacets({ kind: 'item', name: 'Warrior', fields: {} }).mods.state).toBe('unknown')

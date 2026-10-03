@@ -62,12 +62,12 @@ test('Moonlight trees stay named offline and do not imply personal learning', as
 })
 
 test('explicit null is a known absent value and travel tools use base identities', async ({ page }) => {
-  await page.goto(referencePath('base:item:tonic'))
+  await page.goto(referencePath('base:item:18'))
   const capacity = fact(page, 'Increase Max Capacity By')
   await expect(capacity).toContainText('Not set in source')
   await expect(capacity.getByText('unknown', { exact: true })).toHaveCount(0)
-  await page.goto(referencePath('base:item:treasure-finder'))
-  await expect(page).toHaveURL(referenceUrlPattern('base:item:treasure-finder'))
+  await page.goto(referencePath('base:item:196'))
+  await expect(page).toHaveURL(referenceUrlPattern('base:item:196'))
   await expect(page.getByRole('heading', { name: 'Treasure Finder', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

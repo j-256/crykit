@@ -23,11 +23,11 @@ const SUBJECT = {
   kind: 'catalog' as const,
   catalogId: STARTER_CATALOG_ID,
   catalogRevisionId: CERTAINTY_CATALOG_REVISION_ID,
-  entityId: asId<EntityId>('base:class:warrior'),
+  entityId: asId<EntityId>('base:job:0'),
 }
 const SECOND_SUBJECT = {
   ...SUBJECT,
-  entityId: asId<EntityId>('base:class:monk'),
+  entityId: asId<EntityId>('base:job:5'),
 }
 
 describe('class seal progress', () => {
@@ -129,7 +129,7 @@ describe('class seal progress', () => {
 })
 
 describe('two-state acquisition progress', () => {
-  const instrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:ibek-bell') }
+  const instrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:50') }
 
   it('records acquired and not acquired without altering inventory, learning, or class facts', () => {
     const initial = createTestLocalData()
@@ -151,7 +151,7 @@ describe('two-state acquisition progress', () => {
 
   it('preserves uncertain imports until explicitly confirmed and keeps their pinned subject', () => {
     let localData = createTestLocalData()
-    const existingInstrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:quintar-flute') }
+    const existingInstrument = { ...SUBJECT, entityId: asId<EntityId>('base:item:39') }
     const oldRef = { ...existingInstrument, catalogRevisionId: 'synthetic-other-revision' as typeof instrument.catalogRevisionId }
     for (const collection of [{ state: 'unknown' }, { state: 'conflicting', claims: [{ value: true, sources: [] }, { value: false, sources: [] }] }, { state: 'notApplicable' }] as const) {
       localData = upsertProgress(localData, { subject: oldRef, displayName: 'Imported instrument', collection, observedAt: '2026-09-28', now: NOW })

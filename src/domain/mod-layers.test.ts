@@ -21,7 +21,7 @@ describe('ordered mod composition', () => {
     const { catalogs, composition } = await syntheticModLayers()
     const before = JSON.stringify(catalogs)
     const result = composeModLayers(composition, catalogs)
-    const warrior = result.entities['base:class:warrior']!
+    const warrior = result.entities['base:job:0']!
     expect(warrior.name).toBe('Second Fighter')
     expect(growthRatings(warrior)).toEqual({ HP: 0 })
     expect(warrior.fields[CRYSTAL_EDIT_FIELDS.equipment]?.state).toBe('unknown')
@@ -38,12 +38,12 @@ describe('ordered mod composition', () => {
   it('supports reordering, disabling, and cross-layer native references without guessing bundled targets', async () => {
     const { catalogs, composition } = await syntheticModLayers()
     const reversed = composeModLayers({ ...composition, layers: [...composition.layers].reverse() }, catalogs)
-    expect(reversed.entities['base:class:warrior']?.name).toBe('First Fighter')
+    expect(reversed.entities['base:job:0']?.name).toBe('First Fighter')
     expect(reversed.unresolvedReferences).toEqual([])
     const disabled = composeModLayers({ ...composition, layers: composition.layers.map(layer => ({ ...layer, enabled: layer.catalogId === 'crystal-edit:layer-a' })) }, catalogs)
     expect(disabled.unresolvedReferences).toEqual(['Abilities #8', 'Passives #2'])
     const separate = composeModLayers({ ...composition, links: [] }, catalogs)
-    expect(separate.entities['base:class:warrior']?.name).toBe('Warrior')
+    expect(separate.entities['base:job:0']?.name).toBe('Warrior')
     expect(separate.changes.find(value => value.modelKey === 'crystal-edit:Jobs:0')?.targetState).toBe('unresolved')
   })
 
@@ -53,17 +53,17 @@ describe('ordered mod composition', () => {
     const setup = local.gameSetups[local.planningGameSetupRevisionId!]!
     const effective = expandModCatalogs([...catalogs, composeModCatalog(setup, catalogs)!]).at(-1)!
     expect(setup.catalogLock[DEFAULT_CATALOG.id]).toBe(effective.revisionId)
-    expect(modModelEntity(effective, 'crystal-edit:Jobs:0')?.id).toBe('base:class:warrior')
+    expect(modModelEntity(effective, 'crystal-edit:Jobs:0')?.id).toBe('base:job:0')
     expect(modModelEntity(effective, 'crystal-edit:Passives:2')?.name).toBe('Shared Passive')
     expect(resolveDefinition(local, [effective], { kind: 'catalog', catalogId: effective.id, catalogRevisionId: effective.revisionId, entityId: 'crystal-edit:Passives:2' as EntityId })).toBeUndefined()
-    expect(effective.entities['base:class:wizard']).toEqual(DEFAULT_CATALOG.entities['base:class:wizard'])
+    expect(effective.entities['base:job:3']).toEqual(DEFAULT_CATALOG.entities['base:job:3'])
   })
 
   it('rejects missing revisions, duplicate projects, wrong-kind targets, and ambiguous bundled replacements', async () => {
     const { catalogs, composition } = await syntheticModLayers()
     expect(() => composeModLayers({ ...composition, layers: [composition.layers[0]!, composition.layers[0]!] }, catalogs)).toThrow(/one revision/)
     expect(() => composeModLayers(composition, catalogs.slice(0, 2))).toThrow(/unavailable/)
-    expect(() => composeModLayers({ ...composition, links: [{ modelKey: 'crystal-edit:Equipment:50', targetEntityId: 'base:class:warrior' as EntityId }] }, catalogs)).toThrow(/same definition kind/)
+    expect(() => composeModLayers({ ...composition, links: [{ modelKey: 'crystal-edit:Equipment:50', targetEntityId: 'base:job:0' as EntityId }] }, catalogs)).toThrow(/same definition kind/)
     expect(() => composeModLayers({ ...composition, links: [{ modelKey: 'crystal-edit:Jobs:0', targetEntityId: 'missing' as EntityId }] }, catalogs)).toThrow(/must exist/)
     const itemTarget = Object.values(DEFAULT_CATALOG.entities).find(value => value.kind === 'item')!.id
     expect(() => composeModLayers({ ...composition, links: [{ modelKey: 'crystal-edit:Equipment:50', targetEntityId: itemTarget }, { modelKey: 'crystal-edit:Items:50', targetEntityId: itemTarget }] }, catalogs)).toThrow(/same bundled definition/)
@@ -75,7 +75,7 @@ describe('ordered mod composition', () => {
     const setup = local.gameSetups[local.planningGameSetupRevisionId!]!
     const effectiveCatalogs = expandModCatalogs([...catalogs, composeModCatalog(setup, catalogs)!])
     const ref = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]! }
-    const content: BuildRevisionContent = { primaryClass: { ...ref, entityId: 'base:class:warrior' as EntityId }, secondaryClass: null, equipment: {}, passives: [{ ref: { ...ref, entityId: 'mod:layer-b:passive:2' as EntityId } }], contextAssumptions: [] }
+    const content: BuildRevisionContent = { primaryClass: { ...ref, entityId: 'base:job:0' as EntityId }, secondaryClass: null, equipment: {}, passives: [{ ref: { ...ref, entityId: 'mod:layer-b:passive:2' as EntityId } }], contextAssumptions: [] }
     const resolve = (value: Parameters<typeof resolveDefinition>[2]) => resolveDefinition(local, effectiveCatalogs, value)
     expect(innateEffects(content, resolve)).toMatchObject([{ text: 'Equip anything regardless of current Class.', name: 'Second Fighter: Shared Passive' }])
     const innate = innateEffects(content, resolve)[0]!.definition

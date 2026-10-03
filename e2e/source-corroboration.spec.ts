@@ -2,7 +2,7 @@ import { openSavedCatalogVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR_PATH = referencePath('base:class:warrior')
+const WARRIOR_PATH = referencePath('base:job:0')
 
 function fact(page: Page, name: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
@@ -28,7 +28,7 @@ test('corroborated facts omit disclosures while acquisition evidence and source 
 
 test('a personal value retains its evidence without replacing the corroborated source', async ({ page }) => {
   await page.goto(WARRIOR_PATH)
-  await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic personal Warrior', { fields: { Weapons: { state: 'known', value: 'Synthetic weapons', sources: [{ sourceId: 'synthetic-observation', locator: 'Synthetic equipment notes' }] } } })
+  await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior', { fields: { Weapons: { state: 'known', value: 'Synthetic weapons', sources: [{ sourceId: 'synthetic-observation', locator: 'Synthetic equipment notes' }] } } })
   const weapons = fact(page, 'Weapons')
   await expect(weapons).toContainText('Synthetic weapons')
   await expect(weapons.locator('.definition-fact-sources')).toHaveCount(1)
@@ -41,8 +41,8 @@ test('a personal value retains its evidence without replacing the corroborated s
 })
 
 test('partial mechanic evidence keeps the source disclosure', async ({ page }) => {
-  await page.goto(referencePath('base:mechanic:stat:StealChanceUp%20%5BX%5D'))
+  await page.goto(referencePath('base:mechanic:stat:ref-631'))
   await expect(fact(page, 'Description').locator('.definition-fact-sources')).toHaveCount(1)
-  await page.goto(referencePath('base:mechanic:stat:Addi%20PVariance%20%5BX%5D'))
+  await page.goto(referencePath('base:mechanic:stat:ref-464'))
   await expect(fact(page, 'Description').locator('.definition-fact-sources')).toHaveCount(0)
 })

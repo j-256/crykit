@@ -26,10 +26,10 @@ describe('class-tree identity supplement', () => {
   })
 
   it('retains native identity for personal class versions without resolving changed numeric IDs', () => {
-    const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
+    const warrior = DEFAULT_CATALOG.entities['base:job:0']!
     const personal: PersonalDefinition = { id: asId<PersonalDefinitionId>('synthetic-native-warrior'), revision: 1, kind: 'class', name: 'Synthetic native Warrior', aliases: [], fields: warrior.fields, sources: warrior.sources, createdAt: TEST_NOW, updatedAt: TEST_NOW }
     const node = exportedTree(personal).find(node => node.nodeType === 2 && node.dataId === 28)!
-    expect(classTreeSkill(personal, node, DEFAULT_CATALOG, warrior)).toMatchObject({ name: 'Taunt', jp: 0, definition: { id: 'base:warrior:ability:taunt' } })
+    expect(classTreeSkill(personal, node, DEFAULT_CATALOG, warrior)).toMatchObject({ name: 'Taunt', jp: 0, definition: { id: 'base:ability:28' } })
     const unresolved = classTreeSkill(personal, { ...node, dataId: 999 }, DEFAULT_CATALOG, warrior)
     expect(unresolved.name).toBe('Ability #999')
     expect(unresolved.jp).toBeUndefined()
@@ -53,12 +53,12 @@ describe('class-tree identity supplement', () => {
   })
 
   it('uses the numeric family and class-scoped identity for duplicate names', () => {
-    const warrior = DEFAULT_CATALOG.entities['base:class:warrior']!
-    const scholar = DEFAULT_CATALOG.entities['base:class:scholar']!
+    const warrior = DEFAULT_CATALOG.entities['base:job:0']!
+    const scholar = DEFAULT_CATALOG.entities['base:job:13']!
     const passive = classTreeSkill(warrior, exportedTree(warrior).find(node => node.nodeType === 3 && node.dataId === 4)!, DEFAULT_CATALOG)
     const magic = classTreeSkill(scholar, exportedTree(scholar).find(node => node.nodeType === 2 && node.dataId === 202)!, DEFAULT_CATALOG)
-    expect(passive).toMatchObject({ name: 'Adrenaline', kind: 'passive', jp: 300, definition: { id: 'base:warrior:passive:adrenaline' } })
-    expect(magic).toMatchObject({ name: 'Adrenaline', kind: 'monsterMagic', monsterLearned: true, definition: { id: 'base:scholar:monster-magic:adrenaline' } })
+    expect(passive).toMatchObject({ name: 'Adrenaline', kind: 'passive', jp: 300, definition: { id: 'base:passive:4' } })
+    expect(magic).toMatchObject({ name: 'Adrenaline', kind: 'monsterMagic', monsterLearned: true, definition: { id: 'base:ability:202' } })
   })
 
   it('leaves modified trees and unrelated imported trees with matching numeric IDs unresolved', () => {

@@ -38,7 +38,7 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   const id = asId<PersonalDefinitionId>('synthetic-shared-class')
   const ref = { kind: 'personal' as const, definitionId: id }
   if (revision.content.primaryClass?.kind !== 'catalog') throw new Error('The synthetic sample needs a catalog class')
-  const cureRef = { ...revision.content.primaryClass, entityId: 'base:cleric:ability:cure' as EntityId }
+  const cureRef = { ...revision.content.primaryClass, entityId: 'base:ability:7' as EntityId }
   const source = createPersonalDefinition(before, { id, name: 'Synthetic shared class', kind: 'class', fields: { 'Crystal Edit source record': known({ ID: 9000, Name: 'Synthetic shared class', HPRating: 50, MPRating: 50, StrRating: 50, VitRating: 50, DexRating: 50, AgiRating: 50, MndRating: 50, SpiRating: 50, SpdRating: 50, LckRating: 50, PassiveIDs: [] }), Command: known('Synthetic command') }, now: before.updatedAt })
   const nativeSetupId = asId<GameSetupRevisionId>('synthetic-shared-native-setup')
   const scopedSource = addGameSetupRevision(source, { ...source.gameSetups[revision.gameSetupRevisionId]!, id: nativeSetupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), mods: known([]), slots: SUGGESTED_BUILD_SLOTS, activate: false, now: source.updatedAt })

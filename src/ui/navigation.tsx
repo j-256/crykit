@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { MAX_ID_LENGTH } from '../domain'
 import { bundledEntityRouteName, entityRouteSlug, isEntityRouteSlug, type EntityRouteNameResolver } from './entity-route-names'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from '../catalog/starter'
 import type {
   BuildId,
   BuildRevisionId,
@@ -136,6 +137,8 @@ const REVISION_ID_RESERVED_SEGMENTS = new Set(['new'])
 const COMPARE_LEFT_ID_RESERVED_SEGMENTS = new Set(['search', 'pick', 'definitions', 'corrections', 'correct'])
 const ENTITY_ID_RESERVED_SEGMENTS = new Set([...COLLECTION_ID_RESERVED_SEGMENTS, 'edit', 'field'])
 const ENTITY_ID_MIN_SEGMENTS: ReadonlyMap<string, number> = new Map([['base', 3], ['mod', 4]])
+const BUNDLED_CATALOG_ROUTE_ALIAS = 'v1'
+const CATALOG_ROUTE_ALIAS_PATTERN = /^v[0-9]+$/
 const OPAQUE_ENTITY_ID_SEGMENT = 'id'
 
 interface NavigationHistoryState {
@@ -182,7 +185,10 @@ export function formatEntityRefPath(ref: EntityRef, resolveName: EntityRouteName
   const parts = entityIdentitySegments(ref.entityId)
   const entityPath = parts ? parts.map(part => encodeIdentitySegment(part, ENTITY_ID_RESERVED_SEGMENTS)).join('/') : `${OPAQUE_ENTITY_ID_SEGMENT}/${encodeSegment(ref.entityId)}`
   const slug = encodeIdentitySegment(entityRouteSlug(resolveName(ref)), ENTITY_ID_RESERVED_SEGMENTS)
-  return `catalog/${encodeSegment(ref.catalogId)}/revisions/${encodeSegment(ref.catalogRevisionId)}/entities/${entityPath}/${slug}`
+  const bundled = ref.catalogId === STARTER_CATALOG_ID && ref.catalogRevisionId === STARTER_CATALOG_REVISION_ID
+  const catalogId = encodeIdentitySegment(ref.catalogId, CATALOG_ROUTE_ALIAS_PATTERN.test(ref.catalogId) ? new Set([ref.catalogId]) : new Set())
+  const catalogPath = bundled ? BUNDLED_CATALOG_ROUTE_ALIAS : `${catalogId}/${encodeSegment(ref.catalogRevisionId)}`
+  return `catalog/${catalogPath}/${entityPath}/${slug}`
 }
 
 export function parseEntityRefPath(segments: readonly string[], offset = 0): { readonly ref: EntityRef; readonly consumed: number } | undefined {
@@ -190,11 +196,14 @@ export function parseEntityRefPath(segments: readonly string[], offset = 0): { r
     const definitionId = decodeSegment(segments[offset + 1] ?? '')
     return definitionId ? { ref: { kind: 'personal', definitionId: definitionId as PersonalDefinitionId }, consumed: 2 } : undefined
   }
-  if (segments[offset] !== 'catalog' || segments[offset + 2] !== 'revisions' || segments[offset + 4] !== 'entities') return undefined
-  const catalogId = decodeSegment(segments[offset + 1] ?? '')
-  const catalogRevisionId = decodeSegment(segments[offset + 3] ?? '')
-  const identityOffset = offset + 5
-  let consumed = 5
+  if (segments[offset] !== 'catalog') return undefined
+  const alias = segments[offset + 1] ?? ''
+  const bundled = alias === BUNDLED_CATALOG_ROUTE_ALIAS
+  if (!bundled && CATALOG_ROUTE_ALIAS_PATTERN.test(alias)) return undefined
+  const catalogId = bundled ? STARTER_CATALOG_ID : decodeSegment(alias)
+  const catalogRevisionId = bundled ? STARTER_CATALOG_REVISION_ID : decodeSegment(segments[offset + 2] ?? '')
+  const identityOffset = offset + (bundled ? 2 : 3)
+  let consumed = bundled ? 2 : 3
   let entityId: string | undefined
   if (segments[identityOffset] === OPAQUE_ENTITY_ID_SEGMENT) {
     const opaque = decodeSegment(segments[identityOffset + 1] ?? '')

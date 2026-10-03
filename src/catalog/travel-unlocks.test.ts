@@ -1,7 +1,7 @@
 import { catalogEntity } from '../domain/entity-identities'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
-import { TRAVEL_UNLOCK_GROUPS } from './travel-unlocks'
+import { TRAVEL_UNLOCK_GROUPS } from './travel-unlock-groups'
 import { catalogArtwork } from './sprites'
 import { nativeSourceRecord } from '../domain/native-game'
 
@@ -28,7 +28,7 @@ describe('travel unlock roster and source definitions', () => {
       }
     }
     expect([...seen].some(id => id.includes('shard'))).toBe(false)
-    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:salmon-cello')?.fields.Location).toMatchObject({ state: 'known', value: 'Finish first in the Salmon Run.' })
-    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:old-world-stone')?.sources[0]?.sourceId).toBe('https://crystal-project.fandom.com/wiki/Tools?oldid=7601')
+    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:114')?.fields.Location).toMatchObject({ state: 'known', value: 'Finish first in the Salmon Run.' })
+    expect(catalogEntity(DEFAULT_CATALOG, 'base:item:253')?.sources).toContainEqual(expect.objectContaining({ sourceId: 'https://crystal-project.fandom.com/wiki/Tools?oldid=7601' }))
   })
 })
