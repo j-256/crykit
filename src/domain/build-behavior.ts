@@ -1,4 +1,4 @@
-import { sameCorrectionValue } from './corrections'
+import { sameValue } from './definition-values'
 import { DEFAULT_PP_LIMIT, addGameSetupRevision } from './local-data'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import { modCatalogRevision } from './mod-layers'
@@ -20,7 +20,7 @@ function comparableBehavior(behavior: BuildBehavior) {
 }
 
 export function sameBuildBehavior(left: BuildBehavior | undefined, right: BuildBehavior | undefined): boolean {
-  return Boolean(left && right && sameCorrectionValue(comparableBehavior(left), comparableBehavior(right)))
+  return Boolean(left && right && sameValue(comparableBehavior(left), comparableBehavior(right)))
 }
 
 export function uniqueGameSetupLabel(label: string, setups: LocalData['gameSetups'], kind: string): string {
@@ -36,7 +36,7 @@ export function uniqueGameSetupLabel(label: string, setups: LocalData['gameSetup
 
 export function saveBuildBehavior(localData: LocalData, behavior: BuildBehavior, now?: Timestamp | string, id?: GameSetupRevisionId): { readonly localData: LocalData; readonly setup: GameSetupRevision } {
   const composition = behavior.modComposition
-  const origins = composition ? Object.values(localData.gameSetups).filter(setup => sameCorrectionValue(setup.modComposition, composition) && setup.catalogLock[composition.baseline.catalogId] === modCatalogRevision(setup.id)) : []
+  const origins = composition ? Object.values(localData.gameSetups).filter(setup => sameValue(setup.modComposition, composition) && setup.catalogLock[composition.baseline.catalogId] === modCatalogRevision(setup.id)) : []
   const origin = composition ? origins.find(setup => modCatalogRevision(setup.id) === behavior.catalogLock[composition.baseline.catalogId]) ?? origins[0] : undefined
   const modCatalogRevisionId = origin ? modCatalogRevision(origin.id) : undefined
   const candidate = origin ? { ...behavior, catalogLock: { ...behavior.catalogLock, [composition!.baseline.catalogId]: modCatalogRevisionId! } } : behavior

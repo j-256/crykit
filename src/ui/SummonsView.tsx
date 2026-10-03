@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SUMMONS, type Summon, type SummonId } from '../catalog/summons'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
-import { historicalCatalogKeys } from '../domain/corrections'
 import { logicalEntityKey, preferredDefinitionRef } from '../domain/definitions'
 import { entityDefinitionKey, requirePlaythrough } from '../domain/core'
 import { summonUnlockState } from '../domain/summons'
@@ -15,8 +14,7 @@ import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 import './summons.css'
 
 export function summonEntries(localData: LocalData, catalogs: readonly CatalogSnapshot[]) {
-  const historical = historicalCatalogKeys(catalogs)
-  const catalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && !historical.has(JSON.stringify([catalog.id, catalog.revisionId])))
+  const catalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID)
   if (!catalog) return []
   const records = new Map(Object.values(requirePlaythrough(localData).progress).map(record => [logicalEntityKey(localData, record.subject), record]))
   return SUMMONS.flatMap(summon => {

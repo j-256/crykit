@@ -1,8 +1,7 @@
 import { BuildCharacterComparison } from './BuildCharacterComparison'
 import { resolveGameRules } from '../domain/game-rules'
 import { composeModCatalog, expandModCatalogs, modCatalogRevision } from '../domain/mod-layers'
-import { sameCorrectionValue } from '../domain/corrections'
-import { useOptionalCorrections } from './corrections-context'
+import { sameValue } from '../domain/definition-values'
 import { MoneyText } from './MoneyText'
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { buildBehavior, sameBuildBehavior, compareBuildRevisions, createId, effectiveScenarioAssignments, entityDefinitionKey, logicalEntityKey, requirePlaythrough, sameLogicalEntity, TEAM_SIZE, validateBuildContent } from '../domain'
@@ -107,7 +106,6 @@ interface RevisionEditorProps { readonly build?: Build; readonly children?: Reac
 function RevisionEditor(props: RevisionEditorProps) {
   const library = useDefinitionLibrary()
   const navigation = useNavigation()
-  const corrections = useOptionalCorrections()
   const requestedSetupId = navigation.route.query.gameSetup?.[0]
   const requestedSetup = requestedSetupId ? ownRecordValue(props.localData.gameSetups, requestedSetupId) : undefined
   const initialBehavior = () => {
@@ -124,11 +122,11 @@ function RevisionEditor(props: RevisionEditorProps) {
   const updateBehavior = (value: BuildBehavior) => {
     const composition = value.modComposition
     if (!composition) { setBehavior(value); return }
-    const origins = Object.values(props.localData.gameSetups).filter(setup => sameCorrectionValue(setup.modComposition, composition))
+    const origins = Object.values(props.localData.gameSetups).filter(setup => sameValue(setup.modComposition, composition))
     const origin = origins.find(setup => setup.catalogLock[composition.baseline.catalogId] === value.catalogLock[composition.baseline.catalogId]) ?? origins[0]
     setBehavior({ ...value, catalogLock: { ...value.catalogLock, [composition.baseline.catalogId]: origin?.catalogLock[composition.baseline.catalogId] ?? modCatalogRevision(draftId) } })
   }
-  const rawCatalogs = corrections?.baseline ?? library.catalogs
+  const rawCatalogs = library.catalogs
   const composed = useMemo(() => {
     if (!gameSetup.modComposition || gameSetup.catalogLock[gameSetup.modComposition.baseline.catalogId] !== modCatalogRevision(draftId)) return undefined
     try { return composeModCatalog(gameSetup, rawCatalogs) } catch { return undefined }

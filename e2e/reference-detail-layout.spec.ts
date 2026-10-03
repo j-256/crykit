@@ -1,3 +1,4 @@
+import { openSavedCatalogVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
@@ -61,10 +62,7 @@ test('gives reference tables the detail width and restores filtered browsing', {
 
 test('uses the same wide tables and clean headings for personal definitions', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto(WARRIOR)
-  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal version: Warrior', exact: true })
-  await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic wide Warrior')
-  await editor.getByRole('button', { name: 'Create personal version', exact: true }).click()
+  await openSavedCatalogVersion(page, 'base:class:warrior', 'Synthetic wide Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic wide Warrior', exact: true })).toBeVisible()
   await checkDetailLayout(page, testInfo.project.name === 'desktop')
 })

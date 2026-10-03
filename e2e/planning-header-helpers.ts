@@ -14,8 +14,3 @@ export async function closeBuildActions(page: Page) {
   const more = page.getByRole('button', { name: 'More', exact: true })
   if (await more.count() && await more.getAttribute('aria-expanded') === 'true') await more.press('Escape')
 }
-
-export async function openReferenceActions(page: Page) {
-  const more = page.locator('.context-bar').getByRole('button', { name: 'More', exact: true })
-  if (await more.count() && await more.getAttribute('aria-expanded') === 'false') await more.click()
-}

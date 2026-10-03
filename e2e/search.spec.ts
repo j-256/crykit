@@ -1,3 +1,4 @@
+import { openSavedCatalogVersion } from './definition-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
@@ -228,7 +229,7 @@ test('nested definition creation preserves the observation and universal search 
   await expect(page.getByRole('heading', { name: 'Synthetic glass lantern', exact: true })).toBeVisible()
 })
 
-test('item overrides preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
+test('saved catalog versions preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
   const settings = await openData(page)
   await openCurrentGameSetup(settings)
   await settings.getByLabel('Game Setup label').fill('Synthetic base rules')
@@ -258,13 +259,13 @@ test('item overrides preserve stock and checkpoints and can be collected into an
   await page.getByRole('combobox', { name: 'Main hand', exact: true }).fill('Iron Sword')
   await itemPicker.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
   await buildEditor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await buildEditor.getByLabel('Checkpoint name').fill('Before personal correction')
+  await buildEditor.getByLabel('Checkpoint name').fill('Original catalog checkpoint')
   const palette = await search(page, 'Taunt')
   await palette.locator('[data-universal-result="true"]').first().click()
   await expect(palette).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Return to build draft', exact: true }).click()
-  await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Before personal correction')
+  await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Original catalog checkpoint')
   await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const before = await exportLocalData(page)
@@ -273,19 +274,8 @@ test('item overrides preserve stock and checkpoints and can be collected into an
 
   await search(page, 'Iron Sword item')
   await palette.locator('[data-universal-result="true"]').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
-  await page.getByRole('button', { name: 'Create personal version', exact: true }).click()
-  const definition = page.getByRole('dialog', { name: 'Create personal version: Iron Sword', exact: true })
-  await expect(definition.getByRole('textbox', { name: 'Definition name', exact: true })).toHaveValue('Iron Sword')
-  await definition.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic tempered sword')
-  await definition.getByLabel('Aliases').fill('Iron Sword\nSynthetic blade')
-  await definition.getByRole('textbox', { name: 'Description', exact: true }).fill('Synthetic description for an override preservation check')
-  await definition.getByLabel('Fact to edit').selectOption('Category')
-  await definition.getByLabel('Knowledge for Category').selectOption('known')
-  await definition.getByLabel('Value format for Category').selectOption('text')
-  await definition.getByRole('textbox', { name: 'Value for Category', exact: true }).fill('Synthetic weapons')
-  await definition.getByRole('button', { name: 'Create personal version', exact: true }).click()
-  await expect(definition).not.toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Synthetic tempered sword', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create personal version', exact: true })).toHaveCount(0)
+  await openSavedCatalogVersion(page, 'base:item:iron-sword', 'Synthetic tempered sword', { aliases: ['Iron Sword', 'Synthetic blade'], fields: { Category: { state: 'known', value: 'Synthetic weapons' } } })
 
   await page.getByRole('button', { name: 'Collect into Game Setup revision', exact: true }).click()
   const collection = page.getByRole('dialog', { name: 'Collect into Game Setup revision', exact: true })

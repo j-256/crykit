@@ -168,15 +168,15 @@ Brawler and its class skills are associated with **Moonlight Project**. Their mo
 
 Vanilla class ratings, equipment permissions, and learn trees ship with the app, extracted directly from the game's database. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
 
-### Correct or extend reference entries
+### Report reference data and create custom definitions
 
-Use **Edit reference** to correct facts directly on the page, then collect and export a delta from **Corrections**. Evidence and game context can be added incrementally. See [corrections and baseline review](corrections.md) for local persistence, submission, and immutable catalog promotion.
+Reference entries display their source catalogs. Use **Report a data issue** to open the project issue tracker. Include the entry, platform, game version, enabled mods, expected value, and supporting evidence. Native records establish facts for their recorded source version; supplemental claims and unresolved platform differences keep their evidence. Catalog fixes go through source review and the extraction or interpretation pipeline.
 
 Definition fields open compact searchable dropdowns beside the selected field. Choices include descriptions, source labels, and relevant stock or PP details. The surrounding form stays usable, and dropdowns fit the available space above or below their field. Search receives focus on opening; arrow keys browse choices, Enter selects, and Escape returns to the field.
 
 Creation and editing use centered dialogs with a dim, unblurred backdrop. An outside click closes the dropdown first; unsaved-draft checks still apply to editing dialogs.
 
-An edit saves a separate personal override and preserves its source and earlier revisions. Ownership and learning follow the underlying identity; saved Builds retain their exact definitions. Reference can collect reviewed personal definitions into a new Game Setup revision without changing the Playthrough's current Game Setup or existing selections.
+Catalog entries are read-only. Create a standalone **personal definition** from a picker or global search when an entry is missing from your reference data. These custom records are shared across your Playthroughs. **Edit custom definition** saves a new immutable revision; recorded ownership, learning, and Builds retain their exact references. Previously saved catalog versions remain readable and selectable, but cannot be cloned or edited. Reference can collect saved personal definitions into a new Game Setup revision without changing the Playthrough's current Game Setup or existing selections. Use imported Crystal Edit files and Game Setup mod layers for source-backed game modifications.
 
 ## Search, drafts, and bookmarks
 
@@ -190,7 +190,7 @@ A copied link opens a view; it does not transfer your saved records to another b
 
 ## Imports, backups, and privacy
 
-Save open forms, then choose **Data & settings > Import & backup > Export backup**. The backup includes all Playthroughs, Game Setups, Builds, saved records, and reference correction history. Keep a copy outside your browser.
+Save open forms, then choose **Data & settings > Import & backup > Export backup**. The backup includes all Playthroughs, Game Setups, Builds, saved records, and retained history. Keep a copy outside your browser.
 
 To restore on another browser or device, open **Data & settings > Import & backup** and select the backup under **Import or restore**. Review the preview before confirming. A native restore replaces all local planner data in that browser; it does not merge two sets of records.
 

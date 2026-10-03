@@ -5,14 +5,12 @@ import { resolveGameRules } from '../domain/game-rules'
 import type { GameSetupRevision, GameSetupRevisionId, LocalData, PlaythroughId } from '../domain/types'
 import { Button, DefinitionRow, Field, InlineNotice } from './components'
 import { useDefinitionLibrary } from './definitions'
-import { useOptionalCorrections } from './corrections-context'
 import { gameSetupModSummary, knowledgeLabel } from './model'
 import { useNavigation } from './navigation'
 
 function GameSetupSummary({ setup }: { setup: GameSetupRevision }) {
   const library = useDefinitionLibrary()
-  const corrections = useOptionalCorrections()
-  const rules = resolveGameRules(setup, corrections?.baseline ?? library.catalogs)
+  const rules = resolveGameRules(setup, library.catalogs)
   const difficulty = setup.difficulty?.selection
   const difficultyLabel = difficulty?.state === 'known' ? rules.difficulties.find(value => value.id === difficulty.value)?.name ?? `Unavailable difficulty ${difficulty.value}` : knowledgeLabel(difficulty ?? { state: 'unknown' })
   return <div className="playthrough-game-summary"><strong>{setup.label} · revision {setup.revision}</strong><dl className="definition-list"><DefinitionRow term="Game version">{knowledgeLabel(setup.gameVersion)}</DefinitionRow><DefinitionRow term="Difficulty">{difficultyLabel}</DefinitionRow><DefinitionRow term="Mods">{gameSetupModSummary(setup)}</DefinitionRow></dl></div>

@@ -5,7 +5,7 @@ import { createId, nowTimestamp, requirePlaythrough, updateLocalData } from '../
 import { createBlankLocalData } from '../domain/local-data'
 import { effectiveScenarioAssignments, TEAM_SIZE } from '../domain/scenarios'
 import { modCatalogRevision } from '../domain/mod-layers'
-import { sameCorrectionValue } from '../domain/corrections'
+import { sameValue } from '../domain/definition-values'
 import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
 import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
 import { NativeLocalDataSchema, StoredBuildSchema } from './native-schema'
@@ -225,7 +225,7 @@ function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
     if (!origin.modComposition) continue
     const equivalentPin = localPins.find(pin => {
       const target = localOrigins.get(pin)
-      return target?.modComposition && sameCorrectionValue(origin.modComposition, target.modComposition)
+      return target?.modComposition && sameValue(origin.modComposition, target.modComposition)
     })
     if (equivalentPin) { catalogRevisions.set(pin, equivalentPin); reusedCatalogs.add(pin) }
   }
@@ -241,7 +241,7 @@ function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
       visitRefs(definitionReferences(definition), ref => { if (ref.kind === 'personal' && pending.has(ref.definitionId)) waiting = true })
       if (waiting) continue
       const mapped = { ...definition, ...mapRefs(definitionReferences(definition), personalIds, catalogRevisions) }
-      const match = Object.values(localData.personalDefinitions).find(candidate => !usedDefinitions.has(candidate.id) && sameCorrectionValue({ ...mapped, id: candidate.id }, candidate))
+      const match = Object.values(localData.personalDefinitions).find(candidate => !usedDefinitions.has(candidate.id) && sameValue({ ...mapped, id: candidate.id }, candidate))
       if (match) { personalIds.set(id, match.id); usedDefinitions.add(match.id); reusedDefinitions.add(id) }
       pending.delete(id)
       progressed = true
@@ -266,14 +266,14 @@ function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {
       const definition = records.personalDefinitions[id]!
       const target = localData.personalDefinitions[personalIds.get(id)!]!
       const mapped = { ...definition, ...mapRefs(definitionReferences(definition), personalIds, catalogRevisions), id: target.id }
-      if (!sameCorrectionValue(mapped, target)) { freshLineage(definition.id); invalidated = true }
+      if (!sameValue(mapped, target)) { freshLineage(definition.id); invalidated = true }
     }
   }
   for (const definition of Object.values(records.personalDefinitions)) {
     if (reusedDefinitions.has(definition.id) || definition.previousRevision || definition.baseRef?.kind !== 'catalog') continue
     const baseRef = mapRefs(definition.baseRef, personalIds, catalogRevisions)
-    if (Object.values(localData.personalDefinitions).some(candidate => !candidate.previousRevision && sameCorrectionValue(candidate.baseRef, baseRef))) {
-      throw new Error('This shared snapshot has a different personal correction for a catalog definition already corrected in this browser. Existing corrections were preserved.')
+    if (Object.values(localData.personalDefinitions).some(candidate => !candidate.previousRevision && sameValue(candidate.baseRef, baseRef))) {
+      throw new Error('This shared snapshot has a different personal version of a catalog definition already customized in this browser. Existing personal versions were preserved.')
     }
   }
   const requiredSetups = new Set<GameSetupRevisionId>()

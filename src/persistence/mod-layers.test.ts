@@ -1,7 +1,8 @@
+import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { coalesceDefinitionOverrides, createDefinitionOverride, updateGameSetupRevision } from '../domain/local-data'
+import { coalesceDefinitionOverrides, updateGameSetupRevision } from '../domain/local-data'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { modCatalogForPin } from '../domain/mod-layers'
 import type { EntityId } from '../domain/types'
@@ -54,7 +55,7 @@ it('reuses unchanged layer catalogs for personal overrides and requires review w
   await saveLocalData(updateGameSetupRevision(loaded.localData, { sourceRevisionId: loaded.localData.planningGameSetupRevisionId!, modComposition: composition }), loaded.revision)
   const layered = await loadLocalData()
   const setup = layered.localData.gameSetups[layered.localData.planningGameSetupRevisionId!]!
-  const override = createDefinitionOverride(layered.localData, layered.catalogs, { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
+  const override = savedCatalogVersion(layered.localData, layered.catalogs, { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: 'base:class:warrior' as EntityId }, name: 'Personal fighter' })
   const pinned = coalesceDefinitionOverrides(override.localData, { sourceGameSetupRevisionId: setup.id, definitionRefs: [override.ref], activate: true })
   const saved = await saveLocalData(pinned, layered.revision)
   const renamed = updateGameSetupRevision(saved, { sourceRevisionId: saved.planningGameSetupRevisionId!, label: 'Renamed setup' })

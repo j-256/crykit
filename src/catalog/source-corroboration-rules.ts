@@ -1,7 +1,7 @@
 import type { CatalogEntity, JsonValue, Knowledge } from '../domain/types'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, classFields, RATING_FIELDS } from '../domain/crystal-edit'
 import { nativeIdentity, nativeRecord, type NativeGameSnapshot, type NativeRecord } from '../domain/native-game'
-import { sameCorrectionValue } from '../domain/corrections'
+import { sameValue } from '../domain/definition-values'
 
 export interface FieldAssessment {
   readonly status: 'corroborated' | 'partial' | 'retained'
@@ -53,7 +53,7 @@ function numericStat(record: NativeRecord, name: string, snapshot: NativeGameSna
 export function assessCatalogField(context: CorroborationContext, entity: CatalogEntity, field: string, value: Knowledge<unknown>): FieldAssessment {
   if (value.state !== 'known') return { ...RETAINED, reason: 'Unknown, conflicting, and inapplicable claims retain their evidence' }
   const mechanic = context.mechanics[entity.id]
-  if (field === 'Description' && mechanic && sameCorrectionValue(value.value, mechanic.description)) return { status: mechanic.status, reason: mechanic.reason, evidence: mechanic.evidence }
+  if (field === 'Description' && mechanic && sameValue(value.value, mechanic.description)) return { status: mechanic.status, reason: mechanic.reason, evidence: mechanic.evidence }
   const native = nativeIdentity(entity)
   const identity = native ?? context.identities[entity.id]
   if (!identity || native && native.mode !== 'base') return RETAINED
@@ -61,7 +61,7 @@ export function assessCatalogField(context: CorroborationContext, entity: Catalo
   const record = Array.isArray(records) ? records.find(candidate => nativeRecord(candidate) && candidate.ID === identity.databaseId) : undefined
   if (!nativeRecord(record)) return RETAINED
   const database = `Database/${identity.database}.dat; ID ${identity.databaseId}`
-  const direct = (expected: unknown, member: string, evidence: readonly string[] = []): FieldAssessment => sameCorrectionValue(value.value, expected) ? proof(`Exact native identity and ${member} agree`, [database, ...evidence]) : { ...RETAINED, reason: `The complete value does not match native ${member}`, evidence: [database, ...evidence] }
+  const direct = (expected: unknown, member: string, evidence: readonly string[] = []): FieldAssessment => sameValue(value.value, expected) ? proof(`Exact native identity and ${member} agree`, [database, ...evidence]) : { ...RETAINED, reason: `The complete value does not match native ${member}`, evidence: [database, ...evidence] }
   if (field === 'Level') return equalNumber(value.value, record.Level) ? proof('The recorded level agrees', [database]) : RETAINED
   if (field === 'Value' && ['item', 'equipment'].includes(identity.database)) return equalNumber(value.value, record.Cost) ? proof('The price in copper agrees', [database, 'currency']) : RETAINED
   if (field === 'PP cost' && identity.database === 'passive') return equalNumber(value.value, record.PP) ? proof('The PP cost agrees in the inspected Windows build', [database, 'passive']) : RETAINED
@@ -77,7 +77,7 @@ export function assessCatalogField(context: CorroborationContext, entity: Catalo
       if (typeof value.value !== 'string' || !Array.isArray(record.EquipmentTypes)) return RETAINED
       const actual = value.value.split(',').map(word => EQUIPMENT_WORDS[word.trim().toLowerCase()])
       const expected = record.EquipmentTypes.map(code => context.snapshot.enums.EquipmentType?.[String(code)]).filter((type): type is string => Boolean(type) && (field === 'Weapons' ? WEAPON_TYPES.has(type!) : !WEAPON_TYPES.has(type!) && type !== 'Accessory'))
-      return actual.every(Boolean) && sameCorrectionValue([...actual].sort(), [...expected].sort()) ? proof('Equipment permissions agree', [database, 'class', 'equipment-types']) : RETAINED
+      return actual.every(Boolean) && sameValue([...actual].sort(), [...expected].sort()) ? proof('Equipment permissions agree', [database, 'class', 'equipment-types']) : RETAINED
     }
     if (field === 'Stat growth' && nativeRecord(value.value)) {
       const entries = Object.entries(value.value)

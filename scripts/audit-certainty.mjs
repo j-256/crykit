@@ -27,7 +27,7 @@ try {
   validateModSnapshot(JSON.parse(await readFile(join(ROOT, 'src/catalog/moonlight-project-v2.2.json'), 'utf8')))
   server = await createServer({ root: ROOT, configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   const { DEFAULT_CATALOG: catalog } = await server.ssrLoadModule('/src/catalog/bundled.ts')
-  const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/correction-promotion.ts')
+  const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')
   const { checksum: _checksum, ...content } = catalog
   const checksum = `builtin:sha256:${createHash('sha256').update(catalogContentForChecksum(content)).digest('hex')}`
   const receipt = { schemaVersion: 1, revisionId: catalog.revisionId, checksum }

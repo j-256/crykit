@@ -52604,7 +52604,8 @@
       "files": [
         "NOTICE.md",
         "README.md",
-        "docs/development.md"
+        "docs/development.md",
+        "src/ui/ReferenceView.tsx"
       ],
       "catalogs": [],
       "outcomes": {
