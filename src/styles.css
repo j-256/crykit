@@ -1436,7 +1436,7 @@ a.reference-card { display: block; color: inherit; text-decoration: none; }
 .member-sheet .member-row { grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr); }
 .member-sheet .member-row__label { white-space: normal; }
 @container loadout (min-width: 800px) {
-  .build-sheet__layout:has(> .build-sheet__preview) { grid-template-columns: minmax(0, 1fr) minmax(240px, .65fr); }
+  .build-sheet__layout { grid-template-columns: minmax(0, 1fr) minmax(240px, .65fr); }
   .loadout-sheet .build-sheet__preview { position: sticky; top: 94px; }
 }
 
