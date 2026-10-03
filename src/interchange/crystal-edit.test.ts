@@ -3,7 +3,7 @@ import { IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { previewImport } from './import'
-import { MOD_LIBRARY_IMPORT_REVISION } from './crystal-edit'
+import { isCrystalEdit, MOD_LIBRARY_IMPORT_REVISION } from './crystal-edit'
 import { NativeCatalogSnapshotSchema } from './native-schema'
 import { requirePlaythrough } from '../domain'
 import type { CatalogSnapshot } from '../domain/types'
@@ -13,6 +13,21 @@ import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crysta
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 
 describe('Crystal Edit reference import', () => {
+  it('recognizes placement-only projects and preserves their exact source without inventing reference definitions', async () => {
+    const input = { ID: 'synthetic-map-placements', Title: 'Synthetic placements', EditorVersion: 34, Entities: [{ ID: 900001, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 1, LootValue: 18 }, FutureField: { retained: true } }] }
+    const bytes = new TextEncoder().encode(`\r\n${JSON.stringify(input, null, 2)}\r\n`)
+    const preview = await previewImport(bytes, 'placements.json')
+    expect(preview.detectedFormat).toBe('crystal-edit-json-1')
+    expect(preview.counts).toEqual({ reference: 0, personal: 0, mixed: 0, ignored: 1 })
+    expect(preview.proposed.catalogs[0]!.entities).toEqual({})
+    expect(NativeCatalogSnapshotSchema.safeParse(preview.proposed.catalogs[0]).success).toBe(true)
+    expect(preview.proposed.sources[0]!.bytes).toEqual(bytes)
+    expect(JSON.parse(new TextDecoder().decode(preview.proposed.sources[0]!.bytes))).toEqual(input)
+    expect(preview.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'archived-models', message: expect.stringContaining('Entities: 1') })]))
+    expect(isCrystalEdit({ ...input, Entities: {} })).toBe(false)
+    expect(isCrystalEdit({ ID: input.ID, Entities: input.Entities })).toBe(false)
+  })
+
   it('preserves every simultaneous prerequisite in columns and native snapshot round-trips', async () => {
     const preview = await previewImport(encode(syntheticPrerequisiteCrystalEdit()), 'prerequisites.json')
     const catalog: CatalogSnapshot = JSON.parse(JSON.stringify(preview.proposed.catalogs[0]))

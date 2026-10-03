@@ -11,6 +11,7 @@ No account or installation is needed. Your saved builds and records stay in your
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
+- **Explore the world:** pan and zoom through the native Windows world map, find chests, NPCs, bosses, resources, and landmarks, and preview bundled or imported mod placements. See [the world map guide](docs/user-guide.md#explore-the-world-map).
 - **Manage mods:** browse bundled and imported versions, import updates, edit full project JSON, and follow links to Steam Workshop. Mods without a source file retain catalog entries and support manual observations. See [Mods](docs/mods.md) and [the editor workspace](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.

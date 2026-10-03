@@ -2,11 +2,11 @@
 
 Start with the [first-build walkthrough](../README.md#try-your-first-build) if you are new to Crystal Kit. This guide covers the details you can explore as you need them.
 
-[Getting around](#getting-around) · [Builds](#create-and-save-builds) · [Teams](#check-a-team) · [Characters](#record-characters) · [Inventory and progress](#track-inventory-and-progress) · [Reference](#browse-reference-data) · [Backups](#imports-backups-and-privacy) · [Offline use](#use-the-app-offline)
+[Getting around](#getting-around) · [Builds](#create-and-save-builds) · [Teams](#check-a-team) · [Characters](#record-characters) · [Inventory and progress](#track-inventory-and-progress) · [World Map](#explore-the-world-map) · [Reference](#browse-reference-data) · [Backups](#imports-backups-and-privacy) · [Offline use](#use-the-app-offline)
 
 ## Getting around
 
-The app opens to the build library. Builds, Teams, and Reference share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
+The app opens to the build library. Builds, Teams, Reference, World Map, and Mods share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
 
 The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample team. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
 
@@ -140,6 +140,16 @@ Each breeding tile shows its parents, cumulative wins on different race tracks, 
 
 Completion marks belong to the selected Playthrough, save automatically, and survive reloads and native backups. You can mark steps in any order; missing prerequisite marks remain visible and are never filled in automatically. Marks record completed actions without changing your inventory, nursery roster, character learning, or class seals. A failed save restores the tile's saved state and offers **Retry step**. The guide works offline after preparing the application for offline use.
 
+## Explore the world map
+
+Open **World Map** to explore the bundled Windows PC 1.6.9 map. Drag to pan, use the zoom controls or the mouse wheel to zoom, and choose **Fit map** to see the selected layer. Nearby markers group together at wider views; zooming reveals individual locations. Use **Map layer** to switch between the overworld and underground maps where places overlap.
+
+Use **Search map** to find a place, NPC, boss, resource, chest, or chest contents. Selecting a result reveals its marker and opens its details, even when it belongs to another map layer. Marker details retain source coordinates, contents, conditions, and available Reference links. Filters let you choose the kinds of locations and sources to show. **Resources** covers source-backed mining nodes, planting plots, and ground pickups; **Objects** keeps voxel props such as buttons and movable blocks separate from people. Mod markers have a separate outline and source label so their provenance remains visible without relying on color alone.
+
+Select a **Game Setup** to preview its ordered mod layers. You can also preview mods separately from your saved setups, including Equipment Expansion and arbitrary bundled or imported Crystal Edit projects. Preview choices affect this map view; they do not enable a mod in your game or rewrite saved builds. Import a project through **Mods > Editor workspace** and save it to CryKit to make its source available alongside bundled projects.
+
+The atlas depicts the inspected base game's terrain. Crystal Edit exports can supply added or overridden entity placements and definitions, but they do not supply replacement voxel world geometry. A mod that changes terrain may therefore have placements whose backdrop differs from the game. Unresolved entities, missing coordinates, and unsupported changes remain explicit. Map markers describe possible placements and interactions; they do not establish whether a chest is opened, an NPC is present, a boss is defeated, or an item belongs to your Playthrough. The map reveals locations and rewards and can contain spoilers. See [map sources and boundaries](catalog-sources.md#native-world-map).
+
 ## Browse reference data
 
 A searchable, revision-attributed community reference catalog covers items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
@@ -182,7 +192,7 @@ Catalog entries are read-only. Create a standalone **personal definition** from 
 
 Press Cmd+K on macOS or Ctrl+K elsewhere, or use the visible search button, to search definitions, inventory, characters, builds, teams, and progress. Arrow keys move through results, Enter opens one, and Escape closes the search. Open forms must be finished before navigating to another record.
 
-Build drafts can remain open while browsing Reference in the same tab; use **Return to build draft** or the Builds navigation button to resume selections, title, and notes. Save before reloading or closing the tab. Other navigation, context changes, and failed saves retain their draft guards.
+Build drafts can remain open while browsing Reference or World Map in the same tab; use **Return to build draft** or the Builds navigation button to resume selections, title, and notes. Save before reloading or closing the tab. Other navigation, context changes, and failed saves retain their draft guards.
 
 Pages, record details, settings sections, and modal workflows have semantic URLs. Copy the address bar to bookmark the selected view or reopen a dialog. Browser Back and Forward follow the same navigation, including nested definition pickers and editors. See [navigation and local links](navigation.md) for refresh, draft, and missing-data behavior.
 

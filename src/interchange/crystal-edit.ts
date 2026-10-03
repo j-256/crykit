@@ -36,7 +36,7 @@ function hasRuleData(root: Readonly<Record<string, JsonValue>>): boolean {
 }
 
 export function isCrystalEdit(value: JsonValue): boolean {
-  return jsonRecord(value) && typeof value.ID === 'string' && typeof value.EditorVersion === 'number' && (Object.keys(FAMILIES).some(key => Array.isArray(value[key])) || hasRuleData(value))
+  return jsonRecord(value) && typeof value.ID === 'string' && typeof value.EditorVersion === 'number' && (Object.keys(FAMILIES).some(key => Array.isArray(value[key])) || Array.isArray(value.Entities) || hasRuleData(value))
 }
 
 export async function previewCrystalEdit(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
