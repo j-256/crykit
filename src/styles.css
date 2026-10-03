@@ -1026,7 +1026,10 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 }
 
 @media (max-width: 1120px) {
-  .build-layout { grid-template-columns: minmax(290px, 310px) minmax(0, 1fr); }
+  .build-layout { display: block; }
+  .build-layout > .build-library { position: static; max-height: none; overflow: visible; }
+  .build-layout > .build-library > .build-column__body { max-height: none; overflow: visible; }
+  .build-column { max-height: none; margin-bottom: 12px; }
   .build-layout .build-sheet__equipment { grid-template-columns: minmax(0, 1fr); }
   .scenario-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1112,10 +1115,6 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
   .mobile-filter-toggle { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; color: var(--text); border: 0; border-bottom: 1px solid var(--line); background: rgba(222, 236, 242, .025); font-size: .78rem; font-weight: 700; text-align: left; }
   .reference-filter-options { display: none; }
   .reference-filter-options.is-open { display: block; }
-  .build-layout { display: block; }
-  .build-layout > .build-library { position: static; max-height: none; overflow: visible; }
-  .build-layout > .build-library > .build-column__body { max-height: none; overflow: visible; }
-  .build-column { max-height: none; margin-bottom: 12px; }
   .build-sheet__layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .build-sheet-panel .build-column__body { padding: 14px; }
   .build-field { grid-template-columns: 96px minmax(0, 1fr); }
@@ -1465,7 +1464,7 @@ a.reference-card { display: block; color: inherit; text-decoration: none; }
 .shared-preview .definition-row dd, .share-notes { overflow-wrap: anywhere; white-space: pre-wrap }
 @media (max-width: 760px) { .share-team-grid { grid-template-columns: minmax(0, 1fr) } }
 
-.loadout-sheet { min-width: 0; container: loadout / inline-size; }
+.loadout-sheet { min-width: 0; grid-template-columns: minmax(0, 1fr); container: loadout / inline-size; }
 .loadout-sheet .build-sheet__preview { min-width: 0; margin: 0; }
 .loadout-sheet .build-sheet__preview h3 { display: flex; overflow-wrap: anywhere; }
 .build-readonly-selection { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--ink-900); color: var(--text); text-align: left; overflow-wrap: anywhere; }
