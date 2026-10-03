@@ -34,7 +34,13 @@ export async function chooseFourTeamMembers(form: Locator): Promise<void> {
   }
 }
 
+export async function openBuildGameSetup(page: Page): Promise<void> {
+  const setup = page.locator('.build-behavior')
+  if (await setup.getAttribute('open') === null) await setup.locator(':scope > summary').click()
+}
+
 export async function openGameSetupSection(panel: Locator, label: string): Promise<void> {
+  if (await panel.evaluate(element => element instanceof HTMLDetailsElement && !element.open)) await panel.locator(':scope > summary').click()
   if (label === 'Game context') {
     const details = panel.locator('.game-setup-base-details')
     if (await details.getAttribute('open') === null) await details.locator(':scope > summary').click()

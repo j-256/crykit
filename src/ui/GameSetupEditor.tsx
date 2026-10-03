@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { sameValue } from '../domain/definition-values'
 import { definitionLineageRootRef } from '../domain/definitions'
@@ -81,7 +81,7 @@ export function gameSetupOverrideConflicts(localData: LocalData, draft: GameSetu
   }) : []
 }
 
-export function GameRulesFields({ localData, value: draft, current, focus, disabled = false, onChange: update }: { localData: LocalData; value: GameSetupDraft; current?: Pick<GameSetupRevision, 'modComposition'>; focus?: GameSetupFocus; disabled?: boolean; onChange: (values: Partial<GameSetupDraft>) => void }) {
+export function GameRulesFields({ localData, value: draft, current, focus, disabled = false, onChange: update, modsEditor }: { localData: LocalData; value: GameSetupDraft; current?: Pick<GameSetupRevision, 'modComposition'>; focus?: GameSetupFocus; disabled?: boolean; onChange: (values: Partial<GameSetupDraft>) => void; modsEditor?: ReactNode }) {
   const [exactVersion, setExactVersion] = useState(false)
   const versionId = useId()
   const formRef = useRef<HTMLDivElement>(null)
@@ -125,9 +125,9 @@ export function GameRulesFields({ localData, value: draft, current, focus, disab
       <details className="game-setup-disclosure game-setup-mods">
         <summary><span><strong>Mods</strong><small>{enabledLayers} imported versions enabled{enabledMods ? ` · ${enabledMods} named choices` : ''}</small></span><Icon name="chevron-down"/></summary>
         <div className="game-setup-disclosure__body stack">
-          <div className="game-setup-imports"><ModLayersEditor composition={draft.modComposition} onChange={modComposition => update({ modComposition })}/></div>
+          {modsEditor ?? <><div className="game-setup-imports"><ModLayersEditor composition={draft.modComposition} onChange={modComposition => update({ modComposition })}/></div>
           <details className="game-setup-named-mods"><summary>Mods without imported files</summary><div className="stack game-setup-disclosure__body"><p className="field__hint">Record Nintendo or other named mods here. A name alone cannot supply calculation constants.</p><ModSelections value={draft} onChange={update}/><details className="game-setup-mod-help"><summary>Nintendo preset</summary><div className="stack"><p>Enables {CONFIRMED_SWITCH_MOD_SETUP.enabledMods.join(', ')} and disables {CONFIRMED_SWITCH_MOD_SETUP.disabledMods.join(', ')}. Review these choices against your save.</p><Button onClick={useNintendoChoices} tone="secondary" type="button">Apply Nintendo mod preset</Button></div></details></div></details>
-          {incompatibleOverrides.length > 0 && <InlineNotice title="Review personal override pins" tone="warning"><p>These personal revisions pin an earlier catalog: {incompatibleOverrides.map(ref => localData.personalDefinitions[ref.definitionId]?.name ?? 'Unavailable definition').join(', ')}. Choose the layered definitions to continue. Earlier Game Setups remain available.</p><Button onClick={() => update({ definitionOverrides: draft.definitionOverrides?.filter(ref => !incompatibleOverrides.includes(ref)) })} tone="secondary" type="button">Use layer definitions for these records</Button></InlineNotice>}
+          </>}{incompatibleOverrides.length > 0 && <InlineNotice title="Review personal override pins" tone="warning"><p>These personal revisions pin an earlier catalog: {incompatibleOverrides.map(ref => localData.personalDefinitions[ref.definitionId]?.name ?? 'Unavailable definition').join(', ')}. Choose the layered definitions to continue. Earlier Game Setups remain available.</p><Button onClick={() => update({ definitionOverrides: draft.definitionOverrides?.filter(ref => !incompatibleOverrides.includes(ref)) })} tone="secondary" type="button">Use layer definitions for these records</Button></InlineNotice>}
         </div>
       </details>
       <details className="game-setup-disclosure game-setup-derived">

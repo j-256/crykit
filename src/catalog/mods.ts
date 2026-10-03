@@ -112,11 +112,11 @@ export function definitionModAvailability(localData: LocalData, ref: EntityRef, 
   const personal = ref.kind === 'personal' ? localData.personalDefinitions[ref.definitionId] : undefined
   const project = (personal ?? entity)?.fields[MOD_PROJECT_FIELD]
   const sourceMod = (personal ?? entity)?.fields['Source mod']
+  const effectiveLayer = entity?.fields['Effective mod layer']
   if (project?.state === 'known' && typeof project.value === 'string') {
-    const title = sourceMod?.state === 'known' && typeof sourceMod.value === 'string' ? sourceMod.value : BUNDLED_MOD_LIBRARY.find(mod => mod.id === project.value)?.title ?? 'Source mod'
+    const title = sourceMod?.state === 'known' && typeof sourceMod.value === 'string' ? sourceMod.value : effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? effectiveLayer.value : BUNDLED_MOD_LIBRARY.find(mod => mod.id === project.value)?.title ?? 'Source mod'
     return projectModAvailability(project.value as CatalogId, title, gameSetup)
   }
-  const effectiveLayer = entity?.fields['Effective mod layer']
   if (effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string') return { requiredMod: effectiveLayer.value, state: gameSetup?.catalogLock[catalog!.id] === catalog!.revisionId ? 'enabled' : 'unknown' }
   const bundledMod = entity && bundledModIdentity(entity)
   if (bundledMod) return { requiredMod: bundledMod.requiredMod, state: modState(gameSetup, bundledMod.requiredMod) }
