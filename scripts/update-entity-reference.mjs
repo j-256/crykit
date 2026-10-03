@@ -91,7 +91,7 @@ async function boundedRead(path) {
   if (bytes.length > MAX_BYTES) throw new Error('Source exceeds size limit')
   return bytes
 }
-async function update(input) {
+export async function extractEntityReference(input, acquisition = false) {
   const installation = basename(resolve(input)).toLowerCase() === 'content' ? dirname(resolve(input)) : resolve(input)
   const [schema, native] = await pins()
   const [game, editor, world, biomes] = await Promise.all(['Crystal Project.exe', 'Crystal Edit/Crystal Edit.exe', 'Content/Worlds/field.dat', 'Content/Database/biome.dat'].map(path => boundedRead(join(installation, path))))
@@ -116,19 +116,24 @@ async function update(input) {
     const projectionPath = join(temporary, 'records.json')
     await writeFile(assemblyPath, assembly)
     console.error('Extracting field metadata with the fingerprinted installed game decoder')
-    execFileSync('dotnet', ['run', '--project', join(temporary, 'exporter'), '--verbosity', 'quiet', '--', installation, assemblyPath, projectionPath], { encoding: 'utf8', maxBuffer: MAX_BYTES, timeout: 120_000, env: DOTNET_ENV, stdio: ['ignore', 'pipe', 'pipe'] })
+    execFileSync('dotnet', ['run', '--project', join(temporary, 'exporter'), '--verbosity', 'quiet', '--', installation, assemblyPath, projectionPath, ...(acquisition ? ['acquisition'] : [])], { encoding: 'utf8', maxBuffer: MAX_BYTES, timeout: 120_000, env: DOTNET_ENV, stdio: ['ignore', 'pipe', 'pipe'] })
     const biomeRecords = parseGameDatabase(biomes, 'biome').records
     const biomeNames = new Map(biomeRecords.filter(Boolean).map(record => [record.ID, record.Name]))
     const records = JSON.parse(await readFile(projectionPath, 'utf8')).map(record => ({ ...record, BiomeName: biomeNames.get(record.BiomeID) }))
     const source = { platform: 'Windows', gameVersion: version, gameExecutableSha256: hash(game), editorExecutableSha256: hash(editor), world: { path: 'Content/Worlds/field.dat', sha256: hash(world), size: world.length }, biomes: { path: 'Content/Database/biome.dat', sha256: hash(biomes), size: biomes.length }, scope: SCOPE, rights: RIGHTS, evidence: ['SangEdit.Utilities.PathHelper.GetWorldDataPath', 'SangEdit.Models.Entities.EntityManager.Load/TryLoadBinary/LoadEntityData', 'SangEdit.Models.Entities.EntitySerializer.Deserialize', 'SangEdit.Models.Entities.ModelEntityData.Header', 'Sang.SangEntity.EntitySerializer.Deserialize', 'Sang.Voxel.ZLookup.LoadBinary', 'Sang.Voxel.EntityLedger.LoadLedger', 'Content/Worlds/field.dat embedded entity ledger ID and coordinate equality', 'Content/Database/biome.dat ID and Name'] }
-    const snapshot = { schemaVersion: 1, contentDigest: '', source, records }
-    snapshot.contentDigest = contentDigest(snapshot)
-    validateEntityReference(snapshot, schema, native)
-    const output = `${JSON.stringify(snapshot, null, 2).replace(/[\u2014\u2018\u2019\u201c\u201d]/g, char => `\\u${char.charCodeAt(0).toString(16)}`).replace(/@(?=Astley\.Name)/g, '\\u0040')}\n`
-    await writeFile(`${OUTPUT}.tmp`, output)
-    await rename(`${OUTPUT}.tmp`, OUTPUT)
-    console.log(`Saved Windows ${version} field entity metadata with source fingerprints (${records.length} records)`)
+    return { source, records }
   } finally { await rm(temporary, { recursive: true, force: true }) }
+}
+async function update(input) {
+  const { source, records } = await extractEntityReference(input)
+  const [schema, native] = await pins()
+  const snapshot = { schemaVersion: 1, contentDigest: '', source, records }
+  snapshot.contentDigest = contentDigest(snapshot)
+  validateEntityReference(snapshot, schema, native)
+  const output = `${JSON.stringify(snapshot, null, 2).replace(/[\u2014\u2018\u2019\u201c\u201d]/g, char => `\\u${char.charCodeAt(0).toString(16)}`).replace(/@(?=Astley\.Name)/g, '\\u0040')}\n`
+  await writeFile(`${OUTPUT}.tmp`, output)
+  await rename(`${OUTPUT}.tmp`, OUTPUT)
+  console.log(`Saved Windows ${source.gameVersion} field entity metadata with source fingerprints (${records.length} records)`)
 }
 async function main() {
   let values
