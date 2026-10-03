@@ -1,6 +1,7 @@
+import { buildContentForModSetup, buildModRequirements } from '../domain/build-mods'
 import { BuildCharacterComparison } from './BuildCharacterComparison'
 import { resolveGameRules } from '../domain/game-rules'
-import { composeModCatalog, expandModCatalogs, modCatalogRevision } from '../domain/mod-layers'
+import { composeModCatalog, composeModLayers, expandModCatalogs, modCatalogRevision, modCatalogTitle } from '../domain/mod-layers'
 import { sameValue } from '../domain/definition-values'
 import { MoneyText } from './MoneyText'
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
@@ -29,6 +30,7 @@ import { FIELD_FOCUS_QUERY_KEY, fieldFocusQuery, focusFieldElement } from './fie
 import { buildEquipmentPermissions } from '../domain/build-mechanics'
 import { ShareButton } from './ShareButton'
 import { BuildBehaviorEditor } from './BuildBehaviorEditor'
+import { BuildModSelectionGate } from './BuildModSelectionGate'
 import type { BuildBehavior } from '../domain/build-behavior'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
@@ -49,7 +51,13 @@ function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit,
   const [tags, setTags] = useState<BuildTagsDraft>({ tags: [], input: '' })
   const createdRef = useRef<BuildId>(undefined)
   return <section className="build-column build-sheet-panel"><div className="build-column__body"><RevisionEditor catalogs={catalogs} locked={Boolean(localData.buildRevisions[revisionId])} onCancel={onCancel} onDirtyChange={onDirtyChange} onSaved={(revisionId) => { if (createdRef.current) onSaved(createdRef.current, revisionId) }} onSubmit={async (revision) => {
-    const automaticTitle = revision.primaryClass ? `${entityName(localData, catalogs, revision.primaryClass)} build` : 'Untitled build'
+    const composition = revision.behavior.modComposition
+    const primary = revision.primaryClass
+    let name = entityName(localData, catalogs, primary)
+    if (composition && primary?.kind === 'catalog' && primary.catalogId === composition.baseline.catalogId) {
+      try { name = composeModLayers(composition, catalogs).entities[primary.entityId]?.name ?? name } catch { /* Keep the unresolved label when sources are unavailable */ }
+    }
+    const automaticTitle = primary ? `${name} build` : 'Untitled build'
     const created = await onSubmit({ id, revisionId, title: title.trim() || automaticTitle, tags: buildTagsFromDraft(tags) }, revision)
     createdRef.current = created.buildId
     return created.revisionId
@@ -134,7 +142,7 @@ function RevisionEditor(props: RevisionEditorProps) {
   const planningCatalogs = useMemo(() => composed ? expandModCatalogs([...rawCatalogs, composed]) : rawCatalogs, [composed, rawCatalogs])
   const displayCatalogs = useMemo(() => composed ? expandModCatalogs([...library.catalogs, composed]) : library.catalogs, [composed, library.catalogs])
   const scopedData = useMemo(() => ({ ...props.localData, planningGameSetupRevisionId: draftId, gameSetups: { ...props.localData.gameSetups, [draftId]: gameSetup } }), [props.localData, draftId, gameSetup])
-  return <DefinitionProvider catalogs={displayCatalogs} planningCatalogs={planningCatalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition}><RevisionEditorBody {...props} catalogs={planningCatalogs} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={updateBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData}/></DefinitionProvider>
+  return <DefinitionProvider catalogs={displayCatalogs} planningCatalogs={planningCatalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition} onLoadBundledMod={library.onLoadBundledMod}><RevisionEditorBody {...props} catalogs={planningCatalogs} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={updateBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData}/></DefinitionProvider>
 }
 
 function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false, behavior, gameSetup, onBehaviorChange, onDiscardBehavior, presetData }: RevisionEditorProps & { readonly behavior: BuildBehavior; readonly gameSetup: GameSetupRevision; readonly onBehaviorChange: (value: BuildBehavior) => void; readonly onDiscardBehavior: () => void; readonly presetData: LocalData }) {
@@ -144,9 +152,11 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
   const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation ?? defaultCalculation(latest?.content.primaryClass ?? null), note: undefined })
   const behaviorRef = useRef<HTMLDetailsElement>(null)
-  const [draft, setDraft] = useState<RevisionDraft>(initialDraft)
+  const [storedDraft, setDraft] = useState<RevisionDraft>(initialDraft)
+  const draft = useMemo(() => buildContentForModSetup(storedDraft, behavior, catalogs), [storedDraft, behavior, catalogs])
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
+  const [loadingMod, setLoadingMod] = useState(false)
   const [error, setError] = useState<string>()
   const dirtyRef = useRef(false)
   const draftRef = useRef(draft)
@@ -246,12 +256,24 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     })
     updateDirty(true)
   }
-  const save = async () => { if (busy) return false; setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draftRef.current, behavior, behaviorRevisionId: gameSetup.id, contextAssumptions: assumptionsRef.current.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId); return true } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.'); return false } finally { setBusy(false) } }
+  const save = async () => { if (busy || loadingMod) return false; setBusy(true); setError(undefined); try { const revisionId = await onSubmit({ ...draftRef.current, behavior, behaviorRevisionId: gameSetup.id, contextAssumptions: assumptionsRef.current.split('\n').map((value) => value.trim()).filter(Boolean) }); updateDirty(false); onSaved(revisionId); return true } catch (reason) { setError(reason instanceof Error ? reason.message : 'The build revision could not be saved.'); return false } finally { setBusy(false) } }
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
   const discard = () => { onDiscardBehavior(); setBehaviorEditorKey(value => value + 1); const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
   actionsRef.current = { save, discard }
   const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
-  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField allowedKinds={target.kinds} gameSetup={gameSetup} equipmentPermissions={target.target === 'equipment' ? equipmentPermissions : undefined} equipmentSlot={target.target === 'equipment' ? slots.find(slot => slot.id === target.key) : undefined} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
+  const reviewGameSetup = (modName?: string) => {
+    const details = behaviorRef.current
+    if (!details) return
+    details.open = true
+    const mods = details.querySelector<HTMLDetailsElement>('.game-setup-mods')
+    if (modName && mods) mods.open = true
+    const requirement = modName ? buildModRequirements(draft, localData, catalogs, gameSetup).find(requirement => requirement.name === modName || catalogs.some(catalog => catalog.id === requirement.projectId && modCatalogTitle(catalog) === modName)) : undefined
+    const card = modName ? [...details.querySelectorAll<HTMLElement>('[data-build-mod]')].find(element => element.dataset.buildMod === (requirement?.name ?? modName)) : undefined
+    const target = card ?? details
+    target.scrollIntoView({ block: 'start' })
+    target.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true })
+  }
+  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField onConfigureMod={reviewGameSetup} allowedKinds={target.kinds} gameSetup={gameSetup} equipmentPermissions={target.target === 'equipment' ? equipmentPermissions : undefined} equipmentSlot={target.target === 'equipment' ? slots.find(slot => slot.id === target.key) : undefined} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
     if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref, ...(current.calculation ? { calculation: followPrimary(current.calculation, ref) } : {}) }))
     else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
     else if (target.target === 'passive') setDraft((current) => {
@@ -274,24 +296,24 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
     return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
   }
-  return <form className="stack build-sheet" data-validity={validity.status} id={formId} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onInvalid={event => { for (let parent: HTMLElement | null = event.target as HTMLElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true }} onSubmit={submit}>
+  return <BuildModSelectionGate content={draft} value={behavior} onChange={value => { onBehaviorChange(value); updateDirty(true) }} onBusyChange={setLoadingMod}><form className="stack build-sheet" data-validity={validity.status} id={formId} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onInvalid={event => { for (let parent: HTMLElement | null = event.target as HTMLElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
-    <fieldset className="build-sheet__fields" disabled={busy || locked}><BuildBehaviorEditor detailsRef={behaviorRef} initiallyOpen={!build} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
+    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><BuildBehaviorEditor content={draft} onModBusyChange={setLoadingMod} detailsRef={behaviorRef} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity report={validity}/>
-    <fieldset className="build-sheet__fields" disabled={busy || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith}
+    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith}
       classFields={<>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</>}
       equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
       passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label></>}
       passiveFields={[...draft.passives, undefined].map(passiveField)}
       context={<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>}
       onCalculationChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}
-      onReviewGameSetup={() => { const details = behaviorRef.current; if (details) { details.open = true; details.scrollIntoView({ block: 'start' }); details.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true }) } }}
+      onReviewGameSetup={() => reviewGameSetup(buildModRequirements(draft, localData, catalogs, gameSetup).find(requirement => requirement.state !== 'enabled')?.name)}
       notes={<section className="build-details"><h3>Build details & notes</h3><div className="stack">{typeof children === 'function' ? children(() => updateDirty(true)) : children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; review the Game Setup coverage.'}</p></div></section>}
     /></fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
-    <div className="form-actions"><Button disabled={busy} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><WorkspacePrimaryAction><Button disabled={busy} form={formId} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></WorkspacePrimaryAction></div>
-  </form>
+    <div className="form-actions"><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><WorkspacePrimaryAction><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></WorkspacePrimaryAction></div>
+  </form></BuildModSelectionGate>
 }
 
 function AddScenarioForm({ localData, revision, onCancel, onSubmit }: { localData: LocalData; revision?: BuildRevision; onCancel: () => void; onSubmit: (draft: ScenarioDraft) => Promise<void> }) {

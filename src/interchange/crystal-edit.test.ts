@@ -13,8 +13,8 @@ import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crysta
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 
 describe('Crystal Edit reference import', () => {
-  it('recognizes placement-only projects and preserves their exact source without inventing reference definitions', async () => {
-    const input = { ID: 'synthetic-map-placements', Title: 'Synthetic placements', EditorVersion: 34, Entities: [{ ID: 900001, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 1, LootValue: 18 }, FutureField: { retained: true } }] }
+  it.each([34, 4, undefined])('recognizes placement-only format %s projects and preserves their exact source without inventing reference definitions', async editorVersion => {
+    const input = { ID: 'synthetic-map-placements', Title: 'Synthetic placements', ...(editorVersion === undefined ? {} : { EditorVersion: editorVersion }), Entities: [{ ID: 900001, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 1, LootValue: 18 }, FutureField: { retained: true } }] }
     const bytes = new TextEncoder().encode(`\r\n${JSON.stringify(input, null, 2)}\r\n`)
     const preview = await previewImport(bytes, 'placements.json')
     expect(preview.detectedFormat).toBe('crystal-edit-json-1')
@@ -25,7 +25,7 @@ describe('Crystal Edit reference import', () => {
     expect(JSON.parse(new TextDecoder().decode(preview.proposed.sources[0]!.bytes))).toEqual(input)
     expect(preview.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'archived-models', message: expect.stringContaining('Entities: 1') })]))
     expect(isCrystalEdit({ ...input, Entities: {} })).toBe(false)
-    expect(isCrystalEdit({ ID: input.ID, Entities: input.Entities })).toBe(false)
+    expect(isCrystalEdit({ ID: input.ID, EditorVersion: 'unknown', Entities: input.Entities })).toBe(false)
   })
 
   it('preserves every simultaneous prerequisite in columns and native snapshot round-trips', async () => {

@@ -129,7 +129,7 @@ function identifierPreview(node: JsonNode | undefined): string {
   if (node.kind === 'object' || node.kind === 'array') return node.kind
   return node.raw.length > IDENTIFIER_PREVIEW_LIMIT ? `${node.raw.slice(0, IDENTIFIER_PREVIEW_LIMIT)}... (${node.kind})` : node.raw
 }
-const VERSION_EDIT_DETAIL = 'CryKit keeps the imported original and does not apply format conversions. Changing this integer does not convert data and can suppress version migrations.'
+const VERSION_EDIT_DETAIL = 'The JSON editor keeps the imported original unchanged. Planning interprets supported legacy fields using Windows PC 1.6.9 loader conversions. Changing this integer does not convert data and can suppress version migrations.'
 function editorVersionInfo(document: ParsedDocument): EditorVersionInfo {
   const node = objectProperty(document.root, 'EditorVersion')
   const value = code(node)

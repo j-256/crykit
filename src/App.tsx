@@ -1,5 +1,7 @@
+import { buildContentForModSetup } from './domain/build-mods'
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
-import { modRevision } from './domain/mod-library'
+import { modRevision, type BundledLibraryMod } from './domain/mod-library'
+import { bundledModEditableSource } from './catalog/mod-library'
 import { setModInReference } from './domain/reference-library'
 import { adoptTeam, recordBuildForCharacter, saveTeam, type SaveTeamInput } from './domain/teams'
 import type { CatalogId, TeamId } from './domain/types'
@@ -425,7 +427,7 @@ export default function App() {
       if (current.buildRevisions[revisionId]?.buildId === buildId) return current
       const configured = saveBuildBehavior(current, behavior, undefined, behaviorRevisionId)
       const created = createBuild(configured.localData, { id: buildId, title: draft.title, tags: draft.tags, gameSetupId: configured.setup.gameSetupId, expectedRevision: configured.localData.revision })
-      return saveBuildRevision(created, { buildId, id: revisionId, content, note, gameSetupRevisionId: configured.setup.id, expectedRevision: created.revision })
+      return saveBuildRevision(created, { buildId, id: revisionId, content: buildContentForModSetup(content, configured.setup, loadedDataRef.current!.catalogs, behavior), note, gameSetupRevisionId: configured.setup.id, expectedRevision: created.revision })
     })
     return { buildId, revisionId }
   }, [commitLocalData])
@@ -449,7 +451,7 @@ export default function App() {
       const build = localData.builds[buildId]
       if (!build) throw new Error('The selected Build no longer exists.')
       const gameSetupRevisionId = configured.setup.id
-      return saveBuildRevision(localData, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build.latestRevisionId, gameSetupRevisionId, content: { primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation }, note: draft.note, expectedRevision: localData.revision })
+      return saveBuildRevision(localData, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build.latestRevisionId, gameSetupRevisionId, content: buildContentForModSetup({ primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation }, configured.setup, loadedDataRef.current!.catalogs, draft.behavior), note: draft.note, expectedRevision: localData.revision })
     })
     return revisionId
   }, [commitLocalData])
@@ -502,15 +504,17 @@ export default function App() {
     return next
   }), [commitLocalData])
 
-  const installLoadedData = useCallback((loaded: LoadedLocalData) => {
+  const installLoadedData = useCallback((loaded: LoadedLocalData, preserveFormDraft = false) => {
     loadedDataRef.current = loaded
     persistedRevisionRef.current = loaded.localData.revision
     dirtyRef.current = false
-    formDirtyRef.current = false
-    buildDraftRouteRef.current = undefined
+    if (!preserveFormDraft) {
+      formDirtyRef.current = false
+      buildDraftRouteRef.current = undefined
+      setFormDirty(false)
+    }
     setLoadedData(loaded)
     setDirty(false)
-    setFormDirty(false)
     setSaveState('saved')
     setSaveError(undefined)
     setExternalUpdate(false)
@@ -580,7 +584,7 @@ export default function App() {
     try {
       const preview = await previewImport(new TextEncoder().encode(text), filename)
       const revision = preview.proposed.catalogs[0] && modRevision(preview.proposed.catalogs[0])
-      if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a Crystal Edit project ID, editor version, and recognized project structure before it can be saved to the mod library.')
+      if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a Crystal Edit project ID and recognized project structure before it can be saved to the mod library.')
       if (expectedCatalogId && revision.catalogId !== expectedCatalogId) throw new Error('This file has a different Crystal Edit project ID. Open it in the mod editor to save it as a separate mod.')
       await waitForSafeTransition()
       const current = loadedDataRef.current
@@ -591,6 +595,24 @@ export default function App() {
       return { title: revision.title, unchanged, warnings: preview.warnings.map(warning => warning.message) }
     } finally { setImportBusy(false) }
   }, [installLoadedData, waitForSafeTransition])
+
+  const loadBuildModSource = useCallback(async (mod: BundledLibraryMod) => {
+    setImportBusy(true)
+    try {
+      const source = await bundledModEditableSource(mod)
+      const preview = await previewImport(new TextEncoder().encode(source.text), source.filename)
+      const catalog = preview.proposed.catalogs[0]
+      if (!catalog || catalog.id !== mod.id || !modRevision(catalog)) throw new Error('The bundled source does not match this mod project.')
+      await commitQueueRef.current
+      if (dirtyRef.current) throw new Error('Retry the failed local save before loading a mod source.')
+      const current = loadedDataRef.current
+      if (!current) throw new Error('The local planner data is not ready.')
+      if (current.catalogs.some(saved => saved.id === catalog.id && saved.revisionId === catalog.revisionId)) return catalog
+      const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
+      installLoadedData(loaded, true)
+      return catalog
+    } finally { setImportBusy(false) }
+  }, [installLoadedData])
 
   const setReferenceMembership = useCallback(async (modId: string, included: boolean) => {
     await waitForSafeTransition()
@@ -644,5 +666,5 @@ export default function App() {
   const buildContent = buildRoute && <WorkspaceHeaderScope active={destination === 'builds'}><div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView shareBlocked={dirty || formDirty || saveState === 'saving'} catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveDetails={saveBuildDetails} onSaveRevision={saveRevision} localData={localData} validations={validations}/></NavigationProvider></div></WorkspaceHeaderScope>
   const draftReminder = (destination === 'reference' || destination === 'map') && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Explore reference records and map locations, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={loadedData.catalogs} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={loadedData.catalogs} onLoadBundledMod={loadBuildModSource} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry this exact revision or export a recovery copy.' : 'Review the open form and try again.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
 }

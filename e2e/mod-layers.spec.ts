@@ -1,5 +1,5 @@
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
-import { saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -61,6 +61,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(panel).not.toBeVisible()
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await page.getByText('Build details & notes', { exact: true }).click()
@@ -86,6 +87,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   expect(newer.localData.buildRevisions[oldRevision.id]).toEqual(oldRevision)
   expect(newer.localData.gameSetups[newer.localData.planningGameSetupRevisionId!]!.modComposition?.layers.map(layer => layer.catalogId)).toEqual(['crystal-edit:layer-b', 'crystal-edit:layer-a'])
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await primary.fill('Fighter')
   const options = page.getByRole('listbox', { name: 'Choose Class', exact: true })

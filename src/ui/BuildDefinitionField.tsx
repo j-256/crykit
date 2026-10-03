@@ -15,10 +15,12 @@ import { hasNameEvidenceOnly, isReferenceArticle, ppCostLabel, similarNameOption
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { LEARNABLE_INNATE_SKILLS_MOD_LABEL, ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
+import { Button } from './components'
+import { useBuildModSelection } from './BuildModSelectionGate'
 
 export const BUILD_DEFINITION_PAGE_SIZE = 100
 const FIELD_ICONS: Readonly<Record<string, IconName>> = Object.freeze({ Class: 'crystal', 'Sub-command': 'tome', 'Main hand': 'sword', 'Off hand': 'shield', Head: 'character', Body: 'chest', 'Accessory 1': 'ring', 'Accessory 2': 'ring' })
-export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect }: {
+export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect, onConfigureMod }: {
   label: string
   allowedKinds: readonly CatalogEntityKind[]
   value: EntityRef | null
@@ -35,6 +37,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   onQueryChange: (query: string) => void
   onResultLimitChange: (limit: number) => void
   onChange: (value: EntityRef | null) => void
+  onConfigureMod?: (name: string) => void
   onInspect: (option: DefinitionOption | undefined) => void
 }) {
   const { localData, catalogs, planningOptions: options, availablePlanningOptions: libraryOptions } = useDefinitionLibrary()
@@ -44,6 +47,8 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const similarNames = useMemo(() => similarNameOptions(localData, availableOptions), [availableOptions, localData])
   const optionName = (option: DefinitionOption) => nativeDisplayName(option.record, label === 'Sub-command' ? commandName(option) ?? option.name : option.name)
   const inputRef = useRef<HTMLInputElement>(null)
+  const skipNextFocus = useRef(false)
+  const modSelection = useBuildModSelection()
   const id = useId()
   const [activeIndex, setActiveIndex] = useState(-1)
   const [includeAlternatives, setIncludeAlternatives] = useState(false)
@@ -60,7 +65,15 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const lastIndex = hasMore ? visible.length : visible.length - 1
   useEffect(() => { setActiveIndex(-1) }, [query, open, includeInnates, equipmentPermissions, gameSetup])
   useLayoutEffect(() => { if (open) inputRef.current?.select() }, [open])
-  const choose = (ref: EntityRef | null) => { onInspect(findDefinitionOption(availableOptions, ref)); onChange(ref); onClose() }
+  const choose = (ref: EntityRef | null) => {
+    const option = findDefinitionOption(availableOptions, ref)
+    const accept = () => { onInspect(option); onChange(ref) }
+    onClose()
+    if (option && modSelection) modSelection.select({ option, accept, cancel: () => onInspect(selected), restoreFocus: () => {
+      if (inputRef.current?.isConnected) { skipNextFocus.current = document.activeElement !== inputRef.current; inputRef.current.focus({ preventScroll: true }) }
+    } })
+    else accept()
+  }
   const move = (index: number) => {
     if (!visible.length) return
     const next = Math.max(0, Math.min(lastIndex, index))
@@ -72,7 +85,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
     <label htmlFor={id}>{label}</label>
     <div className="build-field__input">
       <span className="build-field__artwork">{selected ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={selected.ref}/> : <Icon name={FIELD_ICONS[label] ?? (allowedKinds.includes('passive') ? 'spark' : 'box')}/>}</span>
-      <input aria-activedescendant={open && activeIndex >= 0 ? `${id}-option-${activeIndex}` : undefined} aria-autocomplete="list" aria-controls={open ? `${id}-list` : undefined} aria-expanded={open} aria-haspopup="listbox" autoComplete="off" data-definition-trigger="true" id={id} onChange={(event) => onQueryChange(event.target.value)} onClick={() => { if (!open) onOpen() }} onFocus={() => { onInspect(selected); if (!open) onOpen() }} onKeyDown={(event) => {
+      <input aria-activedescendant={open && activeIndex >= 0 ? `${id}-option-${activeIndex}` : undefined} aria-autocomplete="list" aria-controls={open ? `${id}-list` : undefined} aria-expanded={open} aria-haspopup="listbox" autoComplete="off" data-definition-trigger="true" id={id} onChange={(event) => onQueryChange(event.target.value)} onClick={() => { if (!open) onOpen() }} onFocus={() => { if (skipNextFocus.current) { skipNextFocus.current = false; return } onInspect(selected); if (!open) onOpen() }} onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
           if (!open) onOpen()
@@ -100,6 +113,6 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
     </Dropdown>
-    {selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected}/>{isReferenceArticle(localData, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected}/></details></div>}
+    {selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected}/>{selected.modAvailability?.requiredMod && onConfigureMod && <div className="build-field__mod-action"><Button aria-label={`${selected.name} mod settings`} onClick={() => onConfigureMod(selected.modAvailability!.requiredMod!)} tone="quiet" type="button">Mod settings</Button></div>}{isReferenceArticle(localData, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected}/></details></div>}
   </div>
 }

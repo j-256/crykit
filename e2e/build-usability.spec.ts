@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -185,6 +185,7 @@ test('new and existing build drafts survive Reference research, history, and ret
   await page.goto('/')
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await choose(page, 'Main hand', 'Muramasa')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
@@ -311,6 +312,7 @@ test('readiness and recording actions follow the displayed editor checkpoint', a
     if (await panel.getAttribute('open') === null) await panel.locator(':scope > summary').click()
   }
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await choose(page, 'Main hand', 'Muramasa')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()

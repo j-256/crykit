@@ -6,9 +6,15 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
-async function choose(page: Page, label: string, name: string) {
+async function choose(page: Page, label: string, name: string, requiredMod?: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  if (requiredMod) {
+    const dialog = page.getByRole('dialog', { name: `Enable ${requiredMod}?`, exact: true })
+    await expect(dialog).toContainText(`${name} requires ${requiredMod}`)
+    await dialog.getByRole('button', { name: `Enable and select ${name}`, exact: true }).click()
+    await expect(dialog).toHaveCount(0)
+  }
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
 
@@ -80,7 +86,7 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await choose(page, 'Head', 'Red Hat')
   await choose(page, 'Body', 'Shadow Gi')
   await choose(page, 'Accessory 1', 'Acrobat Shoes')
-  await choose(page, 'Accessory 2', 'Ring of Wizardry')
+  await choose(page, 'Accessory 2', 'Ring of Wizardry', 'Equipment Expansion')
   await choose(page, 'Equipped passive 1', 'Counter')
   await expect(page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('planned-sheet.png'), fullPage: true })

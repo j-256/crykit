@@ -5,11 +5,12 @@ import { Badge, Button, Field, InlineNotice } from './components'
 
 const KNOWN_NAMES = new Map(SWITCH_MOD_PACKS.flatMap(pack => pack.mods.map(name => [normalizeModName(name), name] as const)))
 
-export function ModSelections({ value, onChange }: { readonly value: ModConfiguration; readonly onChange: (value: ModConfiguration) => void }) {
+export function ModSelections({ value, onChange, sourceNames = [] }: { readonly value: ModConfiguration; readonly onChange: (value: ModConfiguration) => void; readonly sourceNames?: readonly string[] }) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string>()
   const custom = recordedModNames(value).filter(name => !KNOWN_NAMES.has(normalizeModName(name)))
   const choice = (name: string) => {
+    if (sourceNames.some(source => normalizeModName(source) === normalizeModName(name))) return <p className="field__hint" key={normalizeModName(name)}>{name}: use its source-version card above to change its setting.</p>
     const state = modState(value, name)
     return <label className="game-setup-mod-choice" key={normalizeModName(name)}><span>{name}</span><select aria-label={name} data-mod-state={state} onChange={event => onChange(updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }]))} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label>
   }

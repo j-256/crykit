@@ -7,7 +7,7 @@ import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { defaultCalculation } from './calculation-plan'
 import { NATIVE_DATA } from './calculation-rules'
 import { difficultyHitChance, resolveGameRules } from './game-rules'
-import { modLibrary } from './mod-library'
+import { modLibrary, modRevision } from './mod-library'
 import { calculatePCStats } from './pc-stats'
 import { calculateBuildStats } from './build-stats'
 import { calculateStatBreakdown } from './stat-breakdown'
@@ -44,6 +44,16 @@ describe('data-backed game setup rules', () => {
     expect(resolveGameRules(setup([future]), [future]).issues.join()).toContain('format 99')
     const localization = await importMod('labels', { IsLocalization: true, System: { BattleConfig: { DualWieldPAtkRate: 1 } } })
     expect(resolveGameRules(setup([localization]), [localization]).changes).toEqual([])
+  })
+
+  it.each([0, 4, 6, 7, 9, 14, 20, 27, 33, 34])('resolves format %s settings with the loader conversions', async version => {
+    const config = { ...NATIVE_DATA.battleConfig, LearnAllJobZeroJPAbilities: true }
+    const mod = await importMod('synthetic legacy rules', { EditorVersion: version, System: { BattleConfig: config } })
+    const rules = resolveGameRules(setup([mod]), [mod])
+    expect(rules.issues).toEqual([])
+    expect(rules.battleConfig.LearnAllJobZeroJPAbilities).toBe(version >= 7)
+    expect(modRevision(mod)?.rules?.battleConfig).toEqual(config)
+    expect(modRevision(mod)?.editorVersion).toBe(version)
   })
 
   it('resolves difficulty by identity from base, mode, and mods without guessing a selection', async () => {

@@ -351,6 +351,10 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
       expect(await choice.locator(':scope > :first-child').evaluate(element => getComputedStyle(element).filter)).toBe('grayscale(1)')
     }
     await choice.click()
+    const confirmation = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
+    await expect(confirmation).toBeVisible()
+    await expect(picker).toHaveValue('')
+    await confirmation.getByRole('button', { name: 'Enable and select Brawler', exact: true }).click()
     await expect(picker).toHaveValue('Brawler')
   })
 }

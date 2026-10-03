@@ -13,8 +13,8 @@ import { resolveCalculationEntity } from './model'
 
 const warrior: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
 
-it('applies exact enabled imported equipment and leaves disabled or unselected effects unresolved', async () => {
-  const imported = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-stat-mod', Title: 'Synthetic stat mod', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic HP sword', EquipmentType: 0, IsTwoHanded: false, StatMods: [{ Tag: 0, Value1: 101, Value2: 0 }] }] })), 'synthetic.json')).proposed.catalogs[0]!
+it.each([4, 34])('applies format %s enabled imported equipment and leaves disabled or unselected effects unresolved', async editorVersion => {
+  const imported = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-stat-mod', Title: 'Synthetic stat mod', EditorVersion: editorVersion, Equipment: [{ ID: 9000, Name: 'Synthetic HP sword', EquipmentType: 0, IsTwoHanded: false, StatMods: [{ Tag: 0, Value1: 101, Value2: 0 }] }] })), 'synthetic.json')).proposed.catalogs[0]!
   const catalogs = [DEFAULT_CATALOG, imported]
   const data = createTestLocalData()
   const original = data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!

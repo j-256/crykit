@@ -22,7 +22,7 @@ export function CalculationPicker({ label, kinds, value, gameSetup, onChange }: 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(BUILD_DEFINITION_PAGE_SIZE)
-  return <BuildDefinitionField gameSetup={gameSetup} allowedKinds={kinds} label={label} onChange={onChange} onClose={() => setOpen(false)} onDismiss={() => setOpen(false)} onInspect={() => undefined} onOpen={() => setOpen(true)} onQueryChange={value => { setQuery(value); setLimit(BUILD_DEFINITION_PAGE_SIZE) }} onResultLimitChange={setLimit} open={open} query={query} resultLimit={limit} value={value}/>
+  return <BuildDefinitionField gameSetup={gameSetup} allowedKinds={kinds} label={label} onChange={onChange} onClose={() => setOpen(false)} onDismiss={() => setOpen(false)} onInspect={() => undefined} onOpen={() => setOpen(true)} onQueryChange={value => { setOpen(true); setQuery(value); setLimit(BUILD_DEFINITION_PAGE_SIZE) }} onResultLimitChange={setLimit} open={open} query={query} resultLimit={limit} value={value}/>
 }
 
 const NO_UNKNOWN_INPUTS: readonly string[] = []
