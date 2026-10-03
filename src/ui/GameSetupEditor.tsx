@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { sameCorrectionValue } from '../domain/corrections'
+import { sameValue } from '../domain/definition-values'
 import { definitionLineageRootRef } from '../domain/definitions'
 import { DEFAULT_GAME_MODE, DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { PC_GAME_RULES, resolveGameRules } from '../domain/game-rules'
 import { useDefinitionLibrary } from './definitions'
-import { useOptionalCorrections } from './corrections-context'
 import { modState, normalizeModName, recordedModNames, updateModSelections } from '../domain/mods'
 import type { CatalogEntityKind, EquipmentRole, GameSetupRevision, GameSetupRevisionId, Knowledge, LocalData, ModComposition, PersonalRef, SlotId, SlotProvenance, SourceRef } from '../domain/types'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
@@ -76,7 +75,7 @@ function ContextChoice({ label, value, choices, onChange }: { label: string; val
 }
 
 export function gameSetupOverrideConflicts(localData: LocalData, draft: GameSetupDraft, current?: Pick<GameSetupRevision, 'modComposition'>) {
-  return draft.modComposition && !sameCorrectionValue(draft.modComposition, current?.modComposition) ? (draft.definitionOverrides ?? []).filter(ref => {
+  return draft.modComposition && !sameValue(draft.modComposition, current?.modComposition) ? (draft.definitionOverrides ?? []).filter(ref => {
     const root = definitionLineageRootRef(localData, ref)
     return root.kind === 'catalog' && root.catalogId === draft.modComposition!.baseline.catalogId
   }) : []
@@ -87,8 +86,7 @@ export function GameRulesFields({ localData, value: draft, current, focus, disab
   const versionId = useId()
   const formRef = useRef<HTMLDivElement>(null)
   const library = useDefinitionLibrary()
-  const corrections = useOptionalCorrections()
-  const catalogs = corrections?.baseline ?? library.catalogs
+  const catalogs = library.catalogs
   const rules = resolveGameRules(draft, catalogs)
   const incompatibleOverrides = gameSetupOverrideConflicts(localData, draft, current)
   useEffect(() => {
@@ -155,7 +153,7 @@ export function GameSetupEditor({ localData, current, focus, blocked, saveError,
   const [discardRequested, setDiscardRequested] = useState(false)
   const [fieldsKey, setFieldsKey] = useState(0)
   const formId = useId()
-  const changed = !sameCorrectionValue(initial, draft)
+  const changed = !sameValue(initial, draft)
   const update = (values: Partial<GameSetupDraft>) => { setDraft(value => ({ ...value, ...values })); setError(undefined); setDiscardRequested(false) }
   const incompatibleOverrides = gameSetupOverrideConflicts(localData, draft, current)
   useEffect(() => { onDirty(changed); return () => onDirty(false) }, [changed, onDirty])

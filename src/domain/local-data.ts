@@ -14,18 +14,17 @@ import {
 } from './core'
 import {
   definitionLineageRootRef,
+  isEditablePersonalDefinition,
   logicalEntityKey,
   personalDefinitionRef,
   preferredDefinitionRef,
-  resolveDefinition,
 } from './definitions'
 import { MAX_ID_LENGTH, MAX_LONG_TEXT_LENGTH, MAX_SHORT_TEXT_LENGTH } from './limits'
 import { assertModConfiguration } from './mods'
 import { assertModComposition, modCatalogRevision } from './mod-layers'
 import { LOCAL_DATA_SCHEMA_VERSION } from './types'
-import { sameCorrectionValue, synchronizePlanningField } from './corrections'
+import { sameValue, synchronizePlanningField } from './definition-values'
 import type {
-  CatalogSnapshot,
   CatalogRevisionId,
   CatalogEntityKind,
   EntityRef,
@@ -271,7 +270,7 @@ export function createPersonalDefinition(localData: LocalData, input: CreatePers
   )
 }
 
-export interface CreateDefinitionOverrideInput {
+export interface RevisePersonalDefinitionInput {
   readonly sourceRef: EntityRef
   readonly id?: PersonalDefinitionId
   readonly name?: string
@@ -285,24 +284,25 @@ export interface CreateDefinitionOverrideInput {
   readonly expectedRevision?: number
 }
 
-export interface DefinitionOverrideResult {
+export interface PersonalDefinitionRevisionResult {
   readonly localData: LocalData
   readonly ref: PersonalRef
   readonly definition: PersonalDefinition
 }
 
-export function createDefinitionOverride(
+export function revisePersonalDefinition(
   localData: LocalData,
-  catalogs: readonly CatalogSnapshot[],
-  input: CreateDefinitionOverrideInput,
-): DefinitionOverrideResult {
+  input: RevisePersonalDefinitionInput,
+): PersonalDefinitionRevisionResult {
   assertExpectedRevision(localData, input.expectedRevision)
+  if (!isEditablePersonalDefinition(localData, input.sourceRef)) {
+    throw new DomainError('INVALID_INPUT', 'Only standalone custom definitions can be edited. Catalog entries and saved catalog versions are read-only.')
+  }
   const preferred = preferredDefinitionRef(localData, input.sourceRef)
   if (entityDefinitionKey(preferred) !== entityDefinitionKey(input.sourceRef)) {
     throw new DomainError('REVISION_CONFLICT', 'A newer personal definition revision already exists')
   }
-  const source = resolveDefinition(localData, catalogs, input.sourceRef)
-  if (!source) throw new DomainError('INVALID_INPUT', 'The definition to edit is unavailable')
+  const source = localData.personalDefinitions[input.sourceRef.definitionId]!
   for (const category of knowledgeValues(input.category ?? undefined)) {
     if (!category.trim()) throw new DomainError('INVALID_INPUT', 'Personal definition category must be nonempty text')
     assertTextLength(category, 'Personal definition category', MAX_SHORT_TEXT_LENGTH)
@@ -338,14 +338,11 @@ export function createDefinitionOverride(
     : input.category === null
       ? fieldsWithoutCategory
       : { ...fieldsWithoutCategory, category: input.category }
-  const previous = input.sourceRef.kind === 'personal'
-    ? localData.personalDefinitions[input.sourceRef.definitionId]
-    : undefined
   let definition: PersonalDefinition = {
     id,
-    revision: previous ? previous.revision + 1 : 1,
+    revision: source.revision + 1,
     baseRef: definitionLineageRootRef(localData, input.sourceRef),
-    ...(input.sourceRef.kind === 'personal' ? { previousRevision: input.sourceRef } : {}),
+    previousRevision: input.sourceRef,
     kind: source.kind,
     name: input.name === undefined ? source.name : input.name.trim(),
     aliases: input.aliases ?? source.aliases,
@@ -511,7 +508,7 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
     throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.sourceRevisionId}`)
   }
   const modComposition = input.modComposition ?? source.modComposition
-  const sameComposition = modComposition && sameCorrectionValue(modComposition, source.modComposition)
+  const sameComposition = modComposition && sameValue(modComposition, source.modComposition)
   return addGameSetupRevision(localData, {
     id: input.id,
     gameSetupId: source.gameSetupId,

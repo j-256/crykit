@@ -1,3 +1,4 @@
+import { openCustomDefinition } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
@@ -52,7 +53,7 @@ test('whole and mixed coin prices use local icons and remain available offline',
   expect(external).toEqual([])
 })
 
-test('shop tables and descriptions show coins while editing retains the original source value', async ({ page }) => {
+test('shop tables and descriptions show coins while custom editing retains copper units', async ({ page }) => {
   await page.goto(referencePath('base:location:delende-camp-armor-shop'))
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Stout Shield', exact: true }) })
   await expect(row.getByRole('img', { name: '30 copper', exact: true })).toBeVisible()
@@ -64,10 +65,11 @@ test('shop tables and descriptions show coins while editing retains the original
   await expect(description).toContainText('Silver Bow x1')
   await expect(description).toContainText('Gold Ingot x3')
 
-  await page.goto(referencePath('base:item:cosplay-garb'))
-  await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
-  await page.getByRole('button', { name: 'Edit Cost (copper)', exact: true }).getByRole('img', { name: '10 silver', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'New Cost (copper)', exact: true })).toHaveText('1000')
+  await openCustomDefinition(page)
+  await page.getByRole('button', { name: 'Edit custom definition', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: 'Edit custom definition: Synthetic custom sword', exact: true })
+  await editor.getByLabel('Fact to edit').selectOption('Cost (copper)')
+  await expect(editor.getByRole('spinbutton', { name: 'Value for Cost (copper)', exact: true })).toHaveValue('1000')
 })
 
 test('definition picker descriptions use the same coin display', async ({ page }) => {

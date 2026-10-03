@@ -7,7 +7,6 @@ import type { DefinitionModAvailability } from '../catalog/mods'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { Badge, Button, InlineNotice } from './components'
 import { DefinitionEditor, definitionKindLabel, useDefinitionLibrary } from './definitions'
-import { useOptionalCorrections } from './corrections-context'
 import { standingReferenceOptions } from './reference-library'
 import { Icon } from './icons'
 import { routeForSearchTarget, type UniversalSearchTarget } from './search-navigation'
@@ -54,8 +53,7 @@ function itemScore(item: UniversalSearchItem, query: string) {
 export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
   const { localData, options } = useDefinitionLibrary()
-  const corrections = useOptionalCorrections()
-  const referenceOptions = useMemo(() => standingReferenceOptions(options, catalogs, corrections?.hiddenKeys ?? new Set(), localData), [options, catalogs, corrections?.hiddenKeys, localData])
+  const referenceOptions = useMemo(() => standingReferenceOptions(options, catalogs, localData), [options, catalogs, localData])
   const [error, setError] = useState<string>()
   const [createdName, setCreatedName] = useState<string>()
   const [includeOtherSources, setIncludeOtherSources] = useState(false)

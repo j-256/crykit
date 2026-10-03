@@ -8,7 +8,6 @@ import { bundledModEditableSource } from '../catalog/mod-library'
 import type { CatalogId } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
 import { useDefinitionLibrary } from './definitions'
-import { useOptionalCorrections } from './corrections-context'
 import { useNavigation } from './navigation'
 import type { SaveModToLibrary } from './ModInspectorView'
 import { readModFile } from './mod-inspector/import-file'
@@ -63,8 +62,7 @@ function ModCard({ card, busy, onBrowse, onToggleReference, onEdit, onEditBundle
 
 export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSetReference }: { readonly onOpenEditor: () => void; readonly onEdit: (revision: ModRevision) => Promise<void>; readonly onEditBundled: (mod: BundledLibraryMod) => Promise<void>; readonly onImport: SaveModToLibrary; readonly onSetReference: SetModReference }) {
   const library = useDefinitionLibrary()
-  const corrections = useOptionalCorrections()
-  const catalogs = corrections?.baseline ?? library.catalogs
+  const catalogs = library.catalogs
   const cards = useMemo(() => buildModLibraryCards(catalogs, library.options, library.localData), [catalogs, library.options, library.localData])
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)

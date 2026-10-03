@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 
 const SLIME_PATH = referencePath('base:monster:2')
 
-test('enemy rewards use coins, technical details use integers, and editing keeps copper values', async ({ page }) => {
+test('enemy rewards use coins, technical details use integers, and source prices remain readable', async ({ page }) => {
   await page.goto(referencePath('base:monster:179'))
   await expect(page.locator('.enemy-rewards').getByRole('img', { name: '2 gold', exact: true })).toBeVisible()
   await expect(page.locator('.enemy-rewards')).not.toContainText('20000')
@@ -17,9 +17,7 @@ test('enemy rewards use coins, technical details use integers, and editing keeps
   await page.goto(referencePath('base:item:ether'))
   const cost = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
   await expect(cost.getByRole('img', { name: '2 silver, 50 copper', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Quick edit', exact: true }).click()
-  await cost.getByRole('button', { name: 'Edit Cost (copper)', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'New Cost (copper)', exact: true })).toHaveText('250')
+
 })
 
 test('same-name enemies remain distinct while mode variants are opt-in in global search', async ({ page }) => {
@@ -116,7 +114,7 @@ test('native enemy facts, separate steal rates, identity links, and offline scop
   await expect(page.locator('.enemy-metric--hp dd')).toHaveText('10')
 })
 
-test('enemy actions and editing stay reachable without crowding the bestiary', async ({ page }) => {
+test('enemy actions and issue reporting stay reachable without crowding the bestiary', async ({ page }) => {
   await page.goto(SLIME_PATH)
   const actions = page.getByRole('region', { name: 'Actions', exact: true })
   await expect(actions.getByRole('link', { name: 'Attack', exact: true })).toBeVisible()
@@ -132,17 +130,10 @@ test('enemy actions and editing stay reachable without crowding the bestiary', a
   await expect(menu).not.toBeVisible()
   await expect(page.getByRole('button', { name: 'Actions', exact: true })).toBeFocused()
   await page.getByRole('button', { name: 'Actions', exact: true }).click()
-  await menu.getByRole('button', { name: 'Quick edit', exact: true }).click()
-  const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
-  const hp = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^HP$/ }) })
-  await hp.getByRole('button', { name: 'Edit HP', exact: true }).click()
-  const form = page.getByRole('form', { name: 'Correct HP in place', exact: true })
-  await form.getByRole('textbox', { name: 'New HP', exact: true }).fill('55')
-  await form.getByRole('button', { name: 'Save', exact: true }).click()
-  await page.getByRole('button', { name: 'Done editing', exact: true }).click()
-  await expect(page.locator('.enemy-vitals')).toContainText('55')
+  await expect(menu.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
+  await expect(menu.getByRole('button', { name: /edit|personal version/i })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await page.reload()
-  await expect(page.locator('.enemy-vitals')).toContainText('55')
   await expect(page.locator('.enemy-technical')).not.toHaveAttribute('open')
 })
 

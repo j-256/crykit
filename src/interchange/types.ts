@@ -1,4 +1,3 @@
-import type { CorrectionCollection } from '../domain/corrections'
 import type {
   CatalogId,
   CatalogSnapshot,
@@ -67,7 +66,6 @@ export interface PersistedHistoryEntry {
 }
 
 export interface ImportCandidate {
-  readonly corrections?: CorrectionCollection
   readonly localData: LocalData
   readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]
@@ -96,7 +94,6 @@ export interface ImportPreview {
 export type ImportCommitMode = 'replace' | 'add-reference'
 
 export interface CommitImportOptions {
-  readonly restoreCorrections?: boolean
   readonly mode?: ImportCommitMode
   readonly targetLocalDataId?: LocalDataId
   readonly expectedRevision?: number
@@ -143,7 +140,6 @@ export interface NativeBackupManifest {
 }
 
 export interface NativeBackupPayload {
-  readonly corrections?: CorrectionCollection
   readonly localData: LocalData
   readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]

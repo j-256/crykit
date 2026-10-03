@@ -1,6 +1,4 @@
-import { mergeCorrections } from '../domain/corrections'
 import { referenceLibraryWithMod } from '../domain/reference-library'
-import { loadCorrections, saveCorrections } from './corrections'
 import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
 import { createSampleLocalData } from '../domain/sample-data'
@@ -515,10 +513,6 @@ export async function commitImport(
           committed = true
           return
         }
-        if (options.restoreCorrections && preview.proposed.corrections) {
-          const local = await loadCorrections()
-          await saveCorrections(mergeCorrections(local.entries, preview.proposed.corrections.entries), local.revision)
-        }
         const timestamp = nowTimestamp()
         const proposed = { ...cloneJson(preview.proposed.localData), id: target.localData.id }
         const replacement = changedLocalData(
@@ -679,7 +673,6 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
         }
         return {
           localData,
-          corrections: await loadCorrections(),
           lineage: cloneJson(record.lineage),
           history,
           catalogRecords: await database.catalogs.toArray(),
@@ -697,10 +690,6 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
         ? { ...captured.localData, changes: [] }
         : captured.localData
       const catalogKeys = catalogReferences(localData)
-      for (const entry of captured.corrections.entries) {
-        const key = catalogSnapshotKey(entry.target.catalogId, entry.target.catalogRevisionId)
-        if (availableCatalogRecords.some(record => record.key === key)) catalogKeys.add(key)
-      }
       const importDigests = localDataImportDigests(localData)
       for (const entry of history) {
         for (const key of catalogReferences(entry.before)) catalogKeys.add(key)
@@ -741,7 +730,6 @@ export async function exportBackup(localDataOverride?: LocalData): Promise<Uint8
       }
       return {
         payload: {
-          ...(captured.corrections.entries.length ? { corrections: captured.corrections } : {}),
           localData,
           lineage: captured.lineage,
           catalogs: catalogs.filter(catalog => !isBundledCatalog(catalog)),

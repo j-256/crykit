@@ -1,3 +1,4 @@
+import { savedCatalogVersion } from './legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { equipmentFacts } from './mechanics-facts'
@@ -7,7 +8,7 @@ import {
   coalesceDefinitionOverrides,
   createBuild,
   createScenario,
-  createDefinitionOverride,
+  revisePersonalDefinition,
   createPersonalDefinition,
   logicalEntityKey,
   MAX_LONG_TEXT_LENGTH,
@@ -100,15 +101,21 @@ const CLAIM_CATALOG: CatalogSnapshot = {
   entities: { sword: { ...CATALOG.entities.sword!, fields: { ...CATALOG.entities.sword!.fields, Location: LOCATION_CLAIMS, Other: LOCATION_CLAIMS } } },
 }
 
-describe('immutable personal definition overrides', () => {
+const CUSTOM_REF = personalRef('custom-root')
+
+function customData(catalog = CATALOG) {
+  return createPersonalDefinition(createTestLocalData(), { ...catalog.entities.sword!, id: CUSTOM_REF.definitionId, now: TEST_NOW })
+}
+
+describe('immutable custom definitions and saved catalog versions', () => {
   it('edits typed facts and clears derived values without changing source claims or historical revisions', () => {
     const originalCatalog = structuredClone(CLAIM_CATALOG)
-    const first = createDefinitionOverride(createTestLocalData(), [CLAIM_CATALOG], { sourceRef: BASE_REF, fieldUpdates: { Attack: known(15), Hands: known(2), PP: known(4), Detail: known({ enabled: false, values: [0, 'synthetic'] }) }, now: TEST_NOW })
+    const first = revisePersonalDefinition(customData(CLAIM_CATALOG), { sourceRef: CUSTOM_REF, fieldUpdates: { Attack: known(15), Hands: known(2), PP: known(4), Detail: known({ enabled: false, values: [0, 'synthetic'] }) }, now: TEST_NOW })
     expect(first.definition.listedContributions?.Attack).toEqual(known({ value: 15, unit: 'listed flat value' }))
     expect(equipmentFacts(first.definition).twoHanded).toBe(true)
     expect(first.definition.ppCost).toEqual(known(4))
     expect(first.definition.fields.Location).toEqual(LOCATION_CLAIMS)
-    const second = createDefinitionOverride(first.localData, [CLAIM_CATALOG], { sourceRef: first.ref, fieldUpdates: { Attack: { state: 'unknown', reason: 'Needs observation' }, Hands: null, PP: { state: 'notApplicable' }, Detail: null }, now: TEST_NOW })
+    const second = revisePersonalDefinition(first.localData, { sourceRef: first.ref, fieldUpdates: { Attack: { state: 'unknown', reason: 'Needs observation' }, Hands: null, PP: { state: 'notApplicable' }, Detail: null }, now: TEST_NOW })
     expect(second.definition.listedContributions?.Attack).toEqual({ state: 'unknown', reason: 'Needs observation' })
     expect(equipmentFacts(second.definition).twoHanded).toBeUndefined()
     expect(second.definition.ppCost).toEqual({ state: 'notApplicable' })
@@ -120,10 +127,10 @@ describe('immutable personal definition overrides', () => {
 
   it('preserves unresolved claims and saves an explicit choice with exact structured data and attribution', () => {
     const originalCatalog = structuredClone(CLAIM_CATALOG)
-    const originalLocalData = observeInventory(createTestLocalData(), { ref: BASE_REF, possession: 'owned', quantity: { kind: 'unknown' }, now: TEST_NOW })
-    const unresolved = createDefinitionOverride(originalLocalData, [CLAIM_CATALOG], { sourceRef: BASE_REF, now: TEST_NOW })
+    const originalLocalData = observeInventory(customData(CLAIM_CATALOG), { ref: CUSTOM_REF, possession: 'owned', quantity: { kind: 'unknown' }, now: TEST_NOW })
+    const unresolved = revisePersonalDefinition(originalLocalData, { sourceRef: CUSTOM_REF, now: TEST_NOW })
     expect(unresolved.definition.fields.Location).toEqual(LOCATION_CLAIMS)
-    const resolved = createDefinitionOverride(unresolved.localData, [CLAIM_CATALOG], {
+    const resolved = revisePersonalDefinition(unresolved.localData, {
       sourceRef: unresolved.ref,
       fieldClaimSelections: { Location: 1 },
       now: TEST_NOW,
@@ -132,7 +139,7 @@ describe('immutable personal definition overrides', () => {
     expect(resolved.definition.fields.Location).toEqual({ state: 'known', value: selected.value, sources: selected.sources })
     expect(resolved.definition.fields.Other).toEqual(LOCATION_CLAIMS)
     expect(resolved.definition.fields.unsupported).toEqual(CATALOG.entities.sword!.fields.unsupported)
-    expect(resolved.definition.baseRef).toEqual(BASE_REF)
+    expect(resolved.definition.baseRef).toEqual(CUSTOM_REF)
     expect(resolved.definition.previousRevision).toEqual(unresolved.ref)
     expect(resolved.localData.personalDefinitions[unresolved.definition.id]?.fields.Location).toEqual(LOCATION_CLAIMS)
     expect(requirePlaythrough(resolved.localData).inventory).toEqual(requirePlaythrough(originalLocalData).inventory)
@@ -150,28 +157,28 @@ describe('immutable personal definition overrides', () => {
     { unsupported: 0 },
     { toString: 0 },
   ])('rejects invalid claim selections without changing the localData: %j', (fieldClaimSelections) => {
-    const localData = createTestLocalData()
+    const localData = customData(CLAIM_CATALOG)
     const original = structuredClone(localData)
-    expect(() => createDefinitionOverride(localData, [CLAIM_CATALOG], { sourceRef: BASE_REF, fieldClaimSelections, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    expect(() => revisePersonalDefinition(localData, { sourceRef: CUSTOM_REF, fieldClaimSelections, now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
     expect(localData).toEqual(original)
   })
 
   it('requires one explicit category edit when a category claim is selected', () => {
     const categoryCatalog: CatalogSnapshot = { ...CATALOG, entities: { sword: { ...CATALOG.entities.sword!, fields: { Category: LOCATION_CLAIMS } } } }
-    expect(() => createDefinitionOverride(createTestLocalData(), [categoryCatalog], { sourceRef: BASE_REF, fieldClaimSelections: { Category: 0 }, category: known('edited'), now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
-    const resolved = createDefinitionOverride(createTestLocalData(), [categoryCatalog], { sourceRef: BASE_REF, fieldClaimSelections: { Category: 0 }, now: TEST_NOW })
+    expect(() => revisePersonalDefinition(customData(categoryCatalog), { sourceRef: CUSTOM_REF, fieldClaimSelections: { Category: 0 }, category: known('edited'), now: TEST_NOW })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+    const resolved = revisePersonalDefinition(customData(categoryCatalog), { sourceRef: CUSTOM_REF, fieldClaimSelections: { Category: 0 }, now: TEST_NOW })
     expect(resolved.definition.fields.Category).toMatchObject({ state: 'known', value: 'Synthetic market' })
   })
 
   it('keeps exact revisions while resolving a preferred immutable leaf', () => {
-    const initial = createDefinitionOverride(createTestLocalData(), [CATALOG], {
-      sourceRef: BASE_REF,
+    const initial = revisePersonalDefinition(customData(CLAIM_CATALOG), {
+      sourceRef: CUSTOM_REF,
       id: asId<PersonalDefinitionId>('sword-override-1'),
       name: 'Switch Sword',
       ppCost: known(3),
       now: TEST_NOW,
     })
-    const revised = createDefinitionOverride(initial.localData, [CATALOG], {
+    const revised = revisePersonalDefinition(initial.localData, {
       sourceRef: initial.ref,
       id: asId<PersonalDefinitionId>('sword-override-2'),
       name: 'Switch Sword+',
@@ -184,13 +191,13 @@ describe('immutable personal definition overrides', () => {
 
     expect(initial.definition).toMatchObject({
       revision: 1,
-      baseRef: BASE_REF,
+      baseRef: CUSTOM_REF,
       name: 'Switch Sword',
       ppCost: known(3),
     })
     expect(revised.definition).toMatchObject({
       revision: 2,
-      baseRef: BASE_REF,
+      baseRef: CUSTOM_REF,
       previousRevision: initial.ref,
       name: 'Switch Sword+',
       fields: { unsupported: known({ preserved: true }) },
@@ -201,12 +208,12 @@ describe('immutable personal definition overrides', () => {
     })
     expect(revised.definition.rawDescription).toBeUndefined()
     expect(revised.definition.ppCost).toBeUndefined()
-    expect(resolveDefinition(revised.localData, [CATALOG], initial.ref)?.name).toBe('Switch Sword')
-    expect(preferredDefinitionRef(revised.localData, BASE_REF)).toEqual(revised.ref)
+    expect(resolveDefinition(revised.localData, [], initial.ref)?.name).toBe('Switch Sword')
+    expect(preferredDefinitionRef(revised.localData, CUSTOM_REF)).toEqual(revised.ref)
     expect(preferredDefinitionRef(revised.localData, initial.ref)).toEqual(revised.ref)
     expect(preferredPersonalDefinitions(revised.localData).map((definition) => definition.id)).toEqual(['sword-override-2'])
-    expect(logicalEntityKey(revised.localData, BASE_REF)).toBe(logicalEntityKey(revised.localData, revised.ref))
-    expect(() => createDefinitionOverride(revised.localData, [CATALOG], {
+    expect(logicalEntityKey(revised.localData, CUSTOM_REF)).toBe(logicalEntityKey(revised.localData, revised.ref))
+    expect(() => revisePersonalDefinition(revised.localData, {
       sourceRef: initial.ref,
       name: 'Stale branch',
       now: TEST_NOW,
@@ -225,14 +232,14 @@ describe('immutable personal definition overrides', () => {
       },
       now: TEST_NOW,
     })
-    const preserved = createDefinitionOverride(localData, [], {
+    const preserved = revisePersonalDefinition(localData, {
       sourceRef: personalRef('categorized-source'),
       id: asId<PersonalDefinitionId>('categorized-preserved'),
       now: TEST_NOW,
     })
     expect(preserved.definition.fields).toEqual(localData.personalDefinitions['categorized-source']?.fields)
 
-    const cleared = createDefinitionOverride(preserved.localData, [], {
+    const cleared = revisePersonalDefinition(preserved.localData, {
       sourceRef: preserved.ref,
       id: asId<PersonalDefinitionId>('categorized-cleared'),
       category: null,
@@ -240,7 +247,7 @@ describe('immutable personal definition overrides', () => {
     })
     expect(cleared.definition.fields).toEqual({ unsupported: known({ preserved: true }) })
 
-    const replaced = createDefinitionOverride(cleared.localData, [], {
+    const replaced = revisePersonalDefinition(cleared.localData, {
       sourceRef: cleared.ref,
       id: asId<PersonalDefinitionId>('categorized-replaced'),
       category: known('canonical'),
@@ -252,8 +259,19 @@ describe('immutable personal definition overrides', () => {
     })
   })
 
+  it('rejects catalog cloning and revisions of saved catalog versions without changing data', () => {
+    const saved = savedCatalogVersion(createTestLocalData(), [CATALOG], { sourceRef: BASE_REF, now: TEST_NOW })
+    const original = structuredClone(saved.localData)
+    for (const sourceRef of [BASE_REF, saved.ref, personalRef('missing')]) {
+      expect(() => revisePersonalDefinition(saved.localData, { sourceRef, name: 'Rejected edit' })).toThrow('Only standalone custom definitions can be edited')
+    }
+    expect(saved.localData).toEqual(original)
+    expect(resolveDefinition(saved.localData, [CATALOG], saved.ref)).toEqual(saved.definition)
+    expect(() => validateNativeLocalDataGraph(saved.localData, [CATALOG])).not.toThrow()
+  })
+
   it('uses base identity for stock without rewriting the stored observation', () => {
-    const initial = createDefinitionOverride(createTestLocalData(), [CATALOG], {
+    const initial = savedCatalogVersion(createTestLocalData(), [CATALOG], {
       sourceRef: BASE_REF,
       id: asId<PersonalDefinitionId>('sword-override'),
       now: TEST_NOW,
@@ -296,7 +314,7 @@ describe('immutable personal definition overrides', () => {
       learned: known(true),
       now: TEST_NOW,
     })
-    const override = createDefinitionOverride(localData, [], {
+    const override = revisePersonalDefinition(localData, {
       sourceRef: personalRef('passive'),
       id: asId<PersonalDefinitionId>('passive-2'),
       name: 'Passive 2',
@@ -342,7 +360,7 @@ describe('immutable personal definition overrides', () => {
 
   it('requires an override catalog base in a build lock', () => {
     let localData = createTestLocalData()
-    const override = createDefinitionOverride(localData, [CATALOG], {
+    const override = savedCatalogVersion(localData, [CATALOG], {
       sourceRef: BASE_REF,
       id: asId<PersonalDefinitionId>('locked-override'),
       now: TEST_NOW,
@@ -393,7 +411,7 @@ describe('immutable personal definition overrides', () => {
       name: 'Custom',
       now: TEST_NOW,
     })
-    const revised = createDefinitionOverride(localData, [], {
+    const revised = revisePersonalDefinition(localData, {
       sourceRef: personalRef('custom'),
       id: asId<PersonalDefinitionId>('custom-2'),
       name: 'Custom 2',
@@ -420,7 +438,7 @@ describe('immutable personal definition overrides', () => {
     expect(coalesced.gameSetups[TEST_GAME_SETUP_REVISION_ID]?.definitionOverrides).toBeUndefined()
     expect(coalesced.gameSetups['gameSetup-with-overrides']?.definitionOverrides).toEqual([revised.ref])
 
-    const nextDefinition = createDefinitionOverride(coalesced, [], {
+    const nextDefinition = revisePersonalDefinition(coalesced, {
       sourceRef: revised.ref,
       id: asId<PersonalDefinitionId>('custom-3'),
       name: 'Custom 3',
@@ -437,7 +455,7 @@ describe('immutable personal definition overrides', () => {
   })
 
   it('infers catalog locks and merges a selected logical root into an explicit gameSetup layer', () => {
-    const catalogOverride = createDefinitionOverride(createTestLocalData(), [CATALOG], {
+    const catalogOverride = savedCatalogVersion(createTestLocalData(), [CATALOG], {
       sourceRef: BASE_REF,
       id: asId<PersonalDefinitionId>('catalog-override'),
       now: TEST_NOW,
@@ -459,7 +477,7 @@ describe('immutable personal definition overrides', () => {
       name: 'Custom root',
       now: TEST_NOW,
     })
-    const customOverride = createDefinitionOverride(localData, [], {
+    const customOverride = revisePersonalDefinition(localData, {
       sourceRef: personalRef('custom-root'),
       id: asId<PersonalDefinitionId>('custom-override'),
       now: TEST_NOW,
@@ -476,7 +494,7 @@ describe('immutable personal definition overrides', () => {
       definitionOverrides: [catalogOverride.ref, customOverride.ref],
     })
 
-    const customNext = createDefinitionOverride(localData, [], {
+    const customNext = revisePersonalDefinition(localData, {
       sourceRef: customOverride.ref,
       id: asId<PersonalDefinitionId>('custom-override-2'),
       now: '2026-01-03T00:00:00.000Z',
@@ -492,7 +510,7 @@ describe('immutable personal definition overrides', () => {
   })
 
   it('rejects editable text and PP values outside native bounds', () => {
-    const localData = createTestLocalData()
+    const localData = customData()
     expect(() => createPersonalDefinition(localData, {
       kind: 'item',
       name: 'x'.repeat(MAX_SHORT_TEXT_LENGTH + 1),
@@ -510,13 +528,13 @@ describe('immutable personal definition overrides', () => {
       rawDescription: 'x'.repeat(MAX_LONG_TEXT_LENGTH + 1),
       now: TEST_NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
-    expect(() => createDefinitionOverride(localData, [CATALOG], {
-      sourceRef: BASE_REF,
+    expect(() => revisePersonalDefinition(localData, {
+      sourceRef: CUSTOM_REF,
       category: known(''),
       now: TEST_NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
-    expect(() => createDefinitionOverride(localData, [CATALOG], {
-      sourceRef: BASE_REF,
+    expect(() => revisePersonalDefinition(localData, {
+      sourceRef: CUSTOM_REF,
       ppCost: known(Number.NaN),
       now: TEST_NOW,
     })).toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
