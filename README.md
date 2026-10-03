@@ -1,6 +1,6 @@
-# CryKit: Builds and more for Crystal Project
+# CryKit: Buildcrafting and progress for Crystal Project
 
-Crystal Kit (CryKit, pronounced "cricket") is a local-first planner for **Crystal Project**. Plan classes, equipment, passives, and teams in your browser. Explore build ideas right away, then add character, inventory, and progress tracking whenever you want it.
+Crystal Kit (CryKit, pronounced "cricket") is a local-first build planner and progress tracker for **Crystal Project**. Plan classes, equipment, passives, growth, and teams in your browser. Track class seals, travel unlocks, summons, and Quintar breeding, or explore the bundled reference and world map. Character and inventory records are optional.
 
 **[Open Crystal Kit](https://crykit.lasers.app/)** · [User guide](docs/user-guide.md) · [Report a problem](https://github.com/j-256/crykit/issues)
 
@@ -9,16 +9,14 @@ No account or installation is needed. Your saved builds and records stay in your
 ## What you can do
 
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
+- **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, with missing inputs and unsupported rules explained. See [calculation scope](docs/planner-mechanics.md).
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
-- **Look things up:** browse the bundled reference for items, skills, classes, monsters, and more, with source details alongside the entries.
+- **Track progress:** use the class-seal board, Travel & unlocks checklist, Summons board, and Golden Quintar breeding guide. Marks save to the selected Playthrough and stay separate from inventory and character learning. See [progress tracking](docs/user-guide.md#track-inventory-and-progress).
+- **Look things up:** browse items, skills, class learn trees, monsters, and more. Item and equipment pages collect supported acquisition routes under **How to obtain**, with source details and explicit gaps.
 - **Explore the world:** pan and zoom through the native Windows world map, find chests, NPCs, bosses, resources, and landmarks, and preview bundled or imported mod placements. See [the world map guide](docs/user-guide.md#explore-the-world-map).
 - **Manage mods:** browse bundled and imported versions, import updates, edit full project JSON, and follow links to Steam Workshop. Mods without a source file retain catalog entries and support manual observations. See [Mods](docs/mods.md) and [the editor workspace](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
-- **Track your game:** record character snapshots, inventory, and progress in separate Playthroughs.
-
-**Progress** has a class-seal mastery board and a **Travel & unlocks** checklist for mount instruments, reusable shrine stones, and capability items such as Treasure Finder, Babel Quintar, fishing rods, and passes. Bundled checklist items display their exact extracted game icons. Mark each item acquired or not acquired for the active Playthrough. Search or filter the checklist to review what remains, and follow **Location & requirements** to its attributed reference. These observations are included in backups and stay separate from inventory quantities and character learning. Imported acquisition values that are unknown or conflicting need explicit confirmation.
-
-**Progress > Summons** tracks Summoner skill availability in the game's skill-tree layout. Pinga stays gold because it is the starting summon and cannot be unlearned. The other tiles begin gray; click one to mark it gold (unlocked), or click it again to undo. The board omits passives and the intermediate blue stage. These observations belong to the active Playthrough, are included in backups, and do not record character learning.
+- **Record your game:** keep character snapshots, learning, and inventory in separate Playthroughs. Learn-menu screenshot imports run locally and require review before saving.
 
 ## Try your first build
 
@@ -31,13 +29,13 @@ You can plan with equipment or skills you have not acquired. The planner checks 
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 
-The bundled reference uses Windows 1.6.9 game definitions and versioned mod exports. Moonlight Project 2.2 includes its classes, skills, passives, equipment, and supporting definitions. Equipment Expansion and dated Learnable Innate Skills evidence are also included. Base entities use `base:` IDs and mod entities use `mod:` IDs; source metadata records where each fact came from. No game installation is needed to use the app.
-
-Exported zero, false, and null values retain their meaning. Fields that do not apply are omitted from planning details. Missing exports, supplemental acquisition claims, and unrecorded personal choices remain explicit; see the [certainty audit](docs/catalog-sources.md#catalog-certainty-and-identities). Imported catalogs and saved user revisions keep their exact reference pins. Reference entries prefer exact, locally extracted Windows game artwork for source-backed native database identities, use exact bundled cells for Equipment Expansion, and fall back to locally bundled wiki artwork where an explicit mapping exists. These sources retain separate [provenance, rights, and refresh instructions](docs/catalog-sources.md#native-game-artwork-snapshot).
+The bundled reference combines Windows PC 1.6.9 game definitions, versioned mod exports, and attributed community evidence. It includes Moonlight Project, Equipment Expansion, and dated Learnable Innate Skills records. Source versions stay visible, and Switch or mod-pack parity is not assumed. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
 
 ## Track your own game when you are ready
 
-In **Data & settings > Playthrough**, enter a name under **New blank Playthrough** and choose **Create**. Your new Playthrough starts without sample characters, inventory, or progress. Choose **Edit game settings** to record the version, difficulty, and mods used by that Playthrough, then add observations under **Tracking**. Builds and Teams remain available independently.
+In **Data & settings > Playthrough**, expand **New Playthrough**, enter a name under **New blank Playthrough**, and choose **Create**. Your new Playthrough starts without sample characters, inventory, or progress. Builds and Teams remain available independently.
+
+Create or edit game version, difficulty, and mods under **Data & settings > Saved setups**. To use a saved revision for tracking, return to **Playthrough**, choose **Game Setup to apply**, and select **Apply to** followed by your Playthrough's name. Saving a setup alone does not apply it to a tracked game.
 
 These terms describe different parts of your planning:
 
@@ -60,11 +58,15 @@ Mods saved to the Mod library and their original source files are included in pl
 
 For offline use, open **Data & settings > Offline & storage** while connected. Choose **Prepare for offline use** if needed, and wait for **Offline ready** before disconnecting.
 
+The same section offers **Apply app update** for a staged update and **Refresh app** to download fresh app files while preserving saved records and editor drafts. Save open forms first. See [offline use and updates](docs/user-guide.md#use-the-app-offline).
+
 ## Go further
 
 | I want to... | Guide |
 | --- | --- |
 | Explore builds, teams, character history, and search | [User guide](docs/user-guide.md) |
+| Track seals, travel unlocks, summons, or Quintar breeding | [Progress guide](docs/user-guide.md#track-inventory-and-progress) |
+| Find locations, item acquisition routes, and mod placements | [World Map](docs/user-guide.md#explore-the-world-map) and [Reference](docs/user-guide.md#browse-reference-data) |
 | Understand stat estimates and supported rules | [Build mechanics](docs/planner-mechanics.md) |
 | Export versioned character/combat rules or read their equations | [Calculation package](docs/calculations.md), [human-readable reference](docs/calculation-reference.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
