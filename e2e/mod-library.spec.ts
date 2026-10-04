@@ -104,15 +104,25 @@ test('Reference save failures stay visible beside the action and retry without c
   await expect(globalAlert).toContainText('Change not saved')
   expect(await storedData(page)).toEqual(before)
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(async () => {
-    const local = (await alert.boundingBox())!
-    const global = (await globalAlert.boundingBox())!
-    const bottom = await page.evaluate(() => {
-      const nav = document.querySelector('.bottom-nav')
-      return nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight
-    })
-    return local.y >= global.y + global.height && local.y + local.height <= bottom
-  }).toBe(true)
+  const expectUnobscuredFailure = async () => {
+    await expect.poll(async () => {
+      const local = (await alert.boundingBox())!
+      const global = (await globalAlert.boundingBox())!
+      const bottom = await page.evaluate(() => {
+        const nav = document.querySelector('.bottom-nav')
+        return nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight
+      })
+      return local.y >= global.y + global.height && local.y + local.height <= bottom
+    }).toBe(true)
+  }
+  await expectUnobscuredFailure()
+  if (test.info().project.name === 'mobile') {
+    const originalViewport = page.viewportSize()!
+    await page.setViewportSize({ width: 360, height: 1000 })
+    await expectUnobscuredFailure()
+    await page.setViewportSize(originalViewport)
+    await expectUnobscuredFailure()
+  }
   await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
   await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toHaveAttribute('aria-pressed', 'false')
   await expect(alert).toHaveCount(0)
