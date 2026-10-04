@@ -29,8 +29,8 @@ const job = model.extend({
   LearnTree: z.array(z.array(node).max(MAX_TREE_ROWS)).max(MAX_TREE_COLUMNS).optional(),
   IsStartingJob: z.boolean().optional(), IsUnselectableJob: z.boolean().optional(), IsUnselectableSubJob: z.boolean().optional(), IsNotCrystalJob: z.boolean().optional(),
 })
-const FAMILIES: Readonly<Record<string, CatalogEntityKind>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'item', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'location' })
-const ARCHIVED_FAMILIES = ['Animations', 'Genders', 'Sparks', 'Troops', 'Entities'] as const
+const FAMILIES: Readonly<Record<string, CatalogEntityKind>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'item', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'location', Genders: 'other' })
+const ARCHIVED_FAMILIES = ['Animations', 'Sparks', 'Troops', 'Entities'] as const
 
 function hasRuleData(root: Readonly<Record<string, JsonValue>>): boolean {
   return jsonRecord(root.System) && jsonRecord(root.System.BattleConfig) || Array.isArray(root.Difficulties) && root.Difficulties.length > 0

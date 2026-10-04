@@ -9,7 +9,7 @@ No account or installation is needed. Your saved builds and records stay in your
 ## What you can do
 
 - **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
-- **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, with missing inputs and unsupported rules explained. See [calculation scope](docs/planner-mechanics.md).
+- **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, including enabled mod overrides and added bonus profiles. Missing inputs and unsupported rules stay explicit. See [calculation scope](docs/planner-mechanics.md) and [mod calculation boundaries](docs/mod-calculations.md).
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
 - **Track progress:** use the class-seal board, Travel & unlocks checklist, Summons board, and Golden Quintar breeding guide. Marks save to the selected Playthrough and stay separate from inventory and character learning. See [progress tracking](docs/user-guide.md#track-inventory-and-progress).
 - **Look things up:** browse items, skills, class learn trees, monsters, and more. Item and equipment pages collect supported acquisition routes under **How to obtain**, with source details and explicit gaps.

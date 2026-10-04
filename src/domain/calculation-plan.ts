@@ -2,6 +2,7 @@ import { PC_LEVEL_CAP, PC_MODEL } from './calculation-rules'
 import type { BuildCalculationPlan, EntityRef } from './types'
 import { DomainError } from './core'
 import { STAT_KEYS } from './crystal-edit'
+import { GENDER_SELECTION_VERSION, MAX_GENDER_ID } from './calculation-genders'
 
 export const CALCULATION_GENDERS = ['male', 'female'] as const
 export const CALCULATION_GENDER_LABELS = Object.freeze({ male: 'Male', female: 'Female' })
@@ -47,4 +48,5 @@ export function validateCalculationPlan(plan: BuildCalculationPlan, assertRef: (
   if (plan.growthMode !== undefined && !['primary', 'manual'].includes(plan.growthMode)) throw new DomainError('INVALID_INPUT', 'Unsupported growth mode')
   if (plan.pcMode !== undefined && !['standard', 'vanilla', 'chaos'].includes(plan.pcMode)) throw new DomainError('INVALID_INPUT', 'Unsupported PC balance mode')
   if (plan.gender !== undefined && !CALCULATION_GENDERS.includes(plan.gender)) throw new DomainError('INVALID_INPUT', 'Unsupported calculation gender')
+  if (plan.genderSelection !== undefined && (plan.genderSelection.version !== GENDER_SELECTION_VERSION || !Number.isInteger(plan.genderSelection.id) || plan.genderSelection.id < 0 || plan.genderSelection.id > MAX_GENDER_ID || plan.gender !== undefined)) throw new DomainError('INVALID_INPUT', 'Choose one supported calculation gender selection')
 }

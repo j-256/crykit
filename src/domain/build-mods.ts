@@ -6,7 +6,7 @@ import type { BuildBehavior } from './build-behavior'
 import { entityDefinitionKey } from './core'
 import { definitionLineageRootRef } from './definitions'
 import { catalogEntity } from './entity-identities'
-import { bundledModReplacementLinks, composeModLayers, CRYSTAL_EDIT_CATALOG_SCHEMA, MOD_CATALOG_SCHEMA, modModelRecords } from './mod-layers'
+import { bundledModReplacementLinks, composeModLayers, CRYSTAL_EDIT_CATALOG_SCHEMA, MOD_CATALOG_SCHEMA, MOD_COMPOSITION_VERSION, modModelRecords, nativeModReplacementLinks } from './mod-layers'
 import { MOD_PROJECT_FIELD } from './mod-library'
 import { normalizeModName, recordedModNames, updateModSelections, type ModState } from './mods'
 import type { BuildRevisionContent, CatalogId, CatalogSnapshot, EntityId, EntityRef, GameSetupRevision, LocalData } from './types'
@@ -19,7 +19,7 @@ export interface BuildModRequirement {
 }
 
 export function buildModReferences(content: BuildRevisionContent): readonly EntityRef[] {
-  return [content.primaryClass, content.secondaryClass, ...Object.values(content.equipment).map(selection => selection?.ref), ...content.passives.map(selection => selection.ref), ...content.calculation?.growth.map(row => row.classRef) ?? []].filter((ref): ref is EntityRef => Boolean(ref))
+  return [content.primaryClass, content.secondaryClass, ...Object.values(content.equipment).map(selection => selection?.ref), ...content.passives.map(selection => selection.ref), ...content.calculation?.growth.map(row => row.classRef) ?? [], ...content.calculation?.statuses ?? [], content.calculation?.ability].filter((ref): ref is EntityRef => Boolean(ref))
 }
 
 export function buildModRequirements(content: BuildRevisionContent, localData: LocalData, catalogs: readonly CatalogSnapshot[], setup?: GameSetupRevision): readonly BuildModRequirement[] {
@@ -67,11 +67,11 @@ export function selectBuildModRevision(behavior: BuildBehavior, catalog: Catalog
   const previousKeys = new Set(previousCatalog ? modModelRecords(previousCatalog).keys() : [])
   const links = composition.links.filter(link => !previousKeys.has(link.modelKey) || availableKeys.has(link.modelKey))
   const baseline = allCatalogs.find(candidate => candidate.id === composition.baseline.catalogId && candidate.revisionId === composition.baseline.catalogRevisionId)
-  if (baseline) for (const link of bundledModReplacementLinks(baseline, catalog, BUNDLED_MOD_LIBRARY)) {
+  if (baseline) for (const link of [...bundledModReplacementLinks(baseline, catalog, BUNDLED_MOD_LIBRARY), ...nativeModReplacementLinks(baseline, catalog)]) {
     if (!links.some(previous => previous.modelKey === link.modelKey || previous.targetEntityId === link.targetEntityId)) links.push(link)
   }
   const choices = recordedProjectModNames(catalog.id, behavior).map(name => ({ name, state: enabled ? 'enabled' as const : 'disabled' as const }))
-  return { ...behavior, ...updateModSelections(behavior, choices), modComposition: { ...composition, layers, links } }
+  return { ...behavior, ...updateModSelections(behavior, choices), modComposition: { ...composition, version: MOD_COMPOSITION_VERSION, layers, links } }
 }
 
 export function buildContentForModSetup<Content extends BuildRevisionContent>(content: Content, setup: BuildBehavior, catalogs: readonly CatalogSnapshot[], previousSetup?: BuildBehavior): Content {
@@ -106,5 +106,5 @@ export function buildContentForModSetup<Content extends BuildRevisionContent>(co
 }
 
 function mapBuildModReferences<Content extends BuildRevisionContent>(content: Content, rebind: (ref: EntityRef | null) => EntityRef | null): Content {
-  return { ...content, primaryClass: rebind(content.primaryClass), secondaryClass: rebind(content.secondaryClass), equipment: Object.fromEntries(Object.entries(content.equipment).map(([slot, selection]) => [slot, selection ? { ...selection, ref: rebind(selection.ref)! } : selection])), passives: content.passives.map(selection => ({ ...selection, ref: rebind(selection.ref)! })), ...(content.calculation ? { calculation: { ...content.calculation, growth: content.calculation.growth.map(row => ({ ...row, classRef: rebind(row.classRef) })) } } : {}) }
+  return { ...content, primaryClass: rebind(content.primaryClass), secondaryClass: rebind(content.secondaryClass), equipment: Object.fromEntries(Object.entries(content.equipment).map(([slot, selection]) => [slot, selection ? { ...selection, ref: rebind(selection.ref)! } : selection])), passives: content.passives.map(selection => ({ ...selection, ref: rebind(selection.ref)! })), ...(content.calculation ? { calculation: { ...content.calculation, growth: content.calculation.growth.map(row => ({ ...row, classRef: rebind(row.classRef) })), statuses: content.calculation.statuses.map(ref => rebind(ref)!), ...(content.calculation.ability ? { ability: rebind(content.calculation.ability) } : {}) } } : {}) }
 }

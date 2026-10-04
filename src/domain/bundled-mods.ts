@@ -10,8 +10,8 @@ export interface BundledModSnapshot {
   readonly source: { readonly projectId: string; readonly title: string; readonly version: string; readonly editorVersion: number; readonly sha256: string; readonly timestamp: string | null; readonly author: string | null; readonly steamWorkshopFileId: string | null }
   readonly families: Readonly<Record<string, readonly NativeRecord[]>>
 }
-export const MOD_MODEL_KINDS: Readonly<Record<string, CatalogEntityKind>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'item', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'location', Sparks: 'other', Troops: 'other' })
-const MODEL_NAMES: Readonly<Record<string, string>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'equipment', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'biome', Sparks: 'spark', Troops: 'troop' })
+export const MOD_MODEL_KINDS: Readonly<Record<string, CatalogEntityKind>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'item', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'location', Genders: 'other', Sparks: 'other', Troops: 'other' })
+const MODEL_NAMES: Readonly<Record<string, string>> = Object.freeze({ Jobs: 'class', Abilities: 'ability', Passives: 'passive', Equipment: 'equipment', Items: 'item', Monsters: 'monster', Statuses: 'status', Recipes: 'recipe', Biomes: 'biome', Genders: 'gender', Sparks: 'spark', Troops: 'troop' })
 
 export function bundledModEntityId(key: string, family: string, id: number): EntityId {
   if (!MODEL_NAMES[family]) throw new Error(`Unsupported bundled mod family ${family}`)

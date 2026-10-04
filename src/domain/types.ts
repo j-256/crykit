@@ -221,6 +221,7 @@ export interface ModDefinitionLink {
 }
 
 export interface ModComposition {
+  readonly version?: 2
   readonly baseline: ModCatalogPin
   readonly layers: readonly ModLayer[]
   readonly links: readonly ModDefinitionLink[]
@@ -383,6 +384,7 @@ export interface BuildCalculationPlan {
   readonly growthMode?: 'primary' | 'manual'
   readonly pcMode?: 'standard' | 'vanilla' | 'chaos'
   readonly gender?: 'male' | 'female'
+  readonly genderSelection?: { readonly version: 1; readonly id: number }
   readonly level: number | null
   readonly growth: readonly { readonly classRef: EntityRef | null; readonly levels: number | null }[]
   readonly bonuses: readonly import('./crystal-edit').GrowthStat[]

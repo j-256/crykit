@@ -23,10 +23,10 @@ export function calculateStatBreakdown(content: BuildRevisionContent, slots: rea
 
 export function calculateStatBreakdownResult(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: DefinitionResolver, _identity: (ref: EntityRef) => string = entityDefinitionKey, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): { readonly stats: Readonly<Record<GrowthStat, StatBreakdown>>; readonly issues: readonly string[] } {
   const plan = content.calculation
-  const initialContent = { ...content, calculation: plan ? { ...plan, level: 1, growth: [{ classRef: content.primaryClass, levels: 1 }], bonuses: [], gender: undefined } : undefined }
+  const initialContent = { ...content, calculation: plan ? { ...plan, level: 1, growth: [{ classRef: content.primaryClass, levels: 1 }], bonuses: [], gender: undefined, genderSelection: undefined } : undefined }
   const current = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules)
   const initial = calculatePCStats(initialContent, slots, resolve, [], false, gameRules)
-  const total = selectedPCStats(current, plan?.gender)
+  const total = selectedPCStats(current, plan?.gender, plan?.genderSelection)
   const stats = Object.fromEntries(STAT_KEYS.map(stat => [stat, {
     base: exact(initial.base[stat]),
     equipment: difference(exact(current.neutral[stat]), exact(current.base[stat])),
