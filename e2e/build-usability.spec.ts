@@ -104,6 +104,11 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
     })).toBeLessThan(MAX_MOBILE_EVIDENCE_GAP_PX)
   }
   await choose(page, 'Equipped passive 1', 'Attack Focus')
+  const secondPassive = page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })
+  await secondPassive.fill('Attack Focus')
+  await expect(page.getByRole('listbox')).toContainText('That passive is already selected in another slot')
+  await expect(page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Attack Focus$/ }) })).toHaveCount(0)
+  await secondPassive.press('Escape')
   await choose(page, 'Equipped passive 2', 'Backstabber')
   await choose(page, 'Equipped passive 3', 'Duel Ready')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 / 10 PP')
