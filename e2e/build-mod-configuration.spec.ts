@@ -1,4 +1,3 @@
-import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -17,21 +16,15 @@ async function storedData(page: Page): Promise<LocalData> {
   }))
 }
 
-async function choose(page: Page, label: string, name: string, options: { includeUnavailable?: boolean } = {}) {
+async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click()
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })
-  if (options.includeUnavailable) {
-    const includeUnavailable = results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true })
-    await openBuildPickerFilters(page)
-    if (!await includeUnavailable.isVisible()) await results.getByText('Broader planning options', { exact: true }).click()
-    await includeUnavailable.check()
-  }
   await results.getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
 }
 
 async function promptFreelancer(page: Page) {
-  await choose(page, 'Class', 'Freelancer', { includeUnavailable: true })
+  await choose(page, 'Class', 'Freelancer')
   const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
   await expect(dialog).toBeVisible()
   await expect(dialog).toContainText('Freelancer requires Moonlight Project')
@@ -159,7 +152,7 @@ test('a failed confirmation retains the field and supports an explicit retry', a
 test('equipment without a source file asks once and preserves unknown calculation effects', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
-  await choose(page, 'Off hand', 'Doge Shield', { includeUnavailable: true })
+  await choose(page, 'Off hand', 'Doge Shield')
   const dialog = page.getByRole('dialog', { name: 'Enable Doge Shield?', exact: true })
   await expect(dialog).toContainText('Source data is unavailable')
   const field = page.getByRole('combobox', { name: 'Off hand', exact: true })
@@ -178,7 +171,7 @@ test('growth choices confirm their source and subsequent selections from it need
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   await page.getByText(/^Level-up growth ·/).click()
-  await choose(page, 'Growth class 1', 'Freelancer', { includeUnavailable: true })
+  await choose(page, 'Growth class 1', 'Freelancer')
   const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
   const growth = page.getByRole('combobox', { name: 'Growth class 1', exact: true })
   await expect(dialog).toBeVisible()
@@ -203,7 +196,7 @@ test('legacy format 4 passives confirm the saved source before selection', async
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   const before = await storedData(page)
   await page.goto('/#/builds/library/new')
-  await choose(page, 'Equipped passive 1', 'Synthetic old passive', { includeUnavailable: true })
+  await choose(page, 'Equipped passive 1', 'Synthetic old passive')
   const dialog = page.getByRole('dialog', { name: 'Enable Synthetic legacy mod?', exact: true })
   const field = page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })
   await expect(dialog).toBeVisible()

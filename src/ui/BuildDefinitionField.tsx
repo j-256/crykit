@@ -63,7 +63,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const id = useId()
   const [activeIndex, setActiveIndex] = useState(-1)
   const [includeAlternatives, setIncludeAlternatives] = useState(false)
-  const [includeUnavailable, setIncludeUnavailable] = useState(false)
+  const [includeUnavailable, setIncludeUnavailable] = useState(true)
   const [compatibleOnly, setCompatibleOnly] = useState(true)
   const [withinPp, setWithinPp] = useState(false)
   const [category, setCategory] = useState('')
@@ -104,7 +104,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const candidates = compatibleOnly ? uniqueChoices.filter(option => option.key === selected?.key || permissionAssessments.get(option.key)?.status !== 'invalid') : uniqueChoices
   const conflictReasons = [...new Set(hiddenConflicts.flatMap(option => permissionAssessments.get(option.key)?.reason ?? []))]
   const needsDualWield = conflictReasons.some(reason => reason.includes('requires Dual Wield'))
-  const activeFilterCount = Number(Boolean(category)) + Number(sort !== 'name') + Number(includeAlternatives) + Number(includeUnavailable) + Number(withinPp) + Number(Boolean(equipmentPermissions) && compatibleOnly)
+  const activeFilterCount = Number(Boolean(category)) + Number(sort !== 'name') + Number(includeAlternatives) + Number(!includeUnavailable) + Number(withinPp) + Number(Boolean(equipmentPermissions) && compatibleOnly)
   const visible = candidates.slice(0, resultLimit)
   const hasMore = candidates.length > resultLimit
   const lastIndex = hasMore ? visible.length : visible.length - 1
