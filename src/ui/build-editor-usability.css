@@ -1,7 +1,7 @@
 .build-layout.build-layout--focused { grid-template-columns: minmax(0, 1fr); }
 .build-layout.build-layout--focused > * { grid-column: 1; }
 .build-layout.build-layout--focused > .build-library { position: static; max-height: none; }
-.build-layout--focused > .build-library[open] > .build-column__body { max-height: 420px; }
+.build-layout--focused > .build-library[open] > .build-column__body { max-height: 420px; overflow-y: auto; }
 .build-sheet__identity { display: grid; gap: 10px; }
 .build-sheet__identity input { font-size: 1rem; }
 .build-field-issues { margin: 0; padding: 8px 10px 8px 26px; border: 1px solid var(--line); border-radius: 6px; font-size: .78rem; }

@@ -628,6 +628,16 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-card__header strong { min-width: 0; overflow-wrap: anywhere; }
 .build-card__open { min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
 .build-card__open:focus-visible { outline: 1px solid var(--cyan-300); outline-offset: 3px; }
+.build-mods-badge { display: inline-flex; flex: 0 0 auto; }
+.build-mods-badge__trigger { cursor: pointer; }
+.build-mods-badge__trigger:hover, .build-mods-badge__trigger:focus-visible { outline: 1px solid var(--cyan-300); outline-offset: 2px; }
+.build-mods-badge__tooltip { position: fixed; inset: auto; margin: 0; padding: 12px; overflow-y: auto; overscroll-behavior: contain; color: var(--text-dim); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--ink-900); box-shadow: var(--shadow); font-size: .75rem; line-height: 1.45; overflow-wrap: anywhere; }
+.build-mods-badge__tooltip > strong { font-size: .8rem; }
+.build-mods-badge__tooltip ul { display: grid; gap: 12px; margin: 10px 0 0; padding: 0; list-style: none; }
+.build-mods-badge__tooltip li { display: grid; gap: 4px; }
+.build-mods-badge__heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 4px 8px; }
+.build-mods-badge__heading > strong { min-width: 0; flex: 1 1 160px; }
+.build-mods-badge__heading > .badge { max-width: 100%; }
 .build-card__meta { display: block; margin-top: -3px; overflow: hidden; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
 .build-loadout-summary { min-width: 0; display: grid; gap: 6px; }
 .build-loadout-summary__warning { min-width: 0; display: flex; align-items: center; gap: 7px; padding: 7px 8px; color: #ffd4c9; border: 1px solid rgba(241, 154, 132, .72); border-radius: var(--radius-sm); background: rgba(92, 26, 18, .45); }
@@ -645,8 +655,8 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-card__selection:is(button) { color: inherit; text-align: left; }
 .build-card__selection:is(button):hover, .build-card__selection:is(button):focus-visible { border-color: rgba(123, 216, 243, .58); background: rgba(78, 166, 207, .14); outline: none; }
 .build-card__selection[data-compact="true"] { min-height: 38px; justify-content: center; padding: 3px; }
-.build-card__selection[data-compact="true"]::after { position: absolute; z-index: 8; left: 50%; bottom: calc(100% + 7px); width: max-content; max-width: min(260px, 80vw); padding: 8px 10px; content: attr(data-tooltip); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--ink-900); box-shadow: var(--shadow); font-size: .72rem; font-weight: 500; line-height: 1.4; opacity: 0; pointer-events: none; text-align: left; transform: translate(-50%, 4px); transition: opacity .12s ease, transform .12s ease; white-space: pre-line; }
-.build-card__selection[data-compact="true"]:hover::after, .build-card__selection[data-compact="true"]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.build-card__selection[data-compact="true"]::after { position: absolute; z-index: 8; left: 50%; bottom: calc(100% + 7px); width: max-content; max-width: min(260px, 80vw); padding: 8px 10px; content: none; color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--ink-900); box-shadow: var(--shadow); font-size: .72rem; font-weight: 500; line-height: 1.4; opacity: 0; pointer-events: none; text-align: left; transform: translate(-50%, 4px); transition: opacity .12s ease, transform .12s ease; white-space: pre-line; }
+.build-card__selection[data-compact="true"]:hover::after, .build-card__selection[data-compact="true"]:focus-visible::after { content: attr(data-tooltip); opacity: 1; transform: translate(-50%, 0); }
 .build-card__selection[data-compact="true"]:first-child::after { left: 0; transform: translate(0, 4px); }
 .build-card__selection[data-compact="true"]:first-child:hover::after { transform: translate(0, 0); }
 .build-card__selection[data-compact="true"]:last-child::after { right: 0; left: auto; transform: translate(0, 4px); }
