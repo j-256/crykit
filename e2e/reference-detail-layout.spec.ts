@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 const WARRIOR = referencePath('base:job:0')
 
-async function checkDetailLayout(page: Page, desktop: boolean) {
+async function checkDetailLayout(page: Page, desktop: boolean, name = 'Warrior') {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   const battle = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Battle Skill$/ }) }).filter({ has: page.getByRole('table') })
@@ -43,9 +43,29 @@ async function checkDetailLayout(page: Page, desktop: boolean) {
     expect(pair.fits).toBe(true)
   }
   if (desktop) expect(new Set(ratingGeometry.map(pair => pair.column)).size).toBeGreaterThan(1)
-  const factsBounds = (await facts.boundingBox())!
-  const sourceBounds = (await page.getByRole('region', { name: 'Source trail', exact: true }).boundingBox())!
-  expect(sourceBounds.y).toBeGreaterThanOrEqual(factsBounds.y + factsBounds.height)
+  const trigger = page.getByRole('button', { name: `Sources for ${name}`, exact: true })
+  const sources = page.getByRole('dialog', { name: `Sources for ${name}`, exact: true })
+  await expect(sources).toHaveCount(0)
+  await trigger.scrollIntoViewIfNeeded()
+  const triggerBounds = (await trigger.boundingBox())!
+  expect(triggerBounds.width).toBeLessThanOrEqual(48)
+  expect(triggerBounds.height).toBeLessThanOrEqual(48)
+  const beforeOpening = await facts.evaluate(element => ({ top: element.getBoundingClientRect().top, width: element.getBoundingClientRect().width }))
+  await trigger.click()
+  await expect(sources).toBeVisible()
+  const popupBounds = (await sources.boundingBox())!
+  const viewport = page.viewportSize()!
+  expect(popupBounds.x).toBeGreaterThanOrEqual(0)
+  expect(popupBounds.y).toBeGreaterThanOrEqual(0)
+  expect(popupBounds.x + popupBounds.width).toBeLessThanOrEqual(viewport.width)
+  expect(popupBounds.y + popupBounds.height).toBeLessThanOrEqual(viewport.height)
+  expect(popupBounds.width).toBeLessThanOrEqual(360)
+  const afterOpening = await facts.evaluate(element => ({ top: element.getBoundingClientRect().top, width: element.getBoundingClientRect().width }))
+  expect(afterOpening.width).toBe(beforeOpening.width)
+  expect(afterOpening.top).toBe(beforeOpening.top)
+  await page.keyboard.press('Escape')
+  await expect(sources).toHaveCount(0)
+  await expect(trigger).toBeFocused()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
@@ -64,5 +84,5 @@ test('uses the same wide tables and clean headings for personal definitions', { 
   await page.goto(WARRIOR)
   await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic wide Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic wide Warrior', exact: true })).toBeVisible()
-  await checkDetailLayout(page, testInfo.project.name === 'desktop')
+  await checkDetailLayout(page, testInfo.project.name === 'desktop', 'Synthetic wide Warrior')
 })

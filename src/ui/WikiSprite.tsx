@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { CatalogEntity } from '../domain/types'
-import { catalogArtwork, wikiSprite, type CatalogArtwork as Artwork } from '../catalog/sprites'
+import { catalogArtwork, classWorldArtwork, type CatalogArtwork as Artwork } from '../catalog/sprites'
 import { Icon, type IconName } from './icons'
+import { Sources } from './Sources'
 
 interface Props {
   readonly catalogId: string
@@ -14,6 +15,7 @@ const COMPACT_SIZE = 48
 const DETAIL_SIZE = 128
 const MAX_WIKI_SCALE = 2
 const MAX_NATIVE_SCALE = 4
+const MAX_CLASS_WORLD_SCALE = 2
 const INLINE_SIZE = 28
 
 const PLACEHOLDER_ICONS: Readonly<Record<CatalogEntity['kind'], IconName>> = Object.freeze({
@@ -35,11 +37,11 @@ export function ArtworkPlaceholder({ entity, detailed = false, compact = false }
   return <span aria-hidden={!detailed || undefined} aria-label={detailed ? `${entity.name} artwork placeholder` : undefined} className={`wiki-sprite wiki-sprite--placeholder${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`} data-artwork-placeholder={entity.kind} role={detailed ? 'img' : undefined}><Icon name={PLACEHOLDER_ICONS[entity.kind]}/></span>
 }
 
-function ArtworkImage({ artwork, entity, detailed, compact }: { readonly artwork: Artwork; readonly entity: Props['entity']; readonly detailed: boolean; readonly compact: boolean }) {
+function ArtworkImage({ artwork, entity, detailed, compact, maximumScale }: { readonly artwork: Artwork; readonly entity: Props['entity']; readonly detailed: boolean; readonly compact: boolean; readonly maximumScale?: number }) {
   const [failed, setFailed] = useState(false)
   if (failed) return <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
   const limit = compact ? INLINE_SIZE : detailed ? DETAIL_SIZE : COMPACT_SIZE
-  const scale = Math.min(artwork.source === 'native' ? MAX_NATIVE_SCALE : MAX_WIKI_SCALE, limit / artwork.asset.width, limit / artwork.asset.height)
+  const scale = Math.min(maximumScale ?? (artwork.source === 'native' ? MAX_NATIVE_SCALE : MAX_WIKI_SCALE), limit / artwork.asset.width, limit / artwork.asset.height)
   const bounds = artwork.asset.contentBounds
   const offsetX = bounds ? artwork.asset.width / 2 - bounds.x - bounds.width / 2 : 0
   const offsetY = bounds ? artwork.asset.height / 2 - bounds.y - bounds.height / 2 : 0
@@ -54,9 +56,8 @@ export function CatalogArtwork({ catalogId, entity, detailed = false, compact = 
 }
 
 export function ClassWorldArtwork({ catalogId, entity, detailed = false, compact = false }: Props) {
-  const sprite = entity.kind === 'class' ? wikiSprite(catalogId, entity) : undefined
-  const artwork: Artwork | undefined = sprite && { source: 'wiki', ...sprite }
-  return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
+  const artwork = classWorldArtwork(catalogId, entity)
+  return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file} maximumScale={MAX_CLASS_WORLD_SCALE}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
 }
 
 export function CatalogArtworkSource({ catalogId, entity }: Props) {
@@ -64,5 +65,5 @@ export function CatalogArtworkSource({ catalogId, entity }: Props) {
   if (!artwork) return <small className="wiki-sprite-missing">No exact artwork linked.</small>
   if (artwork.source === 'native' || artwork.provenance === 'base-game-archive') return null
   const provenance = artwork.provenance === 'community-wiki' ? 'Community wiki artwork; Switch and mod-pack appearance is unverified.' : 'Bundled from the supplied PC mod export; Nintendo Switch appearance is unverified.'
-  return <details className="wiki-sprite-source"><summary>Artwork source</summary><p>{artwork.asset.descriptionUrl ? <a href={artwork.asset.descriptionUrl} rel="noreferrer" target="_blank">{artwork.asset.title.replace(/^File:/, '')}</a> : artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></details>
+  return <Sources label={`Sources for ${entity.name} artwork`}><p>{artwork.asset.descriptionUrl ? <a href={artwork.asset.descriptionUrl} rel="noreferrer" target="_blank">{artwork.asset.title.replace(/^File:/, '')}</a> : artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></Sources>
 }

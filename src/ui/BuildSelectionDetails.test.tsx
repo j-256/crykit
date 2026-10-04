@@ -11,22 +11,22 @@ describe('selection inspector facts', () => {
   it('shows passive PP once outside the original-source disclosure', () => {
     const passive = options.find(option => option.name === 'HP Boost')!
     const markup = renderToStaticMarkup(<BuildSelectionDetails option={passive}/>)
-    const visible = markup.split('<details>')[0]!
+    const visible = markup
     expect(visible.match(/4 PP/g)).toHaveLength(1)
     expect(visible).not.toMatch(/PP: 4|Cost: 4/)
-    expect(markup).toContain('Provenance &amp; all reference fields')
+    expect(markup).toContain('Sources for HP Boost')
   })
 
-  it('shows supported native numbers and explains differing supplemental values', () => {
+  it('shows supported native numbers and keeps historical attribution behind Sources', () => {
     const shoes = options.find(option => option.name === 'Acrobat Shoes')!
     const markup = renderToStaticMarkup(<BuildSelectionFacts option={shoes}/>)
     expect(markup).toContain('Dexterity: +14')
     expect(markup).not.toMatch(/Dexterity: \+16|Dexterity \+6/)
-    expect(markup).toContain('Supplemental stat values differ')
+    expect(markup).not.toContain('Source stat values differ')
     const inspector = renderToStaticMarkup(<BuildSelectionDetails option={shoes}/>)
-    expect(inspector).toContain('equipment 320')
-    expect(inspector.split('<details>')[1]).toMatch(/Dexterity/)
-    const comparison = renderToStaticMarkup(<BuildSelectionDetails comparedWith={options.find(option => option.name === 'Beads of Defense')} option={shoes}/>).split('<details>')[0]!
+    expect(inspector).toContain('Sources for Acrobat Shoes')
+    expect(inspector).not.toContain('equipment 320')
+    const comparison = renderToStaticMarkup(<BuildSelectionDetails comparedWith={options.find(option => option.name === 'Beads of Defense')} option={shoes}/>)
     expect(comparison).toContain('Dexterity: +14')
     expect(comparison).not.toMatch(/Dexterity: \+16|Dexterity \+6/)
   })
@@ -34,7 +34,7 @@ describe('selection inspector facts', () => {
   it('shows each passive cost once in its own comparison column', () => {
     const hpBoost = options.find(option => option.name === 'HP Boost')!
     const counter = options.find(option => option.kind === 'passive' && option.name === 'Counter')!
-    const visible = renderToStaticMarkup(<BuildSelectionDetails comparedWith={hpBoost} option={counter}/>).split('<details>')[0]!
+    const visible = renderToStaticMarkup(<BuildSelectionDetails comparedWith={hpBoost} option={counter}/>)
     const columns = [...visible.matchAll(/<td>(.*?)<\/td>/g)].map(match => match[1]!)
     expect(columns).toHaveLength(2)
     expect(columns[0]).toContain('4 PP')

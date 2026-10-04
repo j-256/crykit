@@ -31,7 +31,7 @@ Reference can collect selected preferred personal definitions into an immutable 
 
 The workbook adapter is for the documented reference-table layout, not arbitrary spreadsheets. Empty template rows do not become characters, possessions, or loadouts. Formula text is inert; a cached spreadsheet value does not establish a verified game rule. Research arrays without an explicit mapper remain available as source evidence instead of being guessed into personal state.
 
-Supported research reference arrays include `classes`, `abilities`, `innates`, `passives`, `monster_magic`, `base_equipment`, `expansion_items`, and `recipes`. Supplemental arrays preserve source claims and context. A minimal synthetic input is:
+Supported research reference arrays include `classes`, `abilities`, `innates`, `passives`, `monster_magic`, `base_equipment`, `expansion_items`, and `recipes`. Additional research arrays preserve source claims and context. A minimal synthetic input is:
 
 ```json
 {

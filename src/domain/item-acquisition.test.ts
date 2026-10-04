@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { itemAcquisition, validateWorldAcquisition, type WorldAcquisitionSnapshot } from './item-acquisition'
+import { itemAcquisition, validateWorldAcquisition, type AcquisitionConditionFacts, type WorldAcquisitionSnapshot } from './item-acquisition'
 import { nativeEntityId } from './native-game'
 import type { CatalogEntity, CatalogSnapshot, JsonValue } from './types'
 
@@ -14,6 +14,18 @@ function fixture() {
 }
 
 describe('item acquisition', () => {
+  it('uses reviewed condition meanings only for the exact world, entity and condition', () => {
+    const { catalog, world, item } = fixture()
+    const condition = { type: 'CheckNumber', negated: false, data: { Scope: 'Global', VariableKey: 'SyntheticCounter', Eval: 'GreaterEqual', Number: 3 } }
+    const exact = { ...world, entries: [{ ...world.entries[0]!, conditions: [condition] }] }
+    const facts: AcquisitionConditionFacts = { worldContentDigest: world.contentDigest, gameExecutableSha256: world.source.gameExecutableSha256, nativeContentDigest: world.source.nativeContentDigest, conditions: [{ entityID: 4, condition, description: 'Complete three synthetic trials', evidence: ['Synthetic counter assignment and reward condition'] }] }
+    const shop = (snapshot: WorldAcquisitionSnapshot, evidence = facts) => itemAcquisition(catalog, item, snapshot, 'base', evidence).routes.find(route => route.kind === 'shop')?.conditions
+    expect(shop(exact)).toEqual(['Complete three synthetic trials'])
+    expect(shop(exact, { ...facts, worldContentDigest: 'different' })).toEqual(['Additional story or interaction conditions apply'])
+    expect(shop({ ...exact, entries: [{ ...exact.entries[0]!, entityID: 99 }] })).toEqual(['Additional story or interaction conditions apply'])
+    expect(shop({ ...exact, entries: [{ ...exact.entries[0]!, conditions: [{ ...condition, negated: true }] }] })).toEqual(['Additional story or interaction conditions apply'])
+  })
+
   it('links exact item identities, keeps drop and steal rates distinct, and resolves ingredients and crafting locations', () => {
     const { catalog, world, item } = fixture()
     const before = JSON.stringify(catalog)

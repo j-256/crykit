@@ -4,7 +4,8 @@ import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
 import type { CatalogRef, JsonValue, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, nativeStatSourceNotice, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
+import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, nativeListedStat, nativeStatSourceNotice, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
+import { nativeRecord, nativeSourceRecord } from '../domain/native-game'
 
 const localData = createBlankLocalData()
 const options = buildDefinitionOptions(localData, [STARTER_CATALOG])
@@ -66,8 +67,8 @@ describe('build choice evidence', () => {
     expect(sanity.filter(line => /spirit/i.test(line))).toHaveLength(1)
     expect(selectionSummaryLines(bundled.find(value => value.name === 'Tall Stand Ring')!).filter(line => /defen[cs]e/i.test(line))).toHaveLength(1)
     const original = bundled.find(value => value.name === 'Tall Stand Ring')!
-    expect(summaryFactLines(original.record)).toEqual(selectionSummaryLines(original))
-    expect(summaryFactLines(bundled.find(value => value.name === 'Sanity Ring')!.record)).toEqual(sanity)
+    expect(summaryFactLines(original.record).map(line => line.replace(/\.$/, ''))).toEqual(selectionSummaryLines(original).map(line => line.replace(/\.$/, '')))
+    expect(sanity.map(line => line.replace(/\.$/, ''))).toEqual(['Mind: +5', 'Spirit: +5', 'Immune to: Confusion', 'Cost: 110000 Copper'])
     expect(original.record.fields.Effect).toMatchObject({ state: 'known', value: '25% extra Physical Defence at Full HP.' })
     expect(original.record.fields['Other effects']).toMatchObject({ state: 'known', value: 'Gain 25% more Defense when at Max. HP' })
     const conflicting = { ...original, record: { ...original.record, fields: { ...original.record.fields, Effect: { state: 'conflicting' as const, claims: [{ value: 'First source', sources: [] }, { value: 'Second source', sources: [] }] } } } }
@@ -96,7 +97,7 @@ describe('build choice evidence', () => {
         Stat: known('Crit Resist: +25'),
       },
     }
-    expect(summaryFactLines(record)).toEqual(['Crit Resist: +25%'])
+    expect(summaryFactLines(record)).toEqual(['Crit Resist: +25%', 'Crit Resist: +25'])
     expect(summaryFactLines({ ...record, legacy: undefined })).toContain('Crit Resist: +25')
     for (const fields of [
       { 'Native source record': { state: 'unknown' as const } },
@@ -140,7 +141,7 @@ describe('build choice evidence', () => {
     const lines = selectionSummaryLines(shoes)
     expect(lines.filter(line => /Dexterity/.test(line))).toEqual(['Dexterity: +14'])
     expect(lines.filter(line => /Agility/.test(line))).toEqual(['Agility: +16'])
-    expect(nativeStatSourceNotice(shoes.record)).toContain('Supplemental stat values differ; Windows 1.6.9 values shown')
+    expect(nativeStatSourceNotice(shoes.record)).toContain('Source stat values differ; Windows 1.6.9 values shown')
     expect(selectionSummaryLines(beads).filter(line => /Defense|Resistance/.test(line))).toEqual(['Defense: +20', 'Resistance: +20'])
     expect(JSON.stringify(shoes.record)).toBe(original)
   })
@@ -154,5 +155,16 @@ describe('build choice evidence', () => {
     expect(selectionSummaryLines(early)).toEqual(expect.arrayContaining(['Defense: +28', 'Resistance: +115', 'Spirit: +36']))
     expect(selectionSummaryLines(late)).toEqual(expect.arrayContaining(['Defense: +60', 'Resistance: +190', 'Spirit: +60']))
     expect(early.key).not.toBe(late.key)
+  })
+
+  it('does not promote edited native-looking fields as verified Windows stats', () => {
+    const shoes = DEFAULT_CATALOG.entities['base:equipment:320']!
+    const record = nativeSourceRecord(shoes)!
+    const edited = { ...shoes, fields: { ...shoes.fields, 'Native source record': { state: 'known' as const, value: { ...record, StatMods: (record.StatMods as readonly JsonValue[]).map(modifier => nativeRecord(modifier) ? { ...modifier, Value1: 999 } : modifier) } } } }
+    expect(nativeListedStat(shoes, 'Dexterity')).toBe(14)
+    expect(nativeListedStat(edited, 'Dexterity')).toBeUndefined()
+    expect(nativeStatSourceNotice(edited)).toBeUndefined()
+    const shield = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(option => option.record.id === 'base:equipment:237')!
+    expect(selectionSummaryLines(shield).filter(line => line.includes('Crit Resist'))).toEqual(['Crit Resist: +25%'])
   })
 })

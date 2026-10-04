@@ -60,8 +60,10 @@ test('shop tables and descriptions show coins while custom editing retains coppe
   await loadedCoins(row, 1)
 
   await page.goto(referencePath('base:equipment:149'))
-  const description = page.locator('.reference-detail > div').filter({ has: page.getByRole('heading', { name: 'Gold Bow', exact: true }) }).locator('p').first()
+  const description = page.locator('.reference-description').getByText('Guide notes', { exact: true }).locator('..')
+  await description.locator(':scope > summary').click()
   await expect(description.getByRole('img', { name: '30 silver', exact: true })).toBeVisible()
+  await loadedCoins(description, 1)
   await expect(description).toContainText('Silver Bow x1')
   await expect(description).toContainText('Gold Ingot x3')
 
@@ -74,10 +76,18 @@ test('shop tables and descriptions show coins while custom editing retains coppe
 
 test('definition picker descriptions use the same coin display', async ({ page }) => {
   await page.goto('/#/inventory')
+  const name = 'Synthetic priced item'
+  await openCustomDefinition(page, name)
+  await page.getByRole('button', { name: 'Edit custom definition', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: `Edit custom definition: ${name}`, exact: true })
+  await editor.getByRole('textbox', { name: 'Description', exact: true }).fill('Synthetic crafting fee: 30 silver.')
+  await editor.getByRole('button', { name: 'Save personal revision', exact: true }).click()
+  await expect(editor).not.toBeVisible()
+  await page.goto('/#/inventory')
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   await page.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
-  await page.getByRole('searchbox', { name: 'Search available definitions', exact: true }).fill('Gold Bow')
-  const choice = page.locator('[data-definition-result]').filter({ has: page.getByText('Gold Bow', { exact: true }) }).first()
+  await page.getByRole('searchbox', { name: 'Search available definitions', exact: true }).fill(name)
+  const choice = page.locator('[data-definition-result]').filter({ has: page.getByText(name, { exact: true }) }).first()
   await expect(choice.getByRole('img', { name: '30 silver', exact: true })).toBeAttached()
   await loadedCoins(choice, 1)
   await expect(choice.locator('.picker-result__description')).toHaveAttribute('title', /30 silver/)

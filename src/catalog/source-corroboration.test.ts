@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
 import { corroboratedFact } from './source-corroboration'
 import { DefinitionFactsPanel } from '../ui/DefinitionDetailSections'
+import { SourceReferences } from '../ui/KnowledgeValue'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import type { CatalogEntity, CatalogSnapshot, Knowledge } from '../domain/types'
@@ -15,9 +16,11 @@ describe('game-code field corroboration', () => {
     for (const field of ['Weapons', 'Armor', 'Command', 'Stat growth', 'Crystal Edit growth ratings']) expect(corroboratedFact(target, field, WARRIOR.fields[field]!)).toBe(true)
     for (const field of ['Initial equipment', 'Master', 'Section: Master']) expect(corroboratedFact(target, field, WARRIOR.fields[field]!)).toBe(false)
     const markup = renderToStaticMarkup(createElement(DefinitionFactsPanel, { corroboration: target, facts: [['Weapons', WARRIOR.fields.Weapons!], ['Master', WARRIOR.fields.Master!]] }))
-    expect(markup.match(/definition-fact-sources/g)).toHaveLength(1)
-    expect(markup).toContain('Sources</summary>')
-    expect(markup).toContain('Community wiki')
+    expect(markup.match(/sources-trigger/g)).toHaveLength(1)
+    expect(markup).toContain('aria-label="Sources for Master"')
+    expect(markup).not.toContain('Community wiki')
+    const master = WARRIOR.fields.Master!
+    expect(renderToStaticMarkup(createElement(SourceReferences, { sources: master.state === 'known' ? master.sources ?? [] : [] }))).toContain('Community wiki')
     expect(WARRIOR.fields.Weapons!.state === 'known' && WARRIOR.fields.Weapons!.sources?.length).toBeGreaterThan(0)
   })
 
@@ -44,8 +47,9 @@ describe('game-code field corroboration', () => {
     expect(corroboratedFact(target, 'Class command', changed)).toBe(false)
     const entity = { ...WARRIOR, fields: { ...WARRIOR.fields, 'Class command': changed } } as CatalogEntity
     const markup = renderToStaticMarkup(createElement(DefinitionFactsPanel, { corroboration: { catalog: DEFAULT_CATALOG, entity }, primarySourceId: 'native-game:windows:1.6.9', facts: [['Class command', changed]] }))
-    expect(markup).toContain('Sources</summary>')
-    expect(markup).toContain('class="source-summary"')
+    expect(markup).toContain('aria-label="Sources for Class command"')
+    expect(markup).not.toContain('class="source-summary"')
+    expect(renderToStaticMarkup(createElement(SourceReferences, { includeGameExports: true, sources: changed.state === 'known' ? changed.sources ?? [] : [] }))).toContain('class="source-summary"')
   })
 
   it('keeps partial and conflicting mechanic descriptions visible', () => {

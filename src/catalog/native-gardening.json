@@ -1,0 +1,68 @@
+{
+  "gameExecutableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+  "nativeContentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
+  "code": {
+    "path": "Sang/PartyData/CQuest.cs",
+    "sha256": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668",
+    "members": [
+      "SEED_TYPE_ITEMS",
+      "SEED_TYPE_TROOP_IDS",
+      "SEED_TYPE_SPROUT_MINUTES",
+      "PlantSeed",
+      "WaterSeed",
+      "GetPluckedSeedTroop"
+    ]
+  },
+  "seeds": [
+    {
+      "itemID": 178,
+      "troopID": 284,
+      "minutes": 5
+    },
+    {
+      "itemID": 179,
+      "troopID": 295,
+      "minutes": 10
+    },
+    {
+      "itemID": 180,
+      "troopID": 296,
+      "minutes": 12
+    },
+    {
+      "itemID": 181,
+      "troopID": 297,
+      "minutes": 15
+    },
+    {
+      "itemID": 182,
+      "troopID": 298,
+      "minutes": 15
+    },
+    {
+      "itemID": 187,
+      "troopID": 300,
+      "minutes": 20
+    },
+    {
+      "itemID": 188,
+      "troopID": 301,
+      "minutes": 25
+    },
+    {
+      "itemID": 189,
+      "troopID": 302,
+      "minutes": 30
+    },
+    {
+      "itemID": 190,
+      "troopID": 303,
+      "minutes": 30
+    },
+    {
+      "itemID": 183,
+      "troopID": 299,
+      "minutes": 1
+    }
+  ]
+}

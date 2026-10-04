@@ -1,0 +1,893 @@
+{
+  "worldContentDigest": "1906a365f630507ad4581352d8bad1e71a4fecaa41c0853bb3550b39cdf92e0e",
+  "gameExecutableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+  "nativeContentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
+  "conditions": [
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "Z14_SavedPenguins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 3,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Return at least 3 lost penguins",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1",
+        "World entity 531 /NpcData/Pages/0/Actions/2/Data/ConditionActionsTrue: surrendered Lost Penguin inventory increments Z14_SavedPenguins"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Private",
+          "VariableKey": "Z14_PenguinPrize_3",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1",
+        "World entity 531 reward sequence: Z14_PenguinPrize_3 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "Z14_SavedPenguins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 6,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Return at least 6 lost penguins",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/4/Data/ConditionActionsTrue/1",
+        "World entity 531 /NpcData/Pages/0/Actions/2/Data/ConditionActionsTrue: surrendered Lost Penguin inventory increments Z14_SavedPenguins"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Private",
+          "VariableKey": "Z14_PenguinPrize_6",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/4/Data/ConditionActionsTrue/1",
+        "World entity 531 reward sequence: Z14_PenguinPrize_6 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "Z14_SavedPenguins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 9,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Return at least 9 lost penguins",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/5/Data/ConditionActionsTrue/1",
+        "World entity 531 /NpcData/Pages/0/Actions/2/Data/ConditionActionsTrue: surrendered Lost Penguin inventory increments Z14_SavedPenguins"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Private",
+          "VariableKey": "Z14_PenguinPrize_9",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/5/Data/ConditionActionsTrue/1",
+        "World entity 531 reward sequence: Z14_PenguinPrize_9 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "Z14_SavedPenguins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 12,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Return at least 12 lost penguins",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/6/Data/ConditionActionsTrue/1",
+        "World entity 531 /NpcData/Pages/0/Actions/2/Data/ConditionActionsTrue: surrendered Lost Penguin inventory increments Z14_SavedPenguins"
+      ]
+    },
+    {
+      "entityID": 531,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Private",
+          "VariableKey": "Z14_PenguinPrize_All",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/6/Data/ConditionActionsTrue/1",
+        "World entity 531 reward sequence: Z14_PenguinPrize_All is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 1,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish first in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/3/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/3",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize1",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/3/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/3",
+        "World entity 639 reward sequence: eSS_Prize1 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 2,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 2 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/4/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize2",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/4/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize2 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 3,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 3 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/5/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize3",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/5/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize3 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 4,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 4 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/6/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize4",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/6/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize4 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 6,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 6 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/7/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize6",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/7/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize6 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 8,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 8 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/8/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize8",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/8/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize8 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 10,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 10 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/9/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize10",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/9/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize10 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 12,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 12 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/10/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize12",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/10/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize12 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "GlobalTemp",
+          "VariableKey": "eSS_Result",
+          "Eval": "LessEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 14,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Finish in the top 14 in the Salmon Run",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/11/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 1074 /NpcData/Pages/0/Actions/0-1: eSS_Finishes plus one becomes eSS_Result",
+        "World entity 655 /NpcData/Pages/0/Actions/42: skip-minigame result handling"
+      ]
+    },
+    {
+      "entityID": 639,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "eSS_Prize14",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/11/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/2",
+        "World entity 639 reward sequence: eSS_Prize14 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "Greater",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/3/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins",
+        "Every projected prize also has a GreaterEqual SkyArenaWins threshold of at least one"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 1,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Win at least 1 Sky Arena battle",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/3/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaDeskL1",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/3/Data/ConditionActionsTrue/1",
+        "World entity 1921 reward sequence: SkyArenaDeskL1 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 4,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Win at least 4 Sky Arena battles",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/4/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaDeskL2",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/4/Data/ConditionActionsTrue/1",
+        "World entity 1921 reward sequence: SkyArenaDeskL2 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 6,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Win at least 6 Sky Arena battles",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/5/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaDeskL3",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/5/Data/ConditionActionsTrue/1",
+        "World entity 1921 reward sequence: SkyArenaDeskL3 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 7,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Win at least 7 Sky Arena battles",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/6/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaDeskL4",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/6/Data/ConditionActionsTrue/1",
+        "World entity 1921 reward sequence: SkyArenaDeskL4 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaWins",
+          "Eval": "GreaterEqual",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 9,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Win at least 9 Sky Arena battles",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1",
+        "World entity 1366 /NpcData/Pages/2/Actions/1/Data/ConditionActionsTrue/0: VictoryCount becomes SkyArenaWins"
+      ]
+    },
+    {
+      "entityID": 1921,
+      "condition": {
+        "type": "CheckFlag",
+        "negated": true,
+        "data": {
+          "Scope": "Global",
+          "VariableKey": "SkyArenaDeskL5",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "This prize has not been claimed",
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1",
+        "World entity 1921 reward sequence: SkyArenaDeskL5 is set in the reward sequence"
+      ]
+    },
+    {
+      "entityID": 124,
+      "condition": {
+        "type": "CheckNumber",
+        "negated": false,
+        "data": {
+          "Scope": "Private",
+          "VariableKey": "answer",
+          "Eval": "Equal",
+          "VariableType": "Constant",
+          "Flag": false,
+          "Number": 0,
+          "SourceVariableScope": "Private",
+          "LootType": "Nothing",
+          "LootValue": 0
+        }
+      },
+      "description": "Choose Buy",
+      "evidence": [
+        "World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; AnswerVariableKey=answer, choice index 0",
+        "World entity 124 /NpcData/Pages/0/Actions/3/Data/Condition; private answer equals 0",
+        "Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetChoiceValue",
+        "Sang/Window/Dialogue/WindowDialog.cs; UpdateInput sets the private choice answer"
+      ]
+    }
+  ]
+}

@@ -35,7 +35,7 @@ test('native artwork stays quiet and wiki fallbacks retain attribution offline',
     await page.goto(detail(id))
     await expectArtwork(page, name, source)
     if (source === 'wiki') {
-      await page.getByText('Artwork source', { exact: true }).click()
+      await page.getByRole('button', { name: `Sources for ${name}`, exact: true }).click()
       await expect(page.getByRole('link', { name: 'Slime.png', exact: true })).toHaveAttribute('href', /oldid=\d+$/)
     }
   }
@@ -53,7 +53,8 @@ test('reference results retain names and unmatched definitions use placeholders 
   await page.goto(detail('mod:barbarian:class:ref-1078'))
   await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
-  await expect(page.getByText('No exact artwork linked.', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Sources for Barbarian', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Barbarian', exact: true })).toContainText('No exact artwork linked.')
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
 

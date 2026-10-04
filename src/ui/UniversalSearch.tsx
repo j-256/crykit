@@ -1,5 +1,5 @@
 import { normalizeWeaponType, WEAPON_TYPES } from '../domain/skill-weapons'
-import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity, nativeRecord, nativeRelationships } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity, nativeRelationships } from '../domain/native-game'
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { entityDefinitionKey, requirePlaythrough } from '../domain'
 import { modListPriority } from '../domain/mods'
@@ -78,8 +78,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
       const catalog = option.ref.kind === 'catalog' ? snapshots.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId])) : undefined
       const level = option.record.fields.Level
       const location = identity?.database === 'monster' && catalog ? nativeRelationships(catalog, option.record).find(link => link.label === '/LocationBiomeID')?.name : undefined
-      const supplemental = 'legacy' in option.record && nativeRecord(option.record.legacy) && option.record.legacy.supplemental === true
-      const details = identity ? [identity.database === 'monster' ? level?.state === 'known' ? `Level ${level.value}` : 'Level unresolved' : undefined, location, nativeDefinitionLabel(option.record), `Record #${identity.databaseId}`] : supplemental ? [starterEntitySourceLabel(option.record) ?? option.sourceLabel, 'Supplemental'] : [option.sourceLabel]
+      const details = identity ? [identity.database === 'monster' ? level?.state === 'known' ? `Level ${level.value}` : 'Level unresolved' : undefined, location, nativeDefinitionLabel(option.record), `Record #${identity.databaseId}`] : [starterEntitySourceLabel(option.record) ?? option.sourceLabel]
       return { key: `definition:${option.key}`, title: nativeDisplayName(option.record), subtitle: [definitionKindLabel(option.kind), ...details].filter(Boolean).join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel} ${option.modAvailability?.requiredMod ?? ''}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred, modAvailability: option.modAvailability }
     })
     const inventory: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).inventory).map((position) => ({ key: `inventory:${position.id}`, title: position.observedName ?? definitionName(localData, names, position.ref), subtitle: 'Inventory observation', keywords: `${position.note ?? ''} ${position.possession}`, section: 'Inventory', target: { kind: 'inventory', positionId: position.id } }))
