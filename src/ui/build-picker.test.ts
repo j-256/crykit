@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import { createTestLocalData, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
 import { entityDefinitionKey } from '../domain/core'
 import type { BuildRevisionContent, CatalogEntity, EntityId, EntityRef, JsonValue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
-import { pickerAvailableForSetup, pickerCategoryKey, pickerEquipmentAssessment, pickerHandedness, pickerListedStat, pickerRemainingPp } from './build-picker'
+import { pickerAvailableForSetup, pickerCategoryKey, pickerEquipmentAssessment, pickerHandedness, pickerListedStat, pickerRemainingPp, pickerSearchEntry, pickerSearchMatch } from './build-picker'
 import { subCommandLabel } from './definition-fields'
 
 const known = (value: JsonValue) => ({ state: 'known' as const, value })
@@ -28,6 +29,17 @@ const content: BuildRevisionContent = { primaryClass: job.ref, secondaryClass: n
 const offHand = SUGGESTED_BUILD_SLOTS.find(slot => slot.equipmentRole === 'offHand')!
 
 describe('build picker decisions', () => {
+  it('searches displayed contributions and ranks actual names ahead of incidental detail matches', () => {
+    const shoes = option('Acrobat Shoes', { Agility: known(16) })
+    const shoesEntry = pickerSearchEntry(shoes, 'Acrobat Shoes')
+    expect(pickerSearchMatch(shoesEntry, 'agility')).toEqual({ rank: 4, explanation: 'Matched details: Agility: 16' })
+    const silver = pickerSearchEntry(option('Silver Dagger', {}), 'Silver Dagger')
+    const gold = pickerSearchEntry({ ...option('Gold Dagger', {}), description: 'Upgraded from Silver Dagger' }, 'Gold Dagger')
+    expect(pickerSearchMatch(silver, 'silver dagger')!.rank).toBeLessThan(pickerSearchMatch(gold, 'silver dagger')!.rank)
+    expect(pickerSearchMatch(gold, 'silver dagger')!.explanation).toBe('Matched details: Upgraded from Silver Dagger')
+    expect(pickerSearchMatch(shoesEntry, 'unrecorded effect')).toBeUndefined()
+  })
+
   it('labels sourced commands with their class and leaves unknown commands explicit', () => {
     expect(subCommandLabel({ name: 'Synthetic healer', record: { ...job.record, fields: { Command: known('Synthetic healing command') } } })).toBe('Synthetic healing command (Synthetic healer)')
     expect(subCommandLabel(job)).toBe('Unknown command (Synthetic job)')
@@ -81,5 +93,16 @@ describe('build picker decisions', () => {
     const modifier = { ...sword, record: { ...sword.record, fields: {}, listedContributions: { Attack: { state: 'known' as const, value: { value: 25, unit: 'percent' } } } } }
     expect(pickerListedStat(modifier, 'Attack')).toBeUndefined()
     expect(pickerListedStat({ ...modifier, record: { ...modifier.record, listedContributions: { Attack: { state: 'known', value: { value: 12, unit: 'listed flat value' } } } } }, 'Attack')).toBe(12)
+  })
+
+  it('sorts native equipment by the same authoritative flat values shown in result summaries', () => {
+    const nativeOption = (name: string) => {
+      const record = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === name)!
+      return { ...option(name, record.fields), record }
+    }
+    expect(pickerListedStat(nativeOption('Acrobat Shoes'), 'Dexterity')).toBe(14)
+    expect(pickerListedStat(nativeOption("Cleric's Robe"), 'Defense')).toBeGreaterThan(0)
+    const shoes = pickerSearchEntry({ ...nativeOption('Acrobat Shoes'), description: 'Supplemental Dexterity +6' }, 'Acrobat Shoes')
+    expect(pickerSearchMatch(shoes, 'dexterity +6')?.explanation).toBe('Matched supplemental reference text; see provenance for differing stat claims')
   })
 })

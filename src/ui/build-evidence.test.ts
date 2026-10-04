@@ -4,7 +4,7 @@ import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
 import type { CatalogRef, JsonValue, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
+import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, nativeStatSourceNotice, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
 
 const localData = createBlankLocalData()
 const options = buildDefinitionOptions(localData, [STARTER_CATALOG])
@@ -130,5 +130,29 @@ describe('build choice evidence', () => {
     const groups = groupValidationIssues(issues)
     expect(groups.map((group) => group.length)).toEqual([2, 1])
     expect(groups.flat()).toEqual(issues)
+  })
+
+  it('shows native item stats without conflicting supplemental amounts or duplicated labels', () => {
+    const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
+    const shoes = bundled.find(value => value.name === 'Acrobat Shoes')!
+    const beads = bundled.find(value => value.name === 'Beads of Defense')!
+    const original = JSON.stringify(shoes.record)
+    const lines = selectionSummaryLines(shoes)
+    expect(lines.filter(line => /Dexterity/.test(line))).toEqual(['Dexterity: +14'])
+    expect(lines.filter(line => /Agility/.test(line))).toEqual(['Agility: +16'])
+    expect(nativeStatSourceNotice(shoes.record)).toContain('Supplemental stat values differ; Windows 1.6.9 values shown')
+    expect(selectionSummaryLines(beads).filter(line => /Defense|Resistance/.test(line))).toEqual(['Defense: +20', 'Resistance: +20'])
+    expect(JSON.stringify(shoes.record)).toBe(original)
+  })
+
+  it('distinguishes similar native robes by exact source identity, level, and stats', () => {
+    const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
+    const early = bundled.find(value => value.name === "Cleric's Robe")!
+    const late = bundled.find(value => value.name === 'Cleric Robe')!
+    expect(definitionChoiceSourceLabel(early)).toContain('equipment 123 · level 36')
+    expect(definitionChoiceSourceLabel(late)).toContain('equipment 547 · level 60')
+    expect(selectionSummaryLines(early)).toEqual(expect.arrayContaining(['Defense: +28', 'Resistance: +115', 'Spirit: +36']))
+    expect(selectionSummaryLines(late)).toEqual(expect.arrayContaining(['Defense: +60', 'Resistance: +190', 'Spirit: +60']))
+    expect(early.key).not.toBe(late.key)
   })
 })

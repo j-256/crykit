@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -64,6 +65,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Short Sword')
   await page.getByRole('combobox', { name: 'Main hand', exact: true }).fill('Rapier')
   const picker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
+  await openBuildPickerFilters(page)
   await picker.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   await picker.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()

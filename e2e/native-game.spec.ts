@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -170,6 +171,7 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   const cure = abilities.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
   await expect(cure).toHaveCount(1)
   await expect(cure).toContainText('Windows 1.6.9')
+  await openBuildPickerFilters(page)
   await abilities.getByText('Broader planning options', { exact: true }).click()
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(cure).toHaveCount(1)

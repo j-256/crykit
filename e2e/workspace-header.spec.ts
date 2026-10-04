@@ -1,3 +1,4 @@
+import { chooseTeamCheckpoint } from './team-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -135,7 +136,7 @@ test('Team header saves use native validation and sharing leaves the saved Team 
   await expect(save).toBeDisabled()
   const name = page.getByRole('textbox', { name: 'Team name', exact: true })
   await name.fill('Synthetic header Team')
-  await page.getByRole('combobox', { name: 'Team slot 1', exact: true }).selectOption({ index: 1 })
+  await chooseTeamCheckpoint(page, 1)
   await name.evaluate(input => (input as HTMLInputElement).setCustomValidity('Synthetic invalid Team name'))
   await save.click()
   await expect(header.getByRole('heading', { name: 'New Team', exact: true })).toBeVisible()

@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { openBuildActions } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
@@ -193,6 +194,7 @@ test('equipment searches explicitly reveal incompatible choices below allowed eq
   const staff = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Short Staff$/ }) })
   await expect(staff).toHaveAttribute('data-permission-state', 'valid')
   await expect(sword).toHaveCount(0)
+  await openBuildPickerFilters(page)
   await results.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   await expect(sword).toHaveAttribute('data-permission-state', 'invalid')
   await expect(sword).toContainText('Cleric cannot equip Sword')
@@ -237,6 +239,7 @@ test('class choices show medium armor icons and identify Brawler as Moonlight Pr
   const brawler = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
   const modBadge = '[data-mod-badge="Moonlight Project"]'
   await expect(brawler).toHaveCount(0)
+  await openBuildPickerFilters(page)
   await results.getByText('Broader planning options', { exact: true }).click()
   await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project')

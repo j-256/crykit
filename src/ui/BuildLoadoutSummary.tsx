@@ -14,6 +14,7 @@ import { DefinitionArtwork } from './GameIcon'
 import { summaryFactLines } from './build-evidence'
 import { Icon, type IconName } from './icons'
 import { entityName, resolveEntity } from './model'
+import { Button } from './components'
 
 const EMPTY_BUILD_CONTENT: BuildRevisionContent = Object.freeze({
   primaryClass: null,
@@ -51,7 +52,7 @@ function SummarySelection({ label, value, localData, catalogs, gameSetup, empty,
   const shared = { className: 'build-card__selection', 'data-compact': compact || undefined, 'data-empty': !value && !occupiedBy || undefined, 'data-occupied-by-two-handed': occupiedBy || undefined, 'data-tooltip': tooltip, title: tooltip }
   return onActivate
     ? <button {...shared} aria-label={`Open ${label}: ${name}`} onClick={event => { event.stopPropagation(); onActivate() }} type="button">{content}</button>
-    : <span {...shared} aria-label={`${label}: ${name}`}>{content}</span>
+    : <span {...shared} aria-label={`${label}: ${name}`} role="group">{content}</span>
 }
 
 export function buildPpSummary(pp: BuildPpValidity): string {
@@ -72,7 +73,7 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
   </span>
 }
 
-export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, equipmentNames = false }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; equipmentNames?: boolean }) {
+export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean }) {
   const [inspectedSlotId, setInspectedSlotId] = useState<string>()
   const slots = [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
   const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
@@ -95,7 +96,7 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
     </span>
     <span className="build-card__summary-group">
       <span className="build-card__summary-label" title="Equipment"><Icon name="sword"/><span className="sr-only">Equipment</span></span>
-      <span aria-label="Equipment" className="build-card__equipment" data-show-names={equipmentNames || undefined}>{slots.map(slot => {
+      <span aria-label="Equipment" className="build-card__equipment" data-show-names={equipmentNames || undefined} role="group">{slots.map(slot => {
         const role = equipmentRole(slot)
         const selection = content.equipment[slot.id]
         const occupiedBy = role === 'offHand' ? twoHandedMain : undefined
@@ -112,7 +113,7 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
         return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} localData={localData} gameSetup={gameSetup} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
       })}</span> : <small className="sr-only">No passives selected</small>}
     </span>
-    <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'Inspect the selected equipment definition.'} onClose={() => setInspectedSlotId(undefined)}>
+    <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'Inspect the selected equipment definition.'} onClose={() => setInspectedSlotId(undefined)} footer={onEquipmentEdit && inspectedSlot && <Button onClick={() => { const slotId = inspectedSlot.id; setInspectedSlotId(undefined); onEquipmentEdit(slotId) }} type="button">Edit this slot</Button>}>
       {inspectedOption ? <BuildSelectionDetails option={inspectedOption}/> : <p>{inspectedSelection ? 'This saved selection cannot be resolved from its pinned definition.' : 'Nothing is equipped in this slot.'}</p>}
     </Sheet>
   </span>
