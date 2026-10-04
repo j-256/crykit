@@ -151,6 +151,9 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .context-status--saved .context-status__dot { background: var(--moss); box-shadow: 0 0 0 4px rgba(155, 183, 121, .1); }
 .context-status--error .context-status__dot { background: var(--rust); box-shadow: 0 0 0 4px rgba(198, 111, 85, .1); }
 .development-port { padding: 4px 6px; color: var(--cyan-300); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--ink-950); font-family: ui-monospace, monospace; font-size: .66rem; line-height: 1; white-space: nowrap; }
+.development-controls { display: flex; align-items: center; gap: 4px; }
+.development-refresh.icon-button { width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 5px; color: var(--cyan-300); }
+.development-refresh.icon-button svg { width: 16px; height: 16px; }
 .mobile-header, .bottom-nav { display: none; }
 .content { width: min(1440px, 100%); margin: 0 auto; padding: 36px clamp(22px, 3vw, 40px) 80px; }
 
