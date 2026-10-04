@@ -28,13 +28,15 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   return (JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }).localData
 }
 
-async function expectClassProvenance(page: Page) {
+async function expectClassProvenance(page: Page, name = 'Warrior') {
   await expect(page.getByRole('region', { name: 'Game details', exact: true })).toHaveCount(0)
-  const sources = page.getByRole('region', { name: 'Source trail', exact: true })
-  expect(await sources.evaluate(element => Boolean(document.querySelector('[aria-label="Planning fields"]')!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+  await expect(page.getByRole('region', { name: 'Planning fields', exact: true })).toBeVisible()
+  const sources = page.getByRole('dialog', { name: `Sources for ${name}`, exact: true })
+  await expect(sources).toHaveCount(0)
   const raw = sources.locator('pre.native-source-record')
   await expect(raw).not.toBeVisible()
-  await sources.getByText('Source and version details', { exact: true }).click()
+  const trigger = page.getByRole('button', { name: `Sources for ${name}`, exact: true })
+  await trigger.click()
   await expect(sources).toContainText('Native job #0')
   await sources.getByText('Complete native source record', { exact: true }).click()
   await expect(raw).toBeVisible()
@@ -42,6 +44,9 @@ async function expectClassProvenance(page: Page) {
   await expect(raw.locator('..').locator('table, ol, ul')).toHaveCount(0)
   await expect(page.locator('.class-learn-tree')).toHaveCount(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(sources).toHaveCount(0)
+  await expect(trigger).toBeFocused()
 }
 
 test('bundled class calculations respond to explicit mixed growth and work offline', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }, testInfo) => {
@@ -237,11 +242,11 @@ test('native learn trees resolve game names and draw simultaneous incoming arrow
   await expect(research.locator('.learn-tree__connectors > path[data-to="2:1"]')).toHaveCount(2)
 })
 
-test('native personal class versions retain raw provenance below their gameplay sections', async ({ page }) => {
+test('native personal class versions retain raw provenance in the Sources popup', async ({ page }) => {
   await page.goto(WARRIOR_PATH)
   await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
-  await expectClassProvenance(page)
+  await expectClassProvenance(page, 'Synthetic personal Warrior')
   await page.getByRole('region', { name: 'Class growth and learning' }).getByText('Learn tree', { exact: true }).click()
   await expect(page.getByRole('list', { name: 'Learn tree skills' })).toBeVisible()
 })

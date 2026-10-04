@@ -4,7 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import sharp from 'sharp'
-import { CURRENCY_ARTWORK_EXTRACTION, NATIVE_UI_ARTWORK, NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeUiArtwork } from './native-artwork.mjs'
+import { CURRENCY_ARTWORK_EXTRACTION, MENU_ICON_SIZE, NATIVE_UI_ARTWORK, NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, nativeReferenceArtworkPlans, validateNativeArtworkCoverage, validateNativeReferenceArtwork, validateNativeUiArtwork } from './native-artwork.mjs'
 import { validateContentBounds, visibleContentBounds } from './sprite-content-bounds.mjs'
 import { GAME_ARTWORK_RIGHTS, GAME_ASSET_FILE_PATTERN, GAME_ASSET_MANIFEST_SCHEMA, GAME_IDENTITY_MANIFEST_SCHEMA, MAX_GAME_ASSET_BYTES, REVIEWED_NATIVE_IDENTITY_SOURCE, actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseGameDatabase, parseStarterRecords, parseTexturePack, pngInfo, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, validateRegion, verifyReviewedNativeDatabase } from './game-assets.mjs'
 
@@ -324,6 +324,37 @@ async function buildUiArtwork(textures, built) {
   return artwork
 }
 
+async function buildReferenceArtwork(snapshot, textures, built) {
+  const result = {}
+  for (const [group, plans] of Object.entries(nativeReferenceArtworkPlans(snapshot, textures))) {
+    const bindings = {}
+    for (const [key, plan] of Object.entries(plans)) {
+      const sources = plan.rendering.sourceTextures
+      const crops = await Promise.all(sources.map(source => {
+        const { x: left, y: top, width, height } = source.region
+        const image = sharp(textures.get(source.texturePath).bytes).extract({ left, top, width, height })
+        return (group === 'menuIcons' ? image.resize(MENU_ICON_SIZE, MENU_ICON_SIZE, { kernel: 'nearest' }) : image).png({ compressionLevel: 9 }).toBuffer()
+      }))
+      let bytes = crops[0]
+      if (group === 'classWorld') {
+        const width = sources.reduce((sum, source) => sum + source.region.width, 0)
+        const height = Math.max(...sources.map(source => source.region.height))
+        let left = 0
+        const layers = crops.map((input, index) => {
+          const layer = { input, left, top: 0 }
+          left += sources[index].region.width
+          return layer
+        })
+        bytes = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers).png({ compressionLevel: 9 }).toBuffer()
+      }
+      const asset = await addArtwork(built.assets, built.outputs, { bytes, sources, extraction: plan.rendering.extraction })
+      bindings[key] = { asset, ...plan }
+    }
+    result[group] = bindings
+  }
+  return result
+}
+
 function visualReferenceInventory(databases, texturePaths) {
   const references = []
   const unresolved = []
@@ -382,6 +413,8 @@ function runtimeArtworkManifest(manifest) {
     entities: manifest.entities,
     quintarGuide: manifest.quintarGuide,
     uiArtwork: manifest.uiArtwork,
+    classWorld: manifest.classWorld,
+    menuIcons: manifest.menuIcons,
   }
 }
 
@@ -448,6 +481,7 @@ async function checkManifest() {
   }
   validateNativeArtworkCoverage(manifest, nativeArtworkEntries(snapshot), textureByPath)
   validateNativeUiArtwork(manifest, textureByPath)
+  validateNativeReferenceArtwork(manifest, snapshot, textureByPath)
   for (const gap of manifest.coverage?.unmappedNativeIdentities ?? []) {
     if (!mappings[gap.id] || coveredMappings.has(gap.id) || !gap.reason) throw new Error(`Native artwork gap is invalid: ${gap.id}`)
     coveredMappings.add(gap.id)
@@ -501,6 +535,8 @@ async function update(flags) {
   const quintarGuide = await buildQuintarGuideArtwork(game.databases, textureData.paths, built.assets, built.outputs)
   console.error('Extracting UI artwork from exact catalog bindings and game currency rectangles')
   const uiArtwork = await buildUiArtwork(textureData.paths, built)
+  console.error('Extracting native class standing portraits and reviewed menu glyphs')
+  const referenceArtwork = await buildReferenceArtwork(snapshot, textureData.paths, built)
   let total = 0
   for (const bytes of built.outputs.values()) total += bytes.length
   if (total > MAX_GAME_ASSET_BYTES) throw new Error('Native artwork snapshot exceeds the total size limit')
@@ -524,6 +560,7 @@ async function update(flags) {
     entities: built.entities,
     quintarGuide,
     uiArtwork,
+    ...referenceArtwork,
     coverage: {
       nativeDefinitionGaps,
       identityGaps: identityManifest.unresolved,

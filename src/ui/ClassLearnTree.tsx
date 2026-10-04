@@ -7,6 +7,7 @@ import { learnTreeGraph, treePositionKey, type TreePosition } from '../domain/le
 import type { CatalogEntity, CatalogSnapshot, PersonalDefinition } from '../domain/types'
 import { GameIcon } from './GameIcon'
 import { SourceReferences } from './KnowledgeValue'
+import { Sources } from './Sources'
 import { formatAppRoute } from './navigation'
 import { visibleSources } from './source-display'
 
@@ -61,6 +62,6 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
       </div>
     </div>
     {unresolved.size > 0 && <p className="learn-tree-warning">Some prerequisite cells are missing or unrecognized. Their connections remain unknown.</p>}
-    {sources.length > 0 && <details className="learn-tree-sources"><summary>Additional reference</summary><SourceReferences sources={sources}/></details>}
+    {sources.length > 0 && <Sources label={`Sources for ${entity.name} learning`}><SourceReferences sources={sources}/></Sources>}
   </details>
 }

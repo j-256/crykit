@@ -114,7 +114,7 @@ test('step reference links open exact local details without marking progress', a
   const examples = [
     { step: QUINTAR_STEP.babel, name: 'Babel Quintar' },
     { step: QUINTAR_STEP.ocarina, name: 'Quintar Ocarina' },
-    { step: QUINTAR_STEP.trustyBlue, name: 'Trusty Quintar (Blue)' },
+    { step: QUINTAR_STEP.trustyBlue, name: 'Trusty Quintar (Blue)', heading: 'Trusty Quintar' },
     { step: QUINTAR_STEP.fancyRed, name: 'Breeding method', heading: 'Quintar Breeding' },
   ]
   for (const example of examples) {
@@ -125,6 +125,30 @@ test('step reference links open exact local details without marking progress', a
     await expect(page.getByRole('heading', { name: 'Quintar breeding', exact: true })).toBeVisible()
     await expect(tile.getByRole('button')).toHaveAttribute('aria-pressed', 'false')
   }
+})
+
+test('native race minimums, shop price, and care facts are actionable in the guide', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  const highland = page.locator(`[data-step="${QUINTAR_STEP.fancyHighland}"]`)
+  const desert = page.locator(`[data-step="${QUINTAR_STEP.fancyDesert}"]`)
+  for (const tile of [highland, desert]) {
+    await expect(tile.locator('.quintar-tile__races')).toContainText('First-place wins before breeding')
+    await expect(tile.locator('.quintar-tile__races p').filter({ hasText: 'Fancy Red' })).toHaveText('Fancy Red1 different track total')
+  }
+  await expect(page.locator(`[data-step="${QUINTAR_STEP.ocarina}"]`).getByRole('img', { name: '12 gold', exact: true })).toBeVisible()
+  await expect(highland.getByRole('link', { name: 'Incubator', exact: true })).toBeVisible()
+  await expect(highland.getByRole('link', { name: 'Quintar Egg', exact: true })).toHaveCount(0)
+  await page.getByText('Breeding tips', { exact: true }).click()
+  const tips = page.locator('.quintar-tips')
+  await expect(tips).toContainText('Each hatch consumes 1 Incubator')
+  await expect(tips).toContainText('Quintar Cookie: feed below 60 fullness. Adds 100 happiness')
+  await expect(tips).toContainText('still needs food or rest to reach the Happy! status')
+  await expect(tips).not.toContainText('recommends two')
+  await tips.getByRole('button', { name: 'Sources for Quintar breeding', exact: true }).click()
+  const sources = page.getByRole('dialog', { name: 'Sources for Quintar breeding', exact: true })
+  await expect(sources).toContainText('Crystal Project Windows PC 1.6.9')
+  await expect(sources.getByRole('link', { name: "the wiki's Method 2", exact: true })).toHaveAttribute('href', /Quintar_Breeding/)
+  await page.keyboard.press('Escape')
+  await expect(sources).toHaveCount(0)
 })
 
 test('rapid toggles hold the final requested state without flashing or changing unrelated tiles and controls', { tag: MOBILE_TEST_TAG }, async ({ page }) => {

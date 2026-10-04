@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { asId } from '../domain/core'
-import type { CatalogEntity, JsonValue } from '../domain/types'
+import type { CatalogEntity, CatalogRevisionId, JsonValue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
 import { preferredDefinitionChoices } from './definition-preferences'
 
@@ -18,8 +18,18 @@ it('prefers native presentation without merging names or replacing pinned or per
   const unique = choice('wiki-unique', 'Supplemental only', { supplemental: true })
   const personal: DefinitionOption = { ...choice('personal', 'Synthetic ability'), ref: { kind: 'personal', definitionId: asId('personal') } }
   const options = [wiki, patch, independent, native, repeated, unique, personal]
-  expect(preferredDefinitionChoices(options).map(option => option.key)).toEqual(['independent', 'native-a', 'native-b', 'wiki-unique', 'personal'])
+  expect(preferredDefinitionChoices(options).map(option => option.key)).toEqual(['wiki', 'independent', 'native-a', 'native-b', 'wiki-unique', 'personal'])
   expect(preferredDefinitionChoices(options, 'wiki')).toContain(wiki)
   expect(preferredDefinitionChoices(options, 'patch')).toContain(patch)
   expect(options).toHaveLength(7)
+})
+
+it('hides only verified alternatives whose exact native counterpart is available, preserving selected originals', () => {
+  const native = choice('native', 'Native name')
+  const original = { ...choice('source', 'Source name'), nativeReferenceId: 'native' }
+  expect(preferredDefinitionChoices([native, original])).toEqual([native])
+  expect(preferredDefinitionChoices([original])).toEqual([original])
+  expect(preferredDefinitionChoices([native, original], original.key)).toEqual([native, original])
+  const otherRevision = { ...native, ref: { ...native.ref, catalogRevisionId: asId<CatalogRevisionId>('different') } }
+  expect(preferredDefinitionChoices([otherRevision, original])).toContain(original)
 })

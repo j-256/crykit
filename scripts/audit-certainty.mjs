@@ -36,19 +36,53 @@ try {
   for (const entity of Object.values(catalog.entities)) for (const [field, value] of [...Object.entries(entity.fields), ...['slotKinds', 'ppCost', 'requirements', 'grants'].flatMap(field => entity[field] ? [[field, entity[field]]] : [])]) {
     states[value.state]++
     if (value.state !== 'unknown' && value.state !== 'conflicting') continue
-    const reason = value.reason ?? (value.state === 'conflicting' ? 'Supplemental source claims differ' : 'No source value supplied')
+    const reason = value.reason ?? (value.state === 'conflicting' ? 'Original source claims differ' : 'No source value supplied')
     const key = JSON.stringify([value.state, entity.kind, field, reason])
     const gap = gaps.get(key) ?? { state: value.state, kind: entity.kind, field, reason, count: 0, examples: [] }
     gap.count++
     if (gap.examples.length < 3) gap.examples.push(entity.id)
     gaps.set(key, gap)
   }
-  const report = { schemaVersion: 1, catalogId: catalog.id, revisionId: catalog.revisionId, checksum, states, scope: 'Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states', gaps: [...gaps.values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) }
+  const { nativeDescription } = await server.ssrLoadModule('/src/catalog/native-description.ts')
+  const { nativeFieldFacts } = await server.ssrLoadModule('/src/catalog/native-field-facts.ts')
+  const { projectAcquisitionGuidance } = await server.ssrLoadModule('/src/catalog/acquisition-guidance.ts')
+  const { NATIVE_REFERENCE_LINKS } = await server.ssrLoadModule('/src/catalog/native-reference-links.ts')
+  const descriptionFamilies = new Set(['equipment', 'passive', 'item', 'ability', 'status'])
+  const { nativeIdentity } = await server.ssrLoadModule('/src/domain/native-game.ts')
+  const presentation = {
+    scope: 'Read-only native projections; stored source states and immutable catalog content remain unchanged',
+    descriptions: { complete: 0, partial: 0, unsupported: 0, historicalFallbacks: { complete: 0, partial: 0, unsupported: 0 }, unsupportedReasons: {} },
+    fieldFacts: { nativeValues: 0, differingOriginals: 0 },
+    acquisition: { replacedFields: 0, retainedGuideFields: 0, disagreements: 0 },
+    identities: { relations: {}, dispositions: {} },
+  }
+  for (const entity of Object.values(catalog.entities)) {
+    const description = nativeDescription(entity)
+    if (description && descriptionFamilies.has(nativeIdentity(entity)?.database)) {
+      const disposition = description.complete ? 'complete' : description.lines.length ? 'partial' : 'unsupported'
+      presentation.descriptions[disposition]++
+      if (entity.legacy?.nativeDescriptionSupplemental === true) presentation.descriptions.historicalFallbacks[disposition]++
+      for (const reason of description.unresolved) presentation.descriptions.unsupportedReasons[reason] = (presentation.descriptions.unsupportedReasons[reason] ?? 0) + 1
+    }
+    for (const fact of nativeFieldFacts(catalog, entity)) {
+      presentation.fieldFacts.nativeValues++
+      if (fact.differs) presentation.fieldFacts.differingOriginals++
+    }
+    if (entity.kind === 'item') {
+      const guidance = projectAcquisitionGuidance(catalog, entity)
+      presentation.acquisition.replacedFields += guidance.replacedFields.length
+      presentation.acquisition.retainedGuideFields += guidance.retainedGuides.length
+      presentation.acquisition.disagreements += guidance.disagreements.length
+    }
+  }
+  for (const { relation } of NATIVE_REFERENCE_LINKS.links) presentation.identities.relations[relation] = (presentation.identities.relations[relation] ?? 0) + 1
+  for (const { disposition } of NATIVE_REFERENCE_LINKS.dispositions) presentation.identities.dispositions[disposition] = (presentation.identities.dispositions[disposition] ?? 0) + 1
+  const report = { schemaVersion: 2, presentation, catalogId: catalog.id, revisionId: catalog.revisionId, checksum, states, scope: 'Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states', gaps: [...gaps.values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) }
   for (const [file, value] of [[RECEIPT, receipt], [REPORT, report]]) {
     const serialized = `${JSON.stringify(value, null, 2)}\n`
     if (values.check) { if (await readFile(file, 'utf8') !== serialized) throw new Error(`${file.slice(ROOT.length + 1)} is stale`) }
     else await writeFile(file, serialized)
   }
-  console.log(`${values.check ? 'Verified' : 'Audited'} ${catalog.revisionId}: ${states.known} known, ${states.notApplicable} inapplicable, ${states.unknown} source gaps, ${states.conflicting} supplemental differences`)
+  console.log(`${values.check ? 'Verified' : 'Audited'} ${catalog.revisionId}: ${states.known} known, ${states.notApplicable} inapplicable, ${states.unknown} source gaps, ${states.conflicting} stored source differences`)
 } catch (error) { console.error(error.message); process.exitCode = 1 }
 finally { await server?.close() }

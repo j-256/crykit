@@ -1,0 +1,53 @@
+{
+  "source": {
+    "worldContentDigest": "1906a365f630507ad4581352d8bad1e71a4fecaa41c0853bb3550b39cdf92e0e",
+    "worldSha256": "a93405dccaf04289f84d38be5b994d62b12e207afc8762d0bf79086023401107",
+    "gameExecutableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "nativeContentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
+    "platform": "Windows",
+    "gameVersion": "1.6.9"
+  },
+  "files": {
+    "Sang/Window/Dialogue/MenuItemDialogChoice.cs": "8e33de8c4160083aeea8d4a31cfbdc115578e809c3ebbef292a95d64f449e9f2",
+    "Sang/Window/Dialogue/WindowDialog.cs": "89bfe24c64e2161f0960a925c9b11c9b38036860e086156542681c4289f8cd60"
+  },
+  "prices": [
+    {
+      "entityId": "base:item:11",
+      "expectedRoute": {
+        "ingredients": [],
+        "costs": [],
+        "requirements": [],
+        "conditions": [
+          "Have fewer than 1 Rotten Salmon",
+          "Choose Buy"
+        ],
+        "kind": "reward",
+        "label": "Shady Merchant",
+        "location": "Delende",
+        "coord": {
+          "X": 181,
+          "Y": 132,
+          "Z": -200
+        },
+        "quantity": 1,
+        "evidence": "World entity 124 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1"
+      },
+      "price": 13,
+      "choice": {
+        "entityID": 124,
+        "path": "/NpcData/Pages/0/Actions/2/Data/Choices/0",
+        "answerVariableKey": "answer",
+        "choiceIndex": 0,
+        "explicitAnswerValue": null,
+        "cost": 13,
+        "isCostOfItem": false
+      },
+      "evidence": [
+        "World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; Cost=13, IsCostOfItem=false",
+        "Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetCost returns explicit choice cost",
+        "Sang/Window/Dialogue/WindowDialog.cs; UpdateInput spends the selected choice cost before setting private answer=0"
+      ]
+    }
+  ]
+}

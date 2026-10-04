@@ -20,9 +20,11 @@ test('equivalent source wording is shown as one fact with known implied', async 
   await expect(location.getByText('differing source values')).toHaveCount(0)
   await expect(page.getByText('Source descriptions differ', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Review source differences', exact: true })).toHaveCount(0)
-  await page.getByRole('region', { name: 'Source trail', exact: true }).locator('summary').filter({ hasText: /^Source and version details$/ }).click()
-  await expect(page.getByRole('link', { name: 'Community wiki · Scythes/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Scythes/table?oldid=10848')
-  await expect(page.getByRole('link', { name: 'Community wiki · Adjudicator', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Adjudicator?oldid=11911')
+  const sources = page.getByRole('dialog', { name: 'Sources for Adjudicator', exact: true })
+  await expect(sources).toHaveCount(0)
+  await page.getByRole('button', { name: 'Sources for Adjudicator', exact: true }).click()
+  await expect(sources.getByRole('link', { name: 'Community wiki · Scythes/table', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Scythes/table?oldid=10848')
+  await expect(sources.getByRole('link', { name: 'Community wiki · Adjudicator', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Adjudicator?oldid=11911')
 })
 
 test('conflicting fields retain every claim and its exact source evidence', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
@@ -32,11 +34,17 @@ test('conflicting fields retain every claim and its exact source evidence', { ta
   const location = locationRow(page)
   await expect(location.getByText(SELECTED_LOCATION, { exact: true })).toBeVisible()
   await expect(location.getByText(/The Assassin Master is found in Capital Sequoia/)).toBeVisible()
-  await expect(location.getByRole('link', { name: 'Community wiki · Assassin Seal', exact: true })).toHaveAttribute('href', ITEM_SOURCE)
-  await expect(location.getByRole('link', { name: 'Community wiki · Accessories/table', exact: true })).toHaveAttribute('href', TABLE_SOURCE)
+  await expect(location.getByRole('link')).toHaveCount(0)
   await expect(location.locator('.badge').getByText('Sources differ', { exact: true })).toBeVisible()
-  await expect(location.getByText(/revision 12583/)).toBeVisible()
-  await expect(location.getByText(/revision 12905/)).toBeVisible()
+  for (const claim of [{ text: SELECTED_LOCATION, name: 'Community wiki · Accessories/table', href: TABLE_SOURCE, revision: 'revision 12905' }, { text: /The Assassin Master is found in Capital Sequoia/, name: 'Community wiki · Assassin Seal', href: ITEM_SOURCE, revision: 'revision 12583' }]) {
+    const row = location.locator('.knowledge-claim').filter({ hasText: claim.text })
+    await row.getByRole('button', { name: /^Sources for Location [12]$/ }).click()
+    const sources = page.getByRole('dialog', { name: /^Sources for Location [12]$/ })
+    await expect(sources.getByRole('link', { name: claim.name, exact: true })).toHaveAttribute('href', claim.href)
+    await expect(sources).toContainText(claim.revision)
+    await page.keyboard.press('Escape')
+    await expect(sources).toHaveCount(0)
+  }
   await expect(page.getByText('Windows 1.6.9 · base database', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 

@@ -7,6 +7,7 @@ import { IconButton, InlineNotice } from './components'
 import { entityName, formatRelativeDate, ownRecordValue } from './model'
 import { useNavigation, type AppRoute } from './navigation'
 import { ModBadge } from './DefinitionModLabel'
+import { Sources } from './Sources'
 
 const GAME_SETUP_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {} }
 const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
@@ -40,18 +41,18 @@ function DefinitionLink({ localData, catalogs, gameSetup, value, showIdentity }:
   const navigation = useNavigation()
   const route = { page: { page: 'reference', view: 'detail', ref: value } as const, overlays: [], query: {} }
   const availability = definitionModAvailability(localData, value, gameSetup, catalogs)
-  return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a><RecordedModStatus availability={availability}/>{showIdentity && <details className="recorded-sources"><summary>Definition identity</summary><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></details>}</div>
+  return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a><RecordedModStatus availability={availability}/>{showIdentity && <Sources label={`Sources for ${entityName(localData, catalogs, value)}`}><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></Sources>}</div>
 }
 
 function RecordedKnowledge<T>({ value, format }: { readonly value: Knowledge<T>; readonly format: (value: T) => ReactNode }) {
-  if (value.state === 'conflicting') return <div>Conflicting claims<ul className="recorded-claims">{value.claims.map((claim, index) => <li key={index}>{format(claim.value)}{claim.note && <small>{claim.note}</small>}{claim.sources.length > 0 && <small>{claim.sources.map(sourceLabel).join('; ')}</small>}</li>)}</ul></div>
-  return <div>{value.state === 'known' ? format(value.value) : value.state === 'notApplicable' ? 'Not applicable' : 'Unknown'}{'reason' in value && value.reason && <small>{value.reason}</small>}{'sources' in value && Boolean(value.sources?.length) && <details className="recorded-sources"><summary>Observation sources</summary>{value.sources?.map((source, index) => <small key={index}>{sourceLabel(source)}</small>)}</details>}</div>
+  if (value.state === 'conflicting') return <div>Conflicting claims<ul className="recorded-claims">{value.claims.map((claim, index) => <li key={index}>{format(claim.value)}{claim.note && <small>{claim.note}</small>}{claim.sources.length > 0 && <Sources label={`Sources for observation claim ${index + 1}`}><p>{claim.sources.map(sourceLabel).join('; ')}</p></Sources>}</li>)}</ul></div>
+  return <div>{value.state === 'known' ? format(value.value) : value.state === 'notApplicable' ? 'Not applicable' : 'Unknown'}{'reason' in value && value.reason && <small>{value.reason}</small>}{'sources' in value && Boolean(value.sources?.length) && <Sources label="Sources for observation">{value.sources?.map((source, index) => <p key={index}>{sourceLabel(source)}</p>)}</Sources>}</div>
 }
 
 export function SnapshotValueView({ localData, catalogs, gameSetup: recordedGameSetup, value, showIdentity }: RecordedContext & { readonly value: SnapshotValue; readonly showIdentity?: boolean }) {
   const definition = (ref: EntityRef) => <DefinitionLink catalogs={catalogs} localData={localData} gameSetup={recordedGameSetup} showIdentity={showIdentity} value={ref}/>
   if (value.kind === 'unrecorded') return <>Unrecorded</>
-  if (value.kind === 'sources') return value.value.length ? <>{value.value.map((source, index) => <small key={index}>{sourceLabel(source)}</small>)}</> : <>Unrecorded</>
+  if (value.kind === 'sources') return value.value.length ? <Sources label="Sources for observation">{value.value.map((source, index) => <p key={index}>{sourceLabel(source)}</p>)}</Sources> : <>Unrecorded</>
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
   if (value.kind === 'calculation') {
     const plan = value.value
