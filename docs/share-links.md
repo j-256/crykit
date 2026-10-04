@@ -16,6 +16,10 @@ The entire URL has a 65,536-character application budget. The dialog shows its l
 
 The payload lives after `#` and is processed locally without a sharing service. Browser HTTP requests exclude the fragment, but anyone who receives the complete URL can decode it. Compression provides no confidentiality. Links are fixed snapshots: later edits require another link, and a copied link cannot be revoked.
 
+## Send a long link
+
+In Discord, paste the complete URL directly into the message box. If it exceeds the message limit, Discord [turns it into a text attachment](https://support.discord.com/hc/en-us/articles/360034632292-Sending-Messages) named `message.txt`. The recipient can triple-click the URL in the preview to select it, copy it, and paste it into their browser's address bar. This opens the same shared snapshot without a backup restore. Required imported catalogs must still be available in the recipient's browser.
+
 ## Versioned wire contract
 
 The route is `#/share/v3/<payload>`. The payload uses unpadded base64url encoding of a four-byte, big-endian decoded-length header followed by raw DEFLATE bytes. The JSON envelope declares `version: 3`, `kind`, `title`, a minimal `records` graph, and team slot/checkpoint and Game Setup references where applicable. Record structure reuses the native backup schemas, while sharing validates its own envelope and dependency graph. Decoding uses a fixed output buffer bounded by the declared length, rejects output whose size differs, checks safe JSON structure, validates the envelope, and runs native semantic graph validation against available catalogs before displaying or saving records.

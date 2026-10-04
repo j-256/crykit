@@ -8,11 +8,11 @@ No account or installation is needed. Your saved builds and records stay in your
 
 ## What you can do
 
-- **Plan builds:** search for classes, equipment, and passives, save variations, and compare them without entering everything you own.
+- **Plan builds:** mix classes, sub-commands, equipment, and passives, save variations, and compare them without entering everything you own.
 - **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, including enabled mod overrides and added bonus profiles. Missing inputs and unsupported rules stay explicit. See [calculation scope](docs/planner-mechanics.md) and [mod calculation boundaries](docs/mod-calculations.md).
-- **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. See [share links](docs/share-links.md) for capacity and catalog requirements.
+- **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. The snapshot is carried in the URL, so links can exceed chat message limits. See [share links](docs/share-links.md) for transfer options and catalog requirements.
 - **Track progress:** use the class-seal board, Travel & unlocks checklist, Summons board, and Golden Quintar breeding guide. Marks save to the selected Playthrough and stay separate from inventory and character learning. See [progress tracking](docs/user-guide.md#track-inventory-and-progress).
-- **Look things up:** browse items, skills, class learn trees, monsters, and more. Native effects and stats lead the reference; item and equipment pages collect supported routes and reward conditions under **How to obtain**. Original guide notes and source details remain available.
+- **Look things up:** browse items, skills, class learn trees, monsters, and more. Native effects and stats lead the reference; item and equipment pages collect supported routes and reward conditions under **How to obtain**. Guide notes stay readable, with **Sources** icons for external claims and uncertain values.
 - **Explore the world:** pan and zoom through the native Windows world map, find chests, NPCs, bosses, resources, and landmarks, and preview bundled or imported mod placements. See [the world map guide](docs/user-guide.md#explore-the-world-map).
 - **Manage mods:** browse bundled and imported versions, import updates, edit full project JSON, and follow links to Steam Workshop. Mods without a source file retain catalog entries and support manual observations. See [Mods](docs/mods.md) and [the editor workspace](docs/mod-inspector.md).
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
@@ -26,6 +26,8 @@ No account or installation is needed. Your saved builds and records stay in your
 4. **Choose Save build.** You can return to it from the build library and save further changes as new checkpoints, keeping earlier versions available.
 
 You can plan with equipment or skills you have not acquired. The planner checks documented build rules and keeps missing or conflicting information visible. Game data may differ by platform, version, or mods; see [reference sources and coverage](docs/catalog-sources.md) for the limits.
+
+Expand **Loadout > Stats & growth** to adjust level and class growth. If missing setup information prevents calculations, choose **Review Game Setup**. Selecting content from a mod that is not enabled asks you to enable it for that Build; adding a mod to the library alone does not enable it. See [Mods and Game Setups](docs/mods.md).
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 
@@ -68,6 +70,7 @@ The same section offers **Apply app update** for a staged update and **Refresh a
 | Track seals, travel unlocks, summons, or Quintar breeding | [Progress guide](docs/user-guide.md#track-inventory-and-progress) |
 | Find locations, item acquisition routes, and mod placements | [World Map](docs/user-guide.md#explore-the-world-map) and [Reference](docs/user-guide.md#browse-reference-data) |
 | Understand stat estimates and supported rules | [Build mechanics](docs/planner-mechanics.md) |
+| Understand reference facts, sources, and platform coverage | [Catalog sources](docs/catalog-sources.md) and [native reference projections](docs/native-reference-facts.md) |
 | Export versioned character/combat rules or read their equations | [Calculation package](docs/calculations.md), [human-readable reference](docs/calculation-reference.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
 | Decode IDs and edit mod JSON | [Mods and the editor workspace](docs/mod-inspector.md) |
