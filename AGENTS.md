@@ -17,3 +17,5 @@ Use the shared `useQueuedTileUpdates` hook for immediate-save tile boards. Follo
 Use Conventional Commits, explicit staging paths, and inspect staged content before committing. Keep the canonical checkout on main and implementation in disposable worktrees. Do not rewrite another contributor's changes.
 
 Use straight quotes and avoid em dashes. Write paragraphs on one source line. Code comments use ASCII and no terminal period.
+
+Check `wt-queue verification-status --json` before lengthy full verification when the repository is configured for coordination. Use `npm run verify` so registration and acquisition are atomic. Wait for preceding approved work to merge, synchronize, and retry when directed; inspect uncertain ownership instead of bypassing it. If the approved queue policy runs full local verification after synchronization, finish focused checks and commits before handoff and let the queue own the final full suite. Preparation does not grant publication or integration approval.

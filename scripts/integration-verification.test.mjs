@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkPushVerification, verificationContext, verificationRecordPath, verifyIntegration } from './integration-verification.mjs'
+import { coordinateVerification } from './verification-coordination.mjs'
 
 const ZERO_OID = '0'.repeat(40)
 const scriptPath = name => fileURLToPath(new URL(name, import.meta.url))
@@ -16,6 +17,8 @@ function fixture(t) {
   const cwd = join(directory, 'checkout')
   mkdirSync(cwd)
   const env = { ...process.env, XDG_CACHE_HOME: join(directory, 'cache') }
+  delete env.WT_QUEUE_VERIFICATION_TOKEN
+  delete env.CRYKIT_WT_QUEUE
   const git = (args, location = cwd) => execFileSync('git', args, { cwd: location, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   git(['init', '--quiet', '--initial-branch=main'])
   git(['config', 'user.name', 'Synthetic maintainer'])
@@ -51,6 +54,53 @@ test('changed source invalidates verification, including after synchronization a
   assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
   await verifyIntegration(f.options)
   checkPushVerification(f.input(), f.options)
+})
+
+test('queue-owned verification reuses only complete evidence for the exact clean tree and runtime', async t => {
+  const f = fixture(t)
+  await verifyIntegration(f.options)
+  let executed = 0
+  const options = { ...f.options, ifNeeded: true, run: async () => { executed++ } }
+  assert.equal((await verifyIntegration(options)).reused, true)
+  assert.equal(executed, 0)
+  f.git(['commit', '--quiet', '--allow-empty', '-m', 'Metadata only'])
+  assert.equal((await verifyIntegration(options)).reused, true)
+  const path = verificationRecordPath(verificationContext(f.cwd, f.env))
+  const valid = JSON.parse(readFileSync(path, 'utf8'))
+  writeFileSync(path, JSON.stringify({ ...valid, runtime: { ...valid.runtime, node: 'different' } }))
+  await verifyIntegration(options)
+  assert.equal(executed, 2)
+  writeFileSync(join(f.cwd, 'fixture.txt'), 'Unsaved source\n')
+  assert.equal((await verifyIntegration(options)).recorded, false)
+  assert.equal(executed, 4)
+  f.git(['add', 'fixture.txt'])
+  f.git(['commit', '--quiet', '-m', 'Changed tree', '--', 'fixture.txt'])
+  assert.equal((await verifyIntegration(options)).reused, undefined)
+  assert.equal(executed, 6)
+})
+
+test('coordination allows standalone clones but never falls back after a collision or invalid ownership', async t => {
+  const f = fixture(t)
+  const coordinator = join(f.directory, 'coordinator')
+  const fake = source => {
+    writeFileSync(coordinator, `#!${process.execPath}\n${source}\n`)
+    chmodSync(coordinator, 0o755)
+  }
+  let direct = 0
+  const run = async () => { direct++; return 'standalone' }
+  const options = { cwd: f.cwd, env: { ...f.env, CRYKIT_WT_QUEUE: coordinator }, argv: ['synthetic-check'], report: () => {} }
+  fake('process.exit(5)')
+  assert.equal(await coordinateVerification(run, options), 'standalone')
+  fake('process.exit(4)')
+  await assert.rejects(coordinateVerification(run, options), error => error.exitCode === 4)
+  assert.equal(direct, 1)
+  fake('process.stdout.write(JSON.stringify({ action: "owned" }))')
+  assert.equal(await coordinateVerification(run, { ...options, env: { ...options.env, WT_QUEUE_VERIFICATION_TOKEN: 'synthetic-token' } }), 'standalone')
+  fake('process.stdout.write(JSON.stringify({ action: "run" }))')
+  await assert.rejects(coordinateVerification(run, { ...options, env: { ...options.env, WT_QUEUE_VERIFICATION_TOKEN: 'synthetic-token' } }), /did not confirm ownership/)
+  assert.equal(direct, 2)
+  await assert.rejects(coordinateVerification(run, { ...options, env: { ...f.env, CRYKIT_WT_QUEUE: '/missing-selected-coordinator' } }), error => error.exitCode === 3)
+  assert.equal(await coordinateVerification(run, { ...options, env: { ...f.env, PATH: '' } }), 'standalone')
 })
 
 test('failed and interrupted reruns invalidate earlier success before checks start', async t => {
