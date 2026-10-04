@@ -24,6 +24,7 @@ export type IconName =
   | 'more'
   | 'plus'
   | 'pickaxe'
+  | 'refresh'
   | 'ring'
   | 'search'
   | 'settings'
@@ -63,6 +64,7 @@ const paths: Record<IconName, React.ReactNode> = {
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
   pickaxe: <><path d="m14 9-9 12-2-2L12 7"/><path d="M5 3c6-1 12 3 16 11l-6-4-4-4z"/></>,
+  refresh: <><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></>,
   ring: <g shapeRendering="crispEdges" stroke="none"><path d="M8 3h8v2h2v2h2v10h-2v2h-2v2H8v-2H6v-2H4V7h2V5h2z" fill="#825f36"/><path d="M8 5h8v2h2v10h-2v2H8v-2H6V7h2z" fill="#e3bd71"/><path d="M9 8h6v2h2v4h-2v2H9v-2H7v-4h2z" fill="#17232b"/><path d="M8 5h8v2H8zM6 7h2v4H6z" fill="#f6d88d"/><path d="M9 1h6v2h2v3h-2v2H9V6H7V3h2z" data-ring-gem="true" fill="#24567c"/><path d="M10 2h4v1h2v2h-2v2h-4V5H8V3h2z" fill="#59c7ed"/><path d="M10 2h2v3h-2z" fill="#e1fcff"/></g>,
   search: <><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></>,
   settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></>,
