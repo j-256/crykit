@@ -4,10 +4,11 @@ import { definitionModAvailability, type DefinitionModAvailability } from '../ca
 import { snapshotSlots, type SnapshotValue } from '../domain/character-snapshots'
 import type { CatalogSnapshot, CharacterSnapshot, EntityRef, Knowledge, LocalData, GameSetupRevision, SourceRef } from '../domain/types'
 import { IconButton, InlineNotice } from './components'
-import { entityName, formatRelativeDate, ownRecordValue } from './model'
+import { entityName, formatRelativeDate, ownRecordValue, resolveEntity } from './model'
 import { useNavigation, type AppRoute } from './navigation'
 import { ModBadge } from './DefinitionModLabel'
 import { Sources } from './Sources'
+import { externalSources } from './source-display'
 
 const GAME_SETUP_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {} }
 const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
@@ -41,12 +42,16 @@ function DefinitionLink({ localData, catalogs, gameSetup, value, showIdentity }:
   const navigation = useNavigation()
   const route = { page: { page: 'reference', view: 'detail', ref: value } as const, overlays: [], query: {} }
   const availability = definitionModAvailability(localData, value, gameSetup, catalogs)
-  return <div className="recorded-definition"><a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a><RecordedModStatus availability={availability}/>{showIdentity && <Sources label={`Sources for ${entityName(localData, catalogs, value)}`}><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></Sources>}</div>
+  const entity = resolveEntity(localData, catalogs, value)
+  const showSources = showIdentity && (value.kind === 'personal' || !entity || externalSources(entity.sources).length > 0)
+  const link = <a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a>
+  return <div className="recorded-definition">{showSources ? <Sources anchor={link} label={`Sources for ${entityName(localData, catalogs, value)}`}><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></Sources> : link}<RecordedModStatus availability={availability}/></div>
 }
 
 function RecordedKnowledge<T>({ value, format }: { readonly value: Knowledge<T>; readonly format: (value: T) => ReactNode }) {
-  if (value.state === 'conflicting') return <div>Conflicting claims<ul className="recorded-claims">{value.claims.map((claim, index) => <li key={index}>{format(claim.value)}{claim.note && <small>{claim.note}</small>}{claim.sources.length > 0 && <Sources label={`Sources for observation claim ${index + 1}`}><p>{claim.sources.map(sourceLabel).join('; ')}</p></Sources>}</li>)}</ul></div>
-  return <div>{value.state === 'known' ? format(value.value) : value.state === 'notApplicable' ? 'Not applicable' : 'Unknown'}{'reason' in value && value.reason && <small>{value.reason}</small>}{'sources' in value && Boolean(value.sources?.length) && <Sources label="Sources for observation">{value.sources?.map((source, index) => <p key={index}>{sourceLabel(source)}</p>)}</Sources>}</div>
+  if (value.state === 'conflicting') return <div>Conflicting claims<ul className="recorded-claims">{value.claims.map((claim, index) => <li key={index}>{claim.sources.length > 0 ? <Sources anchor={format(claim.value)} label={`Sources for observation claim ${index + 1}`}><p>{claim.sources.map(sourceLabel).join('; ')}</p></Sources> : format(claim.value)}{claim.note && <small>{claim.note}</small>}</li>)}</ul></div>
+  const content = <>{value.state === 'known' ? format(value.value) : value.state === 'notApplicable' ? 'Not applicable' : 'Unknown'}{'reason' in value && value.reason && <small>{value.reason}</small>}</>
+  return <div>{'sources' in value && value.sources?.length ? <Sources anchor={content} label="Sources for observation">{value.sources.map((source, index) => <p key={index}>{sourceLabel(source)}</p>)}</Sources> : content}</div>
 }
 
 export function SnapshotValueView({ localData, catalogs, gameSetup: recordedGameSetup, value, showIdentity }: RecordedContext & { readonly value: SnapshotValue; readonly showIdentity?: boolean }) {

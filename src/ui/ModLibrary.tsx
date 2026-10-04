@@ -26,7 +26,7 @@ type ReferenceFeedback = { readonly cardId: string; readonly included: boolean }
 
 function SavedRevision({ revision, busy, onEdit }: { readonly revision: ModRevision; readonly busy: boolean; readonly onEdit: (revision: ModRevision) => void }) {
   return <div className="split mod-library__revision">
-    <div><Badge>Saved version</Badge><strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p><Sources label={`Sources for saved ${revision.title} version ${revision.declaredVersion ?? 'unspecified'}`}><p>Source {revision.sourceDigest} · Editor format {revision.editorVersion ?? 'unknown'}</p></Sources></div>
+    <div><Badge>Saved version</Badge><Sources anchor={<strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong>} label={`Sources for saved ${revision.title} version ${revision.declaredVersion ?? 'unspecified'}`}><p>Source {revision.sourceDigest} · Editor format {revision.editorVersion ?? 'unknown'}</p></Sources><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p></div>
     <Button disabled={busy} onClick={() => onEdit(revision)} tone="secondary">Edit this version</Button>
   </div>
 }
@@ -80,7 +80,7 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
     {mod && <details className="mod-library__versions"><summary>Versions</summary><div className="stack">
       <p className="field__hint">Choose a version in Game Setup to use its supported definitions and settings. Existing builds keep their selected versions. Custom artwork files are separate from the JSON.</p>
       {mod.revisions.map(revision => <SavedRevision key={revision.catalogRevisionId} revision={revision} busy={busy} onEdit={onEdit}/>)}
-      {mod.bundled.map(source => <div className="split mod-library__revision" key={source.sourceDigest}><div><Badge tone="info">Bundled version</Badge><strong>{source.declaredVersion ? `Version ${source.declaredVersion}` : 'Version unspecified'}</strong><p>{bundledModDefinitionCount(source)} supported model records · Full project JSON</p><Sources label={`Sources for bundled ${source.title} version ${source.declaredVersion ?? 'unspecified'}`}><p>Source {source.sourceDigest} · Editor format {source.editorVersion}</p></Sources></div><Button disabled={busy} onClick={() => onEditBundled(source)} tone="secondary">Edit bundled copy</Button></div>)}
+      {mod.bundled.map(source => <div className="split mod-library__revision" key={source.sourceDigest}><div><Badge tone="info">Bundled version</Badge><Sources anchor={<strong>{source.declaredVersion ? `Version ${source.declaredVersion}` : 'Version unspecified'}</strong>} label={`Sources for bundled ${source.title} version ${source.declaredVersion ?? 'unspecified'}`}><p>Source {source.sourceDigest} · Editor format {source.editorVersion}</p></Sources><p>{bundledModDefinitionCount(source)} supported model records · Full project JSON</p></div><Button disabled={busy} onClick={() => onEditBundled(source)} tone="secondary">Edit bundled copy</Button></div>)}
     </div></details>}
   </div></section>
 }

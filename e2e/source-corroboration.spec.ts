@@ -44,14 +44,16 @@ test('a personal value retains its evidence without replacing the corroborated s
 test('partial mechanic evidence keeps the source disclosure', async ({ page }) => {
   await page.goto(referencePath('base:mechanic:stat:ref-501'))
   await expect(page.getByRole('heading', { name: 'Flat CritResist [X]', exact: true })).toBeVisible()
-  const description = fact(page, 'Description')
+  const description = page.locator('.reference-description')
+  await expect(fact(page, 'Description')).toHaveCount(0)
   await expect(description).toContainText('it does not affect the non-Critical portion of damage')
   await expect(description.locator('.sources-trigger')).toHaveCount(1)
   await description.getByRole('button', { name: 'Sources for Description', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Sources for Description', exact: true })).toContainText("GEEF's Crystal Project modding guide")
   await page.goto(referencePath('base:mechanic:stat:ref-464'))
-  await expect(fact(page, 'Description')).toHaveCount(1)
-  await expect(fact(page, 'Description').locator('.sources-trigger')).toHaveCount(0)
+  await expect(fact(page, 'Description')).toHaveCount(0)
+  await expect(page.locator('.reference-description')).not.toBeEmpty()
+  await expect(page.locator('.reference-description .sources-trigger')).toHaveCount(0)
 })
 
 test('a reviewed mechanic replacement leads with native facts and preserves the original guide claim', async ({ page }) => {

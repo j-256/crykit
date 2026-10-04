@@ -39,11 +39,11 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       popup.style.left = `${Math.max(leftEdge, Math.min(bounds.left, rightEdge - width))}px`
       popup.style.top = `${Math.max(topEdge, upwards ? bounds.top - ANCHOR_GAP - popup.getBoundingClientRect().height : bounds.bottom + ANCHOR_GAP)}px`
     }
+    openDropdowns.push(popup)
     // Wait for the containing modal to enter the top layer before its dropdown
     const frame = window.requestAnimationFrame(() => {
       anchor.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
       popup.showPopover({ source: anchor })
-      openDropdowns.push(popup)
       position()
       initialFocusRef.current?.focus({ preventScroll: true })
     })

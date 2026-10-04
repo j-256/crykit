@@ -2,7 +2,7 @@ import { Money, MoneyText } from './MoneyText'
 import { NATIVE_RECORD_FIELD } from '../domain/native-game'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
-import { sourceDisplay, visibleSources } from './source-display'
+import { externalSources, sourceDisplay, visibleSources } from './source-display'
 import { fieldIconKey } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
 import { isStatRatingField } from '../domain/stat-ratings'
@@ -75,15 +75,19 @@ interface ClaimSelection {
 export function ClaimList({ claims, selection, field, moneyFormat = 'coins' }: { claims: readonly KnowledgeClaim<unknown>[]; selection?: ClaimSelection; field?: string; moneyFormat?: MoneyFormat }) {
   return <ol className="knowledge-claims">{claims.map((claim, index) => <li className="knowledge-claim" key={index}>
     {selection ? <label className="check-row"><input aria-describedby={`${selection.name}-claim-${index}`} checked={selection.index === index} name={selection.name} onChange={() => selection.onChange(index)} type="radio" value={index}/><strong>Use claim {index + 1}</strong></label> : <strong className="knowledge-claim__label">Claim {index + 1}</strong>}
-    <div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} moneyFormat={moneyFormat} value={claim.value}/></div>
+    <Sources anchor={<div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} moneyFormat={moneyFormat} value={claim.value}/></div>} label={`Sources for ${field ?? 'claim'} ${index + 1}`}><SourceReferences includeGameExports sources={claim.sources}/></Sources>
     {claim.note && <p className="knowledge-claim__note"><MoneyText>{claim.note}</MoneyText></p>}
-    <Sources label={`Sources for ${field ?? 'claim'} ${index + 1}`}><SourceReferences includeGameExports sources={claim.sources}/></Sources>
   </li>)}</ol>
 }
 
 export function KnowledgeValue({ value, field, compact = false, showSources = false, moneyFormat = 'coins' }: { value: Knowledge<unknown>; field?: string; compact?: boolean; showSources?: boolean; moneyFormat?: MoneyFormat }) {
-  if (value.state === 'known') return <><StructuredValue field={field} moneyFormat={moneyFormat} value={value.value}/>{showSources && value.sources?.length ? <Sources label={`Sources for ${field ?? 'value'}`}><SourceReferences includeGameExports sources={value.sources}/></Sources> : null}</>
+  if (value.state === 'known') {
+    const content = <StructuredValue field={field} moneyFormat={moneyFormat} value={value.value}/>
+    const sources = showSources ? externalSources(value.sources ?? []) : []
+    return sources.length ? <Sources anchor={content} label={`Sources for ${field ?? 'value'}`}><SourceReferences sources={sources}/></Sources> : content
+  }
   if (value.state === 'conflicting') return <><span>{value.claims.length} differing source values</span>{!compact && <ClaimList claims={value.claims} field={field} moneyFormat={moneyFormat}/>}</>
   if (value.state === 'notApplicable') return <span><MoneyText>{value.reason ?? 'Not applicable'}</MoneyText></span>
-  return <span><MoneyText>{value.reason ?? 'Unknown'}</MoneyText></span>
+  const content = <span><MoneyText>{value.reason ?? 'Unknown'}</MoneyText></span>
+  return showSources && value.sources?.length ? <Sources anchor={content} label={`Sources for ${field ?? 'value'}`}><SourceReferences includeGameExports sources={value.sources}/></Sources> : content
 }

@@ -10,23 +10,26 @@ export interface GenderDefinition {
   readonly name: string
   readonly boosts: Readonly<Record<GrowthStat, boolean | null>>
   readonly source: string
+  readonly sourceKind: 'native' | 'mod'
+  readonly nameSource?: string
   readonly issues: readonly string[]
 }
 
-export function genderDefinition(record: Readonly<Record<string, unknown>>, source: string): GenderDefinition {
+export function genderDefinition(record: Readonly<Record<string, unknown>>, source: string, sourceKind: GenderDefinition['sourceKind']): GenderDefinition {
   const missing = STAT_KEYS.filter(stat => typeof record[PC_RULES.stats[stat]!.gender!] !== 'boolean')
   return {
     id: record.ID as number,
     name: typeof record.Name === 'string' ? record.Name : `Gender #${record.ID}`,
     boosts: Object.fromEntries(STAT_KEYS.map(stat => [stat, typeof record[PC_RULES.stats[stat]!.gender!] === 'boolean' ? record[PC_RULES.stats[stat]!.gender!] : null])) as GenderDefinition['boosts'],
     source,
+    sourceKind,
     issues: missing.length ? [`${source}: gender ${record.ID} has missing or invalid bonus flags (${missing.join(', ')}).`] : [],
   }
 }
 
 export function nativeGenderDefinitions(mode = 'standard'): readonly GenderDefinition[] {
   const patch = NATIVE_DATA.patches.find(patch => patch.name.toLowerCase() === mode)?.records.gender as readonly Readonly<Record<string, unknown>>[] | undefined
-  return NATIVE_DATA.records.gender.map(record => genderDefinition({ ...record, ...patch?.find(value => value.ID === record.ID) }, `PC 1.6.9 ${mode} game data`))
+  return NATIVE_DATA.records.gender.map(record => genderDefinition({ ...record, ...patch?.find(value => value.ID === record.ID) }, `PC 1.6.9 ${mode} game data`, 'native'))
 }
 
 export function calculationGenderId(plan: Pick<BuildCalculationPlan, 'gender' | 'genderSelection'> | undefined): number | undefined {

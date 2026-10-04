@@ -59,11 +59,17 @@ describe('data-backed game setup rules', () => {
   it('resolves difficulty by identity from base, mode, and mods without guessing a selection', async () => {
     const hard = resolveGameRules(setup([], 2), [])
     expect(hard.difficulty?.name).toBe('Hard')
+    expect(hard.difficulty?.sourceKind).toBe('native')
     expect(hard.difficulty?.values.BossHPRate).toBe(130)
-    expect(resolveGameRules(setup([], 2, 'Chaos'), []).difficulty?.values.BossHPRate).toBe(200)
+    const chaos = resolveGameRules(setup([], 2, 'Chaos'), []).difficulty!
+    expect(chaos.values.BossHPRate).toBe(200)
+    expect(chaos.sourceKind).toBe('native')
     const changed = await importMod('difficulty change', { Difficulties: [{ ...normal, Name: 'Synthetic normal', BossHPRate: 175, MemberHitChanceMod: 8 }] })
     const rules = resolveGameRules(setup([changed]), [changed])
     expect(rules.difficulty?.values.BossHPRate).toBe(175)
+    expect(rules.difficulty?.sourceKind).toBe('mod')
+    const namedLikeNative = await importMod(hard.difficulty!.source, { Difficulties: [{ ...normal, BossHPRate: 175 }] })
+    expect(resolveGameRules(setup([namedLikeNative]), [namedLikeNative]).difficulty).toMatchObject({ source: hard.difficulty!.source, sourceKind: 'mod' })
     expect(rules.difficultyIssues).toEqual([])
     expect(difficultyHitChance(97, rules)).toBe(100)
     expect(difficultyHitChance(0, rules)).toBe(0)

@@ -1,4 +1,4 @@
-import { openSavedCatalogVersion } from './definition-fixtures'
+import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -242,11 +242,29 @@ test('native learn trees resolve game names and draw simultaneous incoming arrow
   await expect(research.locator('.learn-tree__connectors > path[data-to="2:1"]')).toHaveCount(2)
 })
 
-test('native personal class versions retain raw provenance in the Sources popup', async ({ page }) => {
+test('native personal class versions retain external attribution and exact source provenance through history', async ({ page }) => {
   await page.goto(WARRIOR_PATH)
-  await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
+  const saved = await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
-  await expectClassProvenance(page, 'Synthetic personal Warrior')
+  await expect(page.getByRole('region', { name: 'Game details', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Planning fields', exact: true })).toBeVisible()
+  const trigger = page.getByRole('button', { name: 'Sources for Synthetic personal Warrior', exact: true })
+  const sources = page.getByRole('dialog', { name: 'Sources for Synthetic personal Warrior', exact: true })
+  await expect(sources).toHaveCount(0)
+  await trigger.click()
+  await expect(sources.getByRole('link', { name: 'Community wiki · Warrior', exact: true })).toBeVisible()
+  await expect(sources.getByText('Crystal Edit vanilla class export', { exact: true })).toBeVisible()
+  await expect(sources.getByText('Native job #0', { exact: true })).toHaveCount(0)
+  await expect(sources.locator('pre.native-source-record')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(sources).toHaveCount(0)
+  await expect(trigger).toBeFocused()
   await page.getByRole('region', { name: 'Class growth and learning' }).getByText('Learn tree', { exact: true }).click()
   await expect(page.getByRole('list', { name: 'Learn tree skills' })).toBeVisible()
+  await page.getByText('Definition history', { exact: true }).click()
+  await page.getByRole('button', { name: 'View source definition', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+  await expectClassProvenance(page)
+  expect((await readPlannerData(page)).personalDefinitions[saved.id]).toEqual(saved)
 })

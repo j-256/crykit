@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Sources } from './Sources'
-import { DefinitionClaimsPanel, DefinitionFactsPanel } from './DefinitionDetailSections'
+import { DefinitionClaimsPanel, DefinitionFactsPanel, DefinitionSourcesPanel } from './DefinitionDetailSections'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
 import { KnowledgeValue } from './KnowledgeValue'
@@ -89,7 +89,55 @@ describe('source claim presentation', () => {
   })
 })
 
-describe('native source details', () => {
+describe('native and external source details', () => {
+  const native = { sourceId: 'native-game:windows:1.6.9', locator: 'Database/job.dat record 7', snapshot: 'Synthetic database fingerprint' }
+  const wiki = { sourceId: 'https://example.test/wiki/Synthetic', locator: 'Community table' }
+
+  it('keeps known native values visible without a marker and cites only external evidence for mixed values', async () => {
+    const sources = [native, wiki]
+    const container = await renderInteractive(<><KnowledgeValue field="Native" showSources value={{ state: 'known', value: 80, sources: [native] }}/><KnowledgeValue field="Mixed" showSources value={{ state: 'known', value: 90, sources }}/></>)
+    expect(container.textContent).toContain('80')
+    expect(container.textContent).toContain('90')
+    expect(container.querySelector('button[aria-label="Sources for Native"]')).toBeNull()
+    const popup = await openSources(container, 'Sources for Mixed')
+    expect(popup.textContent).toContain(wiki.locator)
+    expect(popup.textContent).not.toContain(native.locator)
+    expect(sources).toEqual([native, wiki])
+  })
+
+  it('retains native evidence for unknown values and competing claims', async () => {
+    const container = await renderInteractive(<><KnowledgeValue field="Unconfirmed" showSources value={{ state: 'unknown', reason: 'Condition is unconfirmed', sources: [native] }}/><KnowledgeValue field="Disputed" value={{ state: 'conflicting', claims: [{ value: 80, sources: [native] }, { value: 90, sources: [wiki] }] }}/></>)
+    expect(container.textContent).toContain('Condition is unconfirmed')
+    expect(container.textContent).toContain('2 differing source values')
+    for (const [label, locator] of [['Sources for Unconfirmed', native.locator], ['Sources for Disputed 1', native.locator], ['Sources for Disputed 2', wiki.locator]]) {
+      const popup = await openSources(container, label!)
+      expect(popup.textContent).toContain(locator)
+      await closeSources(popup)
+    }
+  })
+
+  it('discloses only external entity sources unless uncertainty calls for the complete evidence', async () => {
+    const container = await renderInteractive(<><DefinitionSourcesPanel anchor={<span>Native gameplay content</span>} label="Sources for native entity" sources={[native]}/><DefinitionSourcesPanel label="Sources for mixed entity" sources={[native, wiki]}/><DefinitionSourcesPanel label="Sources for uncertain entity" sources={[native, wiki]} uncertain><p>Unresolved condition</p></DefinitionSourcesPanel></>)
+    expect(container.textContent).toContain('Native gameplay content')
+    expect(container.querySelector('button[aria-label="Sources for native entity"]')).toBeNull()
+    const mixed = await openSources(container, 'Sources for mixed entity')
+    expect(mixed.textContent).toContain(wiki.locator)
+    expect(mixed.textContent).not.toContain(native.locator)
+    await closeSources(mixed)
+    const uncertain = await openSources(container, 'Sources for uncertain entity')
+    expect(uncertain.textContent).toContain(wiki.locator)
+    expect(uncertain.textContent).toContain(native.locator)
+    expect(uncertain.textContent).toContain('Unresolved condition')
+  })
+
+  it('retains external evidence for known mixed-source fields', async () => {
+    const container = await renderInteractive(<DefinitionFactsPanel facts={[["Master", { state: 'known', value: 'Synthetic mastery reward', sources: [native, wiki] }]]}/>)
+    expect(container.textContent).toContain('Synthetic mastery reward')
+    const popup = await openSources(container, 'Sources for Master')
+    expect(popup.textContent).toContain(wiki.locator)
+    expect(popup.textContent).not.toContain(native.locator)
+  })
+
   it('opens the original native evidence for a changed fact that no longer matches its receipt', async () => {
     const baseline = DEFAULT_CATALOG.entities['base:job:0']!
     const original = baseline.fields['Class command']!
@@ -98,7 +146,7 @@ describe('native source details', () => {
     expect(source?.locator).toBeDefined()
     const changed = { ...original, value: 'Synthetic changed command' }
     const entity = { ...baseline, fields: { ...baseline.fields, 'Class command': changed } }
-    const container = await renderInteractive(<DefinitionFactsPanel corroboration={{ catalog: DEFAULT_CATALOG, entity }} primarySourceId={source!.sourceId} facts={[["Class command", changed]]}/>)
+    const container = await renderInteractive(<DefinitionFactsPanel corroboration={{ catalog: DEFAULT_CATALOG, entity }} facts={[["Class command", changed]]}/>)
     expect(container.textContent).toContain('Synthetic changed command')
     expect(container.textContent).not.toContain(source!.locator)
     const popup = await openSources(container, 'Sources for Class command')
@@ -108,7 +156,7 @@ describe('native source details', () => {
     expect(container.textContent).toContain('Synthetic changed command')
   })
 
-  it('retains native-only value and original claim evidence when their Sources popup opens', async () => {
+  it('retains unverified export values and original claim evidence when their Sources popup opens', async () => {
     const source = { sourceId: 'native-game:windows:synthetic', locator: 'Database/job.dat record 7', snapshot: 'Synthetic executable fingerprint', applicability: 'Synthetic native release' }
     const container = await renderInteractive(<><KnowledgeValue field="Attack" showSources value={{ state: 'known', value: 80, sources: [source] }}/><Sources label="Sources for original claim"><DefinitionClaimsPanel claims={[{ entityId: 'synthetic-native' as EntityId, field: 'Attack', value: { state: 'known', value: 79 }, sources: [source] }]}/></Sources></>)
     expect(container.textContent).toContain('80')

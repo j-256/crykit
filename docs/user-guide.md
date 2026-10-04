@@ -38,7 +38,7 @@ Class, equipment, and passive controls appear before the collapsible **Stats & g
 
 ### Choose equipment and passives
 
-Equipment searches exclude identified category articles. Search matches names, displayed stats, and effects, prioritizing exact names and identifying matches found in details. Press Enter to choose a sole result, or use the arrow keys to select among matches. Choices show catalog stats and effects, with full reference fields and attribution available beneath each selection. Native equipment records show their source identity and level to distinguish similarly named items. Native descriptions and numeric facts take precedence over reviewed older summaries; original claims remain preserved in provenance. Similar spellings remain separate identities and are labeled when their relationship is unconfirmed; entries supported only by name evidence sort after detailed records.
+Equipment searches exclude identified category articles. Search matches names, displayed stats, and effects, prioritizing exact names and identifying matches found in details. Press Enter to choose a sole result, or use the arrow keys to select among matches. Choices show catalog stats and effects, with full reference fields and attribution available beneath each selection. Native equipment records show their source identity and level to distinguish similarly named items. Native effects and numeric facts take precedence over reviewed older summaries. Readable descriptions, strategy, and directions remain visible under **Description**, with attribution and corrected historical claims in **Sources**. Similar spellings remain separate identities and are labeled when their relationship is unconfirmed; entries supported only by name evidence sort after detailed records.
 
 Selected fields show definition artwork, and empty fields show their slot's role icon. Primary class summaries put the command name and icon first, followed by equipment permission icons; hover or focus an icon for its name. Sub-command summaries omit those permission icons. Monetary cost appears last in detailed facts and is omitted from compact field summaries. PP remains visible for passive planning. On wide screens the selection inspector stays beside the loadout, showing a prompt until a definition is inspected. Narrow layouts stack the inspector below the fields. The library starts collapsed above the editor on every screen size.
 
@@ -144,7 +144,7 @@ Open **Progress > Travel & unlocks** to mark mount instruments, reusable shrine 
 
 Open **Progress > Quintar breeding** for an ordered guide through nursery access, wild eggs, both breeding branches, and the Golden Quintar. Unmarked tiles have gray symbols; clicking a tile marks it complete and restores its color. Click again to undo. Instructions stay visible, and **Go to next step** takes you to the first unmarked tile. **Class seals** returns to the mastery board.
 
-Each breeding tile shows its parents, minimum first-place wins on different race tracks, and which parents to keep or release after hatching. Repeated wins on one track count once. Desert and Highland require one win from their partner, River two, Black three, Aqua four, and Gold five. Release advice follows the displayed route only; retain quintars you need for another purpose. **Breeding tips & sources** explains readiness, food effects, nursery space, and Incubator use from Windows PC 1.6.9 game facts. The Ocarina price comes from the bundled native shop data. The chosen route and capture landmarks retain their guide attribution. Switch and mod applicability remain unverified.
+Each breeding tile shows its parents, minimum first-place wins on different race tracks, and which parents to keep or release after hatching. Repeated wins on one track count once. Desert and Highland require one win from their partner, River two, Black three, Aqua four, and Gold five. Release advice follows the displayed route only; retain quintars you need for another purpose. **Breeding tips** explains readiness, food effects, nursery space, and Incubator use from Windows PC 1.6.9 game facts. The Ocarina price comes from the bundled native shop data. The chosen route and capture landmarks retain their guide attribution. Switch and mod applicability remain unverified.
 
 Completion marks belong to the selected Playthrough, save automatically, and survive reloads and native backups. You can mark steps in any order; missing prerequisite marks remain visible and are never filled in automatically. Marks record completed actions without changing your inventory, nursery roster, character learning, or class seals. A failed save restores the tile's saved state and offers **Retry step**. The guide works offline after preparing the application for offline use.
 
@@ -160,7 +160,7 @@ The atlas depicts the inspected base game's terrain. Crystal Edit exports can su
 
 ## Browse reference data
 
-Source information uses the quotation-mark **Sources** icon throughout the app. Click or tap it for attribution and evidence in a compact popup. Escape closes the popup and returns focus to the icon; useful guide notes and gameplay requirements stay with the content.
+Verified native game facts appear as ordinary content without citation markers. Uncertain values and external claims, including wiki guidance and mod or imported records, use a small superscript quotation-mark **Sources** icon attached to the relevant text. Click or tap it for attribution and evidence in a compact popup. Escape closes the popup and returns focus to the icon; readable descriptions and gameplay requirements stay with the content. Original source records remain preserved even when their citations are not shown.
 
 A searchable, revisioned reference combines native Windows game records, mod exports, and attributed community evidence for items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
 
@@ -168,13 +168,13 @@ A searchable, revisioned reference combines native Windows game records, mod exp
 
 Reference groups categories into equipment families, classes and skills, combat effects, world and enemy details, and mods. Search reaches every category, including imported categories and detailed source tags. Definition types are grouped by purpose; choosing a type narrows the category suggestions.
 
-Equipment categories combine base-game and mod definitions under the same type. Choose **Axes**, for example, to see both base and mod axes, then use **Source mod** to narrow the results to **Base game** or a particular mod.
+Equipment categories combine base-game and mod definitions under the same type. Choose **Axes**, for example, to see both base and mod axes, then use **Source mod** to narrow the results to **Base game** or a particular mod. Reviewed native equipment types use readable labels, such as **Light armor** for Dress, without repeating an equivalent older wiki Type field.
 
 Separate class, equipment-slot, element, source-mod, source, and PP filters use recorded fields and documented associations where available. Alternatives within a filter are combined; different filters narrow results together.
 
 Active selections remain visible above the results and can be removed individually or cleared together, including when mobile filters are closed. Filters survive details, browser navigation, and reloads. Unknown and conflicting values remain possible matches where appropriate; missing facts are not inferred from names or descriptions.
 
-Opening a definition uses the full content width. Short facts share columns, while tables and longer descriptions have their labels above them and span the page. Source details follow the facts. On narrow screens, wide tables scroll within their own area. **Back to results** returns to the retained search and filters. Catalog and personal definitions use the same layout.
+Opening a definition uses the full content width. Short facts share columns, while tables and longer descriptions have their labels above them and span the page. On narrow screens, wide tables scroll within their own area. **Back to results** returns to the retained search and filters. Catalog and personal definitions use the same layout.
 
 ### Find item acquisition routes
 
@@ -200,7 +200,7 @@ Vanilla class ratings, equipment permissions, and learn trees ship with the app,
 
 ### Report reference data and create custom definitions
 
-Reference entries display their source catalogs. Use **Report a data issue** to open the project issue tracker. Include the entry, platform, game version, enabled mods, expected value, and supporting evidence. Native records establish facts for their recorded source version; community claims and unresolved platform differences keep their evidence. Catalog fixes go through source review and the extraction or interpretation pipeline.
+Use **Report a data issue** to open the project issue tracker. Include the entry, platform, game version, enabled mods, expected value, and supporting evidence. Native records establish facts for their recorded source version; community claims and unresolved platform differences keep their evidence. Catalog fixes go through source review and the extraction or interpretation pipeline.
 
 Definition fields open compact searchable dropdowns beside the selected field. Choices include descriptions, source labels, and relevant stock or PP details. The surrounding form stays usable, and dropdowns fit the available space above or below their field. Search receives focus on opening; arrow keys browse choices, Enter selects, and Escape returns to the field.
 

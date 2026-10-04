@@ -5,6 +5,7 @@ import type { CatalogEntity, Knowledge, SourceRef } from '../domain/types'
 
 const EXPORT_INTERNAL_FIELDS = new Set([NATIVE_RECORD_FIELD, CLASS_FIELDS.tree, CLASS_FIELDS.abilities, CLASS_FIELDS.passives, CRYSTAL_EDIT_FIELDS.tree, CRYSTAL_EDIT_FIELDS.abilities, CRYSTAL_EDIT_FIELDS.passives, 'Crystal Edit copied job ID', 'Crystal Edit model ID', 'Crystal Edit model type', 'Crystal Edit source record'])
 const GAME_EXPORT_SOURCE_IDS = new Set(['crystal-edit:vanilla-class-copy', 'crystal-project:pc-class-tree-identities', CRYSTAL_EDIT_SCHEMA_SOURCE.sourceId])
+const NATIVE_GAME_SOURCE_ID = /^native-game:windows:\d+\.\d+\.\d+(?:\.\d+)?$/
 const SECONDARY_CLASS_FIELDS: Readonly<Record<string, string>> = Object.freeze({
   [CRYSTAL_EDIT_FIELDS.ratings]: CLASS_FIELDS.ratings,
   [CRYSTAL_EDIT_FIELDS.equipment]: CLASS_FIELDS.equipment,
@@ -37,7 +38,15 @@ export function isGameExportSource(source: SourceRef): boolean {
 }
 
 export function visibleSources(sources: readonly SourceRef[]): readonly SourceRef[] {
-  return sources.filter(source => !isGameExportSource(source))
+  return externalSources(sources)
+}
+
+export function isNativeGameSource(source: SourceRef): boolean {
+  return NATIVE_GAME_SOURCE_ID.test(source.sourceId)
+}
+
+export function externalSources(sources: readonly SourceRef[]): readonly SourceRef[] {
+  return sources.filter(source => !isNativeGameSource(source))
 }
 
 export function definitionFactLabel(field: string, value?: Knowledge<unknown>, fields: readonly string[] = []): string {

@@ -36,8 +36,16 @@ export function DefinitionArtwork({ localData, catalogs, value }: { localData: L
   return <CatalogArtwork catalogId={value.catalogId} compact entity={{ id: value.entityId, kind: entity.kind, name: entity.name }}/>
 }
 
+function externalFieldIconKeys(fields: CatalogEntity['fields']): readonly string[] {
+  return fieldIconKeys(fields).filter(key => menuIcon(key)?.provenance === 'community-wiki')
+}
+
+export function hasExternalFieldIcons(fields: CatalogEntity['fields']): boolean {
+  return externalFieldIconKeys(fields).length > 0
+}
+
 export function FieldIconSources({ fields }: { fields: CatalogEntity['fields'] }) {
-  const keys = fieldIconKeys(fields)
+  const keys = externalFieldIconKeys(fields)
   if (!keys.length) return null
   return <Sources label="Sources for menu icons"><ul>{keys.map(key => {
     const icon = menuIcon(key)!

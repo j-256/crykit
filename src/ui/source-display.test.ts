@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { definitionFactIsWide, definitionFactLabel, sourceDisplay, visibleDefinitionFacts, visibleSources } from './source-display'
+import { definitionFactIsWide, definitionFactLabel, externalSources, isNativeGameSource, sourceDisplay, visibleDefinitionFacts, visibleSources } from './source-display'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { CatalogEntity } from '../domain/types'
 
@@ -15,10 +15,17 @@ describe('sourceDisplay', () => {
     expect(sourceDisplay('local-pack')).toEqual({ label: 'local-pack' })
   })
 
-  it('omits routine export evidence without losing community attribution', () => {
+  it('omits native game citations while retaining external exports and unverified identifiers', () => {
     const community = { sourceId: 'https://crystal-project.fandom.com/wiki/Warrior' }
     const imported = { sourceId: 'synthetic-archive', snapshot: 'Crystal Edit 34; project version synthetic', locator: '/Jobs/0' }
-    expect(visibleSources([{ sourceId: 'native-game:windows:base:job' }, { sourceId: 'game-export:windows:classes' }, { sourceId: 'crystal-edit:vanilla-class-copy' }, { sourceId: 'crystal-project:pc-class-tree-identities' }, { sourceId: 'crystal-edit-export:synthetic' }, imported, community])).toEqual([community])
+    const external = [{ sourceId: 'native-game:windows:base:job' }, { sourceId: 'native-game:windows:synthetic' }, { sourceId: 'game-export:windows:classes' }, { sourceId: 'crystal-edit:vanilla-class-copy' }, { sourceId: 'crystal-project:pc-class-tree-identities' }, { sourceId: 'crystal-edit-export:synthetic' }, { sourceId: 'bundled-mod:synthetic:1' }, imported, community]
+    const native = [{ sourceId: 'native-game:windows:1.6.9' }, { sourceId: 'native-game:windows:1.6.9.0' }]
+    for (const source of native) expect(isNativeGameSource(source)).toBe(true)
+    for (const source of external) expect(isNativeGameSource(source)).toBe(false)
+    const sources = [...native, ...external]
+    expect(visibleSources(sources)).toEqual(external)
+    expect(externalSources(sources)).toEqual(external)
+    expect(sources).toEqual([...native, ...external])
   })
 
   it('shows one preferred growth fact and keeps all fields available to editing', () => {

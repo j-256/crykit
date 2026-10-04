@@ -18,6 +18,7 @@ async function storedData(page: Page): Promise<LocalData> {
 
 async function expectTerrain(page: Page) {
   await expect(page.getByRole('heading', { name: 'World Map', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sources for World Map', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Interactive world map', exact: true })).toBeVisible()
   await expect.poll(() => page.locator('.world-map-terrain img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
 }
@@ -135,6 +136,7 @@ test('native shops, underground bosses, and named regions reveal their exact loc
   await page.getByRole('button', { name: 'Show Weapon Merchant on map', exact: true }).first().click()
   const details = page.getByRole('region', { name: 'Map location details', exact: true })
   await expect(details.getByRole('heading', { name: 'Weapon Merchant', exact: true })).toBeVisible()
+  await expect(details.getByRole('button', { name: 'Sources for Weapon Merchant location', exact: true })).toHaveCount(0)
   await expect(details).toContainText('Delende')
   await expect(details).toContainText('Shop stock')
   expect(await details.getByRole('link').count()).toBeGreaterThan(0)
@@ -211,6 +213,9 @@ test('Equipment Expansion locations retain source badges, filters, reference lin
   const details = page.getByRole('region', { name: 'Map location details', exact: true })
   await expect(details.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
   await expect(details.locator('.world-map-source-badge--mod')).toContainText('Equipment Expansion')
+  await details.getByRole('button', { name: 'Sources for Backbreaker location', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Backbreaker location', exact: true })).toContainText('Equipment Expansion')
+  await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Selected location: Backbreaker', exact: true })).toHaveClass(/world-map-marker--mod/)
   const locationUrl = page.url()
   await page.getByRole('button', { name: 'Close location details', exact: true }).click()

@@ -8,6 +8,20 @@ import { buildDefinitionOptions } from './definitions'
 const options = buildDefinitionOptions(createBlankLocalData(), [DEFAULT_CATALOG])
 
 describe('selection inspector facts', () => {
+  it('keeps native-only facts visible without a marker and retains external or disputed evidence', () => {
+    const option = options.find(option => option.name === 'HP Boost')!
+    const native = { sourceId: 'native-game:windows:1.6.9', locator: 'Synthetic native passive' }
+    const record = { ...option.record, rawDescription: undefined, fields: { Description: { state: 'known' as const, value: 'Synthetic native effect', sources: [native] } }, sources: [native] }
+    const onlyNative = { ...option, record, ppCost: { state: 'known' as const, value: 4, sources: [native] } }
+    const markup = renderToStaticMarkup(<BuildSelectionDetails option={onlyNative}/>)
+    expect(markup).toContain('Synthetic native effect')
+    expect(markup).toContain('4 PP')
+    expect(markup).not.toContain('aria-label="Sources')
+    const external = { ...onlyNative, record: { ...record, sources: [...record.sources, { sourceId: 'https://example.com/wiki', locator: 'Synthetic guide' }] } }
+    expect(renderToStaticMarkup(<BuildSelectionDetails option={external}/>)).toContain('Sources for HP Boost')
+    expect(renderToStaticMarkup(<BuildSelectionDetails option={{ ...onlyNative, ppCost: { state: 'unknown', sources: [native] } }}/>)).toContain('Sources for HP Boost')
+  })
+
   it('shows passive PP once outside the original-source disclosure', () => {
     const passive = options.find(option => option.name === 'HP Boost')!
     const markup = renderToStaticMarkup(<BuildSelectionDetails option={passive}/>)

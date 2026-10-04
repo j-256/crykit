@@ -29,11 +29,18 @@ describe('learn-tree prerequisite text', () => {
     const catalog = { ...DEFAULT_CATALOG, entities: { ...DEFAULT_CATALOG.entities, [`crystal-edit:Passives:${destination.dataId}`]: { ...entity, name: 'Unrelated editor passive' } } }
     const html = renderToStaticMarkup(<ClassLearnTree catalog={catalog} entity={entity}/>)
     expect(html).toContain(link.name!)
+    expect(html).not.toContain('Sources for')
     expect(html).not.toContain('Unrelated editor passive')
     const entities = { ...catalog.entities }
     delete entities[link.targetId!]
     const unresolved = renderToStaticMarkup(<ClassLearnTree catalog={{ ...catalog, entities }} entity={{ ...entity, fields: { ...entity.fields, [CRYSTAL_EDIT_FIELDS.tree]: { state: 'unknown' } } }}/>)
     expect(unresolved).toContain(`Passive #${destination.dataId}`)
+    expect(unresolved).toContain(`Sources for ${entity.name} learning`)
     expect(unresolved).not.toContain('Unrelated editor passive')
+    const field = entity.fields[CLASS_FIELDS.tree]!
+    const imported = { ...entity, fields: { ...entity.fields, [CLASS_FIELDS.tree]: { ...field, sources: [{ sourceId: 'synthetic-import', snapshot: 'Crystal Edit 34', locator: '/Jobs/10' }] } } }
+    const importedTree = renderToStaticMarkup(<ClassLearnTree catalog={catalog} entity={imported}/>)
+    expect(importedTree).toContain(link.name!)
+    expect(importedTree).toContain(`Sources for ${entity.name} learning`)
   })
 })

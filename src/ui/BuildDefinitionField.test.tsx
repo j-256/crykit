@@ -13,7 +13,7 @@ import { DefinitionLibraryContext, type DefinitionOption } from './definitions'
 import { BuildDefinitionField } from './BuildDefinitionField'
 
 vi.mock('./Dropdown', () => ({ Dropdown: ({ open, children }: PropsWithChildren<{ open: boolean }>) => open ? <div>{children}</div> : null }))
-vi.mock('./GameIcon', () => ({ DefinitionArtwork: () => null, FieldIconSources: () => null, GameIcon: () => null }))
+vi.mock('./GameIcon', async importOriginal => ({ ...await importOriginal<typeof import('./GameIcon')>(), DefinitionArtwork: () => null, FieldIconSources: () => null, GameIcon: () => null }))
 
 function passive(name: string, pp: number, requiredMod?: string): DefinitionOption {
   const record: PersonalDefinition = { id: name as PersonalDefinitionId, kind: 'passive', name, aliases: [], revision: 1, createdAt: TEST_NOW, updatedAt: TEST_NOW, fields: { Description: { state: 'known', value: `${name} effect summary` }, ...(requiredMod ? { 'Source mod': { state: 'known' as const, value: requiredMod } } : {}) }, sources: [], ppCost: { state: 'known', value: pp } }

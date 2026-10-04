@@ -2,6 +2,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InspectorDraft } from '../../mod-inspector/types'
+import { INSPECTOR_REFERENCE_ID } from '../../mod-inspector/reference'
 import { summarizeInspectorDraft } from '../../mod-inspector/storage'
 import type { DraftActions } from '../drafts'
 import { ModInspectorView } from '../ModInspectorView'
@@ -72,6 +73,22 @@ async function edit(value: string) {
 }
 
 describe('inspector exact edits and navigation', () => {
+  it('keeps matched native lookup labels quiet without changing imported JSON', async () => {
+    const text = '{"EditorVersion":34,"Count":1}'
+    const row = { ...saved, originalText: text, draftText: text, referenceId: INSPECTOR_REFERENCE_ID }
+    storage.get.mockResolvedValue(row)
+    await act(async () => root.render(<ModInspectorView/>))
+    expect(container.textContent).toContain('Exact enum names')
+    expect(container.querySelector('button[aria-label="Sources for enum names"]')).toBeNull()
+    await open()
+    expect(container.textContent).toContain('JSON explorer')
+    expect(container.querySelector('button[aria-label="Sources for inspector labels"]')).toBeNull()
+    await selectField('Count')
+    expect(container.querySelector('textarea')?.value).toBe('1')
+    expect(storage.save).not.toHaveBeenCalled()
+    expect(row).toMatchObject({ originalText: text, draftText: text, referenceId: INSPECTOR_REFERENCE_ID, revision: saved.revision })
+  })
+
   it('keeps changed lookup history separate from the mod format without rewriting the saved copy', async () => {
     const text = '{"EditorVersion":34,"Title":"Synthetic mod"}'
     const row = { ...saved, originalText: text, draftText: text, referenceId: 'synthetic-earlier-lookup' }

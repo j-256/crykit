@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from 'react'
 import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY, QUINTAR_PHASES, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements, type QuintarBreedingStep, type QuintarBreedingStepId } from '../catalog/quintar-breeding'
-import { QUINTAR_NATIVE_EVIDENCE, QUINTAR_NATIVE_SOURCE } from '../catalog/quintar-native-rules'
+import { QUINTAR_NATIVE_EVIDENCE } from '../catalog/quintar-native-rules'
 import { QUINTAR_STEP_REFERENCES, quintarOcarinaPrice } from '../catalog/quintar-references'
 import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/sprites'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
@@ -107,8 +107,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
         <p><strong>Food and readiness:</strong> For this route, Happy! means the quintar meets its happiness, fullness, and rest checks. It does not mean happiness alone is full. Feed berries for happiness before cheese: cheese fills the quintar, preventing more food until fullness falls.</p>
         <ul>{QUINTAR_NATIVE_EVIDENCE.food.filter(food => GUIDE_FOOD_ITEM_IDS.has(food.itemID)).map(food => <li key={food.itemID}><strong>{food.name}:</strong> feed below {food.fullnessBelow} fullness. {food.happinessGain > 0 ? <>Adds {food.happinessGain} happiness (up to {food.happinessMaximum}) and {food.fullnessGain} fullness (up to {food.fullnessMaximum}).</> : <>Fills fullness to {food.fullnessMaximum} and reduces tiredness by up to {food.tirednessReduction}, stopping at {food.tirednessMinimum}; a lower tiredness value stays unchanged.</>}</li>)}</ul>
         <p>A Cookie can fill happiness while the quintar still needs food or rest to reach the Happy! status.</p>
-        <p><strong>Release advice follows this route:</strong> hatch the child first, keep every parent needed by a later pairing, and keep any quintar you want for another purpose. Marks record completed actions, not your current nursery roster or inventory.</p>
-        <Sources label="Sources for Quintar breeding"><p>Pairing outcomes, race minimums, readiness, food effects, hatching, and nursery capacity: {QUINTAR_NATIVE_SOURCE}. Ocarina price: native item and shop records.</p><p>Route sequence and capture landmarks: <a href={QUINTAR_GUIDE_SOURCE} rel="noreferrer" target="_blank">the wiki's Method 2</a>. Pairings match the native outcomes; release advice follows this route.</p></Sources>
+        <Sources anchor={<p><strong>Release advice follows this route:</strong> hatch the child first, keep every parent needed by a later pairing, and keep any quintar you want for another purpose. Marks record completed actions, not your current nursery roster or inventory.</p>} label="Sources for Quintar breeding"><p>Route sequence and capture landmarks: <a href={QUINTAR_GUIDE_SOURCE} rel="noreferrer" target="_blank">the wiki's Method 2</a>. Pairings match the native outcomes; release advice follows this route.</p></Sources>
       </div>
     </details>
     <div className="quintar-guide">{QUINTAR_PHASES.map(phase => {
