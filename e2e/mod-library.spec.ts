@@ -82,6 +82,136 @@ test('upgrades a historical browser profile before Reference changes and a new b
   await expect(page.getByRole('alert').filter({ hasText: 'Change not saved' })).toHaveCount(0)
 })
 
+test('Reference save failures stay visible beside the action and retry without changing other records', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const toggle = card.getByRole('button', { name: 'Remove from Reference', exact: true })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  const before = await storedData(page)
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await toggle.click()
+  const alert = card.getByRole('alert')
+  const globalAlert = page.locator('.global-save-alert')
+  await expect(alert).toContainText('Reference not changed')
+  await expect(alert).toContainText('Browser storage is full')
+  await expect(alert).toContainText(/Error code storage-failure; diagnostic [\w-]+/)
+  await expect(globalAlert).toContainText('Change not saved')
+  expect(await storedData(page)).toEqual(before)
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(async () => {
+    const local = (await alert.boundingBox())!
+    const global = (await globalAlert.boundingBox())!
+    const bottom = await page.evaluate(() => {
+      const nav = document.querySelector('.bottom-nav')
+      return nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight
+    })
+    return local.y >= global.y + global.height && local.y + local.height <= bottom
+  }).toBe(true)
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await expect(alert).toHaveCount(0)
+  await expect(globalAlert).toHaveCount(0)
+  const after = await storedData(page)
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
+  expect(after.gameSetups).toEqual(before.gameSetups)
+  expect(after.playthroughs).toEqual(before.playthroughs)
+})
+
+test('a rolled-back save alert stays on screen while scrolling and can be dismissed independently', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  const globalAlert = page.locator('.global-save-alert')
+  await expect(globalAlert).toContainText('Change not saved')
+  await page.getByRole('region', { name: bundledSources.mods.find(mod => mod.title.startsWith('Moonlight'))!.title, exact: true }).evaluate(element => element.scrollIntoView({ block: 'start' }))
+  await expect.poll(async () => {
+    const box = (await globalAlert.boundingBox())!
+    const visible = await page.evaluate(() => {
+      const nav = document.querySelector('.bottom-nav')
+      return { top: document.querySelector('.context-bar')!.getBoundingClientRect().bottom, bottom: nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight }
+    })
+    return box.y >= visible.top && box.y + box.height <= visible.bottom
+  }).toBe(true)
+  await globalAlert.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
+  await expect(globalAlert).toHaveCount(0)
+  await expect(card.getByRole('alert')).toContainText('Reference not changed')
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('alert')).toHaveCount(0)
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+})
+
+test('every Reference toggle confirms the saved result on its own card, including archived sources', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  const before = await storedData(page)
+  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+    const card = page.getByRole('region', { name: title, exact: true })
+    const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
+    for (let change = 0; change < 3; change += 1) {
+      const included = await toggle.getAttribute('aria-pressed') === 'true'
+      await toggle.click()
+      await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
+      const confirmation = card.getByRole('status').filter({ hasText: included ? 'Removed from Reference' : 'Added to Reference' })
+      await expect(confirmation).toBeVisible()
+      await expect.poll(async () => {
+        const box = (await confirmation.boundingBox())!
+        const visible = await page.evaluate(() => {
+          const nav = document.querySelector('.bottom-nav')
+          return { top: document.querySelector('.context-bar')!.getBoundingClientRect().bottom, bottom: nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight }
+        })
+        return box.y >= visible.top && box.y + box.height <= visible.bottom
+      }).toBe(true)
+    }
+  }
+  const after = await storedData(page)
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
+  expect(after.gameSetups).toEqual(before.gameSetups)
+  expect(after.playthroughs).toEqual(before.playthroughs)
+  await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toHaveCount(0)
+})
+
+test('Reference retry retains the requested membership after another tab completes the change', async ({ page, context }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  const other = await context.newPage()
+  await other.goto('/#/mods')
+  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  await expect(card.getByRole('alert')).toContainText('Reference not changed')
+  await other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
+  await page.getByRole('button', { name: 'Load newer revision', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  const loaded = await storedData(page)
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('status')).toContainText('Removed from Reference')
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  expect(await storedData(page)).toEqual(loaded)
+})
+
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('crykit')
@@ -461,7 +591,8 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
     }
   })
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Existing local data is unchanged')
+  await expect(mod.getByRole('alert')).toContainText('Reference not changed')
+  await expect(mod.getByRole('alert')).toContainText('Existing local data is unchanged')
   expect(await archiveDigests(page)).toEqual(archive)
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(mod).toContainText(`${count} catalog entries`)
@@ -483,7 +614,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
     }
   })
   await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
-  await expect(page.getByText('Mod operation failed', { exact: true })).toBeVisible()
+  await expect(mod.getByRole('alert')).toContainText('Reference not changed')
   expect(await archiveDigests(page)).toEqual(retained)
   await expect(mod.getByRole('button', { name: 'Remove from Reference', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
