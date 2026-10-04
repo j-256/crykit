@@ -1,4 +1,3 @@
-import { openBuildPickerFilters } from './build-picker-helpers'
 import { chooseTeamCheckpoint, teamCheckpointControl } from './team-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
@@ -182,10 +181,8 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await field.fill('Freelancer')
   const results = page.getByRole('listbox', { name: 'Choose Class', exact: true })
   const freelancer = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Freelancer$/ }) })
-  await expect(freelancer).toHaveCount(0)
-  await openBuildPickerFilters(page)
-  await results.getByText('Broader planning options', { exact: true }).click()
-  await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
+  await expect(freelancer).toBeVisible()
+  await expect(freelancer).toHaveAttribute('data-mod-state', 'unknown')
   await freelancer.click()
   const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
   const confirm = dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true })

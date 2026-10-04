@@ -90,7 +90,7 @@ describe('Build picker interaction', () => {
 
   it('shows effect summaries before selection and provides identical pointer and keyboard previews', async () => {
     const props = await render()
-    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining('First passive effect summary'), expect.stringContaining('Second passive effect summary')])
+    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining('First passive effect summary'), expect.stringContaining('Second passive effect summary'), expect.stringContaining('Unconfirmed mod passive effect summary')])
     await act(async () => results()[1]!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
     expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: second.key }))
     await act(async () => container.querySelector('input[role="combobox"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })))
@@ -98,22 +98,26 @@ describe('Build picker interaction', () => {
     expect(props.onChange).not.toHaveBeenCalled()
   })
 
-  it('requires explicit expansion for unconfirmed mods and preserves an existing unavailable choice', async () => {
-    await render()
-    expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(false)
-    await act(async () => checkbox('Include disabled or unconfirmed mods').click())
+  it('shows unconfirmed mods by default and retains a selected choice when they are hidden', async () => {
+    const props = await render()
+    expect(checkbox('Include disabled or unconfirmed mods').checked).toBe(true)
+    expect(container.querySelector('.build-picker-filters > summary')?.textContent).toBe('Search filters')
     expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(true)
+    expect(results().find(result => result.textContent?.includes(unavailable.name))?.getAttribute('data-mod-state')).toBe('unknown')
     await act(async () => checkbox('Include disabled or unconfirmed mods').click())
+    expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(false)
+    expect(container.querySelector('.build-picker-filters > summary')?.textContent).toContain('1 active')
     await render({ value: unavailable.ref })
     expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(true)
     expect(container.textContent).toContain('This existing selection is retained')
+    expect(props.onChange).not.toHaveBeenCalled()
   })
 
   it('filters by the remaining replacement budget without changing the build', async () => {
     const props = await render({ passiveIndex: 1, buildContent: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [{ ref: second.ref }], contextAssumptions: [] } })
     expect(container.textContent).toContain('3 PP for this selection')
     await act(async () => checkbox('Within remaining PP').click())
-    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining(first.name)])
+    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining(first.name), expect.stringContaining(unavailable.name)])
     expect(props.onChange).not.toHaveBeenCalled()
   })
 
