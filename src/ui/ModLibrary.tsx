@@ -34,7 +34,20 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)
   const feedbackRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { if (referenceFeedback) feedbackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }) }, [referenceFeedback])
+  useEffect(() => {
+    const feedback = feedbackRef.current
+    if (!referenceFeedback || !feedback) return
+    const saveAlert = document.querySelector<HTMLElement>('.global-save-alert')
+    const reveal = () => {
+      feedback.style.setProperty('--reference-feedback-alert-height', `${saveAlert?.getBoundingClientRect().height ?? 0}px`)
+      feedback.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+    }
+    reveal()
+    if (!saveAlert) return
+    const observer = new ResizeObserver(reveal)
+    observer.observe(saveAlert)
+    return () => observer.disconnect()
+  }, [referenceFeedback])
   const mod = card.project
   const saved = mod?.revisions[0]
   const bundled = mod?.bundled[0]
@@ -59,7 +72,7 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
       <Button disabled={busy} onClick={() => navigation.navigate({ page: { page: 'mods', view: 'library' }, overlays: [{ kind: 'definition-editor', mode: 'new' }], query: { mod: [sourceName], ...(mod ? { 'mod-project': [mod.id] } : {}) } })} tone="secondary" icon="plus">Add catalog entry</Button>
       {mod && <><Button disabled={busy} onClick={() => saved ? onEdit(saved) : bundled && onEditBundled(bundled)} tone="secondary" icon="edit">Edit mod JSON</Button><Button disabled={busy} onClick={() => input.current?.click()} tone="secondary" icon="upload">Import updated version</Button><input ref={input} type="file" accept=".json,application/json" className="sr-only" aria-label={`Updated JSON for ${card.title}`} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onImport(file, mod.id) }}/></>}
     </div>
-    {referenceFeedback && <div ref={feedbackRef}>{referenceFeedback.status === 'failed'
+    {referenceFeedback && <div className="mod-library__feedback" ref={feedbackRef}>{referenceFeedback.status === 'failed'
       ? <InlineNotice title="Reference not changed" tone="danger"><p>{referenceFeedback.message}</p><p>Your previous Reference membership is unchanged.</p><Button disabled={busy} onClick={() => onToggleReference(referenceFeedback.included)} tone="secondary" type="button">Retry Reference change</Button></InlineNotice>
       : <InlineNotice title={referenceFeedback.included ? 'Added to Reference' : 'Removed from Reference'} tone="positive"><p>{referenceFeedback.included ? 'These entries are included in Reference.' : 'These entries are hidden from Reference. Saved builds and mod settings are kept.'}</p>{referenceFeedback.warnings.length > 0 && <details><summary>Import notes</summary><ul>{referenceFeedback.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}</div>}
     {workshop && <a href={workshop} target="_blank" rel="noopener noreferrer" aria-label={`View ${card.title} on Steam Workshop`}>View on Steam Workshop</a>}
