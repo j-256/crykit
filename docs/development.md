@@ -25,7 +25,7 @@ npm run build
 npm run preview
 ```
 
-Open the localhost address printed by Vite. Keep using the same origin when entering real records: scheme, host, and port determine which browser database is opened. Export a backup before changing origins or clearing browser storage. Development mode does not install an offline service worker.
+Open the localhost address printed by Vite. Keep using the same origin when entering real records: scheme, host, and port determine which browser database is opened. Export a backup before changing origins or clearing browser storage. Development mode does not install an offline service worker. **Refresh app** and the reload icon beside the development port perform a full page reload there; the development server revalidates source files. Production refresh checks for an update or repairs cached app files before reloading. Refresh controls protect unsaved edits, pending saves, and failed-save recovery.
 
 Prepare and confirm offline readiness through **Data & settings > Offline & storage**. See [offline use](user-guide.md#use-the-app-offline) for the user workflow.
 

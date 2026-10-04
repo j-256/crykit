@@ -178,8 +178,8 @@ export function refreshOfflineApplication(): Promise<void> {
 }
 
 async function refreshApplication(): Promise<void> {
+  if (import.meta.env.DEV) { window.location.reload(); return }
   if (!('serviceWorker' in navigator) || !window.isSecureContext) throw new Error('App refresh needs a secure browser with offline installation support.')
-  if (import.meta.env.DEV) throw new Error('App refresh is available in the production preview or installed application.')
   publish({ state: 'checking', detail: 'Downloading the latest app files. Your saved records will be kept.' })
   try {
     registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL, updateViaCache: 'none' })

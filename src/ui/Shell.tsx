@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import crystalCricketUrl from '../assets/crystal-cricket.svg'
 import type { CatalogSnapshot, LocalData, PlaythroughId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
+import { DevelopmentRefresh } from './DevelopmentRefresh'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
@@ -39,7 +40,7 @@ function Brand() {
   </div>
 }
 
-export function Shell({ localData, catalogs, destination, saveState, contextBusy, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ localData, catalogs, destination, saveState, contextBusy, developmentRefreshBlocked, onDevelopmentRefresh, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; developmentRefreshBlocked: boolean; onDevelopmentRefresh: () => void; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null)
@@ -59,7 +60,6 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const saveLabel = sharedSnapshot ? 'Read-only snapshot' : saveState === 'saved' ? newPlan ? 'Not yet saved' : 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
   const saveExplanation = sharedSnapshot ? 'This shared snapshot has not been saved to this browser. Choose Save a copy to keep it.' : newPlan && saveState === 'saved' ? 'This new plan has not been saved to this browser.' : saveLabel
   const statusState = sharedSnapshot || (newPlan && saveState === 'saved') ? 'unsaved' : saveState
-  const developmentPort = import.meta.env.DEV ? window.location.port : ''
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
   }
@@ -116,7 +116,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
           {destination !== 'mods' && destination !== 'map' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
-          {developmentPort && <span role="note" aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
+          <DevelopmentRefresh blocked={developmentRefreshBlocked} onRefresh={onDevelopmentRefresh}/>
         </div>
       </header>
       <WorkspaceHeaderContext value={headerSlots}><div className="content">{children}</div></WorkspaceHeaderContext>

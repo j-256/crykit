@@ -80,11 +80,11 @@ function makeServiceWorkerContainer(registration: FakeRegistration) {
   })
 }
 
-async function loadOffline(serviceWorker: ReturnType<typeof makeServiceWorkerContainer>) {
-  vi.stubEnv('DEV', false)
+async function loadOffline(serviceWorker: ReturnType<typeof makeServiceWorkerContainer> | undefined, development = false) {
+  vi.stubEnv('DEV', development)
   vi.stubEnv('BASE_URL', '/')
   vi.stubGlobal('window', { isSecureContext: true, location: { reload: vi.fn() } })
-  vi.stubGlobal('navigator', { serviceWorker })
+  vi.stubGlobal('navigator', serviceWorker ? { serviceWorker } : {})
   vi.stubGlobal('MessageChannel', FakeMessageChannel)
   vi.resetModules()
   return import('./offline')
@@ -104,6 +104,41 @@ afterEach(() => {
 })
 
 describe('manual app refresh', () => {
+  it('reloads the development preview once without registering or refreshing offline files', async () => {
+    const registration = new FakeRegistration()
+    const serviceWorker = makeServiceWorkerContainer(registration)
+    const offline = await loadOffline(serviceWorker, true)
+    const statuses: string[] = []
+    offline.subscribeOfflineStatus(value => statuses.push(value.state))
+
+    const request = offline.refreshOfflineApplication()
+    expect(offline.refreshOfflineApplication()).toBe(request)
+    await request
+
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
+    expect(serviceWorker.register).not.toHaveBeenCalled()
+    expect(serviceWorker.getRegistration).not.toHaveBeenCalled()
+    expect(registration.update).not.toHaveBeenCalled()
+    expect(statuses).toEqual(['not-ready'])
+  })
+
+  it('allows a normal development reload without service worker support or a secure context', async () => {
+    const offline = await loadOffline(undefined, true)
+    vi.stubGlobal('window', { isSecureContext: false, location: { reload: vi.fn() } })
+
+    await expect(offline.refreshOfflineApplication()).resolves.toBeUndefined()
+
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the offline support requirement for production refresh', async () => {
+    const offline = await loadOffline(undefined)
+
+    await expect(offline.refreshOfflineApplication()).rejects.toThrow('App refresh needs a secure browser with offline installation support.')
+
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
+
   it('redownloads a current build once and reloads after its cache is ready', async () => {
     const active = new FakeWorker()
     active.state = 'activated'
