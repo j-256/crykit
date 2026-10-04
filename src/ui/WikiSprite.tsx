@@ -60,10 +60,18 @@ export function ClassWorldArtwork({ catalogId, entity, detailed = false, compact
   return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file} maximumScale={MAX_CLASS_WORLD_SCALE}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
 }
 
+function isExternalArtwork(artwork: Artwork | undefined): artwork is Exclude<Artwork, { source: 'native' }> {
+  return Boolean(artwork && artwork.source !== 'native' && artwork.provenance !== 'base-game-archive')
+}
+
+export function hasExternalCatalogArtwork(catalogId: string, entity: Props['entity']): boolean {
+  return isExternalArtwork(catalogArtwork(catalogId, entity))
+}
+
 export function CatalogArtworkSource({ catalogId, entity }: Props) {
   const artwork = catalogArtwork(catalogId, entity)
   if (!artwork) return <small className="wiki-sprite-missing">No exact artwork linked.</small>
-  if (artwork.source === 'native' || artwork.provenance === 'base-game-archive') return null
+  if (!isExternalArtwork(artwork)) return null
   const provenance = artwork.provenance === 'community-wiki' ? 'Community wiki artwork; Switch and mod-pack appearance is unverified.' : 'Bundled from the supplied PC mod export; Nintendo Switch appearance is unverified.'
   return <Sources label={`Sources for ${entity.name} artwork`}><p>{artwork.asset.descriptionUrl ? <a href={artwork.asset.descriptionUrl} rel="noreferrer" target="_blank">{artwork.asset.title.replace(/^File:/, '')}</a> : artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></Sources>
 }

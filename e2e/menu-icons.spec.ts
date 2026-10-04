@@ -38,6 +38,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await details.getByRole('button', { name: 'Sources for Warrior', exact: true }).click()
   const sourceDetails = page.getByRole('dialog', { name: 'Sources for Warrior', exact: true })
   await expect(sourceDetails.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', /File.*SwordAbilityIcon.*oldid=/)
+  await expect(sourceDetails).not.toContainText('Region of the original game texture')
   await sourceDetails.getByRole('button', { name: 'Close sources', exact: true }).click()
 
   await page.getByRole('button', { name: 'Choose Main hand', exact: true }).click()

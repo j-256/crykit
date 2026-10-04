@@ -16,7 +16,7 @@ export function Badge({ children, tone = 'neutral', icon }: PropsWithChildren<{ 
   return <span className={`badge badge--${tone}`}>{icon && <Icon name={icon} />}{children}</span>
 }
 
-export function ScreenHeader({ eyebrow, title, description, actions, breadcrumb, context, unsavedObject = false }: { eyebrow?: string; title: string; description: string; actions?: ReactNode; breadcrumb?: ReactNode; context?: ReactNode; unsavedObject?: boolean }) {
+export function ScreenHeader({ eyebrow, title, titleSources, description, actions, breadcrumb, context, unsavedObject = false }: { eyebrow?: string; title: string; titleSources?: ReactNode; description: string; actions?: ReactNode; breadcrumb?: ReactNode; context?: ReactNode; unsavedObject?: boolean }) {
   const workspace = useWorkspaceHeader()
   const setUnsavedObject = workspace?.setUnsavedObject
   const active = workspace?.active
@@ -26,7 +26,7 @@ export function ScreenHeader({ eyebrow, title, description, actions, breadcrumb,
     return () => setUnsavedObject(false)
   }, [active, setUnsavedObject, unsavedObject])
   const header = <header className={`screen-header${workspace ? ' workspace-header' : ''}`} hidden={workspace ? !workspace.active : undefined}>
-    <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<h1 title={title}>{title}</h1></div>{context}<p className="screen-header__description">{description}</p></div>
+    <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<h1 title={title}>{title}</h1>{titleSources}</div>{context}<p className="screen-header__description">{description}</p></div>
     {(workspace || actions) && <div className="screen-header__actions">{workspace && <span className="workspace-header__primary" ref={workspace.setPrimaryTarget}/>} {actions}</div>}
   </header>
   return workspace ? workspace.target ? createPortal(header, workspace.target) : null : header

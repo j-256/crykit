@@ -22,7 +22,7 @@ const CALCULATION_FAMILIES = Object.freeze({ Jobs: 'job', Equipment: 'equipment'
 const BASE_CALCULATION_MODELS = new Set(Object.entries(CALCULATION_FAMILIES).flatMap(([family, database]) => NATIVE_DATA.records[database].map(record => `crystal-edit:${family}:${record.ID}`)))
 const DIFFICULTY_FIELDS = ['MonsterHPRate', 'BossHPRate', 'MonsterMPRate', 'BossMPRate', 'MonsterStrRate', 'MonsterVitRate', 'MonsterDexRate', 'MonsterAgiRate', 'MonsterMndRate', 'MonsterSpiRate', 'MonsterSpdRate', 'MonsterLckRate', 'MonsterPAtkRate', 'MonsterPDefRate', 'MonsterMDefRate', 'MemberHitChanceMod', 'MonsterHitChanceMod'] as const
 export interface GameRuleChange { readonly field: string; readonly value: number | boolean; readonly baseline: number | boolean; readonly source: string; readonly calculated: boolean }
-export interface DifficultyDefinition { readonly id: number; readonly name: string; readonly order: number; readonly isDefault: boolean; readonly source: string; readonly values: Readonly<Record<string, number>>; readonly issues: readonly string[] }
+export interface DifficultyDefinition { readonly id: number; readonly name: string; readonly order: number; readonly isDefault: boolean; readonly source: string; readonly sourceKind: 'native' | 'mod'; readonly values: Readonly<Record<string, number>>; readonly issues: readonly string[] }
 export interface GameRuleResolution {
   readonly mode?: BuildCalculationPlan['pcMode']
   readonly battleConfig: Readonly<Record<string, number | boolean>>
@@ -46,9 +46,9 @@ export function importedGameRules(root: Readonly<Record<string, JsonValue>>): Js
   return { version: IMPORTED_RULES_VERSION, battleConfig: system?.BattleConfig ?? (root.System != null && !system ? root.System : null), difficulties: root.Difficulties ?? [], genders: root.Genders ?? [], localization: root.IsLocalization === true, unsupported: [] }
 }
 
-function difficultyDefinition(record: Readonly<Record<string, JsonValue>>, source: string): DifficultyDefinition {
+function difficultyDefinition(record: Readonly<Record<string, JsonValue>>, source: string, sourceKind: DifficultyDefinition['sourceKind']): DifficultyDefinition {
   const invalid = DIFFICULTY_FIELDS.filter(key => !nativeInteger(record[key]))
-  return { id: record.ID as number, name: typeof record.Name === 'string' ? record.Name : `Difficulty ${record.ID}`, order: nativeInteger(record.SortOrder) ? record.SortOrder : record.ID as number, isDefault: record.IsDefault === true, source, values: Object.fromEntries(DIFFICULTY_FIELDS.filter(key => nativeInteger(record[key])).map(key => [key, record[key] as number])), issues: invalid.length ? [`${source}: difficulty ${record.ID} has missing or invalid values (${invalid.join(', ')}).`] : [] }
+  return { id: record.ID as number, name: typeof record.Name === 'string' ? record.Name : `Difficulty ${record.ID}`, order: nativeInteger(record.SortOrder) ? record.SortOrder : record.ID as number, isDefault: record.IsDefault === true, source, sourceKind, values: Object.fromEntries(DIFFICULTY_FIELDS.filter(key => nativeInteger(record[key])).map(key => [key, record[key] as number])), issues: invalid.length ? [`${source}: difficulty ${record.ID} has missing or invalid values (${invalid.join(', ')}).`] : [] }
 }
 
 export function resolveGameRules(setup: SetupRules | undefined, catalogs: readonly CatalogSnapshot[]): GameRuleResolution {
@@ -66,24 +66,24 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   if (unboundNames.length) issues.push(`Select source versions for enabled mods: ${unboundNames.join(', ')}. Named choices alone do not establish their calculation settings.`)
   const difficultyIssues: string[] = [...issues]
   const difficulties = new Map<number, DifficultyDefinition>()
-  const applyDifficulties = (records: JsonValue | undefined, title: string) => {
+  const applyDifficulties = (records: JsonValue | undefined, title: string, sourceKind: DifficultyDefinition['sourceKind']) => {
     if (records == null) return
     if (!Array.isArray(records)) { difficultyIssues.push(`${title}: difficulty definitions are not a supported list.`); return }
     const ids = new Set<number>()
     for (const record of records) {
       if (!jsonRecord(record) || !nativeInteger(record.ID) || record.ID < 0 || ids.has(record.ID)) { difficultyIssues.push(`${title}: difficulty identities are invalid or ambiguous.`); continue }
       ids.add(record.ID)
-      difficulties.set(record.ID, difficultyDefinition(record, title))
+      difficulties.set(record.ID, difficultyDefinition(record, title, sourceKind))
     }
   }
-  applyDifficulties(NATIVE_GAME_DATA.databases.difficulty, source)
+  applyDifficulties(NATIVE_GAME_DATA.databases.difficulty, source, 'native')
   const mode = setup?.mode ? gameSetupMode({ mode: setup.mode }) : undefined
   const genders = new Map(nativeGenderDefinitions(mode).map(gender => [gender.id, gender]))
   const addedModels = new Map<string, { readonly project: string; readonly title: string }>()
   if (mode && ['vanilla', 'chaos'].includes(mode)) {
     const patches = NATIVE_GAME_DATA.databases.patch
     const patch = Array.isArray(patches) ? patches.find(value => jsonRecord(value) && typeof value.Name === 'string' && value.Name.toLowerCase() === mode) : undefined
-    if (jsonRecord(patch)) applyDifficulties(patch.Difficulties, `PC 1.6.9 ${patch.Name}`)
+    if (jsonRecord(patch)) applyDifficulties(patch.Difficulties, `PC 1.6.9 ${patch.Name}`, 'native')
   } else if (setup && mode !== 'standard') difficultyIssues.push('Choose the game mode to resolve its difficulty definitions.')
   for (const layer of setup?.modComposition?.layers ?? []) {
     if (!layer.enabled) continue
@@ -101,7 +101,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
       if (metadata.version === IMPORTED_RULES_VERSION && Array.isArray(metadata.genders)) for (const record of metadata.genders) {
         if (!jsonRecord(record) || !nativeInteger(record.ID) || typeof record.Name !== 'string') continue
         const original = genders.get(record.ID)
-        if (original) genders.set(record.ID, { ...original, name: record.Name })
+        if (original) genders.set(record.ID, { ...original, name: record.Name, nameSource: title })
       }
       continue
     }
@@ -112,7 +112,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
       if (previous && previous.project !== catalog!.id) issues.push(`${modelKey}: added identity occurs in both ${previous.title} and ${title}. Runtime remapping of added IDs is not modeled; combined calculations are unresolved.`)
       addedModels.set(modelKey, { project: catalog!.id, title })
     }
-    applyDifficulties(metadata.difficulties, title)
+    applyDifficulties(metadata.difficulties, title, 'mod')
     if (Array.isArray(metadata.unsupported) && metadata.unsupported.length) issues.push(`${title}: ${metadata.unsupported.join(', ')} changes are retained but not modeled in this imported revision. Reimport and explicitly select the new revision to use supported settings.`)
     if (metadata.version === IMPORTED_RULES_VERSION) {
       if (!Array.isArray(metadata.genders)) issues.push(`${title}: gender definitions are not a supported list.`)
@@ -121,7 +121,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
         for (const record of metadata.genders) {
           if (!jsonRecord(record) || !nativeInteger(record.ID) || record.ID < 0 || record.ID > MAX_GENDER_ID || ids.has(record.ID)) { issues.push(`${title}: gender identities are invalid or ambiguous.`); continue }
           ids.add(record.ID)
-          genders.set(record.ID, genderDefinition(record, title))
+          genders.set(record.ID, genderDefinition(record, title, 'mod'))
         }
       }
     }
