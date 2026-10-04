@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { nativeSourceRecord } from '../domain/native-game'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -159,6 +161,34 @@ describe('reference search projection', () => {
     expect(item.entity.fields.Location).toEqual({ state: 'known', value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }, { sourceId: 'detail' }] })
     expect(item.knowledgeCounts).toMatchObject({ known: 1, conflicting: 0 })
     expect(shoes.fields.Location).toBe(location)
+  })
+
+  it('searches native Dress MP and counts direct facts without duplicate legacy summaries', () => {
+    const dress = DEFAULT_CATALOG.entities['base:equipment:134']!
+    const original = JSON.stringify(dress)
+    expect(dress.fields['Max mp']).toBeUndefined()
+    expect(nativeSourceRecord(dress)?.StatMods).toContainEqual({ Tag: 1, Value1: 20, Value2: 0, Value3: 0 })
+    const item = projectReferenceEntity(DEFAULT_CATALOG, dress)
+    const search = (query: string) => partitionReferenceItems([item], { query, kinds: [], categories: [], sources: [] })
+    expect(search('Max. MP: +20').confirmed).toEqual([item])
+    expect(search('Take 5% less magical damage.').confirmed).toEqual([item])
+    for (const query of ['Maximum MP +20', 'Reduce Magical Damage by 5%']) {
+      const result = search(query)
+      expect(result.confirmed).toEqual([])
+      expect(result.possible).toEqual([])
+      expect(result.excluded).toEqual([item])
+    }
+
+    const originalSummaries = ['Stat', 'Stat bonuses', 'Effect', 'Other effects', 'Defense/Resistance/Mind/Spirit'].flatMap(field => dress.fields[field] ? [dress.fields[field]!] : [])
+    expect(originalSummaries.length).toBeGreaterThan(0)
+    expect(originalSummaries.every(value => value.state === 'known')).toBe(true)
+    const unreviewedCatalog = { ...DEFAULT_CATALOG, id: 'imported:synthetic-dress' as CatalogId }
+    const unreviewed = projectReferenceEntity(unreviewedCatalog, dress)
+    expect(item.knowledgeCounts).toEqual({ ...unreviewed.knowledgeCounts, known: unreviewed.knowledgeCounts.known + 1 - originalSummaries.length })
+    expect(item.entity.fields.Stat).toEqual(dress.fields.Stat)
+    expect(item.entity.fields.Effect).toEqual(dress.fields.Effect)
+    expect(item.entity.fields['Max mp']).toBeUndefined()
+    expect(JSON.stringify(dress)).toBe(original)
   })
 
   it('uses a collision-safe tuple for selected reference identity', () => {

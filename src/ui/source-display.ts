@@ -24,6 +24,8 @@ const SECONDARY_CLASS_FIELDS: Readonly<Record<string, string>> = Object.freeze({
 const LONG_FACT_LENGTH = 160
 const EDITOR_PRESENTATION_FIELD = /^(Hide .+ From Description|Invert .+ Display)$/
 const FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  'Max hp': 'Max HP',
+  'Max mp': 'Max MP',
   [CLASS_FIELDS.ratings]: 'Growth ratings',
   [CLASS_FIELDS.equipment]: 'Equipment permissions',
   [CRYSTAL_EDIT_FIELDS.ratings]: 'Growth ratings',
