@@ -307,6 +307,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     else if (target.target === 'passive') setDraft((current) => {
       const passives = [...current.passives]
       const index = Number(target.key)
+      if (ref && passives.some((selection, selectionIndex) => selectionIndex !== index && sameLogicalEntity(localData, selection.ref, ref))) return current
       if (ref) passives[index] = { ref, observedName: entityName(localData, catalogs, ref) }
       else if (index < passives.length) passives.splice(index, 1)
       return { ...current, passives }

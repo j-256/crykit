@@ -117,6 +117,17 @@ describe('Build picker interaction', () => {
     expect(props.onChange).not.toHaveBeenCalled()
   })
 
+  it('excludes passives selected in other slots while retaining the current selection', async () => {
+    const buildContent = { primaryClass: null, secondaryClass: null, equipment: {}, passives: [{ ref: first.ref }], contextAssumptions: [] }
+    const props = await render({ passiveIndex: 1, buildContent, query: first.name })
+    expect(results()).toHaveLength(0)
+    expect(container.textContent).toContain('That passive is already selected in another slot')
+    expect(props.onChange).not.toHaveBeenCalled()
+
+    await render({ passiveIndex: 0, buildContent, query: first.name, value: first.ref })
+    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining(first.name)])
+  })
+
   it('returns focus from a filter before closing a selected result', async () => {
     const onOpen = vi.fn()
     function Picker() {
