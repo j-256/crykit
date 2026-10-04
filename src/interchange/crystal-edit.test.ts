@@ -13,6 +13,20 @@ import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crysta
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 
 describe('Crystal Edit reference import', () => {
+  it('recognizes gender-only projects and retains explicit flags, unknown fields and exact source bytes', async () => {
+    const input = { ID: 'synthetic-genders', EditorVersion: 34, Genders: [{ ID: 8, Name: 'Synthetic gender', BoostHP: false, BoostStr: true, FutureBonus: { value: 7 } }] }
+    const bytes = encode(input)
+    const preview = await previewImport(bytes, 'genders.json')
+    const catalog = preview.proposed.catalogs[0]!
+    expect(preview.counts.reference).toBe(1)
+    expect(preview.counts.ignored).toBe(0)
+    expect(modModelEntity(catalog, 'crystal-edit:Genders:8')).toMatchObject({ kind: 'other', fields: { 'Crystal Edit source record': { state: 'known', value: input.Genders[0] } } })
+    expect(catalog.legacy).toMatchObject({ gameRules: { version: 2, genders: input.Genders } })
+    expect(preview.proposed.sources[0]!.bytes).toEqual(bytes)
+    expect(preview.warnings.some(warning => warning.code === 'archived-models')).toBe(false)
+    expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
+  })
+
   it.each([34, 4, undefined])('recognizes placement-only format %s projects and preserves their exact source without inventing reference definitions', async editorVersion => {
     const input = { ID: 'synthetic-map-placements', Title: 'Synthetic placements', ...(editorVersion === undefined ? {} : { EditorVersion: editorVersion }), Entities: [{ ID: 900001, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 1, LootValue: 18 }, FutureField: { retained: true } }] }
     const bytes = new TextEncoder().encode(`\r\n${JSON.stringify(input, null, 2)}\r\n`)

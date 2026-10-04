@@ -4,12 +4,12 @@ import { resolveGameRules } from '../domain/game-rules'
 import { logicalEntityKey } from '../domain'
 import { STAT_KEYS } from '../domain/crystal-edit'
 import { STAT_LABELS } from '../domain/build-stats'
-import { CALCULATION_GENDERS, CALCULATION_GENDER_LABELS } from '../domain/calculation-plan'
+import { calculationGenderLabel } from '../domain/calculation-genders'
 import { calculateStatBreakdownResult, STAT_BREAKDOWN_COLUMNS } from '../domain/stat-breakdown'
 import { classRatingField } from '../domain/stat-ratings'
 import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, GameSetupRevision, LocalData, SlotDefinition } from '../domain/types'
 import { formatStatRange } from './BuildMechanics'
-import { Field } from './components'
+import { CalculationGenderField } from './CalculationGenderField'
 import { DefinitionArtwork } from './GameIcon'
 import { resolveEntity, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
@@ -32,14 +32,14 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
   if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Primary class is unknown. Numeric stats need a recorded class.' : 'No primary class selected. Numeric stats need a primary class.'}</p></section>
   const plan = content.calculation
   const [ratingField, ratings] = classRatingField(primary)
-  const genderLabel = plan?.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'Not specified (no bonus preview)'
+  const genderLabel = calculationGenderLabel(plan, rules.genders)
   return <section aria-label="Class stats" className="build-stat-overview">
-    <header><div className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={content.primaryClass}/><h3>{primary.name} stats</h3></div><span className="field__hint">Primary class</span></header>
+    <header><div className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={content.primaryClass}/><h3>{primary.name} stats</h3></div><span className="field__hint">Resting stat preview</span></header>
     <div className="build-stat-overview__sections">
       <section aria-label="Class growth ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings for base-stat scaling and growth.</p></section>
       <section aria-label="Stats at selected level">
         <h4>Level {plan?.level ?? 'unknown'} stats</h4>
-        {plan && onCalculationChange ? <Field label="Calculation gender"><select aria-label="Calculation gender" onChange={event => onCalculationChange({ ...plan, gender: event.target.value ? event.target.value as BuildCalculationPlan['gender'] : undefined })} value={plan.gender ?? ''}><option value="">Not specified (no bonus preview)</option>{CALCULATION_GENDERS.map(gender => <option key={gender} value={gender}>{CALCULATION_GENDER_LABELS[gender]}</option>)}</select></Field> : <p className="field__hint">Gender: {genderLabel}</p>}
+        {plan && onCalculationChange ? <CalculationGenderField genders={rules.genders} plan={plan} onChange={onCalculationChange}/> : <p className="field__hint">Gender: {genderLabel}</p>}
         {plan ? <>
           {!hasTotals && <CalculationStatus issues={result.issues} partial={columns.length > 0} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>}
           {columns.length > 0 && <><div className="structured-value__table"><table aria-label="Planned build stats" className="stat-breakdown"><thead><tr><th scope="col">Stat</th>{columns.map(column => <th className={`stat-breakdown__${column}`} key={column} scope="col">{COLUMN_LABELS[column]}</th>)}</tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row"><abbr aria-hidden="true" title={STAT_LABELS[stat]}>{stat}</abbr><span className="sr-only">{STAT_LABELS[stat]}</span></th>{columns.map(column => {

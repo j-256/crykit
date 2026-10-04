@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
 const MAX_SOURCE_NODES = 3_000_000
 const MAX_SOURCE_DEPTH = 64
-const MODEL_FAMILIES = ['Jobs', 'Abilities', 'Passives', 'Equipment', 'Items', 'Monsters', 'Statuses', 'Recipes', 'Biomes']
+const MODEL_FAMILIES = ['Jobs', 'Abilities', 'Passives', 'Equipment', 'Items', 'Monsters', 'Statuses', 'Recipes', 'Biomes', 'Genders']
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
 const DEFAULT_OUTPUT = 'src/assets/mod-sources'
 const DEFAULT_MANIFEST = 'src/catalog/bundled-mod-sources.json'

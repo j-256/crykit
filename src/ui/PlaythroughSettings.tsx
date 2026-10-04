@@ -13,7 +13,7 @@ function GameSetupSummary({ setup }: { setup: GameSetupRevision }) {
   const rules = resolveGameRules(setup, library.catalogs)
   const difficulty = setup.difficulty?.selection
   const difficultyLabel = difficulty?.state === 'known' ? rules.difficulties.find(value => value.id === difficulty.value)?.name ?? `Unavailable difficulty ${difficulty.value}` : knowledgeLabel(difficulty ?? { state: 'unknown' })
-  return <div className="playthrough-game-summary"><strong>{setup.label} · revision {setup.revision}</strong><dl className="definition-list"><DefinitionRow term="Game version">{knowledgeLabel(setup.gameVersion)}</DefinitionRow><DefinitionRow term="Difficulty">{difficultyLabel}</DefinitionRow><DefinitionRow term="Mods">{gameSetupModSummary(setup)}</DefinitionRow></dl></div>
+  return <div className="playthrough-game-summary"><strong>{setup.label} · revision {setup.revision}</strong><dl className="definition-list"><DefinitionRow term="Game version">{knowledgeLabel(setup.gameVersion)}</DefinitionRow><DefinitionRow term="Difficulty">{difficultyLabel}</DefinitionRow><DefinitionRow term="Mods">{gameSetupModSummary(setup, library.catalogs)}</DefinitionRow></dl></div>
 }
 
 export function PlaythroughSettings({ localData, disabled, onSelect, onCreate, onApply, run }: { localData: LocalData; disabled: boolean; onSelect: (id: PlaythroughId) => Promise<void>; onCreate: (label: string, setupId?: GameSetupRevisionId) => Promise<void>; onApply: (id: GameSetupRevisionId) => Promise<void>; run: (action: () => Promise<void>) => Promise<void> }) {

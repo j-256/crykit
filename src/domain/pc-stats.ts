@@ -2,14 +2,15 @@ import { calculationModResolver } from './calculation-mods'
 import type { GameRuleResolution } from './game-rules'
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_MODEL, PC_RULES } from './calculation-rules'
 import { definitionSourceRecord, equipmentRole, type MechanicsDefinition } from './mechanics-facts'
-import { nativeIdentity } from './native-game'
+import { nativeEntityId, nativeIdentity } from './native-game'
 import { nativeInteger } from './native-number'
 import { jsonRecord, MAX_GROWTH_RATING } from './crystal-edit'
 import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 import { entityDefinitionKey } from './core'
 import { catalogClassSource } from './build-mechanics'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
-import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
+import { crystalEditPlanningRecord, CRYSTAL_EDIT_VERSION_FIELD, supportsCrystalEditVersion } from './crystal-edit-compatibility'
+import { calculationGenderId, nativeGenderDefinitions, type GenderDefinition } from './calculation-genders'
 
 export type NativeRecord = Readonly<Record<string, unknown>>
 type Family = 'job' | 'equipment' | 'passive' | 'gender' | 'ability' | 'status'
@@ -21,12 +22,13 @@ export interface PCStatResult {
   readonly neutral: PCStats
   readonly male: PCStats
   readonly female: PCStats
+  readonly genders: Readonly<Record<string, PCStats>>
   readonly issues: readonly string[]
   readonly effects: readonly string[]
 }
 
-export function selectedPCStats(result: PCStatResult, gender: BuildCalculationPlan['gender']): PCStats {
-  return gender ? result[gender] : result.neutral
+export function selectedPCStats(result: PCStatResult, gender: BuildCalculationPlan['gender'], selection?: BuildCalculationPlan['genderSelection']): PCStats {
+  return selection ? result.genders[selection.id] ?? unknownStats() : gender ? result[gender] : result.neutral
 }
 const number = (record: NativeRecord | undefined, key: string) => nativeInteger(record?.[key]) ? record[key] as number : undefined
 const unknownStats = (): PCStats => Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, null]))
@@ -62,7 +64,7 @@ export function calculatePCStats(content: BuildRevisionContent, slots: readonly 
   try { return calculateRestingStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules) }
   catch {
     const empty = unknownStats()
-    return { base: empty, neutral: empty, male: empty, female: empty, effects: [], issues: [...unknownInputs, ...gameRules?.issues ?? [], 'Native arithmetic is outside the supported range.'] }
+    return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, effects: [], issues: [...unknownInputs, ...gameRules?.issues ?? [], 'Native arithmetic is outside the supported range.'] }
   }
 }
 
@@ -75,11 +77,11 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
   const mode = gameRules?.mode ?? plan?.pcMode ?? 'standard'
   const primary = nativeStatRecord(content.primaryClass, 'job', resolve, mode)
   const empty = unknownStats()
-  if (gameRules?.issues.length) return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
+  if (gameRules?.issues.length) return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, issues: [...issues, ...modScope.issues], effects: [] }
   if (!plan || plan.model !== undefined && plan.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
     if (!primary && !modScope.issues.size) issues.push('Primary class has no verified numeric record.')
     else if (primary) issues.push('Choose a supported native calculation level.')
-    return { base: empty, neutral: empty, male: empty, female: empty, issues: [...issues, ...modScope.issues], effects: [] }
+    return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, issues: [...issues, ...modScope.issues], effects: [] }
   }
   const level = plan.level
   const growth: Record<string, number> = Object.fromEntries(PC_RULES.coreStats.map(stat => [stat, 0]))
@@ -165,9 +167,14 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
     const mod = definition && 'legacy' in definition ? bundledModIdentity(definition) : undefined
     const metadata = definition && 'legacy' in definition && jsonRecord(definition.legacy) ? definition.legacy : undefined
     const links = jsonRecord(metadata?.passiveEntityIds) ? metadata.passiveEntityIds : {}
+    const model = definition?.fields['Crystal Edit model type']
+    const version = definition?.fields[CRYSTAL_EDIT_VERSION_FIELD]
+    const imported = model?.state === 'known' && model.value === 'Jobs' && version?.state === 'known' && supportsCrystalEditVersion(version.value)
     for (const id of job.PassiveIDs as unknown[]) {
       const target = typeof id === 'number' ? links[String(id)] ?? (mod ? bundledModEntityId(mod.key, 'Passives', id) : undefined) : undefined
-      const passive = typeof id === 'number' && binding ? nativeById('passive', id, mode) : source && typeof target === 'string' ? crystalRecord(resolve({ ...source.ref, entityId: target as typeof source.ref.entityId })) : undefined
+      const linked = source && typeof target === 'string' ? nativeStatRecord({ ...source.ref, entityId: target as typeof source.ref.entityId }, 'passive', resolve, mode) : undefined
+      const native = source && typeof id === 'number' && binding ? nativeStatRecord({ ...source.ref, entityId: nativeEntityId('passive', id) }, 'passive', resolve, mode) : undefined
+      const passive = typeof target === 'string' ? linked : native ?? (typeof id === 'number' && (binding || imported) ? nativeById('passive', id, mode) : undefined)
       if (!passive || typeof passive.IsInnate !== 'boolean') { issues.push('A class passive record is unavailable; its innate effects are unknown.'); continue }
       if (passive.IsInnate) apply(passive, passives, typeof passive.Name === 'string' ? passive.Name : 'Class innate', Boolean(binding))
     }
@@ -196,7 +203,9 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
   for (const mod of Object.values(PC_RULES.statMods)) vars[`tag.${mod.name}`] = Number(tags.has(mod.name))
   issues.push(...modScope.issues)
   const base: Record<string, number | null> = { ...empty }
-  const sheet = (gender?: NativeRecord): PCStats => {
+  const genderIssues: string[] = []
+  const sheet = (gender?: GenderDefinition): PCStats => {
+    if (gender?.issues.length) { genderIssues.push(...gender.issues); return empty }
     const scope = { ...vars }
     let known = growthKnown
     for (const [stat, descriptor] of Object.entries(PC_RULES.stats)) {
@@ -204,7 +213,7 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
       if (descriptor.formula) {
         const rating = number(primary, descriptor.rating!)
         if (rating === undefined || rating < 0 || rating > MAX_GROWTH_RATING || !growthKnown) { known = false; continue }
-        start = calculateFormula(descriptor.formula, [level, rating, growth[stat]!, Number(gender?.[descriptor.gender!] === true)])
+        start = calculateFormula(descriptor.formula, [level, rating, growth[stat]!, Number(gender?.boosts[stat as keyof GenderDefinition['boosts']] === true)])
       }
       if (!gender) base[stat] = start
       if (issues.length) continue
@@ -220,9 +229,13 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
     } catch { issues.push('A required calculation input is unavailable.'); return empty }
   }
   const neutral = sheet()
-  const male = sheet(nativeById('gender', PC_RULES.genders.male, mode))
-  const female = sheet(nativeById('gender', PC_RULES.genders.female, mode))
-  return { base, neutral, male, female, issues: [...new Set(issues)], effects: [...effects] }
+  const definitions = gameRules?.genders ?? nativeGenderDefinitions(mode)
+  const selected = calculationGenderId(plan)
+  const genders = Object.fromEntries(definitions.filter(gender => gender.id === PC_RULES.genders.male || gender.id === PC_RULES.genders.female || gender.id === selected).map(gender => [gender.id, sheet(gender)]))
+  if (selected !== undefined && !Object.hasOwn(genders, selected)) genderIssues.push(`Gender #${selected} is unavailable in this Game Setup. Select an enabled source version or another calculation gender.`)
+  const male = genders[PC_RULES.genders.male] ?? empty
+  const female = genders[PC_RULES.genders.female] ?? empty
+  return { base, neutral, male, female, genders, issues: [...new Set([...issues, ...genderIssues])], effects: [...effects] }
 }
 
 export function benchmarkDamage(stats: PCStats, id: string): number | null {

@@ -8,11 +8,12 @@ import type { CatalogEntity, CatalogRevisionId, CatalogSnapshot, EntityId, GameS
 
 export const MOD_CATALOG_SCHEMA = 'game-setup-mod-catalog-1'
 export const CRYSTAL_EDIT_CATALOG_SCHEMA = 'crystal-edit-json-1'
+export const MOD_COMPOSITION_VERSION = 2
 export const MAX_MOD_LAYERS = 100
 const MAX_NATIVE_ID = 0xffffffff
-const MODEL_KEY = /^crystal-edit:(Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes):(0|[1-9]\d*)$/
+const MODEL_KEY = /^crystal-edit:(Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes|Genders):(0|[1-9]\d*)$/
 const BASELINE_METADATA_KEYS = ['nativeIdentityBindings', 'nativeModeIdentityBindings', 'nativeEnums'] as const
-const NATIVE_MOD_FAMILIES: Readonly<Record<string, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', equipment: 'Equipment', item: 'Items', monster: 'Monsters', status: 'Statuses', recipe: 'Recipes', biome: 'Biomes' })
+const NATIVE_MOD_FAMILIES: Readonly<Record<string, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', equipment: 'Equipment', item: 'Items', monster: 'Monsters', status: 'Statuses', recipe: 'Recipes', biome: 'Biomes', gender: 'Genders' })
 
 export function modCatalogTitle(catalog: CatalogSnapshot): string {
   return jsonRecord(catalog.legacy) && typeof catalog.legacy.projectTitle === 'string' ? catalog.legacy.projectTitle : catalog.id.replace(/^crystal-edit:/, '')
@@ -44,8 +45,22 @@ export function modCatalogRevision(id: GameSetupRevision['id']): CatalogRevision
 }
 
 export function modReplacementKindMatches(target: CatalogEntity, incoming: CatalogEntity): boolean {
-  const source = incoming.fields['Crystal Edit source record']
-  return target.kind === incoming.kind || target.kind === 'innate' && incoming.kind === 'passive' && source?.state === 'known' && jsonRecord(source.value) && source.value.IsInnate === true
+  return target.kind === incoming.kind || ['innate', 'passive'].includes(target.kind) && ['innate', 'passive'].includes(incoming.kind)
+}
+
+export function nativeModReplacementLinks(baseline: CatalogSnapshot, incoming: CatalogSnapshot): ModComposition['links'] {
+  const targets = new Map<string, CatalogEntity[]>()
+  for (const entity of Object.values(baseline.entities)) {
+    const native = nativeIdentity(entity)
+    const family = native && native.mode === 'base' ? NATIVE_MOD_FAMILIES[native.database] : undefined
+    if (!native || !family) continue
+    const key = `crystal-edit:${family}:${native.databaseId}`
+    targets.set(key, [...targets.get(key) ?? [], entity])
+  }
+  return [...modModelRecords(incoming)].flatMap(([modelKey, entity]) => {
+    const candidates = targets.get(modelKey)
+    return candidates?.length === 1 && modReplacementKindMatches(candidates[0]!, entity) ? [{ modelKey, targetEntityId: candidates[0]!.id }] : []
+  })
 }
 
 export function bundledModReplacementLinks(baseline: CatalogSnapshot, incoming: CatalogSnapshot, bundled: readonly BundledLibraryMod[]): ModComposition['links'] {
@@ -75,6 +90,7 @@ export function bundledModReplacementLinks(baseline: CatalogSnapshot, incoming: 
 }
 
 export function assertModComposition(composition: ModComposition): void {
+  if (composition.version !== undefined && composition.version !== MOD_COMPOSITION_VERSION) throw new DomainError('INVALID_INPUT', 'Unsupported mod composition version')
   if (composition.layers.length > MAX_MOD_LAYERS) throw new DomainError('INVALID_INPUT', `A Game Setup supports up to ${MAX_MOD_LAYERS} imported mod layers`)
   const projects = new Set<string>()
   for (const layer of composition.layers) {
@@ -111,6 +127,7 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
   const baseline = modCatalogForPin(catalogs, composition.baseline)
   if (!baseline || baseline.schemaVersion === MOD_CATALOG_SCHEMA || baseline.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA) throw new DomainError('INVALID_INPUT', 'The mod baseline must be an available original catalog revision')
   const winners = new Map<string, Omit<ModLayerChange, 'targetEntityId' | 'targetState'>>()
+  const links = new Map(composition.links.map(link => [link.modelKey, link.targetEntityId]))
   const availableModels = new Map<string, CatalogEntity>()
   for (const layer of composition.layers) {
     const catalog = modCatalogForPin(catalogs, layer)
@@ -119,10 +136,14 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
       availableModels.set(modelKey, entity)
       if (!layer.enabled) continue
       const previous = winners.get(modelKey)
-      winners.set(modelKey, { modelKey, entity, source: layer, sourceTitle: modCatalogTitle(catalog), superseded: previous ? [...previous.superseded, previous.sourceTitle] : [] })
+      const localization = composition.version === MOD_COMPOSITION_VERSION && jsonRecord(catalog.legacy) && jsonRecord(catalog.legacy.gameRules) && catalog.legacy.gameRules.localization === true
+      const target = links.get(modelKey)
+      const original = previous?.entity ?? (target ? baseline.entities[target] : undefined)
+      if (localization && !original) continue
+      const effective = localization ? { ...original!, name: entity.name, ...(entity.rawDescription !== undefined ? { rawDescription: entity.rawDescription } : {}), fields: { ...original!.fields, ...(entity.fields.Description ? { Description: entity.fields.Description } : {}) } } : entity
+      winners.set(modelKey, { modelKey, entity: effective, source: layer, sourceTitle: modCatalogTitle(catalog), superseded: previous ? [...previous.superseded, previous.sourceTitle] : [] })
     }
   }
-  const links = new Map(composition.links.map(link => [link.modelKey, link.targetEntityId]))
   const occupiedTargets = new Map<string, string>()
   for (const link of composition.links) {
     if (!availableModels.has(link.modelKey)) throw new DomainError('INVALID_INPUT', 'A replacement link references a model absent from the chosen mod revisions')
@@ -140,16 +161,23 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     const target = links.get(modelKey)
     const targetEntityId = target ?? winner.entity.id
     const targetState = target ? 'linked' : links.has(modelKey) ? 'separate' : 'unresolved'
-    const entity: CatalogEntity = { ...winner.entity, id: targetEntityId, ...(target ? { kind: baseline.entities[target]!.kind } : {}), fields: { ...winner.entity.fields, 'Effective mod layer': { state: 'known', value: winner.sourceTitle, sources: winner.entity.sources } } }
+    const record = winner.entity.fields['Crystal Edit source record']
+    const kind = composition.version === MOD_COMPOSITION_VERSION ? ['innate', 'passive'].includes(winner.entity.kind) && record?.state === 'known' && jsonRecord(record.value) && typeof record.value.IsInnate === 'boolean' ? record.value.IsInnate ? 'innate' : 'passive' : winner.entity.kind : target ? baseline.entities[target]!.kind : winner.entity.kind
+    const entity: CatalogEntity = { ...winner.entity, id: targetEntityId, kind, fields: { ...winner.entity.fields, 'Effective mod layer': { state: 'known', value: winner.sourceTitle, sources: winner.entity.sources } } }
     entities[targetEntityId] = entity
     identities[modelKey] = targetEntityId
     changes.push({ ...winner, entity, targetEntityId, targetState, superseded: target ? [baseline.entities[target]!.name + ' (bundled)', ...winner.superseded] : winner.superseded })
   }
+  const nativeReferences = new Map<string, EntityId>(Object.values(baseline.entities).flatMap(entity => {
+    const identity = nativeIdentity(entity)
+    const family = identity && identity.mode === 'base' ? NATIVE_MOD_FAMILIES[identity.database] : undefined
+    return family ? [[`crystal-edit:${family}:${identity!.databaseId}`, entity.id] as const] : []
+  }))
   for (const [index, change] of changes.entries()) {
     const field = change.entity.fields['Crystal Edit source record']
     if (change.entity.kind !== 'class' || field?.state !== 'known' || !jsonRecord(field.value) || !Array.isArray(field.value.PassiveIDs)) continue
     const passives = Object.fromEntries(field.value.PassiveIDs.flatMap(id => {
-      const target = identities[`crystal-edit:Passives:${id}`]
+      const target = identities[`crystal-edit:Passives:${id}`] ?? (composition.version === MOD_COMPOSITION_VERSION && typeof id === 'number' ? nativeReferences.get(`crystal-edit:Passives:${id}`) : undefined)
       return target ? [[String(id), target]] : []
     }))
     const entity = { ...change.entity, legacy: { ...(jsonRecord(change.entity.legacy) ? change.entity.legacy : {}), passiveEntityIds: passives } }
@@ -157,17 +185,18 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     changes[index] = { ...change, entity }
   }
   const missing = new Set<string>()
+  const available = (family: string, id: unknown) => Boolean(identities[`crystal-edit:${family}:${id}`]) || composition.version === MOD_COMPOSITION_VERSION && nativeReferences.has(`crystal-edit:${family}:${id}`)
   for (const change of changes) {
     const field = change.entity.fields['Crystal Edit source record']
     const record = field?.state === 'known' && jsonRecord(field.value) ? field.value : undefined
     if (!record) continue
     for (const [key, family] of [['AbilityIDs', 'Abilities'], ['PassiveIDs', 'Passives']] as const) {
-      if (Array.isArray(record[key])) for (const id of record[key]) if (!identities[`crystal-edit:${family}:${id}`]) missing.add(`${family} #${id}`)
+      if (Array.isArray(record[key])) for (const id of record[key]) if (!available(family, id)) missing.add(`${family} #${id}`)
     }
     if (Array.isArray(record.LearnTree)) for (const column of record.LearnTree) if (Array.isArray(column)) for (const node of column) {
       if (!jsonRecord(node)) continue
       const family = node.NodeType === LEARN_NODE_TYPES.ability ? 'Abilities' : node.NodeType === LEARN_NODE_TYPES.passive ? 'Passives' : undefined
-      if (family && !identities[`crystal-edit:${family}:${node.DataID}`]) missing.add(`${family} #${node.DataID}`)
+      if (family && !available(family, node.DataID)) missing.add(`${family} #${node.DataID}`)
     }
   }
   return { entities, identities, changes, unresolvedReferences: [...missing] }
@@ -179,7 +208,7 @@ export function composeModCatalog(gameSetup: GameSetupRevision, catalogs: readon
   const result = composeModLayers(gameSetup.modComposition, catalogs)
   const metadata = jsonRecord(baseline.legacy) ? baseline.legacy : {}
   const preserved = Object.fromEntries(BASELINE_METADATA_KEYS.flatMap(key => metadata[key] === undefined ? [] : [[key, metadata[key]]]))
-  return { ...baseline, revisionId: modCatalogRevision(gameSetup.id), schemaVersion: MOD_CATALOG_SCHEMA, checksum: `composition:${gameSetup.id}`, importedAt: gameSetup.createdAt, entities: Object.fromEntries(result.changes.map(change => [change.targetEntityId, change.entity])), claims: [], applicability: { state: 'unknown', reason: 'User-selected mod priority and bundled links; game load order and platform parity are unverified' }, rights: { state: 'unknown', reason: 'Source catalogs retain their individual rights' }, legacy: { ...preserved, modGameSetupRevisionId: gameSetup.id, modBaseline: { ...gameSetup.modComposition.baseline }, crystalEditIdentities: result.identities, unresolvedReferences: result.unresolvedReferences } }
+  return { ...baseline, revisionId: modCatalogRevision(gameSetup.id), schemaVersion: MOD_CATALOG_SCHEMA, checksum: `composition:${gameSetup.id}`, importedAt: gameSetup.createdAt, entities: Object.fromEntries(result.changes.map(change => [change.targetEntityId, change.entity])), claims: [], applicability: { state: 'unknown', reason: 'User-selected mod priority and bundled links; game load order and platform parity are unverified' }, rights: { state: 'unknown', reason: 'Source catalogs retain their individual rights' }, legacy: { ...preserved, ...(gameSetup.modComposition.version ? { modCompositionVersion: gameSetup.modComposition.version } : {}), modGameSetupRevisionId: gameSetup.id, modBaseline: { ...gameSetup.modComposition.baseline }, crystalEditIdentities: result.identities, unresolvedReferences: result.unresolvedReferences } }
 }
 
 export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {

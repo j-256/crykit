@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
-import { bundledModReplacementLinks, composeModLayers, MAX_MOD_LAYERS, modCatalogForPin, modCatalogTitle, modModelRecords, modReplacementKindMatches } from '../domain/mod-layers'
+import { bundledModReplacementLinks, composeModLayers, MAX_MOD_LAYERS, MOD_COMPOSITION_VERSION, modCatalogForPin, modCatalogTitle, modModelRecords, modReplacementKindMatches, nativeModReplacementLinks } from '../domain/mod-layers'
 import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogEntity, CatalogSnapshot, EntityId, ModComposition } from '../domain/types'
 import { modLibrary } from '../domain/mod-library'
@@ -66,11 +66,11 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
       if (current.layers.some(previous => previous.catalogId === layer.catalogId && previous.catalogRevisionId === layer.catalogRevisionId)) continue
       const incoming = modCatalogForPin(catalogs, layer)
       if (!incoming) continue
-      for (const link of bundledModReplacementLinks(original, incoming, BUNDLED_MOD_LIBRARY)) {
+      for (const link of [...bundledModReplacementLinks(original, incoming, BUNDLED_MOD_LIBRARY), ...nativeModReplacementLinks(original, incoming)]) {
         if (!links.some(previous => previous.modelKey === link.modelKey || previous.targetEntityId === link.targetEntityId)) links.push(link)
       }
     }
-    onChange({ ...value, links })
+    onChange({ ...value, version: MOD_COMPOSITION_VERSION, links })
   }
   const add = () => {
     const chosen = projectChoices.find(catalog => catalog.id === project) ?? projectChoices[0]
@@ -87,7 +87,7 @@ export function ModLayersEditor({ composition, onChange }: { composition?: ModCo
   const unresolved = result.value?.changes.filter(value => value.targetState === 'unresolved').length ?? 0
   return <section aria-label="Imported mod layers" className="stack mod-layers">
     <div className="split"><div><h3>Imported mod layers</h3><p>Enable exact imported versions and arrange their priority. Later enabled layers replace earlier records with the same model family and native ID.</p></div><Badge tone="info">{current.layers.filter(layer => layer.enabled).length} enabled</Badge></div>
-    <p className="field__hint">This is the planner's selected priority. Confirm it against your game's mod order. Importing a file alone does not enable it. Updates to bundled projects link matching native IDs automatically; review those links below.</p>
+    <p className="field__hint">This is the planner's selected priority. Confirm it against your game's mod order. Importing a file alone does not enable it. Matching native families and IDs suggest replacement links automatically; review those links below.</p>
     {imported.length === 0 && <InlineNotice title="No imported mod files">Save a Crystal Edit JSON from the Mods editor to CryKit, then select its version here.</InlineNotice>}
     {projectChoices.length > 0 && <div className="mod-layers__add"><Field label="Imported mod to add"><select onChange={event => setProject(event.target.value)} value={project || projectChoices[0]!.id}>{projectChoices.map(catalog => <option key={catalog.id} value={catalog.id}>{modCatalogTitle(catalog)}</option>)}</select></Field><Button disabled={current.layers.length >= MAX_MOD_LAYERS} onClick={add} tone="secondary" type="button">Add mod layer</Button></div>}
     <ol aria-label="Mod priority" className="mod-layers__list">{current.layers.map((layer, index) => {

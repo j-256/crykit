@@ -4,6 +4,11 @@ import { AppDataError } from '../interchange/errors'
 import { catalogEntity } from '../domain/entity-identities'
 import { CRYSTAL_EDIT_VERSION_FIELD } from '../domain/crystal-edit-compatibility'
 import { jsonRecord } from '../domain/crystal-edit'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import { modCatalogForPin, modCatalogTitle } from '../domain/mod-layers'
+import { normalizeModName } from '../domain/mods'
+
+const MOD_SUMMARY_NAME_LIMIT = 2
 
 export function ownRecordValue<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
   return Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined
@@ -66,11 +71,18 @@ export function knowledgeTone<T>(knowledge: Knowledge<T>) {
   return 'warning' as const
 }
 
-export function gameSetupModSummary(setup: Pick<GameSetupRevision, 'mods' | 'modComposition'>): string {
-  const imported = setup.modComposition?.layers.filter(layer => layer.enabled).length ?? 0
-  const named = setup.mods.state === 'known' ? setup.mods.value.length : undefined
-  if (!imported) return named === undefined ? 'Mods unresolved' : named ? `${named} named mods enabled` : 'No mods selected'
-  return `${imported} imported mod${imported === 1 ? '' : 's'} enabled${named ? ` · ${named} named choices` : ''}`
+export function gameSetupModSummary(setup: Pick<GameSetupRevision, 'mods' | 'modComposition'>, catalogs: readonly CatalogSnapshot[] = []): string {
+  const layers = setup.modComposition?.layers.filter(layer => layer.enabled) ?? []
+  const aliases = new Set(layers.flatMap(layer => BUNDLED_MOD_LIBRARY.find(project => project.id === layer.catalogId)?.catalogNames?.map(normalizeModName) ?? []))
+  const titles = layers.map(layer => {
+    const catalog = modCatalogForPin(catalogs, layer)
+    const project = BUNDLED_MOD_LIBRARY.find(project => project.id === layer.catalogId)
+    return catalog ? modCatalogTitle(catalog) : project ? `${project.title} (source unavailable)` : 'Unavailable mod source'
+  })
+  const named = setup.mods.state === 'known' ? setup.mods.value.filter(name => !aliases.has(normalizeModName(name))) : []
+  const compact = (names: readonly string[]) => `${names.slice(0, MOD_SUMMARY_NAME_LIMIT).join(', ')}${names.length > MOD_SUMMARY_NAME_LIMIT ? ` + ${names.length - MOD_SUMMARY_NAME_LIMIT} more` : ''}`
+  const parts = [...(titles.length ? [`Enabled: ${compact(titles)}`] : []), ...(named.length ? [`Named only: ${compact(named)}`] : [])]
+  return parts.join(' · ') || (setup.mods.state === 'known' ? 'No mods selected' : 'Mods unresolved')
 }
 
 export function activeGameSetup(localData: LocalData): GameSetupRevision | undefined {
