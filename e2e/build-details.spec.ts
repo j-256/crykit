@@ -238,10 +238,7 @@ test('class choices show medium armor icons and identify Brawler as Moonlight Pr
   await classPicker.fill('Brawler')
   const brawler = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
   const modBadge = '[data-mod-badge="Moonlight Project"]'
-  await expect(brawler).toHaveCount(0)
-  await openBuildPickerFilters(page)
-  await results.getByText('Broader planning options', { exact: true }).click()
-  await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
+  await expect(brawler).toBeVisible()
   await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project')
   await expect(brawler).toHaveAttribute('data-mod-state', 'unknown')
   await expect(brawler).toContainText("Mod status unknown in this Build's Game Setup. You can still select it.")
