@@ -34,7 +34,7 @@ function equipmentIcon(role: SlotDefinition['equipmentRole']): IconName {
   return 'box'
 }
 
-function SummarySelection({ label, value, localData, catalogs, gameSetup, empty, compact = false, hideLabel = false, emptyIcon, role, occupiedBy, occupiedValue, onActivate, displayName }: { label: string; value?: EntityRef | null; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; empty: string; compact?: boolean; hideLabel?: boolean; emptyIcon?: IconName; role?: SlotDefinition['equipmentRole']; occupiedBy?: string; occupiedValue?: EntityRef; onActivate?: () => void; displayName?: string }) {
+function SummarySelection({ label, value, localData, catalogs, gameSetup, empty, compact = false, hideLabel = false, showModLabels = true, emptyIcon, role, occupiedBy, occupiedValue, onActivate, displayName }: { label: string; value?: EntityRef | null; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; empty: string; compact?: boolean; hideLabel?: boolean; showModLabels?: boolean; emptyIcon?: IconName; role?: SlotDefinition['equipmentRole']; occupiedBy?: string; occupiedValue?: EntityRef; onActivate?: () => void; displayName?: string }) {
   const name = value ? displayName ?? entityName(localData, catalogs, value) : occupiedBy ? `Occupied by ${occupiedBy}` : empty
   const definition = value ? resolveEntity(localData, catalogs, value) : undefined
   const subCommand = label === 'Sub-command'
@@ -47,7 +47,7 @@ function SummarySelection({ label, value, localData, catalogs, gameSetup, empty,
   const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(permissionNote ? [permissionNote] : []), ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
   const content = <>
     {value ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={value}/> : occupiedValue ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={occupiedValue}/> : emptyIcon ? <Icon className="build-card__selection-empty-icon" data-empty-slot-icon={emptyIcon} name={emptyIcon}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
-    {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="definition-badge-heading"><span className="build-card__selection-name">{name}</span><DefinitionModLabel localData={localData} gameSetup={gameSetup} value={value}/></span></span>}
+    {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="definition-badge-heading"><span className="build-card__selection-name">{name}</span>{showModLabels && <DefinitionModLabel localData={localData} gameSetup={gameSetup} value={value}/>}</span></span>}
   </>
   const shared = { className: 'build-card__selection', 'data-compact': compact || undefined, 'data-empty': !value && !occupiedBy || undefined, 'data-occupied-by-two-handed': occupiedBy || undefined, 'data-tooltip': tooltip, title: tooltip }
   return onActivate
@@ -73,7 +73,7 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
   </span>
 }
 
-export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean }) {
+export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false, showModLabels = true }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean; showModLabels?: boolean }) {
   const [inspectedSlotId, setInspectedSlotId] = useState<string>()
   const slots = [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
   const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
@@ -91,8 +91,8 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
   return <span className="build-loadout-summary" data-validity={report.status}>
     {report.status === 'invalid' && <span className="build-loadout-summary__warning"><Icon name="warning"/><strong>Needs changes</strong><small>{invalidIssues} known {invalidIssues === 1 ? 'issue' : 'issues'}</small></span>}
     <span className="build-card__classes">
-      <SummarySelection catalogs={catalogs} empty="No class selected" label="Class" localData={localData} gameSetup={gameSetup} value={content.primaryClass}/>
-      <SummarySelection catalogs={catalogs} empty="No sub-command" label="Sub-command" localData={localData} gameSetup={gameSetup} value={content.secondaryClass} displayName={secondary ? subCommandLabel({ record: secondary, name: secondary.name }) : undefined}/>
+      <SummarySelection catalogs={catalogs} empty="No class selected" label="Class" localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={content.primaryClass}/>
+      <SummarySelection catalogs={catalogs} empty="No sub-command" label="Sub-command" localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={content.secondaryClass} displayName={secondary ? subCommandLabel({ record: secondary, name: secondary.name }) : undefined}/>
     </span>
     <span className="build-card__summary-group">
       <span className="build-card__summary-label" title="Equipment"><Icon name="sword"/><span className="sr-only">Equipment</span></span>
@@ -101,7 +101,7 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
         const selection = content.equipment[slot.id]
         const occupiedBy = role === 'offHand' ? twoHandedMain : undefined
         const sharedMainHandCopy = Boolean(occupiedBy && selection?.allocationId && selection.allocationId === mainHandSelection?.allocationId)
-        return <SummarySelection catalogs={catalogs} compact={!equipmentNames} empty="Empty" emptyIcon={equipmentIcon(role)} key={slot.id} label={slot.label} occupiedBy={occupiedBy?.name} occupiedValue={!selection || sharedMainHandCopy ? occupiedBy?.value : undefined} onActivate={onEquipmentSelect ? () => onEquipmentSelect(slot.id) : () => setInspectedSlotId(slot.id)} localData={localData} role={role} gameSetup={gameSetup} value={sharedMainHandCopy ? null : selection?.ref}/>
+        return <SummarySelection catalogs={catalogs} compact={!equipmentNames} empty="Empty" emptyIcon={equipmentIcon(role)} key={slot.id} label={slot.label} occupiedBy={occupiedBy?.name} occupiedValue={!selection || sharedMainHandCopy ? occupiedBy?.value : undefined} onActivate={onEquipmentSelect ? () => onEquipmentSelect(slot.id) : () => setInspectedSlotId(slot.id)} localData={localData} role={role} gameSetup={gameSetup} showModLabels={showModLabels} value={sharedMainHandCopy ? null : selection?.ref}/>
       })}</span>
     </span>
     <span className="build-card__summary-group">
@@ -110,7 +110,7 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
       {content.passives.length ? <span className="build-card__passives" role="list">{content.passives.map((selection, index) => {
         const definition = resolveEntity(localData, catalogs, selection.ref)
         const cost = definition ? passivePointCost(definition) : undefined
-        return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} localData={localData} gameSetup={gameSetup} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
+        return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
       })}</span> : <small className="sr-only">No passives selected</small>}
     </span>
     <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'Inspect the selected equipment definition.'} onClose={() => setInspectedSlotId(undefined)} footer={onEquipmentEdit && inspectedSlot && <Button onClick={() => { const slotId = inspectedSlot.id; setInspectedSlotId(undefined); onEquipmentEdit(slotId) }} type="button">Edit this slot</Button>}>

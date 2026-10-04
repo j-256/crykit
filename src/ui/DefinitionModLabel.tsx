@@ -16,8 +16,8 @@ function modStateTone(state?: DefinitionModAvailability['state']) {
   return state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
 }
 
-export function ModStateBadge({ state }: { readonly state: DefinitionModAvailability['state'] }) {
-  return <Badge tone={modStateTone(state)}>{MOD_STATE_LABELS[state]}</Badge>
+export function ModStateBadge({ state, disabledLabel = MOD_STATE_LABELS.disabled }: { readonly state: DefinitionModAvailability['state']; readonly disabledLabel?: string }) {
+  return <Badge tone={modStateTone(state)}>{state === 'disabled' ? disabledLabel : MOD_STATE_LABELS[state]}</Badge>
 }
 
 export function ModBadge({ name, state, className = '', showState = true }: { readonly name: string; readonly state?: DefinitionModAvailability['state']; readonly className?: string; readonly showState?: boolean }) {

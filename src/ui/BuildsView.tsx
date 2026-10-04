@@ -27,6 +27,7 @@ import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { isReferenceResearchRoute, parentRoute, routeWithOverlay, useNavigation, useNavigationBlocker, type AppRoute, type BuildsPageRoute } from './navigation'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import { BuildLoadoutSummary, PassiveCapacityMeter } from './BuildLoadoutSummary'
+import { BuildModsBadge } from './BuildModsBadge'
 import { FIELD_FOCUS_QUERY_KEY, fieldFocusQuery, focusFieldElement } from './field-focus'
 import { buildEquipmentPermissions } from '../domain/build-mechanics'
 import { ShareButton } from './ShareButton'
@@ -99,9 +100,9 @@ function BuildCard({ build, selected, onSelect, onSlotSelect, localData, catalog
   const pinnedRevision = revision?.buildId === build.id ? revision : undefined
   const gameSetup = pinnedRevision ? ownRecordValue(localData.gameSetups, pinnedRevision.gameSetupRevisionId) : undefined
   return <article aria-current={selected ? 'true' : undefined} className="build-card" onClick={event => { if (event.currentTarget.contains(event.target as Node) && !(event.target as HTMLElement).closest('button, a, input, select, textarea')) onSelect() }}>
-    <span className="build-card__header"><button className="build-card__open" onClick={event => { event.stopPropagation(); onSelect() }} type="button"><strong>{build.title}</strong></button></span>
+    <span className="build-card__header"><button className="build-card__open" onClick={event => { event.stopPropagation(); onSelect() }} type="button"><strong>{build.title}</strong></button>{pinnedRevision && <BuildModsBadge buildTitle={build.title} requirements={buildModRequirements(pinnedRevision.content, localData, catalogs, gameSetup)}/>}</span>
     <small className="build-card__meta">{gameSetup?.label ?? 'Game Setup unavailable'} · {pinnedRevision ? `revision ${pinnedRevision.revision}` : build.latestRevisionId ? 'checkpoint unavailable' : 'no revision'}</small>
-    {pinnedRevision ? <BuildLoadoutSummary catalogs={catalogs} content={pinnedRevision.content} onEquipmentSelect={onSlotSelect} localData={localData} gameSetup={gameSetup}/> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
+    {pinnedRevision ? <BuildLoadoutSummary catalogs={catalogs} content={pinnedRevision.content} onEquipmentSelect={onSlotSelect} localData={localData} gameSetup={gameSetup} showModLabels={false}/> : <span className="build-card__unavailable"><Icon name={build.latestRevisionId ? 'warning' : 'layers'}/>{build.latestRevisionId ? 'Saved checkpoint unavailable' : 'Save a checkpoint to summarize this build'}</span>}
     {(build.tags.length > 0 || showShare && pinnedRevision) && <div className="build-card__actions">{build.tags.length > 0 && <span className="cluster">{build.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>}{showShare && pinnedRevision && <ShareButton disabled={shareBlocked} localData={localData} target={{ kind: 'build', revisionId: pinnedRevision.id }}/>}</div>}
   </article>
 }
