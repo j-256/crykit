@@ -2,7 +2,7 @@ import type { SlotDefinition } from '../domain/types'
 import type { DefinitionOption } from './definitions'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import { equipmentFacts, equipmentFitsRole, equipmentRole } from '../domain/mechanics-facts'
-import { nativeSourceRecord } from '../domain/native-game'
+import { nativeDisplayName, nativeSourceRecord } from '../domain/native-game'
 
 const WEAPON_CATEGORIES = ['Axes', 'Bows', 'Daggers', 'Katanas', 'Rapiers', 'Scythes', 'Spears', 'Staves', 'Swords', 'Wands', 'Wand', 'Two-Handed Staff']
 const HAND_CATEGORIES = [...WEAPON_CATEGORIES, 'Shields', 'Books', 'Pouches', 'Tools']
@@ -10,9 +10,13 @@ const HEAD_CATEGORIES = ['Heavy helmets', 'Light hats', 'Medium headgear']
 const BODY_CATEGORIES = ['Heavy armor', 'Light armor', 'Medium armor']
 const KNOWN_CATEGORIES = new Set([...HAND_CATEGORIES, ...HEAD_CATEGORIES, ...BODY_CATEGORIES, 'Accessories', 'Consumables', 'Crafting', 'Fishing', 'Key Items', 'Keys', 'Maps', 'Seeds'])
 
-export function commandName(option: DefinitionOption): string | undefined {
+export function commandName(option: Pick<DefinitionOption, 'record'>): string | undefined {
   const command = option.record.fields[CLASS_FIELDS.command] ?? option.record.fields[CRYSTAL_EDIT_FIELDS.command] ?? Object.entries(option.record.fields).find(([key]) => key.toLowerCase() === 'command')?.[1]
   return command?.state === 'known' && typeof command.value === 'string' ? command.value : undefined
+}
+
+export function subCommandLabel(option: Pick<DefinitionOption, 'record' | 'name'>): string {
+  return `${commandName(option) ?? 'Unknown command'} (${nativeDisplayName(option.record, option.name)})`
 }
 
 export function matchesSlot(option: DefinitionOption, label: string) {

@@ -155,7 +155,8 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   await rowan.getByRole('button', { name: 'Open Main hand: Short Sword', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).not.toBeVisible()
-  await expect(page.locator('.build-layout > .build-library')).toHaveCSS('position', 'sticky')
+  await expect(page.locator('.build-layout > .build-library')).not.toHaveAttribute('open')
+  await expect(page.locator('.build-layout > .build-library')).toHaveCSS('position', 'static')
   const mainHand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   const focusedSlot = page.locator('.slot-entry').filter({ has: mainHand })
   await expect(page).toHaveURL(/focus=slot%3A/)
@@ -169,6 +170,7 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   expect(Math.abs(centeredDetailArtwork.y)).toBeLessThan(1)
 
   const scrollBeforeAccessory = await page.evaluate(() => window.scrollY)
+  await page.locator('.build-library > summary').click()
   const selectedRowan = page.locator('.build-library .build-card').filter({ hasText: 'Rowan: sample Warrior' })
   await selectedRowan.getByRole('button', { name: 'Open Accessory 1: Empty', exact: true }).click()
   const accessory = page.getByRole('combobox', { name: 'Accessory 1', exact: true })
@@ -267,7 +269,7 @@ test('invalid builds remain saveable and stay red in the library and team', asyn
   await expect(page.getByRole('button', { name: 'Save build', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
 
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   const card = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Untitled build' })
   await expect(card.locator('.build-loadout-summary')).toHaveAttribute('data-validity', 'invalid')
   await expect(card).toContainText('Needs changes')

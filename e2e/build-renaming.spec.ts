@@ -1,4 +1,4 @@
-import { closeBuildActions, clickBuildAction } from './planning-header-helpers'
+import { closeBuildActions, clickBuildAction, openBuildComparison, openBuildLibrary } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
 })
 
-test('renaming persists the title while preserving every checkpoint and team assignment', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+test('renaming persists the title while preserving every checkpoint and team assignment', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = await exportLocalData(page)
   const build = Object.values(before.builds).find(build => build.title === ORIGINAL_TITLE)!
   await rename(page, `  ${RENAMED_TITLE}  `)
@@ -49,7 +49,7 @@ test('renaming persists the title while preserving every checkpoint and team ass
   expect(after.playthroughs).toEqual(before.playthroughs)
   await page.reload()
   await expect(page.getByRole('heading', { name: RENAMED_TITLE, exact: true })).toBeVisible()
-  if (isMobile) await page.locator('.build-library > summary').click()
+  await openBuildLibrary(page)
   await expect(page.getByRole('button', { name: RENAMED_TITLE, exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
@@ -68,13 +68,14 @@ test('canceling and saving an unchanged title make no local transaction', async 
 
 test('renaming keeps an unfinished loadout and its navigation guard even when the library search stops matching', async ({ page }) => {
   const before = await exportLocalData(page)
+  await openBuildLibrary(page)
   await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(ORIGINAL_TITLE)
   await chooseWizard(page)
   await rename(page, RENAMED_TITLE)
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
   await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
@@ -125,7 +126,7 @@ test('failed title persistence retains both drafts for retry without creating a 
   await expect(page.getByRole('heading', { name: RENAMED_TITLE, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Rename', exact: true })).toBeFocused()
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   const after = await exportLocalData(page)
@@ -137,7 +138,7 @@ test('a blank title cannot pass the navigation guard and discard leaves the name
   const before = await exportLocalData(page)
   await rename(page, '   ')
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
   await expect(page.getByText('Build details not saved', { exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toHaveValue('   ')

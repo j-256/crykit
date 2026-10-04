@@ -35,7 +35,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   const armor = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Armor$/ }) })
   await loadedIcons(armor, 3)
   for (const image of await armor.locator('img').all()) await expect(image).toHaveAttribute('src', /equipment-types-[^/]+\.png$/)
-  await details.getByText('All reference fields & sources', { exact: true }).click()
+  await details.getByText('Provenance & all reference fields', { exact: true }).click()
   await details.getByText('Menu icon sources', { exact: true }).click()
   await expect(details.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', /File.*SwordAbilityIcon.*oldid=/)
 

@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { STARTER_CATALOG } from '../catalog'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
-import type { CatalogRef, PersonalDefinitionId, ValidationIssue } from '../domain/types'
+import type { CatalogRef, JsonValue, PersonalDefinitionId, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, similarNameOptions, summaryFactLines } from './build-evidence'
+import { compactKnowledge, decisionFacts, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
 
 const localData = createBlankLocalData()
 const options = buildDefinitionOptions(localData, [STARTER_CATALOG])
 const option = (name: string) => options.find((entry) => entry.name === name)!
+const NATIVE_CRIT_RESIST_TAG = 53
+const NATIVE_FLAT_HP_TAG = 0
+const NATIVE_PERCENT_HP_TAG = 20
 
 describe('build choice evidence', () => {
   it('excludes only identified reference articles, including their personal lineage', () => {
@@ -44,6 +47,72 @@ describe('build choice evidence', () => {
   it('condenses overlapping contribution fields into unique tooltip lines', () => {
     expect(summaryFactLines(option('Oak Wand').record)).toEqual(['Attack: +42', 'Mind: +12', 'Max. MP: +4'])
     expect(summaryFactLines(option('Short Sword').record)).not.toContain('Hands: 1')
+    expect(summaryFactLines({ ...option('Short Sword').record, listedContributions: undefined, fields: { Stat: { state: 'known', value: 'Mind: +2.5\nMind: +25' } } })).toEqual(['Mind: +2.5', 'Mind: +25'])
+  })
+
+  it('includes native passive descriptions alongside PP and deduplicates repeated effect lines', () => {
+    const passive = { ...option('HP Boost'), description: 'Increase maximum HP by 20%.', record: { ...option('HP Boost').record, listedContributions: undefined, fields: { PP: { state: 'known' as const, value: 3 }, Description: { state: 'known' as const, value: 'Increase maximum HP by 20%.' } } } }
+    expect(selectionSummaryLines(passive)).toEqual(['Increase maximum HP by 20%.', 'PP: 3'])
+    const ring = { ...option('Sanity Ring'), description: 'Immune to Confusion.\nMind: +10', record: { ...option('Sanity Ring').record, listedContributions: undefined, fields: { Effect: { state: 'known' as const, value: 'Immune to Confusion.\nMind: +10' }, 'Other effects': { state: 'known' as const, value: 'Immune to Confusion.' }, Stat: { state: 'known' as const, value: 'Mind: +10' }, 'Stat bonuses': { state: 'known' as const, value: 'Mind: +10' } } } }
+    expect(selectionSummaryLines(ring)).toEqual(['Immune to Confusion.', 'Mind: +10'])
+    expect(Object.keys(ring.record.fields)).toHaveLength(4)
+  })
+
+  it('uses one effect representation while preserving every original source field', () => {
+    const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
+    const sanity = selectionSummaryLines(bundled.find(value => value.name === 'Sanity Ring')!)
+    expect(sanity.filter(line => /confusion/i.test(line))).toHaveLength(1)
+    expect(sanity.filter(line => /mind/i.test(line))).toHaveLength(1)
+    expect(sanity.filter(line => /spirit/i.test(line))).toHaveLength(1)
+    expect(selectionSummaryLines(bundled.find(value => value.name === 'Tall Stand Ring')!).filter(line => /defen[cs]e/i.test(line))).toHaveLength(1)
+    const original = bundled.find(value => value.name === 'Tall Stand Ring')!
+    expect(summaryFactLines(original.record)).toEqual(selectionSummaryLines(original))
+    expect(summaryFactLines(bundled.find(value => value.name === 'Sanity Ring')!.record)).toEqual(sanity)
+    expect(original.record.fields.Effect).toMatchObject({ state: 'known', value: '25% extra Physical Defence at Full HP.' })
+    expect(original.record.fields['Other effects']).toMatchObject({ state: 'known', value: 'Gain 25% more Defense when at Max. HP' })
+    const conflicting = { ...original, record: { ...original.record, fields: { ...original.record.fields, Effect: { state: 'conflicting' as const, claims: [{ value: 'First source', sources: [] }, { value: 'Second source', sources: [] }] } } } }
+    expect(selectionSummaryLines(conflicting)).toContain('Effect: Conflicting sources')
+  })
+
+  it('deduplicates unitless stat fragments only when the native vocabulary corroborates their percent display', () => {
+    const shield = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(value => value.name === 'Diamond Shield')!
+    const originalFields = JSON.stringify(shield.record.fields)
+    expect(summaryFactLines(shield.record)).toEqual(['Defense: +100', 'Crit Resist: +25%', 'Evasion: -50', 'Cost: 350000 Copper'])
+    expect(shield.record.fields.Stat).toMatchObject({ state: 'known', value: 'Evasion: -50\nCrit Resist: +25' })
+    expect(shield.record.fields['Other effects']).toMatchObject({ state: 'known', value: 'Crit Resist: +25%' })
+    expect(JSON.stringify(shield.record.fields)).toBe(originalFields)
+  })
+
+  it('retains uncorroborated units, distinct amounts, conditions, and unresolved source facts', () => {
+    const known = (value: JsonValue) => ({ state: 'known' as const, value })
+    const record = {
+      ...option('Short Sword').record,
+      listedContributions: undefined,
+      legacy: { native: { database: 'equipment', databaseId: 9001, mode: 'base' } },
+      fields: {
+        'Game version': known('1.6.9'),
+        'Native source record': known({ StatMods: [{ Tag: NATIVE_CRIT_RESIST_TAG, Value1: 25, Value2: 0, Value3: 0 }] }),
+        'Other effects': known('Crit Resist: +25%'),
+        Stat: known('Crit Resist: +25'),
+      },
+    }
+    expect(summaryFactLines(record)).toEqual(['Crit Resist: +25%'])
+    expect(summaryFactLines({ ...record, legacy: undefined })).toContain('Crit Resist: +25')
+    for (const fields of [
+      { 'Native source record': { state: 'unknown' as const } },
+      { 'Game version': known('other-version') },
+      { 'Native source record': known({ StatMods: [{ Tag: NATIVE_CRIT_RESIST_TAG, Value1: 50, Value2: 0, Value3: 0 }] }) },
+      { 'Native source record': known({ StatMods: [{ Tag: NATIVE_CRIT_RESIST_TAG, Value1: 25, Value2: 1, Value3: 0 }] }) },
+      { 'Other effects': known('Crit Resist: +50%') },
+      { 'Other effects': known('') },
+    ]) expect(summaryFactLines({ ...record, fields: { ...record.fields, ...fields } })).toContain('Crit Resist: +25')
+    for (const line of ['Crit Resist: +20', 'Crit Resist: +2.5', 'Crit Resist: +25 points', 'Crit Resist: +25 when at full HP']) {
+      expect(summaryFactLines({ ...record, fields: { ...record.fields, Stat: known(line) } })).toContain(line)
+    }
+    const flatAndPercent = { ...record, fields: { ...record.fields, 'Native source record': known({ StatMods: [{ Tag: NATIVE_FLAT_HP_TAG, Value1: 25, Value2: 0, Value3: 0 }, { Tag: NATIVE_PERCENT_HP_TAG, Value1: 25, Value2: 0, Value3: 0 }] }), 'Other effects': known('Max. HP: +25%'), Stat: known('Max. HP: +25') } }
+    expect(summaryFactLines(flatAndPercent)).toEqual(['Max. HP: +25%', 'Max. HP: +25'])
+    expect(summaryFactLines({ ...record, fields: { ...record.fields, Stat: { state: 'unknown' } } })).toContain('Stat: Unknown')
+    expect(summaryFactLines({ ...record, fields: { ...record.fields, Stat: { state: 'conflicting', claims: [{ value: 'Crit Resist: +25', sources: [] }, { value: 'Crit Resist: +50', sources: [] }] } } })).toContain('Stat: Conflicting sources')
   })
 
   it('puts monetary cost after combat and permission facts', () => {

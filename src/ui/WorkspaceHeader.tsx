@@ -6,6 +6,7 @@ interface WorkspaceHeaderSlots {
   readonly target: HTMLElement | null
   readonly primaryTarget: HTMLElement | null
   readonly setPrimaryTarget: Dispatch<SetStateAction<HTMLElement | null>>
+  readonly setUnsavedObject: Dispatch<SetStateAction<boolean>>
 }
 
 export const WorkspaceHeaderContext = createContext<WorkspaceHeaderSlots | null>(null)
@@ -18,7 +19,8 @@ export function WorkspaceHeaderScope({ active, children }: { readonly active: bo
   const workspace = useWorkspaceHeader()
   const [primaryTarget, setPrimaryTarget] = useState<HTMLElement | null>(null)
   const target = workspace?.target
-  const slots = useMemo(() => target === undefined ? null : { active, target, primaryTarget, setPrimaryTarget }, [active, target, primaryTarget])
+  const setUnsavedObject = workspace?.setUnsavedObject
+  const slots = useMemo(() => target === undefined || !setUnsavedObject ? null : { active, target, primaryTarget, setPrimaryTarget, setUnsavedObject }, [active, target, primaryTarget, setUnsavedObject])
   return <WorkspaceHeaderContext value={slots}>{children}</WorkspaceHeaderContext>
 }
 
