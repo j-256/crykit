@@ -46,7 +46,7 @@ describe('game-code field corroboration', () => {
     const changed = { ...field, value: 'Synthetic command' } as Knowledge<unknown>
     expect(corroboratedFact(target, 'Class command', changed)).toBe(false)
     const entity = { ...WARRIOR, fields: { ...WARRIOR.fields, 'Class command': changed } } as CatalogEntity
-    const markup = renderToStaticMarkup(createElement(DefinitionFactsPanel, { corroboration: { catalog: DEFAULT_CATALOG, entity }, primarySourceId: 'native-game:windows:1.6.9', facts: [['Class command', changed]] }))
+    const markup = renderToStaticMarkup(createElement(DefinitionFactsPanel, { corroboration: { catalog: DEFAULT_CATALOG, entity }, facts: [['Class command', changed]] }))
     expect(markup).toContain('aria-label="Sources for Class command"')
     expect(markup).not.toContain('class="source-summary"')
     expect(renderToStaticMarkup(createElement(SourceReferences, { includeGameExports: true, sources: changed.state === 'known' ? changed.sources ?? [] : [] }))).toContain('class="source-summary"')

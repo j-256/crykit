@@ -60,8 +60,7 @@ test('shop tables and descriptions show coins while custom editing retains coppe
   await loadedCoins(row, 1)
 
   await page.goto(referencePath('base:equipment:149'))
-  const description = page.locator('.reference-description').getByText('Guide notes', { exact: true }).locator('..')
-  await description.locator(':scope > summary').click()
+  const description = page.locator('.reference-description').getByRole('region', { name: 'Description', exact: true })
   await expect(description.getByRole('img', { name: '30 silver', exact: true })).toBeVisible()
   await loadedCoins(description, 1)
   await expect(description).toContainText('Silver Bow x1')

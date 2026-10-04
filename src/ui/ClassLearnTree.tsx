@@ -9,7 +9,7 @@ import { GameIcon } from './GameIcon'
 import { SourceReferences } from './KnowledgeValue'
 import { Sources } from './Sources'
 import { formatAppRoute } from './navigation'
-import { visibleSources } from './source-display'
+import { externalSources } from './source-display'
 
 const TREE_LAYOUT = Object.freeze({ columnWidth: 100, rowHeight: 120, nodeHeight: 80, minColumnWidth: 84, maxColumnWidth: 150 })
 const point = (position: TreePosition) => ({ x: (position.column + .5) * TREE_LAYOUT.columnWidth, y: position.row * TREE_LAYOUT.rowHeight + TREE_LAYOUT.nodeHeight / 2 })
@@ -30,12 +30,14 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
   const height = (rows - 1) * TREE_LAYOUT.rowHeight + TREE_LAYOUT.nodeHeight
   const skills = new Map(graph.nodes.map(node => [treePositionKey(node), classTreeSkill(entity, node, catalog, sourceEntity)]))
   const unresolved = new Set(graph.unresolved.map(treePositionKey))
-  const bundled = bundledTreeIdentity(entity)
+  const bundled = !entity.fields[CLASS_FIELDS.tree] && bundledTreeIdentity(entity)
   const treeField = entity.fields[CLASS_FIELDS.tree] ?? entity.fields[CRYSTAL_EDIT_FIELDS.tree]
-  const sources = visibleSources([...(treeField?.state === 'known' ? treeField.sources ?? [] : []), ...(bundled ? [CLASS_TREE_IDENTITY_SOURCE] : [])])
+  const recordedSources = [...(treeField?.state === 'known' ? treeField.sources ?? [] : []), ...(bundled ? [CLASS_TREE_IDENTITY_SOURCE] : [])]
+  const sources = unresolved.size > 0 || [...skills.values()].some(skill => !skill.definition) ? recordedSources : externalSources(recordedSources)
+  const help = <p className="learn-tree-help">All incoming prerequisites must be learned. Follow the arrows to the skills they unlock. Select a named skill to open its reference. LP is the learning cost; this reference does not record character learning.</p>
   if (!graph.nodes.length) return null
   return <details className="class-learn-tree"><summary>Learn tree</summary>
-    <p className="learn-tree-help">All incoming prerequisites must be learned. Follow the arrows to the skills they unlock. Select a named skill to open its reference. LP is the learning cost; this reference does not record character learning.</p>
+    {sources.length > 0 ? <Sources anchor={help} label={`Sources for ${entity.name} learning`}><SourceReferences includeGameExports sources={sources}/></Sources> : help}
     <div aria-label="Scrollable learn tree" className="learn-tree-scroll" role="group" tabIndex={0}>
       <div className="learn-tree" style={{ height, minWidth: columns * TREE_LAYOUT.minColumnWidth, maxWidth: columns * TREE_LAYOUT.maxColumnWidth }}>
         <svg aria-hidden="true" className="learn-tree__connectors" height={height} preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`} width="100%">
@@ -62,6 +64,5 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
       </div>
     </div>
     {unresolved.size > 0 && <p className="learn-tree-warning">Some prerequisite cells are missing or unrecognized. Their connections remain unknown.</p>}
-    {sources.length > 0 && <Sources label={`Sources for ${entity.name} learning`}><SourceReferences sources={sources}/></Sources>}
   </details>
 }

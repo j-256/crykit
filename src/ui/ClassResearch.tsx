@@ -10,7 +10,6 @@ import type { CatalogEntity, CatalogSnapshot, EntityRef, PersonalDefinition, Bui
 import { Button, Field, InlineNotice } from './components'
 import { DefinitionPickerField, findDefinitionOption, useDefinitionLibrary } from './definitions'
 import { ClassLearnTree } from './ClassLearnTree'
-import { Sources } from './Sources'
 import './class-research.css'
 
 interface AllocationDraft { readonly id: number; readonly ref?: EntityRef; readonly levels: string }

@@ -8,7 +8,6 @@ import { NavigationLink } from './NavigationLink'
 import { useNavigation } from './navigation'
 import { routeForSearchTarget } from './search-navigation'
 import { Money } from './MoneyText'
-import { Sources } from './Sources'
 import { acquisitionMode, ACQUISITION_MODES as MODES, ACQUISITION_MODE_QUERY as MODE_QUERY } from './acquisition-mode'
 
 const GROUPS: readonly { readonly kind: AcquisitionKind; readonly title: string }[] = Object.freeze([
@@ -26,8 +25,9 @@ function Materials({ items, onOpenDefinition }: { items: readonly AcquisitionMat
 
 function Route({ route, onOpenDefinition }: { route: AcquisitionRoute; onOpenDefinition: (ref: EntityRef) => void }) {
   return <li className="acquisition-route">
-    <div className="acquisition-route__title">{route.ref ? <AcquisitionLink definitionRef={route.ref} onOpenDefinition={onOpenDefinition}>{route.label}</AcquisitionLink> : <strong>{route.label}</strong>}{route.station && <span>at {route.station}</span>}{route.location && <span className="acquisition-location">{route.location}</span>}<Sources label={`Sources for ${route.label} acquisition`}>{route.coord && <p>World coordinates: X {route.coord.X}, Y {route.coord.Y}, Z {route.coord.Z}</p>}<p>{route.evidence}</p></Sources></div>
+    <div className="acquisition-route__title">{route.ref ? <AcquisitionLink definitionRef={route.ref} onOpenDefinition={onOpenDefinition}>{route.label}</AcquisitionLink> : <strong>{route.label}</strong>}{route.station && <span>at {route.station}</span>}{route.location && <span className="acquisition-location">{route.location}</span>}</div>
     <div className="acquisition-route__facts">{route.price !== undefined && <span>Price: <Money copper={route.price}/></span>}{route.quantity !== undefined && <span>Quantity: {route.quantity}</span>}{route.chance !== undefined && <span>{route.kind === 'steal' ? 'Availability' : 'Base drop chance'}: {route.chance}%</span>}{route.success !== undefined && <span>Steal success per attempt: {route.success}%</span>}</div>
+    {route.coord && <details className="acquisition-coordinates"><summary>Coordinates</summary><p>X {route.coord.X} · Y {route.coord.Y} · Z {route.coord.Z}</p></details>}
     {route.ingredients.length > 0 && <div><p className="acquisition-caption">Ingredients</p><Materials items={route.ingredients} onOpenDefinition={onOpenDefinition}/></div>}
     {route.costs.length > 0 && <div><p className="acquisition-caption">Trade inputs</p><Materials items={route.costs} onOpenDefinition={onOpenDefinition}/></div>}
     {route.requirements.length > 0 && <div><p className="acquisition-caption">Required items</p><Materials items={route.requirements} onOpenDefinition={onOpenDefinition}/></div>}
@@ -54,7 +54,7 @@ export function ItemAcquisition({ catalog, entity, onOpenDefinition }: { catalog
         const routes = result.routes.filter(route => route.kind === group.kind)
         return routes.length > 0 && <div className="acquisition-group" key={group.kind}><h4>{group.title}</h4><ul className="acquisition-routes">{routes.map((route, index) => <Route key={`${route.evidence}:${index}`} route={route} onOpenDefinition={onOpenDefinition}/>)}</ul></div>
       })}
-      {gardening && <div className="acquisition-group"><div className="cluster"><h4>Growing this seed</h4><Sources label={`Sources for growing ${entity.name}`}>{gardening.evidence.map(evidence => <p key={evidence}>{evidence}</p>)}</Sources></div><p>Sprouts after {gardening.minutes} {gardening.minutes === 1 ? 'minute' : 'minutes'} of play time. {gardening.wateringReductionMinutes > 0 ? `Watering once moves the sprout time earlier by ${gardening.wateringReductionMinutes} minutes.` : 'Watering does not shorten this seed\'s growth time.'}</p><p>Harvesting starts a battle with {gardening.encounters.map((encounter, index) => <span key={encounter.ref.entityId}>{index > 0 && ', '}<AcquisitionLink definitionRef={encounter.ref} onOpenDefinition={onOpenDefinition}>{encounter.name}</AcquisitionLink></span>)}.</p></div>}
+      {gardening && <div className="acquisition-group"><h4>Growing this seed</h4><p>Sprouts after {gardening.minutes} {gardening.minutes === 1 ? 'minute' : 'minutes'} of play time. {gardening.wateringReductionMinutes > 0 ? `Watering once moves the sprout time earlier by ${gardening.wateringReductionMinutes} minutes.` : 'Watering does not shorten this seed\'s growth time.'}</p><p>Harvesting starts a battle with {gardening.encounters.map((encounter, index) => <span key={encounter.ref.entityId}>{index > 0 && ', '}<AcquisitionLink definitionRef={encounter.ref} onOpenDefinition={onOpenDefinition}>{encounter.name}</AcquisitionLink></span>)}.</p></div>}
       {result.unresolved.map(note => <p className="acquisition-note" key={note}>{note}</p>)}
     </div>
   </section>

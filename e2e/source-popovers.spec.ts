@@ -46,6 +46,8 @@ test('Sources stays within a narrow viewport and scrolls long retained evidence'
   await page.setViewportSize({ width: 320, height: 640 })
   await page.goto(referencePath('base:item:132'))
   const trigger = page.getByRole('button', { name: 'Sources for Shoudu Stew', exact: true })
+  await expect(trigger).toHaveCSS('width', '16px')
+  await expect(trigger).toHaveCSS('height', '16px')
   await trigger.click()
   const popup = page.getByRole('dialog', { name: 'Sources for Shoudu Stew', exact: true })
   await expect(popup).toBeVisible()
@@ -62,4 +64,36 @@ test('Sources stays within a narrow viewport and scrolls long retained evidence'
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await popup.getByRole('button', { name: 'Close sources', exact: true }).click()
   await expect(trigger).toBeFocused()
+})
+
+test('superscript Sources stays attached when external field values and description headings wrap', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  for (const entry of [{ id: 'base:job:0', label: 'Sources for Master' }, { id: 'base:equipment:134', label: 'Sources for Description' }]) {
+    await page.goto(referencePath(entry.id))
+    const trigger = page.getByRole('button', { name: entry.label, exact: true })
+    const layout = await trigger.evaluate(element => {
+      const group = element.closest<HTMLElement>('.sources-attached')!
+      group.style.width = '72px'
+      const value = group.querySelector<HTMLElement>('.sources-anchor')!
+      const valueBounds = value.getBoundingClientRect()
+      const markerBounds = element.getBoundingClientRect()
+      const text = document.createTreeWalker(value, NodeFilter.SHOW_TEXT).nextNode()!
+      const range = document.createRange()
+      range.selectNodeContents(text)
+      const lines = new Set(Array.from(range.getClientRects(), bounds => bounds.top)).size
+      return { lines, valueRight: valueBounds.right, valueTop: valueBounds.top, markerLeft: markerBounds.left, markerTop: markerBounds.top, markerWidth: markerBounds.width, markerHeight: markerBounds.height, overflow: group.scrollWidth > group.clientWidth }
+    })
+    expect(layout.lines).toBeGreaterThan(1)
+    expect(layout.markerLeft).toBeGreaterThanOrEqual(layout.valueRight)
+    expect(layout.markerTop).toBeLessThanOrEqual(layout.valueTop)
+    expect(layout.markerWidth).toBe(16)
+    expect(layout.markerHeight).toBe(16)
+    expect(layout.overflow).toBe(false)
+    await trigger.click()
+    const popup = page.getByRole('dialog', { name: entry.label, exact: true })
+    await expect(popup).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  }
 })

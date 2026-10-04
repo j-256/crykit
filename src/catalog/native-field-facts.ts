@@ -3,6 +3,8 @@ import { NATIVE_GAME_DATA } from './native-game'
 import { nativeDescription, nativeDescriptionSourceMatches } from './native-description'
 import { projectSourceSemantics } from './source-semantics'
 import { sameValue } from '../domain/definition-values'
+import { EQUIPMENT_TYPES } from '../domain/crystal-edit'
+import { equipmentCategory } from '../domain/equipment-categories'
 import { nativeIdentity, nativeRecord, nativeSourceRecord, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 import type { CatalogEntity, CatalogSnapshot, JsonValue, Knowledge } from '../domain/types'
 
@@ -16,6 +18,7 @@ export interface NativeFieldFact {
   readonly value: Knowledge<JsonValue>
   readonly differs: boolean
   readonly evidence: string
+  readonly redundantWith?: string
 }
 
 export function nativeFieldFacts(catalog: CatalogSnapshot, entity: CatalogEntity): readonly NativeFieldFact[] {
@@ -25,6 +28,20 @@ export function nativeFieldFacts(catalog: CatalogSnapshot, entity: CatalogEntity
   if (catalog.id !== DEFAULT_CATALOG.id || catalog.revisionId !== DEFAULT_CATALOG.revisionId || catalog.checksum !== DEFAULT_CATALOG.checksum || catalog.legacy !== DEFAULT_CATALOG.legacy && !sameValue(catalog.legacy, DEFAULT_CATALOG.legacy) || !nativeRecord(catalog.legacy) || catalog.legacy.sourceContentDigest !== NATIVE_GAME_DATA.contentDigest || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || !identity || !record || entity !== baseline && !sameValue(baseline, entity) && !sameValue(projectSourceSemantics(baseline), entity)) return []
   const sources = entity.sources.filter(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))
   const result: NativeFieldFact[] = []
+  if (identity.database === 'equipment' && typeof record.EquipmentType === 'number' && Number.isSafeInteger(record.EquipmentType)) {
+    const category = equipmentCategory(record.EquipmentType)
+    const enumName = NATIVE_GAME_DATA.enums.EquipmentType?.[String(record.EquipmentType)]
+    const original = entity.fields['Equipment Type']
+    if (category && enumName === EQUIPMENT_TYPES[record.EquipmentType]?.replaceAll(' ', '') && original?.state === 'known' && original.value === `${enumName} (code ${record.EquipmentType})`) {
+      const value: Knowledge<JsonValue> = { state: 'known', value: category.typeLabel, sources }
+      const evidence = `Database/equipment.dat/${identity.databaseId}/EquipmentType; EquipmentType.${enumName} = ${record.EquipmentType}`
+      result.push({ field: 'Equipment Type', original, value, differs: false, evidence })
+      const alias = entity.fields.Type
+      const labels: readonly string[] = [category.typeLabel, category.label, EQUIPMENT_TYPES[record.EquipmentType]!, enumName]
+      const aliasLabel = alias?.state === 'known' && typeof alias.value === 'string' ? alias.value.trim().toLowerCase() : undefined
+      if (alias && aliasLabel && labels.some(label => label.toLowerCase() === aliasLabel)) result.push({ field: 'Type', original: alias, value, differs: false, evidence, redundantWith: 'Equipment Type' })
+    }
+  }
   const flatValue = (field: string): number | undefined => {
     const tag = FLAT_STAT_FIELDS[STAT_LABELS[field] ?? field]
     if (!tag || !Array.isArray(record.StatMods)) return undefined

@@ -1,9 +1,14 @@
-.sources-trigger { flex: 0 0 auto; color: var(--text-dim); border-color: transparent; background: transparent; }
-.sources-trigger svg { width: 18px; height: 18px; }
+.sources-trigger.icon-button { flex: 0 0 auto; position: relative; top: -.2em; width: 16px; height: 16px; min-height: 16px; padding: 0; color: var(--text-dim); border-color: transparent; background: transparent; vertical-align: super; }
+.sources-trigger.icon-button:hover, .sources-popup__header .icon-button:hover { color: var(--text); border-color: transparent; background: rgba(222, 236, 242, .05); }
+.sources-trigger svg { width: 12px; height: 12px; }
+.sources-attached { display: inline-flex; align-items: flex-start; gap: 1px; min-width: 0; max-width: 100%; vertical-align: baseline; }
+.sources-anchor { min-width: 0; overflow-wrap: anywhere; }
+.sources-anchor > :first-child { margin-top: 0; }
+.sources-anchor > :last-child { margin-bottom: 0; }
 .sources-popup__header { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; border-bottom: 1px solid var(--line); }
 .sources-popup__header h3 { flex: 1; min-width: 0; margin: 0; font-family: inherit; font-size: .82rem; line-height: 1.4; overflow-wrap: anywhere; }
-.sources-popup__header .icon-button { flex: 0 0 auto; border-color: transparent; background: transparent; }
-.sources-popup__header .icon-button svg { width: 17px; height: 17px; }
+.sources-popup__header .icon-button { flex: 0 0 auto; width: 28px; height: 28px; min-height: 28px; border-color: transparent; background: transparent; }
+.sources-popup__header .icon-button svg { width: 16px; height: 16px; }
 .sources-popup__body { flex: 1 1 auto; min-height: 0; padding: 14px; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; font-size: .78rem; line-height: 1.55; }
 .sources-popup__body > :first-child { margin-top: 0; }
 .sources-popup__body > :last-child { margin-bottom: 0; }

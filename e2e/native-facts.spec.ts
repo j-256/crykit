@@ -23,5 +23,6 @@ test('native class facts use plain labels and leave provenance out of routine de
   await page.getByText('Growth calculator', { exact: true }).click()
   await page.getByRole('button', { name: 'Use Warrior for all growth levels', exact: true }).click()
   await expect(page.getByRole('table', { name: 'Native base stats', exact: true })).toContainText('1,244')
+  await expect(page.getByRole('button', { name: 'Sources for growth calculations', exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

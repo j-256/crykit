@@ -2,14 +2,17 @@
 
 The interface prefers facts from the fingerprinted Windows PC 1.6.9 databases and reviewed game code. Original community and editor records remain in the immutable catalog for attribution, historical comparison, direct links, and saved Builds. Their presence does not make them the authority for a fact that the game already supplies. No projection changes catalog checksums, imports, backups, personal definitions, or recorded progress.
 
+Verified native facts appear as ordinary content without citation markers. Small **Sources** markers identify uncertain values and external claims, including wiki guidance and mod or imported records. Attribution and competing claims remain inspectable, while native fingerprints and proof locators remain in the catalog, manifests, and reviewed receipts. This presentation does not establish parity with another platform or version.
+
 ## Replacements
 
 | Reference content | Native source and behavior |
 | --- | --- |
-| Equipment, passive, ability, status, and item descriptions | The bounded description renderer expands the game's vocabulary and supported display rules, including linked item abilities. It reports unsupported parts and retains distinct original guide notes even when native display fields are complete, unless a separate receipt proves the complete original claim is replaced. It never executes imported text or formulas. |
+| Equipment, passive, ability, status, and item descriptions | The bounded description renderer expands the game's vocabulary and supported display rules, including linked item abilities. It reports unsupported parts and keeps useful readable descriptions visible alongside native effects, with attribution available through Sources. Display wording can be enhanced independently of preserved source evidence. It never executes imported text or formulas. |
 | Listed equipment stats | Exact native flat modifiers replace reviewed older scalar values in Reference. Original values and differences remain in the Sources popup. Build summaries use the same native records. |
+| Equipment types | Reviewed native equipment enums supply readable labels, such as Light armor for Dress. Equivalent inherited Type fields are omitted beside Equipment Type, with their original labels preserved. Exact catalog, record, and enum checks prevent the replacement from applying to changed or unsupported records. |
 | Shoudu Stew's effect | Its item record links to an ability that recovers missing HP. The conflicting historical effect claims remain inspectable beside the native evidence. |
-| Acquisition notes | Field-specific receipts compare the entire original claim with supported native routes. Matching notes move to the Sources popup; mixed directions and additional advice remain visible. Rewards include reviewed penguin, arena, and Salmon Run conditions. |
+| Acquisition notes | Field-specific receipts compare the entire original claim with supported native routes. Redundant structured claims move to the Sources popup; readable descriptions, directions, and additional advice remain visible. Rewards include reviewed penguin, arena, and Salmon Run conditions. |
 | Gardening | Native seed, encounter, growth, and watering rules supply seed guidance, including integer rounding and the seed whose watering reduction is zero. |
 | Duplicate definitions | Reviewed field and relationship evidence links alternative equipment, item, map, monster, status, passive, and recipe entries to native definitions. Class commands link to their class without changing kinds. Default discovery prefers verified counterparts while selected originals and direct links remain valid. |
 | Modifier and formula research | Reviewed native semantics lead corrected reference entries. Original guide wording remains evidence, and calculation references retain their actual supported scope. |
@@ -38,4 +41,4 @@ The relationship manifest distinguishes verified native links from mechanics, ge
 | Mod Inspector reference baselines | Animation, voxel, and editor-folder records extend the main schema snapshot. They are fingerprinted native/editor facts, described that way in user documentation. |
 | Test fixtures | Synthetic examples exercise older metadata, conflicting claims, and reference compatibility. They do not label current gameplay data. |
 
-Ordinary Reference and search views use concrete source names and version labels. Original claims, source disagreements, and unsupported behavior remain available without treating all historical community content as a separate class of gameplay data.
+Reference and search prefer verified native facts without routine citations. External claims, source disagreements, and unsupported behavior retain their evidence without treating all historical community content as a separate class of gameplay data.

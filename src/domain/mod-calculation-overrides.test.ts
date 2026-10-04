@@ -76,6 +76,13 @@ describe('source-backed mod calculation inputs', () => {
     const context = configured([first, second, locale])
     expect(context.rules.issues).toEqual([])
     expect(context.rules.genders[0]!.source).toBe('later bonus')
+    expect(context.rules.genders[0]!.sourceKind).toBe('mod')
+    expect(context.rules.genders[0]!.nameSource).toBe('labels')
+    const localizedNative = configured([locale]).rules.genders[0]!
+    expect(localizedNative.sourceKind).toBe('native')
+    expect(localizedNative.nameSource).toBe('labels')
+    expect(localizedNative.boosts).toEqual(resolveGameRules(undefined, []).genders[0]!.boosts)
+    expect(configured([locale, second]).rules.genders[0]!.nameSource).toBeUndefined()
     expect(context.rules.genders[0]!.name).toBe('Localized label')
     expect(context.calculate().male.HP).toBe(context.calculate().neutral.HP)
     expect(context.calculate().male.MP).toBeGreaterThan(context.calculate().neutral.MP!)
