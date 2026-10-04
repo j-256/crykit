@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { createServer } from 'vite'
+import { citationSourceId, PROJECTION_EVIDENCE, validateProjectionEvidence } from './source-audit-evidence.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const RECEIPTS = 'src/catalog/source-corroboration.json'
@@ -66,7 +67,17 @@ export async function auditSources({ check = false, reference } = {}) {
   const evidence = JSON.parse(await readFile(join(ROOT, EVIDENCE), 'utf8'))
   const snapshot = JSON.parse(await readFile(join(ROOT, 'src/catalog/native-game-data.json'), 'utf8'))
   if (evidence.source.executableSha256 !== snapshot.source.executable.sha256 || evidence.source.systemDataSha256 !== snapshot.source.files.find(file => file.path === 'Database/system.dat')?.sha256) throw new Error('Reviewed code and bundled native snapshot fingerprints differ')
-  if (reference) await verifyReference(reference, evidence, snapshot)
+  const projectionEvidence = []
+  const reviewedFiles = { ...evidence.files }
+  const combat = JSON.parse(await readFile(join(ROOT, 'src/calculations/combat-v1.json'), 'utf8'))
+  const world = JSON.parse(await readFile(join(ROOT, 'src/catalog/world-acquisition-v1.json'), 'utf8'))
+  for (const file of PROJECTION_EVIDENCE) {
+    const receipt = JSON.parse(await readFile(join(ROOT, file), 'utf8'))
+    const projection = validateProjectionEvidence(file, receipt, { evidence, snapshot, combat, world, reviewedFiles })
+    Object.assign(reviewedFiles, projection.files)
+    projectionEvidence.push(projection)
+  }
+  if (reference) await verifyReference(reference, { ...evidence, files: reviewedFiles }, snapshot)
   for (const symbol of Object.values(evidence.symbols)) for (const path of symbol.files ?? [symbol.file]) if (!Object.hasOwn(evidence.files, path) || !/^[a-f0-9]{64}$/.test(evidence.files[path])) throw new Error('Code locator has no pinned file hash')
   for (const mechanic of Object.values(evidence.mechanics)) if (!['corroborated', 'partial'].includes(mechanic.status) || mechanic.evidence.some(id => !Object.hasOwn(evidence.symbols, id))) throw new Error('Mechanic review has invalid evidence')
   const server = await createServer({ root: ROOT, configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
@@ -148,7 +159,8 @@ export async function auditSources({ check = false, reference } = {}) {
         const visit = value => {
           if (Array.isArray(value)) value.forEach(visit)
           else if (value && typeof value === 'object') {
-            if (typeof value.sourceId === 'string') source(value.sourceId).files.add(file)
+            const citation = citationSourceId(value)
+            if (citation !== undefined) source(citation).files.add(file)
             Object.values(value).forEach(visit)
           }
         }
@@ -161,7 +173,7 @@ export async function auditSources({ check = false, reference } = {}) {
       entry.reasons.add(claim.reason)
     }
     const receipts = { schemaVersion: 1, source: evidence.source, proofs, catalogs }
-    const report = { schemaVersion: 1, source: evidence.source, policy: 'Complete unchanged known claims only; original attribution and immutable catalogs are preserved', featureClaims: evidence.featureClaims, ambiguousIdentities: sorted(ambiguousIdentities), sources: Object.fromEntries([...inventory].sort(([a], [b]) => a.localeCompare(b)).map(([id, entry]) => [id, { ...entry, files: sorted(entry.files), catalogs: sorted(entry.catalogs), reasons: sorted(entry.reasons) }])) }
+    const report = { schemaVersion: 2, source: evidence.source, policy: 'Complete unchanged known claims only; original attribution and immutable catalogs are preserved', projectionEvidence, featureClaims: evidence.featureClaims, ambiguousIdentities: sorted(ambiguousIdentities), sources: Object.fromEntries([...inventory].sort(([a], [b]) => a.localeCompare(b)).map(([id, entry]) => [id, { ...entry, files: sorted(entry.files), catalogs: sorted(entry.catalogs), reasons: sorted(entry.reasons) }])) }
     for (const [file, data] of [[RECEIPTS, receipts], [REPORT, report]]) {
       const output = `${JSON.stringify(data, null, 2)}\n`
       if (check) {

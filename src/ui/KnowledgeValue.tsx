@@ -7,6 +7,7 @@ import { fieldIconKey } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
 import { isStatRatingField } from '../domain/stat-ratings'
 import { StatRatings } from './StatRatings'
+import { Sources } from './Sources'
 
 const COPPER_FIELD = /(?:^copper$|\(copper\)$)/i
 const NATIVE_COPPER_FIELDS = new Set(['Money', 'Cost'])
@@ -76,12 +77,12 @@ export function ClaimList({ claims, selection, field, moneyFormat = 'coins' }: {
     {selection ? <label className="check-row"><input aria-describedby={`${selection.name}-claim-${index}`} checked={selection.index === index} name={selection.name} onChange={() => selection.onChange(index)} type="radio" value={index}/><strong>Use claim {index + 1}</strong></label> : <strong className="knowledge-claim__label">Claim {index + 1}</strong>}
     <div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} moneyFormat={moneyFormat} value={claim.value}/></div>
     {claim.note && <p className="knowledge-claim__note"><MoneyText>{claim.note}</MoneyText></p>}
-    <SourceReferences includeGameExports sources={claim.sources}/>
+    <Sources label={`Sources for ${field ?? 'claim'} ${index + 1}`}><SourceReferences includeGameExports sources={claim.sources}/></Sources>
   </li>)}</ol>
 }
 
 export function KnowledgeValue({ value, field, compact = false, showSources = false, moneyFormat = 'coins' }: { value: Knowledge<unknown>; field?: string; compact?: boolean; showSources?: boolean; moneyFormat?: MoneyFormat }) {
-  if (value.state === 'known') return <><StructuredValue field={field} moneyFormat={moneyFormat} value={value.value}/>{showSources && value.sources?.length ? <SourceReferences sources={value.sources}/> : null}</>
+  if (value.state === 'known') return <><StructuredValue field={field} moneyFormat={moneyFormat} value={value.value}/>{showSources && value.sources?.length ? <Sources label={`Sources for ${field ?? 'value'}`}><SourceReferences includeGameExports sources={value.sources}/></Sources> : null}</>
   if (value.state === 'conflicting') return <><span>{value.claims.length} differing source values</span>{!compact && <ClaimList claims={value.claims} field={field} moneyFormat={moneyFormat}/>}</>
   if (value.state === 'notApplicable') return <span><MoneyText>{value.reason ?? 'Not applicable'}</MoneyText></span>
   return <span><MoneyText>{value.reason ?? 'Unknown'}</MoneyText></span>

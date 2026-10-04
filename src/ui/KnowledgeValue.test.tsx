@@ -1,24 +1,127 @@
+import { act, type ReactNode } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Sources } from './Sources'
+import { DefinitionClaimsPanel, DefinitionFactsPanel } from './DefinitionDetailSections'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
+import type { EntityId } from '../domain/types'
 import { KnowledgeValue } from './KnowledgeValue'
 import { definitionIconKey, fieldIconKey, fieldIconKeys } from '../catalog/menu-icons'
 
+const mounts: { root: Root; container: HTMLDivElement }[] = []
+const prototypeMethods = ['showPopover', 'hidePopover', 'scrollIntoView'] as const
+let originalMethods: (PropertyDescriptor | undefined)[]
+
+beforeEach(() => {
+  ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  const open = new WeakSet<HTMLElement>()
+  originalMethods = prototypeMethods.map(name => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name))
+  Object.defineProperties(HTMLElement.prototype, {
+    showPopover: { configurable: true, value: function (this: HTMLElement) { open.add(this) } },
+    hidePopover: { configurable: true, value: function (this: HTMLElement) { open.delete(this) } },
+    scrollIntoView: { configurable: true, value: vi.fn() },
+  })
+  const matches = HTMLElement.prototype.matches
+  vi.spyOn(HTMLElement.prototype, 'matches').mockImplementation(function (this: HTMLElement, selector) { return selector === ':popover-open' ? open.has(this) : matches.call(this, selector) })
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(performance.now()); return 0 })
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+})
+
+afterEach(async () => {
+  for (const { root, container } of mounts.splice(0)) {
+    await act(async () => root.unmount())
+    container.remove()
+  }
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  for (const [index, name] of prototypeMethods.entries()) {
+    const descriptor = originalMethods[index]
+    if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor)
+    else Reflect.deleteProperty(HTMLElement.prototype, name)
+  }
+})
+
+async function renderInteractive(children: ReactNode) {
+  const container = document.createElement('div')
+  document.body.append(container)
+  const root = createRoot(container)
+  mounts.push({ root, container })
+  await act(async () => root.render(children))
+  return container
+}
+
+async function openSources(container: HTMLElement, label: string) {
+  const trigger = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!
+  expect(trigger).not.toBeNull()
+  await act(async () => trigger.click())
+  const popup = container.querySelector<HTMLElement>(`[role="dialog"][aria-label="${label}"]`)!
+  expect(popup).not.toBeNull()
+  return popup
+}
+
+async function closeSources(popup: HTMLElement) {
+  await act(async () => popup.querySelector<HTMLButtonElement>('button[aria-label="Close sources"]')!.click())
+}
+
 describe('source claim presentation', () => {
-  it('shows structured values, notes and source revisions while treating markup and unsafe URLs as text', () => {
-    const markup = renderToStaticMarkup(<KnowledgeValue value={{ state: 'conflicting', claims: [
+  it('shows structured values, notes and source revisions while treating markup and unsafe URLs as text', async () => {
+    const container = await renderInteractive(<KnowledgeValue value={{ state: 'conflicting', claims: [
       { value: '<script>untrusted()</script>', note: 'Synthetic disputed description', sources: [{ sourceId: 'javascript:untrusted()', locator: 'data:text/html,untrusted' }] },
       { value: [{ shop: 'Synthetic shop', cost: 0, restricted: false }], sources: [{ sourceId: 'https://example.com/wiki?oldid=1', locator: 'Item > Location', snapshot: 'revision 1', applicability: 'Synthetic release' }] },
     ] }}/>)
-    const container = document.createElement('div')
-    container.innerHTML = markup
     expect(container.querySelectorAll('.knowledge-claim')).toHaveLength(2)
     expect(container.textContent).toContain('<script>untrusted()</script>')
     expect(container.textContent).toContain('Synthetic disputed description')
-    expect(container.textContent).toContain('revision 1')
-    expect(container.textContent).toContain('Synthetic release')
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    const unsafe = await openSources(container, 'Sources for claim 1')
+    expect(unsafe.textContent).toContain('javascript:untrusted()')
+    expect(unsafe.textContent).toContain('data:text/html,untrusted')
+    expect(unsafe.querySelector('a')).toBeNull()
     expect(container.querySelectorAll('script')).toHaveLength(0)
-    expect([...container.querySelectorAll('a')].map((link) => link.href)).toEqual(['https://example.com/wiki?oldid=1'])
+    await closeSources(unsafe)
+    const attributed = await openSources(container, 'Sources for claim 2')
+    expect(attributed.textContent).toContain('revision 1')
+    expect(attributed.textContent).toContain('Synthetic release')
+    expect([...attributed.querySelectorAll('a')].map((link) => link.href)).toEqual(['https://example.com/wiki?oldid=1'])
+    expect(container.querySelectorAll('script')).toHaveLength(0)
     expect([...container.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['Synthetic shop', '0', 'false'])
+  })
+})
+
+describe('native source details', () => {
+  it('opens the original native evidence for a changed fact that no longer matches its receipt', async () => {
+    const baseline = DEFAULT_CATALOG.entities['base:job:0']!
+    const original = baseline.fields['Class command']!
+    if (original.state !== 'known') throw new Error('The native class command fixture must be known')
+    const source = original.sources?.find(source => source.sourceId.startsWith('native-game:'))
+    expect(source?.locator).toBeDefined()
+    const changed = { ...original, value: 'Synthetic changed command' }
+    const entity = { ...baseline, fields: { ...baseline.fields, 'Class command': changed } }
+    const container = await renderInteractive(<DefinitionFactsPanel corroboration={{ catalog: DEFAULT_CATALOG, entity }} primarySourceId={source!.sourceId} facts={[["Class command", changed]]}/>)
+    expect(container.textContent).toContain('Synthetic changed command')
+    expect(container.textContent).not.toContain(source!.locator)
+    const popup = await openSources(container, 'Sources for Class command')
+    expect(popup.textContent).toContain(source!.locator)
+    expect(popup.querySelector('.source-summary')).not.toBeNull()
+    await closeSources(popup)
+    expect(container.textContent).toContain('Synthetic changed command')
+  })
+
+  it('retains native-only value and original claim evidence when their Sources popup opens', async () => {
+    const source = { sourceId: 'native-game:windows:synthetic', locator: 'Database/job.dat record 7', snapshot: 'Synthetic executable fingerprint', applicability: 'Synthetic native release' }
+    const container = await renderInteractive(<><KnowledgeValue field="Attack" showSources value={{ state: 'known', value: 80, sources: [source] }}/><Sources label="Sources for original claim"><DefinitionClaimsPanel claims={[{ entityId: 'synthetic-native' as EntityId, field: 'Attack', value: { state: 'known', value: 79 }, sources: [source] }]}/></Sources></>)
+    expect(container.textContent).toContain('80')
+    expect(container.textContent).not.toContain(source.locator)
+    for (const label of ['Sources for Attack', 'Sources for original claim']) {
+      const popup = await openSources(container, label)
+      expect(popup.textContent).toContain(source.locator)
+      expect(popup.textContent).toContain(source.snapshot)
+      expect(popup.textContent).toContain(source.applicability)
+      if (label === 'Sources for original claim') expect(popup.textContent).toContain('79')
+      await closeSources(popup)
+    }
+    expect(container.textContent).toContain('80')
   })
 })
 
@@ -82,13 +185,15 @@ describe('coin price presentation', () => {
     expect(value.Cost).toBe(10250)
   })
 
-  it('retains numeric money conflicts and unknown states without converting unsupported numbers', () => {
-    const container = document.createElement('div')
-    container.innerHTML = renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'conflicting', claims: [{ value: 20000, sources: [{ sourceId: 'Source A' }] }, { value: 10250, sources: [{ sourceId: 'Source B' }] }] }}/>)
+  it('retains numeric money conflicts and unknown states without converting unsupported numbers', async () => {
+    const container = await renderInteractive(<KnowledgeValue field="Money (copper)" value={{ state: 'conflicting', claims: [{ value: 20000, sources: [{ sourceId: 'Source A' }] }, { value: 10250, sources: [{ sourceId: 'Source B' }] }] }}/>)
     expect(container.querySelectorAll('.knowledge-claim')).toHaveLength(2)
     expect([...container.querySelectorAll('.money-amount')].map(element => element.getAttribute('aria-label'))).toEqual(['2 gold', '1 gold, 2 silver, 50 copper'])
-    expect(container.textContent).toContain('Source A')
-    expect(container.textContent).toContain('Source B')
+    for (const [index, source] of ['Source A', 'Source B'].entries()) {
+      const popup = await openSources(container, `Sources for Money (copper) ${index + 1}`)
+      expect(popup.textContent).toContain(source)
+      await closeSources(popup)
+    }
     expect(renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'unknown' }}/>)).toBe('<span>Unknown</span>')
     for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
       expect(renderToStaticMarkup(<KnowledgeValue field="Money (copper)" value={{ state: 'known', value }}/>)).toBe(`<span>${value}</span>`)
@@ -106,17 +211,19 @@ describe('coin price presentation', () => {
     expect(value[0].Cost).toBe('1000 Copper')
   })
 
-  it('retains conflicting values and source evidence when equivalent amounts share the same visual price', () => {
-    const container = document.createElement('div')
-    container.innerHTML = renderToStaticMarkup(<KnowledgeValue field="Cost" value={{ state: 'conflicting', claims: [
+  it('retains conflicting values and source evidence when equivalent amounts share the same visual price', async () => {
+    const container = await renderInteractive(<KnowledgeValue field="Cost" value={{ state: 'conflicting', claims: [
       { value: '1000 Copper', sources: [{ sourceId: 'Source A' }] },
       { value: '10 Silver', sources: [{ sourceId: 'Source B' }] },
     ] }}/>)
     expect(container.querySelectorAll('.knowledge-claim')).toHaveLength(2)
     expect(container.querySelectorAll('[aria-label="10 silver"]')).toHaveLength(2)
     expect(container.textContent).toContain('2 differing source values')
-    expect(container.textContent).toContain('Source A')
-    expect(container.textContent).toContain('Source B')
+    for (const [index, source] of ['Source A', 'Source B'].entries()) {
+      const popup = await openSources(container, `Sources for Cost ${index + 1}`)
+      expect(popup.textContent).toContain(source)
+      await closeSources(popup)
+    }
   })
 
   it('keeps unitless and noncurrency costs, unsafe markup, and unknown states explicit', () => {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_NURSERY_CAPACITY, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements } from './quintar-breeding'
-import { QUINTAR_STEP_REFERENCES } from './quintar-references'
+import { QUINTAR_STEP_REFERENCES, quintarOcarinaPrice } from './quintar-references'
 import wikiData from './wiki-data.json'
+import { QUINTAR_PARTNER_RACE_WINS, quintarOffspring } from './quintar-native-rules'
 
 describe('Golden Quintar guided route', () => {
   it('links each step only to exact identities in the bundled reference', () => {
@@ -28,6 +29,7 @@ describe('Golden Quintar guided route', () => {
       for (const prerequisite of step.requires) expect(completed.has(prerequisite)).toBe(true)
       if (step.parents) {
         const [first, second] = step.parents
+        expect(quintarOffspring(first, second)).toEqual({ type: step.result!.type, nature: step.result!.nature })
         expect(method).toContain(`${first.name}${step.id === QUINTAR_STEP.golden ? ' + ' : ' with '}${second.name} to get ${step.result!.name}`)
         for (const parent of step.parents) expect(roster.has(parent.name)).toBe(true)
         expect(roster.size).toBeLessThan(QUINTAR_NURSERY_CAPACITY)
@@ -41,10 +43,21 @@ describe('Golden Quintar guided route', () => {
     expect([...roster]).toEqual(['Brutish Gold'])
   })
 
+  it('derives the Ocarina price from the matching native item and shop records', () => {
+    expect(quintarOcarinaPrice(DEFAULT_CATALOG)).toBe(120000)
+    expect(quintarOcarinaPrice(undefined)).toBeUndefined()
+    expect(quintarOcarinaPrice({ ...DEFAULT_CATALOG, legacy: {} })).toBeUndefined()
+  })
+
   it('assigns cumulative race thresholds to the parent facing the partner type', () => {
     const find = (id: string) => QUINTAR_BREEDING_STEPS.find(step => step.id === id)!
     expect(quintarRaceRequirements(find(QUINTAR_STEP.fancyRed))).toEqual([{ name: 'Trusty Red', wins: 2 }, { name: 'Woke River', wins: 0 }])
     expect(quintarRaceRequirements(find(QUINTAR_STEP.wokeAqua))).toEqual([{ name: 'Brutish Aqua', wins: 2 }, { name: 'Woke River', wins: 4 }])
+    expect(quintarRaceRequirements(find(QUINTAR_STEP.fancyHighland))).toEqual([{ name: 'Brutish Highland', wins: 0 }, { name: 'Fancy Red', wins: 1 }])
+    expect(quintarRaceRequirements(find(QUINTAR_STEP.brutishAqua))).toEqual([{ name: 'Fancy Highland', wins: 2 }, { name: 'Woke River', wins: 1 }])
+    expect(quintarRaceRequirements(find(QUINTAR_STEP.fancyDesert))).toEqual([{ name: 'Brutish Desert', wins: 0 }, { name: 'Fancy Red', wins: 1 }])
+    expect(quintarRaceRequirements(find(QUINTAR_STEP.brutishBlack))).toEqual([{ name: 'Fancy Desert', wins: 2 }, { name: 'Woke River', wins: 1 }])
+    expect(QUINTAR_PARTNER_RACE_WINS).toEqual({ Blue: 0, Red: 0, Desert: 1, Highland: 1, River: 2, Black: 3, Aqua: 4, Gold: 5 })
     expect(quintarRaceRequirements(find(QUINTAR_STEP.fancyBlack))).toEqual([{ name: 'Brutish Black', wins: 0 }, { name: 'Fancy Red', wins: 3 }])
     expect(quintarRaceRequirements(find(QUINTAR_STEP.golden))).toEqual([{ name: 'Fancy Black', wins: 4 }, { name: 'Woke Aqua', wins: 3 }])
     expect(quintarParentsAfterStep(find(QUINTAR_STEP.wokeAqua)).keep).toContain('Woke River')

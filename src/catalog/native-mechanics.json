@@ -1,0 +1,319 @@
+{
+  "source": {
+    "platform": "Windows",
+    "gameVersion": "1.6.9",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "systemDataSha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
+    "scope": "Static implementation evidence; Switch, mods, runtime state, geography, and redistribution rights require separate evidence"
+  },
+  "files": {
+    "Sang/Battle/BattlerStats.cs": "96bc8e69894c36e6a83c878c35405f8fa68e78b0764140edc702625958b0e6a2",
+    "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
+    "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
+    "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
+    "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a"
+  },
+  "entries": [
+    {
+      "sourceId": "base:mechanic:stat:Flat%20AbilityAPCost%20%5BX%5D%20%5BY%5D",
+      "entityId": "base:mechanic:stat:ref-495",
+      "description": "Value1 (X) is the native ability ID. Value2 (Y) is the flat AP-cost adjustment for that ability. It is added to the flat cost subtotal before the nonnegative clamp and general AP-cost multiplier, so it can add an AP cost to an ability with a zero base cost. Other ability cost rules still apply.",
+      "expectedFields": {
+        "Description": {
+          "state": "known",
+          "value": "Increases the AP cost of ability Y by X\n- Note: This can give AP costs to abilities that did not originally have one",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Flat AbilityAPCost [X] [Y]; line 1478"
+            }
+          ]
+        },
+        "Category": {
+          "state": "known",
+          "value": [
+            "Mechanics",
+            "Stat modifiers"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Flat AbilityAPCost [X] [Y]; line 1478"
+            }
+          ]
+        },
+        "Evidence scope": {
+          "state": "known",
+          "value": "Community guide description; not an automatically applied build rule",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Flat AbilityAPCost [X] [Y]; line 1478"
+            }
+          ]
+        }
+      },
+      "expectedDescription": "Increases the AP cost of ability Y by X\n- Note: This can give AP costs to abilities that did not originally have one",
+      "replacedFields": [
+        "Description",
+        "Evidence scope"
+      ],
+      "evidence": [
+        "Sang/Battle/BattlerStats.cs: ApplyStatMod Flat_AbilityAPCost",
+        "Sang/SangData/HAbility.cs: CalculateAbilityAPCost",
+        "Sang/Window/WindowHelper.cs: DrawStatMod Flat_AbilityAPCost"
+      ]
+    },
+    {
+      "sourceId": "base:mechanic:ability:AttributeDamageRate%20%5BX%5D%20%5BY%5D",
+      "entityId": "base:mechanic:ability:ref-347",
+      "description": "Value1 (X) selects the native HP, MP, or AP attribute. Value2 (Y) supplies the percentage rate. Rates for the ability's primary attribute are ignored; rates for each other attribute are added together. Additional resource damage is potential damage multiplied by that rate, divided by 100 with integer truncation. It uses potential damage before the target's resource cap, not the amount actually removed.",
+      "expectedFields": {
+        "Description": {
+          "state": "known",
+          "value": "X% of this ability's total damage is also dealt to the target's Y attribute, where Y is the target's HP, AP, or MP. Useful when creating abilities intended to damage more than one resource at once",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Ability modifiers > AttributeDamageRate [X] [Y]; line 1734"
+            }
+          ]
+        },
+        "Category": {
+          "state": "known",
+          "value": [
+            "Mechanics",
+            "Ability modifiers"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Ability modifiers > AttributeDamageRate [X] [Y]; line 1734"
+            }
+          ]
+        },
+        "Evidence scope": {
+          "state": "known",
+          "value": "Community guide description; not an automatically applied build rule",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Ability modifiers > AttributeDamageRate [X] [Y]; line 1734"
+            }
+          ]
+        }
+      },
+      "expectedDescription": "X% of this ability's total damage is also dealt to the target's Y attribute, where Y is the target's HP, AP, or MP. Useful when creating abilities intended to damage more than one resource at once",
+      "replacedFields": [
+        "Description",
+        "Evidence scope"
+      ],
+      "evidence": [
+        "Sang/SangData/HAbility.cs: GetAttributeDamageRate",
+        "Sang/Battle/AbilityProcessor.cs: ResolveDamage"
+      ]
+    },
+    {
+      "sourceId": "base:mechanic:stat:Mult%20MVariance%20%5BX%5D",
+      "entityId": "base:mechanic:stat:ref-571",
+      "description": "Value1 (X) adjusts the magical variance multiplier by (100 + X) / 100. Each modifier multiplies the accumulated multiplier by (100 + X), then divides by 100 with integer truncation. The result applies to magical abilities after additive variance adjustments.",
+      "expectedFields": {
+        "Description": {
+          "state": "known",
+          "value": "Multiplies Variance for Magical abilities by X%",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Mult MVariance [X]; line 1150"
+            }
+          ]
+        },
+        "Category": {
+          "state": "known",
+          "value": [
+            "Mechanics",
+            "Stat modifiers"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Mult MVariance [X]; line 1150"
+            }
+          ]
+        },
+        "Evidence scope": {
+          "state": "known",
+          "value": "Community guide description; not an automatically applied build rule",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > Mult MVariance [X]; line 1150"
+            }
+          ]
+        }
+      },
+      "expectedDescription": "Multiplies Variance for Magical abilities by X%",
+      "replacedFields": [
+        "Description",
+        "Evidence scope"
+      ],
+      "evidence": [
+        "Sang/Battle/BattlerStats.cs: ApplyStatMod Mult_MVariance",
+        "Sang/Battle/Calculator.cs: CalculateVariance"
+      ]
+    },
+    {
+      "sourceId": "base:mechanic:stat:StealChanceUp%20%5BX%5D",
+      "entityId": "base:mechanic:stat:ref-631",
+      "description": "Value1 (X) adds to the accumulated steal bonus. For one available loot entry, the native chance calculation returns 100 * (base chance + bonus) / (100 + bonus), with integer truncation. A base chance of 20 and bonus of 50 gives 46%. Loot availability is a separate roll. The attempt also applies native luck and consecutive-failure handling. A total bonus of -100 is invalid because the divisor is zero.",
+      "expectedFields": {
+        "Description": {
+          "state": "known",
+          "value": "Increase steal success chance by X%",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > StealChanceUp [X]; line 1616"
+            }
+          ]
+        },
+        "Category": {
+          "state": "known",
+          "value": [
+            "Mechanics",
+            "Stat modifiers"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > StealChanceUp [X]; line 1616"
+            }
+          ]
+        },
+        "Evidence scope": {
+          "state": "known",
+          "value": "Community guide description; not an automatically applied build rule",
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Stat modifiers > StealChanceUp [X]; line 1616"
+            }
+          ]
+        }
+      },
+      "expectedDescription": "Increase steal success chance by X%",
+      "replacedFields": [
+        "Description",
+        "Evidence scope"
+      ],
+      "evidence": [
+        "Sang/Battle/BattlerStats.cs: ApplyStatMod StealChanceUp",
+        "Sang/Battle/Calculator.cs: CalculateStealChance",
+        "Sang/Battle/RollResolver.cs: ResolveSteal"
+      ]
+    },
+    {
+      "sourceId": "base:mechanic:growth-and-damage",
+      "entityId": "base:mechanic:ref-437",
+      "description": "Character growth, resting loadout totals, and supported combat arithmetic use the verified Windows PC 1.6.9 calculation package. The package records integer operations, rounding, modifier order, input requirements, and checks against compiled native methods. Combat calculations need explicit actor, target, ability, and battle context; a resting build preview does not simulate a complete encounter. Export the package from a Build or character calculation panel, or read the native calculation reference.",
+      "expectedFields": {
+        "Category": {
+          "state": "known",
+          "value": [
+            "Mechanics",
+            "Formulas"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Game synopsis > Growths; Abilities > Formula construction"
+            }
+          ]
+        },
+        "Growth inputs": {
+          "state": "known",
+          "value": [
+            "Primary class ratings",
+            "Level",
+            "Levels allocated to each growth class",
+            "Explicit stat bonuses"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Game synopsis > Growths; Abilities > Formula construction"
+            }
+          ]
+        },
+        "Unresolved damage details": {
+          "state": "known",
+          "value": [
+            "The variance description places variance before critical hits; the final pipeline reverses them",
+            "The guide uses UserPower + TargetPower in the reduction denominator; the developer post uses 2 * TargetPower",
+            "The guide does not specify all intermediate rounding and remaining multiplier order"
+          ],
+          "sources": [
+            {
+              "sourceId": "community:geef-modding-guide",
+              "snapshot": "Supplied guide text, reviewed 2026-09-27",
+              "applicability": "Community research; individual mechanics may depend on game version and modifier context",
+              "locator": "Game synopsis > Growths; Abilities > Formula construction"
+            }
+          ]
+        }
+      },
+      "expectedDescription": "This entry preserves community formula research. Class and loadout calculators use verified Windows PC rules. The discrepancies below describe the community source and are not calculation inputs.",
+      "replacedFields": [
+        "Growth inputs",
+        "Unresolved damage details"
+      ],
+      "evidence": [
+        "src/calculations/pc-1.6.9-v1.json",
+        "src/calculations/combat-v1.json",
+        "src/calculations/pc-parity-v1.json",
+        "src/calculations/combat-parity-v1.json"
+      ],
+      "calculationLinks": [
+        {
+          "label": "Native calculation reference",
+          "href": "https://github.com/j-256/crykit/blob/main/docs/calculation-reference.md"
+        },
+        {
+          "label": "Calculation package and export",
+          "href": "https://github.com/j-256/crykit/blob/main/docs/calculations.md"
+        }
+      ]
+    }
+  ],
+  "calculationFiles": {
+    "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b"
+  }
+}

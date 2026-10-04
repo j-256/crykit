@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "source": {
     "platform": "Windows",
     "gameVersion": "1.6.9",
@@ -8,6 +8,58 @@
     "scope": "Static implementation evidence; Switch, mods, runtime state, geography, and redistribution rights require separate evidence"
   },
   "policy": "Complete unchanged known claims only; original attribution and immutable catalogs are preserved",
+  "projectionEvidence": [
+    {
+      "file": "src/catalog/native-description-evidence.json",
+      "files": {
+        "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a",
+        "Sang/Common/StringInterpreter.cs": "e4af98a896c4ed4cc17147d93016f1c228115c43629cd14895d2f7fdbf1a7b85",
+        "Sang/SangData/CVocab.cs": "280ae55bd84ff2f224864714c45bae17ccb9e6c82e02fe1002a766efd67c60cc",
+        "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
+        "Sang/SangData/HStatus.cs": "cf5dd615c67518cf58340077532976750e778dfe51c6b9e2de5bfb567c94a680",
+        "Sang/Battle/StatusCollection.cs": "b25b55b296131b033fedf943ad72e3783471c8c090f11fa8ed823d5db2292a79",
+        "Sang/Battle/StatusCount.cs": "15f714e823290b11bb99037587e11d785f7830bbbf6c37c34584b86494b4b9d2"
+      },
+      "scope": "Static Windows definition descriptions and reviewed vocabulary expansion; unsupported display branches remain incomplete. Player-specific calculations, inventory capacity, and mod definitions are outside this projection."
+    },
+    {
+      "file": "src/catalog/native-mechanics.json",
+      "files": {
+        "Sang/Battle/BattlerStats.cs": "96bc8e69894c36e6a83c878c35405f8fa68e78b0764140edc702625958b0e6a2",
+        "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
+        "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
+        "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
+        "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a",
+        "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b"
+      },
+      "scope": "Static implementation evidence; Switch, mods, runtime state, geography, and redistribution rights require separate evidence"
+    },
+    {
+      "file": "src/catalog/quintar-native-evidence.json",
+      "files": {
+        "Sang/PartyData/CQuest.cs": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668",
+        "Sang/PartyData/QuestStateData.cs": "fd7d7027a3bab406d4c636344ab07db715308bb1d56f3ec713fd51a4a40f8bd2",
+        "Sang/Window/Field/Service/WindowMyQuintarHatchEgg.cs": "242f706c731ab4cca59a8986b79a2c2f32646656f69b20c4439e9bf82144fa1f",
+        "Sang/Window/Field/Service/WindowMyQuintarMateSelect.cs": "5f81e3babc38f3f808ff628e132d136fff18ff9b59a5736f4d67fe9f13810369"
+      },
+      "scope": "Reviewed Quintar breeding, distinct-track first-place minimums, readiness, feeding, nursery capacity, and hatching; Switch and mods require separate evidence"
+    },
+    {
+      "file": "src/catalog/native-gardening.json",
+      "files": {
+        "Sang/PartyData/CQuest.cs": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668"
+      },
+      "scope": "Fingerprint-bound native rules"
+    },
+    {
+      "file": "src/catalog/acquisition-route-facts.json",
+      "files": {
+        "Sang/Window/Dialogue/MenuItemDialogChoice.cs": "8e33de8c4160083aeea8d4a31cfbdc115578e809c3ebbef292a95d64f449e9f2",
+        "Sang/Window/Dialogue/WindowDialog.cs": "89bfe24c64e2161f0960a925c9b11c9b38036860e086156542681c4289f8cd60"
+      },
+      "scope": "Fingerprint-bound native rules"
+    }
+  ],
   "featureClaims": [
     {
       "sources": [
@@ -82,7 +134,8 @@
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
         "src/calculations/guide-v1.json",
-        "src/catalog/guide-mechanics.json"
+        "src/catalog/guide-mechanics.json",
+        "src/catalog/native-mechanics.json"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1"
@@ -31172,8 +31225,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/wiki-data.json",
-        "src/ui/QuintarBreedingView.tsx"
+        "src/catalog/wiki-data.json"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1"
@@ -52612,6 +52664,34 @@
       },
       "reasons": []
     },
+    "https://github.com/j-256/crykit/blob/main/docs/calculation-reference.md": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "src/catalog/native-mechanics.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://github.com/j-256/crykit/blob/main/docs/calculations.md": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "src/catalog/native-mechanics.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://github.com/j-256/crykit/issues": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -65320,7 +65400,6 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "docs/crystal-edit.md",
         "src/catalog/modding-guide.ts"
       ],
       "catalogs": [
@@ -65338,10 +65417,7 @@
     "https://steamcommunity.com/sharedfiles/filedetails/?id=2794448715": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
-      "files": [
-        "docs/catalog-sources.md",
-        "src/catalog/quintar-breeding.ts"
-      ],
+      "files": [],
       "catalogs": [],
       "outcomes": {
         "corroborated": 0,

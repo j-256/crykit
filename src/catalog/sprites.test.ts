@@ -1,11 +1,37 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
-import { catalogArtwork, menuIcon, nativeUiArtwork, wikiSprite } from './sprites'
+import { catalogArtwork, classWorldArtwork, menuIcon, nativeUiArtwork, wikiSprite } from './sprites'
 import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
   const entity = { id: 'base:equipment:0' as EntityId, kind: 'item' as const }
   const builtin = 'crystal-project-public-starter'
+
+  it('uses native full-body class frames separately from compact catalog artwork', () => {
+    const warrior = { id: 'base:job:0' as EntityId, kind: 'class' as const }
+    const standing = classWorldArtwork(builtin, warrior)!
+    expect(standing.source).toBe('native')
+    expect(standing.asset).toMatchObject({ width: 50, height: 36 })
+    expect(standing.url).not.toBe(catalogArtwork(builtin, warrior)!.url)
+    expect(standing.url).toMatch(/game-assets\/[a-f0-9]{64}\.png/)
+    expect(classWorldArtwork('synthetic-import', warrior)).toBeUndefined()
+    expect(classWorldArtwork(builtin, { ...warrior, kind: 'item' })).toBeUndefined()
+  })
+
+  it('uses reviewed native menu glyphs while retaining unreviewed wiki variants', () => {
+    for (const key of ['equipment:katanas', 'element:fire', 'skill:dagger/axe skill', 'skill:passive', 'skill:scroll', 'command:chivalry']) {
+      const icon = menuIcon(key)!
+      expect(icon.provenance).toBe('installed-game')
+      expect(icon.url).toMatch(/game-assets\/[a-f0-9]{64}\.png/)
+      expect(icon.asset).toMatchObject({ width: 16, height: 16 })
+      expect(icon.asset.license).toContain('Copyrighted Crystal Project')
+      expect(icon.asset.descriptionUrl).toBeUndefined()
+    }
+    expect(menuIcon('command:chivalry')!.binding.sources[0]!.locator).toContain('job.dat record 10')
+    expect(menuIcon('equipment:swords')!.provenance).toBe('community-wiki')
+    expect(menuIcon('command:trickery')!.provenance).toBe('community-wiki')
+    expect(menuIcon('synthetic:unknown')).toBeUndefined()
+  })
 
   it('uses the native seal binding and local currency rectangles for UI artwork', () => {
     const seal = nativeUiArtwork('classSeal')!

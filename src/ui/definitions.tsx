@@ -1,6 +1,8 @@
 import { moneyTextLabel } from '../domain/money'
 import { MoneyText } from './MoneyText'
-import { nativeDefinitionLabel, nativeDisplayDescription, nativeDisplayName, nativeIdentity } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity } from '../domain/native-game'
+import { referenceDescription } from '../catalog/native-description'
+import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
 import { bundledModLabel } from '../domain/bundled-mods'
@@ -52,6 +54,7 @@ export interface DefinitionOption {
   readonly gameSetupStatus?: string
   readonly modAvailability?: DefinitionModAvailability
   readonly preferred: boolean
+  readonly nativeReferenceId?: string
   readonly record: DefinitionRecord
 }
 
@@ -121,7 +124,8 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
     const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
     return {
       key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
-      ...(entity.rawDescription === undefined ? {} : { description: nativeDisplayDescription(entity) }),
+      description: referenceDescription(entity),
+      nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
       ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
       ppCost: passivePointCost(entity),
       sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,

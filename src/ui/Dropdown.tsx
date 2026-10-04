@@ -5,8 +5,11 @@ const ANCHOR_GAP = 6
 const MIN_WIDTH = 360
 const MAX_WIDTH = 480
 const MAX_HEIGHT = 440
+const COMPACT_MIN_WIDTH = 320
+const COMPACT_MAX_WIDTH = 360
+const openDropdowns: HTMLDivElement[] = []
 
-export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, role = 'dialog', children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLElement | null>; initialFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onDismiss: () => void; role?: 'dialog' | 'listbox' }>) {
+export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose, onDismiss, role = 'dialog', size = 'standard', className = '', children }: PropsWithChildren<{ open: boolean; id: string; title: string; anchorRef: RefObject<HTMLElement | null>; initialFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onDismiss: () => void; role?: 'dialog' | 'listbox'; size?: 'standard' | 'compact'; className?: string }>) {
   const popupRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
   const dismissRef = useRef(onDismiss)
@@ -27,7 +30,9 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       const below = Math.max(0, bottomEdge - bounds.bottom - ANCHOR_GAP)
       const above = Math.max(0, bounds.top - topEdge - ANCHOR_GAP)
       const upwards = below < MAX_HEIGHT && above > below
-      const width = Math.min(Math.max(bounds.width, MIN_WIDTH), MAX_WIDTH, rightEdge - leftEdge)
+      const minimumWidth = size === 'compact' ? COMPACT_MIN_WIDTH : MIN_WIDTH
+      const maximumWidth = size === 'compact' ? COMPACT_MAX_WIDTH : MAX_WIDTH
+      const width = Math.min(Math.max(bounds.width, minimumWidth), maximumWidth, rightEdge - leftEdge)
       const height = Math.min(MAX_HEIGHT, upwards ? above : below)
       popup.style.width = `${width}px`
       popup.style.maxHeight = `${height}px`
@@ -38,6 +43,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
     const frame = window.requestAnimationFrame(() => {
       anchor.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
       popup.showPopover({ source: anchor })
+      openDropdowns.push(popup)
       position()
       initialFocusRef.current?.focus({ preventScroll: true })
     })
@@ -48,7 +54,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       restoreFocusOnCleanup = false
       dismissRef.current()
     }
-    const pointerDown = (event: PointerEvent) => { outsidePointerDown = event.isPrimary && event.button === 0 && isOutside(event.target) }
+    const pointerDown = (event: PointerEvent) => { outsidePointerDown = openDropdowns.at(-1) === popup && event.isPrimary && event.button === 0 && isOutside(event.target) }
     const pointerCancel = () => { outsidePointerDown = false }
     const click = (event: MouseEvent) => {
       if (!outsidePointerDown || !isOutside(event.target)) return
@@ -62,7 +68,7 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       dismiss()
     }
     const keyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || openDropdowns.at(-1) !== popup) return
       event.preventDefault()
       event.stopImmediatePropagation()
       closeRef.current()
@@ -95,10 +101,12 @@ export function Dropdown({ open, id, title, anchorRef, initialFocusRef, onClose,
       document.removeEventListener('keydown', keyDown, true)
       document.removeEventListener('focusin', focusIn, true)
       const restoreFocus = popup.contains(document.activeElement) || document.activeElement === document.body
+      const index = openDropdowns.indexOf(popup)
+      if (index >= 0) openDropdowns.splice(index, 1)
       if (popup.matches(':popover-open')) popup.hidePopover()
       if (restoreFocusOnCleanup && restoreFocus && anchor.isConnected) anchor.focus({ preventScroll: true })
     }
-  }, [anchorRef, initialFocusRef, open])
+  }, [anchorRef, initialFocusRef, open, size])
 
-  return open ? <div aria-label={title} aria-modal={role === 'dialog' ? false : undefined} className="definition-dropdown" id={id} popover="manual" ref={popupRef} role={role}>{children}</div> : null
+  return open ? <div aria-label={title} aria-modal={role === 'dialog' ? false : undefined} className={`definition-dropdown ${className}`} id={id} popover="manual" ref={popupRef} role={role}>{children}</div> : null
 }

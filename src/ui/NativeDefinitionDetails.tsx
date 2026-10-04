@@ -5,7 +5,7 @@ import { DefinitionLink } from './NavigationLink'
 import { KnowledgeValue } from './KnowledgeValue'
 import { NativeEnemyBehavior } from './NativeEnemyDetails'
 
-const DETAILS = Object.freeze({ ItemDrops: 'Drops', ItemSteals: 'Steals', Actions: 'Enemy actions and conditions', TargetStatuses: 'Target statuses', UserStatuses: 'User statuses', Ingredients: 'Recipe ingredients', Members: 'Encounter members' })
+const DETAILS = Object.freeze({ ItemDrops: 'Drops', ItemSteals: 'Steals', Actions: 'Enemy actions and conditions', TargetStatuses: 'Target statuses', UserStatuses: 'User statuses', Ingredients: 'Crafting materials', Members: 'Encounter members' })
 const CONDITION_ENUMS: Readonly<Record<string, string>> = Object.freeze({ CondVar: 'ActionConditionVar', CondEval: 'ActionConditionEval', CondGroup: 'ActionConditionGroup' })
 
 function describeCodes(value: JsonValue, enums: Readonly<Record<string, JsonValue>>): JsonValue {
@@ -47,9 +47,11 @@ export function NativeDefinitionDetails({ catalog, entity, enemyMode, onOpenDefi
     <NativeEnemyBehavior catalog={catalog} entity={entity} nativeMode={enemyMode} onOpenDefinition={onOpenDefinition} describeConditions={value => describeCodes(value, enums)}/>
     <details className="enemy-technical"><summary>Technical details <span>Engine fields and related definitions</span></summary><div className="stack">{entity.aliases.length > 0 && <p>Aliases: {entity.aliases.join(', ')}</p>}<p>Stats are raw database inputs. Difficulty, automatic stat generation, modes, and mods can change effective battle values. Test records and repeated enemy names retain distinct IDs.</p>{technicalDetails}{related}</div></details>
   </section>
+  const details = Object.entries(DETAILS).filter(([key]) => Object.hasOwn(record, key))
+  if (details.length === 0 && relationships.length === 0 && identity.mode === 'base') return null
   return <section aria-label="Game details" className="panel"><div className="panel__header"><h3>Game details</h3></div><div className="panel__body stack">
     {identity.mode !== 'base' && <p>This record is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
-    {Object.entries(DETAILS).filter(([key]) => Object.hasOwn(record, key)).map(([key, title]) => <details key={key}><summary>{title}</summary>{(key === 'ItemDrops' || key === 'ItemSteals') && Array.isArray(record[key]) && record[key].length > 0 ? <div className="structured-value__table native-loot-table"><table><thead><tr><th>Item</th><th>Availability (%)</th>{key === 'ItemSteals' && <th>Success (%)</th>}</tr></thead><tbody>{record[key].filter(nativeRecord).map((loot, index) => {
+    {details.map(([key, title]) => <details key={key}><summary>{title}</summary>{(key === 'ItemDrops' || key === 'ItemSteals') && Array.isArray(record[key]) && record[key].length > 0 ? <div className="structured-value__table native-loot-table"><table><thead><tr><th>Item</th><th>Availability (%)</th>{key === 'ItemSteals' && <th>Success (%)</th>}</tr></thead><tbody>{record[key].filter(nativeRecord).map((loot, index) => {
       const link = relationships.find(link => link.label.startsWith(`/${key}/${index}/`))
       return <tr key={index}><td>{link?.targetId ? <DefinitionLink definitionRef={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: link.targetId as CatalogEntity['id'] }} onOpenDefinition={onOpenDefinition}>{link.name}</DefinitionLink> : <span>Unresolved loot</span>}</td><td><KnowledgeValue value={typeof loot.LootChance === 'number' ? { state: 'known', value: loot.LootChance } : { state: 'unknown' }}/></td>{key === 'ItemSteals' && <td><KnowledgeValue value={typeof loot.StealChance === 'number' ? { state: 'known', value: loot.StealChance } : { state: 'unknown' }}/></td>}</tr>
     })}</tbody></table></div> : <KnowledgeValue value={{ state: 'known', value: describeCodes(record[key]!, enums) }}/>}</details>)}

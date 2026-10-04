@@ -1,6 +1,6 @@
 # Reference data boundaries
 
-Reference, search, definition pickers, and calculations resolve catalog snapshots by exact identity and revision. Native records establish facts only for their recorded game version and platform. Supplemental sources still provide acquisition locations, guidance, and other facts absent from the extracted files. Unknown values and material source conflicts remain visible with their evidence.
+Reference, search, definition pickers, and calculations resolve catalog snapshots by exact identity and revision. Native records establish facts only for their recorded game version and platform. The interface derives supported descriptions and acquisition facts from those records and reviewed game code. Attributed directions, strategy, unresolved mechanics, and platform-specific observations remain available with their sources. [Native reference projections](native-reference-facts.md) document which original claims have been replaced and which still need review. Unknown values and material source conflicts remain visible with their evidence.
 
 ## Source fixes
 

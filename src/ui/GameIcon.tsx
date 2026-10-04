@@ -5,6 +5,7 @@ import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
 import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
+import { Sources } from './Sources'
 
 const ICON_SIZE = 24
 
@@ -38,8 +39,8 @@ export function DefinitionArtwork({ localData, catalogs, value }: { localData: L
 export function FieldIconSources({ fields }: { fields: CatalogEntity['fields'] }) {
   const keys = fieldIconKeys(fields)
   if (!keys.length) return null
-  return <details className="menu-icon-sources"><summary>Menu icon sources</summary><ul>{keys.map(key => {
+  return <Sources label="Sources for menu icons"><ul>{keys.map(key => {
     const icon = menuIcon(key)!
     return <li key={key}>{icon.asset.descriptionUrl ? <a href={icon.asset.descriptionUrl} rel="noreferrer" target="_blank">{icon.binding.name}</a> : <span>{icon.binding.name} · {icon.binding.sources.map(source => source.locator).join('; ')}</span>} · {icon.asset.license}{icon.binding.region && (icon.provenance === 'installed-game' ? ' · Region of the original game texture' : ' · Region of a public equipment-menu image')}</li>
-  })}</ul></details>
+  })}</ul></Sources>
 }

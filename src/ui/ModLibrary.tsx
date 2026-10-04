@@ -1,3 +1,4 @@
+import { Sources } from './Sources'
 import { projectModAvailability } from '../catalog/mods'
 import { modState, modListPriority } from '../domain/mods'
 import { ModStateBadge } from './DefinitionModLabel'
@@ -25,7 +26,7 @@ type ReferenceFeedback = { readonly cardId: string; readonly included: boolean }
 
 function SavedRevision({ revision, busy, onEdit }: { readonly revision: ModRevision; readonly busy: boolean; readonly onEdit: (revision: ModRevision) => void }) {
   return <div className="split mod-library__revision">
-    <div><Badge>Saved version</Badge><strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p><small>Source {revision.sourceDigest.replace('sha256:', '').slice(0, 12)} · Editor format {revision.editorVersion ?? 'unknown'}</small></div>
+    <div><Badge>Saved version</Badge><strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p><Sources label={`Sources for saved ${revision.title} version ${revision.declaredVersion ?? 'unspecified'}`}><p>Source {revision.sourceDigest} · Editor format {revision.editorVersion ?? 'unknown'}</p></Sources></div>
     <Button disabled={busy} onClick={() => onEdit(revision)} tone="secondary">Edit this version</Button>
   </div>
 }
@@ -76,10 +77,10 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
       ? <InlineNotice title="Reference not changed" tone="danger"><p>{referenceFeedback.message}</p><p>Your previous Reference membership is unchanged.</p><Button disabled={busy} onClick={() => onToggleReference(referenceFeedback.included)} tone="secondary" type="button">Retry Reference change</Button></InlineNotice>
       : <InlineNotice title={referenceFeedback.included ? 'Added to Reference' : 'Removed from Reference'} tone="positive"><p>{referenceFeedback.included ? 'These entries are included in Reference.' : 'These entries are hidden from Reference. Saved builds and mod settings are kept.'}</p>{referenceFeedback.warnings.length > 0 && <details><summary>Import notes</summary><ul>{referenceFeedback.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}</div>}
     {workshop && <a href={workshop} target="_blank" rel="noopener noreferrer" aria-label={`View ${card.title} on Steam Workshop`}>View on Steam Workshop</a>}
-    {mod && <details className="mod-library__versions"><summary>Versions & JSON source</summary><div className="stack">
+    {mod && <details className="mod-library__versions"><summary>Versions</summary><div className="stack">
       <p className="field__hint">Choose a version in Game Setup to use its supported definitions and settings. Existing builds keep their selected versions. Custom artwork files are separate from the JSON.</p>
       {mod.revisions.map(revision => <SavedRevision key={revision.catalogRevisionId} revision={revision} busy={busy} onEdit={onEdit}/>)}
-      {mod.bundled.map(source => <div className="split mod-library__revision" key={source.sourceDigest}><div><Badge tone="info">Bundled version</Badge><strong>{source.declaredVersion ? `Version ${source.declaredVersion}` : 'Version unspecified'}</strong><p>{bundledModDefinitionCount(source)} supported model records · Full project JSON</p><small>Source {source.sourceDigest.replace('sha256:', '').slice(0, 12)} · Editor format {source.editorVersion}</small></div><Button disabled={busy} onClick={() => onEditBundled(source)} tone="secondary">Edit bundled copy</Button></div>)}
+      {mod.bundled.map(source => <div className="split mod-library__revision" key={source.sourceDigest}><div><Badge tone="info">Bundled version</Badge><strong>{source.declaredVersion ? `Version ${source.declaredVersion}` : 'Version unspecified'}</strong><p>{bundledModDefinitionCount(source)} supported model records · Full project JSON</p><Sources label={`Sources for bundled ${source.title} version ${source.declaredVersion ?? 'unspecified'}`}><p>Source {source.sourceDigest} · Editor format {source.editorVersion}</p></Sources></div><Button disabled={busy} onClick={() => onEditBundled(source)} tone="secondary">Edit bundled copy</Button></div>)}
     </div></details>}
   </div></section>
 }

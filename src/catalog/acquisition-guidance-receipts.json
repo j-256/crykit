@@ -1,0 +1,3764 @@
+{
+  "worldContentDigest": "1906a365f630507ad4581352d8bad1e71a4fecaa41c0853bb3550b39cdf92e0e",
+  "receipts": [
+    {
+      "entityId": "base:item:20",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Milk Man.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Milk Man",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 422,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 80,
+          "evidence": "World entity 579 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 579 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:20",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Milk Man.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Milk Man",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 422,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 80,
+          "evidence": "World entity 579 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 579 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:132",
+      "field": "Location",
+      "value": "Can be purchased from Shoudu Province.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Food Merchant",
+          "location": "Shoudu Province",
+          "coord": {
+            "X": 781,
+            "Y": 96,
+            "Z": -170
+          },
+          "price": 99,
+          "evidence": "World entity 1199 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 1199 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:132",
+      "field": "Description",
+      "value": "Can be purchased from Shoudu Province.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Food Merchant",
+          "location": "Shoudu Province",
+          "coord": {
+            "X": 781,
+            "Y": 96,
+            "Z": -170
+          },
+          "price": 99,
+          "evidence": "World entity 1199 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 1199 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:34",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Candy Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Candy Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 415,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 10,
+          "evidence": "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:34",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Candy Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Candy Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 415,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 10,
+          "evidence": "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+        }
+      ],
+      "evidence": [
+        "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:item:35",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Candy Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Candy Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 415,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 40,
+          "evidence": "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/1"
+        }
+      ],
+      "evidence": [
+        "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/1"
+      ]
+    },
+    {
+      "entityId": "base:item:35",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Candy Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "shop",
+          "label": "Candy Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 415,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 40,
+          "evidence": "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/1"
+        }
+      ],
+      "evidence": [
+        "World entity 575 /NpcData/Pages/0/Actions/2/Data/Stock/1"
+      ]
+    },
+    {
+      "entityId": "base:item:171",
+      "field": "Location",
+      "value": "Can be stolen and dropped by Hobo in the Jojo Sewers.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Hobo (level 20)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:53"
+          },
+          "location": "Jojo Sewers",
+          "chance": 15,
+          "evidence": "Monster 53 ItemDrops"
+        },
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Hobo (level 20)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:53"
+          },
+          "location": "Jojo Sewers",
+          "chance": 25,
+          "success": 25,
+          "evidence": "Monster 53 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 53 ItemDrops",
+        "Monster 53 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:item:171",
+      "field": "Description",
+      "value": "Can be stolen and dropped by Hobo in the Jojo Sewers.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Hobo (level 20)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:53"
+          },
+          "location": "Jojo Sewers",
+          "chance": 15,
+          "evidence": "Monster 53 ItemDrops"
+        },
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Hobo (level 20)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:53"
+          },
+          "location": "Jojo Sewers",
+          "chance": 25,
+          "success": 25,
+          "evidence": "Monster 53 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 53 ItemDrops",
+        "Monster 53 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:227",
+      "field": "Location",
+      "value": "Drop or steal: Rock Lizard in Beaurior Rock",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Rock Lizard (level 38)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:61"
+          },
+          "location": "Beaurior Rock",
+          "chance": 30,
+          "evidence": "Monster 61 ItemDrops"
+        },
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Rock Lizard (level 38)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:61"
+          },
+          "location": "Beaurior Rock",
+          "chance": 100,
+          "success": 30,
+          "evidence": "Monster 61 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 61 ItemDrops",
+        "Monster 61 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:387",
+      "field": "Location",
+      "value": "Steal: Magic Well",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Magic Well (level 41)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:79"
+          },
+          "location": "Beaurior Rock",
+          "chance": 100,
+          "success": 10,
+          "evidence": "Monster 79 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 79 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:140",
+      "field": "Location",
+      "value": "Craft: Gold Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Dagger",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:113"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Dagger",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:14"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/2",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Dagger",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:113"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Dagger",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:14"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/13",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/2",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/13"
+      ]
+    },
+    {
+      "entityId": "base:equipment:137",
+      "field": "Location",
+      "value": "Craft: Diamond Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Dagger",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:140"
+              }
+            },
+            {
+              "name": "Diamond Ore",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:5"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Dagger",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:25"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/2",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Dagger",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:140"
+              }
+            },
+            {
+              "name": "Diamond Ore",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:5"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Dagger",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:25"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/24",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/2",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/24"
+      ]
+    },
+    {
+      "entityId": "base:equipment:141",
+      "field": "Location",
+      "value": "Craft: Gold Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Rapier",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:114"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Rapier",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:15"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/3",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Rapier",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:114"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Rapier",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:15"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/14",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/3",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/14"
+      ]
+    },
+    {
+      "entityId": "base:equipment:142",
+      "field": "Location",
+      "value": "Craft: Diamond Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Rapier",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:141"
+              }
+            },
+            {
+              "name": "Diamond Ore",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:5"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Rapier",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:26"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/3",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Rapier",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:141"
+              }
+            },
+            {
+              "name": "Diamond Ore",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:5"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Rapier",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:26"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/25",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/3",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/25"
+      ]
+    },
+    {
+      "entityId": "base:equipment:143",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Katana",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:115"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Katana",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:16"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/4",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Katana",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:115"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Katana",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:16"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/15",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/4",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/15"
+      ]
+    },
+    {
+      "entityId": "base:equipment:588",
+      "field": "Location",
+      "value": "Drop: The Owlbear",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "The Owlbear (level 47)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:143"
+          },
+          "location": "Land's End",
+          "chance": 100,
+          "evidence": "Monster 143 ItemDrops"
+        }
+      ],
+      "evidence": [
+        "Monster 143 ItemDrops"
+      ]
+    },
+    {
+      "entityId": "base:equipment:144",
+      "field": "Location",
+      "value": "Craft: Diamond Ingot",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Katana",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:143"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Katana",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:27"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/4",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Katana",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:143"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Katana",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:27"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/26",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/4",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/26"
+      ]
+    },
+    {
+      "entityId": "base:equipment:183",
+      "field": "Location",
+      "value": "Reward: Penguin keeper in Capital Sequoia for finding 6 missing penguins.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply",
+            "Return at least 6 lost penguins",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Penguin Keeper",
+          "location": "Capital Sequoia (Maze)",
+          "coord": {
+            "X": 436,
+            "Y": 178,
+            "Z": -321
+          },
+          "quantity": 1,
+          "evidence": "World entity 531 /NpcData/Pages/0/Actions/4/Data/ConditionActionsTrue/1"
+        }
+      ],
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/4/Data/ConditionActionsTrue/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:145",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Spear",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:116"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Spear",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:17"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/5",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Spear",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:116"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Spear",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:17"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/16",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/5",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/16"
+      ]
+    },
+    {
+      "entityId": "base:equipment:146",
+      "field": "Location",
+      "value": "Craft: Diamond Ingot",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Spear",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:145"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Spear",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:28"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/5",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Spear",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:145"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Spear",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:28"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/27",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/5",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/27"
+      ]
+    },
+    {
+      "entityId": "base:equipment:413",
+      "field": "Location",
+      "value": "Drop: Warden in Capital Jail",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Warden (level 27)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:37"
+          },
+          "location": "Capital Jail",
+          "chance": 100,
+          "evidence": "Monster 37 ItemDrops"
+        }
+      ],
+      "evidence": [
+        "Monster 37 ItemDrops"
+      ]
+    },
+    {
+      "entityId": "base:equipment:147",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Scythe",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:117"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Scythe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:18"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/6",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Scythe",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:117"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Scythe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:18"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/17",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/6",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/17"
+      ]
+    },
+    {
+      "entityId": "base:equipment:556",
+      "field": "Location",
+      "value": "Drop: Hermetic in Tall, Tall Heights",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Hermetic (level 55)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:309"
+          },
+          "location": "Tall, Tall Heights",
+          "chance": 100,
+          "evidence": "Monster 309 ItemDrops"
+        }
+      ],
+      "evidence": [
+        "Monster 309 ItemDrops"
+      ]
+    },
+    {
+      "entityId": "base:equipment:148",
+      "field": "Location",
+      "value": "Craft: Diamond Ingot",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Scythe",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:147"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Scythe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:29"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/6",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Scythe",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:147"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Scythe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:29"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/28",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/6",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/28"
+      ]
+    },
+    {
+      "entityId": "base:equipment:149",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Bow",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:118"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Bow",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:19"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/7",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Bow",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:118"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Bow",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:19"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/18",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/7",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/18"
+      ]
+    },
+    {
+      "entityId": "base:equipment:150",
+      "field": "Location",
+      "value": "Craft: Diamond Ingot",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Bow",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:149"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Bow",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:30"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/7",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Bow",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:149"
+              }
+            },
+            {
+              "name": "Diamond Ingot",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:71"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Bow",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:30"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/29",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/7",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/29"
+      ]
+    },
+    {
+      "entityId": "base:equipment:151",
+      "field": "Location",
+      "value": "Craft: Gold Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Staff",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:119"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Staff",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:20"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/8",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Staff",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:119"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Staff",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:20"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/19",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/8",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/19"
+      ]
+    },
+    {
+      "entityId": "base:equipment:152",
+      "field": "Location",
+      "value": "Craft: Diamond Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Staff",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:151"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Staff",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:31"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/8",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Staff",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:151"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Staff",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:31"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/30",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/8",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/30"
+      ]
+    },
+    {
+      "entityId": "base:equipment:80",
+      "field": "Location",
+      "value": "Steal: Canal Beast in Draft Shaft Conduit",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Canal Beast (level 12)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:18"
+          },
+          "location": "Draft Shaft Conduit",
+          "chance": 100,
+          "success": 65,
+          "evidence": "Monster 18 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 18 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:153",
+      "field": "Location",
+      "value": "Craft: Gold Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Wand",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:120"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Wand",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:21"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/9",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Wand",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:120"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Wand",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:21"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/20",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/9",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/20"
+      ]
+    },
+    {
+      "entityId": "base:equipment:276",
+      "field": "Location",
+      "value": "Chest: The Deep Sea, Castle Sequoia",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "chest",
+          "label": "Treasure chest",
+          "location": "Castle Sequoia (2D)",
+          "coord": {
+            "X": 364,
+            "Y": 85,
+            "Z": -424
+          },
+          "evidence": "World entity 2510 /TreasureData"
+        },
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "chest",
+          "label": "Treasure chest",
+          "location": "The Deep Sea",
+          "coord": {
+            "X": 676,
+            "Y": 53,
+            "Z": 181
+          },
+          "evidence": "World entity 2937 /TreasureData"
+        }
+      ],
+      "evidence": [
+        "World entity 2510 /TreasureData",
+        "World entity 2937 /TreasureData"
+      ]
+    },
+    {
+      "entityId": "base:equipment:154",
+      "field": "Location",
+      "value": "Craft: Diamond Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Wand",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:153"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Wand",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:32"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/9",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Wand",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:153"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Wand",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:32"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/31",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/9",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/31"
+      ]
+    },
+    {
+      "entityId": "base:equipment:155",
+      "field": "Location",
+      "value": "Craft: Gold Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Pages",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:121"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Pages",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:22"
+          },
+          "price": 3000,
+          "evidence": "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/10",
+          "station": "Weaponsmith",
+          "location": "Shoudu Province (Map Only)",
+          "coord": {
+            "X": 757,
+            "Y": 101,
+            "Z": -179
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Pages",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:121"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Pages",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:22"
+          },
+          "price": 3000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/21",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 710 /NpcData/Pages/0/Actions/3/Data/Stock/10",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/21"
+      ]
+    },
+    {
+      "entityId": "base:equipment:440",
+      "field": "Location",
+      "value": "Reward: Sky Arena prize counter after round 4",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Win at least 4 Sky Arena battles",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Sky Arena Prizes",
+          "location": "Shoudu Province",
+          "coord": {
+            "X": 765,
+            "Y": 125,
+            "Z": -248
+          },
+          "quantity": 1,
+          "evidence": "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/4/Data/ConditionActionsTrue/1"
+        }
+      ],
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/4/Data/ConditionActionsTrue/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:156",
+      "field": "Location",
+      "value": "Craft: Diamond Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Gold Pages",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:155"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Diamond Pages",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:33"
+          },
+          "price": 50000,
+          "evidence": "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/10",
+          "station": "Weaponsmith",
+          "location": "Jidamba Tangle",
+          "coord": {
+            "X": 894,
+            "Y": 102,
+            "Z": 137
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Gold Pages",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:155"
+              }
+            },
+            {
+              "name": "Diamond Dust",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:72"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Diamond Pages",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:33"
+          },
+          "price": 50000,
+          "evidence": "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/32",
+          "station": "Weaponsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 428,
+            "Y": 171,
+            "Z": -292
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 1805 /NpcData/Pages/0/Actions/3/Data/Stock/10",
+        "World entity 2648 /NpcData/Pages/0/Actions/2/Data/Stock/32"
+      ]
+    },
+    {
+      "entityId": "base:equipment:469",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Helm",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:509"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Helm",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:46"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/8",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Helm",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:509"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Helm",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:46"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/1",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/8",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:308",
+      "field": "Location",
+      "value": "Steal: Doom Spike in The New World",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Doom Spike (level 60)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:263"
+          },
+          "location": "The New World",
+          "chance": 100,
+          "success": 5,
+          "evidence": "Monster 263 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 263 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:471",
+      "field": "Location",
+      "value": "Steal: Watchman in Castle Sequoia",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Watchman (level 57)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:195"
+          },
+          "location": "Castle Sequoia",
+          "chance": 100,
+          "success": 30,
+          "evidence": "Monster 195 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 195 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:459",
+      "field": "Location",
+      "value": "Craft: Gold Ingots",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Mail",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:511"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Mail",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:47"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/9",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Mail",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:511"
+              }
+            },
+            {
+              "name": "Gold Ingot",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:69"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Mail",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:47"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/2",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/9",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/2"
+      ]
+    },
+    {
+      "entityId": "base:equipment:272",
+      "field": "Location",
+      "value": "Steal: Akamanto in Castle Sequoia",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Akamanto (level 58)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:201"
+          },
+          "location": "Castle Sequoia",
+          "chance": 100,
+          "success": 10,
+          "evidence": "Monster 201 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 201 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:520",
+      "field": "Location",
+      "value": "Craft: Gold Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Cap",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:513"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Cap",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:48"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/10",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Cap",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:513"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Cap",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:48"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/3",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/10",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/3"
+      ]
+    },
+    {
+      "entityId": "base:equipment:176",
+      "field": "Location",
+      "value": "Reward: Penguin Keeper in Capital Sequoia after returning all 12 penguins",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply",
+            "Return at least 12 lost penguins",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Penguin Keeper",
+          "location": "Capital Sequoia (Maze)",
+          "coord": {
+            "X": 436,
+            "Y": 178,
+            "Z": -321
+          },
+          "quantity": 1,
+          "evidence": "World entity 531 /NpcData/Pages/0/Actions/6/Data/ConditionActionsTrue/1"
+        }
+      ],
+      "evidence": [
+        "World entity 531 /NpcData/Pages/0/Actions/6/Data/ConditionActionsTrue/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:521",
+      "field": "Location",
+      "value": "Craft: Gold Ore",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Vest",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:515"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Vest",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:49"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/11",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Vest",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:515"
+              }
+            },
+            {
+              "name": "Gold Ore",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:4"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Vest",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:49"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/4",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/11",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/4"
+      ]
+    },
+    {
+      "entityId": "base:equipment:522",
+      "field": "Location",
+      "value": "Craft: Gold Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Crown",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:517"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Crown",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:50"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/12",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Crown",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:517"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Crown",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:50"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/5",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/12",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/5"
+      ]
+    },
+    {
+      "entityId": "base:equipment:523",
+      "field": "Location",
+      "value": "Craft: Gold Dust",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Silver Cape",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:519"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "craft",
+          "label": "Gold Robe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:51"
+          },
+          "price": 3000,
+          "evidence": "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/13",
+          "station": "Armorsmith",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 430,
+            "Y": 171,
+            "Z": -292
+          }
+        },
+        {
+          "ingredients": [
+            {
+              "name": "Silver Cape",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:519"
+              }
+            },
+            {
+              "name": "Gold Dust",
+              "count": 3,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:70"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "craft",
+          "label": "Gold Robe",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:51"
+          },
+          "price": 3000,
+          "evidence": "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/6",
+          "station": "Armorsmith",
+          "location": "Sara Sara Bazaar (Angle)",
+          "coord": {
+            "X": -176,
+            "Y": 93,
+            "Z": 57
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 401 /NpcData/Pages/0/Actions/2/Data/Stock/13",
+        "World entity 2649 /NpcData/Pages/0/Actions/3/Data/Stock/6"
+      ]
+    },
+    {
+      "entityId": "base:equipment:225",
+      "field": "Location",
+      "value": "Steal: Kuromanto",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Kuromanto (level 29)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:63"
+          },
+          "location": "Okimoto N.S.",
+          "chance": 100,
+          "success": 100,
+          "evidence": "Monster 63 ItemSteals"
+        }
+      ],
+      "evidence": [
+        "Monster 63 ItemSteals"
+      ]
+    },
+    {
+      "entityId": "base:equipment:490",
+      "field": "Location",
+      "value": "Can be crafted at the Quintar Shop in Quintar Reserve. You will require the Babel Quintar in order to speak to the shopkeeper, and the following items for the recipe:\n20 Silver\nWoke Quintar Eye x 2\nQuintar Shedding x 10\nQuintar Pelt x 1",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Woke Quintar Eye",
+              "count": 2,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:28"
+              }
+            },
+            {
+              "name": "Quintar Shedding",
+              "count": 10,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:168"
+              }
+            },
+            {
+              "name": "Quintar Pelt",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:493"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [
+            {
+              "name": "Babel Quintar",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:167"
+              }
+            }
+          ],
+          "conditions": [
+            "Understand Quintars"
+          ],
+          "kind": "craft",
+          "label": "Fursuit",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:36"
+          },
+          "price": 2000,
+          "evidence": "World entity 2254 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/Stock/0",
+          "station": "Quintar",
+          "location": "Quintar Reserve",
+          "coord": {
+            "X": 712,
+            "Y": 179,
+            "Z": -301
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 2254 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:equipment:490",
+      "field": "Description",
+      "value": "Can be crafted at the Quintar Shop in Quintar Reserve. You will require the Babel Quintar in order to speak to the shopkeeper, and the following items for the recipe:\n20 Silver\nWoke Quintar Eye x 2\nQuintar Shedding x 10\nQuintar Pelt x 1",
+      "routes": [
+        {
+          "ingredients": [
+            {
+              "name": "Woke Quintar Eye",
+              "count": 2,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:28"
+              }
+            },
+            {
+              "name": "Quintar Shedding",
+              "count": 10,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:168"
+              }
+            },
+            {
+              "name": "Quintar Pelt",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:equipment:493"
+              }
+            }
+          ],
+          "costs": [],
+          "requirements": [
+            {
+              "name": "Babel Quintar",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:167"
+              }
+            }
+          ],
+          "conditions": [
+            "Understand Quintars"
+          ],
+          "kind": "craft",
+          "label": "Fursuit",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:recipe:36"
+          },
+          "price": 2000,
+          "evidence": "World entity 2254 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/Stock/0",
+          "station": "Quintar",
+          "location": "Quintar Reserve",
+          "coord": {
+            "X": 712,
+            "Y": 179,
+            "Z": -301
+          }
+        }
+      ],
+      "evidence": [
+        "World entity 2254 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/Stock/0"
+      ]
+    },
+    {
+      "entityId": "base:equipment:244",
+      "field": "Location",
+      "value": "Given as a reward from the Sky Arena, in Shoudu Province. After beating fight number 9, speak to the front desk.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Win at least 9 Sky Arena battles",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Sky Arena Prizes",
+          "location": "Shoudu Province",
+          "coord": {
+            "X": 765,
+            "Y": 125,
+            "Z": -248
+          },
+          "quantity": 1,
+          "evidence": "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1"
+        }
+      ],
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:244",
+      "field": "Description",
+      "value": "Given as a reward from the Sky Arena, in Shoudu Province. After beating fight number 9, speak to the front desk.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Win at least 9 Sky Arena battles",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Sky Arena Prizes",
+          "location": "Shoudu Province",
+          "coord": {
+            "X": 765,
+            "Y": 125,
+            "Z": -248
+          },
+          "quantity": 1,
+          "evidence": "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1"
+        }
+      ],
+      "evidence": [
+        "World entity 1921 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/7/Data/ConditionActionsTrue/1"
+      ]
+    },
+    {
+      "entityId": "base:equipment:373",
+      "field": "Location",
+      "value": "Dropped by the Quintar Enthusiast.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Quintar Enthusiast (level 60)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:213"
+          },
+          "location": "Rolling Quintar Fields",
+          "chance": 100,
+          "evidence": "Monster 213 ItemDrops"
+        }
+      ],
+      "evidence": [
+        "Monster 213 ItemDrops"
+      ]
+    },
+    {
+      "entityId": "base:equipment:373",
+      "field": "Description",
+      "value": "Dropped by the Quintar Enthusiast.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "drop",
+          "label": "Quintar Enthusiast (level 60)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:213"
+          },
+          "location": "Rolling Quintar Fields",
+          "chance": 100,
+          "evidence": "Monster 213 ItemDrops"
+        }
+      ],
+      "evidence": [
+        "Monster 213 ItemDrops"
+      ]
+    },
+    {
+      "entityId": "base:equipment:286",
+      "field": "Location",
+      "value": "Reward: trade Crag Demon Horn in Jojo Sewers",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [
+            {
+              "name": "Crag Demon Horn",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:197"
+              }
+            }
+          ],
+          "requirements": [
+            {
+              "name": "Crag Demon Horn",
+              "count": 1,
+              "ref": {
+                "kind": "catalog",
+                "catalogId": "crystal-project-public-starter",
+                "catalogRevisionId": "catalog-v1",
+                "entityId": "base:item:197"
+              }
+            }
+          ],
+          "conditions": [
+            "Additional story or interaction conditions apply",
+            "Have at least 1 Crag Demon Horn"
+          ],
+          "kind": "reward",
+          "label": "Marlin",
+          "location": "Jojo Sewers",
+          "coord": {
+            "X": 391,
+            "Y": 152,
+            "Z": -274
+          },
+          "quantity": 1,
+          "evidence": "World entity 2759 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/ConditionActionsTrue/1/Data/ConditionActionsTrue/4"
+        }
+      ],
+      "evidence": [
+        "World entity 2759 /NpcData/Pages/0/Actions/1/Data/ConditionActionsTrue/1/Data/ConditionActionsTrue/1/Data/ConditionActionsTrue/4"
+      ]
+    },
+    {
+      "entityId": "base:item:114",
+      "field": "Location",
+      "value": "Finish first in the Salmon Run.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Triggered by proximity, touch, or another interaction",
+            "Finish first in the Salmon Run",
+            "This prize has not been claimed"
+          ],
+          "kind": "reward",
+          "label": "Reception",
+          "location": "Salmon River",
+          "coord": {
+            "X": 120,
+            "Y": 174,
+            "Z": -372
+          },
+          "quantity": 1,
+          "evidence": "World entity 639 /NpcData/Pages/1/Actions/3/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/3"
+        }
+      ],
+      "evidence": [
+        "World entity 639 /NpcData/Pages/1/Actions/3/Data/ConditionActionsTrue/0/Data/ConditionActionsTrue/3"
+      ]
+    },
+    {
+      "entityId": "base:item:102",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 1000,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/2"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/2"
+      ]
+    },
+    {
+      "entityId": "base:item:102",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 1000,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/2"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/2"
+      ]
+    },
+    {
+      "entityId": "base:item:142",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 4000,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/5"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/5"
+      ]
+    },
+    {
+      "entityId": "base:item:142",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 4000,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/5"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/5"
+      ]
+    },
+    {
+      "entityId": "base:item:145",
+      "field": "Location",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 2500,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/7"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/7"
+      ]
+    },
+    {
+      "entityId": "base:item:145",
+      "field": "Description",
+      "value": "Can be purchased in Capital Sequoia from the Item Merchant.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Additional story or interaction conditions apply"
+          ],
+          "kind": "shop",
+          "label": "Item Merchant",
+          "location": "Capital Sequoia",
+          "coord": {
+            "X": 369,
+            "Y": 160,
+            "Z": -254
+          },
+          "price": 2500,
+          "evidence": "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/7"
+        }
+      ],
+      "evidence": [
+        "World entity 456 /NpcData/Pages/0/Actions/2/Data/Stock/7"
+      ]
+    },
+    {
+      "entityId": "base:item:11",
+      "field": "Location",
+      "value": "Can be purchased in Delende from the Shady Merchant for 13 Copper.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Have fewer than 1 Rotten Salmon",
+            "Choose Buy"
+          ],
+          "kind": "reward",
+          "label": "Shady Merchant",
+          "location": "Delende",
+          "coord": {
+            "X": 181,
+            "Y": 132,
+            "Z": -200
+          },
+          "quantity": 1,
+          "evidence": "World entity 124 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1; World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; Cost=13, IsCostOfItem=false; Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetCost returns explicit choice cost; Sang/Window/Dialogue/WindowDialog.cs; UpdateInput spends the selected choice cost before setting private answer=0",
+          "price": 13
+        }
+      ],
+      "evidence": [
+        "World entity 124 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1; World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; Cost=13, IsCostOfItem=false; Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetCost returns explicit choice cost; Sang/Window/Dialogue/WindowDialog.cs; UpdateInput spends the selected choice cost before setting private answer=0"
+      ]
+    },
+    {
+      "entityId": "base:item:11",
+      "field": "Description",
+      "value": "Can be purchased in Delende from the Shady Merchant for 13 Copper.",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [
+            "Have fewer than 1 Rotten Salmon",
+            "Choose Buy"
+          ],
+          "kind": "reward",
+          "label": "Shady Merchant",
+          "location": "Delende",
+          "coord": {
+            "X": 181,
+            "Y": 132,
+            "Z": -200
+          },
+          "quantity": 1,
+          "evidence": "World entity 124 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1; World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; Cost=13, IsCostOfItem=false; Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetCost returns explicit choice cost; Sang/Window/Dialogue/WindowDialog.cs; UpdateInput spends the selected choice cost before setting private answer=0",
+          "price": 13
+        }
+      ],
+      "evidence": [
+        "World entity 124 /NpcData/Pages/0/Actions/3/Data/ConditionActionsTrue/1; World entity 124 /NpcData/Pages/0/Actions/2/Data/Choices/0; Cost=13, IsCostOfItem=false; Sang/Window/Dialogue/MenuItemDialogChoice.cs; Set/GetCost returns explicit choice cost; Sang/Window/Dialogue/WindowDialog.cs; UpdateInput spends the selected choice cost before setting private answer=0"
+      ]
+    }
+  ],
+  "disagreements": [
+    {
+      "entityId": "base:equipment:589",
+      "field": "Location",
+      "value": "Drop: Red Guardian in Slip Glide Ride",
+      "routes": [
+        {
+          "ingredients": [],
+          "costs": [],
+          "requirements": [],
+          "conditions": [],
+          "kind": "steal",
+          "label": "Red Guardian (level 49)",
+          "ref": {
+            "kind": "catalog",
+            "catalogId": "crystal-project-public-starter",
+            "catalogRevisionId": "catalog-v1",
+            "entityId": "base:monster:224"
+          },
+          "location": "Slip Glide Ride",
+          "chance": 100,
+          "success": 10,
+          "evidence": "Monster 224 ItemSteals"
+        }
+      ],
+      "absentKinds": [
+        "drop"
+      ],
+      "summary": "The wiki lists Ember Scythe as a Red Guardian drop. The inspected Windows 1.6.9 record lists it as a steal, with 100% availability and 10% success per attempt; it is absent from that record's drop table.",
+      "evidence": [
+        "Database/monster.dat; ID 224 ItemSteals and ItemDrops",
+        "Database/equipment.dat; ID 589"
+      ]
+    }
+  ]
+}

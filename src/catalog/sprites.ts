@@ -57,6 +57,7 @@ interface GameArtworkManifest {
   }
   readonly assets: Readonly<Record<string, GameArtworkAsset>>
   readonly entities: Readonly<Record<string, GameArtworkBinding>>
+  readonly classWorld: Readonly<Record<string, GameArtworkBinding>>
   readonly quintarGuide: Readonly<Record<QuintarGuideArtworkKey, { readonly label: string; readonly asset: string }>>
   readonly uiArtwork: Readonly<Record<NativeUiArtworkKey, { readonly label: string; readonly asset: string }>>
 }
@@ -77,7 +78,7 @@ interface MenuIconBinding {
   readonly region?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 }
 
-const gameArtwork: GameArtworkManifest = { ...gameArtworkJson, entities: compileBundledSourceBindings(gameArtworkJson.entities) }
+const gameArtwork: GameArtworkManifest = { ...gameArtworkJson, entities: compileBundledSourceBindings(gameArtworkJson.entities), classWorld: compileBundledSourceBindings(gameArtworkJson.classWorld) }
 const gameArtworkUrls = import.meta.glob<string>('../assets/game-assets/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const wikiManifest: SpriteManifest = { ...wikiManifestJson, entities: compileBundledSourceBindings(wikiManifestJson.entities) }
 const modSourceManifest = modManifestJson as unknown as Omit<SpriteManifest, 'icons'>
@@ -160,6 +161,16 @@ export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): Cata
     provenance: modBinding.origin ?? 'mod-export',
     url: modUrl,
   }
+  const wiki = wikiSprite(catalogId, entity)
+  return wiki && { source: 'wiki', ...wiki }
+}
+
+export function classWorldArtwork(catalogId: string, entity: ArtworkIdentity): CatalogArtwork | undefined {
+  if (catalogId !== STARTER_CATALOG_ID || entity.kind !== 'class') return undefined
+  const binding = gameArtwork.classWorld[entity.id]
+  const asset = binding && gameArtwork.assets[binding.asset]
+  const url = asset && gameArtworkUrls[`../assets/game-assets/${asset.file}`]
+  if (binding?.kind === entity.kind && asset && url) return { source: 'native', asset, binding, gameInputDigest: gameArtwork.gameInputDigest, executable: gameArtwork.sources.executable, nativeDefinitions: gameArtwork.sources.nativeDefinitions, identityCrosswalk: gameArtwork.sources.identityCrosswalk, url }
   const wiki = wikiSprite(catalogId, entity)
   return wiki && { source: 'wiki', ...wiki }
 }

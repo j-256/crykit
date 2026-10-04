@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "platform": "Windows",
+    "gameVersion": "1.6.9",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "systemDataSha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
+    "scope": "Reviewed Quintar breeding, distinct-track first-place minimums, readiness, feeding, nursery capacity, and hatching; Switch and mods require separate evidence",
+    "rights": "Source-specific game data; no content license asserted"
+  },
+  "files": {
+    "Sang/PartyData/CQuest.cs": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668",
+    "Sang/PartyData/QuestStateData.cs": "fd7d7027a3bab406d4c636344ab07db715308bb1d56f3ec713fd51a4a40f8bd2",
+    "Sang/Window/Field/Service/WindowMyQuintarHatchEgg.cs": "242f706c731ab4cca59a8986b79a2c2f32646656f69b20c4439e9bf82144fa1f",
+    "Sang/Window/Field/Service/WindowMyQuintarMateSelect.cs": "5f81e3babc38f3f808ff628e132d136fff18ff9b59a5736f4d67fe9f13810369"
+  },
+  "evidence": {
+    "pairing": [
+      "Sang.PartyData.CQuest.GetQuintarMateResult",
+      "Sang.PartyData.CQuest.GetQuintarMateTypeResult",
+      "Sang.PartyData.CQuest.GetQuintarMateNatureResult"
+    ],
+    "racing": [
+      "Sang.PartyData.CQuest.WillQuintarMateWithPartner",
+      "Sang.PartyData.CQuest.CountQuintarFirstPlaceFinishes",
+      "Sang.PartyData.CQuest.HasQuintarWonRace"
+    ],
+    "readiness": [
+      "Sang.PartyData.CQuest.CanQuintarMate",
+      "Sang.PartyData.CQuest.GetQuintarStatusText",
+      "Sang.PartyData.CQuest.GetQuintarMateIsSuccess"
+    ],
+    "feeding": [
+      "Sang.PartyData.CQuest.FeedQuintar",
+      "Content/Database/item.dat ID 157, 202, 203, 204, 205"
+    ],
+    "nursery": [
+      "Sang.PartyData.QuestStateData.MAX_QUINTAR_SLOTS",
+      "Sang.Window.Field.Service.WindowMyQuintarMateSelect.OnPopupConfirmationOK"
+    ],
+    "hatching": [
+      "Sang.Window.Field.Service.WindowMyQuintarHatchEgg.CaptureTextInput",
+      "Content/Database/item.dat ID 201"
+    ],
+    "names": [
+      "Sang.PartyData.CQuest.InitializeVocab",
+      "Content/Database/system.dat Vocab.General.QUINTAR_Type_*"
+    ]
+  },
+  "partnerRaceWins": {
+    "Blue": 0,
+    "Red": 0,
+    "Desert": 1,
+    "Highland": 1,
+    "River": 2,
+    "Black": 3,
+    "Aqua": 4,
+    "Gold": 5
+  },
+  "nativeTypeNames": {
+    "Blue": "Blue",
+    "Red": "Red",
+    "Desert": "Yellow",
+    "Highland": "Green",
+    "River": "Teal",
+    "Black": "Black",
+    "Aqua": "White",
+    "Gold": "Gold"
+  },
+  "nurseryCapacity": 8,
+  "incubatorItemID": 201,
+  "incubatorsPerHatch": 1,
+  "readiness": {
+    "status": "Happy!",
+    "fiendishBypassesReadiness": true,
+    "base": {
+      "happinessMinimum": 50,
+      "fullnessMinimum": 20,
+      "tirednessBelow": 50
+    },
+    "Desert": {
+      "happinessMinimum": 70,
+      "fullnessMinimum": 30,
+      "tirednessBelow": 30
+    },
+    "Highland": {
+      "happinessMinimum": 70,
+      "fullnessMinimum": 30,
+      "tirednessBelow": 30
+    },
+    "Black": {
+      "happinessMinimum": 90,
+      "fullnessMinimum": 50,
+      "tirednessBelow": 10
+    },
+    "Aqua": {
+      "happinessMinimum": 90,
+      "fullnessMinimum": 50,
+      "tirednessBelow": 10
+    },
+    "note": "Brutish preliminary checks do not return success; the type-specific and final checks still apply. Gold uses the base readiness thresholds. Readiness excludes compatibility, race minimums, and nursery space."
+  },
+  "food": [
+    {
+      "itemID": 157,
+      "name": "Quintar Grass",
+      "fullnessBelow": 80,
+      "fullnessGain": 5,
+      "fullnessMaximum": 80,
+      "happinessGain": 2,
+      "happinessMaximum": 100,
+      "tirednessReduction": 0,
+      "tirednessMinimum": 0
+    },
+    {
+      "itemID": 202,
+      "name": "Quintar Wheat",
+      "fullnessBelow": 100,
+      "fullnessGain": 10,
+      "fullnessMaximum": 100,
+      "happinessGain": 0,
+      "happinessMaximum": 100,
+      "tirednessReduction": 0,
+      "tirednessMinimum": 0
+    },
+    {
+      "itemID": 203,
+      "name": "Quintar Berries",
+      "fullnessBelow": 70,
+      "fullnessGain": 2,
+      "fullnessMaximum": 70,
+      "happinessGain": 10,
+      "happinessMaximum": 100,
+      "tirednessReduction": 0,
+      "tirednessMinimum": 0
+    },
+    {
+      "itemID": 204,
+      "name": "Quintar Cheese",
+      "fullnessBelow": 80,
+      "fullnessGain": 100,
+      "fullnessMaximum": 100,
+      "happinessGain": 0,
+      "happinessMaximum": 100,
+      "tirednessReduction": 55,
+      "tirednessMinimum": 9
+    },
+    {
+      "itemID": 205,
+      "name": "Quintar Cookie",
+      "fullnessBelow": 60,
+      "fullnessGain": 5,
+      "fullnessMaximum": 60,
+      "happinessGain": 100,
+      "happinessMaximum": 100,
+      "tirednessReduction": 0,
+      "tirednessMinimum": 0
+    }
+  ]
+}

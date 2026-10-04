@@ -1,3 +1,4 @@
+import { nativeDescription } from '../catalog/native-description'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { nativeDefinitionLabel, nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
@@ -101,6 +102,7 @@ function numericFactKey(label: string, value: number): string {
 }
 
 function corroboratedNativePercentFacts(record: Definition): ReadonlySet<string> {
+  if (!nativeDescription(record)) return new Set()
   const version = record.fields['Game version']
   const modifiers = nativeSourceRecord(record)?.StatMods
   if (!nativeIdentity(record) || version?.state !== 'known' || version.value !== NATIVE_GAME_DATA.source.gameVersion || !Array.isArray(modifiers)) return new Set()
@@ -116,7 +118,7 @@ function numericSummaryFact(line: string): { readonly key: string; readonly labe
   return match ? { key: numericFactKey(match[1]!, Number(match[2])), label: match[1]!.trim(), value: Number(match[2]), percent: match[3] === '%' } : undefined
 }
 
-function supplementalSummaryFactLines(record: Definition): readonly string[] {
+function sourceSummaryFactLines(record: Definition): readonly string[] {
   const lines: string[] = []
   const seen = new Set<string>()
   const statFragments = new Set<string>()
@@ -171,6 +173,7 @@ function supplementalSummaryFactLines(record: Definition): readonly string[] {
 }
 
 function nativeNumericSummaryFacts(record: Definition) {
+  if (!nativeDescription(record)) return []
   const version = record.fields['Game version']
   const modifiers = nativeSourceRecord(record)?.StatMods
   if (!nativeIdentity(record) || version?.state !== 'known' || version.value !== NATIVE_GAME_DATA.source.gameVersion || !Array.isArray(modifiers) || record.fields['Crystal Edit source record'] || 'revision' in record) return []
@@ -192,9 +195,9 @@ export function nativeListedStat(record: Definition, label: string): number | un
 
 export function summaryFactLines(record: Definition): readonly string[] {
   const native = nativeNumericSummaryFacts(record)
-  const supplemental = supplementalSummaryFactLines(record)
-  if (!native.length) return supplemental
-  const resolved = supplemental.map(line => {
+  const source = sourceSummaryFactLines(record)
+  if (!native.length) return source
+  const resolved = source.map(line => {
     const fact = numericSummaryFact(line)
     return fact ? native.find(candidate => sameStat(candidate, fact))?.line ?? line : line
   })
@@ -203,11 +206,11 @@ export function summaryFactLines(record: Definition): readonly string[] {
 
 export function nativeStatSourceNotice(record: Definition): string | undefined {
   const native = nativeNumericSummaryFacts(record)
-  const differs = supplementalSummaryFactLines(record).some(line => {
+  const differs = sourceSummaryFactLines(record).some(line => {
     const fact = numericSummaryFact(line)
     return fact && native.some(candidate => sameStat(candidate, fact) && candidate.value !== fact.value)
   })
-  return differs ? `Supplemental stat values differ; Windows ${NATIVE_GAME_DATA.source.gameVersion} values shown. Original claims are in provenance.` : undefined
+  return differs ? `Source stat values differ; Windows ${NATIVE_GAME_DATA.source.gameVersion} values shown. Original claims are in provenance.` : undefined
 }
 
 export function definitionChoiceSourceLabel(option: DefinitionOption): string {
@@ -218,7 +221,16 @@ export function definitionChoiceSourceLabel(option: DefinitionOption): string {
 }
 
 export function selectionSummaryLines(option: DefinitionOption): readonly string[] {
-  const lines = summaryFactLines(option.record)
+  const native = nativeDescription(option.record)
+  const source = summaryFactLines(option.record)
+  const retained = native?.complete ? source.filter(line => /^(cost|pp):/i.test(line)) : source
+  const identities = new Set<string>()
+  const lines = [...(native?.lines ?? []), ...retained].map(line => line.replace(/[\t ]+/g, ' ')).filter(line => {
+    const identity = summaryIdentity(line)
+    if (identities.has(identity)) return false
+    identities.add(identity)
+    return true
+  })
   if (lines.length) return lines
   return (option.description ?? nativeDisplayDescription(option.record))?.split(/\r?\n/).map(line => line.trim()).filter(Boolean) ?? []
 }

@@ -20,7 +20,7 @@ export const OPTIONAL_REFERENCE_AUDIENCES = [
   { value: 'diagnostic', label: 'Catalog diagnostics', description: 'Catalog coverage and extraction diagnostics' },
   { value: 'about', label: 'About & history', description: 'Game, developer, release, and media articles' },
   { value: 'tooling', label: 'Tools & modding', description: 'External tools and modding articles' },
-  { value: 'alternatives', label: 'Other sources & mode variants', description: 'Overlapping supplemental definitions and native mode overrides' },
+  { value: 'alternatives', label: 'Other sources & mode variants', description: 'Verified alternative source entries and native mode overrides' },
 ] as const
 
 export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[number]['value']

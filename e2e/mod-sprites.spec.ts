@@ -14,6 +14,6 @@ test('Equipment Expansion hides base-game proof and retains custom artwork attri
 
   await page.goto(detail('mod:equipment-expansion:equipment:642'))
   await expectArtwork(page, "Triton's Cloak", 'mod')
-  await page.getByText('Artwork source', { exact: true }).click()
-  await expect(page.locator('.wiki-sprite-source')).toContainText('Equipment/zrghr-2-32x32, cell 43')
+  await page.getByRole('button', { name: "Sources for Triton's Cloak", exact: true }).click()
+  await expect(page.getByRole('dialog', { name: "Sources for Triton's Cloak", exact: true })).toContainText('Equipment/zrghr-2-32x32, cell 43')
 })

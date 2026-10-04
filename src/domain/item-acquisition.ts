@@ -16,6 +16,12 @@ const CONDITION_KEYS = new Set(ACQUISITION_CONDITION_DATA_KEYS)
 const MAX_CONDITION_DEPTH = 32
 export type WorldAcquisitionSnapshot = z.infer<typeof WORLD_SCHEMA>
 export type AcquisitionCondition = z.infer<typeof CONDITION>
+export interface AcquisitionConditionFacts {
+  readonly worldContentDigest: string
+  readonly gameExecutableSha256: string
+  readonly nativeContentDigest: string
+  readonly conditions: readonly { readonly entityID: number; readonly condition: AcquisitionCondition; readonly description: string; readonly evidence: readonly string[] }[]
+}
 export type AcquisitionKind = 'shop' | 'drop' | 'steal' | 'chest' | 'craft' | 'reward' | 'recovery' | 'start'
 export interface AcquisitionMaterial { readonly name: string; readonly count: number; readonly ref?: CatalogRef }
 export interface AcquisitionRoute {
@@ -84,14 +90,16 @@ function material(catalog: CatalogSnapshot, records: ReadonlyMap<string, Catalog
   return { name: target?.name ?? 'Item definition unresolved', count, ...(target ? { ref: entityRef(catalog, target) } : {}) }
 }
 
-function conditionDescription(condition: AcquisitionCondition, records: ReadonlyMap<string, CatalogEntity>): string[] {
+function conditionDescription(condition: AcquisitionCondition, records: ReadonlyMap<string, CatalogEntity>, reviewed: readonly AcquisitionConditionFacts['conditions'][number][] = []): string[] {
   const { type, negated, data } = condition
+  const fact = reviewed.find(entry => JSON.stringify(entry.condition) === JSON.stringify(condition))
+  if (fact) return [fact.description]
   const name = (family: string, id: JsonValue | undefined) => typeof id === 'number' ? records.get(`${family}:${id}`)?.name : undefined
   if (type === ALWAYS && !negated || type === NEVER && negated) return []
   if (type === ALWAYS && negated || type === NEVER && !negated) return [DISABLED_INTERACTION]
   if (type === 'Operation' && nativeRecord(data.LHS) && nativeRecord(data.RHS)) {
-    const left = conditionDescription(data.LHS as unknown as AcquisitionCondition, records)
-    const right = conditionDescription(data.RHS as unknown as AcquisitionCondition, records)
+    const left = conditionDescription(data.LHS as unknown as AcquisitionCondition, records, reviewed)
+    const right = conditionDescription(data.RHS as unknown as AcquisitionCondition, records, reviewed)
     if (data.Op === 'And' && !negated) return [...left, ...right]
     if (data.Op === 'Or' && !negated) {
       if (left.includes(DISABLED_INTERACTION)) return right
@@ -155,7 +163,7 @@ function requirementsFor(catalog: CatalogSnapshot, records: ReadonlyMap<string, 
   return [...requirements.values()]
 }
 
-export function itemAcquisition(catalog: CatalogSnapshot, entity: CatalogEntity, world: WorldAcquisitionSnapshot | undefined, mode = nativeIdentity(entity)?.mode ?? 'base'): ItemAcquisition {
+export function itemAcquisition(catalog: CatalogSnapshot, entity: CatalogEntity, world: WorldAcquisitionSnapshot | undefined, mode = nativeIdentity(entity)?.mode ?? 'base', conditionFacts?: AcquisitionConditionFacts): ItemAcquisition {
   const identity = nativeIdentity(entity)
   const guides = Object.entries(entity.fields).filter(([field, value]) => /^(Acquisition|Location|Obtain|Source|How to obtain)$/i.test(field) && value.state === 'known').flatMap(([field, value]) => value.state === 'known' ? [{ field, value: value.value }] : [])
   if (!identity || !['item', 'equipment'].includes(identity.database)) return { routes: [], worldMatched: false, guides, unresolved: ['Acquisition routes have not been mapped to this exact definition'] }
@@ -187,12 +195,14 @@ export function itemAcquisition(catalog: CatalogSnapshot, entity: CatalogEntity,
   const executable = nativeRecord(nativeSource.executable) ? nativeSource.executable : {}
   const worldMatched = Boolean(world && metadata.sourceContentDigest === world.source.nativeContentDigest && executable.sha256 === world.source.gameExecutableSha256 && nativeSource.platform === world.source.platform && nativeSource.gameVersion === world.source.gameVersion)
   if (worldMatched && world) {
+    const reviewed = conditionFacts?.worldContentDigest === world.contentDigest && conditionFacts.gameExecutableSha256 === world.source.gameExecutableSha256 && conditionFacts.nativeContentDigest === world.source.nativeContentDigest ? conditionFacts.conditions : []
     for (const entry of world.entries) {
       const recipe = entry.family === 'recipe' ? records.get(`recipe:${entry.targetID}`) : undefined
       const recipeRecord = recipe && nativeSourceRecord(recipe)
       const matches = entry.family === identity.database && entry.targetID === identity.databaseId || recipeRecord && recipeRecord.LootType === (identity.database === 'item' ? LOOT_ITEM : LOOT_EQUIPMENT) && recipeRecord.LootID === identity.databaseId
       if (!matches) continue
-      const conditions = [...new Set(entry.conditions.flatMap(condition => conditionDescription(condition, records)))]
+      const conditionEvidence = reviewed.filter(fact => fact.entityID === entry.entityID)
+      const conditions = [...new Set(entry.conditions.flatMap(condition => conditionDescription(condition, records, conditionEvidence)))].filter(Boolean)
       if (conditions.includes(DISABLED_INTERACTION)) continue
       const target = records.get(`${identity.database}:${identity.databaseId}`)
       const cost = target && nativeSourceRecord(target)?.Cost

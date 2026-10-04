@@ -1,6 +1,8 @@
+import { QUINTAR_PARTNER_RACE_WINS, quintarOffspring, type QuintarTraits } from './quintar-native-rules'
+export { QUINTAR_NURSERY_CAPACITY } from './quintar-native-rules'
+export type { QuintarType } from './quintar-native-rules'
+
 export const QUINTAR_GUIDE_SOURCE = 'https://crystal-project.fandom.com/wiki/Quintar_Breeding?oldid=13333'
-export const QUINTAR_RACING_SOURCE = 'https://steamcommunity.com/sharedfiles/filedetails/?id=2794448715'
-export const QUINTAR_NURSERY_CAPACITY = 8
 
 export const QUINTAR_STEP = Object.freeze({
   babel: 'babel',
@@ -24,12 +26,10 @@ export const QUINTAR_STEP = Object.freeze({
 } as const)
 
 export type QuintarBreedingStepId = typeof QUINTAR_STEP[keyof typeof QUINTAR_STEP]
-export type QuintarType = 'Blue' | 'Red' | 'River' | 'Desert' | 'Highland' | 'Aqua' | 'Black' | 'Gold'
 export type QuintarPhase = 'unlock' | 'capture' | 'aqua' | 'black' | 'gold'
 
-export interface GuideQuintar {
+export interface GuideQuintar extends QuintarTraits {
   readonly name: string
-  readonly type: QuintarType
 }
 
 export interface QuintarBreedingStep {
@@ -51,30 +51,32 @@ export const QUINTAR_PHASES = Object.freeze([
 ] as const)
 
 const QUINTARS = Object.freeze({
-  trustyBlue: { name: 'Trusty Blue', type: 'Blue' },
-  trustyRed: { name: 'Trusty Red', type: 'Red' },
-  wokeRiver: { name: 'Woke River', type: 'River' },
-  brutishDesert: { name: 'Brutish Desert', type: 'Desert' },
-  fancyRed: { name: 'Fancy Red', type: 'Red' },
-  fancyBlue: { name: 'Fancy Blue', type: 'Blue' },
-  wokeBlue: { name: 'Woke Blue', type: 'Blue' },
-  brutishHighland: { name: 'Brutish Highland', type: 'Highland' },
-  fancyHighland: { name: 'Fancy Highland', type: 'Highland' },
-  brutishAqua: { name: 'Brutish Aqua', type: 'Aqua' },
-  wokeAqua: { name: 'Woke Aqua', type: 'Aqua' },
-  fancyDesert: { name: 'Fancy Desert', type: 'Desert' },
-  brutishBlack: { name: 'Brutish Black', type: 'Black' },
-  fancyBlack: { name: 'Fancy Black', type: 'Black' },
-  golden: { name: 'Brutish Gold', type: 'Gold' },
+  trustyBlue: { name: 'Trusty Blue', type: 'Blue', nature: 'Trusty' },
+  trustyRed: { name: 'Trusty Red', type: 'Red', nature: 'Trusty' },
+  wokeRiver: { name: 'Woke River', type: 'River', nature: 'Woke' },
+  brutishDesert: { name: 'Brutish Desert', type: 'Desert', nature: 'Brutish' },
+  fancyRed: { name: 'Fancy Red', type: 'Red', nature: 'Fancy' },
+  fancyBlue: { name: 'Fancy Blue', type: 'Blue', nature: 'Fancy' },
+  wokeBlue: { name: 'Woke Blue', type: 'Blue', nature: 'Woke' },
+  brutishHighland: { name: 'Brutish Highland', type: 'Highland', nature: 'Brutish' },
+  fancyHighland: { name: 'Fancy Highland', type: 'Highland', nature: 'Fancy' },
+  brutishAqua: { name: 'Brutish Aqua', type: 'Aqua', nature: 'Brutish' },
+  wokeAqua: { name: 'Woke Aqua', type: 'Aqua', nature: 'Woke' },
+  fancyDesert: { name: 'Fancy Desert', type: 'Desert', nature: 'Fancy' },
+  brutishBlack: { name: 'Brutish Black', type: 'Black', nature: 'Brutish' },
+  fancyBlack: { name: 'Fancy Black', type: 'Black', nature: 'Fancy' },
+  golden: { name: 'Brutish Gold', type: 'Gold', nature: 'Brutish' },
 } as const satisfies Record<string, GuideQuintar>)
 
 function breed(id: QuintarBreedingStepId, phase: QuintarPhase, result: GuideQuintar, parents: readonly [GuideQuintar, GuideQuintar], requires: readonly QuintarBreedingStepId[]): QuintarBreedingStep {
+  const nativeResult = quintarOffspring(...parents)
+  if (nativeResult?.type !== result.type || nativeResult.nature !== result.nature) throw new Error(`Quintar route pairing disagrees with the native rules: ${id}`)
   return { id, phase, title: result.type === 'Gold' ? 'Hatch Golden Quintar' : `Hatch ${result.name}`, instruction: 'Make both parents Happy!, breed them, and hatch the resulting egg.', parents, requires, result }
 }
 
 export const QUINTAR_BREEDING_STEPS: readonly QuintarBreedingStep[] = Object.freeze([
   { id: QUINTAR_STEP.babel, phase: 'unlock', title: 'Obtain Babel Quintar', instruction: 'Bring a swimming mount into the Quintar Mausoleum beneath the Quintar Reserve. Complete its switch puzzles to obtain Babel Quintar and speak with quintars.', requires: [] },
-  { id: QUINTAR_STEP.ocarina, phase: 'unlock', title: 'Buy Quintar Ocarina', instruction: 'Visit the Quintar Shop inside Dione Shrine. The Ocarina costs 12 gold and calls your chosen nursery mount.', requires: [QUINTAR_STEP.babel] },
+  { id: QUINTAR_STEP.ocarina, phase: 'unlock', title: 'Buy Quintar Ocarina', instruction: 'Visit the Quintar Shop inside Dione Shrine. The Ocarina calls your chosen nursery mount.', requires: [QUINTAR_STEP.babel] },
   { id: QUINTAR_STEP.trustyBlue, phase: 'capture', title: 'Hatch Trusty Blue', instruction: 'Look east of Yamagawa M.A. or northwest of Dione Shrine. Defeat a Trusty Blue, send its egg to the nursery, and hatch it.', requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyBlue },
   { id: QUINTAR_STEP.trustyRed, phase: 'capture', title: 'Hatch Trusty Red', instruction: 'Look in the Overpass northwest of Okimoto N.S. or north of Sara Sara Beach. Defeat a Trusty Red, send its egg to the nursery, and hatch it.', requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyRed },
   { id: QUINTAR_STEP.wokeRiver, phase: 'capture', title: 'Hatch Woke River', instruction: "Look northwest of the River Cat's Ego or northwest of Triton Shrine. Defeat a Woke River, send its egg to the nursery, and hatch it.", requires: [QUINTAR_STEP.babel], result: QUINTARS.wokeRiver },
@@ -95,14 +97,12 @@ export const QUINTAR_BREEDING_STEPS: readonly QuintarBreedingStep[] = Object.fre
 
 export const QUINTAR_BREEDING_STEP_IDS: ReadonlySet<string> = new Set(QUINTAR_BREEDING_STEPS.map(step => step.id))
 
-const PARTNER_RACE_WINS: Readonly<Partial<Record<QuintarType, number>>> = Object.freeze({ Blue: 0, Red: 0, River: 2, Desert: 2, Highland: 2, Black: 3, Aqua: 4 })
-
-export function quintarRaceRequirements(step: QuintarBreedingStep): readonly { readonly name: string; readonly wins: number | undefined }[] {
+export function quintarRaceRequirements(step: QuintarBreedingStep): readonly { readonly name: string; readonly wins: number }[] {
   const parents = step.parents
   if (!parents) return []
   return parents.map((parent, index) => {
     const partner = parents[index === 0 ? 1 : 0]
-    return { name: parent.name, wins: PARTNER_RACE_WINS[partner.type] }
+    return { name: parent.name, wins: QUINTAR_PARTNER_RACE_WINS[partner.type] }
   })
 }
 

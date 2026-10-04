@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "platform": "Windows",
+    "gameVersion": "1.6.9",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "systemDataSha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
+    "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e"
+  },
+  "files": {
+    "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a",
+    "Sang/Common/StringInterpreter.cs": "e4af98a896c4ed4cc17147d93016f1c228115c43629cd14895d2f7fdbf1a7b85",
+    "Sang/SangData/CVocab.cs": "280ae55bd84ff2f224864714c45bae17ccb9e6c82e02fe1002a766efd67c60cc",
+    "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
+    "Sang/SangData/HStatus.cs": "cf5dd615c67518cf58340077532976750e778dfe51c6b9e2de5bfb567c94a680",
+    "Sang/Battle/StatusCollection.cs": "b25b55b296131b033fedf943ad72e3783471c8c090f11fa8ed823d5db2292a79",
+    "Sang/Battle/StatusCount.cs": "15f714e823290b11bb99037587e11d785f7830bbbf6c37c34584b86494b4b9d2"
+  },
+  "symbols": [
+    "WindowHelper.Format",
+    "WindowHelper.DrawStatMod",
+    "WindowHelper.DrawAbilityDetails",
+    "WindowHelper.DrawItemDetails",
+    "WindowHelper.DrawStatusDetails",
+    "WindowHelper.DrawStatusDuration",
+    "StringInterpreter.AppendVocab",
+    "StringInterpreter.AppendSpecial",
+    "CVocab.InitializeStatModText",
+    "HAbility.IsStanceChange",
+    "HStatus.IsPermanent",
+    "StatusCollection.Apply",
+    "StatusCount.StatusCount"
+  ],
+  "scope": "Static Windows definition descriptions and reviewed vocabulary expansion; unsupported display branches remain incomplete. Player-specific calculations, inventory capacity, and mod definitions are outside this projection."
+}

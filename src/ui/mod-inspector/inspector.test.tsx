@@ -12,9 +12,22 @@ const originalText = '{"Count":1,"Values":[1]}'
 const saved: InspectorDraft = { schemaVersion: 1, id: 'synthetic', filename: 'synthetic.json', originalText, draftText: originalText, referenceId: 'synthetic', revision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' }
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
+const prototypeMethods = ['showPopover', 'hidePopover', 'scrollIntoView'] as const
+let originalMethods: (PropertyDescriptor | undefined)[]
 
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  const open = new WeakSet<HTMLElement>()
+  originalMethods = prototypeMethods.map(name => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name))
+  Object.defineProperties(HTMLElement.prototype, {
+    showPopover: { configurable: true, value: function (this: HTMLElement) { open.add(this) } },
+    hidePopover: { configurable: true, value: function (this: HTMLElement) { open.delete(this) } },
+    scrollIntoView: { configurable: true, value: vi.fn() },
+  })
+  const matches = HTMLElement.prototype.matches
+  vi.spyOn(HTMLElement.prototype, 'matches').mockImplementation(function (this: HTMLElement, selector) { return selector === ':popover-open' ? open.has(this) : matches.call(this, selector) })
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(performance.now()); return 0 })
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   storage.list.mockResolvedValue([summarizeInspectorDraft(saved)])
   storage.get.mockResolvedValue(saved)
   storage.remove.mockResolvedValue(undefined)
@@ -23,7 +36,18 @@ beforeEach(() => {
   document.body.append(container)
   root = createRoot(container)
 })
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.clearAllMocks() })
+afterEach(async () => {
+  await act(async () => root.unmount())
+  container.remove()
+  vi.clearAllMocks()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  for (const [index, name] of prototypeMethods.entries()) {
+    const descriptor = originalMethods[index]
+    if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor)
+    else Reflect.deleteProperty(HTMLElement.prototype, name)
+  }
+})
 
 async function open(onDraftChange?: (dirty: boolean, actions?: DraftActions) => void) {
   await act(async () => root.render(<ModInspectorView onDraftChange={onDraftChange}/>))
@@ -53,14 +77,19 @@ describe('inspector exact edits and navigation', () => {
     const row = { ...saved, originalText: text, draftText: text, referenceId: 'synthetic-earlier-lookup' }
     storage.get.mockResolvedValue(row)
     await open()
-    const reference = container.querySelector<HTMLDetailsElement>('.inspector-reference')!
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Sources for inspector labels"]')!
     const format = container.querySelector<HTMLDetailsElement>('.inspector-format')!
-    expect(reference.open).toBe(false)
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    await act(async () => trigger.click())
+    const reference = container.querySelector('[role="dialog"][aria-label="Sources for inspector labels"]')!
     expect(reference.textContent).toContain('different version of CryKit\'s reference data')
     expect(format.open).toBe(false)
     expect(format.querySelector('summary')?.textContent).toBe('Editor format: Crystal Edit format 34')
     expect([...container.querySelectorAll('[role="status"], [role="alert"]')].map(element => element.textContent)).toEqual(['Saved in this browser'])
-    await act(async () => { reference.open = true; reference.dispatchEvent(new Event('toggle')) })
+    await act(async () => reference.querySelector<HTMLButtonElement>('button[aria-label="Close sources"]')!.click())
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
     expect(storage.save).not.toHaveBeenCalled()
     expect(row).toMatchObject({ originalText: text, draftText: text, referenceId: 'synthetic-earlier-lookup', revision: saved.revision })
   })

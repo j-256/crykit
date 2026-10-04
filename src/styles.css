@@ -1292,6 +1292,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 .reference-detail--enemy { padding: 0; gap: 14px; }
 .reference-detail__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .reference-detail__toolbar > .cluster { justify-content: flex-end; }
+.reference-detail__navigation { display: flex; align-items: center; gap: 6px; }
 .reference-actions__content { display: grid; gap: 4px; padding: 10px; }
 .reference-actions__content > .button { justify-content: flex-start; }
 .reference-actions__content .definition-scope { padding: 10px 8px 4px; margin: 0; border-top: 1px solid var(--line); }
@@ -1417,7 +1418,7 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 .reference-layout--detail > .panel:has(.reference-detail--enemy) { border: 0; background: transparent; box-shadow: none; }
 @media (max-width: 680px) {
   .reference-detail:not(.reference-detail--enemy) > .reference-detail__toolbar { flex-direction: column; align-items: stretch; }
-  .reference-detail:not(.reference-detail--enemy) > .reference-detail__toolbar > .button { align-self: flex-start; }
+  .reference-detail:not(.reference-detail--enemy) .reference-detail__navigation { width: 100%; justify-content: space-between; }
 }
 .enemy-metric[data-numeric] dd { white-space: nowrap; overflow-wrap: normal; }
 .enemy-metric:not([data-numeric]) dd { font-family: inherit; font-size: .85rem; line-height: 1.4; }

@@ -1,5 +1,79 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "presentation": {
+    "scope": "Read-only native projections; stored source states and immutable catalog content remain unchanged",
+    "descriptions": {
+      "complete": 1195,
+      "partial": 466,
+      "unsupported": 68,
+      "historicalFallbacks": {
+        "complete": 648,
+        "partial": 240,
+        "unsupported": 16
+      },
+      "unsupportedReasons": {
+        "Item behavior has no supported description": 17,
+        "Stat modifier: ReplaceAttackWith": 12,
+        "Stat modifier: Reaction": 16,
+        "Stat modifier: SetStatusAfterExpiry": 9,
+        "Stat modifier: MDefMax": 7,
+        "Stat modifier: PDefMax": 7,
+        "Ability modifier: Teleport": 50,
+        "Stat modifier: Addi_HealingReturn": 1,
+        "Ability modifier: ThreatGainFlat": 3,
+        "Weapon type scope details": 157,
+        "Ability power formula": 284,
+        "Ability defense and scaling details": 287,
+        "Ability combat details": 377,
+        "Ability modifier: DamageReturnRateOverflow_100": 16,
+        "Ability modifier: RemoveOneFromStatusCategory": 10,
+        "Ability modifier: RemoveAllStatusCategory": 11,
+        "Ability modifier: OncePerTurn": 8,
+        "Ability modifier: DamagePerSelfBuff": 2,
+        "Ability modifier: DamageReturnRateOnKill_100": 1,
+        "Ability modifier: ConvertAPToMP": 1,
+        "Ability modifier: ConvertMPToAP": 1,
+        "Ability modifier: RandomStatusTarget": 2,
+        "Ability modifier: DamageReturnRateNoOverflow_100": 7,
+        "Ability modifier: DamagePerTargetDebuff": 3,
+        "Ability modifier: ConsumeComboTokens": 6,
+        "Item special behavior": 3,
+        "Ability modifier: SetMountType": 16,
+        "Ability modifier: SetMountToMyQuintar": 2,
+        "Status application": 1,
+        "Ability modifier: StatusRequiredTarget": 3,
+        "Ability modifier: ServiceShortcut": 2,
+        "Ability modifier: CanUseWhileDead": 3,
+        "Ability modifier: DamageRateVsStatus": 1,
+        "Item flavor vocabulary": 4,
+        "Stat modifier: DamageBonusFromAPCost": 1,
+        "Authored description contains unsupported vocabulary": 4
+      }
+    },
+    "fieldFacts": {
+      "nativeValues": 1164,
+      "differingOriginals": 7
+    },
+    "acquisition": {
+      "replacedFields": 64,
+      "retainedGuideFields": 138,
+      "disagreements": 1
+    },
+    "identities": {
+      "relations": {
+        "command-of-class": 24,
+        "same-definition": 331
+      },
+      "dispositions": {
+        "mod-source-review": 38,
+        "native-linked": 355,
+        "native-identity-review": 245,
+        "native-geography-review": 113,
+        "article-review": 23,
+        "native-mechanics-review": 301
+      }
+    }
+  },
   "catalogId": "crystal-project-public-starter",
   "revisionId": "catalog-v1",
   "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa",
@@ -15,7 +89,7 @@
       "state": "conflicting",
       "kind": "item",
       "field": "Cost",
-      "reason": "Supplemental source claims differ",
+      "reason": "Original source claims differ",
       "count": 2,
       "examples": [
         "base:item:ref-144",
@@ -26,7 +100,7 @@
       "state": "conflicting",
       "kind": "item",
       "field": "Effect",
-      "reason": "Supplemental source claims differ",
+      "reason": "Original source claims differ",
       "count": 4,
       "examples": [
         "base:item:132",
@@ -38,7 +112,7 @@
       "state": "conflicting",
       "kind": "item",
       "field": "Location",
-      "reason": "Supplemental source claims differ",
+      "reason": "Original source claims differ",
       "count": 513,
       "examples": [
         "base:equipment:0",
@@ -50,7 +124,7 @@
       "state": "conflicting",
       "kind": "other",
       "field": "Description",
-      "reason": "Supplemental source claims differ",
+      "reason": "Original source claims differ",
       "count": 1,
       "examples": [
         "base:mechanic:ability:ref-385"

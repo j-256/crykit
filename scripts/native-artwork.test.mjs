@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeUiArtwork } from './native-artwork.mjs'
+import sharp from 'sharp'
+import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeReferenceArtwork, validateNativeUiArtwork } from './native-artwork.mjs'
+import { visibleContentBounds } from './sprite-content-bounds.mjs'
 
 const textures = new Map([
   ['Icon/Test', { width: 240, height: 104, sha256: 'icon-hash' }],
@@ -79,5 +81,46 @@ test('UI artwork rejects changed currency cells, swapped coins, and seal identit
     const changed = structuredClone(manifest)
     mutate(changed)
     assert.throws(() => validateNativeUiArtwork(changed, textures), /invalid|stale/)
+  }
+})
+
+test('native standing portraits and menu glyphs preserve the visible pixels of their pinned wiki predecessors', async () => {
+  const manifest = JSON.parse(readFileSync(new URL('../src/catalog/game-assets.json', import.meta.url)))
+  const wiki = JSON.parse(readFileSync(new URL('../src/catalog/wiki-sprites.json', import.meta.url)))
+  const visiblePixels = async (directory, asset) => {
+    const bytes = readFileSync(new URL(`../src/assets/${directory}/${asset.file}`, import.meta.url))
+    const bounds = await visibleContentBounds(bytes)
+    const result = await sharp(bytes).extract({ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height }).ensureAlpha().raw().toBuffer()
+    for (let index = 0; index < result.length; index += 4) if (result[index + 3] === 0) result.fill(0, index, index + 3)
+    return { width: bounds.width, height: bounds.height, pixels: result }
+  }
+  for (const [group, previous] of [['classWorld', wiki.entities], ['menuIcons', wiki.icons]]) {
+    assert.ok(Object.keys(manifest[group]).length > 0)
+    for (const [key, binding] of Object.entries(manifest[group])) {
+      const old = previous[key]
+      assert.ok(old, `Pinned predecessor is missing: ${key}`)
+      assert.deepEqual(await visiblePixels('game-assets', manifest.assets[binding.asset]), await visiblePixels('wiki-sprites', wiki.assets[old.asset]), key)
+    }
+  }
+})
+
+test('reference artwork checks preserve job identities, actor frames, command cells, and output dimensions', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../src/catalog/game-assets.json', import.meta.url)))
+  const snapshot = JSON.parse(readFileSync(new URL('../src/catalog/native-game-data.json', import.meta.url)))
+  const textures = new Map(Object.values(manifest.sources.texturePacks).flatMap(pack => pack.textures.map(texture => [texture.path, texture])))
+  assert.doesNotThrow(() => validateNativeReferenceArtwork(manifest, snapshot, textures))
+  assert.equal(Object.keys(manifest.classWorld).length, snapshot.databases.job.filter(Boolean).length)
+  assert.deepEqual(manifest.classWorld['base:class:warrior'].rendering.sourceTextures.map(source => source.region), [{ x: 25, y: 0, width: 25, height: 36 }, { x: 25, y: 0, width: 25, height: 36 }])
+  assert.match(manifest.menuIcons['command:chivalry'].locator, /job.dat record 10/)
+  for (const mutate of [
+    m => { m.classWorld['base:class:warrior'].nativeRecord.databaseId = 1 },
+    m => { m.classWorld['base:class:warrior'].rendering.sourceTextures[0].region.x = 0 },
+    m => { m.menuIcons['command:chivalry'].asset = m.menuIcons['element:water'].asset },
+    m => { m.assets[m.menuIcons['skill:scroll'].asset].width = 32 },
+    m => { delete m.classWorld['base:class:monk'] },
+  ]) {
+    const changed = structuredClone(manifest)
+    mutate(changed)
+    assert.throws(() => validateNativeReferenceArtwork(changed, snapshot, textures), /invalid|stale/)
   }
 })

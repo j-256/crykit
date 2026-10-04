@@ -1,6 +1,9 @@
 import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponType } from '../domain/skill-weapons'
 import type { ModState } from '../domain/mods'
-import { nativeIdentity, nativeRecord } from '../domain/native-game'
+import { nativeIdentity } from '../domain/native-game'
+import { referenceDescription } from '../catalog/native-description'
+import { nativeFieldFacts } from '../catalog/native-field-facts'
+import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { projectSourceSemantics } from '../catalog/source-semantics'
@@ -174,6 +177,8 @@ export function projectReferenceEntity(
 ): ReferenceSearchItem {
   const claims = suppliedClaims ?? catalog.claims.filter((claim) => claim.entityId === entity.id)
   const projectedEntity = projectSourceSemantics(entity)
+  const nativeFacts = nativeFieldFacts(catalog, projectedEntity)
+  const factEntity = nativeFacts.length ? { ...projectedEntity, fields: { ...projectedEntity.fields, ...Object.fromEntries(nativeFacts.map(fact => [fact.field, fact.value])) } } : projectedEntity
   const categoryKnowledge = referenceCategoryKnowledge(projectedEntity, claims)
   const categories = Array.from(new Set(categoryKnowledge.flatMap(facetStringValues))).sort(compareText)
   const sources = Array.from(new Set([
@@ -193,10 +198,10 @@ export function projectReferenceEntity(
     sources,
     ppCost,
     weaponRule: skillWeaponRule(projectedEntity),
-    knowledgeCounts: countKnowledge(entityKnowledge(projectedEntity, claims)),
+    knowledgeCounts: countKnowledge(entityKnowledge(factEntity, claims)),
     audience: referenceAudience(projectedEntity),
     projection: {
-      text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
+      text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, referenceDescription(projectedEntity) ?? '', projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: projectedEntity.kind },
       category: combineFacetKnowledge(categoryKnowledge),
       ...referenceFieldFacets(projectedEntity, claims),
@@ -210,7 +215,6 @@ export function projectReferenceEntity(
 export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]): readonly ReferenceSearchItem[] {
   return catalogs
     .flatMap((catalog) => {
-      const nativeNames = new Set(Object.values(catalog.entities).filter(entity => nativeIdentity(entity)?.mode === 'base').map(entity => `${entity.kind}:${entity.name.toLocaleLowerCase()}`))
       const claimsByEntity = new Map<string, CatalogClaim[]>()
       for (const claim of catalog.claims) {
         const claims = claimsByEntity.get(claim.entityId) ?? []
@@ -220,7 +224,7 @@ export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]):
       return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => {
         const item = projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? [])
         const native = nativeIdentity(entity)
-        const alternative = native ? native.mode !== 'base' : nativeRecord(entity.legacy) && entity.legacy.supplemental === true && nativeNames.has(`${entity.kind}:${entity.name.toLocaleLowerCase()}`)
+        const alternative = native ? native.mode !== 'base' : Boolean(preferredNativeReferenceId(catalog, entity.id))
         return alternative && item.audience === 'default' ? { ...item, audience: 'alternatives' as const } : item
       })
     })

@@ -35,9 +35,10 @@ test('game icons accompany character equipment, inventory, and both pickers with
   const armor = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Armor$/ }) })
   await loadedIcons(armor, 3)
   for (const image of await armor.locator('img').all()) await expect(image).toHaveAttribute('src', /equipment-types-[^/]+\.png$/)
-  await details.getByText('Provenance & all reference fields', { exact: true }).click()
-  await details.getByText('Menu icon sources', { exact: true }).click()
-  await expect(details.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', /File.*SwordAbilityIcon.*oldid=/)
+  await details.getByRole('button', { name: 'Sources for Warrior', exact: true }).click()
+  const sourceDetails = page.getByRole('dialog', { name: 'Sources for Warrior', exact: true })
+  await expect(sourceDetails.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', /File.*SwordAbilityIcon.*oldid=/)
+  await sourceDetails.getByRole('button', { name: 'Close sources', exact: true }).click()
 
   await page.getByRole('button', { name: 'Choose Main hand', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Main hand', exact: true })
