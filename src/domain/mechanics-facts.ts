@@ -1,7 +1,8 @@
 import type { DefinitionModAvailability } from './mods'
-import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, EQUIPMENT_TYPES, jsonRecord } from './crystal-edit'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, EQUIPMENT_TYPES } from './crystal-edit'
 import { nativeRecord, nativeSourceRecord } from './native-game'
 import type { CatalogEntity, EquipmentRole, JsonValue, Knowledge, PersonalDefinition, SlotDefinition, SourceRef } from './types'
+import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 
 export type MechanicsDefinition = (CatalogEntity | PersonalDefinition) & { readonly modAvailability?: DefinitionModAvailability }
 export type EquipmentType = typeof EQUIPMENT_TYPES[number]
@@ -19,8 +20,7 @@ export function knownField(definition: Pick<MechanicsDefinition, 'fields'> | und
 export function definitionSourceRecord(definition: Pick<MechanicsDefinition, 'fields'> | undefined): Readonly<Record<string, JsonValue>> | undefined {
   const native = definition && nativeSourceRecord(definition)
   if (native) return native
-  const record = knownField(definition, 'Crystal Edit source record')
-  return jsonRecord(record) ? record : undefined
+  return crystalEditPlanningRecord(definition)
 }
 
 export function equipmentRole(slot: Pick<SlotDefinition, 'kind' | 'id' | 'equipmentRole'>): EquipmentRole | undefined {

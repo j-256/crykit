@@ -2,7 +2,7 @@ import { openSavedCatalogVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { selectedPlaythrough } from './local-data-helpers'
+import { openBuildGameSetup, selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -131,9 +131,13 @@ test('custom class imports preserve the playthrough and supply tree names and co
   await expect(stats.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'STR', exact: true }) })).toContainText('Unknown')
   await page.screenshot({ path: testInfo.outputPath('imported-class.png'), fullPage: true })
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.locator('.game-setup-mods > summary').click()
-  await page.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:synthetic-project')
-  await page.getByRole('button', { name: 'Add mod layer', exact: true }).click()
+  await page.getByText('Add another mod', { exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Synthetic class export')
+  const mod = page.getByRole('region', { name: 'Mod Synthetic class export', exact: true })
+  await expect(mod.getByRole('combobox', { name: 'Version of Synthetic class export', exact: true }).locator('option:checked')).toHaveText('1.0 · saved · format 34')
+  await mod.getByRole('button', { name: 'Enable Synthetic class export for this build', exact: true }).click()
   const command = page.getByRole('combobox', { name: 'Sub-command', exact: true })
   await command.fill('Synthetic Research')
   await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Research$/ }) }).click()

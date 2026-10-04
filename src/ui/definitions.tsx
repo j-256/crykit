@@ -5,7 +5,7 @@ import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
 import { bundledModLabel } from '../domain/bundled-mods'
 import { modListPriority } from '../domain/mods'
-import { MOD_PROJECT_FIELD } from '../domain/mod-library'
+import { MOD_PROJECT_FIELD, type BundledLibraryMod } from '../domain/mod-library'
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
 import { starterEntitySourceLabel } from '../catalog'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
@@ -63,6 +63,7 @@ interface DefinitionLibraryValue {
   readonly planningOptions: readonly DefinitionOption[]
   readonly availablePlanningOptions: readonly DefinitionOption[]
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
+  readonly onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>
 }
 
 export const DefinitionLibraryContext = createContext<DefinitionLibraryValue | undefined>(undefined)
@@ -155,7 +156,7 @@ export function definitionOptionsForSetup(options: readonly DefinitionOption[], 
   })
 }
 
-export function DefinitionProvider({ localData, catalogs, onSaveDefinition, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef> }>) {
+export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot> }>) {
   const options = useMemo(() => buildDefinitionOptions(localData, catalogs), [catalogs, localData])
   const availableOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
@@ -167,7 +168,7 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, chil
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
   }, [baseline, planningOptions, localData])
-  const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, options, planningOptions, localData])
+  const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, onLoadBundledMod, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 

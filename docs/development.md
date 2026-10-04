@@ -86,6 +86,8 @@ The [revision 2 specification](spec-v2.md) defines data boundaries, core workflo
 
 Keep catalog definitions, personal observations, and planned configurations separate. Preserve explicit unknowns. Use synthetic fixtures when testing; do not commit personal records.
 
+IndexedDB format 5 upgrades persisted bundled source identities to the compiled catalog IDs. Planner roots and undo history migrate together in one transaction, including character progress keys and reviewed mod composition link targets. The upgrade uses the source compiler's exact mapping, preserves record IDs, pins, unknown values, and opaque source fields, and rejects collisions or unresolved references without partial writes. Imported catalog snapshots and archived source bytes remain unchanged.
+
 Original workbooks, trackers, personal exports, and private screenshots do not belong in this repository. Commit hooks check staged content for common private artifacts, credentials, machine paths, and unreviewed workflow files. These checks support human review; they do not certify data rights or detect every possible private fact.
 
 Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. Include the reference entry, platform, game version, enabled mods, expected value, and source evidence. Source fixes belong in the catalog extraction or interpretation pipeline. See [reference data boundaries](reference-data.md) for the distinction between source catalogs, standalone custom definitions, and retained catalog versions.
@@ -121,6 +123,8 @@ The map page is lazy-loaded. The viewport uses a spatial index, clusters nearby 
 ## Interface and artwork
 
 Immediate-save tile boards use the shared [queued tile update pattern](queued-tile-updates.md). Reuse its hook, application save queue, stable rendering, and verification approach when adding another board.
+
+Save failures remain visible in a persistent alert below the application header while scrolling. A retained unsaved revision exposes **Retry save** and stays visible until resolved. A rolled-back change exposes **Dismiss** without changing the saved data or removing action-specific recovery. Reference membership actions bring their success or failure into view on the affected mod card. Failures retain the requested membership for retry and include diagnostic details. Warning and failure notices use contrasting backgrounds, readable body text, and a marked border across the application. Browser coverage checks confirmations, alerts, and retry controls against the sticky headers and mobile navigation.
 
 The interface takes its visual cues from Crystal Project's menus: charcoal windows, silver borders, cyan dividers, blue selections, and pixel headings. [Pixel Operator](https://www.dafont.com/pixel-operator.font) by Jayvee Enaguas is a readable substitute for the game's lettering, not a verified match to its original typeface. It ships locally under [CC0](../public/pixel-operator-CC0.txt), with regular weight, disabled ligatures, and fixed type sizes. Body text and compact section headings use system fonts for readable descriptions and forms. Native UI artwork uses explicit manifest bindings. Reference artwork prefers exact native game bindings, then supported mod cells, then mapped wiki fallbacks. Decorative artwork does not represent recorded inventory or progress. See [artwork rights and refresh instructions](catalog-sources.md#native-game-artwork-snapshot).
 

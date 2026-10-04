@@ -4,16 +4,213 @@ import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
 import bundledSources from '../src/catalog/bundled-mod-sources.json' with { type: 'json' }
-import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
+import { createSampleLocalData } from '../src/domain/sample-data'
+import { createPersonalDefinition } from '../src/domain'
 import { bundledModIdentity } from '../src/domain/bundled-mods'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
+import { openBuildGameSetup, openGameSetupSection } from './local-data-helpers'
 import { referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 const MOD_ID = 'synthetic-editor-library'
 const SOURCE = JSON.stringify({ ID: MOD_ID, Title: 'Synthetic calculation mod', Version: '1', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, TwoHandedPAtkFlat: 80, StrWhileUnarmedBonusFlat: 60 } }, Passives: [{ ID: 9000, Name: 'Synthetic unarmed', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [{ Tag: 474, Value1: 0, Value2: 0 }] }] })
+
+test('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  const before = createSampleLocalData(DEFAULT_CATALOG)
+  const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
+  const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
+  const historical = (data: LocalData): LocalData => {
+    let json = JSON.stringify(data)
+    for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
+    return JSON.parse(json) as LocalData
+  }
+  await page.goto('/icon.svg')
+  await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
+    const before = JSON.parse(beforeText) as LocalData
+    const after = JSON.parse(afterText) as LocalData
+    const HISTORICAL_NATIVE_DATABASE_VERSION = 40
+    const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
+    request.onupgradeneeded = () => {
+      const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
+      for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
+        const store = request.result.createObjectStore(name, { keyPath })
+        for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
+      transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
+      transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
+      transaction.oncomplete = () => { database.close(); resolve() }
+      transaction.onabort = () => { database.close(); reject(transaction.error) }
+    }
+  }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
+  await page.goto('/#/mods')
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(canonical)
+  const archive = await archiveDigests(page)
+  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+    const card = page.getByRole('region', { name: title, exact: true })
+    const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
+    const included = await toggle.getAttribute('aria-pressed') === 'true'
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', String(included))
+  }
+  const afterToggles = await storedData(page)
+  expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
+  expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
+  expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
+  expect(await archiveDigests(page)).not.toEqual(archive)
+  await page.goto('/#/builds/library/new')
+  await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /^Warrior Class ·/ }).click()
+  await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
+  const saved = await storedData(page)
+  for (const [id, revision] of Object.entries(canonical.buildRevisions)) expect(saved.buildRevisions[id]).toEqual(revision)
+  expect(saved.playthroughs).toEqual(canonical.playthroughs)
+  expect(saved.personalDefinitions).toEqual(canonical.personalDefinitions)
+  await expect(page.getByRole('alert').filter({ hasText: 'Change not saved' })).toHaveCount(0)
+})
+
+test('Reference save failures stay visible beside the action and retry without changing other records', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const toggle = card.getByRole('button', { name: 'Remove from Reference', exact: true })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  const before = await storedData(page)
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await toggle.click()
+  const alert = card.getByRole('alert')
+  const globalAlert = page.locator('.global-save-alert')
+  await expect(alert).toContainText('Reference not changed')
+  await expect(alert).toContainText('Browser storage is full')
+  await expect(alert).toContainText(/Error code storage-failure; diagnostic [\w-]+/)
+  await expect(globalAlert).toContainText('Change not saved')
+  expect(await storedData(page)).toEqual(before)
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(async () => {
+    const local = (await alert.boundingBox())!
+    const global = (await globalAlert.boundingBox())!
+    const bottom = await page.evaluate(() => {
+      const nav = document.querySelector('.bottom-nav')
+      return nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight
+    })
+    return local.y >= global.y + global.height && local.y + local.height <= bottom
+  }).toBe(true)
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await expect(alert).toHaveCount(0)
+  await expect(globalAlert).toHaveCount(0)
+  const after = await storedData(page)
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
+  expect(after.gameSetups).toEqual(before.gameSetups)
+  expect(after.playthroughs).toEqual(before.playthroughs)
+})
+
+test('a rolled-back save alert stays on screen while scrolling and can be dismissed independently', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  const globalAlert = page.locator('.global-save-alert')
+  await expect(globalAlert).toContainText('Change not saved')
+  await page.getByRole('region', { name: bundledSources.mods.find(mod => mod.title.startsWith('Moonlight'))!.title, exact: true }).evaluate(element => element.scrollIntoView({ block: 'start' }))
+  await expect.poll(async () => {
+    const box = (await globalAlert.boundingBox())!
+    const visible = await page.evaluate(() => {
+      const nav = document.querySelector('.bottom-nav')
+      return { top: document.querySelector('.context-bar')!.getBoundingClientRect().bottom, bottom: nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight }
+    })
+    return box.y >= visible.top && box.y + box.height <= visible.bottom
+  }).toBe(true)
+  await globalAlert.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
+  await expect(globalAlert).toHaveCount(0)
+  await expect(card.getByRole('alert')).toContainText('Reference not changed')
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('alert')).toHaveCount(0)
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+})
+
+test('every Reference toggle confirms the saved result on its own card, including archived sources', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  const before = await storedData(page)
+  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+    const card = page.getByRole('region', { name: title, exact: true })
+    const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
+    for (let change = 0; change < 3; change += 1) {
+      const included = await toggle.getAttribute('aria-pressed') === 'true'
+      await toggle.click()
+      await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
+      const confirmation = card.getByRole('status').filter({ hasText: included ? 'Removed from Reference' : 'Added to Reference' })
+      await expect(confirmation).toBeVisible()
+      await expect.poll(async () => {
+        const box = (await confirmation.boundingBox())!
+        const visible = await page.evaluate(() => {
+          const nav = document.querySelector('.bottom-nav')
+          return { top: document.querySelector('.context-bar')!.getBoundingClientRect().bottom, bottom: nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight }
+        })
+        return box.y >= visible.top && box.y + box.height <= visible.bottom
+      }).toBe(true)
+    }
+  }
+  const after = await storedData(page)
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
+  expect(after.gameSetups).toEqual(before.gameSetups)
+  expect(after.playthroughs).toEqual(before.playthroughs)
+  await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toHaveCount(0)
+})
+
+test('Reference retry retains the requested membership after another tab completes the change', async ({ page, context }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  const other = await context.newPage()
+  await other.goto('/#/mods')
+  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add
+    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
+      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
+      return add.apply(this, args)
+    }
+  })
+  await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  await expect(card.getByRole('alert')).toContainText('Reference not changed')
+  await other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
+  await page.getByRole('button', { name: 'Load newer revision', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  const loaded = await storedData(page)
+  await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
+  await expect(card.getByRole('status')).toContainText('Removed from Reference')
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  expect(await storedData(page)).toEqual(loaded)
+})
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -71,13 +268,17 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   const mod = page.getByRole('region', { name: 'Synthetic calculation mod', exact: true })
   await expect(mod).toContainText('Version 1')
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
   await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
   await page.locator('.game-setup-base-details > summary').click()
   await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Vanilla')
   await page.locator('.game-setup-mods > summary').click()
-  await page.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption(`crystal-edit:${MOD_ID}`)
-  await page.getByRole('button', { name: 'Add mod layer', exact: true }).click()
+  await page.getByText('Add another mod', { exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Synthetic calculation mod')
+  const buildMod = page.getByRole('region', { name: 'Mod Synthetic calculation mod', exact: true })
+  await expect(buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true }).locator('option:checked')).toHaveText('1 · saved · format 34')
+  await buildMod.getByRole('button', { name: 'Enable Synthetic calculation mod for this build', exact: true }).click()
   await page.locator('.game-setup-derived > summary').click()
   await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
   await expect(page.locator('.game-setup-derived')).toContainText('80')
@@ -129,6 +330,27 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
   await expect(page.getByText('Gender: Male', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Shared build loadout', exact: true }).locator('input, select, textarea')).toHaveCount(0)
+  await page.goto(`/#/builds/library/${build.id}`)
+  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+  await page.locator('.build-behavior > summary').click()
+  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
+  const version = buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true })
+  await expect(version.locator('option:checked')).toHaveText('1 · saved · format 34')
+  await version.selectOption({ label: '2 · saved · format 34' })
+  await buildMod.getByRole('button', { name: 'Use selected version of Synthetic calculation mod', exact: true }).click()
+  await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
+  expect((await storedData(page)).gameSetups).toEqual(after.gameSetups)
+  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
+  const revised = await storedData(page)
+  expect(revised.playthroughs).toEqual(pinned.playthroughs)
+  for (const [id, revision] of Object.entries(pinned.buildRevisions)) expect(revised.buildRevisions[id]).toEqual(revision)
+  for (const [id, setup] of Object.entries(pinned.gameSetups)) expect(revised.gameSetups[id]).toEqual(setup)
+  await page.reload()
+  await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
+  await page.getByRole('combobox', { name: /^Editor checkpoint/ }).selectOption(build.latestRevisionId!)
+  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+  await expect(strength.getByRole('cell').last()).toHaveText(total)
 })
 
 test('keeps drafts after rejected planning imports and rolls back a failed save before retry', async ({ page }) => {
@@ -223,9 +445,14 @@ test('validates project identity for updates and links exact bundled records whe
   await expect(mod).toContainText('Version 1.3')
   expect((await storedData(page)).gameSetups).toEqual(before.gameSetups)
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
   await page.locator('.game-setup-mods > summary').click()
-  await page.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption(`crystal-edit:${source.projectId}`)
-  await page.getByRole('button', { name: 'Add mod layer', exact: true }).click()
+  await page.getByText('Add another mod', { exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Equipment Expansion')
+  const buildMod = page.getByRole('region', { name: 'Mod Equipment Expansion', exact: true })
+  await buildMod.getByRole('combobox', { name: 'Version of Equipment Expansion', exact: true }).selectOption({ label: 'Synthetic update · saved · format 34' })
+  await buildMod.getByRole('button', { name: 'Enable Equipment Expansion for this build', exact: true }).click()
+  await page.getByText('Mod priority and replacement links', { exact: true }).click()
   await expect(page.getByLabel('Effective mod summary', { exact: true })).toContainText('1 with replacements')
   await page.getByText('Review effective records and replacement links', { exact: true }).click()
   await expect(page.getByRole('button', { name: 'Bundled target for Synthetic revised equipment', exact: true })).toHaveText(`Replaces ${target.name}`)
@@ -364,7 +591,8 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
     }
   })
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Existing local data is unchanged')
+  await expect(mod.getByRole('alert')).toContainText('Reference not changed')
+  await expect(mod.getByRole('alert')).toContainText('Existing local data is unchanged')
   expect(await archiveDigests(page)).toEqual(archive)
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(mod).toContainText(`${count} catalog entries`)
@@ -386,7 +614,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
     }
   })
   await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
-  await expect(page.getByText('Mod operation failed', { exact: true })).toBeVisible()
+  await expect(mod.getByRole('alert')).toContainText('Reference not changed')
   expect(await archiveDigests(page)).toEqual(retained)
   await expect(mod.getByRole('button', { name: 'Remove from Reference', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
