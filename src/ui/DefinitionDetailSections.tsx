@@ -24,7 +24,7 @@ function nativePlanningContribution(field: string, contribution: Knowledge<Numer
   return contribution
 }
 
-export function DefinitionFactsPanel({ facts, corroboration, verifiedNativeFacts = [], renderValue, children, moneyFormat = 'coins' }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; corroboration?: CorroborationTarget; verifiedNativeFacts?: readonly NativeFieldFact[]; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode; moneyFormat?: MoneyFormat }) {
+export function DefinitionFactsPanel({ facts, corroboration, verifiedNativeFacts = [], renderValue, children, moneyFormat = 'coins' }: { facts: readonly (readonly [string, Knowledge<unknown>])[]; corroboration?: CorroborationTarget; verifiedNativeFacts?: readonly Pick<NativeFieldFact, 'field' | 'value'>[]; renderValue?: (field: string, value: Knowledge<unknown>, content: ReactNode) => ReactNode; children?: ReactNode; moneyFormat?: MoneyFormat }) {
   const fields = facts.map(([field]) => field)
   const orderedFacts = [...facts].sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right)))
   const nativeCorroboration = corroboration && !bundledModIdentity(corroboration.entity) ? corroboration : undefined

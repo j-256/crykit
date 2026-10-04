@@ -45,6 +45,7 @@ try {
   }
   const { nativeDescription } = await server.ssrLoadModule('/src/catalog/native-description.ts')
   const { nativeFieldFacts } = await server.ssrLoadModule('/src/catalog/native-field-facts.ts')
+  const { nativeEquipmentFacts } = await server.ssrLoadModule('/src/catalog/native-equipment-facts.ts')
   const { projectAcquisitionGuidance } = await server.ssrLoadModule('/src/catalog/acquisition-guidance.ts')
   const { NATIVE_REFERENCE_LINKS } = await server.ssrLoadModule('/src/catalog/native-reference-links.ts')
   const descriptionFamilies = new Set(['equipment', 'passive', 'item', 'ability', 'status'])
@@ -52,7 +53,7 @@ try {
   const presentation = {
     scope: 'Read-only native projections; stored source states and immutable catalog content remain unchanged',
     descriptions: { complete: 0, partial: 0, unsupported: 0, historicalFallbacks: { complete: 0, partial: 0, unsupported: 0 }, unsupportedReasons: {} },
-    fieldFacts: { nativeValues: 0, differingOriginals: 0 },
+    fieldFacts: { nativeValues: 0, differingOriginals: 0, archivedEquipmentFields: 0 },
     acquisition: { replacedFields: 0, retainedGuideFields: 0, disagreements: 0 },
     identities: { relations: {}, dispositions: {} },
   }
@@ -64,8 +65,11 @@ try {
       if (entity.legacy?.nativeDescriptionSupplemental === true) presentation.descriptions.historicalFallbacks[disposition]++
       for (const reason of description.unresolved) presentation.descriptions.unsupportedReasons[reason] = (presentation.descriptions.unsupportedReasons[reason] ?? 0) + 1
     }
-    for (const fact of nativeFieldFacts(catalog, entity)) {
-      presentation.fieldFacts.nativeValues++
+    const fieldFacts = nativeFieldFacts(catalog, entity)
+    const equipment = nativeEquipmentFacts(catalog, entity)
+    presentation.fieldFacts.nativeValues += new Set([...fieldFacts, ...equipment?.facts ?? []].map(fact => fact.field)).size
+    presentation.fieldFacts.archivedEquipmentFields += equipment?.archivedFields.length ?? 0
+    for (const fact of fieldFacts) {
       if (fact.differs) presentation.fieldFacts.differingOriginals++
     }
     if (entity.kind === 'item') {

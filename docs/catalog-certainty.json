@@ -51,8 +51,9 @@
       }
     },
     "fieldFacts": {
-      "nativeValues": 1980,
-      "differingOriginals": 7
+      "nativeValues": 2396,
+      "differingOriginals": 7,
+      "archivedEquipmentFields": 1030
     },
     "acquisition": {
       "replacedFields": 64,

@@ -3,6 +3,7 @@ import type { ModState } from '../domain/mods'
 import { nativeIdentity } from '../domain/native-game'
 import { referenceDescription } from '../catalog/native-description'
 import { nativeFieldFacts } from '../catalog/native-field-facts'
+import { nativeEquipmentFacts } from '../catalog/native-equipment-facts'
 import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
@@ -178,7 +179,10 @@ export function projectReferenceEntity(
   const claims = suppliedClaims ?? catalog.claims.filter((claim) => claim.entityId === entity.id)
   const projectedEntity = projectSourceSemantics(entity)
   const nativeFacts = nativeFieldFacts(catalog, projectedEntity)
-  const factEntity = nativeFacts.length ? { ...projectedEntity, fields: { ...projectedEntity.fields, ...Object.fromEntries(nativeFacts.map(fact => [fact.field, fact.value])) } } : projectedEntity
+  const equipment = nativeEquipmentFacts(catalog, projectedEntity)
+  const fields = new Map([...Object.entries(projectedEntity.fields), ...nativeFacts.map(fact => [fact.field, fact.value] as const), ...equipment?.facts.map(fact => [fact.field, fact.value] as const) ?? []])
+  for (const [field] of equipment?.archivedFields ?? []) if (!equipment?.facts.some(fact => fact.field === field)) fields.delete(field)
+  const factEntity = nativeFacts.length || equipment ? { ...projectedEntity, fields: Object.fromEntries(fields) } : projectedEntity
   const categoryKnowledge = referenceCategoryKnowledge(projectedEntity, claims)
   const categories = Array.from(new Set(categoryKnowledge.flatMap(facetStringValues))).sort(compareText)
   const sources = Array.from(new Set([
@@ -204,7 +208,7 @@ export function projectReferenceEntity(
       text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, referenceDescription(projectedEntity) ?? '', projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: projectedEntity.kind },
       category: combineFacetKnowledge(categoryKnowledge),
-      ...referenceFieldFacets(projectedEntity, claims),
+      ...referenceFieldFacets(factEntity, claims),
       source: { state: 'known', value: sources },
       ppCost,
       ppCostUnit: ppUnitKnowledge(ppCost),
