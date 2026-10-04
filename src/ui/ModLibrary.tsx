@@ -2,7 +2,7 @@ import { projectModAvailability } from '../catalog/mods'
 import { modState, modListPriority } from '../domain/mods'
 import { ModStateBadge } from './DefinitionModLabel'
 import { modIsInReference } from '../domain/reference-library'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { bundledModDefinitionCount, type BundledLibraryMod, type ModLibraryCard, type ModRevision } from '../domain/mod-library'
 import { bundledModEditableSource } from '../catalog/mod-library'
 import type { CatalogId } from '../domain/types'
@@ -14,8 +14,14 @@ import { readModFile } from './mod-inspector/import-file'
 import { buildModLibraryCards } from './mod-library-data'
 import { CRYSTAL_PROJECT_WORKSHOP_URL, steamWorkshopItemUrl } from '../domain/mod-workshop'
 import './mod-library.css'
+import { formatAppError } from './model'
 
 export type SetModReference = (modId: string, included: boolean) => Promise<void>
+
+type ReferenceFeedback = { readonly cardId: string; readonly included: boolean } & (
+  { readonly status: 'failed'; readonly message: string } |
+  { readonly status: 'saved'; readonly warnings: readonly string[] }
+)
 
 function SavedRevision({ revision, busy, onEdit }: { readonly revision: ModRevision; readonly busy: boolean; readonly onEdit: (revision: ModRevision) => void }) {
   return <div className="split mod-library__revision">
@@ -24,9 +30,11 @@ function SavedRevision({ revision, busy, onEdit }: { readonly revision: ModRevis
   </div>
 }
 
-function ModCard({ card, busy, onBrowse, onToggleReference, onEdit, onEditBundled, onImport }: { readonly card: ModLibraryCard; readonly busy: boolean; readonly onBrowse: () => void; readonly onToggleReference: () => void; readonly onEdit: (revision: ModRevision) => void; readonly onEditBundled: (mod: BundledLibraryMod) => void; readonly onImport: (file: File, catalogId: CatalogId) => void }) {
+function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, onEdit, onEditBundled, onImport }: { readonly card: ModLibraryCard; readonly busy: boolean; readonly referenceFeedback?: ReferenceFeedback; readonly onBrowse: () => void; readonly onToggleReference: (included?: boolean) => void; readonly onEdit: (revision: ModRevision) => void; readonly onEditBundled: (mod: BundledLibraryMod) => void; readonly onImport: (file: File, catalogId: CatalogId) => void }) {
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)
+  const feedbackRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (referenceFeedback) feedbackRef.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }) }, [referenceFeedback])
   const mod = card.project
   const saved = mod?.revisions[0]
   const bundled = mod?.bundled[0]
@@ -47,10 +55,13 @@ function ModCard({ card, busy, onBrowse, onToggleReference, onEdit, onEditBundle
     {!mod && <p className="field__hint">Add items, classes, or skills from what you see in-game. Missing facts can stay unknown.</p>}
     <div className="cluster mod-library__actions">
       <Button disabled={(!card.entryCount && !unloadedSource) || busy} onClick={onBrowse} tone="secondary">View catalog entries</Button>
-      <Button aria-pressed={inReference} disabled={(!card.entryCount && !unloadedSource) || busy} onClick={onToggleReference} tone="secondary" icon={inReference ? 'close' : 'plus'}>{inReference ? 'Remove from Reference' : 'Add to Reference'}</Button>
+      <Button aria-pressed={inReference} disabled={(!card.entryCount && !unloadedSource) || busy} onClick={() => onToggleReference()} tone="secondary" icon={inReference ? 'close' : 'plus'}>{inReference ? 'Remove from Reference' : 'Add to Reference'}</Button>
       <Button disabled={busy} onClick={() => navigation.navigate({ page: { page: 'mods', view: 'library' }, overlays: [{ kind: 'definition-editor', mode: 'new' }], query: { mod: [sourceName], ...(mod ? { 'mod-project': [mod.id] } : {}) } })} tone="secondary" icon="plus">Add catalog entry</Button>
       {mod && <><Button disabled={busy} onClick={() => saved ? onEdit(saved) : bundled && onEditBundled(bundled)} tone="secondary" icon="edit">Edit mod JSON</Button><Button disabled={busy} onClick={() => input.current?.click()} tone="secondary" icon="upload">Import updated version</Button><input ref={input} type="file" accept=".json,application/json" className="sr-only" aria-label={`Updated JSON for ${card.title}`} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onImport(file, mod.id) }}/></>}
     </div>
+    {referenceFeedback && <div ref={feedbackRef}>{referenceFeedback.status === 'failed'
+      ? <InlineNotice title="Reference not changed" tone="danger"><p>{referenceFeedback.message}</p><p>Your previous Reference membership is unchanged.</p><Button disabled={busy} onClick={() => onToggleReference(referenceFeedback.included)} tone="secondary" type="button">Retry Reference change</Button></InlineNotice>
+      : <InlineNotice title={referenceFeedback.included ? 'Added to Reference' : 'Removed from Reference'} tone="positive"><p>{referenceFeedback.included ? 'These entries are included in Reference.' : 'These entries are hidden from Reference. Saved builds and mod settings are kept.'}</p>{referenceFeedback.warnings.length > 0 && <details><summary>Import notes</summary><ul>{referenceFeedback.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}</div>}
     {workshop && <a href={workshop} target="_blank" rel="noopener noreferrer" aria-label={`View ${card.title} on Steam Workshop`}>View on Steam Workshop</a>}
     {mod && <details className="mod-library__versions"><summary>Versions & JSON source</summary><div className="stack">
       <p className="field__hint">Choose a version in Game Setup to use its supported definitions and settings. Existing builds keep their selected versions. Custom artwork files are separate from the JSON.</p>
@@ -68,21 +79,23 @@ export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSe
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<string>()
   const [error, setError] = useState<string>()
+  const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback>()
   const [result, setResult] = useState<Awaited<ReturnType<SaveModToLibrary>>>()
   const [query, setQuery] = useState('')
   const busy = Boolean(pending)
-  const toggleReference = async (card: ModLibraryCard) => {
-    const included = modIsInReference(library.localData, card)
-    setPending(included ? 'Removing mod from Reference...' : 'Adding mod to Reference...'); setError(undefined); setResult(undefined)
+  const toggleReference = async (card: ModLibraryCard, included = !modIsInReference(library.localData, card)) => {
+    setPending(included ? 'Adding mod to Reference...' : 'Removing mod from Reference...'); setError(undefined); setReferenceFeedback(undefined); setResult(undefined)
     try {
       const mod = card.project
       const bundled = mod?.bundled[0]
-      if (included || card.entryCount > 0) await onSetReference(card.id, !included)
+      let warnings: readonly string[] = []
+      if (!included || card.entryCount > 0) await onSetReference(card.id, included)
       else if (bundled && mod && !mod.revisions.length) {
         const source = await bundledModEditableSource(bundled)
-        setResult(await onImport(source.text, source.filename, mod.id, true))
+        warnings = (await onImport(source.text, source.filename, mod.id, true)).warnings
       }
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Reference membership could not be changed.') }
+      setReferenceFeedback({ cardId: card.id, included, status: 'saved', warnings })
+    } catch (reason) { setReferenceFeedback({ cardId: card.id, included, status: 'failed', message: formatAppError(reason, 'Reference membership could not be changed.') }) }
     finally { setPending(undefined) }
   }
   const edit = async (open: () => Promise<void>) => {
@@ -109,7 +122,7 @@ export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSe
     {pending && <p role="status">{pending}</p>}
     {error && <InlineNotice title="Mod operation failed" tone="danger">{error}</InlineNotice>}
     {result && <InlineNotice title={result.unchanged ? 'This mod revision is already saved' : 'Mod revision saved to CryKit'} tone="positive"><p>{result.title}. Select this version in a Game Setup to use it.</p>{result.warnings.length > 0 && <details><summary>Import notes</summary><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}
-    {visible.map(card => <ModCard key={card.id} card={card} busy={busy} onBrowse={() => navigation.navigate({ page: { page: 'reference', view: 'list' }, overlays: [], query: { 'library-mod': [card.id], audience: ['alternatives'] } })} onToggleReference={() => void toggleReference(card)} onEdit={revision => void edit(() => onEdit(revision))} onEditBundled={source => void edit(() => onEditBundled(source))} onImport={(file, catalogId) => void importFile(file, catalogId)}/>)}
+    {visible.map(card => <ModCard key={card.id} card={card} busy={busy} referenceFeedback={referenceFeedback?.cardId === card.id ? referenceFeedback : undefined} onBrowse={() => navigation.navigate({ page: { page: 'reference', view: 'list' }, overlays: [], query: { 'library-mod': [card.id], audience: ['alternatives'] } })} onToggleReference={included => void toggleReference(card, included)} onEdit={revision => void edit(() => onEdit(revision))} onEditBundled={source => void edit(() => onEditBundled(source))} onImport={(file, catalogId) => void importFile(file, catalogId)}/>)}
     {!visible.length && <p>No mods match this search.</p>}
   </div>
 }
