@@ -69,9 +69,13 @@ async function runNpm(command, { cwd, env }) {
   })
 }
 
-export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, report = message => process.stderr.write(message + '\n') } = {}) {
+export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, ifNeeded = false, report = message => process.stderr.write(message + '\n') } = {}) {
   const before = verificationContext(cwd, env)
   const path = verificationRecordPath(before)
+  if (ifNeeded && before.clean && passedRecord(readRecord(path), before.tree)) {
+    report(`[verify] Reusing full verification for unchanged tree ${before.tree}`)
+    return { recorded: true, reused: true, tree: before.tree }
+  }
   const attempt = randomUUID()
   const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS }
   // Invalidate prior success before running so failures and interruptions cannot retain it
