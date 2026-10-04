@@ -1,0 +1,45 @@
+.build-picker-filters {
+  display: grid;
+  gap: .5rem;
+  padding: .5rem .65rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.build-picker-filters__selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.build-picker-filters__selects label {
+  display: grid;
+  gap: .25rem;
+  min-width: 0;
+}
+
+.build-picker-filters__selects select {
+  width: 100%;
+  min-width: 0;
+}
+
+.build-picker-filters__broader > summary {
+  cursor: pointer;
+}
+
+.build-picker-filters__broader[open] {
+  display: grid;
+  gap: .5rem;
+}
+
+.picker-result__handedness {
+  font-weight: 650;
+}
+
+.build-selection-details__summary {
+  padding-inline-start: 1.2rem;
+  margin-block: .5rem;
+}
+
+.build-selection-details__summary li + li {
+  margin-top: .25rem;
+}

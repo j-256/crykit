@@ -28,7 +28,9 @@ test('home opens the build library and separates tracking on desktop and touch',
     const mainBounds = (await page.locator('.main-shell').boundingBox())!
     const menuBounds = (await menu.boundingBox())!
     expect(mainBounds.y + mainBounds.height).toBeLessThanOrEqual(menuBounds.y)
+    expect(menuBounds.height).toBeLessThanOrEqual(70)
     for (const button of await menu.getByRole('button').all()) {
+      await button.scrollIntoViewIfNeeded()
       const bounds = (await button.boundingBox())!
       expect(bounds.height).toBeGreaterThanOrEqual(44)
       expect(bounds.width).toBeGreaterThanOrEqual(44)

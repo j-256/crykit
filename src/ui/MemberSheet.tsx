@@ -6,7 +6,7 @@ import type { CatalogEntityKind, CatalogSnapshot, Character, CharacterSnapshot, 
 import { definitionModAvailability } from '../catalog/mods'
 import { Button, InlineNotice } from './components'
 import { DefinitionDropdown, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
-import { commandName, matchesSlot } from './definition-fields'
+import { matchesSlot, subCommandLabel } from './definition-fields'
 import { Icon } from './icons'
 import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { entityName, formatAppError, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
@@ -77,10 +77,10 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
   const picker = currentMemberPicker(navigation.route)
   const open = editable && picker?.fieldKey === fieldKey
   const option = findDefinitionOption(options, value)
-  const displayName = option ? nativeDisplayName(option.record, display) : display
+  const displayName = option ? fieldKey === SECONDARY_CLASS ? subCommandLabel(option) : nativeDisplayName(option.record, display) : display
   const inspect = () => onInspect(option)
   const preview = () => { if (window.matchMedia(DESKTOP_MEMBER_QUERY).matches) inspect() }
-  const optionLabel = (candidate: DefinitionOption) => fieldKey === SECONDARY_CLASS ? commandName(candidate) ?? candidate.name : candidate.name
+  const optionLabel = (candidate: DefinitionOption) => fieldKey === SECONDARY_CLASS ? subCommandLabel(candidate) : candidate.name
   const choose = () => {
     inspect()
     if (!editable) return
@@ -90,7 +90,7 @@ function MemberChoice({ fieldKey, label, value, display, allowedKinds, editable,
   return <div className="member-choice" data-field-key={fieldKey} tabIndex={-1}>
     <button aria-controls={open ? id : undefined} aria-expanded={editable ? open : undefined} aria-haspopup={editable ? 'dialog' : undefined} aria-label={`${editable ? 'Choose' : 'Inspect'} ${label}`} className="member-row" data-active={selected} data-definition-trigger="true" onClick={choose} onFocus={preview} onKeyDown={event => { if (editable && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); if (!open) choose() } }} ref={triggerRef} type="button"><span className="member-row__label">{label}</span><span className="member-row__value"><MemberArtwork catalogs={catalogs} localData={localData} value={value}/><span>{displayName}</span>{editable && <Icon name="chevron-down"/>}</span></button>
     {children}
-    {selected && <details className="member-mobile-detail" open={revealDetails}><summary>About {option ? nativeDisplayName(option.record) : label}</summary><LoadoutSelectionDetails option={option}/></details>}
+    {selected && <details className="member-mobile-detail" open={revealDetails}><summary>About {option ? nativeDisplayName(option.record) : label}</summary><LoadoutSelectionDetails option={option} showClassPermissions={fieldKey !== SECONDARY_CLASS}/></details>}
     <DefinitionDropdown allowEmpty={fieldKey !== PRIMARY_CLASS} allowedKinds={allowedKinds} anchorRef={triggerRef} compact emptyDescription={fieldKey === SECONDARY_CLASS ? 'No sub-command is equipped' : undefined} emptyLabel={fieldKey === SECONDARY_CLASS ? 'Not applicable' : undefined} filterOption={candidate => matchesSlot(candidate, label)} id={id} onClose={() => navigation.close()} onInspect={onInspect} onSelect={onChange} open={open} optionLabel={optionLabel} selected={value} title={`Choose ${label}`}/>
   </div>
 }
@@ -173,7 +173,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
     const value = draft[key]
     const ref = knownRef(value)
     const option = findDefinitionOption(options, ref)
-    const name = fieldKey === SECONDARY_CLASS && option ? commandName(option) ?? option.name : ref ? display(ref) : knowledgeLabel(value)
+    const name = fieldKey === SECONDARY_CLASS && option ? subCommandLabel(option) : ref ? display(ref) : knowledgeLabel(value)
     return <MemberChoice allowedKinds={CLASS_KINDS} display={name} editable={editable} fieldKey={fieldKey} label={label} onChange={value => changeClass(key, value)} onInspect={option => inspect(fieldKey, option)} selected={active === fieldKey} value={value.state === 'notApplicable' ? null : ref}/>
   }
   const slotField = (slot: SnapshotSlot) => {
@@ -221,7 +221,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   return <div className="recorded-sheet member-sheet">
     {warning && <InlineNotice title="Unsaved member changes" tone="warning">Save changes or discard them before leaving this member.</InlineNotice>}
     {!gameSetup || gameSetup.id !== localData.planningGameSetupRevisionId ? <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the current Game Setup. This snapshot keeps its original slot labels. <Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record under current Game Setup</Button></InlineNotice> : null}
-    <section aria-label="Equipment and equipped passives"><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} slots={gameSetup?.slots ?? []} view={view} onViewChange={setView} viewLabel="Character sheet view" selection={selectedOption}
+    <section aria-label="Equipment and equipped passives"><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} slots={gameSetup?.slots ?? []} view={view} onViewChange={setView} viewLabel="Character sheet view" selection={selectedOption} showClassPermissions={active !== SECONDARY_CLASS}
       classFields={<>{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</>}
       equipmentFields={<>{slots.map(slotField)}{slots.length === 0 && <p className="recorded-empty">No equipment slots recorded.</p>}</>}
       passiveTools={pp ? <PassiveCapacityMeter pp={pp}/> : <p>Equipped passive list: Unknown</p>}

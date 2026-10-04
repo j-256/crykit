@@ -6,12 +6,18 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
-async function choose(page: Page, label: string, name: string, requiredMod?: string) {
+async function choose(page: Page, label: string, name: string, options: { readonly allowConflicts?: boolean; readonly includeUnavailable?: boolean; readonly requiredMod?: string } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
-  if (requiredMod) {
-    const dialog = page.getByRole('dialog', { name: `Enable ${requiredMod}?`, exact: true })
-    await expect(dialog).toContainText(`${name} requires ${requiredMod}`)
+  const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })
+  if (options.allowConflicts) await results.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  if (options.includeUnavailable) {
+    await results.getByText('Broader planning options', { exact: true }).click()
+    await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
+  }
+  await results.getByRole('option').filter({ has: page.getByText(name, { exact: true }) }).click()
+  if (options.requiredMod) {
+    const dialog = page.getByRole('dialog', { name: `Enable ${options.requiredMod}?`, exact: true })
+    await expect(dialog).toContainText(`${name} requires ${options.requiredMod}`)
     await dialog.getByRole('button', { name: `Enable and select ${name}`, exact: true }).click()
     await expect(dialog).toHaveCount(0)
   }
@@ -78,15 +84,15 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeVisible()
   await expect(page.locator('dialog:modal')).toHaveCount(0)
-  await expect(page.getByLabel('Build title')).not.toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toBeVisible()
   await choose(page, 'Class', 'Warrior')
-  await choose(page, 'Sub-command', 'White Magic')
-  await choose(page, 'Main hand', 'Muramasa')
-  await choose(page, 'Off hand', "Wizard's Wall")
-  await choose(page, 'Head', 'Red Hat')
-  await choose(page, 'Body', 'Shadow Gi')
+  await choose(page, 'Sub-command', 'White Magic (Cleric)')
+  await choose(page, 'Main hand', 'Muramasa', { allowConflicts: true })
+  await choose(page, 'Off hand', "Wizard's Wall", { allowConflicts: true })
+  await choose(page, 'Head', 'Red Hat', { allowConflicts: true })
+  await choose(page, 'Body', 'Shadow Gi', { allowConflicts: true })
   await choose(page, 'Accessory 1', 'Acrobat Shoes')
-  await choose(page, 'Accessory 2', 'Ring of Wizardry', 'Equipment Expansion')
+  await choose(page, 'Accessory 2', 'Ring of Wizardry', { includeUnavailable: true, requiredMod: 'Equipment Expansion' })
   await choose(page, 'Equipped passive 1', 'Counter')
   await expect(page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('planned-sheet.png'), fullPage: true })
@@ -110,8 +116,8 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
-  await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('White Magic')
-  await choose(page, 'Accessory 2', 'Acrobat Shoes')
+  await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('White Magic (Cleric)')
+  await choose(page, 'Accessory 2', 'Acrobat Shoes', { allowConflicts: true })
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   const after = await exportLocalData(page)
@@ -186,7 +192,7 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   expect(Object.values(equipment).filter(Boolean)).toHaveLength(1)
 })
 
-test('build details ignore pointer transit while keyboard inspection stays available', async ({ page, isMobile }) => {
+test('build details preview pointer and keyboard inspection without changing the selection', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Pointer transit is checked on desktop')
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
@@ -197,9 +203,11 @@ test('build details ignore pointer transit while keyboard inspection stays avail
   await classField.fill('Wizard')
   const candidate = page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) })
   await candidate.hover()
-  await expect(details.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
+  await expect(details.getByRole('heading', { name: 'Wizard', exact: true })).toBeVisible()
   await classField.press('ArrowDown')
   await expect(details.getByRole('heading', { name: 'Wizard', exact: true })).toBeVisible()
+  await classField.press('Escape')
+  await expect(classField).toHaveValue('Warrior')
 })
 
 test('failed creation retains the sheet and retry saves one build and checkpoint', async ({ page }) => {

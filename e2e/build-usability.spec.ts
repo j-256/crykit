@@ -8,8 +8,9 @@ import type { LocalData } from '../src/domain/types'
 const MAX_MOBILE_EVIDENCE_GAP_PX = 30
 const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
 
-async function choose(page: Page, label: string, name: string) {
+async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
+  if (options.includeConflicts) await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
@@ -37,6 +38,9 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).not.toBeVisible()
   await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
   await classPicker.fill('Barbarian')
+  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await page.getByText('Broader planning options', { exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   const barbarianResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Barbarian$/ }) })
   await expect(barbarianResult.locator('.picker-result__heading').getByText('Mod: Barbarian', { exact: true })).toBeVisible()
   await expect(barbarianResult.locator('.picker-result__content > [data-mod-badge="Barbarian"]')).toHaveCount(0)
@@ -45,15 +49,20 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
     const badge = heading.querySelector('[data-mod-badge="Barbarian"] > .badge')!.getBoundingClientRect()
     return Math.abs((name.top + name.bottom - badge.top - badge.bottom) / 2)
   })).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
-  await classPicker.press('Escape')
+  await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).press('Escape')
+  await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
+  await expect(classPicker).toBeFocused()
   const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await hand.fill('katana')
   await expect(page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Katanas$/ }) })).toHaveCount(0)
+  await page.getByRole('combobox', { name: 'Sort results', exact: true }).press('Escape')
+  await expect(hand).toHaveAttribute('aria-expanded', 'false')
+  await expect(hand).toBeFocused()
   await choose(page, 'Main hand', 'Muramasa')
   const handField = page.locator('.build-field').filter({ has: hand })
-  await expect(handField.locator('.build-field__evidence')).toContainText('Attack: 372')
+  await expect(handField.locator('.build-field__evidence')).toContainText('Attack: +372')
   await hand.fill('Diamond Katana')
-  await expect(page.getByRole('listbox')).toContainText('Attack: 350')
+  await expect(page.getByRole('listbox')).toContainText('Attack: +350')
   await hand.press('ArrowDown')
   if (!isMobile) {
     const comparison = page.locator('.build-sheet__preview').getByRole('table')
@@ -70,6 +79,9 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await page.getByRole('combobox', { name: 'Head', exact: true }).press('Escape')
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offHand.fill('Doge Shield')
+  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await page.getByText('Broader planning options', { exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   await expect(page.getByRole('listbox').getByText('Mod: Doge Shield', { exact: true })).toBeVisible()
   await expect(page.getByRole('listbox')).toContainText("Mod status unknown in this Build's Game Setup")
   await offHand.press('Escape')
@@ -91,7 +103,8 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
   const innateToggle = page.getByRole('checkbox', { name: /Include innates from the Learnable Innate Skill mod/ })
   await expect(innateToggle).toHaveCount(1)
-  await expect(innateToggle).toBeChecked()
+  await expect(innateToggle).not.toBeChecked()
+  await innateToggle.check()
   const passive = page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })
   await passive.fill('Toughness')
   await expect(page.getByRole('listbox')).toContainText('No matching definitions')
@@ -140,7 +153,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   if (isMobile) await expect(page.locator('.build-library')).not.toHaveAttribute('open')
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })).toHaveValue('Two-Handed')
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   const card = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Untitled build' })
   await expect(card.locator('.build-card__summary-group').filter({ hasText: 'Equipment' })).toContainText('Muramasa')
   await expect(card.locator('.build-card__summary-group').filter({ hasText: 'Equipment' })).toContainText('Crit Fang')
@@ -158,7 +171,8 @@ test('build edit warnings save or discard before continuing to another section',
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
-  await choose(page, 'Main hand', 'Muramasa')
+  await choose(page, 'Main hand', 'Muramasa', { includeConflicts: true })
+  await page.locator('.build-library > summary').click()
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
 
   let warning = page.locator('.external-update').filter({ hasText: 'Build edits are still open' })
@@ -170,7 +184,8 @@ test('build edit warnings save or discard before continuing to another section',
   await page.getByRole('button', { name: 'Build library', exact: true }).click()
   await page.locator('.build-card').filter({ hasText: 'Warrior build' }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Muramasa')
-  await choose(page, 'Main hand', 'Diamond Katana')
+  await choose(page, 'Main hand', 'Diamond Katana', { includeConflicts: true })
+  await page.locator('.build-library > summary').click()
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
 
   warning = page.locator('.external-update').filter({ hasText: 'Build edits are still open' })
@@ -226,6 +241,8 @@ test('new and existing build drafts survive Reference research, history, and ret
 
 test('readiness assigns the saved revision, groups shared causes, and opens affected stock', async ({ page }, testInfo) => {
   await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('vanilla')
   await choose(page, 'Main hand', 'Muramasa')
   await choose(page, 'Accessory 1', 'Crit Fang')
   await choose(page, 'Equipped passive 1', 'Attack Focus')

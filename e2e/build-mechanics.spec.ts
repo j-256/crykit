@@ -4,9 +4,10 @@ import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { createBlankPlaythrough } from './local-data-helpers'
 
-async function choose(page: Page, label: string, name: string) {
+async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   const field = page.getByRole('combobox', { name: label, exact: true })
   await field.fill(name)
+  if (options.includeConflicts) await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   if (label !== 'Add planned status') await expect(field).toHaveValue(name)
 }
@@ -24,7 +25,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Cleric')
-  await choose(page, 'Main hand', 'Short Sword')
+  await choose(page, 'Main hand', 'Short Sword', { includeConflicts: true })
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   const mechanics = page.getByRole('region', { name: 'Build mechanics', exact: true })
   await expect(mechanics.getByText('Cleric cannot equip Sword;', { exact: false })).toBeVisible()

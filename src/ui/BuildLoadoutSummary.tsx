@@ -1,9 +1,14 @@
+import { useMemo, useState } from 'react'
 import { entityDefinitionKey, logicalEntityKey, validateBuildContent } from '../domain'
 import { definitionModAvailability, modAvailabilityLabel } from '../catalog/mods'
 import { equipmentFacts, equipmentRole, isWeapon, passivePointCost } from '../domain/mechanics-facts'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import type { BuildPpValidity } from '../domain/build-validity'
 import type { BuildRevisionContent, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision, SlotDefinition } from '../domain/types'
+import { buildDefinitionOptions, findDefinitionOption } from './definitions'
+import { subCommandLabel } from './definition-fields'
+import { BuildSelectionDetails } from './BuildSelectionDetails'
+import { Sheet } from './Sheet'
 import { DefinitionModLabel } from './DefinitionModLabel'
 import { DefinitionArtwork } from './GameIcon'
 import { summaryFactLines } from './build-evidence'
@@ -28,15 +33,17 @@ function equipmentIcon(role: SlotDefinition['equipmentRole']): IconName {
   return 'box'
 }
 
-function SummarySelection({ label, value, localData, catalogs, gameSetup, empty, compact = false, hideLabel = false, emptyIcon, role, occupiedBy, occupiedValue, onActivate }: { label: string; value?: EntityRef | null; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; empty: string; compact?: boolean; hideLabel?: boolean; emptyIcon?: IconName; role?: SlotDefinition['equipmentRole']; occupiedBy?: string; occupiedValue?: EntityRef; onActivate?: () => void }) {
-  const name = value ? entityName(localData, catalogs, value) : occupiedBy ? `Occupied by ${occupiedBy}` : empty
+function SummarySelection({ label, value, localData, catalogs, gameSetup, empty, compact = false, hideLabel = false, emptyIcon, role, occupiedBy, occupiedValue, onActivate, displayName }: { label: string; value?: EntityRef | null; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; empty: string; compact?: boolean; hideLabel?: boolean; emptyIcon?: IconName; role?: SlotDefinition['equipmentRole']; occupiedBy?: string; occupiedValue?: EntityRef; onActivate?: () => void; displayName?: string }) {
+  const name = value ? displayName ?? entityName(localData, catalogs, value) : occupiedBy ? `Occupied by ${occupiedBy}` : empty
   const definition = value ? resolveEntity(localData, catalogs, value) : undefined
-  const facts = definition ? summaryFactLines(definition).slice(0, 5) : []
+  const subCommand = label === 'Sub-command'
+  const facts = definition ? summaryFactLines(definition).filter(line => !subCommand || !/^(weapons?|armors?):/i.test(line)).slice(0, 5) : []
+  const permissionNote = subCommand && definition?.kind === 'class' ? 'Class equipment permissions are not granted by the sub-command.' : undefined
   const equipment = definition && (role === 'mainHand' || role === 'offHand') ? equipmentFacts(definition) : undefined
   const handUse = equipment?.type && isWeapon(equipment.type) ? equipment.twoHanded === false ? 'One-handed' : equipment.twoHanded === true ? 'Two-handed' : 'Hand use unknown' : undefined
   const availability = value ? modAvailabilityLabel(definitionModAvailability(localData, value, gameSetup, catalogs)) : undefined
   const occupancy = occupiedBy ? `Unavailable while ${occupiedBy} occupies both hands` : undefined
-  const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
+  const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(permissionNote ? [permissionNote] : []), ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
   const content = <>
     {value ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={value}/> : occupiedValue ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={occupiedValue}/> : emptyIcon ? <Icon className="build-card__selection-empty-icon" data-empty-slot-icon={emptyIcon} name={emptyIcon}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
     {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="definition-badge-heading"><span className="build-card__selection-name">{name}</span><DefinitionModLabel localData={localData} gameSetup={gameSetup} value={value}/></span></span>}
@@ -65,28 +72,35 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
   </span>
 }
 
-export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void }) {
+export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, equipmentNames = false }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; equipmentNames?: boolean }) {
+  const [inspectedSlotId, setInspectedSlotId] = useState<string>()
   const slots = [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
   const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
   const mainHandSelection = mainHandSlot ? content.equipment[mainHandSlot.id] : undefined
   const mainHandDefinition = mainHandSelection ? resolveEntity(localData, catalogs, mainHandSelection.ref) : undefined
   const twoHandedMain = mainHandDefinition && mainHandSelection && equipmentFacts(mainHandDefinition).twoHanded === true ? { name: mainHandDefinition.name, value: mainHandSelection.ref } : undefined
+  const inspectedSlot = slots.find(slot => slot.id === inspectedSlotId)
+  const inspectedSelection = inspectedSlot ? content.equipment[inspectedSlot.id] : undefined
+  const inspectedOccupied = inspectedSlot && equipmentRole(inspectedSlot) === 'offHand' && twoHandedMain && (!inspectedSelection || Boolean(inspectedSelection.allocationId && inspectedSelection.allocationId === mainHandSelection?.allocationId)) ? twoHandedMain : undefined
+  const inspectedRef = inspectedOccupied?.value ?? inspectedSelection?.ref
+  const inspectedOption = useMemo(() => inspectedRef ? findDefinitionOption(buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: gameSetup?.id }, catalogs), inspectedRef) : undefined, [inspectedRef, localData, gameSetup?.id, catalogs])
+  const secondary = content.secondaryClass ? resolveEntity(localData, catalogs, content.secondaryClass) : undefined
   const report = validateBuildContent(content, gameSetup, slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref))
   const invalidIssues = report.issues.filter(issue => issue.status === 'invalid').length
   return <span className="build-loadout-summary" data-validity={report.status}>
     {report.status === 'invalid' && <span className="build-loadout-summary__warning"><Icon name="warning"/><strong>Needs changes</strong><small>{invalidIssues} known {invalidIssues === 1 ? 'issue' : 'issues'}</small></span>}
     <span className="build-card__classes">
       <SummarySelection catalogs={catalogs} empty="No class selected" label="Class" localData={localData} gameSetup={gameSetup} value={content.primaryClass}/>
-      <SummarySelection catalogs={catalogs} empty="No sub-command" label="Sub-command" localData={localData} gameSetup={gameSetup} value={content.secondaryClass}/>
+      <SummarySelection catalogs={catalogs} empty="No sub-command" label="Sub-command" localData={localData} gameSetup={gameSetup} value={content.secondaryClass} displayName={secondary ? subCommandLabel({ record: secondary, name: secondary.name }) : undefined}/>
     </span>
     <span className="build-card__summary-group">
       <span className="build-card__summary-label" title="Equipment"><Icon name="sword"/><span className="sr-only">Equipment</span></span>
-      <span aria-label="Equipment" className="build-card__equipment">{slots.map(slot => {
+      <span aria-label="Equipment" className="build-card__equipment" data-show-names={equipmentNames || undefined}>{slots.map(slot => {
         const role = equipmentRole(slot)
         const selection = content.equipment[slot.id]
         const occupiedBy = role === 'offHand' ? twoHandedMain : undefined
         const sharedMainHandCopy = Boolean(occupiedBy && selection?.allocationId && selection.allocationId === mainHandSelection?.allocationId)
-        return <SummarySelection catalogs={catalogs} compact empty="Empty" emptyIcon={equipmentIcon(role)} key={slot.id} label={slot.label} occupiedBy={occupiedBy?.name} occupiedValue={!selection || sharedMainHandCopy ? occupiedBy?.value : undefined} onActivate={onEquipmentSelect ? () => onEquipmentSelect(slot.id) : undefined} localData={localData} role={role} gameSetup={gameSetup} value={sharedMainHandCopy ? null : selection?.ref}/>
+        return <SummarySelection catalogs={catalogs} compact={!equipmentNames} empty="Empty" emptyIcon={equipmentIcon(role)} key={slot.id} label={slot.label} occupiedBy={occupiedBy?.name} occupiedValue={!selection || sharedMainHandCopy ? occupiedBy?.value : undefined} onActivate={onEquipmentSelect ? () => onEquipmentSelect(slot.id) : () => setInspectedSlotId(slot.id)} localData={localData} role={role} gameSetup={gameSetup} value={sharedMainHandCopy ? null : selection?.ref}/>
       })}</span>
     </span>
     <span className="build-card__summary-group">
@@ -98,5 +112,8 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
         return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} localData={localData} gameSetup={gameSetup} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
       })}</span> : <small className="sr-only">No passives selected</small>}
     </span>
+    <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'Inspect the selected equipment definition.'} onClose={() => setInspectedSlotId(undefined)}>
+      {inspectedOption ? <BuildSelectionDetails option={inspectedOption}/> : <p>{inspectedSelection ? 'This saved selection cannot be resolved from its pinned definition.' : 'Nothing is equipped in this slot.'}</p>}
+    </Sheet>
   </span>
 }

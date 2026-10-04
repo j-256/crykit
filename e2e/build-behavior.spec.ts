@@ -150,3 +150,35 @@ test('a preset without a configured layout keeps suggested slots usable and pres
   expect(saved.buildRevisions[before.id]).toEqual(before)
   expect(saved.playthroughs).toEqual(original.playthroughs)
 })
+
+test('validity review focuses retained equipment after copying a different slot layout', async ({ page, baseURL }) => {
+  const { original, build, before } = await openBuild(page)
+  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
+  const removedSlot = setup.slots.find(slot => before.content.equipment[slot.id])!
+  const equipment = { ...before.content.equipment }
+  delete equipment[removedSlot.id]
+  const narrowPreset = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: { ...setup, label: 'Synthetic reduced-layout preset', slots: setup.slots.filter(slot => slot.id !== removedSlot.id) } }, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...payload.records.buildRevisions[before.id]!, content: { ...before.content, equipment } } } } }
+  await page.goto(createShareUrl(narrowPreset, `${baseURL}/`))
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await page.goto(`${baseURL}/#/builds/library/${build.id}`)
+  await page.locator('.build-behavior > summary').click()
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Synthetic reduced-layout preset · r1' })
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  const issue = page.getByRole('region', { name: 'Build validity', exact: true }).getByRole('listitem').filter({ hasText: 'A selected definition uses a slot outside this Game Setup' })
+  await issue.getByRole('button', { name: 'Review selection', exact: true }).click()
+  const retained = page.locator(`[data-field-key="slot:${removedSlot.id}"]`)
+  await expect(retained).toBeFocused()
+  await expect(retained.getByRole('button', { name: `Remove ${removedSlot.id}`, exact: true })).toBeVisible()
+  await retained.getByRole('button', { name: `Remove ${removedSlot.id}`, exact: true }).click()
+  await expect(issue).toHaveCount(0)
+  expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
+  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const saved = await storedData(page)
+  const revision = saved.buildRevisions[saved.builds[build.id]!.latestRevisionId!]!
+  expect(revision.content.equipment).toEqual(equipment)
+  expect(saved.buildRevisions[before.id]).toEqual(before)
+  expect(saved.playthroughs).toEqual(original.playthroughs)
+})

@@ -31,8 +31,8 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   const retained = Object.keys(content.equipment).filter(id => !slots.some(slot => slot.id === id))
   const options = useMemo(() => buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: setup.id }, catalogs), [localData, catalogs, setup.id])
   const [view, setView] = useState<LoadoutView>('loadout')
-  const [inspection, setInspection] = useState<{ option?: DefinitionOption }>()
-  const field = (label: string, ref: EntityRef | null | undefined, empty = 'Empty') => <ReadOnlyDefinitionField catalogs={catalogs} empty={empty} label={label} localData={localData} onInspect={option => setInspection({ option })} option={findDefinitionOption(options, ref)}/>
+  const [inspection, setInspection] = useState<{ option?: DefinitionOption; showClassPermissions: boolean }>()
+  const field = (label: string, ref: EntityRef | null | undefined, empty = 'Empty') => <ReadOnlyDefinitionField catalogs={catalogs} empty={empty} label={label} localData={localData} onInspect={option => setInspection({ option, showClassPermissions: label !== 'Sub-command' })} option={findDefinitionOption(options, ref)}/>
   const equipmentField = (id: string, label: string) => {
     const selection = content.equipment[id]
     const offHand = slots.find(slot => slot.id === id && equipmentRole(slot) === 'offHand')
@@ -48,7 +48,7 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   return <div className="stack build-sheet" data-validity={report.status}>
     <details><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
     <BuildValidity report={report}/>
-    <LoadoutSheet gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)}
+    <LoadoutSheet gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
       classFields={<>{field('Class', content.primaryClass, 'No class selected')}{field('Sub-command', content.secondaryClass, 'No sub-command')}</>}
       equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">Selections outside the pinned slot layout retain their stored slot IDs.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}

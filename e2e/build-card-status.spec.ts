@@ -37,7 +37,7 @@ test('saved and cloned Builds have no classification badges', async ({ page }) =
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
   await clickBuildAction(page, 'Clone Build')
   await expect(page.getByRole('heading', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   await expect(page.getByRole('button', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
   await expect(page.locator('.build-card__header .badge')).toHaveCount(0)
   await expect(page.locator('.build-card .badge').filter({ hasText: /^sample$/ }).first()).toBeVisible()
