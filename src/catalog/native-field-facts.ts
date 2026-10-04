@@ -8,7 +8,7 @@ import { equipmentCategory } from '../domain/equipment-categories'
 import { nativeIdentity, nativeRecord, nativeSourceRecord, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 import type { CatalogEntity, CatalogSnapshot, JsonValue, Knowledge } from '../domain/types'
 
-const FLAT_STAT_FIELDS: Readonly<Record<string, string>> = Object.freeze({ Attack: 'Flat_PAtk', Defense: 'Flat_PDef', Resistance: 'Flat_MDef', 'Def pierce': 'Flat_PPen', 'Res pierce': 'Flat_MPen', Accuracy: 'Flat_PAccRating', Evasion: 'Flat_PEvaRating', Strength: 'Flat_Str', Vitality: 'Flat_Vit', Dexterity: 'Flat_Dex', Agility: 'Flat_Agi', Mind: 'Flat_Mnd', Spirit: 'Flat_Spi', Speed: 'Flat_Spd', Luck: 'Flat_Lck', 'Max hp': 'Flat_HP', 'Max mp': 'Flat_MP' })
+export const FLAT_STAT_FIELDS: Readonly<Record<string, string>> = Object.freeze({ Attack: 'Flat_PAtk', Defense: 'Flat_PDef', Resistance: 'Flat_MDef', 'Def pierce': 'Flat_PPen', 'Res pierce': 'Flat_MPen', Accuracy: 'Flat_PAccRating', Evasion: 'Flat_PEvaRating', Strength: 'Flat_Str', Vitality: 'Flat_Vit', Dexterity: 'Flat_Dex', Agility: 'Flat_Agi', Mind: 'Flat_Mnd', Spirit: 'Flat_Spi', Speed: 'Flat_Spd', Luck: 'Flat_Lck', 'Max hp': 'Flat_HP', 'Max mp': 'Flat_MP' })
 const SHOUDU_STEW_ID = 'base:item:132'
 const STAT_LABELS: Readonly<Record<string, string>> = Object.freeze({ 'Def. Pierce': 'Def pierce', 'Res. Pierce': 'Res pierce', 'Max. HP': 'Max hp', 'Max. MP': 'Max mp' })
 
