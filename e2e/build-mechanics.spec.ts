@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { readFile } from 'node:fs/promises'
@@ -7,7 +8,10 @@ import { createBlankPlaythrough } from './local-data-helpers'
 async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   const field = page.getByRole('combobox', { name: label, exact: true })
   await field.fill(name)
-  if (options.includeConflicts) await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  if (options.includeConflicts) {
+    await openBuildPickerFilters(page)
+    await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  }
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   if (label !== 'Add planned status') await expect(field).toHaveValue(name)
 }

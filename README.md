@@ -22,7 +22,7 @@ No account or installation is needed. Your saved builds and records stay in your
 
 1. **Open the app.** It starts in **Builds** with a labeled sample Playthrough. The example characters and builds let you explore before entering your own records.
 2. **Choose New Build.** Search the class, sub-command, equipment, or passive fields and select entries from the results. Fill in as much of the build as you want.
-3. **Give it a name if you like.** Choose **Checks & notes**, then add a title or notes under **Build details & notes**. Otherwise, the build is named after its selected class.
+3. **Give it a name if you like.** Enter **Build title** at the top of the sheet. Choose **Checks & notes** for play notes and a checkpoint name. Otherwise, the build is named after its selected class.
 4. **Choose Save build.** You can return to it from the build library and save further changes as new checkpoints, keeping earlier versions available.
 
 You can plan with equipment or skills you have not acquired. The planner checks documented build rules and keeps missing or conflicting information visible. Game data may differ by platform, version, or mods; see [reference sources and coverage](docs/catalog-sources.md) for the limits.
@@ -33,7 +33,7 @@ The bundled reference combines Windows PC 1.6.9 game definitions, versioned mod 
 
 ## Track your own game when you are ready
 
-In **Data & settings > Playthrough**, expand **New Playthrough**, enter a name under **New blank Playthrough**, and choose **Create**. Your new Playthrough starts without sample characters, inventory, or progress. Builds and Teams remain available independently.
+Choose **Data & settings > Import & backup > New blank Playthrough**, enter a name, and choose **Create**. You can also start from **Playthrough > New Playthrough**. Your new Playthrough starts without sample characters, inventory, or progress. Builds and Teams remain available independently; turn off **Show sample Builds** in the Build library to hide examples.
 
 Create or edit game version, difficulty, and mods under **Data & settings > Saved setups**. To use a saved revision for tracking, return to **Playthrough**, choose **Game Setup to apply**, and select **Apply to** followed by your Playthrough's name. Saving a setup alone does not apply it to a tracked game.
 

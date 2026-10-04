@@ -5,9 +5,49 @@ import { equipmentFacts, isWeapon, passivePointCost } from '../domain/mechanics-
 import type { BuildRevisionContent, EntityRef, GameSetupRevision, SlotDefinition } from '../domain/types'
 import { referenceCategoryKey } from './reference-categories'
 import type { DefinitionOption } from './definitions'
+import { nativeListedStat, nativeStatSourceNotice, selectionSummaryLines } from './build-evidence'
 
 export const PICKER_STAT_FIELDS = ['Attack', 'Defense', 'Resistance', 'Strength', 'Vitality', 'Dexterity', 'Agility', 'Mind', 'Spirit', 'HP', 'MP'] as const
 const FLAT_UNITS = new Set(['displayed', 'listed flat value'])
+const SEARCH_EXCERPT_LIMIT = 150
+const SEARCH_MATCH_RANK = Object.freeze({ exactName: 0, namePrefix: 1, nameTokens: 2, alias: 3, details: 4, reference: 5 })
+
+export interface PickerSearchEntry {
+  readonly names: readonly string[]
+  readonly aliases: readonly string[]
+  readonly details: readonly string[]
+  readonly referenceText?: string
+  readonly conflictingReferenceStats: boolean
+}
+
+export function pickerSearchEntry(option: DefinitionOption, displayedName: string): PickerSearchEntry {
+  return {
+    names: [...new Set([displayedName, option.name])],
+    aliases: option.aliases,
+    details: selectionSummaryLines(option),
+    referenceText: option.description,
+    conflictingReferenceStats: Boolean(nativeStatSourceNotice(option.record)),
+  }
+}
+
+export function pickerSearchMatch(entry: PickerSearchEntry, query: string): { readonly rank: number; readonly explanation?: string } | undefined {
+  const normalized = query.trim().toLocaleLowerCase()
+  if (!normalized) return { rank: SEARCH_MATCH_RANK.exactName }
+  const tokens = normalized.split(/\s+/)
+  const matches = (text: string) => tokens.every(token => text.toLocaleLowerCase().includes(token))
+  if (!matches([...entry.names, ...entry.aliases, ...entry.details, entry.referenceText ?? ''].join(' '))) return undefined
+  if (entry.names.some(name => name.toLocaleLowerCase() === normalized)) return { rank: SEARCH_MATCH_RANK.exactName }
+  if (entry.names.some(name => name.toLocaleLowerCase().startsWith(normalized))) return { rank: SEARCH_MATCH_RANK.namePrefix }
+  if (entry.names.some(matches)) return { rank: SEARCH_MATCH_RANK.nameTokens }
+  const alias = entry.aliases.find(matches)
+  if (alias) return { rank: SEARCH_MATCH_RANK.alias, explanation: `Matched alias: ${alias.slice(0, SEARCH_EXCERPT_LIMIT)}` }
+  if (!matches([...entry.names, ...entry.aliases, ...entry.details].join(' ')) && entry.referenceText) return {
+    rank: SEARCH_MATCH_RANK.reference,
+    explanation: entry.conflictingReferenceStats ? 'Matched supplemental reference text; see provenance for differing stat claims' : `Matched reference text: ${entry.referenceText.slice(0, SEARCH_EXCERPT_LIMIT)}`,
+  }
+  const detail = entry.details.find(matches) ?? entry.details.find(line => tokens.some(token => line.toLocaleLowerCase().includes(token)))
+  return { rank: SEARCH_MATCH_RANK.details, explanation: detail ? `Matched details: ${detail.slice(0, SEARCH_EXCERPT_LIMIT)}` : 'Matched across name and aliases' }
+}
 
 export function pickerCategoryKey(option: DefinitionOption): string | undefined {
   const type = equipmentFacts(option.record).type
@@ -21,6 +61,8 @@ export function pickerHandedness(option: DefinitionOption): string | undefined {
 }
 
 export function pickerListedStat(option: DefinitionOption, label: string): number | undefined {
+  const nativeValue = nativeListedStat(option.record, label)
+  if (nativeValue !== undefined) return nativeValue
   const field = option.record.fields[label]
   if (field?.state === 'known' && typeof field.value === 'number') return field.value
   const contribution = option.record.listedContributions?.[label]

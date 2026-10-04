@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createId, entityDefinitionKey, requirePlaythrough, validateScenario } from '../domain'
 import { createScenario, TEAM_SIZE } from '../domain/scenarios'
 import { sameBuildBehavior } from '../domain/build-behavior'
@@ -10,6 +10,7 @@ import { BuildCharacterComparison } from './BuildCharacterComparison'
 import { BuildLoadoutSummary } from './BuildLoadoutSummary'
 import { TeamBuildEditor, type BuildDraft, type RevisionDraft } from './BuildsView'
 import { TeamCheckpointComparison } from './TeamCheckpointComparison'
+import { TeamCheckpointPicker } from './TeamCheckpointPicker'
 import { TeamReview, newerTeamCheckpoint } from './TeamReview'
 import './team-workflow.css'
 import { Button, EmptyState, Field, InlineNotice, ScreenHeader } from './components'
@@ -38,7 +39,26 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
   const [slots, setSlots] = useState<readonly (BuildRevisionId | null)[]>(team?.slots ?? emptyTeamSlots())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const [member, setMember] = useState<{ readonly index: number; readonly revisionId?: BuildRevisionId }>()
+  const [member, setMember] = useState<{ readonly index: number; readonly revisionId?: BuildRevisionId; readonly initialFieldKey?: string }>()
+  const returnPositionRef = useRef<{ readonly main: number; readonly window: number; readonly index: number } | undefined>(undefined)
+  const openMember = (next: NonNullable<typeof member>) => {
+    returnPositionRef.current = { main: document.querySelector('.main-shell')?.scrollTop ?? 0, window: window.scrollY, index: next.index }
+    setMember(next)
+  }
+  useLayoutEffect(() => {
+    const main = document.querySelector('.main-shell')
+    if (member) {
+      if (main) main.scrollTop = 0
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      if (!member.initialFieldKey) document.querySelector<HTMLElement>('.team-member-context')?.focus({ preventScroll: true })
+    } else if (returnPositionRef.current) {
+      const position = returnPositionRef.current
+      if (main) main.scrollTop = position.main
+      window.scrollTo({ top: position.window, behavior: 'instant' })
+      document.querySelector<HTMLElement>(`[data-team-slot="${position.index}"] .team-slot-actions button`)?.focus({ preventScroll: true })
+      returnPositionRef.current = undefined
+    }
+  }, [member])
   const [memberDirty, setMemberDirty] = useState(false)
   const [savedMemberTeamId, setSavedMemberTeamId] = useState<TeamId>()
   const memberActionsRef = useRef<DraftActions | undefined>(undefined)
@@ -91,20 +111,19 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
     },
   }
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
-  const builds = Object.values(localData.builds).filter(build => !build.archived || slots.some(id => id && localData.buildRevisions[id]?.buildId === build.id)).sort((left, right) => left.title.localeCompare(right.title))
   const reusedSetup = slots.map(slot => slot ? localData.buildRevisions[slot] : undefined).find(Boolean)?.gameSetupRevisionId
   const sourceRevision = member?.revisionId ? localData.buildRevisions[member.revisionId] : undefined
   const returnFromMember = () => { if (memberDirty) memberActionsRef.current?.discard(); closeMember() }
   if (member) return <div className="stack">
     <ScreenHeader unsavedObject={!sourceRevision} eyebrow={title.trim() || 'New Team'} title={sourceRevision ? `Edit ${localData.builds[sourceRevision.buildId]?.title ?? 'member'}` : `Create member ${member.index + 1}`} description="Save this member to create a checkpoint and assign it to this Team. Other Teams keep their pinned checkpoints." breadcrumb={<Button disabled={busy} icon="arrow-left" onClick={returnFromMember} title={`Return to ${title.trim() || 'Team'}${memberDirty ? ' and discard this member edit' : ''}`} tone="quiet" type="button">{memberDirty ? 'Discard and return' : 'Return to Team'}</Button>}/>
-    <section aria-label="Team member context" className="team-member-context">
+    <section aria-label="Team member context" className="team-member-context" tabIndex={-1}>
       <strong>{title.trim() || 'New Team'} · Slot {member.index + 1}</strong>
       <p>{teamDirty ? 'Your Team name and slot changes stay here while you edit. Saving this member saves those Team changes too.' : 'Your Team stays open while you edit this member.'}</p>
       {!title.trim() && <p>The Team will be saved as "New Team". You can rename it on return.</p>}
       {!sourceRevision && reusedSetup && <p>Starting with this Team's Game Setup: {localData.gameSetups[reusedSetup]?.label ?? 'Saved setup'}. You can review or change it below.</p>}
     </section>
     {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
-    <TeamBuildEditor catalogs={catalogs} gameSetupRevisionId={reusedSetup} localData={localData} onCancel={closeMember} onDraftChange={memberDraftChange} sourceRevision={sourceRevision} onSubmit={async (build, revision) => {
+    <TeamBuildEditor catalogs={catalogs} gameSetupRevisionId={reusedSetup} initialFieldKey={member.initialFieldKey} localData={localData} onCancel={closeMember} onDraftChange={memberDraftChange} sourceRevision={sourceRevision} onSubmit={async (build, revision) => {
       setBusy(true)
       setError(undefined)
       try {
@@ -130,16 +149,14 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
       const setup = revision ? localData.gameSetups[revision.gameSetupRevisionId] : undefined
       const build = revision ? localData.builds[revision.buildId] : undefined
       const newer = revision ? newerTeamCheckpoint(localData, revision) : undefined
-      return <section aria-label={`Team slot ${index + 1} loadout`} className="panel team-loadout-card" key={index}>
+      return <section aria-label={`Team slot ${index + 1} loadout`} className="panel team-loadout-card" data-team-slot={index} key={index}>
         <header className="panel__header"><div><small>Slot {index + 1}</small><h2>{build?.title ?? 'Add a member'}</h2></div></header>
         <div className="panel__body stack">
           {revision && <p className="team-slot-checkpoint">Selected checkpoint: {build?.title ?? 'Build'} · r{revision.revision}{revision.note ? ` · ${revision.note}` : ''}</p>}
-          <Field label={`Team slot ${index + 1}`} hint={revision ? 'This slot keeps its selected checkpoint until you change it.' : 'Choose an existing checkpoint or create a member below.'}><select aria-label={`Team slot ${index + 1}`} disabled={busy} value={slotId ?? ''} onChange={event => setSlots(values => values.map((value, slotIndex) => slotIndex === index ? event.target.value as BuildRevisionId || null : value))}>
-            <option value="">Choose a build checkpoint</option>{builds.map(build => <optgroup key={build.id} label={build.title}>{Object.values(localData.buildRevisions).filter(revision => revision.buildId === build.id).sort((left, right) => right.revision - left.revision).map(revision => <option key={revision.id} value={revision.id}>{build.title} · r{revision.revision}</option>)}</optgroup>)}
-          </select></Field>
+          <TeamCheckpointPicker catalogs={catalogs} disabled={busy} localData={localData} onChange={id => setSlots(values => values.map((value, slotIndex) => slotIndex === index ? id : value))} slotNumber={index + 1} value={slotId}/>
           {revision && newer && <InlineNotice title={`Newer checkpoint available: r${newer.revision}`} tone="warning"><p>This slot keeps r{revision.revision} until you update it.</p><details><summary>Compare checkpoints</summary><TeamCheckpointComparison catalogs={catalogs} current={revision} next={newer} localData={localData}/></details><Button disabled={busy} onClick={() => setSlots(values => values.map((value, slotIndex) => slotIndex === index ? newer.id : value))} tone="secondary" type="button">Update this slot to r{newer.revision}</Button><p>Save Team to retain the update.</p></InlineNotice>}
-          {revision && <BuildLoadoutSummary content={revision.content} catalogs={catalogs} equipmentNames localData={localData} gameSetup={setup}/>}
-          <div className="team-slot-actions">{revision && <Button tone="secondary" type="button" disabled={busy} onClick={() => setMember({ index, revisionId: revision.id })}>Edit member</Button>}<Button disabled={busy} icon="plus" onClick={() => setMember({ index })} tone={revision ? 'quiet' : 'secondary'} type="button">{revision ? 'Create replacement' : 'Create member'}</Button></div>
+          {revision && <BuildLoadoutSummary content={revision.content} catalogs={catalogs} equipmentNames localData={localData} gameSetup={setup} onEquipmentEdit={busy ? undefined : slotId => openMember({ index, revisionId: revision.id, initialFieldKey: `slot:${slotId}` })}/>}
+          <div className="team-slot-actions">{revision && <Button tone="secondary" type="button" disabled={busy} onClick={() => openMember({ index, revisionId: revision.id })}>Edit member</Button>}<Button disabled={busy} icon="plus" onClick={() => openMember({ index })} tone={revision ? 'quiet' : 'secondary'} type="button">{revision ? 'Create replacement' : 'Create member'}</Button></div>
         </div>
       </section>
     })}</div>

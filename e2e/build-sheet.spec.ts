@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
@@ -9,8 +10,12 @@ import type { LocalData } from '../src/domain/types'
 async function choose(page: Page, label: string, name: string, options: { readonly allowConflicts?: boolean; readonly includeUnavailable?: boolean; readonly requiredMod?: string } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })
-  if (options.allowConflicts) await results.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  if (options.allowConflicts) {
+    await openBuildPickerFilters(page)
+    await results.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  }
   if (options.includeUnavailable) {
+    await openBuildPickerFilters(page)
     await results.getByText('Broader planning options', { exact: true }).click()
     await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   }
