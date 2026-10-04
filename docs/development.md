@@ -160,6 +160,8 @@ Gender records resolve from the pinned setup with explicit flag validation. Addi
 
 Rule explanations in `game-rule-labels.ts` use inspected native consumers to supply plain-language labels, effect descriptions, value units, and calculation scope. `TechnicalFieldInfo` exposes the exact source field through hover, focus, and tap help with Escape dismissal. Keep source names and numeric values intact, leave unfamiliar effects explicit, and verify both keyboard and touch access when extending the rule presentation. Collapsed Build summaries resolve names from exact enabled catalog pins; named-only settings do not establish calculation support.
 
+Build library cards consolidate required mods into one Mods badge. Its tooltip groups mod names, recorded enabled states, and affected selections from the pinned checkpoint; hover, keyboard focus, and tap reveal the details, while Escape or an outside interaction dismisses them. Keyboard scrolling reaches longer lists without leaving the badge. The tooltip stays within the viewport and above scroll containers, and detailed editing surfaces retain their selection labels.
+
 When changing these components, verify definition inspection, native plans with and without model markers, read-only share previews and saved copies, unknown character observations, save failure retries, and desktop and mobile layouts. The sharing and character sheet browser tests cover those flows, including offline rendering and preview-to-editor calculation parity.
 
 ### Team member editing
