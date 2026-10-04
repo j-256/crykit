@@ -7,6 +7,8 @@ import { composeModCatalog, composeModLayers, modCatalogRevision } from './mod-l
 import { syntheticModLayers } from './mod-layers.test-helpers'
 import { saveTeam } from './teams'
 import { saveTeamMember } from './team-member'
+import { updateBuild } from './builds'
+import { MAX_SHORT_TEXT_LENGTH } from './limits'
 import { addTestBuild, createTestLocalData, HAND_SLOT, TEST_NOW } from './test-helpers'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId, GameSetupRevisionId, TeamId } from './types'
 import { validateNativeLocalDataGraph } from '../interchange/native'
@@ -45,6 +47,37 @@ describe('atomic Team member candidate', () => {
     expect(next.buildRevisions[nextId]!.parentRevisionId).toBe(sourceId)
     expect(next.buildRevisions[nextId]!.content.rotationNotes).toBe('New plan')
     validateNativeLocalDataGraph(next, [])
+  })
+
+  it('renames an existing member while preserving its metadata and pinned checkpoints', () => {
+    const { data, source, revision } = fixture()
+    const tagged = updateBuild(data, { buildId: source.buildId, tags: ['Frontline'], favorite: true, now: TEST_NOW })
+    const otherId = asId<TeamId>('other-team')
+    const before = saveTeam(tagged, { id: otherId, title: 'Other Team', slots: [sourceId, null, null, null], now: TEST_NOW })
+    const original = structuredClone(before)
+    const next = saveTeamMember(before, { team: { id: teamId, title: 'Synthetic Team', slots: [sourceId, sourceId, null, null], now: TEST_NOW }, slotIndex: 0, sourceRevisionId: sourceId, buildTitle: '  Renamed member  ', revision, revisionId: nextId }, [])
+    expect(next.builds[source.buildId]).toMatchObject({ ...before.builds[source.buildId], title: 'Renamed member', latestRevisionId: nextId, revision: before.builds[source.buildId]!.revision + 2 })
+    expect(next.teams[teamId]!.slots).toEqual([nextId, sourceId, null, null])
+    expect(next.teams[otherId]).toBe(before.teams[otherId])
+    expect(next.buildRevisions[sourceId]).toBe(source)
+    expect(next.buildRevisions[nextId]!.parentRevisionId).toBe(sourceId)
+    expect(next.buildRevisions[nextId]!.content).toEqual(source.content)
+    expect(next.buildRevisions[nextId]!.revision).toBe(before.builds[source.buildId]!.revision + 1)
+    expect(next.playthroughs).toBe(before.playthroughs)
+    expect(before).toEqual(original)
+    validateNativeLocalDataGraph(next, [])
+  })
+
+  it('rejects invalid member titles and failed Team candidates without changing saved names', () => {
+    const { data, revision } = fixture()
+    const original = structuredClone(data)
+    const input = { team: { id: teamId, title: 'Synthetic Team', slots: [sourceId, null, null, null], now: TEST_NOW }, slotIndex: 0, sourceRevisionId: sourceId, revision, revisionId: nextId }
+    for (const buildTitle of ['', '   ', 'x'.repeat(MAX_SHORT_TEXT_LENGTH + 1)]) {
+      expect(() => saveTeamMember(data, { ...input, buildTitle }, [])).toThrow()
+      expect(data).toEqual(original)
+    }
+    expect(() => saveTeamMember(data, { ...input, buildTitle: 'Renamed member', team: { ...input.team, title: '' } }, [])).toThrow('nonempty')
+    expect(data).toEqual(original)
   })
 
   it('rejects an invalid Team after draft creation without mutating the original state', () => {

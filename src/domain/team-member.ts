@@ -1,5 +1,5 @@
 import { assertExpectedRevision, DomainError } from './core'
-import { createBuild, saveBuildRevision } from './builds'
+import { createBuild, saveBuildRevision, updateBuild } from './builds'
 import { saveBuildBehavior, type BuildBehavior } from './build-behavior'
 import { saveTeam, type SaveTeamInput } from './teams'
 import { buildContentForModSetup } from './build-mods'
@@ -9,6 +9,7 @@ export interface SaveTeamMemberInput {
   readonly team: SaveTeamInput
   readonly slotIndex: number
   readonly build?: { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly tags: readonly string[] }
+  readonly buildTitle?: string
   readonly revision: BuildRevisionContent & { readonly behavior: BuildBehavior; readonly behaviorRevisionId?: GameSetupRevisionId; readonly note?: string }
   readonly sourceRevisionId?: BuildRevisionId
   readonly revisionId: BuildRevisionId
@@ -27,6 +28,7 @@ export function saveTeamMember(localData: LocalData, input: SaveTeamMemberInput,
   const buildId = input.build?.id ?? source!.buildId
   const created = input.build ? createBuild(configured.localData, { ...input.build, gameSetupId: configured.setup.gameSetupId, now: input.team.now, expectedRevision: configured.localData.revision }) : configured.localData
   const revised = saveBuildRevision(created, { buildId, id: input.revisionId, parentRevisionId: source?.id, gameSetupRevisionId: configured.setup.id, content: buildContentForModSetup(content, configured.setup, catalogs, behavior), note, now: input.team.now, expectedRevision: created.revision })
+  const renamed = input.buildTitle === undefined ? revised : updateBuild(revised, { buildId, title: input.buildTitle, now: input.team.now, expectedRevision: revised.revision })
   const slots = input.team.slots.map((id, index) => index === input.slotIndex ? input.revisionId : id)
-  return saveTeam(revised, { ...input.team, slots, expectedRevision: revised.revision })
+  return saveTeam(renamed, { ...input.team, slots, expectedRevision: renamed.revision })
 }

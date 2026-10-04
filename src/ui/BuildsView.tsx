@@ -36,6 +36,7 @@ import { BuildModSelectionGate } from './BuildModSelectionGate'
 import type { BuildBehavior } from '../domain/build-behavior'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
+import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
 import { modState } from '../domain/mods'
@@ -76,11 +77,14 @@ function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit,
     {markDirty => <><Field label="Build title" hint="Optional. Otherwise named after the selected class."><input aria-label="Build title" onChange={(event) => setTitle(event.target.value)} placeholder="Name this Build" value={title}/></Field><details className="build-tags-control"><summary>Tags</summary><div className="build-tags-control__editor"><BuildTagsField draft={tags} onChange={next => { setTags(next); markDirty() }} suggestions={tagSuggestions}/></div></details></>}
   </RevisionEditor></div></section>
 }
-export function TeamBuildEditor({ localData, catalogs, sourceRevision, gameSetupRevisionId, initialFieldKey, onCancel, onSubmit, onDraftChange }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly sourceRevision?: BuildRevision; readonly gameSetupRevisionId?: GameSetupRevisionId; readonly initialFieldKey?: string; readonly onCancel: () => void; readonly onSubmit: (build: BuildDraft | undefined, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; readonly onDraftChange: DraftChangeHandler }) {
+export function TeamBuildEditor({ localData, catalogs, sourceRevision, gameSetupRevisionId, initialFieldKey, onCancel, onSubmit, onDraftChange }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly sourceRevision?: BuildRevision; readonly gameSetupRevisionId?: GameSetupRevisionId; readonly initialFieldKey?: string; readonly onCancel: () => void; readonly onSubmit: (build: BuildDraft | undefined, revision: RevisionDraft, buildTitle?: string) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; readonly onDraftChange: DraftChangeHandler }) {
   const build = sourceRevision ? localData.builds[sourceRevision.buildId] : undefined
+  const [title, setTitle] = useState(() => build?.title ?? '')
   if (sourceRevision && !build) return <InlineNotice title="Member Build unavailable" tone="warning">Return to the Team and choose an available checkpoint.<Button onClick={onCancel} type="button">Return to Team</Button></InlineNotice>
   return sourceRevision && build
-    ? <RevisionEditor build={build} catalogs={catalogs} embedded initialFieldKey={initialFieldKey} localData={localData} onCancel={onCancel} onDirtyChange={onDraftChange} onSaved={() => undefined} onSubmit={async revision => (await onSubmit(undefined, revision)).revisionId} sourceRevision={sourceRevision}/>
+    ? <RevisionEditor build={build} catalogs={catalogs} embedded initialFieldKey={initialFieldKey} localData={localData} onCancel={onCancel} onDirtyChange={onDraftChange} onSaved={() => undefined} onSubmit={async revision => (await onSubmit(undefined, revision, title.trim() === build.title ? undefined : title)).revisionId} sourceRevision={sourceRevision}>
+      <Field label="Build title" hint="Renaming updates this Build's name in every Team that uses it." required><input aria-label="Build title" maxLength={MAX_SHORT_TEXT_LENGTH} onChange={event => setTitle(event.target.value)} required value={title}/></Field>
+    </RevisionEditor>
     : <AddBuildForm catalogs={catalogs} embedded gameSetupRevisionId={gameSetupRevisionId} initialFieldKey={initialFieldKey} localData={localData} onCancel={onCancel} onDirtyChange={onDraftChange} onSaved={() => undefined} onSubmit={onSubmit} tagSuggestions={[...new Set(Object.values(localData.builds).flatMap(candidate => candidate.tags))]}/>
 }
 
