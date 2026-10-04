@@ -18,7 +18,7 @@ test('starts fresh with explicit rules and draft feedback while retaining sample
   await page.goto('/#/builds/library/new')
   await expect(page.locator('.build-behavior > summary')).toContainText('Fresh audit settings')
   await expect(page.locator('.build-behavior > summary')).not.toContainText('Sample')
-  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).not.toContainText('No known compatibility conflicts')
+  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).not.toContainText('No known loadout conflicts')
   await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('Choose a class')
   await expect(page.locator('.build-passive-options')).not.toHaveAttribute('open')
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Fresh Wizard')

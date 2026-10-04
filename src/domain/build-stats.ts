@@ -23,7 +23,7 @@ export function calculateBuildStats(content: BuildRevisionContent, slots: readon
   const plan = content.calculation
   const result = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules)
   return { stats: Object.fromEntries(CALCULATED_STATS.map(stat => {
-    const value = selectedPCStats(result, plan?.gender)[stat]
+    const value = selectedPCStats(result, plan?.gender, plan?.genderSelection)[stat]
     const base = result.base[stat]
     return [stat, { base: base == null ? null : { low: base, high: base }, value: value == null ? null : { low: value, high: value } }]
   })) as Record<CalculatedStat, StatEstimate>, excluded: result.effects, issues: result.issues }

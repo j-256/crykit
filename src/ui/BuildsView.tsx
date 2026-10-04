@@ -14,7 +14,8 @@ import { Sheet } from './Sheet'
 import { DefinitionProvider, findDefinitionOption, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { BuildReadinessAssignment, ValidationPanel } from './BuildReadiness'
 import { formatStatRange } from './BuildMechanics'
-import { CALCULATION_GENDER_LABELS, defaultCalculation, followPrimary } from '../domain/calculation-plan'
+import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
+import { calculationGenderLabel } from '../domain/calculation-genders'
 import { BuildValidity } from './BuildValidity'
 import { calculateBuildStats, CALCULATED_STATS, STAT_LABELS } from '../domain/build-stats'
 import { LoadoutSheet } from './LoadoutSheet'
@@ -600,7 +601,8 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
     const calculationLabel = (revision: BuildRevision) => {
       const plan = revision.content.calculation
       if (!plan) return 'No calculation inputs'
-      return [`PC 1.6.9.0 (${plan.pcMode ?? 'standard'}${plan.gender ? '' : '; no gender bonus preview'})`, `Gender: ${plan.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'not specified'}`, `Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
+      const rules = resolveGameRules(localData.gameSetups[revision.gameSetupRevisionId], catalogs)
+      return [`PC 1.6.9.0 (${plan.pcMode ?? 'standard'}${plan.gender || plan.genderSelection ? '' : '; no gender bonus preview'})`, `Gender: ${calculationGenderLabel(plan, rules.genders)}`, `Level ${plan.level ?? 'unknown'}`, `Growth: ${plan.growth.map(row => `${entityName(localData, catalogs, row.classRef, 'Unknown class')} ${row.levels ?? '?'}`).join(', ') || 'unallocated'}`, `Bonuses: ${plan.bonuses.join(', ') || 'none'}`, `Statuses: ${plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'none'}`, ...(plan.ability ? [`Ability: ${entityName(localData, catalogs, plan.ability)}`] : []), ...(plan.targetEvasion != null ? [`Target evasion: ${plan.targetEvasion}`] : [])].join(' · ')
     }
     const scopeRows = statRows.length ? [{ label: 'Estimate exclusions', left: leftStats.excluded.join('; ') || 'None found in supplied fields', right: rightStats.excluded.join('; ') || 'None found in supplied fields' }, { label: 'Calculation notes', left: leftStats.issues.join('; '), right: rightStats.issues.join('; ') }] : []
     return [...summaryRows, ...statRows, ...scopeRows, ...compareBuildRevisions(left, right).differences.map((difference) => ({ label: difference.path.startsWith('content.equipment.') ? ownRecordValue(localData.gameSetups, left.gameSetupRevisionId)?.slots.find((entry) => entry.id === difference.path.replace('content.equipment.', ''))?.label ?? difference.label : difference.label, left: difference.path === 'content.calculation' ? calculationLabel(left) : format(difference.left), right: difference.path === 'content.calculation' ? calculationLabel(right) : format(difference.right) }))]

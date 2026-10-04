@@ -10,6 +10,7 @@ import { LoadoutSheet, type LoadoutView } from './LoadoutSheet'
 import { ReadOnlyDefinitionField } from './ReadOnlyDefinitionField'
 import { buildDefinitionOptions, findDefinitionOption, type DefinitionOption } from './definitions'
 import { CalculationInputs } from './CalculationInputs'
+import { resolveGameRules } from '../domain/game-rules'
 import { KnowledgeValue } from './KnowledgeValue'
 import { BuildValidity } from './BuildValidity'
 import { Button, InlineNotice, ScreenHeader } from './components'
@@ -27,6 +28,7 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   const mainHandDefinition = mainHand ? resolveEntity(localData, catalogs, mainHand.ref) : undefined
   const twoHanded = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true
   const content = revision.content
+  const rules = useMemo(() => resolveGameRules(setup, catalogs), [setup, catalogs])
   const slots = [...setup.slots].sort((left, right) => left.order - right.order)
   const retained = Object.keys(content.equipment).filter(id => !slots.some(slot => slot.id === id))
   const options = useMemo(() => buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: setup.id }, catalogs), [localData, catalogs, setup.id])
@@ -53,7 +55,7 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
       equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">Selections outside the pinned slot layout retain their stored slot IDs.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
       passiveFields={content.passives.length ? content.passives.map((selection, index) => <div key={index}>{field(`Equipped passive ${index + 1}`, selection.ref, selection.observedName)}</div>) : <p>No passives equipped.</p>}
-      notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
+      notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation} genders={rules.genders}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
     />
   </div>
 }

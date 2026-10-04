@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { sameValue } from '../domain/definition-values'
 import { definitionLineageRootRef } from '../domain/definitions'
@@ -7,7 +7,7 @@ import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { PC_GAME_RULES, resolveGameRules } from '../domain/game-rules'
 import { useDefinitionLibrary } from './definitions'
 import { modState, normalizeModName, recordedModNames, updateModSelections } from '../domain/mods'
-import type { CatalogEntityKind, EquipmentRole, GameSetupRevision, GameSetupRevisionId, Knowledge, LocalData, ModComposition, PersonalRef, SlotId, SlotProvenance, SourceRef } from '../domain/types'
+import type { BuildCalculationPlan, CatalogEntityKind, EquipmentRole, GameSetupRevision, GameSetupRevisionId, Knowledge, LocalData, ModComposition, PersonalRef, SlotId, SlotProvenance, SourceRef } from '../domain/types'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { Button, Field, InlineNotice } from './components'
@@ -15,6 +15,7 @@ import { Icon } from './icons'
 import { formatAppError, knowledgeLabel } from './model'
 import { ModLayersEditor } from './ModLayersEditor'
 import { ModSelections } from './ModSelections'
+import { GameRuleDetails } from './GameRuleDetails'
 import './game-setup.css'
 
 const PLATFORMS = ['Nintendo Switch', 'Windows', 'macOS', 'Linux', 'PC'] as const
@@ -81,13 +82,13 @@ export function gameSetupOverrideConflicts(localData: LocalData, draft: GameSetu
   }) : []
 }
 
-export function GameRulesFields({ localData, value: draft, current, focus, disabled = false, onChange: update, modsEditor }: { localData: LocalData; value: GameSetupDraft; current?: Pick<GameSetupRevision, 'modComposition'>; focus?: GameSetupFocus; disabled?: boolean; onChange: (values: Partial<GameSetupDraft>) => void; modsEditor?: ReactNode }) {
+export function GameRulesFields({ localData, value: draft, current, focus, disabled = false, onChange: update, modsEditor, calculation }: { localData: LocalData; value: GameSetupDraft; current?: Pick<GameSetupRevision, 'modComposition'>; focus?: GameSetupFocus; disabled?: boolean; onChange: (values: Partial<GameSetupDraft>) => void; modsEditor?: ReactNode; calculation?: BuildCalculationPlan }) {
   const [exactVersion, setExactVersion] = useState(false)
   const versionId = useId()
   const formRef = useRef<HTMLDivElement>(null)
   const library = useDefinitionLibrary()
   const catalogs = library.catalogs
-  const rules = resolveGameRules(draft, catalogs)
+  const rules = useMemo(() => resolveGameRules({ modComposition: draft.modComposition, mods: draft.mods, mode: draft.mode, difficulty: draft.difficulty, platform: draft.platform, gameVersion: draft.gameVersion }, catalogs), [catalogs, draft.modComposition, draft.mods, draft.mode, draft.difficulty, draft.platform, draft.gameVersion])
   const incompatibleOverrides = gameSetupOverrideConflicts(localData, draft, current)
   useEffect(() => {
     if (!focus) return
@@ -131,15 +132,8 @@ export function GameRulesFields({ localData, value: draft, current, focus, disab
         </div>
       </details>
       <details className="game-setup-disclosure game-setup-derived">
-        <summary><span><strong>Rules from game data</strong><small>{rules.changes.length} battle settings changed by mods{legacyRules ? ' · saved assumptions retained' : ''}</small></span><Icon name="chevron-down"/></summary>
-        <div className="game-setup-disclosure__body stack">
-          <p>PC 1.6.9 uses a {PC_GAME_RULES.ppLimit} PP budget and {PC_GAME_RULES.equipmentSlots} equipment slots. Mods can change individual passive costs and supported calculation constants. Equivalence with other versions and platforms is unverified.</p>
-          <dl className="definition-list"><div className="definition-row" data-game-setup-focus="passives"><dt>Saved PP budget</dt><dd>{knowledgeLabel(draft.ppLimit)}</dd></div><div className="definition-row" data-game-setup-focus="slots"><dt>Saved equipment layout</dt><dd>{draft.slots.map(slot => slot.label).join(', ') || 'Unspecified'}</dd></div></dl>
-          {legacyRules && <InlineNotice title="Saved rules">This setup contains imported or manually specified rules. They stay intact when you change version, difficulty, or mods. To plan with standard rules, start a new Game Setup.</InlineNotice>}
-          {rules.difficulty && <div><h4>{rules.difficulty.name}</h4><p>Enemy HP: {rules.difficulty.values.MonsterHPRate ?? 'Unknown'}%. Boss HP: {rules.difficulty.values.BossHPRate ?? 'Unknown'}%. Player hit modifier: {rules.difficulty.values.MemberHitChanceMod ?? 'Unknown'} percentage points.</p><small>{rules.difficulty.source}</small></div>}
-          {rules.changes.length > 0 && <ul>{rules.changes.map(change => <li key={change.field}><strong>{change.field}</strong>: {String(change.baseline)} to {String(change.value)} · {change.source}{change.calculated ? ' · used in PC stat calculations' : ' · retained; battle simulation not implemented'}</li>)}</ul>}
-          {[...rules.issues, ...rules.difficultyIssues].length > 0 && <InlineNotice title="Calculation coverage"><ul>{[...new Set([...rules.issues, ...rules.difficultyIssues])].map((issue, index) => <li key={index}>{issue}</li>)}</ul></InlineNotice>}
-        </div>
+        <summary><span><strong>Rules from game data</strong><small>{rules.genders.length} bonus profiles{rules.changes.length > 0 && ` · ${rules.changes.length} other rule ${rules.changes.length === 1 ? 'change' : 'changes'}`}{legacyRules ? ' · saved assumptions retained' : ''}</small></span><Icon name="chevron-down"/></summary>
+        <GameRuleDetails calculation={calculation} draft={draft} legacyRules={legacyRules} rules={rules}/>
       </details>
     </fieldset>
   </div>

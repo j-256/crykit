@@ -80,3 +80,19 @@ it('changes revisions in place, keeps layer order and unrelated links, and disca
   expect(changed.modComposition!.links).toEqual([linked.modComposition.links[1]])
   expect(linked.modComposition.links).toHaveLength(2)
 })
+
+it('rebinds preview abilities and status assumptions with the loadout and preserves explicit separate links', async () => {
+  const mod = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'preview-inputs', EditorVersion: 34, Abilities: [{ ID: 0, Name: 'Changed ability' }], Statuses: [{ ID: 0, Name: 'Changed status' }] })), 'synthetic.json')).proposed.catalogs[0]!
+  const data = createTestLocalData()
+  const initial = buildBehavior(data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!)
+  const catalogs = [DEFAULT_CATALOG, mod]
+  const chosen = selectBuildModRevision(initial, mod, catalogs)
+  const ability = { ...freelancer, entityId: 'base:ability:0' as CatalogRef['entityId'] }
+  const status = { ...freelancer, entityId: 'base:status:0' as CatalogRef['entityId'] }
+  const setup = { ...chosen, catalogLock: { ...chosen.catalogLock, [DEFAULT_CATALOG.id]: 'mod-setup:preview-inputs' as CatalogRef['catalogRevisionId'] } }
+  const result = buildContentForModSetup({ ...content, calculation: { ...content.calculation!, ability, statuses: [status] } }, setup, catalogs)
+  expect(result.calculation!.ability).toEqual({ ...ability, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id] })
+  expect(result.calculation!.statuses).toEqual([{ ...status, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id] }])
+  const separated = { ...chosen, modComposition: { ...chosen.modComposition!, links: chosen.modComposition!.links.map(link => ({ ...link, targetEntityId: null })) } }
+  expect(selectBuildModRevision(separated, mod, catalogs).modComposition!.links).toEqual(separated.modComposition.links)
+})

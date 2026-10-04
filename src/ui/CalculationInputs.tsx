@@ -1,12 +1,12 @@
 import type { BuildCalculationPlan, CatalogSnapshot, LocalData } from '../domain/types'
-import { CALCULATION_GENDER_LABELS } from '../domain/calculation-plan'
+import { calculationGenderLabel, type GenderDefinition } from '../domain/calculation-genders'
 import { entityName } from './model'
 
-export function CalculationInputs({ plan, localData, catalogs }: { plan: BuildCalculationPlan; localData: LocalData; catalogs: readonly CatalogSnapshot[] }) {
+export function CalculationInputs({ plan, localData, catalogs, genders }: { plan: BuildCalculationPlan; localData: LocalData; catalogs: readonly CatalogSnapshot[]; genders?: readonly GenderDefinition[] }) {
   const values = [
     ['Calculation level', plan.level ?? 'Unknown'],
     ['Calculation model', 'PC 1.6.9.0 native rules'],
-    ['Calculation gender', plan.gender ? CALCULATION_GENDER_LABELS[plan.gender] : 'Not specified (no bonus preview)'],
+    ['Calculation gender', calculationGenderLabel(plan, genders)],
     ...[['PC balance mode', plan.pcMode ?? 'standard'], ['Growth allocation', plan.growthMode === 'primary' ? 'Follows primary class' : 'Manual']],
     ...plan.growth.map((row, index) => [`Growth class ${index + 1}`, `${entityName(localData, catalogs, row.classRef, 'Unknown growth class')}: ${row.levels ?? 'Unknown'} levels`]),
     ['Retained custom bonuses (unsupported)', plan.bonuses.join(', ') || 'None selected'],

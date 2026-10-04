@@ -1,4 +1,5 @@
 import { PC_LEVEL_CAP } from '../domain/calculation-rules'
+import { GENDER_SELECTION_VERSION, MAX_GENDER_ID } from '../domain/calculation-genders'
 import { CALCULATION_GENDERS } from '../domain/calculation-plan'
 import { QUINTAR_BREEDING_STEP_IDS } from '../catalog/quintar-breeding'
 import { STAT_KEYS } from '../domain/crystal-edit'
@@ -186,6 +187,7 @@ const gameSetupRevision = z.object({
   catalogLock,
   definitionOverrides: z.array(personalRef).max(MAX_COLLECTION_LENGTH).optional(),
   modComposition: z.object({
+    version: z.literal(2).optional(),
     baseline: z.object({ catalogId: id, catalogRevisionId: id }).strict(),
     layers: z.array(z.object({ catalogId: id, catalogRevisionId: id, enabled: z.boolean() }).strict()).max(MAX_MOD_LAYERS),
     links: z.array(z.object({ modelKey: id, targetEntityId: id.nullable() }).strict()).max(MAX_COLLECTION_LENGTH),
@@ -234,13 +236,14 @@ const calculationPlan = z.object({
   growthMode: z.enum(['primary', 'manual']).optional(),
   pcMode: z.enum(['standard', 'vanilla', 'chaos']).optional(),
   gender: z.enum(CALCULATION_GENDERS).optional(),
+  genderSelection: z.object({ version: z.literal(GENDER_SELECTION_VERSION), id: z.number().int().min(0).max(MAX_GENDER_ID) }).strict().optional(),
   level: z.number().int().min(1).max(PC_LEVEL_CAP).nullable(),
   growth: z.array(z.object({ classRef: entityRef.nullable(), levels: z.number().int().min(0).max(PC_LEVEL_CAP).nullable() }).strict()).max(PC_LEVEL_CAP),
   bonuses: z.array(z.enum(STAT_KEYS)).max(STAT_KEYS.length).refine(values => new Set(values).size === values.length, 'Stat bonuses must be unique'),
   statuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
   ability: entityRef.nullable().optional(),
   targetEvasion: finiteNumber.nonnegative().nullable().optional(),
-}).strict()
+}).strict().refine(plan => plan.gender === undefined || plan.genderSelection === undefined, 'Choose only one calculation gender')
 const characterSnapshot = z.object({
   id,
   gameSetupRevisionId: id.optional(),

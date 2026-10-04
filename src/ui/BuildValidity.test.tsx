@@ -10,13 +10,15 @@ describe('Build draft and compatibility feedback', () => {
     const markup = renderToStaticMarkup(<BuildValidity hasPrimaryClass={false} report={{ ...report, status: 'valid', issues: [] }}/>)
     expect(markup).toContain('data-status="draft"')
     expect(markup).toContain('Choose a class')
-    expect(markup).not.toContain('No known compatibility conflicts')
+    expect(markup).not.toContain('No known loadout conflicts')
   })
 
   it('keeps compatibility separate from optional empty equipment', () => {
     const markup = renderToStaticMarkup(<BuildValidity hasPrimaryClass report={{ ...report, status: 'valid', issues: [] }}/>)
     expect(markup).toContain('data-status="valid"')
-    expect(markup).toContain('No known compatibility conflicts')
+    expect(markup).toContain('No known loadout conflicts')
+    expect(markup).toContain('Equipment and passive-point checks')
+    expect(markup).toContain('Stat calculation coverage is shown with the totals')
     expect(markup).not.toContain('draft')
   })
 })
