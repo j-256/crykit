@@ -1,0 +1,21 @@
+.team-review { padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel) }
+.team-review p { margin: .4rem 0; font-size: .9rem }
+.team-review__updates { font-weight: 650 }
+.team-loadout-card .panel__header { align-items: start }
+.team-loadout-card .panel__header h2 { overflow-wrap: anywhere }
+.team-loadout-card select { min-width: 0; width: 100% }
+.team-slot-checkpoint { overflow-wrap: anywhere; margin: 0; font-size: .875rem }
+.team-slot-actions { display: flex; flex-wrap: wrap; gap: .5rem }
+.team-member-context { padding: .8rem 1rem; border: 1px solid var(--line); border-radius: var(--radius) }
+.team-member-context p { margin: .4rem 0 }
+.team-checkpoint-comparison { margin-block: .75rem; min-width: 0 }
+.team-checkpoint-comparison__loadouts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem }
+.team-checkpoint-comparison__loadouts section { min-width: 0 }
+.team-checkpoint-comparison__changes { margin: 0 }
+.team-checkpoint-comparison__changes > div { padding-block: .5rem; border-top: 1px solid var(--line) }
+.team-checkpoint-comparison__changes dt { font-weight: 650 }
+.team-checkpoint-comparison__changes dd { margin: .25rem 0 0; display: grid; gap: .25rem; overflow-wrap: anywhere }
+@media (max-width: 700px) {
+  .team-checkpoint-comparison__loadouts { grid-template-columns: minmax(0, 1fr) }
+  .team-slot-actions > button { flex: 1 1 auto }
+}

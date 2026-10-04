@@ -1,5 +1,7 @@
 import { STARTER_CATALOG_ID } from '../catalog/starter'
-import { nativeSourceRecord } from '../domain/native-game'
+import { NATIVE_GAME_DATA } from '../catalog/native-game'
+import { nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
+import { effectText } from '../domain/mechanics-facts'
 import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
 import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
@@ -27,7 +29,19 @@ const REFERENCE_ARTICLES = new Set([
 ])
 const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost|cost \(copper\))$/i
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
+const SUMMARY_EFFECT_FIELDS = ['Other effects', 'Effects', 'Effect', 'Other'] as const
 const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])
+const NATIVE_PERCENT_SUMMARY_LABELS = (() => {
+  const system = NATIVE_GAME_DATA.databases.system
+  const vocabulary = nativeRecord(system) && nativeRecord(system.Vocab) ? system.Vocab : undefined
+  const templates = vocabulary?.StatModText
+  const suffix = '@V.Sep[v1s]%'
+  return new Map(Array.isArray(templates) ? templates.flatMap((template, tag) => {
+    if (typeof template !== 'string' || !template.endsWith(suffix)) return []
+    const label = template.slice(0, -suffix.length).trim()
+    return label && !/[@[\]\r\n]/.test(label) ? [[tag, label]] : []
+  }) : [])
+})()
 
 export function isReferenceArticle(localData: LocalData, ref: EntityRef): boolean {
   const root = definitionLineageRootRef(localData, ref)
@@ -65,20 +79,52 @@ export function compactKnowledge(value?: Knowledge<unknown>): string {
 }
 
 function summaryIdentity(value: string): string {
-  return value.toLocaleLowerCase().replace(/\blisted flat value\b/g, '').replace(/\+/g, '').replace(/[.\s]/g, '')
+  const normalized = value.toLocaleLowerCase().replace(/\blisted flat value\b/g, '').replace(/\+/g, '').replace(/\bgrants immunity to\b/g, 'immune to').replace(/\.(?!\d)|(?<!\d)\.|:/g, '').replace(/\s+/g, ' ').trim()
+  return normalized.replace(/\s/g, '')
+}
+
+function numericFactKey(label: string, value: number): string {
+  return JSON.stringify([label.toLocaleLowerCase().replace(/\s+/g, ' ').trim(), value])
+}
+
+function corroboratedNativePercentFacts(record: Definition): ReadonlySet<string> {
+  const version = record.fields['Game version']
+  const modifiers = nativeSourceRecord(record)?.StatMods
+  if (!nativeIdentity(record) || version?.state !== 'known' || version.value !== NATIVE_GAME_DATA.source.gameVersion || !Array.isArray(modifiers)) return new Set()
+  return new Set(modifiers.flatMap(modifier => {
+    if (!nativeRecord(modifier) || typeof modifier.Tag !== 'number' || typeof modifier.Value1 !== 'number' || !Number.isFinite(modifier.Value1) || modifier.Value2 !== 0 || modifier.Value3 !== 0) return []
+    const label = NATIVE_PERCENT_SUMMARY_LABELS.get(modifier.Tag)
+    return label ? [numericFactKey(label, modifier.Value1)] : []
+  }))
+}
+
+function numericSummaryFact(line: string): { readonly key: string; readonly percent: boolean } | undefined {
+  const match = /^([^:]+):\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(%)?$/.exec(line)
+  return match ? { key: numericFactKey(match[1]!, Number(match[2])), percent: match[3] === '%' } : undefined
 }
 
 export function summaryFactLines(record: Definition): readonly string[] {
   const lines: string[] = []
   const seen = new Set<string>()
+  const statFragments = new Set<string>()
   const contributionLabels = new Set(Object.keys(record.listedContributions ?? {}).map(label => label.toLocaleLowerCase()))
   const add = (line: string) => {
     const trimmed = line.trim()
     const identity = summaryIdentity(trimmed)
-    if (!trimmed || seen.has(identity)) return
+    if (!trimmed || seen.has(identity)) return false
     seen.add(identity)
     lines.push(trimmed)
+    return true
   }
+  const sourceDescription = nativeSourceRecord(record)?.Description
+  const nativeEffect = typeof sourceDescription === 'string' && sourceDescription.trim() ? sourceDescription : undefined
+  const description = nativeEffect ?? (['passive', 'innate'].includes(record.kind) ? effectText(record) : undefined)
+  if (description) for (const line of description.split(/\r?\n/)) add(line)
+  const preferredEffect = SUMMARY_EFFECT_FIELDS.find(label => {
+    const value = record.fields[label]
+    return value?.state === 'known' && typeof value.value === 'string' && value.value.trim() !== '' && value.value !== '-'
+  })
+  const fields = Object.fromEntries(Object.entries(record.fields).filter(([label, value]) => !SUMMARY_EFFECT_FIELDS.some(field => field === label) || value.state !== 'known' || !nativeEffect && label === preferredEffect))
   for (const [label, contribution] of Object.entries(record.listedContributions ?? {})) {
     if (contribution.state !== 'known') {
       add(`${label}: ${compactKnowledge(contribution)}`)
@@ -88,15 +134,33 @@ export function summaryFactLines(record: Definition): readonly string[] {
     const displayedUnit = FLAT_CONTRIBUTION_UNITS.has(unit.trim().toLocaleLowerCase()) ? '' : ` ${unit}`
     add(`${label}: ${value > 0 ? '+' : ''}${value}${displayedUnit}${condition ? ` when ${condition}` : ''}`)
   }
-  for (const fact of decisionFacts(record)) {
+  for (const fact of decisionFacts({ ...record, fields })) {
     if (contributionLabels.has(fact.label.toLocaleLowerCase())) continue
     if (fact.value.state === 'known' && typeof fact.value.value === 'string' && SUMMARY_LINE_FIELDS.test(fact.label)) {
-      for (const line of fact.value.value.split(/\r?\n/)) add(line)
+      const statField = /^(stat|stat bonuses)$/i.test(fact.label)
+      for (const line of fact.value.value.split(statField ? /\r?\n|,\s*/ : /\r?\n/)) {
+        if (add(line) && statField) statFragments.add(line.trim())
+      }
     } else {
       add(`${fact.label}: ${compactKnowledge(fact.value)}`)
     }
   }
-  return lines.sort((left, right) => Number(/^cost:/i.test(left)) - Number(/^cost:/i.test(right)) || Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
+  const nativePercentFacts = corroboratedNativePercentFacts(record)
+  const explicitPercentFacts = new Set(lines.flatMap(line => {
+    const fact = numericSummaryFact(line)
+    return fact?.percent && nativePercentFacts.has(fact.key) ? [fact.key] : []
+  }))
+  return lines.filter(line => {
+    if (!statFragments.has(line)) return true
+    const fact = numericSummaryFact(line)
+    return !fact || fact.percent || !explicitPercentFacts.has(fact.key)
+  }).sort((left, right) => Number(/^cost:/i.test(left)) - Number(/^cost:/i.test(right)) || Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
+}
+
+export function selectionSummaryLines(option: DefinitionOption): readonly string[] {
+  const lines = summaryFactLines(option.record)
+  if (lines.length) return lines
+  return (option.description ?? nativeDisplayDescription(option.record))?.split(/\r?\n/).map(line => line.trim()).filter(Boolean) ?? []
 }
 
 export function ppCostLabel(option: DefinitionOption): string {

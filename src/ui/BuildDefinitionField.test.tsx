@@ -1,0 +1,99 @@
+// @vitest-environment jsdom
+import { act, useState, type PropsWithChildren } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createBlankLocalData } from '../domain'
+import { entityDefinitionKey } from '../domain/core'
+import { TEST_NOW } from '../domain/test-helpers'
+import type { EntityRef, PersonalDefinition, PersonalDefinitionId } from '../domain/types'
+import { DefinitionLibraryContext, type DefinitionOption } from './definitions'
+import { BuildDefinitionField } from './BuildDefinitionField'
+
+vi.mock('./Dropdown', () => ({ Dropdown: ({ open, children }: PropsWithChildren<{ open: boolean }>) => open ? <div>{children}</div> : null }))
+vi.mock('./GameIcon', () => ({ DefinitionArtwork: () => null, FieldIconSources: () => null, GameIcon: () => null }))
+
+function passive(name: string, pp: number, requiredMod?: string): DefinitionOption {
+  const record: PersonalDefinition = { id: name as PersonalDefinitionId, kind: 'passive', name, aliases: [], revision: 1, createdAt: TEST_NOW, updatedAt: TEST_NOW, fields: { Description: { state: 'known', value: `${name} effect summary` }, ...(requiredMod ? { 'Source mod': { state: 'known' as const, value: requiredMod } } : {}) }, sources: [], ppCost: { state: 'known', value: pp } }
+  const ref: EntityRef = { kind: 'personal', definitionId: record.id }
+  return { key: entityDefinitionKey(ref), ref, kind: record.kind, name, aliases: [], record, ppCost: record.ppCost, sourceLabel: 'Synthetic source', stockLabel: 'Unknown', preferred: true }
+}
+const first = passive('First passive', 2)
+const second = passive('Second passive', 7)
+const unavailable = passive('Unconfirmed mod passive', 3, 'Synthetic mod')
+const options = [first, second, unavailable]
+const localData = { ...createBlankLocalData(), personalDefinitions: Object.fromEntries(options.map(option => [option.record.id, option.record])) as Record<string, PersonalDefinition> }
+const library = { localData, catalogs: [], options, planningOptions: options, availableOptions: options, availablePlanningOptions: options, onSaveDefinition: async () => first.ref }
+let container: HTMLDivElement
+let root: Root
+
+beforeEach(() => {
+  ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  container = document.createElement('div')
+  document.body.append(container)
+  root = createRoot(container)
+  HTMLElement.prototype.scrollIntoView = vi.fn()
+})
+
+afterEach(async () => {
+  await act(async () => root.unmount())
+  container.remove()
+})
+
+async function render(overrides: Partial<Parameters<typeof BuildDefinitionField>[0]> = {}) {
+  const props = { allowedKinds: ['passive'] as const, label: 'Equipped passive 1', value: null, open: true, query: '', resultLimit: 100, onOpen: vi.fn(), onClose: vi.fn(), onDismiss: vi.fn(), onQueryChange: vi.fn(), onResultLimitChange: vi.fn(), onChange: vi.fn(), onInspect: vi.fn(), ...overrides }
+  await act(async () => root.render(<DefinitionLibraryContext.Provider value={library}><BuildDefinitionField {...props}/></DefinitionLibraryContext.Provider>))
+  return props
+}
+const results = () => [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')].filter(button => button.id)
+function checkbox(label: string) {
+  return [...container.querySelectorAll('label')].find(element => element.textContent?.includes(label))!.querySelector<HTMLInputElement>('input')!
+}
+
+describe('Build picker interaction', () => {
+  it('shows effect summaries before selection and provides identical pointer and keyboard previews', async () => {
+    const props = await render()
+    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining('First passive effect summary'), expect.stringContaining('Second passive effect summary')])
+    await act(async () => results()[1]!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
+    expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: second.key }))
+    await act(async () => container.querySelector('input[role="combobox"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })))
+    expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: first.key }))
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
+  it('requires explicit expansion for unconfirmed mods and preserves an existing unavailable choice', async () => {
+    await render()
+    expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(false)
+    await act(async () => checkbox('Include disabled or unconfirmed mods').click())
+    expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(true)
+    await act(async () => checkbox('Include disabled or unconfirmed mods').click())
+    await render({ value: unavailable.ref })
+    expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(true)
+    expect(container.textContent).toContain('This existing selection is retained')
+  })
+
+  it('filters by the remaining replacement budget without changing the build', async () => {
+    const props = await render({ passiveIndex: 1, buildContent: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [{ ref: second.ref }], contextAssumptions: [] } })
+    expect(container.textContent).toContain('3 PP for this selection')
+    await act(async () => checkbox('Within remaining PP').click())
+    expect(results().map(result => result.textContent)).toEqual([expect.stringContaining(first.name)])
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
+  it('returns focus from a filter before closing a selected result', async () => {
+    const onOpen = vi.fn()
+    function Picker() {
+      const [open, setOpen] = useState(true)
+      const [value, setValue] = useState<EntityRef | null>(null)
+      return <DefinitionLibraryContext.Provider value={library}><BuildDefinitionField allowedKinds={['passive']} label="Passive" onChange={setValue} onClose={() => setOpen(false)} onDismiss={() => setOpen(false)} onInspect={() => undefined} onOpen={() => { onOpen(); setOpen(true) }} onQueryChange={() => undefined} onResultLimitChange={() => undefined} open={open} query="" resultLimit={100} value={value}/></DefinitionLibraryContext.Provider>
+    }
+    await act(async () => root.render(<Picker/>))
+    await act(async () => checkbox('Include disabled or unconfirmed mods').focus())
+    expect(document.activeElement).not.toBe(container.querySelector('[role="combobox"]'))
+    await act(async () => results()[0]!.click())
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe(first.name)
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+})

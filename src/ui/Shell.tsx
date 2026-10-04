@@ -43,15 +43,22 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null)
+  const [unsavedObject, setUnsavedObject] = useState(false)
   const [primaryTarget, setPrimaryTarget] = useState<HTMLElement | null>(null)
   const contextRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
+  const bottomNavRef = useRef<HTMLElement>(null)
   const partyPage = navigation.route.page.page === 'builds' && ['teams', 'scenario', 'scenario-new'].includes(navigation.route.page.view)
   const tracking = (navigation.route.page.page === 'teams' && navigation.route.page.view === 'adopt') || partyPage || TRACKING_DESTINATIONS.some(item => item.id === destination)
-  const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget }, [tracking, headerTarget, primaryTarget])
+  const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget, setUnsavedObject }, [tracking, headerTarget, primaryTarget])
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : partyPage ? 'characters' : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
-  const saveLabel = saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
+  const page = navigation.route.page
+  const sharedSnapshot = page.page === 'share'
+  const newPlan = unsavedObject || (page.page === 'builds' && page.view === 'build-new') || (page.page === 'teams' && page.view === 'new')
+  const saveLabel = sharedSnapshot ? 'Read-only snapshot' : saveState === 'saved' ? newPlan ? 'Not yet saved' : 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
+  const saveExplanation = sharedSnapshot ? 'This shared snapshot has not been saved to this browser. Choose Save a copy to keep it.' : newPlan && saveState === 'saved' ? 'This new plan has not been saved to this browser.' : saveLabel
+  const statusState = sharedSnapshot || (newPlan && saveState === 'saved') ? 'unsaved' : saveState
   const developmentPort = import.meta.env.DEV ? window.location.port : ''
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
@@ -81,6 +88,11 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const selected = bottomNavRef.current?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (selected?.getClientRects().length) selected.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activeDestination])
+
   const sidebarToggleLabel = sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'
 
   return <div className={`app-shell${sidebarExpanded ? '' : ' app-shell--sidebar-collapsed'}`}>
@@ -103,13 +115,13 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       <header className={`context-bar${tracking ? '' : ' context-bar--planning'}${destination === 'map' ? ' context-bar--map' : ''}`} ref={contextRef}>
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
-          {destination !== 'mods' && destination !== 'map' && <div aria-live="polite" className={`context-status context-status--${saveState}`} title={saveLabel}><span className="context-status__dot"/>{saveLabel}</div>}
+          {destination !== 'mods' && destination !== 'map' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
           {developmentPort && <span role="note" aria-label={`Development server port ${developmentPort}`} className="development-port">Port {developmentPort}</span>}
         </div>
       </header>
       <WorkspaceHeaderContext value={headerSlots}><div className="content">{children}</div></WorkspaceHeaderContext>
     </main>
-    <nav aria-label="Primary navigation" className="bottom-nav"><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
+    <nav aria-label="Primary navigation" className="bottom-nav" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }

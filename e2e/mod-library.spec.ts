@@ -304,8 +304,6 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   const total = await strength.getByRole('cell').last().innerText()
   const detailedStrength = page.getByRole('table', { name: 'Calculated character stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
   await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await page.getByText('Build details & notes', { exact: true }).click()
   await page.getByLabel('Build title').fill('Synthetic pinned rules')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true })).toBeVisible()

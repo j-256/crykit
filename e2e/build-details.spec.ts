@@ -47,8 +47,8 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(body.locator('.build-selection-facts')).toContainText('Defense')
   await expect(body.locator('.build-selection-facts')).not.toContainText('Cost')
   await body.getByText('Details', { exact: true }).click()
-  const factLabels = body.locator('.build-selection-details > .definition-list > .definition-row > dt')
-  await expect(factLabels.last()).toHaveText('Cost')
+  const factLines = body.locator('.build-selection-details__summary > li')
+  await expect(factLines.last()).toContainText('Cost:')
   if (isMobile) {
     await openBuildActions(page)
     for (const button of ['New Build', 'Clone Build']) {
@@ -59,8 +59,11 @@ test('build details separate fixed class ratings from level stats and keep editi
     }
     await page.keyboard.press('Escape')
   } else {
-    const library = await page.locator('.build-layout > .build-library').boundingBox()
-    expect(library!.width).toBeGreaterThanOrEqual(310)
+    const library = (await page.locator('.build-layout > .build-library').boundingBox())!
+    const editor = (await page.locator('.build-layout > section.build-column').boundingBox())!
+    expect(library.width).toBeGreaterThanOrEqual(310)
+    expect(editor.y).toBeGreaterThanOrEqual(library.y + library.height)
+    expect(editor.width).toBeGreaterThanOrEqual(library.width)
   }
   await classPicker.fill('Wizard')
   await classPicker.press('ArrowDown')
@@ -176,7 +179,7 @@ test('the first female selection and balance mode change survive separate native
   await expect(gender).toHaveValue('')
 })
 
-test('equipment searches retain incompatible choices below allowed equipment and respond to class and passive changes', async ({ page }) => {
+test('equipment searches explicitly reveal incompatible choices below allowed equipment and respond to class and passive changes', async ({ page }) => {
   await page.goto('/#/builds/library/new')
   const choose = async (label: string, name: string) => {
     await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -189,6 +192,8 @@ test('equipment searches retain incompatible choices below allowed equipment and
   const sword = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })
   const staff = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Short Staff$/ }) })
   await expect(staff).toHaveAttribute('data-permission-state', 'valid')
+  await expect(sword).toHaveCount(0)
+  await results.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   await expect(sword).toHaveAttribute('data-permission-state', 'invalid')
   await expect(sword).toContainText('Cleric cannot equip Sword')
   expect(await results.locator('[data-permission-state]').evaluateAll(options => options.every((option, index) => option.getAttribute('data-permission-state') !== 'invalid' || options.slice(index).every(later => later.getAttribute('data-permission-state') === 'invalid')))).toBe(true)
@@ -208,7 +213,7 @@ test('equipment searches retain incompatible choices below allowed equipment and
   await page.getByRole('button', { name: 'Clear Class', exact: true }).click()
   await hand.fill('Short')
   await expect(sword).toHaveAttribute('data-permission-state', 'undetermined')
-  await expect(sword).toContainText('Equip permission unknown')
+  await expect(sword).toContainText('Sword permission is unresolved for the primary class and selected passives')
   await expect(results.locator('[data-permission-state="invalid"]')).toHaveCount(0)
   await hand.press('Escape')
   await page.getByRole('combobox', { name: 'Head', exact: true }).fill('Short Sword')
@@ -231,6 +236,9 @@ test('class choices show medium armor icons and identify Brawler as Moonlight Pr
   await classPicker.fill('Brawler')
   const brawler = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
   const modBadge = '[data-mod-badge="Moonlight Project"]'
+  await expect(brawler).toHaveCount(0)
+  await results.getByText('Broader planning options', { exact: true }).click()
+  await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project')
   await expect(brawler).toHaveAttribute('data-mod-state', 'unknown')
   await expect(brawler).toContainText("Mod status unknown in this Build's Game Setup. You can still select it.")

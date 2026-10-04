@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { createGameSetupRevision, setPlaythroughGameSetup } from '../src/domain'
+import { DEFAULT_GAME_VERSION } from '../src/domain/local-data'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { LocalData } from '../src/domain/types'
 import { openGameSetupSection, replacePlannerData } from './local-data-helpers'
@@ -66,12 +67,14 @@ test('the build library is independent of the playthrough and copies rules expli
   await expect(library.locator('.build-card').filter({ hasText: ALTERNATE_GAME_SETUP })).toHaveCount(1)
 })
 
-test('new builds start independently and can copy the selected playthrough on request', async ({ page }) => {
+test('new builds reuse Build rules and can explicitly copy the selected playthrough', async ({ page }) => {
   await loadFixture(page)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
+  await page.locator('.build-behavior > summary').click()
+  await expect(page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).locator('option:checked')).toContainText('Sample starter Game Setup')
   await openGameSetupSection(page.locator('.build-behavior'), 'Game context')
   await expect(page.getByRole('combobox', { name: 'Platform', exact: true })).toHaveValue('')
-  await expect(page.getByRole('combobox', { name: 'Game version', exact: true })).toHaveValue('')
+  await expect(page.getByRole('combobox', { name: 'Game version', exact: true })).toHaveValue(DEFAULT_GAME_VERSION)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   await expect(page.locator('.build-behavior > summary')).toContainText(ALTERNATE_GAME_SETUP)
 })

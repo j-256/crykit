@@ -48,7 +48,13 @@ test('planning headers identify the page and keep commands usable at narrow widt
     await expectHeaderControls(page)
     await page.getByRole('button', { name: SAMPLE_BUILD, exact: true }).click()
     await expect(header.getByRole('heading', { name: SAMPLE_BUILD, exact: true })).toBeVisible()
-    await expect(header.getByRole('combobox', { name: 'Editor checkpoint', exact: true })).toBeVisible()
+    const checkpoint = header.getByRole('combobox', { name: 'Editor checkpoint', exact: true })
+    await expect(checkpoint).toBeVisible()
+    if (width <= 820) {
+      const checkpointBounds = (await checkpoint.boundingBox())!
+      expect(checkpointBounds.width).toBeGreaterThanOrEqual(width - 30)
+      expect(checkpointBounds.height).toBeGreaterThanOrEqual(44)
+    }
     await expect(header.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
     await expect(page.locator('.build-sheet').getByRole('button', { name: 'Save new revision', exact: true })).toHaveCount(0)
     await expectHeaderControls(page)

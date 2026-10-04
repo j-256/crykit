@@ -1,0 +1,10 @@
+.build-layout.build-layout--focused { grid-template-columns: minmax(0, 1fr); }
+.build-layout.build-layout--focused > * { grid-column: 1; }
+.build-layout.build-layout--focused > .build-library { position: static; max-height: none; }
+.build-layout--focused > .build-library[open] > .build-column__body { max-height: 420px; }
+.build-sheet__identity { display: grid; gap: 10px; }
+.build-sheet__identity input { font-size: 1rem; }
+.build-field-issues { margin: 0; padding: 8px 10px 8px 26px; border: 1px solid var(--line); border-radius: 6px; font-size: .78rem; }
+.build-field-issues [data-status="invalid"] { color: var(--amber); }
+.build-occupied-slot { border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: .82rem; }
+.build-occupied-slot p { margin: 6px 0 10px; color: var(--text-dim); }

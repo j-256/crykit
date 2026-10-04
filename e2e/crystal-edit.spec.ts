@@ -140,8 +140,8 @@ test('custom class imports preserve the playthrough and supply tree names and co
   await mod.getByRole('button', { name: 'Enable Synthetic class export for this build', exact: true }).click()
   const command = page.getByRole('combobox', { name: 'Sub-command', exact: true })
   await command.fill('Synthetic Research')
-  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Research$/ }) }).click()
-  await expect(command).toHaveValue('Synthetic Research')
+  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Research \(Synthetic Scholar\)$/ }) }).click()
+  await expect(command).toHaveValue('Synthetic Research (Synthetic Scholar)')
 })
 
 test('Scholar tree names monster learning and keeps its Adrenaline reference separate from the Warrior passive', async ({ page }) => {

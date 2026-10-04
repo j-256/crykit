@@ -8,7 +8,7 @@ export function fieldFocusQuery(fieldKey: string): RouteQuery {
 
 export function focusFieldElement(fieldKey: string, onFocused?: () => void): () => void {
   const frame = window.requestAnimationFrame(() => {
-    const target = [...document.querySelectorAll<HTMLElement>('[data-field-key]')].find(element => element.dataset.fieldKey === fieldKey)
+    const target = [...document.querySelectorAll<HTMLElement>('[data-field-key]')].find(element => element.dataset.fieldKey === fieldKey && !element.closest('[hidden]'))
     if (!target) return
     target.scrollIntoView({ block: 'center' })
     target.focus({ preventScroll: true })

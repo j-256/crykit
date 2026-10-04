@@ -35,8 +35,16 @@ import type { BuildBehavior } from '../domain/build-behavior'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
+import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
+import { modState } from '../domain/mods'
+import './build-editor-usability.css'
 
-const STACKED_BUILD_LAYOUT_QUERY = '(max-width: 1120px)'
+const LEARNABLE_INNATE_MOD = 'Learnable Innate Skill'
+const INNATE_FILTER_PREFERENCE = 'crykit:build-picker:include-innates:v1'
+
+function innatePreference(): boolean | undefined {
+  try { const value = localStorage.getItem(INNATE_FILTER_PREFERENCE); return value === 'true' ? true : value === 'false' ? false : undefined } catch { return undefined }
+}
 
 export interface BuildDraft { readonly id: BuildId; readonly revisionId: BuildRevisionId; readonly title: string; readonly tags: readonly string[] }
 export interface RevisionDraft extends BuildRevisionContent { readonly behavior: BuildBehavior; readonly behaviorRevisionId?: GameSetupRevisionId; readonly note?: string }
@@ -44,13 +52,13 @@ export interface ScenarioDraft { readonly label: string; readonly kind: Exclude<
 
 type BuildsSection = 'library' | 'teams' | 'compare'
 
-function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit, onSaved, onDirtyChange }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; tagSuggestions: readonly string[]; onCancel: () => void; onSubmit: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onSaved: (buildId: BuildId, revisionId: BuildRevisionId) => void; onDirtyChange: DraftChangeHandler }) {
+function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit, onSaved, onDirtyChange, gameSetupRevisionId, embedded, initialFieldKey }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; tagSuggestions: readonly string[]; gameSetupRevisionId?: GameSetupRevisionId; embedded?: boolean; initialFieldKey?: string; onCancel: () => void; onSubmit: (draft: BuildDraft, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; onSaved: (buildId: BuildId, revisionId: BuildRevisionId) => void; onDirtyChange: DraftChangeHandler }) {
   const [id] = useState(() => createId<BuildId>('build'))
   const [revisionId] = useState(() => createId<BuildRevisionId>('buildRevision'))
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<BuildTagsDraft>({ tags: [], input: '' })
   const createdRef = useRef<BuildId>(undefined)
-  return <section className="build-column build-sheet-panel"><div className="build-column__body"><RevisionEditor catalogs={catalogs} locked={Boolean(localData.buildRevisions[revisionId])} onCancel={onCancel} onDirtyChange={onDirtyChange} onSaved={(revisionId) => { if (createdRef.current) onSaved(createdRef.current, revisionId) }} onSubmit={async (revision) => {
+  return <section className="build-column build-sheet-panel"><div className="build-column__body"><RevisionEditor catalogs={catalogs} gameSetupRevisionId={gameSetupRevisionId} embedded={embedded} initialFieldKey={initialFieldKey} locked={Boolean(localData.buildRevisions[revisionId])} onCancel={onCancel} onDirtyChange={onDirtyChange} onSaved={(revisionId) => { if (createdRef.current) onSaved(createdRef.current, revisionId) }} onSubmit={async (revision) => {
     const composition = revision.behavior.modComposition
     const primary = revision.primaryClass
     let name = entityName(localData, catalogs, primary)
@@ -65,6 +73,14 @@ function AddBuildForm({ localData, catalogs, tagSuggestions, onCancel, onSubmit,
     {markDirty => <><Field label="Build title" hint="Optional. Otherwise named after the selected class."><input aria-label="Build title" onChange={(event) => setTitle(event.target.value)} placeholder="Name this Build" value={title}/></Field><details className="build-tags-control"><summary>Tags</summary><div className="build-tags-control__editor"><BuildTagsField draft={tags} onChange={next => { setTags(next); markDirty() }} suggestions={tagSuggestions}/></div></details></>}
   </RevisionEditor></div></section>
 }
+export function TeamBuildEditor({ localData, catalogs, sourceRevision, gameSetupRevisionId, initialFieldKey, onCancel, onSubmit, onDraftChange }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly sourceRevision?: BuildRevision; readonly gameSetupRevisionId?: GameSetupRevisionId; readonly initialFieldKey?: string; readonly onCancel: () => void; readonly onSubmit: (build: BuildDraft | undefined, revision: RevisionDraft) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>; readonly onDraftChange: DraftChangeHandler }) {
+  const build = sourceRevision ? localData.builds[sourceRevision.buildId] : undefined
+  if (sourceRevision && !build) return <InlineNotice title="Member Build unavailable" tone="warning">Return to the Team and choose an available checkpoint.<Button onClick={onCancel} type="button">Return to Team</Button></InlineNotice>
+  return sourceRevision && build
+    ? <RevisionEditor build={build} catalogs={catalogs} embedded initialFieldKey={initialFieldKey} localData={localData} onCancel={onCancel} onDirtyChange={onDraftChange} onSaved={() => undefined} onSubmit={async revision => (await onSubmit(undefined, revision)).revisionId} sourceRevision={sourceRevision}/>
+    : <AddBuildForm catalogs={catalogs} embedded gameSetupRevisionId={gameSetupRevisionId} initialFieldKey={initialFieldKey} localData={localData} onCancel={onCancel} onDirtyChange={onDraftChange} onSaved={() => undefined} onSubmit={onSubmit} tagSuggestions={[...new Set(Object.values(localData.builds).flatMap(candidate => candidate.tags))]}/>
+}
+
 interface PickerTarget { readonly fieldKey: string; readonly key: string; readonly target: 'primaryClass' | 'secondaryClass' | 'equipment' | 'passive'; readonly label: string; readonly kinds: readonly CatalogEntityKind[] }
 
 function checkpointSuffix(revision: BuildRevision) {
@@ -109,12 +125,14 @@ function detachAllocation(selections: Readonly<Record<string, BuildSelection | n
   return next
 }
 
-interface RevisionEditorProps { readonly build?: Build; readonly children?: ReactNode | ((markDirty: () => void) => ReactNode); readonly locked?: boolean; readonly sourceRevision?: BuildRevision; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onCancel?: () => void; readonly onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; readonly onSaved: (revisionId: BuildRevisionId) => void; readonly onDirtyChange: DraftChangeHandler }
+interface RevisionEditorProps { readonly build?: Build; readonly gameSetupRevisionId?: GameSetupRevisionId; readonly embedded?: boolean; readonly initialFieldKey?: string; readonly children?: ReactNode | ((markDirty: () => void) => ReactNode); readonly locked?: boolean; readonly sourceRevision?: BuildRevision; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onCancel?: () => void; readonly onSubmit: (draft: RevisionDraft) => Promise<BuildRevisionId>; readonly onSaved: (revisionId: BuildRevisionId) => void; readonly onDirtyChange: DraftChangeHandler }
 
 function RevisionEditor(props: RevisionEditorProps) {
   const library = useDefinitionLibrary()
   const navigation = useNavigation()
-  const requestedSetupId = navigation.route.query.gameSetup?.[0]
+  const previousBuild = Object.values(props.localData.builds).filter(build => !build.archived && build.latestRevisionId).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+  const previousRevision = previousBuild?.latestRevisionId ? props.localData.buildRevisions[previousBuild.latestRevisionId] : undefined
+  const requestedSetupId = props.gameSetupRevisionId ?? navigation.route.query.gameSetup?.[0] ?? previousRevision?.gameSetupRevisionId ?? props.localData.planningGameSetupRevisionId
   const requestedSetup = requestedSetupId ? ownRecordValue(props.localData.gameSetups, requestedSetupId) : undefined
   const initialBehavior = () => {
     const revision = props.sourceRevision ?? (props.build?.latestRevisionId ? props.localData.buildRevisions[props.build.latestRevisionId] : undefined)
@@ -145,7 +163,7 @@ function RevisionEditor(props: RevisionEditorProps) {
   return <DefinitionProvider catalogs={displayCatalogs} planningCatalogs={planningCatalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition} onLoadBundledMod={library.onLoadBundledMod}><RevisionEditorBody {...props} catalogs={planningCatalogs} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={updateBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData}/></DefinitionProvider>
 }
 
-function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false, behavior, gameSetup, onBehaviorChange, onDiscardBehavior, presetData }: RevisionEditorProps & { readonly behavior: BuildBehavior; readonly gameSetup: GameSetupRevision; readonly onBehaviorChange: (value: BuildBehavior) => void; readonly onDiscardBehavior: () => void; readonly presetData: LocalData }) {
+function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, locked = false, embedded = false, initialFieldKey, behavior, gameSetup, onBehaviorChange, onDiscardBehavior, presetData }: RevisionEditorProps & { readonly behavior: BuildBehavior; readonly gameSetup: GameSetupRevision; readonly onBehaviorChange: (value: BuildBehavior) => void; readonly onDiscardBehavior: () => void; readonly presetData: LocalData }) {
   const formId = useId()
   const navigation = useNavigation()
   const { options, planningOptions } = useDefinitionLibrary()
@@ -167,7 +185,11 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   assumptionsRef.current = assumptions
   const [inspected, setInspected] = useState<DefinitionOption>()
   const [comparedWith, setComparedWith] = useState<DefinitionOption>()
-  const [includeInnates, setIncludeInnates] = useState(true)
+  const [innateFilter, setInnateFilter] = useState(innatePreference)
+  const includeInnates = innateFilter ?? modState(gameSetup, LEARNABLE_INNATE_MOD) === 'enabled'
+  const setIncludeInnates = (value: boolean) => { setInnateFilter(value); try { localStorage.setItem(INNATE_FILTER_PREFERENCE, String(value)) } catch { /* Keep the preference for this editor when browser storage is unavailable */ } }
+  const [inspectClassPermissions, setInspectClassPermissions] = useState(true)
+  const [embeddedPicker, setEmbeddedPicker] = useState<Extract<AppRoute['overlays'][number], { kind: 'definition-picker' }>>()
   const [behaviorEditorKey, setBehaviorEditorKey] = useState(0)
   const [editorView, setEditorView] = useState<'loadout' | 'checks'>('loadout')
   const pickerMemoryRef = useRef<Record<string, { readonly query: string; readonly resultLimit: number }>>({})
@@ -199,7 +221,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     const kinds: readonly CatalogEntityKind[] = slot.acceptedEntityKinds?.state === 'known' ? slot.acceptedEntityKinds.value : ['item']
     return { fieldKey, key, target: 'equipment', label: slot.label, kinds }
   }
-  const requestedFocusField = navigation.route.query[FIELD_FOCUS_QUERY_KEY]?.[0]
+  const requestedFocusField = initialFieldKey ?? navigation.route.query[FIELD_FOCUS_QUERY_KEY]?.[0]
   const requestedFocusTarget = requestedFocusField ? targetForFieldKey(requestedFocusField) : undefined
   const requestedEquipmentField = requestedFocusTarget?.target === 'equipment' ? requestedFocusTarget.fieldKey : undefined
   const requestedEquipmentOption = requestedFocusTarget?.target === 'equipment' ? findDefinitionOption(planningOptions, draft.equipment[requestedFocusTarget.key]?.ref) : undefined
@@ -221,7 +243,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     setInspected(requestedEquipmentOption)
     setComparedWith(undefined)
   }, [requestedEquipmentField, requestedEquipmentOption])
-  const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
+  const pickerOverlay = embedded ? embeddedPicker : navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
   const picker = pickerOverlay ? targetForFieldKey(pickerOverlay.fieldKey) : undefined
   const missingPicker = Boolean(pickerOverlay && !picker)
   const query = pickerOverlay?.query ?? ''
@@ -230,17 +252,21 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     if (pickerOverlay) pickerMemoryRef.current[pickerOverlay.fieldKey] = { query, resultLimit: candidateLimit }
   }, [candidateLimit, pickerOverlay, query])
   const editorScope: AppRoute = { ...navigation.route, overlays: [] }
-  useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'), (to) => !busy && !locked && isReferenceResearchRoute(to))
+  useNavigationBlocker(editorScope, () => dirtyRef.current, () => setError('Save this revision or choose Cancel and discard before leaving the editor.'), (to) => !embedded && !busy && !locked && isReferenceResearchRoute(to))
   const updateDirty = (value: boolean) => { dirtyRef.current = value; onDirtyChange(value, value ? registeredActionsRef.current : undefined) }
   const openPicker = (target: PickerTarget) => {
     if (picker?.fieldKey === target.fieldKey) return
     const stored = pickerMemoryRef.current[target.fieldKey]
-    navigation.navigate(routeWithOverlay(editorScope, { kind: 'definition-picker', fieldKey: target.fieldKey, query: stored?.query ?? '', resultLimit: stored?.resultLimit ?? BUILD_DEFINITION_PAGE_SIZE }), { replace: Boolean(pickerOverlay) })
+    const next = { kind: 'definition-picker' as const, fieldKey: target.fieldKey, query: stored?.query ?? '', resultLimit: stored?.resultLimit ?? BUILD_DEFINITION_PAGE_SIZE }
+    if (embedded) setEmbeddedPicker(next)
+    else navigation.navigate(routeWithOverlay(editorScope, next), { replace: Boolean(pickerOverlay) })
   }
-  const closePicker = () => navigation.close()
+  const closePicker = () => { if (embedded) setEmbeddedPicker(undefined); else navigation.close() }
   const updatePickerQuery = (target: PickerTarget, query: string, resultLimit = BUILD_DEFINITION_PAGE_SIZE) => {
     pickerMemoryRef.current[target.fieldKey] = { query, resultLimit }
-    navigation.navigate(routeWithOverlay(editorScope, { kind: 'definition-picker', fieldKey: target.fieldKey, query, resultLimit }), { replace: Boolean(pickerOverlay) })
+    const next = { kind: 'definition-picker' as const, fieldKey: target.fieldKey, query, resultLimit }
+    if (embedded) setEmbeddedPicker(next)
+    else navigation.navigate(routeWithOverlay(editorScope, next), { replace: Boolean(pickerOverlay) })
   }
   const groupSelection = (slotId: string, peerSlotId: string) => {
     setDraft((value) => {
@@ -260,7 +286,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const submit = (event: FormEvent) => { event.preventDefault(); void save() }
   const discard = () => { onDiscardBehavior(); setBehaviorEditorKey(value => value + 1); const value = initialDraft(); setDraft(value); setAssumptions(value.contextAssumptions.join('\n')); setError(undefined); updateDirty(false); onCancel?.() }
   actionsRef.current = { save, discard }
-  const dismissPicker = () => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
+  const dismissPicker = () => { if (embedded) { setEmbeddedPicker(undefined); return }; const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }
   const reviewGameSetup = (modName?: string) => {
     const details = behaviorRef.current
     if (!details) return
@@ -273,7 +299,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     target.scrollIntoView({ block: 'start' })
     target.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true })
   }
-  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField onConfigureMod={reviewGameSetup} allowedKinds={target.kinds} gameSetup={gameSetup} equipmentPermissions={target.target === 'equipment' ? equipmentPermissions : undefined} equipmentSlot={target.target === 'equipment' ? slots.find(slot => slot.id === target.key) : undefined} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
+  const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField onConfigureMod={reviewGameSetup} allowedKinds={target.kinds} buildContent={draft} equipmentSlots={slots} passiveIndex={target.target === 'passive' ? Number(target.key) : undefined} gameSetup={gameSetup} equipmentPermissions={target.target === 'equipment' ? equipmentPermissions : undefined} equipmentSlot={target.target === 'equipment' ? slots.find(slot => slot.id === target.key) : undefined} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
     if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref, ...(current.calculation ? { calculation: followPrimary(current.calculation, ref) } : {}) }))
     else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
     else if (target.target === 'passive') setDraft((current) => {
@@ -285,34 +311,42 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     })
     else setDraft((current) => ({ ...current, equipment: { ...detachAllocation(current.equipment, target.key, equipmentSlotIds), [target.key]: ref ? { ref, observedName: entityName(localData, catalogs, ref) } : null } }))
     updateDirty(true)
-  }} onClose={closePicker} onDismiss={dismissPicker} onInspect={(option) => { setInspected(option); setComparedWith(findDefinitionOption(planningOptions, value)) }} onOpen={() => openPicker(target)} onQueryChange={(nextQuery) => updatePickerQuery(target, nextQuery)} onResultLimitChange={(limit) => updatePickerQuery(target, query, limit)} resultLimit={candidateLimit} open={picker?.fieldKey === target.fieldKey} query={picker?.fieldKey === target.fieldKey ? query : ''} value={value}/>
+  }} onClose={closePicker} onDismiss={dismissPicker} onInspect={(option) => { setInspected(option); setInspectClassPermissions(target.target !== 'secondaryClass'); setComparedWith(findDefinitionOption(planningOptions, value)) }} onOpen={() => openPicker(target)} onQueryChange={(nextQuery) => updatePickerQuery(target, nextQuery)} onResultLimitChange={(limit) => updatePickerQuery(target, query, limit)} resultLimit={candidateLimit} open={picker?.fieldKey === target.fieldKey} query={picker?.fieldKey === target.fieldKey ? query : ''} value={value}/>
+  const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
+  const mainHandSelection = mainHandSlot ? draft.equipment[mainHandSlot.id] : undefined
+  const mainHandDefinition = mainHandSelection ? definitionIndex.get(entityDefinitionKey(mainHandSelection.ref)) : undefined
+  const twoHandedMain = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true ? mainHandDefinition : undefined
+  const fieldIssues = (slotId: string) => validity.issues.filter(issue => issue.slotId === slotId)
+  const issueNotes = (slotId: string) => fieldIssues(slotId).length > 0 && <ul className="build-field-issues">{fieldIssues(slotId).map(issue => <li data-status={issue.status} key={`${issue.code}:${issue.message}`}>{issue.message}</li>)}</ul>
   const slotField = (slot: typeof slots[number]) => {
     const selected = draft.equipment[slot.id]
+    const sharesMainHand = Boolean(selected && mainHandSelection?.allocationId && selected.allocationId === mainHandSelection.allocationId && sameLogicalEntity(localData, selected.ref, mainHandSelection.ref))
     const peers = selected ? equipmentSlots.filter((candidate) => candidate.id !== slot.id && draft.equipment[candidate.id] && sameLogicalEntity(localData, draft.equipment[candidate.id]!.ref, selected.ref)) : []
     const groupedPeer = selected?.allocationId ? peers.find((candidate) => draft.equipment[candidate.id]?.allocationId === selected.allocationId) : undefined
-    return <div className="slot-entry" data-field-key={`slot:${slot.id}`} key={slot.id} tabIndex={-1}>{field(targetForFieldKey(`slot:${slot.id}`)!, selected?.ref ?? null)}{peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}</div>
+    return <div className="slot-entry" data-field-key={`slot:${slot.id}`} key={slot.id} tabIndex={-1}>{equipmentRole(slot) === 'offHand' && twoHandedMain && (!selected || sharesMainHand) ? <div className="build-occupied-slot"><strong>{slot.label}: occupied by {twoHandedMain.name}</strong><p>This two-handed Mainhand uses both hands. Changing Offhand clears Mainhand first.</p><Button onClick={() => { if (!mainHandSlot) return; setDraft(current => ({ ...current, equipment: { ...detachAllocation(current.equipment, mainHandSlot.id, equipmentSlotIds), [mainHandSlot.id]: null, [slot.id]: null } })); updateDirty(true); openPicker(targetForFieldKey(`slot:${slot.id}`)!) }} tone="secondary" type="button">Clear Mainhand to choose {slot.label}</Button></div> : field(targetForFieldKey(`slot:${slot.id}`)!, selected?.ref ?? null)}{issueNotes(slot.id)}{peers.length > 0 && <Field className="slot-allocation" hint="Group slots only when one physical item occupies both." label="Same copy as"><select aria-label={`${slot.label}: Same copy as`} onChange={(event) => groupSelection(slot.id, event.target.value)} value={groupedPeer?.id ?? ''}><option value="">Separate recorded copy</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.label}</option>)}</select></Field>}</div>
   }
   const passiveField = (selection: BuildSelection | undefined, index: number) => {
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
-    return <div className="slot-entry" key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}</div>
+    return <div className="slot-entry" data-field-key={`slot:passive-${index + 1}`} tabIndex={-1} key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}{issueNotes(`passive-${index + 1}`)}</div>
   }
   return <BuildModSelectionGate content={draft} value={behavior} onChange={value => { onBehaviorChange(value); updateDirty(true) }} onBusyChange={setLoadingMod}><form className="stack build-sheet" data-validity={validity.status} id={formId} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onInvalid={event => { for (let parent: HTMLElement | null = event.target as HTMLElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true }} onSubmit={submit}>
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     {error && <InlineNotice title="Revision not saved" tone="danger">{error} Your selections remain in this editor.</InlineNotice>}
+    {children && <fieldset className="build-sheet__fields build-sheet__identity" disabled={busy || loadingMod || locked}>{typeof children === 'function' ? children(() => updateDirty(true)) : children}</fieldset>}
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><BuildBehaviorEditor content={draft} onModBusyChange={setLoadingMod} detailsRef={behaviorRef} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
-    <BuildValidity report={validity}/>
-    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith}
+    <BuildValidity fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...draft.passives.map((_, index) => [`passive-${index + 1}`, `Equipped passive ${index + 1}`])])} onReviewField={slotId => { setEditorView('loadout'); focusFieldElement(`slot:${slotId}`) }} report={validity}/>
+    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith} showClassPermissions={inspectClassPermissions}
       classFields={<>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</>}
-      equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" key={id}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
+      equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" data-field-key={`slot:${id}`} key={id} tabIndex={-1}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
       passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label></>}
       passiveFields={[...draft.passives, undefined].map(passiveField)}
       context={<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>}
       onCalculationChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}
       onReviewGameSetup={() => reviewGameSetup(buildModRequirements(draft, localData, catalogs, gameSetup).find(requirement => requirement.state !== 'enabled')?.name)}
-      notes={<section className="build-details"><h3>Build details & notes</h3><div className="stack">{typeof children === 'function' ? children(() => updateDirty(true)) : children}<Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; review the Game Setup coverage.'}</p></div></section>}
+      notes={<section className="build-details"><h3>Build details & notes</h3><div className="stack"><Field label="Rotation or use notes"><textarea onChange={(event) => setDraft({ ...draft, rotationNotes: event.target.value || undefined })} placeholder="Optional play notes" value={draft.rotationNotes ?? ''}/></Field><Field hint="One assumption per line. These stay visible in comparisons." label="Context assumptions"><textarea onChange={(event) => setAssumptions(event.target.value)} value={assumptions}/></Field><Field label="Checkpoint name"><input onChange={(event) => setDraft({ ...draft, note: event.target.value || undefined })} value={draft.note ?? ''}/></Field><p className="field__hint">{gameSetup?.slots.length ? `Slot layout: ${gameSetup.label}` : 'Suggested planning slots. Game version, mods, and equipment permissions remain unverified; review the Game Setup coverage.'}</p></div></section>}
     /></fieldset>
     {missingPicker && <InlineNotice title="Build field unavailable" tone="warning">The requested slot or class field is not part of this editor configuration. <Button onClick={closePicker} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
-    <div className="form-actions"><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">{onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><WorkspacePrimaryAction><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">{busy ? 'Saving...' : build ? 'Save new revision' : 'Save build'}</Button></WorkspacePrimaryAction></div>
+    <div className="form-actions"><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">{embedded ? 'Cancel and return to Team' : onCancel ? 'Cancel and discard' : 'Discard edits'}</Button><WorkspacePrimaryAction><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">{busy ? 'Saving...' : embedded ? 'Save member and return to Team' : build ? 'Save new revision' : 'Save build'}</Button></WorkspacePrimaryAction></div>
   </form></BuildModSelectionGate>
 }
 
@@ -375,13 +409,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const selectedId = 'buildId' in page ? page.buildId : undefined
   const buildQuery = navigation.route.query.q?.[0] ?? ''
   const editingRoute = page.view === 'revision-new' || page.view === 'revision-edit'
-  const [libraryOpen, setLibraryOpen] = useState(() => !window.matchMedia(STACKED_BUILD_LAYOUT_QUERY).matches)
-  useEffect(() => {
-    const media = window.matchMedia(STACKED_BUILD_LAYOUT_QUERY)
-    const update = () => setLibraryOpen(!media.matches)
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [compareDraft, setCompareDraft] = useState<{ readonly left: string; readonly right: string }>({ left: '', right: '' })
   const leftRevision = page.view === 'compare-pair' ? page.leftRevisionId : compareDraft.left
   const rightRevision = page.view === 'compare-pair' ? page.rightRevisionId : compareDraft.right
@@ -441,7 +469,7 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
   const updateDetailsDirty: DraftChangeHandler = (value, actions) => updateDraftDirty('details', value, actions)
   const guardDraft = (message: string, continuation: () => void) => { draftContinuationRef.current = continuation; setDraftGuard(message) }
   const changeSection = (value: BuildsSection) => { if (editorDirty && value !== section) { guardDraft('Choose whether to save or discard the build edits, then continue to the selected section.', () => navigate({ page: 'builds', view: value })); return } navigate({ page: 'builds', view: value }) }
-  const selectBuild = (value: string, focusField?: string) => { const build = ownRecordValue(localData.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build), false, focusField ? fieldFocusQuery(focusField) : {}); if (window.matchMedia(STACKED_BUILD_LAYOUT_QUERY).matches) setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
+  const selectBuild = (value: string, focusField?: string) => { const build = ownRecordValue(localData.builds, value); if (!build) return; const open = () => { navigate(editorRouteFor(build), false, focusField ? fieldFocusQuery(focusField) : {}); setLibraryOpen(false) }; if (editorDirty && value !== selected?.id) { guardDraft('Choose whether to save or discard the build edits, then open the selected build.', open); return } open() }
   const resolveDraft = async (resolution: 'save' | 'discard') => {
     const actions = editorActionsRef.current
     const continuation = draftContinuationRef.current
@@ -623,12 +651,12 @@ export function BuildsView({ localData, catalogs, validations, shareBlocked = fa
         </BuildDetailsControl>
       </> : !addingBuild ? <><Button onClick={() => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: {} })} tone="secondary">Game Setups</Button><Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>New Build</Button></> : undefined}
     />
-    <div className="toolbar"><Segmented label="Build planner" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search Build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, and Game Setups" type="search" value={buildQuery}/></div>}</div>{draftGuard && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraft('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraft('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original Build and checkpoint remain unchanged.</InlineNotice>}
+    {(page.view === 'library' || section !== 'library') && <div className="toolbar"><Segmented label="Build planner" onChange={changeSection} options={[{ value: 'library', label: 'Build library' }, { value: 'compare', label: 'Compare revisions' }]} value={section}/>{section === 'library' && !addingBuild && allBuilds.length > 0 && <div className="search-field"><Icon name="search"/><input aria-label="Search Build library" onChange={(event) => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, and Game Setups" type="search" value={buildQuery}/></div>}</div>}{draftGuard && <div className="external-update"><InlineNotice title="Build edits are still open" tone="warning">{draftGuard}</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraft('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraft('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{cloneError && <InlineNotice title="Build not cloned" tone="danger">{cloneError} The original Build and checkpoint remain unchanged.</InlineNotice>}
     {missingBuild && <InlineNotice title="Build unavailable" tone="warning">The requested Build is not available in the planner data. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to Build library</Button></InlineNotice>}
     {missingRevision && <InlineNotice title="Build checkpoint unavailable" tone="warning">The requested checkpoint is missing or belongs to another build. No other checkpoint was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
     {!missingRevision && missingEditorBase && <InlineNotice title="Checkpoint base unavailable" tone="warning">The requested editor base is missing or belongs to another build. Choose an available checkpoint from the build library; no latest revision was substituted. <Button onClick={() => navigate({ page: 'builds', view: 'library' })} tone="quiet">Return to build library</Button></InlineNotice>}
-    {section === 'library' && addingBuild ? <AddBuildForm catalogs={catalogs} tagSuggestions={tagSuggestions} onCancel={() => { updateEditorDirty(false); navigation.close() }} onDirtyChange={updateEditorDirty} onSaved={(buildId, revisionId) => navigate({ page: 'builds', view: 'revision-edit', buildId, revisionId }, true)} onSubmit={onCreateBuild} localData={localData}/> : section === 'library' && (builds.length === 0 && !selected ? <EmptyState description="Start with a blank Build. Choose classes, equipment, and passives from the reference catalog. Assign it to a character in a team when you want readiness checks." icon="sword" title={allBuilds.length ? 'No Builds match this search' : 'Plan your next Build'}>{allBuilds.length ? <Button onClick={() => updateBuildQuery('')} tone="secondary">Clear search</Button> : <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>Create a Build</Button>}</EmptyState> : page.view === 'library' ? <section aria-label="Build library" className="build-library-groups">{groupedBuildCards}</section> : <div className="build-layout">
-      <details className="build-column build-library" open={libraryOpen} onToggle={(event) => setLibraryOpen(event.currentTarget.open)}><summary>Library{selected ? `: ${selected.title}` : ''}</summary><header className="build-column__header"><div className="split"><div><h2>Library</h2><p>{builds.length} matching {builds.length === 1 ? 'Build' : 'Builds'}</p></div><IconButton icon="plus" label="Create Build" onClick={() => navigate({ page: 'builds', view: 'build-new' })}/></div></header><div className="build-column__body build-library-groups">{groupedBuildCards}</div></details>
+    {section === 'library' && addingBuild ? <AddBuildForm catalogs={catalogs} tagSuggestions={tagSuggestions} onCancel={() => { updateEditorDirty(false); navigation.close() }} onDirtyChange={updateEditorDirty} onSaved={(buildId, revisionId) => navigate({ page: 'builds', view: 'revision-edit', buildId, revisionId }, true)} onSubmit={onCreateBuild} localData={localData}/> : section === 'library' && (builds.length === 0 && !selected ? <EmptyState description="Start with a blank Build. Choose classes, equipment, and passives from the reference catalog. Assign it to a character in a team when you want readiness checks." icon="sword" title={allBuilds.length ? 'No Builds match this search' : 'Plan your next Build'}>{allBuilds.length ? <Button onClick={() => updateBuildQuery('')} tone="secondary">Clear search</Button> : <Button icon="plus" onClick={() => navigate({ page: 'builds', view: 'build-new' })}>Create a Build</Button>}</EmptyState> : page.view === 'library' ? <section aria-label="Build library" className="build-library-groups">{groupedBuildCards}</section> : <div className="build-layout build-layout--focused">
+      <details className="build-column build-library" open={libraryOpen} onToggle={(event) => setLibraryOpen(event.currentTarget.open)}><summary>Library{selected ? `: ${selected.title}` : ''}</summary><header className="build-column__header"><div className="split"><div><h2>Library</h2><p>{builds.length} matching {builds.length === 1 ? 'Build' : 'Builds'}</p></div><IconButton icon="plus" label="Create Build" onClick={() => navigate({ page: 'builds', view: 'build-new' })}/></div></header><div className="build-column__body build-library-groups"><div className="search-field"><Icon name="search"/><input aria-label="Search Build library" onChange={event => updateBuildQuery(event.target.value)} placeholder="Search titles, tags, and Game Setups" type="search" value={buildQuery}/></div><Button onClick={() => changeSection('compare')} tone="quiet" type="button">Compare revisions</Button>{groupedBuildCards}</div></details>
       <section className="build-column"><div className="build-column__body">{selected && editingRoute && !missingRevision && !missingEditorBase && <RevisionEditor build={selected} catalogs={catalogs} key={`${selected.id}:${page.view}:${editorBaseRevision?.id ?? 'new'}`} onDirtyChange={updateEditorDirty} onSaved={savedRevisionRoute} onSubmit={(draft) => onSaveRevision(selected.id, draft, editorBaseRevision?.id)} localData={localData} sourceRevision={editorBaseRevision}/>}</div></section>
       <details className="build-column build-readiness"><summary>Use with Tracking</summary><header className="build-column__header"><h2>Tracking and readiness</h2><p>Check a saved Build against a character's learning, unlocks, inventory, and party conflicts.</p><p>{selectedScenario ? `Evaluated in ${selectedScenario.label}` : 'Assign this revision to a party plan'}</p></header><div className="build-column__body">{section === 'library' && selected && selectedRevision && <Button disabled={editorDirty} icon="check" onClick={() => { setRecordingError(undefined); navigate({ page: 'builds', view: 'record-current', buildId: selected.id, revisionId: selectedRevision.id }) }} tone="secondary">Compare / record on a character</Button>}{selected && selectedRevision && <BuildReadinessAssignment build={selected} disabled={editorDirty} onAssign={onAssign} onScenarioChange={setReadinessScenarioId} localData={localData} revision={selectedRevision} scenarioId={readinessScenarioId ?? selectedScenario?.id}/>}<ValidationPanel catalogs={catalogs} localData={localData} report={selectedScenario ? validations[selectedScenario.id] : undefined} scenario={selectedScenario}/>{selectedRevision && <div className="settings-section"><h3>Pinned checkpoint</h3><dl className="definition-list">{selectedRevision.note?.trim() && <div className="definition-row"><dt>Name</dt><dd>{selectedRevision.note}</dd></div>}<div className="definition-row"><dt>Revision</dt><dd>{selectedRevision.revision}</dd></div><div className="definition-row"><dt>Saved</dt><dd>{formatRelativeDate(selectedRevision.createdAt)}</dd></div><div className="definition-row"><dt>Game Setup</dt><dd>{ownRecordValue(localData.gameSetups, selectedRevision.gameSetupRevisionId)?.label ?? 'Unresolved'}</dd></div></dl></div>}</div></details>
     </div>)}

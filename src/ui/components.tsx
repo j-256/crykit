@@ -1,4 +1,4 @@
-import { forwardRef, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ComponentPropsWithRef, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
+import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ComponentPropsWithRef, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
 import { Dropdown } from './Dropdown'
 import { Icon, type IconName } from './icons'
 import { createPortal } from 'react-dom'
@@ -16,8 +16,15 @@ export function Badge({ children, tone = 'neutral', icon }: PropsWithChildren<{ 
   return <span className={`badge badge--${tone}`}>{icon && <Icon name={icon} />}{children}</span>
 }
 
-export function ScreenHeader({ eyebrow, title, description, actions, breadcrumb, context }: { eyebrow?: string; title: string; description: string; actions?: ReactNode; breadcrumb?: ReactNode; context?: ReactNode }) {
+export function ScreenHeader({ eyebrow, title, description, actions, breadcrumb, context, unsavedObject = false }: { eyebrow?: string; title: string; description: string; actions?: ReactNode; breadcrumb?: ReactNode; context?: ReactNode; unsavedObject?: boolean }) {
   const workspace = useWorkspaceHeader()
+  const setUnsavedObject = workspace?.setUnsavedObject
+  const active = workspace?.active
+  useEffect(() => {
+    if (!active || !setUnsavedObject) return
+    setUnsavedObject(unsavedObject)
+    return () => setUnsavedObject(false)
+  }, [active, setUnsavedObject, unsavedObject])
   const header = <header className={`screen-header${workspace ? ' workspace-header' : ''}`} hidden={workspace ? !workspace.active : undefined}>
     <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<h1 title={title}>{title}</h1></div>{context}<p className="screen-header__description">{description}</p></div>
     {(workspace || actions) && <div className="screen-header__actions">{workspace && <span className="workspace-header__primary" ref={workspace.setPrimaryTarget}/>} {actions}</div>}

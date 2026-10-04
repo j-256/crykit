@@ -1,4 +1,4 @@
-import { clickBuildAction } from './planning-header-helpers'
+import { clickBuildAction, openBuildComparison, openBuildLibrary } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -9,11 +9,6 @@ import type { LocalData } from '../src/domain/types'
 async function navigate(page: Page, destination: string) {
   const name = destination === 'Builds' ? /^(Builds|Builds & teams)$/ : new RegExp(`^${destination}$`)
   await page.getByRole('button', { name }).filter({ visible: true }).click()
-}
-
-async function openBuildLibrary(page: Page) {
-  const library = page.locator('.build-library')
-  if (await library.getAttribute('open') === null) await library.locator(':scope > summary').click()
 }
 
 async function openData(page: Page) {
@@ -165,10 +160,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
-  await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await build.getByText('Build details & notes', { exact: true }).click()
-  await build.getByLabel('Build title').fill('Shared staff template')
-  await build.getByRole('button', { name: 'Loadout', exact: true }).click()
+  await build.getByRole('textbox', { name: 'Build title', exact: true }).fill('Shared staff template')
   const openEditor = async () => page.locator('.build-sheet')
   let editor = await openEditor()
   await editor.getByRole('combobox', { name: 'Main hand', exact: true }).click()
@@ -206,7 +198,7 @@ test('immutable alternatives contend only when selected together in a scenario',
   await page.getByRole('combobox', { name: 'Synthetic Vale', exact: true }).selectOption('')
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await expect(page.getByText('Confirmed stock cannot cover simultaneous assignments', { exact: false })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   const secondRevision = Object.values(simultaneous.buildRevisions).find((revision) => revision.buildId === sharedStaffBuild.id && revision.id !== firstRevision.id)!
   await page.getByLabel('Revision A').selectOption(firstRevision.id)
   await page.getByLabel('Revision B').selectOption(secondRevision.id)
@@ -295,10 +287,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const creation = page.locator('.build-sheet')
-  await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await creation.getByText('Build details & notes', { exact: true }).click()
-  await creation.getByLabel('Build title').fill('Two-slot template')
-  await creation.getByRole('button', { name: 'Loadout', exact: true }).click()
+  await creation.getByRole('textbox', { name: 'Build title', exact: true }).fill('Two-slot template')
   const editor = page.locator('.build-sheet')
   await editor.getByRole('combobox', { name: 'Main hand', exact: true }).click()
   const picker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
@@ -361,7 +350,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await expect(page.getByText('Confirmed stock cannot cover simultaneous assignments', { exact: false })).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('team-scenario.png'), fullPage: true })
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await expect(page.getByLabel('Revision A').locator(`option[value="${originalRevision.id}"]`)).toContainText('One physical staff')
   await page.getByLabel('Revision A').selectOption(originalRevision.id)
   await page.getByLabel('Revision B').selectOption(copiedRevision.id)
@@ -385,7 +374,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   const minimumStock = await exportLocalData(page)
   expect(minimumStock.buildRevisions[originalRevision.id]).toEqual(originalRevision)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await page.getByLabel('Revision A').selectOption(originalRevision.id)
   await page.getByLabel('Revision B').selectOption(minimumStock.builds[originalBuild.id]!.latestRevisionId!)
   await page.getByText('Evidence and differences', { exact: true }).click()

@@ -1,4 +1,4 @@
-import { closeBuildActions, clickBuildAction, openBuildActions } from './planning-header-helpers'
+import { closeBuildActions, clickBuildAction, openBuildActions, openBuildComparison } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -108,7 +108,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   await expect(page.getByRole('list', { name: 'Build tags', exact: true })).toContainText(TAG)
   await page.getByRole('button', { name: 'Cancel details', exact: true }).click()
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(TAG)
   await expect(page.locator('.build-card')).toHaveCount(1)
   await expect(page.locator('.build-card .badge').filter({ hasText: TAG })).toBeVisible()
@@ -134,7 +134,7 @@ test('cancel and unchanged saves make no transaction, and collapsing retains pen
   await openTags(page)
   await page.getByLabel('Add tag', { exact: true }).fill(TAG)
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await expect(page.getByText('Build edits are still open', { exact: true })).toBeVisible()
   await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
@@ -168,7 +168,7 @@ test('failed detail saves roll back title and tags together while retaining the 
   await expect(page.getByRole('heading', { name: NEW_TITLE, exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await openBuildComparison(page)
   await closeBuildActions(page)
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   const after = await storedData(page)
@@ -200,7 +200,7 @@ test('save and continue handles title, tag, and loadout drafts together', async 
 
 test('new Builds offer optional tags and save pending text through the navigation guard', async ({ page }) => {
   await clickBuildAction(page, 'New Build')
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Loadout', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(NEW_TITLE)
   await expect(page.getByLabel('Add tag', { exact: true })).not.toBeVisible()
   await openTags(page)
@@ -233,7 +233,7 @@ test('long tags wrap on cards and in the editor, survive cloning, and can all be
   await expect(tagsControl(page)).not.toHaveAttribute('open')
   expect(Object.values((await storedData(page)).builds).find(build => build.title === `${ORIGINAL_TITLE} (copy)`)!.tags).toEqual([])
   await closeBuildActions(page)
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(longTag)
   await expect(page.locator('.build-card')).toHaveCount(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
