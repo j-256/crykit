@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -10,7 +11,10 @@ const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
 
 async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
-  if (options.includeConflicts) await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  if (options.includeConflicts) {
+    await openBuildPickerFilters(page)
+    await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
+  }
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
@@ -39,6 +43,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
   await classPicker.fill('Barbarian')
   await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await openBuildPickerFilters(page)
   await page.getByText('Broader planning options', { exact: true }).click()
   await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   const barbarianResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Barbarian$/ }) })
@@ -55,6 +60,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await hand.fill('katana')
   await expect(page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Katanas$/ }) })).toHaveCount(0)
+  await openBuildPickerFilters(page)
   await page.getByRole('combobox', { name: 'Sort results', exact: true }).press('Escape')
   await expect(hand).toHaveAttribute('aria-expanded', 'false')
   await expect(hand).toBeFocused()
@@ -80,6 +86,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offHand.fill('Doge Shield')
   await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await openBuildPickerFilters(page)
   await page.getByText('Broader planning options', { exact: true }).click()
   await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   await expect(page.getByRole('listbox').getByText('Mod: Doge Shield', { exact: true })).toBeVisible()
@@ -102,6 +109,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 / 10 PP')
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
   const innateToggle = page.getByRole('checkbox', { name: /Include innates from the Learnable Innate Skill mod/ })
+  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await expect(innateToggle).toHaveCount(1)
   await expect(innateToggle).not.toBeChecked()
   await innateToggle.check()
@@ -132,6 +140,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await passive.fill('Two-Handed')
   await expect(page.getByRole('listbox')).toContainText('No matching definitions')
   await passive.press('Escape')
+  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await innateToggle.check()
   await passive.fill('Two-Handed')
   innateResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
@@ -146,6 +155,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await nextPassive.fill('Two-Handed')
   await expect(page.getByRole('listbox')).toContainText('No matching definitions')
   await nextPassive.press('Escape')
+  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await innateToggle.check()
   await page.screenshot({ path: testInfo.outputPath('build-catalog-evidence.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()

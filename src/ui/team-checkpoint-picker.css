@@ -1,0 +1,8 @@
+.team-checkpoint-picker { min-width: 0 }
+.team-checkpoint-picker > button { width: 100%; justify-content: start; text-align: left; overflow-wrap: anywhere }
+.team-checkpoint-picker > p { margin-bottom: 0 }
+.team-checkpoint-picker__search { display: grid; gap: .75rem }
+.team-checkpoint-picker__results { padding: 0; margin: 0; list-style: none; display: grid; gap: .5rem }
+.team-checkpoint-picker__option { display: grid; gap: .35rem; width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); background: var(--panel); text-align: left; overflow-wrap: anywhere }
+.team-checkpoint-picker__option:hover, .team-checkpoint-picker__option[aria-pressed="true"] { border-color: var(--cyan-300) }
+.team-checkpoint-picker__option small { color: var(--text-dim) }

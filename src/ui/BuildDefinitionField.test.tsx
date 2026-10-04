@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBlankLocalData } from '../domain'
 import { entityDefinitionKey } from '../domain/core'
 import { TEST_NOW } from '../domain/test-helpers'
+import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
+import { buildEquipmentPermissions } from '../domain/build-mechanics'
+import { CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { EntityRef, PersonalDefinition, PersonalDefinitionId } from '../domain/types'
 import { DefinitionLibraryContext, type DefinitionOption } from './definitions'
 import { BuildDefinitionField } from './BuildDefinitionField'
@@ -39,9 +42,10 @@ afterEach(async () => {
   container.remove()
 })
 
-async function render(overrides: Partial<Parameters<typeof BuildDefinitionField>[0]> = {}) {
+async function render(overrides: Partial<Parameters<typeof BuildDefinitionField>[0]> = {}, choiceOptions = options) {
   const props = { allowedKinds: ['passive'] as const, label: 'Equipped passive 1', value: null, open: true, query: '', resultLimit: 100, onOpen: vi.fn(), onClose: vi.fn(), onDismiss: vi.fn(), onQueryChange: vi.fn(), onResultLimitChange: vi.fn(), onChange: vi.fn(), onInspect: vi.fn(), ...overrides }
-  await act(async () => root.render(<DefinitionLibraryContext.Provider value={library}><BuildDefinitionField {...props}/></DefinitionLibraryContext.Provider>))
+  const providedLibrary = { ...library, options: choiceOptions, planningOptions: choiceOptions, availableOptions: choiceOptions, availablePlanningOptions: choiceOptions, localData: { ...localData, personalDefinitions: Object.fromEntries(choiceOptions.map(option => [option.record.id, option.record])) as Record<string, PersonalDefinition> } }
+  await act(async () => root.render(<DefinitionLibraryContext.Provider value={providedLibrary}><BuildDefinitionField {...props}/></DefinitionLibraryContext.Provider>))
   return props
 }
 const results = () => [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')].filter(button => button.id)
@@ -50,6 +54,40 @@ function checkbox(label: string) {
 }
 
 describe('Build picker interaction', () => {
+  it('keeps advanced controls collapsed and selects a sole search result with Enter', async () => {
+    const props = await render({ query: first.name })
+    expect(container.querySelector('details.build-picker-filters')?.hasAttribute('open')).toBe(false)
+    expect(container.textContent).toContain('1 result · Enter to select')
+    await act(async () => container.querySelector('[role="combobox"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(props.onChange).toHaveBeenCalledWith(first.ref)
+    expect(props.onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not choose an ambiguous result until keyboard or pointer navigation selects it', async () => {
+    const props = await render()
+    await act(async () => container.querySelector('[role="combobox"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
+  it('explains hidden off-hand prerequisites and reveals conflicts without changing the build', async () => {
+    const job = passive('Synthetic class', 0)
+    const dagger = passive('Synthetic dagger', 0)
+    const classOption: DefinitionOption = { ...job, kind: 'class', record: { ...job.record, kind: 'class', fields: { [CRYSTAL_EDIT_FIELDS.equipment]: { state: 'known', value: ['Dagger'] }, 'Innate passive(s)': { state: 'known', value: 'Max HP +20%' } } } }
+    const daggerOption: DefinitionOption = { ...dagger, kind: 'item', record: { ...dagger.record, kind: 'item', fields: { Category: { state: 'known', value: ['Daggers'] }, Hands: { state: 'known', value: 1 } } } }
+    const choiceOptions = [classOption, daggerOption]
+    const resolve = (ref: EntityRef) => choiceOptions.find(option => entityDefinitionKey(ref) === option.key)?.record
+    const buildContent = { primaryClass: classOption.ref, secondaryClass: null, equipment: { 'plan-main-hand': { ref: daggerOption.ref } }, passives: [], contextAssumptions: [] }
+    const props = await render({ allowedKinds: ['item'], label: 'Off hand', query: 'dagger', buildContent, equipmentPermissions: buildEquipmentPermissions(buildContent, resolve), equipmentSlot: SUGGESTED_BUILD_SLOTS.find(slot => slot.equipmentRole === 'offHand')!, equipmentSlots: SUGGESTED_BUILD_SLOTS }, choiceOptions)
+    expect(results()).toHaveLength(0)
+    expect(container.textContent).toContain('1 matching choice is hidden by equipment conflicts')
+    expect(container.textContent).toContain('requires Dual Wield')
+    expect(container.textContent).toContain('Choose a class that grants Dual Wield')
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Show 1 conflict')!.click())
+    expect(results()).toHaveLength(1)
+    expect(results()[0]!.getAttribute('data-permission-state')).toBe('invalid')
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
   it('shows effect summaries before selection and provides identical pointer and keyboard previews', async () => {
     const props = await render()
     expect(results().map(result => result.textContent)).toEqual([expect.stringContaining('First passive effect summary'), expect.stringContaining('Second passive effect summary')])

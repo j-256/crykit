@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -339,6 +340,7 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     const choice = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
     await expect(choice).toHaveCount(state === 'enabled' ? 1 : 0)
     await picker.fill('')
+    await openBuildPickerFilters(page)
     await list.getByText('Broader planning options', { exact: true }).click()
     await list.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
     const states = await list.getByRole('option').evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))

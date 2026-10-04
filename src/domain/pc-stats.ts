@@ -12,9 +12,10 @@ import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 
 export type NativeRecord = Readonly<Record<string, unknown>>
-type Family = 'job' | 'equipment' | 'passive' | 'gender' | 'ability'
+type Family = 'job' | 'equipment' | 'passive' | 'gender' | 'ability' | 'status'
 type Resolve = (ref: EntityRef) => MechanicsDefinition | undefined
 export type PCStats = Readonly<Record<string, number | null>>
+export const BATTLE_START_STATUS_LIMITATION = 'automatic battle-start status'
 export interface PCStatResult {
   readonly base: PCStats
   readonly neutral: PCStats
@@ -125,7 +126,7 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
   type Group = { flat: Record<string, number>; percent: Record<string, number>; tt: number; hp: number; tags: Set<string> }
   const group = (): Group => ({ flat: Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, PC_RULES.modifierDefaults.flat])), percent: Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, PC_RULES.modifierDefaults.percent])), tt: PC_RULES.modifierDefaults.tt, hp: PC_RULES.modifierDefaults.hp, tags: new Set() })
   const equipment = group(), passives = group()
-  const apply = (record: NativeRecord, target: Group, label: string) => {
+  const apply = (record: NativeRecord, target: Group, label: string, nativeStatuses = false) => {
     if (!Array.isArray(record.StatMods)) { issues.push(`${label}: numeric effects are unknown.`); return }
     for (const mod of record.StatMods as readonly NativeRecord[]) {
       const tag = number(mod, 'Tag'), value = number(mod, 'Value1')
@@ -134,7 +135,10 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
       try {
         if (mapped.kind === 'tag') {
           target.tags.add(mapped.name)
-          if (mapped.scope === 'context') issues.push(`${label}: ${mapped.name} needs additional context.`)
+          if (mapped.scope === 'context') {
+            const status = nativeStatuses && mapped.name === 'StatusAuto' ? nativeById('status', value, mode)?.Name : undefined
+            issues.push(`${label}: ${BATTLE_START_STATUS_LIMITATION}${typeof status === 'string' ? ` "${status}"` : ' effects'} cannot be calculated by the resting-stat preview.`)
+          }
           else if (mapped.scope === 'battle') effects.add(`${label}: ${mapped.name}`)
         } else if (mapped.kind === 'allCore') {
           for (const stat of PC_RULES.coreStats) target.flat[stat] = evaluateExpression(['add', target.flat[stat]!, value], {})
@@ -149,7 +153,8 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
     }
   }
   for (const entry of gear) if (entry.record) {
-    apply(entry.record, equipment, resolve(entry.selection!.ref)?.name ?? entry.slot.label)
+    const definition = resolve(entry.selection!.ref)
+    apply(entry.record, equipment, definition?.name ?? entry.slot.label, Boolean(definition && nativeIdentity(definition) && !crystalRecord(definition)))
     if (paired.has(entry.record)) apply(entry.record, equipment, 'Paired equipment bonus')
   }
   const addInnates = (ref: EntityRef | null, job: NativeRecord) => {
@@ -164,13 +169,14 @@ function calculateRestingStats(content: BuildRevisionContent, slots: readonly Sl
       const target = typeof id === 'number' ? links[String(id)] ?? (mod ? bundledModEntityId(mod.key, 'Passives', id) : undefined) : undefined
       const passive = typeof id === 'number' && binding ? nativeById('passive', id, mode) : source && typeof target === 'string' ? crystalRecord(resolve({ ...source.ref, entityId: target as typeof source.ref.entityId })) : undefined
       if (!passive || typeof passive.IsInnate !== 'boolean') { issues.push('A class passive record is unavailable; its innate effects are unknown.'); continue }
-      if (passive.IsInnate) apply(passive, passives, typeof passive.Name === 'string' ? passive.Name : 'Class innate')
+      if (passive.IsInnate) apply(passive, passives, typeof passive.Name === 'string' ? passive.Name : 'Class innate', Boolean(binding))
     }
   }
   addInnates(content.primaryClass, primary)
   for (const selection of content.passives) {
     const record = nativeStatRecord(selection.ref, 'passive', resolve, mode)
-    if (record) apply(record, passives, resolve(selection.ref)?.name ?? 'Equipped passive')
+    const definition = resolve(selection.ref)
+    if (record) apply(record, passives, definition?.name ?? 'Equipped passive', Boolean(definition && nativeIdentity(definition) && !crystalRecord(definition)))
     else issues.push(`${resolve(selection.ref)?.name ?? 'Equipped passive'}: numeric effects are unknown.`)
   }
   if (passives.tags.has(PC_RULES.statMods[String(PC_RULES.equipment.secondaryInnatesTag)]!.name)) {

@@ -1,6 +1,6 @@
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
-import { nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import { effectText } from '../domain/mechanics-facts'
 import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
 import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
@@ -31,6 +31,19 @@ const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
 const SUMMARY_EFFECT_FIELDS = ['Other effects', 'Effects', 'Effect', 'Other'] as const
 const FLAT_CONTRIBUTION_UNITS = new Set(['displayed', 'listed flat value'])
+const NATIVE_NUMERIC_TEMPLATES = (() => {
+  const system = NATIVE_GAME_DATA.databases.system
+  const vocabulary = nativeRecord(system) && nativeRecord(system.Vocab) ? system.Vocab : undefined
+  const general = nativeRecord(vocabulary?.General) ? vocabulary.General : {}
+  const templates = vocabulary?.StatModText
+  return new Map(Array.isArray(templates) ? templates.flatMap((template, tag) => {
+    if (typeof template !== 'string') return []
+    const match = /^(.+)@V\.Sep\[v1s\](%)?$/.exec(template)
+    if (!match) return []
+    const label = match[1]!.replace(/@V\.(\w+)/g, (token, key: string) => typeof general[key] === 'string' ? general[key] as string : token).trim()
+    return label && !/[@[\]\r\n]/.test(label) ? [[tag, { label, percent: Boolean(match[2]) }]] : []
+  }) : [])
+})()
 const NATIVE_PERCENT_SUMMARY_LABELS = (() => {
   const system = NATIVE_GAME_DATA.databases.system
   const vocabulary = nativeRecord(system) && nativeRecord(system.Vocab) ? system.Vocab : undefined
@@ -98,18 +111,18 @@ function corroboratedNativePercentFacts(record: Definition): ReadonlySet<string>
   }))
 }
 
-function numericSummaryFact(line: string): { readonly key: string; readonly percent: boolean } | undefined {
-  const match = /^([^:]+):\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(%)?$/.exec(line)
-  return match ? { key: numericFactKey(match[1]!, Number(match[2])), percent: match[3] === '%' } : undefined
+function numericSummaryFact(line: string): { readonly key: string; readonly label: string; readonly value: number; readonly percent: boolean } | undefined {
+  const match = /^([^:]+?)(?::\s*|\s+)([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(%)?$/.exec(line)
+  return match ? { key: numericFactKey(match[1]!, Number(match[2])), label: match[1]!.trim(), value: Number(match[2]), percent: match[3] === '%' } : undefined
 }
 
-export function summaryFactLines(record: Definition): readonly string[] {
+function supplementalSummaryFactLines(record: Definition): readonly string[] {
   const lines: string[] = []
   const seen = new Set<string>()
   const statFragments = new Set<string>()
   const contributionLabels = new Set(Object.keys(record.listedContributions ?? {}).map(label => label.toLocaleLowerCase()))
   const add = (line: string) => {
-    const trimmed = line.trim()
+    const trimmed = line.trim().replace(/^([^:]+):\s*\1:\s*/i, '$1: ')
     const identity = summaryIdentity(trimmed)
     if (!trimmed || seen.has(identity)) return false
     seen.add(identity)
@@ -155,6 +168,53 @@ export function summaryFactLines(record: Definition): readonly string[] {
     const fact = numericSummaryFact(line)
     return !fact || fact.percent || !explicitPercentFacts.has(fact.key)
   }).sort((left, right) => Number(/^cost:/i.test(left)) - Number(/^cost:/i.test(right)) || Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
+}
+
+function nativeNumericSummaryFacts(record: Definition) {
+  const version = record.fields['Game version']
+  const modifiers = nativeSourceRecord(record)?.StatMods
+  if (!nativeIdentity(record) || version?.state !== 'known' || version.value !== NATIVE_GAME_DATA.source.gameVersion || !Array.isArray(modifiers) || record.fields['Crystal Edit source record'] || 'revision' in record) return []
+  return modifiers.flatMap(modifier => {
+    if (!nativeRecord(modifier) || typeof modifier.Tag !== 'number' || typeof modifier.Value1 !== 'number' || !Number.isFinite(modifier.Value1) || modifier.Value2 !== 0 || modifier.Value3 !== 0) return []
+    const template = NATIVE_NUMERIC_TEMPLATES.get(modifier.Tag)
+    return template ? [{ ...template, value: modifier.Value1, line: `${template.label}: ${modifier.Value1 > 0 ? '+' : ''}${modifier.Value1}${template.percent ? '%' : ''}` }] : []
+  })
+}
+
+function sameStat(left: { readonly label: string; readonly percent: boolean }, right: { readonly label: string; readonly percent: boolean }) {
+  return left.label.toLocaleLowerCase() === right.label.toLocaleLowerCase() && left.percent === right.percent
+}
+
+export function nativeListedStat(record: Definition, label: string): number | undefined {
+  const displayLabel = /^(HP|MP)$/i.test(label) ? `Max. ${label.toUpperCase()}` : label
+  return nativeNumericSummaryFacts(record).find(fact => !fact.percent && fact.label.toLocaleLowerCase() === displayLabel.toLocaleLowerCase())?.value
+}
+
+export function summaryFactLines(record: Definition): readonly string[] {
+  const native = nativeNumericSummaryFacts(record)
+  const supplemental = supplementalSummaryFactLines(record)
+  if (!native.length) return supplemental
+  const resolved = supplemental.map(line => {
+    const fact = numericSummaryFact(line)
+    return fact ? native.find(candidate => sameStat(candidate, fact))?.line ?? line : line
+  })
+  return [...new Set([...resolved, ...native.map(fact => fact.line)])].sort((left, right) => Number(/^cost:/i.test(left)) - Number(/^cost:/i.test(right)) || Number(!/attack|defense|resistance/i.test(left)) - Number(!/attack|defense|resistance/i.test(right)))
+}
+
+export function nativeStatSourceNotice(record: Definition): string | undefined {
+  const native = nativeNumericSummaryFacts(record)
+  const differs = supplementalSummaryFactLines(record).some(line => {
+    const fact = numericSummaryFact(line)
+    return fact && native.some(candidate => sameStat(candidate, fact) && candidate.value !== fact.value)
+  })
+  return differs ? `Supplemental stat values differ; Windows ${NATIVE_GAME_DATA.source.gameVersion} values shown. Original claims are in provenance.` : undefined
+}
+
+export function definitionChoiceSourceLabel(option: DefinitionOption): string {
+  const identity = nativeIdentity(option.record)
+  if (!identity) return option.sourceLabel
+  const level = nativeSourceRecord(option.record)?.Level
+  return `${nativeDefinitionLabel(option.record)} · ${identity.database} ${identity.databaseId}${typeof level === 'number' && option.kind === 'item' ? ` · level ${level}` : ''}`
 }
 
 export function selectionSummaryLines(option: DefinitionOption): readonly string[] {

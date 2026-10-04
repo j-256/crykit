@@ -146,4 +146,15 @@ describe('native sheet calculations', () => {
     expect(mimic.neutral.HP).toBeNull()
     expect(mimic.issues).toContain('Secondary class is unknown and its innates affect this loadout.')
   })
+  it('names unsupported native battle-start effects without asking for nonexistent context inputs', () => {
+    const knife = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Ambush Knife')!
+    const focus = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Initial Focus')!
+    const build = { ...content(), equipment: { 'plan-main-hand': { ref: ref(knife.id) } }, passives: [{ ref: ref(focus.id) }] }
+    const result = calculatePCStats(build, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(result.issues).toContain('Ambush Knife: automatic battle-start status "Ambush" cannot be calculated by the resting-stat preview.')
+    expect(result.issues).toContain('Initial Focus: automatic battle-start status "Magic Up" cannot be calculated by the resting-stat preview.')
+    expect(result.issues.join(' ')).not.toMatch(/StatusAuto|needs additional context/)
+    expect(result.neutral.HP).toBeNull()
+    expect(result.base.HP).toBeGreaterThan(0)
+  })
 })

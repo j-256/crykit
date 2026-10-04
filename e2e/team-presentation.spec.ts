@@ -1,3 +1,4 @@
+import { chooseTeamCheckpoint } from './team-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
@@ -118,7 +119,7 @@ test('team equipment names remain visible and keyboard activation opens exact de
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible()
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === 'Rowan: sample Warrior')!
-  await page.getByRole('combobox', { name: 'Team slot 1', exact: true }).selectOption(build.latestRevisionId!)
+  await chooseTeamCheckpoint(page, 1, build.latestRevisionId!)
   const slot = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   const sword = slot.getByRole('button', { name: 'Open Main hand: Short Sword', exact: true })
   await expect(sword.locator('.build-card__selection-name')).toBeVisible()

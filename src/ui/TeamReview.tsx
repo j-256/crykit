@@ -13,7 +13,7 @@ export function newerTeamCheckpoint(localData: LocalData, revision: BuildRevisio
 }
 
 export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData: LocalData, catalogs: readonly CatalogSnapshot[]) {
-  const members = slots.flatMap(id => {
+  const members = slots.flatMap((id, index) => {
     const revision = id ? localData.buildRevisions[id] : undefined
     if (!revision) return []
     const setup = localData.gameSetups[revision.gameSetupRevisionId]
@@ -24,12 +24,13 @@ export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData
     const mainHand = mainHandSlot ? revision.content.equipment[mainHandSlot.id] : undefined
     const mainHandDefinition = mainHand ? resolve(mainHand.ref) : undefined
     const occupiesBothHands = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true
-    const loadoutFilled = Boolean(revision.content.primaryClass) && equipmentSlots.every(slot => revision.content.equipment[slot.id] || equipmentRole(slot) === 'offHand' && occupiesBothHands)
-    return [{ revision, report, loadoutFilled, newer: newerTeamCheckpoint(localData, revision) }]
+    const emptyEquipment = equipmentSlots.filter(slot => !revision.content.equipment[slot.id] && !(equipmentRole(slot) === 'offHand' && occupiesBothHands)).map(slot => slot.label)
+    return [{ revision, report, classSelected: Boolean(revision.content.primaryClass), emptyEquipment, label: `Slot ${index + 1}: ${localData.builds[revision.buildId]?.title ?? 'Build'}`, newer: newerTeamCheckpoint(localData, revision) }]
   })
   return {
     filled: members.length,
-    loadoutsFilled: members.filter(member => member.loadoutFilled).length,
+    classesSelected: members.filter(member => member.classSelected).length,
+    emptyEquipment: members.filter(member => member.emptyEquipment.length > 0).map(member => ({ member: member.label, slots: member.emptyEquipment })),
     valid: members.filter(member => member.report.status === 'valid').length,
     invalid: members.filter(member => member.report.status === 'invalid').length,
     unresolved: members.filter(member => member.report.status === 'undetermined').length,
@@ -39,12 +40,13 @@ export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData
 
 export function TeamReview({ slots, localData, catalogs, saved = false }: { readonly slots: readonly (BuildRevisionId | null)[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly saved?: boolean }) {
   const review = reviewTeam(slots, localData, catalogs)
-  const complete = review.filled === TEAM_SIZE && review.loadoutsFilled === TEAM_SIZE
+  const complete = review.filled === TEAM_SIZE
   return <section aria-label="Team review" className="team-review">
-    <div className="cluster"><strong>{complete ? 'Team loadouts filled' : saved ? 'Saved draft Team' : 'Draft Team'}</strong><Badge tone={review.filled === TEAM_SIZE ? 'positive' : 'neutral'}>{review.filled}/{TEAM_SIZE} slots filled</Badge></div>
-    <p>{review.loadoutsFilled}/{TEAM_SIZE} members have a class and equipment in every usable slot.</p>
+    <div className="cluster"><strong>{complete ? saved ? 'Saved Team' : 'Team members selected' : saved ? 'Saved draft Team' : 'Draft Team'}</strong><Badge tone={complete ? 'positive' : 'neutral'}>{review.filled}/{TEAM_SIZE} slots filled</Badge></div>
+    {review.filled > 0 && <p>{review.classesSelected}/{review.filled} selected members have a class. Equipment slots may be intentionally empty.</p>}
     <p>{review.filled ? `${review.valid}/${review.filled} selected checkpoints have no known build issues.` : 'Choose a checkpoint to see build checks.'}{review.invalid > 0 && ` ${review.invalid} need changes.`}{review.unresolved > 0 && ` ${review.unresolved} have unresolved checks.`}</p>
     {review.newer > 0 && <p className="team-review__updates">{review.newer} {review.newer === 1 ? 'slot has a newer checkpoint' : 'slots have newer checkpoints'} available. Review before updating.</p>}
-    {!complete && <small>Partial Teams can be saved and completed later. Empty equipment is separate from build validity.</small>}
+    {review.emptyEquipment.length > 0 && <details><summary>Review empty equipment slots</summary><ul>{review.emptyEquipment.map(member => <li key={member.member}>{member.member}: {member.slots.join(', ')}</li>)}</ul><p>Empty slots do not prevent saving a Team or mean its members are incompatible.</p></details>}
+    {!complete && <small>Partial Teams can be saved and completed later. Choose a checkpoint for each remaining member slot.</small>}
   </section>
 }

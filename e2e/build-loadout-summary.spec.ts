@@ -277,9 +277,8 @@ test('invalid builds remain saveable and stay red in the library and team', asyn
 
   await page.goto('/#/teams/new')
   const slot = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
-  const invalidRevisionId = await slot.getByRole('option').filter({ hasText: 'Untitled build' }).getAttribute('value')
-  expect(invalidRevisionId).toBeTruthy()
-  await slot.getByRole('combobox', { name: 'Team slot 1', exact: true }).selectOption(invalidRevisionId!)
+  await slot.getByRole('button', { name: 'Choose checkpoint for Team slot 1', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Choose checkpoint for Team slot 1', exact: true }).getByRole('button').filter({ hasText: 'Untitled build' }).click()
   await expect(slot.locator('.build-loadout-summary')).toHaveAttribute('data-validity', 'invalid')
   await expect(slot).toContainText('Needs changes')
   await expect(slot).toHaveCSS('background-color', 'rgba(198, 111, 85, 0.16)')

@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -32,7 +33,7 @@ test('creates and equips four members from a Team and retains them after reload 
         await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption({ label: '1.6.9' })
         await page.locator('.build-behavior > summary').click()
       } else await expect(page.getByRole('region', { name: 'Team member context' })).toContainText("Starting with this Team's Game Setup: Unmodified game")
-      await expect(page.getByRole('checkbox', { name: /Include innates/ })).not.toBeChecked()
+      await expect(page.getByRole('checkbox', { name: /Include innates/, includeHidden: true })).not.toBeChecked()
       await choose(page, 'Class', member.primary)
       await choose(page, 'Sub-command', member.secondary)
       for (const [passiveIndex, passive] of member.passives.entries()) await choose(page, `Equipped passive ${passiveIndex + 1}`, passive)
@@ -54,7 +55,7 @@ test('creates and equips four members from a Team and retains them after reload 
     })
   }
   await page.reload()
-  await expect(page.getByRole('region', { name: 'Team review' })).toContainText('4/4 members have a class and equipment in every usable slot')
+  await expect(page.getByRole('region', { name: 'Team review' })).toContainText('4/4 selected members have a class')
   await expect(page.getByRole('region', { name: 'Team review' })).toContainText('4/4 selected checkpoints have no known build issues')
   for (const [index, member] of members.entries()) {
     const card = page.getByRole('region', { name: `Team slot ${index + 1} loadout`, exact: true })
@@ -83,7 +84,8 @@ test('explains hand conflicts beside slots and remembers innate search preferenc
   const offhand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offhand.fill('Diamond Sword')
   const list = page.getByRole('listbox', { name: 'Choose Off hand', exact: true })
-  await expect(list).toContainText('No matching definitions')
+  await expect(list).toContainText('hidden by equipment conflicts')
+  await openBuildPickerFilters(page)
   await list.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   const sword = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Diamond Sword$/ }) })
   await expect(sword).toContainText('Dual Wield')
@@ -96,7 +98,8 @@ test('explains hand conflicts beside slots and remembers innate search preferenc
   await page.getByRole('button', { name: 'Clear Mainhand to choose Off hand', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('')
   await choose(page, 'Off hand', 'Diamond Shield')
-  const innate = page.getByRole('checkbox', { name: /Include innates/ })
+  await page.locator('.build-passive-options > summary').click()
+  const innate = page.getByRole('checkbox', { name: /Include innates/, includeHidden: true })
   await innate.check()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()

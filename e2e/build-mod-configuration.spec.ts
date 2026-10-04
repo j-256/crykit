@@ -1,3 +1,4 @@
+import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -22,6 +23,7 @@ async function choose(page: Page, label: string, name: string, options: { includ
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })
   if (options.includeUnavailable) {
     const includeUnavailable = results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true })
+    await openBuildPickerFilters(page)
     if (!await includeUnavailable.isVisible()) await results.getByText('Broader planning options', { exact: true }).click()
     await includeUnavailable.check()
   }

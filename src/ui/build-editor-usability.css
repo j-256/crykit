@@ -8,3 +8,8 @@
 .build-field-issues [data-status="invalid"] { color: var(--amber); }
 .build-occupied-slot { border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: .82rem; }
 .build-occupied-slot p { margin: 6px 0 10px; color: var(--text-dim); }
+
+.build-passive-options { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: .8rem; }
+.build-passive-options > summary { cursor: pointer; color: var(--text-dim); }
+.build-passive-options[open] > summary { margin-bottom: 8px; }
+.build-sample-filter { font-size: .82rem; }

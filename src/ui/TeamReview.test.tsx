@@ -9,11 +9,11 @@ describe('Team review', () => {
   it('keeps a partial draft separate from the validity of its selected checkpoint', () => {
     const data = addTestBuild(createTestLocalData(), 'draft', '', {})
     const slots = [asId<BuildRevisionId>('draft-revision'), null, null, null]
-    expect(reviewTeam(slots, data, [])).toMatchObject({ filled: 1, loadoutsFilled: 0, valid: 1, invalid: 0, unresolved: 0 })
+    expect(reviewTeam(slots, data, [])).toMatchObject({ filled: 1, classesSelected: 0, valid: 1, invalid: 0, unresolved: 0 })
     const markup = renderToStaticMarkup(<TeamReview catalogs={[]} localData={data} saved slots={slots}/>)
     expect(markup).toContain('Saved draft Team')
     expect(markup).toContain('1/4 slots filled')
-    expect(markup).toContain('Empty equipment is separate from build validity')
+    expect(markup).toContain('Equipment slots may be intentionally empty')
   })
 
   it('counts both hands occupied by a two-handed weapon while retaining unresolved checks', () => {
@@ -26,10 +26,22 @@ describe('Team review', () => {
     }
     data = addTestBuild(data, 'caster-build', '', { [HAND_SLOT]: { ref: personalRef('staff') } }, { primaryClass: personalRef('caster'), passives: [{ ref: personalRef('uncertain-passive') }] })
     const id = asId<BuildRevisionId>('caster-build-revision')
-    expect(reviewTeam([id, id, id, id], data, [])).toMatchObject({ filled: 4, loadoutsFilled: 4, unresolved: 4 })
+    expect(reviewTeam([id, id, id, id], data, [])).toMatchObject({ filled: 4, classesSelected: 4, unresolved: 4, emptyEquipment: [] })
     const conflicted = saveBuildRevision(data, { buildId: data.buildRevisions[id]!.buildId, gameSetupRevisionId: setup.id, content: { ...data.buildRevisions[id]!.content, equipment: { [HAND_SLOT]: { ref: personalRef('staff') }, [SECOND_HAND_SLOT]: { ref: personalRef('staff') } } } })
     const newest = conflicted.builds[data.buildRevisions[id]!.buildId]!.latestRevisionId!
-    expect(reviewTeam([newest, null, null, null], conflicted, [])).toMatchObject({ filled: 1, loadoutsFilled: 1, invalid: 1 })
+    expect(reviewTeam([newest, null, null, null], conflicted, [])).toMatchObject({ filled: 1, classesSelected: 1, invalid: 1 })
+  })
+
+  it('does not label a fully assigned Team as a draft for intentional empty equipment', () => {
+    let data = addTestDefinition(createTestLocalData(), 'caster', { kind: 'class' })
+    data = addTestBuild(data, 'caster-build', '', {}, { primaryClass: personalRef('caster') })
+    const id = asId<BuildRevisionId>('caster-build-revision')
+    const markup = renderToStaticMarkup(<TeamReview catalogs={[]} localData={data} saved slots={[id, id, id, id]}/>)
+    expect(markup).toContain('Saved Team')
+    expect(markup).not.toContain('draft Team')
+    expect(markup).toContain('4/4 selected members have a class')
+    expect(markup).toContain('Slot 4:')
+    expect(markup).toContain('Review empty equipment slots')
   })
 
   it('announces a newer checkpoint without changing the pinned Team slot', () => {

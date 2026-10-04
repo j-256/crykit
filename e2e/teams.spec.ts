@@ -1,3 +1,4 @@
+import { chooseTeamCheckpoint } from './team-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
@@ -36,7 +37,7 @@ test('plans and shares four checkpoints with no tracked characters and retries a
   await page.getByRole('button', { name: 'New Team', exact: true }).click()
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic independent Team')
   const revisions = Object.values(before.builds).map(build => build.latestRevisionId!)
-  for (let index = 0; index < 4; index += 1) await page.getByRole('combobox', { name: `Team slot ${index + 1}`, exact: true }).selectOption(revisions[index]!)
+  for (let index = 0; index < 4; index += 1) await chooseTeamCheckpoint(page, index + 1, revisions[index]!)
   await failNextSave(page)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
   await expect(page.getByText('Team not saved', { exact: true })).toBeVisible()
@@ -111,7 +112,7 @@ test('adopts a whole Team atomically after reviewing characters and shared equip
   const initial = await storedData(page)
   await page.getByLabel('Team name').fill('Synthetic adopted Team')
   const revisions = Array.from({ length: 4 }, () => Object.values(initial.builds)[0]!.latestRevisionId!)
-  for (let index = 0; index < 4; index += 1) await page.getByRole('combobox', { name: `Team slot ${index + 1}`, exact: true }).selectOption(revisions[index]!)
+  for (let index = 0; index < 4; index += 1) await chooseTeamCheckpoint(page, index + 1, revisions[index]!)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save Team', exact: true })).toBeDisabled()
   const before = await storedData(page)

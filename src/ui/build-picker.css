@@ -1,8 +1,52 @@
 .build-picker-filters {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  max-height: 190px;
+  padding: .35rem .65rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.build-picker-filters > summary {
+  padding-block: .4rem;
+  cursor: pointer;
+  font-size: .8rem;
+}
+
+.build-picker-filters > summary small {
+  margin-inline-start: .75rem;
+  color: var(--text-dim);
+}
+
+.build-picker-filters__controls {
   display: grid;
   gap: .5rem;
-  padding: .5rem .65rem;
-  border-bottom: 1px solid var(--line);
+  padding-block: .4rem;
+}
+
+.build-picker-results-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .3rem .7rem;
+  padding: .4rem .75rem;
+  color: var(--text-dim);
+  font-size: .75rem;
+}
+
+.build-picker-results-summary button {
+  border: 0;
+  padding: .3rem;
+  background: transparent;
+  color: var(--cyan-300);
+}
+
+.build-field .picker-result--empty {
+  min-height: 36px;
+}
+
+.build-field > label {
+  text-wrap: balance;
 }
 
 .build-picker-filters__selects {
