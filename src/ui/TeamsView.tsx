@@ -27,7 +27,7 @@ interface Props {
   readonly onDraftChange: DraftChangeHandler
   readonly onSave: (input: SaveTeamInput) => Promise<TeamId>
   readonly onAdopt: (id: TeamId, characterIds: readonly CharacterId[]) => Promise<void>
-  readonly onSaveMember: (input: { readonly team: SaveTeamInput; readonly slotIndex: number; readonly build?: BuildDraft; readonly revision: RevisionDraft; readonly sourceRevisionId?: BuildRevisionId }) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>
+  readonly onSaveMember: (input: { readonly team: SaveTeamInput; readonly slotIndex: number; readonly build?: BuildDraft; readonly buildTitle?: string; readonly revision: RevisionDraft; readonly sourceRevisionId?: BuildRevisionId }) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>
 }
 
 function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftChange }: Props & { readonly team?: Team }) {
@@ -123,12 +123,12 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
       {!sourceRevision && reusedSetup && <p>Starting with this Team's Game Setup: {localData.gameSetups[reusedSetup]?.label ?? 'Saved setup'}. You can review or change it below.</p>}
     </section>
     {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
-    <TeamBuildEditor catalogs={catalogs} gameSetupRevisionId={reusedSetup} initialFieldKey={member.initialFieldKey} localData={localData} onCancel={closeMember} onDraftChange={memberDraftChange} sourceRevision={sourceRevision} onSubmit={async (build, revision) => {
+    <TeamBuildEditor catalogs={catalogs} gameSetupRevisionId={reusedSetup} initialFieldKey={member.initialFieldKey} localData={localData} onCancel={closeMember} onDraftChange={memberDraftChange} sourceRevision={sourceRevision} onSubmit={async (build, revision, buildTitle) => {
       setBusy(true)
       setError(undefined)
       try {
         const savedTitle = title.trim() || 'New Team'
-        const saved = await onSaveMember({ team: { id, title: savedTitle, slots }, slotIndex: member.index, build, revision, sourceRevisionId: sourceRevision?.id })
+        const saved = await onSaveMember({ team: { id, title: savedTitle, slots }, slotIndex: member.index, build, buildTitle, revision, sourceRevisionId: sourceRevision?.id })
         setTitle(savedTitle)
         setSlots(values => values.map((value, index) => index === member.index ? saved.revisionId : value))
         dirtyRef.current = false
