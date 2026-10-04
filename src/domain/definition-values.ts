@@ -1,6 +1,7 @@
 import type { CatalogEntity, JsonValue, Knowledge, PersonalDefinition } from './types'
 
 export function sameValue(left: unknown, right: unknown): boolean {
+  if (left === right) return true
   const normalize = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(normalize)
     if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, normalize(entry)]))
