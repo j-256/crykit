@@ -40,7 +40,7 @@ async function failNextSave(page: Page) {
   })
 }
 
-test('edits a member in Team context, retries atomically, and explicitly updates a pinned sibling slot', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('renames and edits a member in Team context, retries atomically, and explicitly updates a pinned sibling slot', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic member workflow')
   const before = await storedData(page)
@@ -54,11 +54,16 @@ test('edits a member in Team context, retries atomically, and explicitly updates
   const first = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   await first.getByRole('button', { name: 'Edit member', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Team member context', exact: true })).toContainText('Synthetic member workflow')
+  const memberTitle = 'Synthetic frontline member'
+  const title = page.getByRole('textbox', { name: 'Build title', exact: true })
+  await expect(title).toHaveValue(before.builds[original.buildId]!.title)
+  await title.fill(`  ${memberTitle}  `)
   await choose(page, 'Main hand', 'Diamond Sword')
   expect(new URL(page.url()).hash).toBe(NEW_TEAM_ROUTE)
   await failNextSave(page)
   await page.getByRole('button', { name: SAVE_MEMBER, exact: true }).click()
   await expect(page.getByText('Revision not saved', { exact: true })).toBeVisible()
+  await expect(title).toHaveValue(`  ${memberTitle}  `)
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Diamond Sword')
   expect(await storedData(page)).toEqual(before)
   await page.getByRole('button', { name: SAVE_MEMBER, exact: true }).click()
@@ -69,11 +74,15 @@ test('edits a member in Team context, retries atomically, and explicitly updates
   const next = saved.buildRevisions[team.slots[0]!]!
   expect(new URL(page.url()).hash).toBe(formatAppRoute({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} }))
   expect(next.revision).toBe(original.revision + 1)
+  expect(saved.builds[original.buildId]).toMatchObject({ title: memberTitle, tags: before.builds[original.buildId]!.tags, latestRevisionId: next.id })
+  for (const [id, build] of Object.entries(before.builds)) if (id !== original.buildId) expect(saved.builds[id]).toEqual(build)
   expect(team.slots[1]).toBe(original.id)
   expect(saved.buildRevisions[original.id]).toEqual(original)
   expect(saved.playthroughs).toEqual(before.playthroughs)
   await expect(page.getByRole('region', { name: 'Team review', exact: true })).toContainText('2/4 slots filled')
   const second = page.getByRole('region', { name: 'Team slot 2 loadout', exact: true })
+  await expect(first.getByRole('heading', { name: memberTitle, exact: true })).toBeVisible()
+  await expect(second.getByRole('heading', { name: memberTitle, exact: true })).toBeVisible()
   await expect(second.getByText(`Newer checkpoint available: r${next.revision}`, { exact: true })).toBeVisible()
   await second.getByText('Compare checkpoints', { exact: true }).click()
   await expect(second.locator('.team-checkpoint-comparison')).toContainText('Diamond Sword')
@@ -82,16 +91,23 @@ test('edits a member in Team context, retries atomically, and explicitly updates
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save Team', exact: true })).toBeDisabled()
   await page.reload()
+  await expect(first.getByRole('heading', { name: memberTitle, exact: true })).toBeVisible()
   await expect(teamCheckpointControl(page, 2)).toHaveAttribute('data-revision-id', next.id)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('canceling a new member preserves the unsaved Team name and checkpoint selections', async ({ page }) => {
+test('canceling a member rename or creation preserves the unsaved Team name and checkpoint selections', async ({ page }) => {
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic draft retained')
   const before = await storedData(page)
   const revision = Object.values(before.buildRevisions)[0]!
   await chooseTeamCheckpoint(page, 1, revision.id)
+  const first = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
+  await first.getByRole('button', { name: 'Edit member', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Canceled rename')
+  await page.getByRole('button', { name: 'Cancel and return to Team', exact: true }).click()
+  await expect(first.getByRole('heading', { name: before.builds[revision.buildId]!.title, exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
   await page.getByRole('region', { name: 'Team slot 2 loadout', exact: true }).getByRole('button', { name: 'Create member', exact: true }).click()
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Unsaved member')
   await choose(page, 'Class', 'Cleric')
@@ -117,6 +133,16 @@ test('creates members directly in Team slots and reuses the first member setup',
   const firstSaved = await storedData(page)
   const team = Object.values(firstSaved.teams)[0]!
   const firstRevision = firstSaved.buildRevisions[team.slots[0]!]!
+  const first = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
+  await first.getByRole('button', { name: 'Edit member', exact: true }).click()
+  const title = page.getByRole('textbox', { name: 'Build title', exact: true })
+  await expect(title).toHaveValue('First caster')
+  await title.fill('Renamed first caster')
+  await page.getByRole('button', { name: SAVE_MEMBER, exact: true }).click()
+  await expect(first.getByRole('heading', { name: 'Renamed first caster', exact: true })).toBeVisible()
+  const renamed = await storedData(page)
+  expect(Object.keys(renamed.builds).sort()).toEqual(Object.keys(firstSaved.builds).sort())
+  expect(renamed.buildRevisions[firstRevision.id]).toEqual(firstRevision)
   await page.getByRole('region', { name: 'Team slot 2 loadout', exact: true }).getByRole('button', { name: 'Create member', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Team member context', exact: true })).toContainText("Starting with this Team's Game Setup:")
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Second caster')
@@ -128,8 +154,13 @@ test('creates members directly in Team slots and reuses the first member setup',
   expect(buildBehavior(secondSaved.gameSetups[secondRevision.gameSetupRevisionId]!)).toEqual(buildBehavior(firstSaved.gameSetups[firstRevision.gameSetupRevisionId]!))
   expect(secondSaved.buildRevisions[firstRevision.id]).toEqual(firstRevision)
   expect(secondSaved.playthroughs).toEqual(before.playthroughs)
-  await expect(page.getByRole('region', { name: 'Team slot 1 loadout', exact: true }).getByRole('heading', { name: 'First caster', exact: true })).toBeVisible()
+  await expect(first.getByRole('heading', { name: 'Renamed first caster', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Team slot 2 loadout', exact: true }).getByRole('heading', { name: 'Second caster', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(first.getByRole('heading', { name: 'Renamed first caster', exact: true })).toBeVisible()
+  await first.getByRole('button', { name: 'Edit member', exact: true }).click()
+  await expect(title).toHaveValue('Renamed first caster')
+  await page.getByRole('button', { name: 'Cancel and return to Team', exact: true }).click()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
@@ -236,6 +267,30 @@ test('the navigation guard saves the Team and its open member before continuing'
   expect(saved.builds[revision.buildId]!.title).toBe('Guarded member')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+})
+
+test('rejects a blank member title and saves a rename through the navigation guard', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto(`/${NEW_TEAM_ROUTE}`)
+  await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible()
+  const before = await storedData(page)
+  const source = Object.values(before.buildRevisions)[0]!
+  await chooseTeamCheckpoint(page, 1, source.id)
+  await page.getByRole('region', { name: 'Team slot 1 loadout', exact: true }).getByRole('button', { name: 'Edit member', exact: true }).click()
+  const title = page.getByRole('textbox', { name: 'Build title', exact: true })
+  await title.fill('   ')
+  await page.getByRole('button', { name: SAVE_MEMBER, exact: true }).click()
+  await expect(page.getByText('Revision not saved', { exact: true })).toBeVisible()
+  await expect(title).toHaveValue('   ')
+  expect(await storedData(page)).toEqual(before)
+  await title.fill('Synthetic guarded rename')
+  await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  const saved = await storedData(page)
+  expect(saved.builds[source.buildId]!.title).toBe('Synthetic guarded rename')
+  expect(saved.buildRevisions[source.id]).toEqual(source)
+  const team = Object.values(saved.teams)[0]!
+  expect(saved.buildRevisions[team.slots[0]!]!.buildId).toBe(source.buildId)
 })
 
 test('searches checkpoint context and hides samples without changing selected revisions', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
