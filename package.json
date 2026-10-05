@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b --pretty false",
-    "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/mod-artwork.test.mjs scripts/bundle-mod.test.mjs scripts/bundle-mod-library.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs scripts/calculations.test.mjs scripts/update-entity-reference.test.mjs scripts/world-acquisition.test.mjs scripts/world-map.test.mjs scripts/check-e2e-contracts.test.mjs scripts/integration-verification.test.mjs scripts/source-audit-evidence.test.mjs && vitest run",
+    "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/mod-artwork.test.mjs scripts/bundle-mod.test.mjs scripts/bundle-mod-library.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs scripts/calculations.test.mjs scripts/update-entity-reference.test.mjs scripts/world-acquisition.test.mjs scripts/world-map.test.mjs scripts/check-e2e-contracts.test.mjs scripts/integration-verification.test.mjs scripts/offline-plugin.test.mjs scripts/source-audit-evidence.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:all-devices": "playwright test --config=playwright.all-devices.config.ts",
