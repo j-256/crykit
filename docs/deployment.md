@@ -21,6 +21,24 @@ Routine releases upload assets with `wrangler versions upload` and activate that
 
 Initial provisioning or intentional routing changes use `npm run deploy`, which also reconciles the Custom Domain in `wrangler.jsonc`. That operation additionally requires Zone Workers Routes Write for the affected zone. Keep those permissions with the operator managing hosting; the repository Actions token needs only Workers Scripts Write. Changing trigger configuration in source alone does not apply it through the routine release workflow.
 
+## Draft preview
+
+[preview.crykit.lasers.app](https://preview.crykit.lasers.app/) hosts rough drafts independently of the main site. `wrangler.preview.jsonc` owns the assets-only Worker `crykit-preview` and its Custom Domain. Both workers.dev and provider preview URLs remain disabled. The hostname is public; no-index headers discourage search indexing but do not restrict access.
+
+From the branch or task checkout to preview, run:
+
+```sh
+npm ci
+npm run deploy:preview:dry-run
+npm run deploy:preview
+```
+
+Both commands rebuild the selected source with a visible Preview label and Git revision, then validate Workers Free asset limits and target only `crykit-preview`. Uncommitted source is labeled `+ local changes`. The preview Vite plugin adds metadata before the offline cache digest is computed and adds `X-Robots-Tag: noindex, nofollow` to the generated `_headers` file while retaining the security headers. A normal `npm run build` produces the production artifact without preview metadata or no-index headers. Each build replaces `dist/`; rebuild the intended target before publishing. Preview deployment is manual and does not publish a branch or integrate it into `main`.
+
+The preview origin has separate IndexedDB and service-worker caches. Use a planner backup to transfer records deliberately between the preview and main site. Game-save imports remain in memory on either site. The exact-host zone Configuration Rule `crykit_preview_disable_rum` matches `preview.crykit.lasers.app` and sets `disable_rum: true`. Restore this rule independently of the Worker to preserve the no-telemetry behavior. Cloudflare manages the nested hostname's certificate through its [Custom Domain certificate provisioning](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#certificates).
+
+After publishing, check the visible revision, TLS, no-index response header, absent analytics injection, save-editor import and export, and mobile layout. Inspect `crykit-preview` through Cloudflare Fleet to confirm its Custom Domain and serving deployment. The main Worker has its own release workflow and remains independent of these deployments.
+
 ## Public-only GitHub Actions
 
 Keep repository Actions disabled while a repository is private. Prepare and verify changes locally, push them with Actions disabled, make the repository public, and confirm GitHub reports public visibility before enabling Actions or dispatching the workflow. Disable Actions before making a public repository private. Private forks must leave Actions disabled.
@@ -40,6 +58,7 @@ Cloudflare manages TLS and DNS for the canonical Custom Domain. The `lasers.app`
 | Hosts | Behavior | Owner |
 | --- | --- | --- |
 | `crykit.lasers.app` | Static application | Worker Custom Domain in `wrangler.jsonc` |
+| `preview.crykit.lasers.app` | Public draft application with separate browser storage and no-index headers | Worker Custom Domain in `wrangler.preview.jsonc` |
 | `crycom.lasers.app`, `cp.lasers.app`, `crystal.lasers.app`, `crystal-companion.lasers.app`, `crystalcompanion.lasers.app` | HTTP 307 to the canonical host, preserving method, path, and query | Single Redirect rule `crykit_aliases` plus originless proxied DNS |
 
 The redirect rule matches `http.host in {"crycom.lasers.app" "cp.lasers.app" "crystal.lasers.app" "crystal-companion.lasers.app" "crystalcompanion.lasers.app"}`, uses target expression `concat("https://crykit.lasers.app", http.request.uri.path)`, status `307`, and `preserve_query_string: true`. Alias DNS is a proxied `AAAA` record with content `100::`, reserved for discard-only use. No application Worker owns the aliases. Do not replace this with a 301 or 302, which can change the request method. A preserved POST reaches a static destination that does not accept writes; the redirect itself does not promise a successful POST response.
@@ -52,7 +71,7 @@ The exact-host Configuration Rule `crykit_disable_rum` matches `crykit.lasers.ap
 
 Verified against Cloudflare documentation on 2026-10-03: [static asset requests are free and unlimited](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/). The [Workers Free static asset limits](https://developers.cloudflare.com/workers/platform/limits/#static-assets) are 20,000 files per Worker version and 25 MiB per file. `npm run check:assets` measures every built file, prints the file count, total bytes, and largest file, and rejects either limit exceedance before dry runs and deployments. A production build measured on that date, including the bundled world map and mod sources, has approximately 2,200 files totaling 62 MiB, with its largest file about 12 MiB. These measurements fit the per-version file count and per-file size limits; total asset bytes have no corresponding limit here. Reproduce the measurements with `npm ci && npm run build && npm run check:assets` after dependency or catalog changes.
 
-The aliases share one [Single Redirect rule](https://developers.cloudflare.com/rules/url-forwarding/#availability), against the Free allowance of 10 per zone. Analytics suppression uses one [Configuration Rule](https://developers.cloudflare.com/rules/configuration-rules/#availability), also against a Free allowance of 10 per zone. These quotas were verified on 2026-10-03. Other applications share the zone quotas, so inspect usage before adding rules. These requirements fit Free and do not require a Paid Worker. If assets outgrow Free, reduce or split the bundled material before release, or document and review a Paid requirement; successful deployment on a Paid account does not prove Free compatibility.
+The aliases share one [Single Redirect rule](https://developers.cloudflare.com/rules/url-forwarding/#availability), against the Free allowance of 10 per zone. Analytics suppression uses an exact-host [Configuration Rule](https://developers.cloudflare.com/rules/configuration-rules/#availability) for each of the main and preview origins, also against a Free allowance of 10 per zone. These quotas were verified on 2026-10-03. Other applications share the zone quotas, so inspect usage before adding rules. The preview uses the same measured assets and limits in a separate Worker; `npm run check:assets` validates each build. These requirements fit Free and do not require a Paid Worker. If assets outgrow Free, reduce or split the bundled material before release, or document and review a Paid requirement; successful deployment on a Paid account does not prove Free compatibility.
 
 ## Verification and recovery
 
