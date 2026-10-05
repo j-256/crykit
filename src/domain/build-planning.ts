@@ -1,6 +1,6 @@
 import { createId } from './core'
 import { createBuild, saveBuildRevision, type CreateBuildInput } from './builds'
-import { createGameSetupRevision, updateGameSetupRevision } from './local-data'
+import { createGameSetupRevision, DEFAULT_GAME_DIFFICULTY, updateGameSetupRevision } from './local-data'
 import { equipmentRole } from './mechanics-facts'
 import type { BuildId, BuildRevisionContent, BuildRevisionId, LocalData, GameSetupRevision, SlotDefinition, SlotId } from './types'
 
@@ -20,7 +20,7 @@ export function ensureBuildPlanningGameSetup(localData: LocalData, catalogLock: 
   const values = { slots: SUGGESTED_BUILD_SLOTS, catalogLock: { ...catalogLock, ...current?.catalogLock }, activate: true, expectedRevision: localData.revision }
   return current
     ? updateGameSetupRevision(localData, { ...values, sourceRevisionId: current.id })
-    : createGameSetupRevision(localData, { ...values, label: 'Build planning' })
+    : createGameSetupRevision(localData, { ...values, label: 'Build planning', difficulty: DEFAULT_GAME_DIFFICULTY })
 }
 
 export function createBuildPlan(localData: LocalData, input: Omit<CreateBuildInput, 'gameSetupId'> & { readonly content: BuildRevisionContent; readonly catalogLock: GameSetupRevision['catalogLock']; readonly revisionId?: BuildRevisionId; readonly note?: string }): LocalData {

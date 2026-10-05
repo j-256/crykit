@@ -21,6 +21,7 @@ describe('sample starter team', () => {
     expect(localData.gameSetups[scenario.gameSetupRevisionId]!.ppLimit).toEqual({ state: 'known', value: 10 })
     expect(localData.gameSetups[scenario.gameSetupRevisionId]!.ppCostsNonNegative).toEqual({ state: 'known', value: true })
     expect(localData.gameSetups[scenario.gameSetupRevisionId]!.gameVersion).toEqual({ state: 'known', value: '1.6.6' })
+    expect(localData.gameSetups[scenario.gameSetupRevisionId]!.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 0 } })
     expect(scenario.memberIds).toEqual(Object.keys(requirePlaythrough(localData).characters))
     expect(Object.keys(scenario.assignments).sort()).toEqual(Object.keys(requirePlaythrough(localData).characters).sort())
     for (const character of Object.values(requirePlaythrough(localData).characters)) {
