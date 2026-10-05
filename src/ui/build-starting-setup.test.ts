@@ -10,6 +10,7 @@ describe('new Build starting rules', () => {
     const fresh = createPlaythroughWithSetup(sample, { label: 'Fresh adventure', catalogLock: {} })
     expect(buildStartingSetup(fresh).id).toBe(fresh.planningGameSetupRevisionId)
     expect(buildStartingSetup(fresh).id).not.toBe(sample.planningGameSetupRevisionId)
+    expect(fresh.gameSetups[buildStartingSetup(fresh).id!]!.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 0 } })
     expect(fresh.buildRevisions).toEqual(sample.buildRevisions)
   })
 

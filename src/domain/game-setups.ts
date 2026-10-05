@@ -1,6 +1,6 @@
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { createId } from './core'
-import { createGameSetupRevision, createPlaythrough, selectPlaythrough, type CreatePlaythroughInput } from './local-data'
+import { createGameSetupRevision, createPlaythrough, DEFAULT_GAME_DIFFICULTY, selectPlaythrough, type CreatePlaythroughInput } from './local-data'
 import type { GameSetupRevision, GameSetupRevisionId, LocalData } from './types'
 
 export function latestGameSetups(localData: LocalData): readonly GameSetupRevision[] {
@@ -16,7 +16,7 @@ export function createPlaythroughWithSetup(localData: LocalData, input: CreatePl
   let next = localData
   const setupId = input.currentGameSetupRevisionId ?? createId<GameSetupRevisionId>('gameSetupRevision')
   if (!input.currentGameSetupRevisionId) {
-    next = createGameSetupRevision(next, { id: setupId, label: `${input.label.trim()} settings`, platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mods: { state: 'unknown' }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: input.catalogLock, activate: false, now: input.now, expectedRevision: input.expectedRevision })
+    next = createGameSetupRevision(next, { id: setupId, label: `${input.label.trim()} settings`, platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, difficulty: DEFAULT_GAME_DIFFICULTY, mods: { state: 'unknown' }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: input.catalogLock, activate: false, now: input.now, expectedRevision: input.expectedRevision })
   }
   next = createPlaythrough(next, { ...input, currentGameSetupRevisionId: setupId, select: false, expectedRevision: input.currentGameSetupRevisionId ? input.expectedRevision : next.revision })
   const created = Object.values(next.playthroughs).find(playthrough => !localData.playthroughs[playthrough.id])!

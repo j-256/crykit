@@ -3,7 +3,7 @@ import { createBuild, saveBuildRevision } from './builds'
 import { captureCharacter, createCharacter, upsertCharacterClassProgress } from './characters'
 import { createId, DomainError } from './core'
 import { observeInventory } from './inventory'
-import { addGameSetupRevision, createBlankLocalData, createPlaythrough } from './local-data'
+import { addGameSetupRevision, createBlankLocalData, createPlaythrough, DEFAULT_GAME_DIFFICULTY } from './local-data'
 import { createScenario } from './scenarios'
 import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, LocalData, SourceRef, Timestamp } from './types'
 
@@ -44,7 +44,7 @@ export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Time
   let localData = createBlankLocalData({ now: timestamp })
   const now = localData.createdAt
   const catalogLock = { [catalog.id]: catalog.revisionId }
-  localData = addGameSetupRevision(localData, { label: 'Sample starter Game Setup', slots: SUGGESTED_BUILD_SLOTS, catalogLock, now })
+  localData = addGameSetupRevision(localData, { label: 'Sample starter Game Setup', difficulty: DEFAULT_GAME_DIFFICULTY, slots: SUGGESTED_BUILD_SLOTS, catalogLock, now })
   const gameSetupRevisionId = localData.planningGameSetupRevisionId!
   const gameSetupId = localData.gameSetups[gameSetupRevisionId]!.gameSetupId
   localData = createPlaythrough(localData, { label: 'Sample playthrough', currentGameSetupRevisionId: gameSetupRevisionId, now })

@@ -135,6 +135,8 @@ test('saving a setup is independent and applying it to a playthrough is explicit
   await panel.getByRole('button', { name: 'New Game Setup', exact: true }).click()
   await expect(panel.getByRole('combobox', { name: 'Game version', exact: true })).toHaveValue('')
   await expect(panel.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
+  await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue('0')
+  await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true }).locator('option:checked')).toHaveText('Normal')
   await panel.getByLabel('Game Setup label').fill('Synthetic separate setup')
   await panel.getByRole('button', { name: 'Create Game Setup', exact: true }).click()
   await expect(panel.getByText('Saved revision 1', { exact: true })).toBeVisible()
@@ -143,6 +145,7 @@ test('saving a setup is independent and applying it to a playthrough is explicit
   expect(setup.gameSetupId).not.toBe(source.gameSetupId)
   expect(setup.gameVersion).toEqual({ state: 'unknown' })
   expect(setup.mode).toEqual({ state: 'known', value: 'Standard' })
+  expect(setup.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 0 } })
   expect(saved.gameSetups[source.id]).toEqual(source)
   expect(saved.playthroughs).toEqual(original.playthroughs)
   expect(saved.planningGameSetupRevisionId).toBe(original.planningGameSetupRevisionId)
@@ -198,7 +201,7 @@ test('applying a saved setup recovers a failed save without changing historical 
 test('unrelated edits preserve unresolved knowledge and backup round trips', async ({ page }) => {
   const fixture = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
   const id = fixture.planningGameSetupRevisionId!
-  const source = { ...fixture.gameSetups[id]!, platform: { state: 'conflicting' as const, claims: [{ value: 'Windows', sources: [{ sourceId: 'synthetic-a' }] }, { value: 'Nintendo Switch', sources: [{ sourceId: 'synthetic-b' }] }] }, gameVersion: { state: 'unknown' as const, reason: 'Synthetic missing version' }, mode: { state: 'notApplicable' as const, reason: 'Synthetic scope' }, ppLimit: { state: 'unknown' as const, reason: 'Synthetic missing budget' }, ppCostsNonNegative: { state: 'conflicting' as const, claims: [{ value: true, sources: [{ sourceId: 'synthetic-a' }] }, { value: false, sources: [{ sourceId: 'synthetic-b' }] }] } }
+  const source = { ...fixture.gameSetups[id]!, platform: { state: 'conflicting' as const, claims: [{ value: 'Windows', sources: [{ sourceId: 'synthetic-a' }] }, { value: 'Nintendo Switch', sources: [{ sourceId: 'synthetic-b' }] }] }, gameVersion: { state: 'unknown' as const, reason: 'Synthetic missing version' }, mode: { state: 'notApplicable' as const, reason: 'Synthetic scope' }, difficulty: { version: 1 as const, selection: { state: 'unknown' as const, reason: 'Synthetic missing difficulty', sources: [{ sourceId: 'synthetic-context' }] } }, ppLimit: { state: 'unknown' as const, reason: 'Synthetic missing budget' }, ppCostsNonNegative: { state: 'conflicting' as const, claims: [{ value: true, sources: [{ sourceId: 'synthetic-a' }] }, { value: false, sources: [{ sourceId: 'synthetic-b' }] }] } }
   const localData = { ...fixture, gameSetups: { ...fixture.gameSetups, [id]: source }, changes: [] }
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: '2026-01-01T00:00:00.000Z', payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
@@ -209,12 +212,13 @@ test('unrelated edits preserve unresolved knowledge and backup round trips', asy
   await expect(panel).not.toBeVisible()
   await page.goto('/#/settings/game-setup')
   await settings(page).getByRole('button', { name: 'Edit setup', exact: true }).first().click()
+  await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toHaveValue('')
   await panel.getByLabel('Game Setup label').fill('Synthetic renamed setup')
   await save(page).click()
   await expect(panel.getByText('Saved revision 2', { exact: true })).toBeVisible()
   const saved = await readData(page)
   const setup = Object.values(saved.gameSetups).find(value => !localData.gameSetups[value.id])!
-  for (const key of ['platform', 'gameVersion', 'mode', 'ppLimit', 'ppCostsNonNegative', 'mods'] as const) expect(setup[key]).toEqual(source[key])
+  for (const key of ['platform', 'gameVersion', 'mode', 'difficulty', 'ppLimit', 'ppCostsNonNegative', 'mods'] as const) expect(setup[key]).toEqual(source[key])
   expect(saved.gameSetups[id]).toEqual(source)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')

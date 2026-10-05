@@ -35,6 +35,8 @@ async function addCharacter(page: Page, name: string) {
 test('build choices expose native facts, mod scope, and duplicate passive filtering', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/builds/library/new')
   await expect(page.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
+  await expect(page.getByLabel('Difficulty', { exact: true })).toHaveValue('0')
+  await expect(page.getByLabel('Difficulty', { exact: true }).locator('option:checked')).toHaveText('Normal')
   const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
   await classPicker.click()
   await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).toBeVisible()

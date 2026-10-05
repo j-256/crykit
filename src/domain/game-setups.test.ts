@@ -5,7 +5,7 @@ import { requirePlaythrough } from './core'
 import { createPlaythrough, selectPlaythrough, updateGameSetupRevision } from './local-data'
 
 describe('explicit tracking settings', () => {
-  it('starts a fresh playthrough with Standard mode, unknown game context, and empty records', () => {
+  it('starts a fresh playthrough with Standard mode, Normal difficulty, and empty records', () => {
     const original = createTestLocalData()
     const next = createPlaythroughWithSetup(original, { label: 'Fresh game', catalogLock: {}, now: TEST_NOW, expectedRevision: original.revision })
     const playthrough = requirePlaythrough(next)
@@ -14,6 +14,7 @@ describe('explicit tracking settings', () => {
     expect(setup.id).not.toBe(original.planningGameSetupRevisionId)
     expect(next.planningGameSetupRevisionId).toBe(setup.id)
     expect(setup.mode).toEqual({ state: 'known', value: 'Standard' })
+    expect(setup.difficulty).toEqual({ version: 1, selection: { state: 'known', value: 0 } })
     for (const field of ['platform', 'gameVersion', 'mods'] as const) expect(setup[field]).toEqual({ state: 'unknown' })
     for (const field of ['characters', 'inventory', 'inventoryEvents', 'progress', 'scenarios', 'goals'] as const) expect(playthrough[field]).toEqual({})
     expect(next.playthroughs[original.selectedPlaythroughId!]).toEqual(requirePlaythrough(original))

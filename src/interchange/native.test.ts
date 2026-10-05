@@ -83,6 +83,18 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
+  it.each([undefined, { version: 1, selection: { state: 'unknown', reason: 'Synthetic missing difficulty' } }])('preserves unrecorded difficulty when importing a legacy backup: %j', async difficulty => {
+    const preview = await previewNativeBackup(nativeFixture({ mutateLocalData: data => {
+      data.schemaVersion = '2.0.0'
+      delete data.teams
+      for (const setup of Object.values(data.gameSetups as Record<string, Record<string, unknown>>)) {
+        if (difficulty === undefined) delete setup.difficulty
+        else setup.difficulty = difficulty
+      }
+    } }), 'synthetic-legacy-difficulty.zip')
+    for (const setup of Object.values(preview.proposed.localData.gameSetups)) expect(setup.difficulty).toEqual(difficulty)
+  })
+
   it('normalizes old Build labels without changing party-plan contexts or checkpoint pins', () => {
     const initial = addTestScenario(addTestBuild(createTestLocalData(), 'build', '', {}), {})
     const data = updateScenario(initial, { scenarioId: requirePlaythrough(initial).scenarios.scenario!.id, kind: 'hypothetical', now: TEST_NOW })

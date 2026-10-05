@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type React
 import { createPortal } from 'react-dom'
 import { sameValue } from '../domain/definition-values'
 import { definitionLineageRootRef } from '../domain/definitions'
-import { DEFAULT_GAME_MODE, DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } from '../domain/local-data'
+import { DEFAULT_GAME_DIFFICULTY, DEFAULT_GAME_MODE, DEFAULT_GAME_VERSION, DEFAULT_PP_COSTS_NONNEGATIVE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { PC_GAME_RULES, resolveGameRules } from '../domain/game-rules'
 import { useDefinitionLibrary } from './definitions'
@@ -49,7 +49,7 @@ function initialDraft(current?: GameSetupRevision): GameSetupDraft {
     platform: current?.platform ?? { state: 'unknown' },
     gameVersion: current?.gameVersion ?? { state: 'unknown' },
     mode: current?.mode ?? { state: 'known', value: DEFAULT_GAME_MODE },
-    difficulty: current?.difficulty,
+    difficulty: current ? current.difficulty : DEFAULT_GAME_DIFFICULTY,
     mods: current?.mods ?? { state: 'unknown' },
     disabledMods: current?.disabledMods,
     customMods: current?.customMods,
