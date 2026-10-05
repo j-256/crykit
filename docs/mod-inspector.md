@@ -26,7 +26,7 @@ Choose **Find relationships** for a selected field or record. Incoming links cov
 
 ## Editor format and navigation metadata
 
-`EditorVersion` is a format and migration marker, separate from the mod's `Version` and the game's release version. The pinned Crystal Edit writes format `34`; the pinned Windows game flags higher markers as incompatible and applies version-dependent conversions to older data. A missing marker defaults to `0` in those readers. Matching the lookup format does not establish that every field or mod combination is compatible.
+`EditorVersion` is a format and migration marker, separate from the mod's `Version` and the game's release version. The pinned Crystal Edit writes format `34`; the pinned 1.6.9.0 game flags higher markers as incompatible and applies version-dependent conversions to older data. A missing marker defaults to `0` in those readers. Matching the lookup format does not establish that every field or mod combination is compatible.
 
 CryKit preserves the imported marker and does not run Crystal Edit's conversions. Changing the integer alone does not upgrade or downgrade the data and can skip conversions the loader expects. The **Editor format** disclosure identifies matching, older, newer, missing, and invalid markers. Export review calls out marker edits, including edits made through a containing JSON object. Preserve the marker unless the document's data has been deliberately converted for the target format.
 

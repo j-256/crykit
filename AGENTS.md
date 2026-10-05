@@ -2,6 +2,8 @@
 
 Build a local-first planner with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
 
+For native gameplay data and calculation claims covered by the [verified Windows/macOS 1.6.9.0 comparison](docs/platform-coverage.md), cite Crystal Project 1.6.9.0 or PC 1.6.9.0 without a redundant Windows qualifier. Retain platform labels for executable fingerprints, extraction provenance, and platform-specific runtime behavior. Preserve immutable source metadata and existing applicability checks; do not extend this equivalence to Switch, Linux, other versions, randomizers, or mod configurations without separate evidence.
+
 Preserve backward compatibility for persisted user data across application versions so upgrades do not lose or silently reinterpret it. Version persisted formats explicitly, migrate older data transactionally, preserve unknown values and provenance, and verify rollback on failure. Internal APIs and synthetic fixtures may change without compatibility shims when they do not affect persisted user data.
 
 Do not commit personal imports, source workbooks, playthrough trackers, backups, screenshots with personal records, local paths, or credentials. Use synthetic fixtures. Fresh browser environments start with labeled synthetic sample records; explicitly created Playthroughs start blank. The application makes no runtime requests for game data.
