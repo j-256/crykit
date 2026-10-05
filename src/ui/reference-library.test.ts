@@ -1,5 +1,6 @@
+import { modSearchCatalog } from '../domain/mod-search'
 import { expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
 import { updateGameSetupRevision } from '../domain/local-data'
 import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
 import { MOD_CATALOG_SCHEMA } from '../domain/mod-layers'
@@ -9,6 +10,33 @@ import { buildDefinitionOptions } from './definitions'
 import { standingReferenceOptions } from './reference-library'
 import { buildModLibraryCards } from './mod-library-data'
 import { setModInReference } from '../domain/reference-library'
+
+it('shows only the pinned original base revision while keeping both immutable catalogs available', () => {
+  const catalogs = [DEFAULT_CATALOG, CURRENT_CATALOG]
+  const original = createTestLocalData()
+  const options = buildDefinitionOptions(original, catalogs)
+  for (const catalog of catalogs) {
+    const data = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [catalog.id]: catalog.revisionId } })
+    const selected = standingReferenceOptions(options, catalogs, data)
+    const warrior = selected.filter(option => option.name === 'Warrior')
+    expect(warrior).toHaveLength(1)
+    expect(warrior[0]!.ref).toMatchObject({ catalogRevisionId: catalog.revisionId })
+    expect(selected.filter(option => option.name === 'Doge Shield')).toHaveLength(1)
+    expect(data.gameSetups[TEST_GAME_SETUP_REVISION_ID]).toBe(original.gameSetups[TEST_GAME_SETUP_REVISION_ID])
+  }
+})
+
+it('uses the original baseline in Reference when planning pins an effective composition', () => {
+  const effective = { ...CURRENT_CATALOG, revisionId: 'synthetic-effective' as typeof CURRENT_CATALOG.revisionId, schemaVersion: MOD_CATALOG_SCHEMA }
+  const catalogs = [DEFAULT_CATALOG, CURRENT_CATALOG, effective]
+  const original = createTestLocalData()
+  const data = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [effective.id]: effective.revisionId }, modComposition: { baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [], links: [] } })
+  const selected = standingReferenceOptions(buildDefinitionOptions(data, catalogs), catalogs, data)
+  const warrior = selected.filter(option => option.name === 'Warrior')
+  expect(warrior).toHaveLength(1)
+  expect(warrior[0]!.ref).toMatchObject({ catalogRevisionId: CURRENT_CATALOG.revisionId })
+  expect(selected.some(option => option.ref.kind === 'catalog' && option.ref.catalogRevisionId === effective.revisionId)).toBe(false)
+})
 
 it('keeps vanilla and Switch pack records visible independently of planning mod choices', () => {
   const data = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, disabledMods: known(['Doge Shield', 'Equipment Expansion']), catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } })
@@ -44,4 +72,14 @@ it('uses explicitly saved latest mod catalogs without mixing planning compositio
   const options = buildDefinitionOptions(createTestLocalData(), catalogs)
   const selected = standingReferenceOptions(options, catalogs, createTestLocalData())
   expect(selected.map(option => option.ref)).toEqual([{ kind: 'catalog', catalogId: latest.id, catalogRevisionId: latest.revisionId, entityId: Object.values(latest.entities)[0]!.id }])
+})
+
+it('keeps unloaded preview records out of Reference even when search options include them', async () => {
+  const catalog = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-unloaded-reference', Title: 'Synthetic unloaded mod', Items: [{ ID: 9000, Name: 'Synthetic unloaded item' }] })), 'synthetic.json')).proposed.catalogs[0]!
+  const preview = modSearchCatalog(catalog)
+  const data = createTestLocalData()
+  const options = buildDefinitionOptions(data, [CURRENT_CATALOG, preview])
+  expect(options.some(option => option.name === 'Synthetic unloaded item')).toBe(true)
+  expect(standingReferenceOptions(options, [CURRENT_CATALOG], data).some(option => option.name === 'Synthetic unloaded item')).toBe(false)
+  expect(standingReferenceOptions(options, [CURRENT_CATALOG, preview], data).some(option => option.name === 'Synthetic unloaded item')).toBe(false)
 })

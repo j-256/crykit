@@ -20,8 +20,10 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
   const card = useMemo(() => buildModLibraryCards(library.catalogs, library.options, props.localData).find(card => card.id === scopeId), [library.catalogs, library.options, props.localData, scopeId])
   const inReference = Boolean(card && modIsInReference(props.localData, card))
   const project = useMemo(() => completeModLibrary(library.catalogs, BUNDLED_MOD_LIBRARY).find(mod => mod.id === scopeId), [library.catalogs, scopeId])
-  const saved = project?.revisions[0]?.catalog
-  const bundled = project?.bundled[0]
+  const page = navigation.route.page
+  const requestedRef = page.page === 'reference' && page.view === 'detail' && page.ref.kind === 'catalog' && page.ref.catalogId === project?.id ? page.ref : undefined
+  const saved = requestedRef ? project?.revisions.find(revision => revision.catalogRevisionId === requestedRef.catalogRevisionId)?.catalog : project?.revisions[0]?.catalog
+  const bundled = requestedRef ? project?.bundled.find(source => requestedRef.catalogRevisionId.startsWith(`${source.sourceDigest}:`)) : project?.bundled[0]
   const [loaded, setLoaded] = useState<CatalogSnapshot>()
   const [error, setError] = useState<string>()
   const [attempt, setAttempt] = useState(0)
@@ -64,7 +66,7 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
   }
   const action = card ? <Button aria-pressed={inReference} disabled={adding || (!card.entryCount && (!bundled || !bundledModDefinitionCount(bundled)))} onClick={() => void toggleReference()} icon={inReference ? 'close' : 'plus'}>{adding ? 'Updating Reference...' : inReference ? 'Remove from Reference' : 'Add to Reference'}</Button> : undefined
   const failure = error && <InlineNotice title="Reference not changed" tone="danger">{error}</InlineNotice>
-  if (!project) return <>{failure}<ReferenceView {...props} temporary temporaryAction={action}/></>
+  if (!project || requestedRef && !saved && !bundled) return <>{failure}<ReferenceView {...props} temporary temporaryAction={action}/></>
   if (!catalog) return <div className="stack"><h1>{project.title}</h1>{error ? <InlineNotice title="Mod catalog unavailable" tone="danger"><p>{error}</p><Button onClick={() => { setError(undefined); setAttempt(value => value + 1) }}>Retry</Button></InlineNotice> : <p role="status">Loading this mod's catalog...</p>}<Button onClick={returnToReference} tone="secondary">Return to Reference</Button></div>
   return <DefinitionProvider catalogs={catalogs} localData={props.localData} onSaveDefinition={async () => { throw new Error('Definitions cannot be edited in a mod preview.') }}>
     {failure}

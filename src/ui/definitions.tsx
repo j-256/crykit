@@ -24,7 +24,10 @@ import { definitionDraftFields, draftFieldValue, fieldDraft, type DefinitionFiel
 import { DefinitionDraftNotice, useDefinitionDraft } from './definition-draft'
 import { DefinitionArtwork } from './GameIcon'
 import { ModBadge } from './DefinitionModLabel'
-import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
+import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA, modCatalogTitle } from '../domain/mod-layers'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import { BUNDLED_MOD_SEARCH_CATALOGS } from '../catalog/mod-search'
+import { isModSearchPreview, mergeModSearchCatalogs } from '../domain/mod-search'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const defaultOptionLabel = (option: DefinitionOption) => option.name
@@ -119,7 +122,7 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
   })
   const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
     const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
-    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? starterEntitySourceLabel(entity)
+    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? (snapshot.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? modCatalogTitle(snapshot) : starterEntitySourceLabel(entity))
     const effectiveLayer = entity.fields['Effective mod layer']
     const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
     return {
@@ -161,18 +164,19 @@ export function definitionOptionsForSetup(options: readonly DefinitionOption[], 
 }
 
 export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot> }>) {
-  const options = useMemo(() => buildDefinitionOptions(localData, catalogs), [catalogs, localData])
+  const searchable = useMemo(() => onLoadBundledMod ? mergeModSearchCatalogs(catalogs, BUNDLED_MOD_SEARCH_CATALOGS) : catalogs, [catalogs, onLoadBundledMod])
+  const options = useMemo(() => buildDefinitionOptions(localData, searchable), [searchable, localData])
   const availableOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
-    return definitionOptionsForSetup(options, catalogs, gameSetup)
-  }, [catalogs, options, localData])
-  const baseline = planningCatalogs ?? catalogs
-  const planningOptions = useMemo(() => buildDefinitionOptions(localData, baseline), [baseline, localData])
+    return definitionOptionsForSetup(options, searchable, gameSetup)
+  }, [searchable, options, localData])
+  const baseline = planningCatalogs ?? searchable
+  const planningOptions = useMemo(() => baseline === searchable ? options : buildDefinitionOptions(localData, baseline), [baseline, searchable, options, localData])
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
   }, [baseline, planningOptions, localData])
-  const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, onLoadBundledMod, options, planningOptions, localData])
+  const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 
@@ -285,8 +289,13 @@ export interface DefinitionDropdownProps {
 
 export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Empty', emptyDescription = 'Nothing is equipped in this slot', createLabel = 'Create personal definition', compact = false, filterOption, optionLabel = defaultOptionLabel, onInspect, query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
-  const { localData, catalogs, options, availableOptions } = useDefinitionLibrary()
+  const { localData, catalogs, options, availableOptions, onLoadBundledMod } = useDefinitionLibrary()
   const [includeAlternatives, setIncludeAlternatives] = useState(false)
+  const [loadError, setLoadError] = useState<string>()
+  const [loadingSource, setLoadingSource] = useState(false)
+  const sourcePending = useRef(false)
+  const live = useRef(open)
+  useEffect(() => { live.current = open; return () => { live.current = false } }, [open])
   const [internalQuery, setInternalQuery] = useState('')
   const [internalLimit, setInternalLimit] = useState(DEFINITION_RESULT_PAGE_SIZE)
   const [pendingSavedRef, setPendingSavedRef] = useState<EntityRef>()
@@ -334,7 +343,23 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
     buttons[next]?.focus({ preventScroll: true })
     buttons[next]?.scrollIntoView({ block: 'nearest' })
   }
-  const choose = (ref: EntityRef | null | undefined) => { onSelect(ref); onClose() }
+  const choose = async (ref: EntityRef | null | undefined) => {
+    if (sourcePending.current) return
+    sourcePending.current = true
+    setLoadError(undefined)
+    try {
+      const preview = ref?.kind === 'catalog' && catalogs.find(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId && isModSearchPreview(catalog))
+      if (preview) {
+        const source = BUNDLED_MOD_LIBRARY.find(mod => mod.id === preview.id && preview.revisionId.startsWith(`${mod.sourceDigest}:`))
+        if (!source || !onLoadBundledMod) throw new Error('The full source for this mod cannot be loaded.')
+        setLoadingSource(true)
+        const loaded = await onLoadBundledMod(source)
+        if (ref?.kind !== 'catalog' || loaded.revisionId !== ref.catalogRevisionId || !loaded.entities[ref.entityId]) throw new Error('The selected definition differs from its bundled search record.')
+      }
+      if (live.current) { onSelect(ref); onClose() }
+    } catch (reason) { if (live.current) setLoadError(formatAppError(reason, 'The mod source could not be saved.')) }
+    finally { sourcePending.current = false; setLoadingSource(false) }
+  }
   const editorSaved = (ref: EntityRef) => { setPendingSavedRef(ref) }
   useEffect(() => {
     if (!open || !pendingSavedRef || !findDefinitionOption(options, pendingSavedRef)) return
@@ -348,12 +373,14 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
   return <>
     <Dropdown anchorRef={anchorRef} id={id} initialFocusRef={searchRef} onClose={onClose} onDismiss={() => { const parent = parentRoute(navigation.route); if (parent) navigation.navigate(parent, { replace: true }) }} open={open && !editorOverlay} title={title}>
       <div className="definition-dropdown__search search-field"><Icon name="search"/><input aria-label="Search available definitions" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Enter') event.preventDefault() }} placeholder="Search name, description, or source" ref={searchRef} type="search" value={query}/></div>
+      {loadingSource && <p role="status">Loading the full mod source...</p>}
+      {loadError && <InlineNotice title="Mod source not loaded" tone="danger">{loadError} Your selection is unchanged. Try again or choose another definition.</InlineNotice>}
       <label className="check-row"><input checked={includeAlternatives} onChange={event => setIncludeAlternatives(event.target.checked)} type="checkbox"/>Include other sources and mode variants</label>
       <div aria-label="Available definitions" className="picker-results" role="group" tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event); if (event.key === 'Home') focusResult('first', event); if (event.key === 'End') focusResult('last', event) }} ref={resultsRef}>
-        {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(undefined)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>Unknown</strong><small>No selection has been recorded</small></span></button>}
-        {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" onClick={() => choose(null)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
-        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" onClick={() => choose(selectedOption.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{nativeDisplayName(selectedOption.record)}</strong>{selectedOption.modAvailability?.requiredMod && <ModBadge name={selectedOption.modAvailability.requiredMod} state={selectedOption.modAvailability.state}/>}</span><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
-        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} key={option.key} onClick={() => choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{displayOptionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
+        {allowUnknown && <button aria-pressed={selected === undefined} className="picker-result picker-result--empty" data-definition-result="true" disabled={loadingSource} onClick={() => void choose(undefined)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>Unknown</strong><small>No selection has been recorded</small></span></button>}
+        {allowEmpty && <button aria-pressed={selected === null} className="picker-result picker-result--empty" data-definition-result="true" disabled={loadingSource} onClick={() => void choose(null)} tabIndex={-1} type="button"><span className="picker-result__content"><strong>{emptyLabel}</strong><small>{emptyDescription}</small></span></button>}
+        {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" disabled={loadingSource} onClick={() => void choose(selectedOption.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{nativeDisplayName(selectedOption.record)}</strong>{selectedOption.modAvailability?.requiredMod && <ModBadge name={selectedOption.modAvailability.requiredMod} state={selectedOption.modAvailability.state}/>}</span><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
+        {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} key={option.key} disabled={loadingSource} onClick={() => void choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{displayOptionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
         {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>

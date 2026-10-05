@@ -49,7 +49,7 @@ export function BuildModsEditor({ content, value, onChange, onBusyChange }: { re
     {error && <InlineNotice title="Mod not enabled" tone="danger">{error} Your build selections remain in this editor.</InlineNotice>}
     <details className="build-mods__other" onToggle={event => setShowOther(event.currentTarget.open)}><summary>Add another mod</summary>{showOther && <div className="stack"><Field label="Search available mods"><input aria-label="Search available mods" onChange={event => setQuery(event.target.value)} type="search" value={query}/></Field>{other.map(project => card(project))}</div>}</details>
     <details className="game-setup-named-mods"><summary>Mods without imported files</summary><div className="stack"><p className="field__hint">Named settings can be recorded without a source file. An enabled name needs an exact source version before its effects can be calculated.</p><ModSelections sourceNames={value.modComposition?.layers.flatMap(layer => BUNDLED_MOD_LIBRARY.find(source => source.id === layer.catalogId)?.catalogNames ?? [])} value={value} onChange={changes => onChange({ ...latest.current, ...changes })}/></div></details>
-    <details className="build-mods__advanced"><summary>Mod priority and replacement links</summary><ModLayersEditor composition={value.modComposition} onChange={modComposition => onChange({ ...latest.current, modComposition })}/></details>
+    <details className="build-mods__advanced"><summary>Mod priority and replacement links</summary><ModLayersEditor catalogLock={value.catalogLock} composition={value.modComposition} onChange={modComposition => onChange({ ...latest.current, modComposition })}/></details>
   </div>
 }
 

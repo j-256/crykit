@@ -15,6 +15,7 @@ import { DefinitionClaimsPanel, DefinitionFactsPanel, DefinitionPlanningPanel, D
 import { modState, modListPriority } from '../domain/mods'
 import { modCardIncludesEntry } from '../domain/mod-library'
 import { buildModLibraryCards, modCatalogEntry } from './mod-library-data'
+import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { standingReferenceOptions } from './reference-library'
 import { modCatalogTitle } from '../domain/mod-layers'
 import { normalizeWeaponType, skillWeaponLabel, skillWeaponRule, UNRESTRICTED_WEAPON_SKILLS_MOD, WEAPON_TYPES } from '../domain/skill-weapons'
@@ -185,6 +186,7 @@ export interface ReferenceViewProps {
 export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefinitions, temporary = false, temporaryAction, associationCatalogs = catalogs }: ReferenceViewProps & { readonly temporary?: boolean; readonly temporaryAction?: ReactNode; readonly associationCatalogs?: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
   const baseline = catalogs
+  const page = navigation.route.page.page === 'reference' ? navigation.route.page : { page: 'reference', view: 'list' } as const
   const { options } = useDefinitionLibrary()
   const route = readReferenceRouteState()
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -193,7 +195,9 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
   const [promotionLabel, setPromotionLabel] = useState('Reviewed personal definitions')
   const [promotionBusy, setPromotionBusy] = useState(false)
   const [promotionError, setPromotionError] = useState<string>()
-  const items = useMemo(() => buildReferenceSearchItems(catalogs), [catalogs])
+  const exactRef = page.view === 'detail' && page.ref.kind === 'catalog' ? page.ref : undefined
+  const detailCatalogs = useMemo(() => exactRef && !catalogs.some(catalog => catalog.id === exactRef.catalogId && catalog.revisionId === exactRef.catalogRevisionId) ? [...catalogs, ...BUNDLED_CATALOGS.filter(catalog => catalog.id === exactRef.catalogId && catalog.revisionId === exactRef.catalogRevisionId)] : catalogs, [catalogs, exactRef])
+  const items = useMemo(() => buildReferenceSearchItems(detailCatalogs), [detailCatalogs])
   const optionsByKey = useMemo(() => new Map(options.map(option => [option.key, option])), [options])
   const modCards = useMemo(() => buildModLibraryCards(associationCatalogs, options, localData), [associationCatalogs, options, localData])
   const scopedMod = route.libraryMod ? modCards.find(card => card.id === route.libraryMod) : undefined
@@ -256,7 +260,6 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
     ...results.map(item => ({ kind: 'catalog' as const, item, availability: optionsByKey.get(referenceDefinitionKey(item))?.modAvailability })),
   ].sort((a, b) => modListPriority(a.availability) - modListPriority(b.availability)).slice(0, route.resultLimit), [personalResults, results, optionsByKey, route.resultLimit])
   const totalResults = personalResults.length + results.length
-  const page = navigation.route.page.page === 'reference' ? navigation.route.page : { page: 'reference', view: 'list' } as const
   const selectedRef = page.view === 'detail' ? page.ref : undefined
   const selectionInScope = !temporary || !selectedRef || scopedKeys.has(entityDefinitionKey(selectedRef))
   const selectedSource = selectionInScope && selectedRef?.kind === 'catalog' ? items.find((item) => item.catalog.id === selectedRef.catalogId && item.catalog.revisionId === selectedRef.catalogRevisionId && item.entity.id === selectedRef.entityId) : undefined
@@ -324,7 +327,7 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
   const collectionAction = temporary ? null : <Button disabled={!preferredPersonalOptions.length || !gameSetups.length} icon="layers" onClick={() => { setPromotionRefs(preferredPersonalOptions.map(option => option.ref)); navigate({ page: 'reference', view: 'promote' }) }} tone="secondary">Collect into Game Setup revision</Button>
 
   return <>
-    <ScreenHeader breadcrumb={selectedRef ? <Button icon="arrow-left" onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">All Reference</Button> : undefined} actions={selectedRef || temporary ? undefined : <><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button><WorkspaceMoreActions title="Reference actions">{collectionAction}</WorkspaceMoreActions></>} description={temporary ? `Search only ${scopedMod?.title ?? 'this mod'}'s catalog.` : 'Browse vanilla and Switch mod pack contents, plus mods you add to Reference.'} eyebrow="Game reference" title="Reference"/>
+    <ScreenHeader breadcrumb={selectedRef ? <Button icon="arrow-left" onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">All Reference</Button> : undefined} actions={selectedRef || temporary ? undefined : <><Button icon="upload" onClick={onOpenData} tone="secondary">Import reference</Button><WorkspaceMoreActions title="Reference actions">{collectionAction}</WorkspaceMoreActions></>} description={temporary ? `Search only ${scopedMod?.title ?? 'this mod'}'s catalog.` : 'Browse native definitions and the mods you add to Reference.'} eyebrow="Game reference" title="Reference"/>
     {temporary && <InlineNotice title="Temporary mod catalog"><p>Browsing this catalog does not add it to Reference or change any Game Setup.</p><div className="cluster">{temporaryAction}<Button onClick={() => navigation.navigate({ page: { page: 'reference', view: 'list' }, overlays: [], query: {} })} tone="secondary">Return to Reference</Button></div></InlineNotice>}
     {!selectedRef && activeFilters.length > 0 && <div aria-label="Active reference filters" className="reference-active-filters" role="group">{activeFilters.map(filter => <button aria-label={`Remove ${filter.label} filter`} className="filter-chip" key={filter.key} onClick={() => updateFilter(filter.clear, 'push')} title={filter.label} type="button"><span>{filter.label}</span><Icon name="close"/></button>)}<Button onClick={clearFilters} tone="quiet">Clear all filters</Button></div>}
     {missingDetail && <InlineNotice title="Reference definition unavailable" tone="warning">The requested exact definition is not available in this planner. It may belong to another catalog revision, an older backup, or another playthrough. <Button onClick={() => navigate({ page: 'reference', view: 'list' })} tone="quiet">Return to reference</Button></InlineNotice>}

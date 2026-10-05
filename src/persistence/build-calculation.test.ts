@@ -1,7 +1,7 @@
 import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { captureCharacter, cloneBuild, compareBuildRevisions, createId, requirePlaythrough, saveBuildRevision } from '../domain'
 import { defaultCalculation } from '../domain/calculation-plan'
 import { createBuildPlan } from '../domain/build-planning'
@@ -14,13 +14,13 @@ const MIXED_CATALOG_BACKUP_TIMEOUT_MS = 60_000
 let database: CryKitDatabase
 beforeEach(() => { database = new CryKitDatabase(`build-calculation-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
-const ref = (name: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === name)!.id as EntityId })
+const ref = (name: string): CatalogRef => ({ kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: Object.values(CURRENT_CATALOG.entities).find(entity => entity.name === name)!.id as EntityId })
 
 it('pins calculation inputs through saving, cloning, immutable comparison, and backup restore', async () => {
   const before = await loadLocalData()
   const id = createId<BuildId>('build')
   const revisionId = createId<BuildRevisionId>('buildRevision')
-  const planned = createBuildPlan(before.localData, { id, revisionId, title: 'Synthetic planned caster', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: {
+  const planned = createBuildPlan(before.localData, { id, revisionId, title: 'Synthetic planned caster', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, content: {
     primaryClass: ref('Cleric'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: 20, gender: 'female', growth: [{ classRef: ref('Cleric'), levels: 20 }], bonuses: ['SPI'], statuses: [ref('Power Up')], ability: ref('Cure'), targetEvasion: 50 },
   } })
   const saved = await saveLocalData(planned, before.revision)
@@ -45,7 +45,7 @@ it('pins calculation inputs through saving, cloning, immutable comparison, and b
 it('rejects unpinned growth references and rolls a failed calculation save back atomically', async () => {
   const before = await loadLocalData()
   const id = createId<BuildId>('build')
-  const planned = createBuildPlan(before.localData, { id, title: 'Synthetic rollback', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: null, growth: [], bonuses: [], statuses: [] } } })
+  const planned = createBuildPlan(before.localData, { id, title: 'Synthetic rollback', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, content: { primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { level: null, growth: [], bonuses: [], statuses: [] } } })
   const original = planned.buildRevisions[planned.builds[id]!.latestRevisionId!]!
   expect(() => saveBuildRevision(planned, { buildId: id, gameSetupRevisionId: original.gameSetupRevisionId, content: { ...original.content, calculation: { ...original.content.calculation!, growth: [{ classRef: { ...ref('Cleric'), catalogRevisionId: 'unlocked-revision' as CatalogRef['catalogRevisionId'] }, levels: 20 }] } } })).toThrow('catalog lock')
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))

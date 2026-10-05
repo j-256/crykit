@@ -34,7 +34,7 @@ import { ShareButton } from './ShareButton'
 import { BuildBehaviorEditor } from './BuildBehaviorEditor'
 import { BuildModSelectionGate } from './BuildModSelectionGate'
 import type { BuildBehavior } from '../domain/build-behavior'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
@@ -144,7 +144,7 @@ function RevisionEditor(props: RevisionEditorProps) {
     const revision = props.sourceRevision ?? (props.build?.latestRevisionId ? props.localData.buildRevisions[props.build.latestRevisionId] : undefined)
     const setup = revision ? props.localData.gameSetups[revision.gameSetupRevisionId] : requestedSetup
     if (setup) return { ...buildBehavior(setup), slots: setup.slots.length ? setup.slots : SUGGESTED_BUILD_SLOTS }
-    return { label: 'Custom Game Setup', platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, mods: { state: 'unknown' }, ppLimit: { state: 'known', value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } satisfies BuildBehavior
+    return { label: 'Custom Game Setup', platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, mods: { state: 'unknown' }, ppLimit: { state: 'known', value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId } } satisfies BuildBehavior
   }
   const [behavior, setBehavior] = useState<BuildBehavior>(initialBehavior)
   const [draftIdentity] = useState(() => ({ id: createId<GameSetupRevisionId>('draftBehavior'), gameSetupId: createId<GameSetupId>('draftPreset') }))
@@ -346,7 +346,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith} showClassPermissions={inspectClassPermissions}
       classFields={<>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</>}
       equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" data-field-key={`slot:${id}`} key={id} tabIndex={-1}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
-      passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><details className="build-passive-options" open={passiveOptionsOpen} onToggle={event => setPassiveOptionsOpen(event.currentTarget.open)}><summary>Mod passive options</summary><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include innates from the Learnable Innate Skill mod</strong><small>{innateToggleHint}</small></span></label></details></>}
+      passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><details className="build-passive-options" open={passiveOptionsOpen} onToggle={event => setPassiveOptionsOpen(event.currentTarget.open)}><summary>Mod passive options</summary><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include learnable innates</strong><small>{innateToggleHint}</small></span></label></details></>}
       passiveFields={[...draft.passives, undefined].map(passiveField)}
       context={<p className="build-sheet__planning-note"><Icon name="info"/>Plan freely. Saving does not change your inventory or recorded character.</p>}
       onCalculationChange={calculation => { setDraft(current => ({ ...current, calculation })); updateDirty(true) }}

@@ -1,7 +1,12 @@
+import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { referenceLibraryWithMod } from '../domain/reference-library'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
 import { createSampleLocalData } from '../domain/sample-data'
+import { SWITCH_MOD_PACKS } from '../catalog/mods'
+import { normalizeModName } from '../domain/mods'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import { configureModSetup } from '../domain/mod-setup'
 import { zipSync, type Zippable } from 'fflate'
 import type {
   CatalogSnapshot,
@@ -158,7 +163,7 @@ async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalD
     if (active) return active
     const existing = await database.localDatas.orderBy('updatedAt').last()
     if (existing) return existing
-    const localData = createSampleLocalData(DEFAULT_CATALOG)
+    const localData: LocalData = { ...createSampleLocalData(CURRENT_CATALOG), modSetup: { version: 1, state: 'pending' }, referenceLibrary: { version: 1, excludedMods: [...new Set([...BUNDLED_MOD_LIBRARY.map(mod => mod.id), ...SWITCH_MOD_PACKS.flatMap(pack => pack.mods).map(name => `name:${normalizeModName(name)}`)])] } }
     validateLocalDataForStorage(localData, BUNDLED_CATALOGS)
     const record: LocalDataRecord = {
       id: LOCAL_DATA_RECORD_KEY,
@@ -237,7 +242,7 @@ async function loadedDataForRecord(database: CryKitDatabase, record: LocalDataRe
   return {
     localData: cloneJson(record.localData),
     lineage: cloneJson(record.lineage),
-    catalogs: expandModCatalogs([...BUNDLED_CATALOGS, ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))]),
+    catalogs: expandModCatalogs([...BUNDLED_CATALOGS.filter(catalog => catalog === CURRENT_CATALOG || keys.has(catalogKey(catalog))), ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))]),
     evidence: evidence.map(cloneJson),
     revision: record.revision,
     canUndo,
@@ -409,6 +414,55 @@ export async function saveLocalData(localData: LocalData, expectedRevision: numb
   return (await saveLocalDataWithStatus(localData, expectedRevision)).localData
 }
 
+export async function commitModSetup(previews: readonly ImportPreview[], expectedRevision: number, skip = false): Promise<LoadedLocalData> {
+  if (skip && previews.length) throw new AppDataError('schema-mismatch', 'Skipping mod selection cannot import sources', { recoverable: true })
+  const database = getDatabase()
+  try {
+    const before = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
+    if (!before || before.revision !== expectedRevision) throw new AppDataError('revision-conflict', 'The planner changed in another tab. Reopen mod selection and try again', { recoverable: true })
+    const stored = (await database.catalogs.toArray()).map(record => record.snapshot)
+    const candidates = previews.map(preview => {
+      if (preview.detectedFormat !== CRYSTAL_EDIT_CATALOG_SCHEMA || preview.errors.length || preview.proposed.catalogs.length !== 1) throw new AppDataError('schema-mismatch', 'Mod selection requires a verified Crystal Edit source', { recoverable: true })
+      const incoming = preview.proposed.catalogs[0]!
+      const existing = stored.find(catalog => catalogKey(catalog) === catalogKey(incoming))
+      return { ...incoming, ...(existing ? { importedAt: existing.importedAt } : {}) }
+    })
+    const available = [...BUNDLED_CATALOGS, ...stored, ...candidates.filter(candidate => !stored.some(catalog => catalogKey(catalog) === catalogKey(candidate)))]
+    const configured = configureModSetup(before.localData, candidates, available, expectedRevision, skip)
+    const prepared = await prepareModCatalogs(configured, available)
+    await database.transaction('rw', [database.localDatas, database.catalogs, database.sources, database.evidence, database.imports, database.history], async () => {
+      const target = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
+      if (!target || target.revision !== expectedRevision) throw new AppDataError('revision-conflict', 'The planner changed in another tab. Reopen mod selection and try again', { recoverable: true })
+      for (const [index, preview] of previews.entries()) {
+        const sources = await Promise.all(preview.proposed.sources.map(async source => {
+          const existing = await database.sources.get(source.id)
+          return existing ? { ...source, importedAt: existing.importedAt, filename: existing.filename } : source
+        }))
+        await putCandidateData(database, { ...preview.proposed, catalogs: [candidates[index]!], sources })
+      }
+      const existingKeys = new Set(available.map(catalogKey))
+      const composed = prepared.filter(catalog => !existingKeys.has(catalogKey(catalog))).map(compactModCatalog)
+      await assertCatalogsImmutable(database, composed)
+      if (composed.length) await database.catalogs.bulkPut(composed.map(toCatalogRecord))
+      const timestamp = nowTimestamp()
+      const receipts = Object.fromEntries(previews.flatMap(preview => Object.entries(preview.proposed.localData.importReceipts)).map(([id, receipt]) => [id, target.localData.importReceipts[id] ?? { ...receipt, importedAt: timestamp, localDataRevision: configured.revision }]))
+      const updated = { ...configured, importReceipts: { ...configured.importReceipts, ...receipts } }
+      validateLocalDataForStorage(updated, prepared)
+      await database.localDatas.put({ ...target, revision: updated.revision, updatedAt: updated.updatedAt, localData: updated })
+      for (const preview of previews) {
+        if (!await database.imports.get(preview.id)) await database.imports.put({ id: preview.id, sourceDigest: preview.sourceDigest, localDataId: target.localData.id, importedAt: timestamp })
+      }
+      await database.history.add(historyEntry(target.localData, updated, skip ? 'mods.setup-skip' : 'mods.setup-configure', timestamp))
+      await trimHistory(database, updated.id)
+    })
+    const loaded = await loadLocalData()
+    notify({ localDataId: loaded.localData.id, revision: loaded.revision, reason: 'save' })
+    return loaded
+  } catch (error) {
+    throw asAppDataError(error, { code: 'storage-failure', userMessage: 'Mod selection could not be saved. Your previous configuration is unchanged', recoverable: true })
+  }
+}
+
 async function putCandidateData(database: CryKitDatabase, candidate: ImportCandidate): Promise<void> {
   assertStarterCatalogIdentity(candidate.catalogs)
   const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog)).map(compactModCatalog)
@@ -475,7 +529,7 @@ export async function commitImport(
           throw new AppDataError('revision-conflict', 'The local planner data changed. Reload before importing', { recoverable: true })
         }
         if (mode === 'add-reference') {
-          if (preview.detectedFormat !== 'crystal-edit-json-1' || preview.counts.personal || preview.counts.mixed) {
+          if (preview.detectedFormat !== CRYSTAL_EDIT_CATALOG_SCHEMA || preview.counts.personal || preview.counts.mixed) {
             throw new AppDataError('import-conflict', 'Only a reference-only Crystal Edit preview can be added to existing planner data', { recoverable: true })
           }
           if (options.includeModInReference && !preview.proposed.catalogs.some(catalog => catalog.id === options.includeModInReference)) throw new AppDataError('import-conflict', 'Reference membership must match the imported mod identity', { recoverable: true })

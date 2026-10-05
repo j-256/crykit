@@ -99,3 +99,11 @@ describe('confirmed Switch skill identities', () => {
     expect(Object.values(STARTER_CATALOG.entities).some(entity => entity.kind === 'class' && entity.name === 'Shapeshifter')).toBe(false)
   })
 })
+
+it('uses recorded native and mod learning flags while preserving unknown and historical observations', () => {
+  const entity = { kind: 'innate' as const, fields: { 'Crystal Edit source record': known({ IsLearnable: false }) } }
+  expect(isPotentiallyLearnableInnate(entity)).toBe(false)
+  expect(isPotentiallyLearnableInnate({ ...entity, fields: { 'Crystal Edit source record': known({ IsLearnable: true }) } })).toBe(true)
+  expect(isPotentiallyLearnableInnate({ ...entity, fields: {} })).toBe(true)
+  expect(isPotentiallyLearnableInnate({ ...entity, fields: { [LEARNABLE_INNATE_FIELD]: known(true), 'Native source record': known({ IsLearnable: false }) } })).toBe(true)
+})

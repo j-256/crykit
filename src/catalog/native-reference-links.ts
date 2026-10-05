@@ -1,5 +1,5 @@
 import manifestJson from './native-reference-links.json' with { type: 'json' }
-import { BUNDLED_CATALOG } from './bundled'
+import { BUNDLED_CATALOG, bundledCatalogForSnapshot } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeIdentity, nativeRecord, nativeSourceRecord, type NativeGameSnapshot } from '../domain/native-game'
 import { formatNativeTemplate } from '../domain/native-description'
@@ -51,7 +51,9 @@ function sameValue(left: unknown, right: unknown): boolean {
 }
 
 function matchesCatalog(catalog: CatalogSnapshot, manifest = NATIVE_REFERENCE_LINKS): boolean {
-  return catalog.id === manifest.catalog.id && catalog.revisionId === manifest.catalog.revisionId && catalog.checksum === manifest.catalog.checksum && nativeRecord(catalog.legacy) && catalog.legacy.sourceContentDigest === manifest.native.contentDigest
+  const exactPin = catalog.id === manifest.catalog.id && catalog.revisionId === manifest.catalog.revisionId && catalog.checksum === manifest.catalog.checksum
+  const compatiblePin = manifest === NATIVE_REFERENCE_LINKS && Boolean(bundledCatalogForSnapshot(catalog))
+  return (exactPin || compatiblePin) && nativeRecord(catalog.legacy) && catalog.legacy.sourceContentDigest === manifest.native.contentDigest
 }
 
 function matchesBaseline(catalog: CatalogSnapshot, entityId: string): boolean {

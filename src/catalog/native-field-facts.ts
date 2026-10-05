@@ -1,4 +1,4 @@
-import { DEFAULT_CATALOG } from './bundled'
+import { bundledCatalogForSnapshot } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeDescription, nativeDescriptionSourceMatches } from './native-description'
 import { projectSourceSemantics } from './source-semantics'
@@ -22,10 +22,11 @@ export interface NativeFieldFact {
 }
 
 export function nativeFieldFacts(catalog: CatalogSnapshot, entity: CatalogEntity): readonly NativeFieldFact[] {
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
+  const snapshot = bundledCatalogForSnapshot(catalog)
+  const baseline = snapshot?.entities[entity.id]
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
-  if (catalog.id !== DEFAULT_CATALOG.id || catalog.revisionId !== DEFAULT_CATALOG.revisionId || catalog.checksum !== DEFAULT_CATALOG.checksum || catalog.legacy !== DEFAULT_CATALOG.legacy && !sameValue(catalog.legacy, DEFAULT_CATALOG.legacy) || !nativeRecord(catalog.legacy) || catalog.legacy.sourceContentDigest !== NATIVE_GAME_DATA.contentDigest || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || !identity || !record || entity !== baseline && !sameValue(baseline, entity) && !sameValue(projectSourceSemantics(baseline), entity)) return []
+  if (!snapshot || catalog.legacy !== snapshot?.legacy && !sameValue(catalog.legacy, snapshot?.legacy) || !nativeRecord(catalog.legacy) || catalog.legacy.sourceContentDigest !== NATIVE_GAME_DATA.contentDigest || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || !identity || !record || entity !== baseline && !sameValue(baseline, entity) && !sameValue(projectSourceSemantics(baseline), entity)) return []
   const sources = entity.sources.filter(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))
   const result: NativeFieldFact[] = []
   if (identity.database === 'equipment' && typeof record.EquipmentType === 'number' && Number.isSafeInteger(record.EquipmentType)) {

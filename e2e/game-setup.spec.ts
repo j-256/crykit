@@ -5,7 +5,7 @@ import { zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { LocalData } from '../src/domain/types'
-import { createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 
 const settings = (page: Page) => page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -84,6 +84,7 @@ test('context is visible, unchanged drafts do not save, and discard protects nav
 
 test('exact versions and difficulty preserve other Playthroughs and historical pins', async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   const original = await readData(page)
   const source = original.gameSetups[original.planningGameSetupRevisionId!]!
@@ -166,6 +167,7 @@ test('saving a setup is independent and applying it to a playthrough is explicit
 
 test('applying a saved setup recovers a failed save without changing historical pins', async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   const original = await readData(page)
   const targetId = Object.values(original.gameSetups).find(setup => setup.id !== selectedPlaythrough(original).currentGameSetupRevisionId)!.id

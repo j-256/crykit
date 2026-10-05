@@ -1,14 +1,13 @@
 import sources from './bundled-mod-sources.json' with { type: 'json' }
-import moonlight from './moonlight-project-v2.2.json' with { type: 'json' }
-import equipment from './equipment-expansion.json' with { type: 'json' }
-import innates from './learnable-innates.json' with { type: 'json' }
+import defaults from './mod-defaults.json' with { type: 'json' }
 import type { BundledLibraryMod } from '../domain/mod-library'
 import type { CatalogId } from '../domain/types'
 
-const DEFINITION_KEYS: Readonly<Record<string, string>> = { [moonlight.source.projectId]: 'moonlight-project', [equipment.source.projectId]: 'equipment-expansion', [innates.source.projectId]: 'learnable-innates' }
-const CATALOG_NAMES: Readonly<Record<string, readonly string[]>> = { [moonlight.source.projectId]: [moonlight.requiredMod], [innates.source.projectId]: ['Learnable Innate Skill'] }
+const PROJECTS = new Map(defaults.projects.map(project => [project.projectId, project]))
+export const STARTER_MOD_PROJECT_IDS = defaults.projects.filter(project => project.starter).map(project => `crystal-edit:${project.projectId}` as CatalogId)
 
 export const BUNDLED_MOD_LIBRARY: readonly BundledLibraryMod[] = sources.mods.map(source => ({
-  id: `crystal-edit:${source.projectId}` as CatalogId, key: DEFINITION_KEYS[source.projectId] ?? source.projectId, title: source.title, declaredVersion: source.version, editorVersion: source.editorVersion, sourceDigest: `sha256:${source.sha256}`, steamWorkshopFileId: source.steamWorkshopFileId, models: source.models, catalogNames: [...CATALOG_NAMES[source.projectId] ?? [], source.title],
-  ...(source.projectId === innates.source.projectId ? { sourceRecordField: 'Learnable Innate Skill v1.0 source record', nativeBaseReplacements: true } : {}),
+  id: `crystal-edit:${source.projectId}` as CatalogId, key: PROJECTS.get(source.projectId)?.key ?? source.projectId, title: source.title, declaredVersion: source.version, editorVersion: source.editorVersion, sourceDigest: `sha256:${source.sha256}`, steamWorkshopFileId: source.steamWorkshopFileId, models: source.models, catalogNames: [...PROJECTS.get(source.projectId)?.names ?? [], source.title],
+  ...(PROJECTS.get(source.projectId)?.sourceRecordField ? { sourceRecordField: PROJECTS.get(source.projectId)!.sourceRecordField } : {}),
+  ...(PROJECTS.get(source.projectId)?.nativeBaseReplacements ? { nativeBaseReplacements: true } : {}),
 }))

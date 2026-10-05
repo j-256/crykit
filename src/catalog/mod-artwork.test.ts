@@ -6,6 +6,7 @@ import { previewImport } from '../interchange/import'
 import { composeModLayers } from '../domain/mod-layers'
 import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 import { GAME_RECORD_FIELD } from '../domain/game-record-facts'
+import { BUNDLED_MOD_SEARCH_CATALOGS } from './mod-search'
 import type { CatalogEntity, EntityId } from '../domain/types'
 
 const freelancer = DEFAULT_CATALOG.entities['mod:moonlight-project:class:26']!
@@ -16,6 +17,15 @@ async function importedMoonlight() {
 }
 
 describe('source-scoped mod artwork', () => {
+  it('preserves exact digest and texture bindings while a bundled source is only a search preview', async () => {
+    const preview = BUNDLED_MOD_SEARCH_CATALOGS.find(catalog => catalog.id === moonlight.id)!
+    const entity = Object.values(preview.entities).find(entity => entity.name === 'Freelancer')!
+    const incoming = await importedMoonlight()
+    const full = Object.values(incoming.entities).find(entity => entity.name === 'Freelancer')!
+    expect(catalogArtwork(preview.id, entity)).toEqual(catalogArtwork(incoming.id, full))
+    expect(catalogArtwork(preview.id, entity)?.source).toBe('mod')
+  })
+
   it('binds bundled classes to the declared custom actor sheets', () => {
     const art = catalogArtwork(DEFAULT_CATALOG.id, freelancer)
     expect(art?.source).toBe('mod')

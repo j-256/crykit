@@ -1,5 +1,5 @@
 import evidence from './native-description-evidence.json' with { type: 'json' }
-import { DEFAULT_CATALOG } from './bundled'
+import { BUNDLED_CATALOGS } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeMechanic } from './native-mechanics'
 import { projectSourceSemantics } from './source-semantics'
@@ -17,13 +17,15 @@ export function nativeDescriptionSourceMatches(snapshot: NativeGameSnapshot): bo
 }
 
 export function nativeDescription(entity: Definition): NativeDescription | undefined {
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
   const identity = nativeIdentity(entity)
+  if (!identity) return undefined
+  const cached = descriptions.get(entity)
+  if (cached && BUNDLED_CATALOGS.some(catalog => catalog.entities[entity.id] === entity)) return cached
+  const baseline = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).find(original => original && (entity === original || sameValue(entity, original) || sameValue(entity, projectSourceSemantics(original))))
   const record = nativeSourceRecord(entity)
   const version = entity.fields['Game version']
   const expected = identity && nativeDescriptionRecord(NATIVE_GAME_DATA, identity.database, identity.databaseId, identity.mode)
   if ('revision' in entity || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || !identity || !record || !expected || version?.state !== 'known' || version.value !== NATIVE_GAME_DATA.source.gameVersion || !sameValue(record, expected) || entity !== baseline && !sameValue(entity, baseline) && !sameValue(entity, projectSourceSemantics(baseline))) return undefined
-  const cached = descriptions.get(entity)
   if (cached) return cached
   const result = describeNativeRecord(NATIVE_GAME_DATA, identity.database, record, identity.mode)
   descriptions.set(entity, result)

@@ -1,4 +1,5 @@
 import type { CatalogEntity, EntityId, Knowledge, JsonValue, SourceRef } from '../domain/types'
+import { nativeRecord } from '../domain/native-game'
 import switchData from './switch-data.json' with { type: 'json' }
 
 interface ConfirmedSwitchClass {
@@ -80,10 +81,13 @@ function withUnavailableInnate(entity: CatalogEntity, reason: string): CatalogEn
 export function isPotentiallyLearnableInnate(entity: Pick<CatalogEntity, 'kind' | 'fields'>): boolean {
   if (entity.kind !== 'innate') return false
   const availability = entity.fields[LEARNABLE_INNATE_FIELD]
-  return availability?.state !== 'known' || availability.value !== false
+  if (availability?.state === 'known') return availability.value !== false
+  const source = entity.fields['Crystal Edit source record'] ?? entity.fields['Native source record']
+  if (source?.state === 'known' && nativeRecord(source.value) && typeof source.value.IsLearnable === 'boolean') return source.value.IsLearnable
+  return true
 }
 
-export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[]): readonly CatalogEntity[] {
+export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[], { includeModLearning = true }: { readonly includeModLearning?: boolean } = {}): readonly CatalogEntity[] {
   const definitions = SWITCH_CLASS_RECORDS.flatMap(record => {
     const sources = [{ ...SWITCH_CLASS_SOURCE, locator: `${record.name} class and skill identities` }]
     const unknown = { state: 'unknown' as const, reason: DETAILS_UNKNOWN, sources }
@@ -137,7 +141,7 @@ export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[]): 
     allById.set(id, enriched)
     confirmedById.set(id, enriched)
   }
-  for (const [id, cost] of SWITCH_PASSIVE_PP_COSTS) apply(id, entity => withConfirmedPpCost(entity, cost))
-  for (const [id, reason] of SWITCH_INNATE_PP_NOT_APPLICABLE) apply(id, entity => withUnavailableInnate(entity, reason))
+  for (const [id, cost] of SWITCH_PASSIVE_PP_COSTS) if (includeModLearning || allById.get(id)?.kind !== 'innate') apply(id, entity => withConfirmedPpCost(entity, cost))
+  if (includeModLearning) for (const [id, reason] of SWITCH_INNATE_PP_NOT_APPLICABLE) apply(id, entity => withUnavailableInnate(entity, reason))
   return [...confirmedById.values()]
 }

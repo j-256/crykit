@@ -224,4 +224,12 @@ describe('world map search and rendering bounds', () => {
     const ref = worldMapTargetRef({ family: 'item', id: 4, name: 'Pinned potion', sourceId: 'mod-a', sourceRevisionId: 'older' }, [catalog('newer'), catalog('older')])
     expect(ref?.catalogRevisionId).toBe('older')
   })
+
+  it('links bundled source previews only when the project and original source digest match', () => {
+    const catalog = (id: string, checksum: string) => ({ id, revisionId: `${checksum}:parser-version`, checksum, entities: { item: { id: 'item', kind: 'item', name: 'Pinned potion', fields: { 'Crystal Edit model ID': { state: 'known', value: 4 }, 'Crystal Edit model type': { state: 'known', value: 'Items' } } } } } as unknown as CatalogSnapshot)
+    const target = { family: 'item', id: 4, name: 'Pinned potion', sourceId: 'mod-a', sourceRevisionId: 'sha256:original' }
+    const wrongSources = [catalog('mod-a', 'sha256:different'), catalog('mod-b', 'sha256:original')]
+    expect(worldMapTargetRef(target, wrongSources)).toBeUndefined()
+    expect(worldMapTargetRef(target, [...wrongSources, catalog('mod-a', 'sha256:original')])).toMatchObject({ catalogId: 'mod-a', catalogRevisionId: 'sha256:original:parser-version', entityId: 'item' })
+  })
 })

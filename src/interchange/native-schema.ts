@@ -451,6 +451,7 @@ export const NativeLocalDataSchema = z.object({
   changes: z.array(changeEntry).max(500),
   skillTreeLayouts: z.record(id, skillLayout).optional(),
   referenceLibrary: z.object({ version: z.literal(REFERENCE_LIBRARY_SETTINGS_VERSION), excludedMods: z.array(id).max(MAX_COLLECTION_LENGTH).refine(values => new Set(values).size === values.length, 'Mod identities must be unique') }).strict().optional(),
+  modSetup: z.object({ version: z.literal(1), state: z.enum(['pending', 'skipped', 'completed']) }).strict().optional(),
 }).strict()
 
 const ClassifiedNativeLocalDataSchema = NativeLocalDataSchema.extend({ schemaVersion: z.literal('2.2.0'), builds: z.record(id, StoredBuildSchema) })

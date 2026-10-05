@@ -2,7 +2,7 @@ import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { openBuildGameSetup, selectedPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, selectedPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -69,7 +69,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   await research.getByRole('button', { name: 'Choose Growth class 2', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Growth class 2', exact: true })
   await picker.getByLabel('Search available definitions', { exact: true }).fill('Wizard')
-  await picker.getByRole('button').filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await picker.getByRole('button').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
   await expect(research.getByRole('button', { name: 'Choose Growth class 2', exact: true })).toContainText('Wizard')
   await research.getByLabel('Growth levels 2', { exact: true }).fill('10')
   await expect(hp).toContainText('659')
@@ -107,6 +107,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
 
 test('custom class imports preserve the playthrough and supply tree names and command selections', async ({ page }, testInfo) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const before = await exportLocalData(page)
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
@@ -180,6 +181,7 @@ test('native class trees retain named skills and exact links in the native catal
 
 test('draws every simultaneous prerequisite into its skill and keeps arrows aligned after resizing', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await settings.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-prerequisites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(syntheticPrerequisiteCrystalEdit())) })

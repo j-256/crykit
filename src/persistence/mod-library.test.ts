@@ -78,11 +78,11 @@ it('imports and re-includes a removed source atomically without duplicating an u
   expect((await loadLocalData()).localData).toEqual(excluded)
   expect(await database.sources.count()).toBe(0)
   const imported = await commitImport(preview, options)
-  expect(imported.localData.referenceLibrary?.excludedMods).toEqual([])
+  expect(imported.localData.referenceLibrary).toEqual(before.localData.referenceLibrary)
   const removed = await saveLocalData(setModInReference(imported.localData, catalog.id, false), imported.revision)
   const receipts = removed.importReceipts
   const included = await commitImport(preview, { ...options, expectedRevision: removed.revision })
-  expect(included.localData.referenceLibrary?.excludedMods).toEqual([])
+  expect(included.localData.referenceLibrary).toEqual(before.localData.referenceLibrary)
   expect(included.localData.importReceipts).toEqual(receipts)
   expect(await database.sources.count()).toBe(1)
   const repeated = await commitImport(preview, options)
