@@ -7,6 +7,7 @@ import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
 import { ProgressBoards } from './ProgressBoards'
+import { PreviewNotice } from './PreviewNotice'
 import { WorkspaceHeaderContext } from './WorkspaceHeader'
 import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay, useNavigation, type Destination } from './navigation'
 
@@ -120,7 +121,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
           <DevelopmentRefresh blocked={developmentRefreshBlocked} onRefresh={onDevelopmentRefresh}/>
         </div>
       </header>
-      <WorkspaceHeaderContext value={headerSlots}><div className="content">{children}</div></WorkspaceHeaderContext>
+      <WorkspaceHeaderContext value={headerSlots}><div className="content"><PreviewNotice/>{children}</div></WorkspaceHeaderContext>
     </main>
     <nav aria-label="Primary navigation" className="bottom-nav" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>

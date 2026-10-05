@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { offlinePlugin } from './scripts/offline-plugin.ts'
 import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
+import { previewPlugin } from './scripts/preview-plugin.ts'
 
 const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
@@ -27,6 +28,7 @@ export default defineConfig({
     react(),
     ocrAssets(),
     softwareLicenses(),
+    previewPlugin(),
     offlinePlugin(),
     {
       name: 'development-csp',

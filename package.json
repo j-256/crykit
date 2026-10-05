@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "build:preview": "CRYKIT_PREVIEW=1 npm run build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b --pretty false",
     "test": "node --experimental-strip-types --test scripts/wiki-sprites.test.mjs scripts/game-assets.test.mjs scripts/native-artwork.test.mjs scripts/mod-catalogs.test.mjs scripts/mod-artwork.test.mjs scripts/bundle-mod.test.mjs scripts/bundle-mod-library.test.mjs scripts/game-version.test.mjs scripts/update-game-data.test.mjs scripts/calculations.test.mjs scripts/update-entity-reference.test.mjs scripts/world-acquisition.test.mjs scripts/world-map.test.mjs scripts/check-e2e-contracts.test.mjs scripts/integration-verification.test.mjs scripts/offline-plugin.test.mjs scripts/source-audit-evidence.test.mjs && vitest run",
@@ -45,6 +46,8 @@
     "hooks:install": "git config core.hooksPath .githooks",
     "deploy:dry-run": "npm run check:assets && wrangler deploy --dry-run",
     "deploy": "npm run check:assets && wrangler deploy",
+    "deploy:preview:dry-run": "npm run build:preview && npm run check:assets && wrangler deploy --config wrangler.preview.jsonc --dry-run",
+    "deploy:preview": "npm run build:preview && npm run check:assets && wrangler deploy --config wrangler.preview.jsonc",
     "check:assets": "node scripts/check-assets.mjs",
     "calculations:export": "node scripts/export-calculations.mjs",
     "calculations:update": "node scripts/update-native-stats.mjs && node scripts/update-combat-calculations.mjs",

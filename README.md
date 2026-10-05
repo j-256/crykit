@@ -6,6 +6,8 @@ Crystal Kit (CryKit, pronounced "cricket") is a local-first build planner and pr
 
 No account or installation is needed. Your saved builds and records stay in your browser, and you can prepare the app for offline use. Crystal Kit is an unofficial fan tool.
 
+Rough drafts are available on the separate [preview site](https://preview.crykit.lasers.app/). Preview records stay separate from the main site's browser data. See [preview deployment](docs/deployment.md#draft-preview) to publish a draft from a task checkout.
+
 ## What you can do
 
 - **Plan builds:** mix classes, sub-commands, equipment, and passives, save variations, and compare them without entering everything you own.
