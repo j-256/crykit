@@ -42,7 +42,7 @@ export function MemberArtwork({ localData, catalogs, value }: { localData: Local
   const ref = value?.kind === 'personal' ? localData.personalDefinitions[value.definitionId]?.baseRef ?? value : value
   const entity = resolveEntity(localData, catalogs, ref)
   if (entity && ['ability', 'passive', 'monsterMagic', 'command'].includes(entity.kind)) return <DefinitionArtwork catalogs={catalogs} localData={localData} value={ref}/>
-  if (ref?.kind === 'catalog' && entity) return <CatalogArtwork catalogId={ref.catalogId} entity={{ id: ref.entityId, kind: entity.kind, name: entity.name }}/>
+  if (ref?.kind === 'catalog' && entity) return <CatalogArtwork catalogId={ref.catalogId} entity={{ ...entity, id: ref.entityId }}/>
   return ref ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={ref}/> : null
 }
 
