@@ -29,6 +29,16 @@ const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'progress', label: 'Progress', icon: 'crystal' },
 ]
 
+function positionSidebarLabels(rail: HTMLElement, includeInactive = false) {
+  for (const control of rail.querySelectorAll<HTMLElement>(includeInactive ? '.nav-link' : '.nav-link:hover, .nav-link:focus')) {
+    const bounds = control.getBoundingClientRect()
+    const menu = control.closest('.menu-window')?.getBoundingClientRect()
+    const visible = !menu || (bounds.bottom > menu.top && bounds.top < menu.bottom)
+    control.style.setProperty('--rail-label-center-y', `${bounds.top + bounds.height / 2}px`)
+    control.style.setProperty('--rail-label-visibility', visible ? 'visible' : 'hidden')
+  }
+}
+
 function Brand() {
   return <div className="brand">
     <span className="brand__mark"><Icon name="crystal" /></span>
@@ -51,6 +61,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const contextRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
   const bottomNavRef = useRef<HTMLElement>(null)
+  const railRef = useRef<HTMLElement>(null)
   const partyPage = navigation.route.page.page === 'builds' && ['teams', 'scenario', 'scenario-new'].includes(navigation.route.page.view)
   const tracking = (navigation.route.page.page === 'teams' && navigation.route.page.view === 'adopt') || partyPage || TRACKING_DESTINATIONS.some(item => item.id === destination)
   const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget, setUnsavedObject }, [tracking, headerTarget, primaryTarget])
@@ -95,11 +106,23 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     if (selected?.getClientRects().length) selected.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [activeDestination])
 
+  useEffect(() => {
+    const reposition = () => {
+      if (railRef.current) positionSidebarLabels(railRef.current)
+    }
+    window.addEventListener('resize', reposition)
+    return () => window.removeEventListener('resize', reposition)
+  }, [])
+
   const sidebarToggleLabel = sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'
+  const toggleSidebar = () => {
+    if (railRef.current) positionSidebarLabels(railRef.current, true)
+    setSidebarExpanded(expanded => !expanded)
+  }
 
   return <div className={`app-shell${sidebarExpanded ? '' : ' app-shell--sidebar-collapsed'}`}>
     <header className="desktop-brand-header"><Brand/></header>
-    <aside className="rail">
+    <aside className="rail" ref={railRef} onFocusCapture={event => positionSidebarLabels(event.currentTarget)} onPointerOver={event => positionSidebarLabels(event.currentTarget)} onScrollCapture={event => positionSidebarLabels(event.currentTarget)}>
       <nav aria-label="Primary navigation" className="menu-window">
         <p className="nav-section__label">Planning</p>
         <ul aria-label="Planning" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
@@ -109,7 +132,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
         <button aria-current={navigation.route.page.page === 'settings' ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
         <div className="local-note"><strong>Your builds, your records</strong>Saved in this browser. Export a backup to keep a separate copy.</div>
-        <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={() => setSidebarExpanded(expanded => !expanded)} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
+        <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={toggleSidebar} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>
     <main className="main-shell" ref={mainRef}>
