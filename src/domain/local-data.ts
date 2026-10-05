@@ -403,6 +403,7 @@ export const DEFAULT_PP_LIMIT = 10
 export const DEFAULT_PP_COSTS_NONNEGATIVE = true
 export const DEFAULT_GAME_VERSION = '1.6.6'
 export const DEFAULT_GAME_MODE = 'Standard'
+export const DEFAULT_GAME_DIFFICULTY: NonNullable<GameSetupRevision['difficulty']> = Object.freeze({ version: 1, selection: Object.freeze({ state: 'known', value: 0 }) })
 
 export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRevisionInput): LocalData {
   assertExpectedRevision(localData, input.expectedRevision)

@@ -35,7 +35,7 @@ import { BuildBehaviorEditor } from './BuildBehaviorEditor'
 import { BuildModSelectionGate } from './BuildModSelectionGate'
 import type { BuildBehavior } from '../domain/build-behavior'
 import { CURRENT_CATALOG } from '../catalog/bundled'
-import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
+import { DEFAULT_GAME_DIFFICULTY, DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { MAX_SHORT_TEXT_LENGTH } from '../domain/limits'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
@@ -144,7 +144,7 @@ function RevisionEditor(props: RevisionEditorProps) {
     const revision = props.sourceRevision ?? (props.build?.latestRevisionId ? props.localData.buildRevisions[props.build.latestRevisionId] : undefined)
     const setup = revision ? props.localData.gameSetups[revision.gameSetupRevisionId] : requestedSetup
     if (setup) return { ...buildBehavior(setup), slots: setup.slots.length ? setup.slots : SUGGESTED_BUILD_SLOTS }
-    return { label: 'Custom Game Setup', platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, mods: { state: 'unknown' }, ppLimit: { state: 'known', value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId } } satisfies BuildBehavior
+    return { label: 'Custom Game Setup', platform: { state: 'unknown' }, gameVersion: { state: 'unknown' }, mode: { state: 'known', value: DEFAULT_GAME_MODE }, difficulty: DEFAULT_GAME_DIFFICULTY, mods: { state: 'unknown' }, ppLimit: { state: 'known', value: DEFAULT_PP_LIMIT }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId } } satisfies BuildBehavior
   }
   const [behavior, setBehavior] = useState<BuildBehavior>(initialBehavior)
   const [draftIdentity] = useState(() => ({ id: createId<GameSetupRevisionId>('draftBehavior'), gameSetupId: createId<GameSetupId>('draftPreset') }))
