@@ -57,12 +57,14 @@ const reviewedBinaryAssets = new Map([
 const gameAssetDirectory = 'src/assets/game-assets/'
 const gameAssetManifestPath = 'src/catalog/game-assets.json'
 const spriteSources = [
+  { directory: 'src/assets/mod-artwork-atlases/', manifestPath: 'src/catalog/mod-artwork.json', assetField: 'atlases', label: 'Mod artwork atlas manifest' },
+  { directory: 'src/assets/mod-artwork/', manifestPath: 'src/catalog/mod-artwork.json', label: 'Mod artwork manifest' },
   { directory: 'src/assets/wiki-sprites/', manifestPath: 'src/catalog/wiki-sprites.json', label: 'Wiki sprite manifest' },
   { directory: 'src/assets/mod-sprites/', manifestPath: 'src/catalog/mod-sprites.json', label: 'Mod sprite manifest' },
 ]
 for (const source of spriteSources) try {
   const manifest = JSON.parse((options.staged ? git(['show', `:${source.manifestPath}`]) : readFileSync(source.manifestPath)).toString('utf8'))
-  for (const asset of Object.values(manifest.assets)) {
+  for (const asset of Object.values(manifest[source.assetField ?? 'assets'])) {
     if (!/^[a-f0-9]{64}\.(?:png|gif|webp)$/.test(asset.file) || !/^[a-f0-9]{64}$/.test(asset.sha256)) throw new Error('Invalid sprite manifest entry')
     reviewedBinaryAssets.set(`${source.directory}${asset.file}`, asset.sha256)
   }

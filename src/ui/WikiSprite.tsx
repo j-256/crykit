@@ -3,10 +3,11 @@ import type { CatalogEntity } from '../domain/types'
 import { catalogArtwork, classWorldArtwork, type CatalogArtwork as Artwork } from '../catalog/sprites'
 import { Icon, type IconName } from './icons'
 import { Sources } from './Sources'
+import './wiki-sprite.css'
 
 interface Props {
   readonly catalogId: string
-  readonly entity: Pick<CatalogEntity, 'id' | 'kind' | 'name'> & Partial<Pick<CatalogEntity, 'legacy'>>
+  readonly entity: Pick<CatalogEntity, 'id' | 'kind' | 'name'> & Partial<Pick<CatalogEntity, 'legacy' | 'fields'>>
   readonly detailed?: boolean
   readonly compact?: boolean
 }
@@ -47,6 +48,8 @@ function ArtworkImage({ artwork, entity, detailed, compact, maximumScale }: { re
   const offsetY = bounds ? artwork.asset.height / 2 - bounds.y - bounds.height / 2 : 0
   const style = offsetX || offsetY ? { transform: `translate(${offsetX / artwork.asset.width * 100}%, ${offsetY / artwork.asset.height * 100}%)` } : undefined
   const artworkType = artwork.source === 'native' || artwork.provenance === 'base-game-archive' ? 'game' : artwork.source
+  const atlas = artwork.source !== 'native' ? artwork.asset.atlas : undefined
+  if (atlas) return <span className={`wiki-sprite${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`} data-artwork-source={artwork.source}><span className="wiki-sprite__crop" style={{ width: Math.round(artwork.asset.width * scale), aspectRatio: `${artwork.asset.width}/${artwork.asset.height}`, ...style }}><img alt={detailed ? `${entity.name} ${artworkType} artwork` : ''} decoding="async" draggable={false} loading={detailed ? 'eager' : 'lazy'} onError={() => setFailed(true)} src={artwork.url} style={{ width: `${atlas.width / atlas.region.width * 100}%`, height: `${atlas.height / atlas.region.height * 100}%`, left: `${-atlas.region.x / atlas.region.width * 100}%`, top: `${-atlas.region.y / atlas.region.height * 100}%` }}/></span></span>
   return <span className={`wiki-sprite${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`} data-artwork-source={artwork.source}><img alt={detailed ? `${entity.name} ${artworkType} artwork` : ''} decoding="async" height={Math.round(artwork.asset.height * scale)} loading={detailed ? 'eager' : 'lazy'} onError={() => setFailed(true)} src={artwork.url} style={style} width={Math.round(artwork.asset.width * scale)}/></span>
 }
 

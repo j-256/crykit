@@ -5,8 +5,10 @@ import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './starter'
 import { nativeMenuIcon, NATIVE_MENU_ICON_KEYS } from './native-menu-icons'
 import { compileBundledSourceBindings } from './bundled'
+import { modSourceArtwork, type ModArtworkIdentity } from './mod-artwork'
+import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 
-type ArtworkIdentity = Pick<CatalogEntity, 'id' | 'kind'>
+type ArtworkIdentity = Pick<CatalogEntity, 'id' | 'kind'> & ModArtworkIdentity
 
 interface SpriteAsset {
   readonly file: string
@@ -16,6 +18,7 @@ interface SpriteAsset {
   readonly height: number
   readonly license: string
   readonly contentBounds?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+  readonly atlas?: { readonly width: number; readonly height: number; readonly region: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } }
 }
 
 interface SpriteBinding {
@@ -137,6 +140,9 @@ export function wikiSprite(catalogId: string, entity: ArtworkIdentity): WikiSpri
 }
 
 export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): CatalogArtwork | undefined {
+  const mod = modSourceArtwork(entity)
+  if (mod) return mod
+  if (entity.fields?.[MOD_PROJECT_FIELD]) return undefined
   if (catalogId !== STARTER_CATALOG_ID) return undefined
   const nativeBinding = gameArtwork.entities[entity.id]
   const nativeAsset = nativeBinding && gameArtwork.assets[nativeBinding.asset]
@@ -166,6 +172,11 @@ export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): Cata
 }
 
 export function classWorldArtwork(catalogId: string, entity: ArtworkIdentity): CatalogArtwork | undefined {
+  if (entity.kind === 'class') {
+    const mod = modSourceArtwork(entity)
+    if (mod) return mod
+    if (entity.fields?.[MOD_PROJECT_FIELD]) return undefined
+  }
   if (catalogId !== STARTER_CATALOG_ID || entity.kind !== 'class') return undefined
   const binding = gameArtwork.classWorld[entity.id]
   const asset = binding && gameArtwork.assets[binding.asset]
