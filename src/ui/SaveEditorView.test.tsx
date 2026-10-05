@@ -2,19 +2,33 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
-import { createSaveEditorFixture } from '../domain/save-editor.fixture'
+import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode } from '../domain/save-editor.fixture'
+import { saveEditorModProjectId } from '../domain/save-editor-mods'
+import { createSampleLocalData } from '../domain/sample-data'
 import { CRYSTAL_SAVE_LIMITS, decodeCrystalSave, encodeCrystalSave } from '../interchange/crystal-save'
 import type { DraftActions } from './drafts'
 import { downloadBytes } from './model'
 import { SaveEditorView } from './SaveEditorView'
+import { DefinitionProvider } from './definitions'
 
 vi.mock('./model', () => ({ downloadBytes: vi.fn() }))
 
 let container: HTMLDivElement
 let root: Root
 let onDraftChange: ReturnType<typeof vi.fn<(dirty: boolean, actions?: DraftActions) => void>>
+const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY.find(mod => mod.title === 'Cheat Passives')!
+const CHEAT_PASSIVES_FIXTURE = {
+  id: saveEditorModProjectId(CHEAT_PASSIVES.id),
+  title: CHEAT_PASSIVES.title,
+  version: CHEAT_PASSIVES.declaredVersion!,
+  steamWorkshopFileId: CHEAT_PASSIVES.steamWorkshopFileId,
+  jobId: CHEAT_PASSIVES.models.Jobs[0],
+  passiveIds: CHEAT_PASSIVES.models.Passives,
+}
 
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -65,6 +79,17 @@ async function choose(selected: File) {
   await act(async () => field.dispatchEvent(new Event('change', { bubbles: true })))
 }
 
+async function chooseMods(...selected: File[]) {
+  const field = input('Add Crystal Edit mod definitions')
+  Object.defineProperty(field, 'files', { configurable: true, value: selected })
+  await act(async () => field.dispatchEvent(new Event('change', { bubbles: true })))
+}
+
+async function waitForText(value: string) {
+  for (let attempt = 0; attempt < 20 && !container.textContent?.includes(value); attempt++) await act(async () => new Promise(resolve => setTimeout(resolve, 0)))
+  expect(container.textContent).toContain(value)
+}
+
 async function open(bytes = encodeCrystalSave(createSaveEditorFixture())) {
   await act(async () => root.render(<SaveEditorView onDraftChange={onDraftChange}/>))
   await choose(file(bytes))
@@ -76,6 +101,30 @@ function draftActions() {
 }
 
 describe('save editor session', () => {
+  it('uses the shared loadout editor and keeps draft review ahead of the inventory', async () => {
+    const localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
+    await act(async () => root.render(<DefinitionProvider catalogs={[DEFAULT_CATALOG]} localData={localData} onSaveDefinition={async () => { throw new Error('Not used') }}><SaveEditorView localData={localData} onDraftChange={onDraftChange}/></DefinitionProvider>))
+    await choose(file(encodeCrystalSave(createSaveEditorFixture())))
+    expect(container.textContent).toContain('Party & loadouts')
+    expect(container.textContent).toContain('Load a compatible Build')
+    const review = container.querySelector('.save-editor__review')!
+    const inventory = container.querySelector('[aria-label="Inventory editor"]')!
+    expect(review.compareDocumentPosition(inventory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await act(async () => button('Clear Main hand').click())
+    expect(button('Review loadout changes').disabled).toBe(false)
+    expect(button('Export edited save').disabled).toBe(true)
+    await act(async () => button('Review loadout changes').click())
+    expect(container.textContent).toContain("Review: Alex's loadout")
+    expect(container.textContent).toContain('equipped loadout updated and inventory reconciled')
+    await act(async () => button('Apply reviewed changes').click())
+    expect(container.querySelector('.save-editor__review')!.textContent).toContain('equipped loadout updated and inventory reconciled')
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.members[0]!.value.Equipment).toMatchObject({ type: 'array' })
+    expect(edited.members[0]!.value.Equipment.type === 'array' && edited.members[0]!.value.Equipment.value[0]).toEqual({ type: 'null' })
+    expect(inspectSave(edited, SAVE_EDITOR_CATALOG).inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 2, equipped: 3 })
+  })
+
   it.each([0, 3, 12, 20, 27])('opens and exports legacy format %i without inventing a saved date', async version => {
     const fixture = createSaveEditorFixture(version)
     fixture.header.invertedVersion = version === 3
@@ -88,6 +137,19 @@ describe('save editor session', () => {
     const bytes = vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array
     expect(decodeCrystalSave(bytes).header).toMatchObject({ version, lastUpdated: null, currencyAmount: 777 })
     expect(bytes[0]).toBe(version === 3 ? 252 : version)
+  })
+
+  it.each([[1, 'Vanilla'], [2, 'Chaos']] as const)('shows and edits nonrandomized %s mode saves', async (patchMode, name) => {
+    await open(encodeCrystalSave(setSaveEditorFixtureMode(createSaveEditorFixture(), patchMode)))
+    expect(container.querySelector('[aria-label="Open save details"]')?.textContent).toContain(`Game mode${name}`)
+    expect(container.textContent).not.toContain('Read-only save')
+    expect(input('Copper').disabled).toBe(false)
+    await type('Copper', '456')
+    await act(async () => button('Apply currency').click())
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.header).toMatchObject({ patchMode, currencyAmount: 456 })
+    expect(inspectSave(edited, SAVE_EDITOR_CATALOG)).toMatchObject({ editable: true, mode: { name } })
   })
 
   it('exports a no-op save byte exactly and retains the untouched original after editing', async () => {
@@ -176,6 +238,53 @@ describe('save editor session', () => {
     expect(input('Copper').disabled).toBe(true)
     expect(button('Export edited save').disabled).toBe(true)
     expect(button('Download original').disabled).toBe(false)
+  })
+
+  it('enables editing after an exact active mod definition is loaded for the tab', async () => {
+    await open(encodeCrystalSave(createModdedSaveEditorFixture()))
+    expect(container.textContent).toContain('Definition required')
+    expect(input('Synthetic Save Mod definition unavailable').checked).toBe(false)
+    expect(input('Copper').disabled).toBe(true)
+    const bytes = new TextEncoder().encode(JSON.stringify(createSaveEditorModProjectFixture()))
+    await chooseMods(file(bytes, 'synthetic-save-mod.json'))
+    await waitForText('Imported definition matched')
+    expect(input('Synthetic Save Mod definition available').checked).toBe(true)
+    expect(container.textContent).toContain('Synthetic mod class')
+    expect(input('Copper').disabled).toBe(false)
+    await type('Copper', '456')
+    await act(async () => button('Apply currency').click())
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.header.currencyAmount).toBe(456)
+    expect(edited.header.isModded).toBe(true)
+    expect(edited.header.mods).toHaveLength(1)
+  })
+
+  it('loads an exact bundled active mod definition without a manual import', async () => {
+    await open(encodeCrystalSave(createModdedSaveEditorFixture({ mod: CHEAT_PASSIVES_FIXTURE })))
+    await waitForText('Bundled definition matched')
+    expect(input('Cheat Passives definition available').checked).toBe(true)
+    expect(container.textContent).toContain('Cheat Passives 2.0 (bundled)')
+    expect(input('Copper').disabled).toBe(false)
+  })
+
+  it('identifies a bundled disabled mod while disclosing that its saved revision is unavailable', async () => {
+    await open(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE })))
+    await waitForText('Bundled project identified')
+    expect(input('Cheat Passives definition available').checked).toBe(true)
+    expect(container.textContent).toContain('Saved revision unavailable')
+    expect(input('Copper').disabled).toBe(true)
+    await act(async () => button('Review mod-state removal').click())
+    const review = container.querySelector('[aria-label="Review bulk changes"]')!
+    expect(review.textContent).toContain('ID redirects cleared')
+    expect(review.textContent).toContain('equipped mod-only passives removed')
+    await act(async () => button('Apply reviewed changes').click())
+    expect(input('Copper').disabled).toBe(false)
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.header.isModded).toBe(false)
+    expect(edited.header.mods).toEqual([])
+    expect(edited.header.modIdMaps).toEqual([])
   })
 
   it('keeps an unsupported document shape readable without crashing the change review', async () => {

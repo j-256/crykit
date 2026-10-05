@@ -24,13 +24,14 @@ import './build-picker.css'
 export const BUILD_DEFINITION_PAGE_SIZE = 100
 const MAX_CONFLICT_EXAMPLES = 3
 const FIELD_ICONS: Readonly<Record<string, IconName>> = Object.freeze({ Class: 'crystal', 'Sub-command': 'tome', 'Main hand': 'sword', 'Off hand': 'shield', Head: 'character', Body: 'chest', 'Accessory 1': 'ring', 'Accessory 2': 'ring' })
-export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, buildContent, equipmentSlots, passiveIndex, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect, onConfigureMod }: {
+export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, allowEmpty = true, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, buildContent, equipmentSlots, passiveIndex, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect, onConfigureMod }: {
   label: string
   allowedKinds: readonly CatalogEntityKind[]
   value: EntityRef | null
   open: boolean
   query: string
   resultLimit: number
+  allowEmpty?: boolean
   includeInnates?: boolean
   gameSetup?: GameSetupRevision
   equipmentPermissions?: BuildEquipmentPermissions
@@ -145,7 +146,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
           else if (open && hasMore && activeIndex === visible.length) onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)
         }
       }} placeholder="Search names, stats, effects..." ref={inputRef} role="combobox" value={open ? query : (selected ? optionName(selected) : value ? 'Unresolved selection' : '')}/>
-      {value ? <button aria-label={`Clear ${label}`} onClick={() => { onInspect(undefined); onChange(null); if (open) onDismiss() }} type="button"><Icon name="close"/></button> : <Icon name="search"/>}
+      {value && allowEmpty ? <button aria-label={`Clear ${label}`} onClick={() => { onInspect(undefined); onChange(null); if (open) onDismiss() }} type="button"><Icon name="close"/></button> : <Icon name="search"/>}
     </div>
     <Dropdown anchorRef={inputRef} id={`${id}-list`} initialFocusRef={inputRef} onClose={closePicker} onDismiss={onDismiss} open={open} role="listbox" title={`Choose ${label}`}>
       <details className="build-picker-filters">
@@ -161,7 +162,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
       </details>
       <div className="picker-results">
         <div className="build-picker-results-summary" role="presentation"><small>{candidates.length} {candidates.length === 1 ? 'result' : 'results'}{candidates.length === 1 ? ' · Enter to select' : ''}</small>{hiddenConflicts.length > 0 && <button onClick={() => setCompatibleOnly(false)} type="button">Show {hiddenConflicts.length} {hiddenConflicts.length === 1 ? 'conflict' : 'conflicts'}</button>}</div>
-        <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><strong>Leave empty</strong></span></button>
+        {allowEmpty && <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><strong>Leave empty</strong></span></button>}
         {visible.map((option, index) => {
           const assessment = permissionAssessments.get(option.key)
           const modReason = modPlanningReason(option.modAvailability)
