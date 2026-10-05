@@ -1,6 +1,6 @@
 # Human-readable calculation reference
 
-This is the readable equivalent of the bundled Windows PC 1.6.9.0 calculation package, generated from the same formula definitions. It does not establish Switch or modded-game parity. Detailed source evidence and verification fixtures remain in the machine-readable package. See [package format and source policy](calculations.md) for installation-free export, compatibility, and input requirements.
+This is the readable equivalent of the bundled PC 1.6.9.0 calculation package, generated from the same formula definitions. Its native game data and calculation code match across the compared Windows and macOS builds; see [verified platform coverage](platform-coverage.md). It does not establish Switch or modded-game parity. Detailed source evidence and verification fixtures remain in the machine-readable package. See [package format and source policy](calculations.md) for installation-free export, compatibility, and input requirements.
 
 ## Reading the equations
 
