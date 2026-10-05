@@ -1,6 +1,6 @@
 # Mod calculations and their boundaries
 
-CryKit applies supported Crystal Edit data from the exact source revisions enabled in a Game Setup. Base data, the selected balance mode, and enabled mod layers supply inputs to the inspected Windows PC 1.6.9.0 formulas. Builds, character calculation plans, comparisons, and read-only shares use the pinned setup. Importing or browsing a source does not enable it.
+CryKit applies supported Crystal Edit data from the exact source revisions enabled in a Game Setup. Base data, the selected balance mode, and enabled mod layers supply inputs to the inspected PC 1.6.9.0 formulas. Builds, character calculation plans, comparisons, and read-only shares use the pinned setup. Importing or browsing a source does not enable it.
 
 ## Editable data and engine rules
 

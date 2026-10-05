@@ -1,8 +1,8 @@
 # Native reference projections
 
-The interface prefers facts from the fingerprinted Windows PC 1.6.9 databases and reviewed game code. Original community and editor records remain in the immutable catalog for attribution, historical comparison, direct links, and saved Builds. Their presence does not make them the authority for a fact that the game already supplies. No projection changes catalog checksums, imports, backups, personal definitions, or recorded progress.
+The interface prefers facts from the fingerprinted Crystal Project 1.6.9.0 databases and reviewed game code. Original community and editor records remain in the immutable catalog for attribution, historical comparison, direct links, and saved Builds. Their presence does not make them the authority for a fact that the game already supplies. No projection changes catalog checksums, imports, backups, personal definitions, or recorded progress.
 
-Verified native facts appear as ordinary content without citation markers. Small **Sources** markers identify uncertain values and external claims, including wiki guidance and mod or imported records. Attribution and competing claims remain inspectable, while native fingerprints and proof locators remain in the catalog, manifests, and reviewed receipts. This presentation does not establish parity with another platform or version.
+Verified native facts appear as ordinary content without citation markers. Small **Sources** markers identify uncertain values and external claims, including wiki guidance and mod or imported records. Attribution and competing claims remain inspectable, while native fingerprints and proof locators remain in the catalog, manifests, and reviewed receipts. The shared gameplay scope of the compared Windows and macOS 1.6.9.0 builds comes from [verified platform coverage](platform-coverage.md), independently of this presentation. Other platform, version, and mod parity remain unverified.
 
 ## Replacements
 

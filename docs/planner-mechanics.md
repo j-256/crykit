@@ -44,7 +44,7 @@ The physical hit preview calculates only the native accuracy/evasion curve. It p
 
 ## Remaining limits
 
-The interface calculates a resting loadout and named native preview stages. Active status lifecycles, accumulated turn effects and complete encounters remain outside its scope. Numeric imports use supported Crystal Edit records; incomplete or unsupported records remain unresolved. A known unsupported platform or game version blocks loadout totals, and named mods without numeric rules cannot establish their effects. The Windows PC package does not establish Nintendo Switch or other platform parity.
+The interface calculates a resting loadout and named native preview stages. Active status lifecycles, accumulated turn effects and complete encounters remain outside its scope. Numeric imports use supported Crystal Edit records; incomplete or unsupported records remain unresolved. A known unsupported platform or game version blocks loadout totals, and named mods without numeric rules cannot establish their effects. The PC 1.6.9.0 package uses the [verified shared Windows/macOS gameplay baseline](platform-coverage.md); Nintendo Switch and other unreviewed platforms retain their own evidence boundaries.
 
 The [PC steal mechanics research](steal-mechanics.md) records availability, success, Luck, failure protection, multi-entry display, and guaranteed-attempt mod formulas. The exportable combat module supplies steal arithmetic for explicit inputs; the planner has no interactive steal-outcome simulation. Both retain the inspected PC scope without establishing Nintendo Switch parity.
 
