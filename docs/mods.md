@@ -6,6 +6,14 @@ Supported legacy editor formats retain their original source markers and bytes. 
 
 Use **Mods** to browse bundled projects, import exact source revisions, and edit JSON. Use a Build's **Game Setup** or **Data & settings > Saved setups** to select the rules for planning. Adding a source to the library, including it in Reference, and enabling it in a Game Setup are separate choices. Builds and character snapshots keep their pinned setup revisions.
 
+## Choose a starting set
+
+On first load, **Choose your mods** offers all bundled projects in a searchable checkbox list. Searching keeps selections made under earlier queries. **Use starter selection** selects Equipment Expansion, Learnable Innate Skill and Moonlight Project as a convenience; **Clear selection** clears the list. Open **Mod priority** to reorder selected projects; later entries take precedence where supported records overlap. **Use selected mods** saves their full source revisions, includes them in Reference and enables them in the initial Game Setup together. Failed saves keep your selections for retry and preserve the earlier configuration. **Skip for now** keeps the vanilla setup and saves the dismissal. Reopen the list through **Mods > Choose mods**.
+
+Existing profiles keep their catalog and setup pins and do not receive a first-load prompt. Applying the chooser later creates a setup from the native base and selected bundled revisions while preserving separately imported layers; older Builds and character snapshots retain their saved setup. Projects outside this bundled list remain available through import and the per-Build mod controls.
+
+All bundled projects use the shared source importer. Being searchable does not establish that a mod is loaded, included in Reference or enabled. Pickers can discover an unloaded mod; saving a selection first loads the full source. Build selection also asks to enable the required source revision when needed. A compact search record supplies no calculation rules and cannot be saved as a setup layer. **Include learnable innates** uses each source's recorded learning flag and shows the actual source mod; missing learning flags remain uncertain.
+
 ## Named mod choices
 
 Open **Data & settings > Saved setups > Edit setup > Mods > Mods without imported files** to choose **Enabled**, **Disabled**, or **Unknown** for each mod in the fixed Nintendo Switch list. Mods are grouped under **Mod Pack 1: Quality Fun** and **Mod Pack 2: New Challenges**. A single choice moves the mod between enabled and disabled without allowing both states; **Unknown** clears only that mod's setting. Installing a pack does not establish which included mods are enabled in a save. Saving creates an immutable Game Setup revision. To use it for a tracked game, open **Playthrough**, choose the revision under **Game Setup to apply**, and choose **Apply to** followed by the Playthrough's name. Saving alone preserves the Playthrough's selected rules.

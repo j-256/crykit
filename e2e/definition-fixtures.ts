@@ -1,7 +1,7 @@
 import { zipSync } from 'fflate'
 import { replacePlannerData } from './local-data-helpers'
 import { expect, type Page } from '@playwright/test'
-import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
 import { createPersonalDefinition } from '../src/domain/local-data'
 import { personalDefinitionRef } from '../src/domain/definitions'
@@ -26,7 +26,7 @@ async function storeFixture(page: Page, localData: LocalData, definition: Person
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
     'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: localData.updatedAt, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs: [{ id: DEFAULT_CATALOG.id, revisionId: DEFAULT_CATALOG.revisionId, checksum: DEFAULT_CATALOG.checksum }], evidence: [], history: [] }),
+    'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs: BUNDLED_CATALOGS.map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum })), evidence: [], history: [] }),
   })
   await page.goto('/#/settings/data')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -40,7 +40,11 @@ async function storeFixture(page: Page, localData: LocalData, definition: Person
 
 export async function openSavedCatalogVersion(page: Page, entityId: string, name: string, values: Pick<Parameters<typeof savedCatalogVersion>[2], 'fields' | 'aliases'> = {}) {
   const source = await readPlannerData(page)
-  const saved = savedCatalogVersion(source, [DEFAULT_CATALOG], { sourceRef: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: entityId as EntityId }, name, ...values })
+  const setup = source.planningGameSetupRevisionId ? source.gameSetups[source.planningGameSetupRevisionId] : undefined
+  const baseline = setup?.modComposition?.baseline
+  const catalog = BUNDLED_CATALOGS.find(candidate => baseline ? candidate.id === baseline.catalogId && candidate.revisionId === baseline.catalogRevisionId : setup?.catalogLock[candidate.id] === candidate.revisionId)
+  if (!catalog) throw new Error('The fixture has no pinned bundled base catalog')
+  const saved = savedCatalogVersion(source, [catalog], { sourceRef: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entityId as EntityId }, name, ...values })
   return storeFixture(page, saved.localData, saved.definition)
 }
 

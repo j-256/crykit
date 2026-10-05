@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks } from './local-data-helpers'
+import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -16,11 +16,13 @@ async function expectWeapon(page: Page, isMobile: boolean, weapon: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
 })
 
 test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.keyboard.press('Meta+k')
   const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })

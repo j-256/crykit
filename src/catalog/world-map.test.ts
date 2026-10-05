@@ -5,7 +5,8 @@ import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { catalogSnapshotKey } from '../interchange/identity'
 import { CryKitDatabase, setDatabaseForTests } from '../persistence/database'
 import { BUNDLED_MOD_LIBRARY } from './mod-library'
-import { DEFAULT_CATALOG } from './bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG } from './bundled'
+import { BUNDLED_MOD_SEARCH_CATALOGS } from './mod-search'
 import { loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
 import manifestSource from './world-map.json'
 
@@ -39,6 +40,12 @@ describe('bundled native world map and original mod source joining', () => {
     const ref = worldMapTargetRef(backbreaker.targets[0]!, [DEFAULT_CATALOG])
     expect(ref).toBeDefined()
     expect(DEFAULT_CATALOG.entities[ref!.entityId]?.name).toBe('Backbreaker')
+    const preview = BUNDLED_MOD_SEARCH_CATALOGS.find(catalog => catalog.id === bundled.id)!
+    const unloaded = worldMapTargetRef(backbreaker.targets[0]!, [CURRENT_CATALOG])
+    expect(unloaded).toMatchObject({ catalogId: preview.id, catalogRevisionId: preview.revisionId })
+    expect(preview.entities[unloaded!.entityId]?.name).toBe('Backbreaker')
+    const changed = { ...preview, revisionId: 'synthetic-updated' as typeof preview.revisionId, checksum: 'sha256:different' }
+    expect(worldMapTargetRef(backbreaker.targets[0]!, [CURRENT_CATALOG, changed])).toEqual(unloaded)
     expect(worldMapTargetRef({ ...backbreaker.targets[0]!, sourceRevisionId: 'sha256:unknown' }, [DEFAULT_CATALOG])).toBeUndefined()
   })
 

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState, type FormEvent } from 'react'
 import { nativeUiArtwork } from '../catalog/sprites'
-import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
+import { LEGACY_CATALOG_REVISION_ID } from '../catalog/legacy-version'
 import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, requirePlaythrough, type ClassSealProgressSelection } from '../domain'
@@ -113,7 +113,7 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
 }
 
 function findTrackerCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
-  return catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === CERTAINTY_CATALOG_REVISION_ID)
+  return catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === LEGACY_CATALOG_REVISION_ID)
     ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
 }
 

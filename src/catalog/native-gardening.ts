@@ -1,5 +1,5 @@
 import facts from './native-gardening.json' with { type: 'json' }
-import { DEFAULT_CATALOG } from './bundled'
+import { bundledCatalogForSnapshot } from './bundled'
 import { projectSourceSemantics } from './source-semantics'
 import { sameValue } from '../domain/definition-values'
 import { nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
@@ -14,20 +14,21 @@ export interface NativeGardening {
 
 export function nativeGardening(catalog: CatalogSnapshot, entity: CatalogEntity): NativeGardening | undefined {
   const identity = nativeIdentity(entity)
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
+  const snapshot = bundledCatalogForSnapshot(catalog)
+  const baseline = snapshot?.entities[entity.id]
   const metadata = nativeRecord(catalog.legacy) ? catalog.legacy : {}
   const source = nativeRecord(metadata.nativeSource) ? metadata.nativeSource : {}
   const executable = nativeRecord(source.executable) ? source.executable : {}
-  if (catalog.id !== DEFAULT_CATALOG.id || catalog.revisionId !== DEFAULT_CATALOG.revisionId || catalog.checksum !== DEFAULT_CATALOG.checksum || metadata.sourceContentDigest !== facts.nativeContentDigest || executable.sha256 !== facts.gameExecutableSha256 || identity?.mode !== 'base' || identity.database !== 'item' || !baseline || !sameValue(entity, baseline) && !sameValue(entity, projectSourceSemantics(baseline))) return undefined
+  if (!snapshot || metadata.sourceContentDigest !== facts.nativeContentDigest || executable.sha256 !== facts.gameExecutableSha256 || identity?.mode !== 'base' || identity.database !== 'item' || !baseline || !sameValue(entity, baseline) && !sameValue(entity, projectSourceSemantics(baseline))) return undefined
   const seed = facts.seeds.find(entry => entry.itemID === identity.databaseId)
   if (!seed) return undefined
   const troop = Object.values(catalog.entities).find(entry => { const native = nativeIdentity(entry); return native?.mode === 'base' && native.database === 'troop' && native.databaseId === seed.troopID })
   const record = troop && nativeSourceRecord(troop)
-  const baselineTroop = troop && DEFAULT_CATALOG.entities[troop.id]
+  const baselineTroop = troop && snapshot?.entities[troop.id]
   if (!troop || !baselineTroop || !sameValue(troop, baselineTroop) || !Array.isArray(record?.Members)) return undefined
   const encounters = record.Members.filter(nativeRecord).flatMap(member => {
     const monster = Object.values(catalog.entities).find(entry => { const native = nativeIdentity(entry); return native?.mode === 'base' && native.database === 'monster' && native.databaseId === member.MonsterID })
-    const originalMonster = monster && DEFAULT_CATALOG.entities[monster.id]
+    const originalMonster = monster && snapshot?.entities[monster.id]
     return monster && originalMonster && sameValue(monster, originalMonster) && member.BeginBattleDead === false ? [{ name: monster.name, ref: { kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: monster.id } }] : []
   })
   if (encounters.length !== record.Members.length) return undefined

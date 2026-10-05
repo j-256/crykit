@@ -1,4 +1,4 @@
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { definitionModAvailability } from '../catalog/mods'
 import { bundledModIdentity } from './bundled-mods'
@@ -54,7 +54,7 @@ export function recordedProjectModNames(projectId: CatalogId, behavior: Pick<Gam
 }
 
 export function selectBuildModRevision(behavior: BuildBehavior, catalog: CatalogSnapshot, catalogs: readonly CatalogSnapshot[], enabled = true): BuildBehavior {
-  const composition = behavior.modComposition ?? { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [], links: [] }
+  const composition = behavior.modComposition ?? { baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: behavior.catalogLock[CURRENT_CATALOG.id] as CatalogSnapshot['revisionId'] ?? catalogs.find(candidate => candidate.id === CURRENT_CATALOG.id && candidate.schemaVersion !== MOD_CATALOG_SCHEMA && candidate.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA)?.revisionId ?? CURRENT_CATALOG.revisionId }, layers: [], links: [] }
   const layer = { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled }
   const layers = composition.layers.some(candidate => candidate.catalogId === catalog.id) ? composition.layers.map(candidate => candidate.catalogId === catalog.id ? layer : candidate) : [...composition.layers, layer]
   const allCatalogs = [...catalogs.filter(candidate => candidate.id !== catalog.id || candidate.revisionId !== catalog.revisionId), catalog]

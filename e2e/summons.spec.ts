@@ -6,7 +6,7 @@ import { SUMMONS } from '../src/catalog/summons'
 import type { LocalData } from '../src/domain'
 import { createBlankPlaythrough, replacePlannerData, selectedPlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
-import { referencePath } from './reference-helpers'
+import { currentReferencePath } from './reference-helpers'
 
 async function openSettings(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -51,8 +51,8 @@ test('uses native artwork and the game tree layout with only gray and gold state
   for (const summon of SUMMONS) {
     const tile = summonTile(page, summon.name)
     await expect(tile.getByRole('button')).toHaveAccessibleName(`${summon.label}: ${summon.starting ? 'Always unlocked' : 'Mark unlocked'}`)
-    await expect(tile.getByRole('link', { name: `${summon.name}: Skill`, exact: true })).toHaveAttribute('href', referencePath(summon.id).slice(1))
-    await expect(tile.getByRole('link', { name: `${summon.name}: Deity`, exact: true })).toHaveAttribute('href', referencePath(summon.monsterId).slice(1))
+    await expect(tile.getByRole('link', { name: `${summon.name}: Skill`, exact: true })).toHaveAttribute('href', currentReferencePath(summon.id).slice(1))
+    await expect(tile.getByRole('link', { name: `${summon.name}: Deity`, exact: true })).toHaveAttribute('href', currentReferencePath(summon.monsterId).slice(1))
     expect(await tile.evaluate(element => [(element as HTMLElement).style.gridRow, (element as HTMLElement).style.gridColumn])).toEqual([String(summon.row + 1), String(summon.column + 1)])
     const image = tile.locator('img')
     await image.scrollIntoViewIfNeeded()

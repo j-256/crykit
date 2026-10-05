@@ -1,6 +1,6 @@
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { referencePath } from './reference-helpers'
+import { currentReferencePath, referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
 
@@ -32,8 +32,8 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(reserve).toContainText('Record #179')
   await expect(overpass).toContainText('Overpass')
   await expect(overpass).toContainText('Record #318')
-  await expect(reserve).toHaveAttribute('href', referencePath('base:monster:179').slice(1))
-  await expect(overpass).toHaveAttribute('href', referencePath('base:monster:318').slice(1))
+  await expect(reserve).toHaveAttribute('href', currentReferencePath('base:monster:179').slice(1))
+  await expect(overpass).toHaveAttribute('href', currentReferencePath('base:monster:318').slice(1))
   await search.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(enemies).toHaveCount(6)
   await expect(enemies.filter({ hasText: 'Chaos mode' })).toHaveCount(2)
@@ -168,7 +168,7 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await page.getByRole('button', { name: 'Mira: sample Cleric', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Cleric')
   const classes = page.getByRole('listbox', { name: 'Choose Class', exact: true })
-  const cleric = classes.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cleric$/ }) })
+  const cleric = classes.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Cleric$/ }) })
   await expect(cleric).toHaveCount(1)
   await expect(cleric).toContainText('Windows 1.6.9')
   await cleric.click()
@@ -176,7 +176,7 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   await page.getByRole('combobox', { name: 'Preview ability', exact: true }).fill('Cure')
   const abilities = page.getByRole('listbox', { name: 'Choose Preview ability', exact: true })
-  const cure = abilities.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
+  const cure = abilities.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
   await expect(cure).toHaveCount(1)
   await expect(cure).toContainText('Windows 1.6.9')
   await openBuildPickerFilters(page)

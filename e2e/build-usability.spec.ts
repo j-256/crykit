@@ -1,6 +1,6 @@
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -15,7 +15,7 @@ async function choose(page: Page, label: string, name: string, options: { includ
     await openBuildPickerFilters(page)
     await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   }
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
 
@@ -32,7 +32,7 @@ async function addCharacter(page: Page, name: string) {
   await expect(form).not.toBeVisible()
 }
 
-test('build choices expose native facts, mod scope, and explicit innate costs', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
+test('build choices expose native facts, mod scope, and duplicate passive filtering', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/builds/library/new')
   await expect(page.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
   const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
@@ -70,6 +70,9 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await expect(page.getByRole('listbox')).toContainText('Attack: +350')
   await hand.press('ArrowDown')
   if (!isMobile) {
+    const nativeKatana = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Attack: +350' }).filter({ has: page.locator('strong', { hasText: /^Diamond Katana$/ }) })
+    await hand.press('Home')
+    await expect(nativeKatana).toHaveClass(/picker-result--active/)
     const comparison = page.locator('.build-sheet__preview').getByRole('table')
     await expect(comparison).toContainText('372')
     await expect(comparison).toContainText('350')
@@ -101,25 +104,34 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   await choose(page, 'Equipped passive 1', 'Attack Focus')
   const secondPassive = page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })
   await secondPassive.fill('Attack Focus')
-  await expect(page.getByRole('listbox')).toContainText('That passive is already selected in another slot')
-  await expect(page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Attack Focus$/ }) })).toHaveCount(0)
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Attack Focus$/ }) })).toHaveCount(0)
   await secondPassive.press('Escape')
   await choose(page, 'Equipped passive 2', 'Backstabber')
   await choose(page, 'Equipped passive 3', 'Duel Ready')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 / 10 PP')
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
-  const innateToggle = page.getByRole('checkbox', { name: /Include innates from the Learnable Innate Skill mod/ })
+})
+
+test('learnable mod innates retain source costs, badges and saved selections', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
+  await page.goto('/#/builds/library/new')
+  await choose(page, 'Main hand', 'Muramasa')
+  await choose(page, 'Accessory 1', 'Crit Fang')
+  await choose(page, 'Equipped passive 1', 'Attack Focus')
+  await choose(page, 'Equipped passive 2', 'Backstabber')
+  await choose(page, 'Equipped passive 3', 'Duel Ready')
+  await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 / 10 PP')
+  const innateToggle = page.getByRole('checkbox', { name: /^Include learnable innates/ })
   if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await expect(innateToggle).toHaveCount(1)
   await expect(innateToggle).not.toBeChecked()
   await innateToggle.check()
   const passive = page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })
   await passive.fill('Toughness')
-  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' })).toHaveCount(0)
   await passive.fill('Squall')
-  await expect(page.getByRole('listbox')).toContainText('No matching definitions')
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' })).toHaveCount(0)
   await passive.fill('Two-Handed')
-  let innateResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
+  let innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Learnable Innate Skills' }).filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
   await expect(innateResult).toContainText('Innate')
   await expect(innateResult).toContainText('6 PP')
   await expect(innateResult.locator('.picker-result__heading').getByText('Mod: Learnable Innate Skills', { exact: true })).toBeVisible()
@@ -143,8 +155,11 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
   if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await innateToggle.check()
   await passive.fill('Two-Handed')
-  innateResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
+  innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Learnable Innate Skills' }).filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
   await innateResult.click()
+  const enableInnates = page.getByRole('dialog', { name: /^Enable Learnable Innate Skills?\?$/ })
+  await enableInnates.getByRole('button', { name: 'Enable and select Two-Handed', exact: true }).click()
+  await expect(enableInnates).not.toBeVisible()
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('15 / 10 PP')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Build needs changes')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Selected passives cost 15 PP, above the 10 PP limit')
@@ -177,6 +192,7 @@ test('build choices expose native facts, mod scope, and explicit innate costs', 
 
 test('build edit warnings save or discard before continuing to another section', async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
@@ -208,6 +224,7 @@ test('build edit warnings save or discard before continuing to another section',
 
 test('new and existing build drafts survive Reference research, history, and return navigation', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
   await openBuildGameSetup(page)
@@ -286,6 +303,7 @@ test('readiness assigns the saved revision, groups shared causes, and opens affe
 
 test('readiness creates a team pinned to the saved build when the current Game Setup changes', async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   for (const name of ['Synthetic Rowan', 'Synthetic Mira', 'Synthetic Tavi', 'Synthetic Sol']) await addCharacter(page, name)
   await page.goto('/#/builds/library/new')

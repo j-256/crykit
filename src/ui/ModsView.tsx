@@ -4,19 +4,19 @@ import { readModSource } from '../persistence/mod-library'
 import { bundledModEditableSource } from '../catalog/mod-library'
 import { ModLibrary, type SetModReference } from './ModLibrary'
 import { ModInspectorView, type SaveModToLibrary } from './ModInspectorView'
-import { ScreenHeader, Segmented } from './components'
+import { Button, ScreenHeader, Segmented } from './components'
 import type { DraftChangeHandler } from './drafts'
 import { useNavigation } from './navigation'
 import { DefinitionEditor } from './definitions'
 
-export function ModsView({ onDraftChange, onSaveToLibrary, onSetReference }: { readonly onDraftChange: DraftChangeHandler; readonly onSaveToLibrary: SaveModToLibrary; readonly onSetReference: SetModReference }) {
+export function ModsView({ onDraftChange, onSaveToLibrary, onSetReference, onChooseMods }: { readonly onDraftChange: DraftChangeHandler; readonly onSaveToLibrary: SaveModToLibrary; readonly onSetReference: SetModReference; readonly onChooseMods: () => void }) {
   const navigation = useNavigation()
   const view = navigation.route.page.page === 'mods' ? navigation.route.page.view : 'library'
   const overlay = navigation.route.overlays[0]
   const creating = overlay?.kind === 'definition-editor' && overlay.mode === 'new'
   const navigate = (next: 'library' | 'editor', draftId?: string) => navigation.navigate({ page: { page: 'mods', view: next }, overlays: [], query: draftId ? { draft: [draftId] } : {} })
   return <div className="stack">
-    <ScreenHeader eyebrow="Buildcrafting" title="Mods" description="Manage mods and their catalog entries, including mods without a JSON file."/>
+    <ScreenHeader eyebrow="Buildcrafting" title="Mods" description="Manage mods and their catalog entries, including mods without a JSON file." actions={<Button onClick={onChooseMods}>Choose mods</Button>}/>
     <Segmented label="Mods workspace" value={view} options={[{ value: 'library', label: 'Mod library' }, { value: 'editor', label: 'Editor workspace' }]} onChange={next => navigate(next)}/>
     {view === 'library' ? <ModLibrary onSetReference={onSetReference} onOpenEditor={() => navigate('editor')} onImport={onSaveToLibrary} onEditBundled={async mod => {
       const source = await bundledModEditableSource(mod)

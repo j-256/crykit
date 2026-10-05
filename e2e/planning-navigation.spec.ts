@@ -1,9 +1,11 @@
+import { skipInitialModSetup } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 
 test('home opens the build library and separates tracking on desktop and touch', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   if (isMobile) await page.setViewportSize({ width: 320, height: 740 })
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const library = page.getByRole('region', { name: 'Build library', exact: true })

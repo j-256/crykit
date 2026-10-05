@@ -1,5 +1,6 @@
+import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
+import { selectedPlaythrough, createBlankPlaythrough, addBundledModToReference } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -159,6 +160,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
 })
 
 test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  await addBundledModToReference(page, 'Equipment Expansion')
   await navigate(page, 'Reference')
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
   await page.getByRole('button', { name: 'Source', exact: true }).click()
@@ -196,8 +198,10 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   expect(Math.min(...geometry.widths)).toBeGreaterThan(180)
   expect(Math.min(...geometry.gaps)).toBeGreaterThanOrEqual(5.5)
 
-  await sourceSearch.fill('docs.google.com')
-  await expect(sources.getByRole('button', { name: /Equipment Expansion\. Full source: https:\/\/docs\.google\.com\// })).toBeVisible()
+  const source = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
+  const sourceId = `source:${source.sourceDigest}`
+  await sourceSearch.fill(sourceId)
+  await expect(sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) })).toBeVisible()
   await sourceSearch.fill('Windows 1.6.9')
   await expect(nativeSource).toBeVisible()
 })

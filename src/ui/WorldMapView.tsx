@@ -48,7 +48,8 @@ function MarkerDetails({ marker, manifest, catalogs, onClose }: { readonly marke
     <dl className="world-map-facts"><div><dt>Location</dt><dd>{marker.region ?? 'Area unrecorded'}</dd></div><div><dt>Layer</dt><dd>{layerName ?? 'Layer unrecorded'}</dd></div><div><dt>Coordinates</dt><dd>X {marker.x} · Z {marker.z}{!isRegion && <small>Height {marker.y}</small>}</dd></div></dl>
     {marker.targets.length > 0 && <div className="world-map-details__references"><h3>{marker.kind === 'chest' ? 'Contents' : marker.kind === 'resource' ? 'Gathered items' : marker.kind === 'boss' || marker.kind === 'encounter' ? 'Encounter' : 'Reference'}</h3>{marker.targets.map(target => {
       const ref = worldMapTargetRef(target, catalogs)
-      return <div key={`${target.sourceId}:${target.family}:${target.id}`}>{ref ? <ReferenceLink refValue={ref}>{target.name}</ReferenceLink> : <span>{target.name}</span>}</div>
+      const loaded = ref && catalogs.some(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
+      return <div key={`${target.sourceId}:${target.family}:${target.id}`}>{ref ? <ReferenceLink query={loaded ? {} : { 'library-mod': [ref.catalogId] }} refValue={ref}>{target.name}</ReferenceLink> : <span>{target.name}</span>}</div>
     })}</div>}
     {marker.conditions && marker.conditions.length > 0 && <div className="world-map-requirements"><h3>Interaction conditions</h3><p>Separate interactions and rewards may use different conditions.</p><ul>{marker.conditions.map((condition, index) => <li key={index}>{condition}</li>)}</ul></div>}
     {marker.warnings && marker.warnings.length > 0 && <InlineNotice title="Some details are unrecorded" tone="warning"><ul>{marker.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></InlineNotice>}
