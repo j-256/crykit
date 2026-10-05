@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
-import { menuIcon, type MenuIcon } from '../catalog/sprites'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { catalogArtwork, menuIcon, type MenuIcon } from '../catalog/sprites'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
 import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
@@ -30,10 +29,13 @@ export function DefinitionArtwork({ localData, catalogs, value }: { localData: L
   if (!value) return null
   const entity = resolveDefinition(localData, catalogs, value)
   if (!entity) return <ArtworkPlaceholder compact entity={{ kind: 'other', name: 'Unresolved definition' }}/>
+  if (value.kind === 'catalog') {
+    const artworkEntity = { ...entity, id: value.entityId }
+    if (catalogArtwork(value.catalogId, artworkEntity)) return <CatalogArtwork catalogId={value.catalogId} compact entity={artworkEntity}/>
+  }
   const iconKey = definitionIconKey(entity)
   if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>
-  if (value.kind !== 'catalog' || value.catalogId !== STARTER_CATALOG_ID) return <ArtworkPlaceholder compact entity={entity}/>
-  return <CatalogArtwork catalogId={value.catalogId} compact entity={{ id: value.entityId, kind: entity.kind, name: entity.name }}/>
+  return <ArtworkPlaceholder compact entity={entity}/>
 }
 
 function externalFieldIconKeys(fields: CatalogEntity['fields']): readonly string[] {

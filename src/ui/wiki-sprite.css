@@ -1,0 +1,2 @@
+.wiki-sprite__crop { display: block; position: relative; overflow: hidden; flex: none; max-width: 100%; }
+.wiki-sprite .wiki-sprite__crop > img { position: absolute; max-width: none !important; max-height: none !important; }
