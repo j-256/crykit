@@ -20,6 +20,7 @@ const MAIN_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'reference', label: 'Reference', icon: 'tome' },
   { id: 'map', label: 'World Map', icon: 'compass' },
   { id: 'mods', label: 'Mods', icon: 'edit' },
+  { id: 'save-editor', label: 'Save editor', icon: 'archive' },
 ]
 const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'characters', label: 'Characters', icon: 'character' },
@@ -115,7 +116,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       <header className={`context-bar${tracking ? '' : ' context-bar--planning'}${destination === 'map' ? ' context-bar--map' : ''}`} ref={contextRef}>
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
-          {destination !== 'mods' && destination !== 'map' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
+          {destination !== 'mods' && destination !== 'map' && destination !== 'save-editor' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
           <DevelopmentRefresh blocked={developmentRefreshBlocked} onRefresh={onDevelopmentRefresh}/>
         </div>
       </header>

@@ -47,7 +47,7 @@ export function StorageSection({ localData, dirty, saving, saveError, onExport, 
     {dirty && <InlineNotice title="Unsaved changes" tone="warning">Save or submit open form fields before exporting. Backups include retained failed-save transactions, but not fields that still exist only in a form.</InlineNotice>}
     {storageError && <InlineNotice title="Storage operation failed" tone="danger">{storageError}</InlineNotice>}
     <section className="settings-section">
-      <div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Export planner data for recovery or transfer. Download Mod Inspector originals and drafts separately.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>
+      <div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Export planner data for recovery or transfer. Download Mod Inspector originals and drafts, and edited game saves, separately.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>
       {exportError && <InlineNotice title="Export failed" tone="danger">{exportError}</InlineNotice>}
     </section>
     <section className="settings-section">

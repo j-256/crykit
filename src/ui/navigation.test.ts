@@ -42,6 +42,19 @@ describe('semantic navigation routes', () => {
     for (const hash of ['#/reference/catalog/v2/base/item/203/name', '#/reference/catalog/v1/r1/base/item/203/name', '#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/base/item/203/name']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
   })
 
+  it('routes the save editor and its overlays without treating it as build research', () => {
+    const editor = routeForDestination('save-editor')
+    expect(formatAppRoute(editor)).toBe('#/save-editor')
+    expect(parseAppRoute('#/save-editor')).toEqual(editor)
+    expect(routeDestination(editor)).toBe('save-editor')
+    expect(routeTitle(editor)).toBe('Save editor | CryKit')
+    expect(isReferenceResearchRoute(editor)).toBe(false)
+    const search = parseAppRoute('#/save-editor/search?q=tonic')
+    expect(search).toMatchObject({ page: { page: 'save-editor' }, overlays: [{ kind: 'search', query: 'tonic' }] })
+    expect(parentRoute(search)).toEqual(editor)
+    expect(parseAppRoute('#/save-editor/unknown').page).toMatchObject({ page: 'unresolved', recovery: 'save-editor' })
+  })
+
   it('retains map selection, layer, and mod preview queries through reloads and search overlays', () => {
     const hash = '#/map?gameSetup=synthetic-setup&layer=caves&marker=chest%3A123&mods=first&mods=second'
     const map = parseAppRoute(hash)
@@ -183,6 +196,7 @@ describe('semantic navigation routes', () => {
   it('round-trips every page and action identity', () => {
     const pages = [
       { page: 'map' },
+      { page: 'save-editor' },
       { page: 'mods', view: 'library' },
       { page: 'mods', view: 'editor' },
       { page: 'inventory', view: 'list' },

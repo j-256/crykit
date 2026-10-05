@@ -1,6 +1,6 @@
 import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { BuildId, CharacterId, EntityRef, InventoryPositionId, ProgressRecordId, ScenarioId, TeamId } from '../domain/types'
-import { formatAppRoute, parseAppRoute, routeDestination, type AppRoute, type Destination } from './navigation'
+import { formatAppRoute, parseAppRoute, routeDestination, routeForDestination, type AppRoute, type Destination } from './navigation'
 
 export type UniversalSearchTarget =
   | { readonly kind: 'weaponSkills'; readonly weapon: WeaponType }
@@ -52,17 +52,7 @@ export function parseUniversalSearchTarget(hash: string): UniversalSearchTarget 
 }
 
 export function formatSearchDestination(destination: Destination, target?: UniversalSearchTarget): string {
-  if (!target) return formatAppRoute({
-    page: destination === 'inventory' ? { page: 'inventory', view: 'list' }
-      : destination === 'characters' ? { page: 'characters', view: 'list' }
-      : destination === 'builds' ? { page: 'builds', view: 'library' }
-      : destination === 'teams' ? { page: 'teams', view: 'list' }
-      : destination === 'progress' ? { page: 'progress', view: 'list' }
-      : destination === 'mods' ? { page: 'mods', view: 'library' }
-      : { page: 'reference', view: 'list' },
-    overlays: [],
-    query: {},
-  })
+  if (!target) return formatAppRoute(routeForDestination(destination))
   const route = routeForSearchTarget(target)
   if (routeDestination(route) !== destination) throw new Error('Search target does not belong to the requested destination')
   return formatAppRoute(route)

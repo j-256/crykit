@@ -50,6 +50,10 @@ Display names are labels, not stable identifiers. Keep source IDs when revising 
 
 Research packages may declare `catalog_id` or `source_namespace` to preserve one catalog identity across reviewed revisions. Without either field, the importer assigns a digest-scoped catalog identity. This keeps unrelated packs separate and means that automatic cross-revision identity requires an explicit namespace.
 
+## Game save files
+
+Crystal Project `.sav` files use the separate **Save editor** workspace, not the planner import flow. Original bytes and edited copies remain in memory and are downloaded separately; they are not planner records, archived import sources, or part of a CryKit backup. See [save editor compatibility and recovery](save-editor.md).
+
 ## Preview and restore
 
 Parsing, archive checks, and schema validation finish before an import transaction begins. The preview identifies the detected format, record groups, warnings, and destination. Canceling the preview leaves stored records unchanged. Reimporting identical source content is idempotent.

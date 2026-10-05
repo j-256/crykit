@@ -15,6 +15,7 @@ No account or installation is needed. Your saved builds and records stay in your
 - **Look things up:** browse items, skills, class learn trees, monsters, and more. Native effects and stats lead the reference; item and equipment pages collect supported routes and reward conditions under **How to obtain**. Guide notes stay readable, with **Sources** icons for external claims and uncertain values.
 - **Explore the world:** pan and zoom through the native Windows world map, find chests, NPCs, bosses, resources, and landmarks, and preview bundled or imported mod placements. See [the world map guide](docs/user-guide.md#explore-the-world-map).
 - **Manage mods:** browse bundled and imported versions, import updates, edit full project JSON, and follow links to Steam Workshop. Mods without a source file retain catalog entries and support manual observations. See [Mods](docs/mods.md) and [the editor workspace](docs/mod-inspector.md).
+- **Edit game saves:** open any native-supported save format, adjust the party and inventory, review a preset, and download an edited copy locally. See [save editing and compatibility](docs/save-editor.md) for game-rule coverage.
 - **Check a team:** optionally compare saved builds with recorded character learning and available equipment, including items needed by several party members.
 - **Record your game:** keep character snapshots, learning, and inventory in separate Playthroughs. Learn-menu screenshot imports run locally and require review before saving.
 
@@ -56,6 +57,8 @@ Save open forms, then choose **Data & settings > Import & backup > Export backup
 
 Mods saved to the Mod library and their original source files are included in planner backups. Editor workspace originals and working drafts have separate downloads; export those drafts from **Mods > Editor workspace** before clearing browser storage or moving to another browser.
 
+Game saves opened in **Save editor** stay in memory for that tab. Download edited saves separately before leaving or reloading; planner backups do not include them.
+
 **Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
 
 For offline use, open **Data & settings > Offline & storage** while connected. Choose **Prepare for offline use** if needed, and wait for **Offline ready** before disconnecting.
@@ -74,6 +77,7 @@ The same section offers **Apply app update** for a staged update and **Refresh a
 | Export versioned character/combat rules or read their equations | [Calculation package](docs/calculations.md), [human-readable reference](docs/calculation-reference.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
 | Decode IDs and edit mod JSON | [Mods and the editor workspace](docs/mod-inspector.md) |
+| Edit a Crystal Project save | [Save editor](docs/save-editor.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Report incorrect reference data | [GitHub issues](https://github.com/j-256/crykit/issues) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |

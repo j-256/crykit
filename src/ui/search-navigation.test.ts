@@ -4,6 +4,11 @@ import type { EntityRef } from '../domain/types'
 import { destinationForSearchTarget, formatSearchDestination, parseUniversalSearchTarget, type UniversalSearchTarget } from './search-navigation'
 
 describe('universal search navigation', () => {
+  it('opens standalone tools without substituting Reference', () => {
+    expect(formatSearchDestination('save-editor')).toBe('#/save-editor')
+    expect(formatSearchDestination('map')).toBe('#/map')
+  })
+
   it('round-trips exact catalog definition refs', () => {
     const ref = { kind: 'catalog', catalogId: 'catalog', catalogRevisionId: 'r1', entityId: 'entity' } as EntityRef
     const target: UniversalSearchTarget = { kind: 'definition', ref }
