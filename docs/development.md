@@ -27,7 +27,7 @@ npm run preview
 
 Open the localhost address printed by Vite. Keep using the same origin when entering real records: scheme, host, and port determine which browser database is opened. Export a backup before changing origins or clearing browser storage. Development mode does not install an offline service worker. **Refresh app** and the reload icon beside the development port perform a full page reload there; the development server revalidates source files. Production refresh checks for an update or repairs cached app files before reloading. Refresh controls protect unsaved edits, pending saves, and failed-save recovery.
 
-Prepare and confirm offline readiness through **Data & settings > Offline & storage**. See [offline use](user-guide.md#use-the-app-offline) for the user workflow.
+Prepare and confirm offline readiness through **Data & settings > Offline & storage**. The service worker pipelines bounded download batches so slow files do not hold up other batches. Readiness checks inspect cached request URLs and require every application file. Failed refreshes stop new downloads and wait for active writes before removing the staged cache, preserving the usable installation. Generated-worker tests cover download progress, the concurrency limit, missing-file repair, and refresh rollback. See [offline use](user-guide.md#use-the-app-offline) for the user workflow.
 
 ## Verification
 

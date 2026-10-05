@@ -29,7 +29,8 @@ const FILES = ${JSON.stringify(assets)};
 const assetUrls = FILES.map(path => new URL(path, self.registration.scope).href);
 const indexUrl = new URL('index.html', self.registration.scope).href;
 const refreshPointerUrl = new URL('__crykit_app_cache__', self.registration.scope).href;
-const DOWNLOAD_BATCH_SIZE = 32;
+const DOWNLOAD_BATCH_SIZE = 8;
+const CONCURRENT_DOWNLOAD_BATCHES = 4;
 const refreshPrefix = name => name.replace(CACHE_PREFIX, 'crykit-refresh-') + '-';
 const applicationCache = async (name = CACHE_NAME) => {
   const cache = await caches.open(name);
@@ -39,14 +40,25 @@ const applicationCache = async (name = CACHE_NAME) => {
   return cache;
 };
 const downloadFiles = async (cache, urls) => {
-  for (let index = 0; index < urls.length; index += DOWNLOAD_BATCH_SIZE) {
-    await cache.addAll(urls.slice(index, index + DOWNLOAD_BATCH_SIZE).map(url => new Request(url, { cache: 'reload' })));
-  }
+  let index = 0;
+  let failed = false;
+  const download = async () => {
+    while (!failed && index < urls.length) {
+      const batch = urls.slice(index, index += DOWNLOAD_BATCH_SIZE);
+      try { await cache.addAll(batch.map(url => new Request(url, { cache: 'reload' }))); }
+      catch (error) { failed = true; throw error; }
+    }
+  };
+  // Drain in-flight writes before a failed refresh removes its staged cache
+  const results = await Promise.allSettled(Array.from({ length: CONCURRENT_DOWNLOAD_BATCHES }, download));
+  const failure = results.find(result => result.status === 'rejected');
+  if (failure) throw failure.reason;
 };
+const cachedUrls = async cache => new Set((await cache.keys()).filter(request => request.method === 'GET').map(request => request.url));
 const prepareCache = async () => {
   const cache = await applicationCache();
-  const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
-  const missing = assetUrls.filter((_, index) => !matches[index]);
+  const present = await cachedUrls(cache);
+  const missing = assetUrls.filter(url => !present.has(url));
   await downloadFiles(cache, missing);
 };
 let refreshing;
@@ -105,8 +117,8 @@ self.addEventListener('message', event => {
         if (event.data.type === 'PREPARE_CACHE') await prepareCache();
         if (event.data.type === 'REFRESH_CACHE') await refreshCache();
         const cache = await applicationCache();
-        const matches = await Promise.all(assetUrls.map(url => cache.match(url, { ignoreVary: true })));
-        event.ports[0]?.postMessage({ ready: matches.every(Boolean), version: ${JSON.stringify(version)} });
+        const present = await cachedUrls(cache);
+        event.ports[0]?.postMessage({ ready: assetUrls.every(url => present.has(url)), version: ${JSON.stringify(version)} });
       } catch (error) { event.ports[0]?.postMessage({ ready: false, error: error instanceof Error ? error.message : 'Application cache operation failed' }); }
     })());
   }
