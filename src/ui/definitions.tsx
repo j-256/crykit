@@ -58,7 +58,7 @@ export interface DefinitionOption {
   readonly record: DefinitionRecord
 }
 
-interface DefinitionLibraryValue {
+export interface DefinitionLibraryValue {
   readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly options: readonly DefinitionOption[]
@@ -173,6 +173,13 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLo
     return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
   }, [baseline, planningOptions, localData])
   const value = useMemo(() => ({ localData, catalogs, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod }), [availableOptions, availablePlanningOptions, catalogs, onSaveDefinition, onLoadBundledMod, options, planningOptions, localData])
+  return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
+}
+
+export function ScopedDefinitionProvider({ catalogs, filterOption, children }: PropsWithChildren<{ readonly catalogs: readonly CatalogSnapshot[]; readonly filterOption?: (option: DefinitionOption) => boolean }>) {
+  const parent = useDefinitionLibrary()
+  const options = useMemo(() => buildDefinitionOptions(parent.localData, catalogs).filter(option => option.ref.kind === 'catalog' && (!filterOption || filterOption(option))), [catalogs, filterOption, parent.localData])
+  const value = useMemo<DefinitionLibraryValue>(() => ({ ...parent, catalogs, options, availableOptions: options, planningOptions: options, availablePlanningOptions: options }), [catalogs, options, parent])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 

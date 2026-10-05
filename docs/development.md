@@ -98,7 +98,7 @@ Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source cor
 
 ## Save editor
 
-The [save editor](save-editor.md) separates bounded binary/BSON decoding, pure semantic edits, and the browser workspace. Keep untouched values and source bytes, reject unsupported editing profiles, and use synthetic fixtures in codec, domain, and browser tests. Saving a `.sav` exports a new file; it must not mutate Playthrough data or persisted planner formats. Add meaningful round-trip and rejected-operation coverage when expanding supported fields or formats.
+The [save editor](save-editor.md) separates bounded binary/BSON decoding, pure semantic edits, ordered session-only mod projection, definition-to-effective-ID bindings, and the browser workspace. Keep untouched values and source bytes, require exact declared mod identities, treat imported descriptions and formulas as inert, reject unsupported editing or conversion profiles, and use synthetic fixtures in codec, domain, and browser tests. A save loadout must reconcile class restrictions, member learning, PP, slot roles, and inventory in one atomic edit. Removing mod state must clear both serialized metadata copies last and validate against the selected mode's native definitions after removing supported non-native indexed state. Saving a `.sav` exports a new file; it must not mutate Playthrough data or persisted planner formats. Add meaningful round-trip and rejected-operation coverage when expanding supported fields, mod families, or formats.
 
 ## Bundle a mod source directory
 
