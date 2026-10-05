@@ -21,6 +21,21 @@
 .save-editor__facts dt { color: var(--text-dim); font-size: .72rem; }
 .save-editor__facts dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: .9rem; }
 .save-editor__note { margin: 0; font-size: .78rem; }
+.save-editor__mods { border-color: color-mix(in srgb, var(--cyan-300) 55%, var(--line)); }
+.save-editor__mod-list { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.save-editor__mod-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.save-editor__mod-check { display: grid; width: 18px; height: 18px; margin: 0; appearance: none; place-content: center; border: 1px solid var(--line); border-radius: 3px; background: var(--ink-900); opacity: 1; }
+.save-editor__mod-check::before { width: 8px; height: 4px; content: ''; border-bottom: 2px solid var(--ink-900); border-left: 2px solid var(--ink-900); transform: translateY(-1px) rotate(-45deg) scale(0); }
+.save-editor__mod-check:checked { border-color: var(--cyan-300); background: var(--cyan-300); }
+.save-editor__mod-check:checked::before { transform: translateY(-1px) rotate(-45deg) scale(1); }
+.save-editor__mod-copy { min-width: 0; }
+.save-editor__mod-list strong, .save-editor__mod-list small { display: block; overflow-wrap: anywhere; }
+.save-editor__mod-list small { margin-top: 3px; color: var(--text-dim); font-size: .7rem; }
+.save-editor__mod-state { flex: 0 0 auto; color: var(--amber); font-size: .74rem; }
+.save-editor__mod-state--matched { color: var(--cyan-300); }
+.save-editor__conversion { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.save-editor__conversion h3 { margin: 0; font-size: 1rem; }
+.save-editor__conversion p { margin: 8px 0 12px; font-size: .82rem; line-height: 1.6; }
 .save-editor__money { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .save-editor__money .field { min-width: 160px; flex: 1; }
 .save-editor__members { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -50,6 +65,25 @@
 .save-editor__inventory-row input { width: 100%; }
 .save-editor__review summary { cursor: pointer; font-size: 1rem; font-weight: 700; }
 .save-editor__review > p { margin: 12px 0; }
+.save-party { overflow: visible; border-color: color-mix(in srgb, var(--cyan-300) 34%, var(--line)); background: linear-gradient(145deg, color-mix(in srgb, var(--cyan-300) 4%, var(--ink-900)), var(--ink-900) 36%); }
+.save-party__heading { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.save-party__heading h2 { margin-bottom: 6px; }
+.save-party__heading p { max-width: 820px; margin: 0; font-size: .84rem; line-height: 1.6; }
+.save-party__heading > span { flex: 0 0 auto; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-dim); font-size: .7rem; }
+.save-party__tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+.save-party__tab { display: flex; align-items: center; justify-content: space-between; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text-dim); background: var(--ink-900); cursor: pointer; }
+.save-party__tab strong { overflow: hidden; color: var(--text); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.save-party__tab small { flex: 0 0 auto; font-size: .68rem; }
+.save-party__tab[aria-selected="true"] { border-color: var(--cyan-300); background: color-mix(in srgb, var(--cyan-300) 9%, var(--ink-900)); box-shadow: inset 0 -2px var(--cyan-300); }
+.save-party__identity { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(110px, .35fr) auto minmax(220px, 1fr); align-items: end; gap: 12px; margin-bottom: 18px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--ink-900) 78%, transparent); }
+.save-party__identity > p { align-self: center; margin: 0; font-size: .72rem; line-height: 1.5; }
+.save-party__editor { display: grid; gap: 16px; }
+.save-party__build-import { display: grid; grid-template-columns: minmax(240px, 1fr) auto; align-items: end; gap: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--cyan-300) 35%, var(--line)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--cyan-300) 4%, var(--ink-900)); }
+.save-party__build-import .button { min-height: 42px; }
+.save-party .loadout-sheet { gap: 14px; }
+.save-party .build-sheet__layout { margin-top: 0; }
+.save-party__loadout-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.save-party__loadout-actions small { color: var(--text-dim); }
 .save-editor__error-list { margin: 8px 0 0; padding-left: 20px; }
 .save-editor__pending { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
 .save-editor__pending p { margin: 0; }
@@ -58,6 +92,9 @@
   .save-editor__scope { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .save-editor__inventory-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .save-editor__inventory-tools .field:first-child { grid-column: 1 / -1; }
+  .save-party__tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .save-party__identity { grid-template-columns: minmax(0, 1fr) minmax(90px, .4fr); }
+  .save-party__identity .button, .save-party__identity > p { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
   .save-editor__panel { padding: 14px; }
@@ -67,4 +104,11 @@
   .save-editor__inventory-row > div { align-self: start; grid-row: span 2; }
   .save-editor__fields { grid-template-columns: 1fr; }
   .save-editor__actions .button { white-space: normal; }
+  .save-editor__mod-list li { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .save-editor__mod-state { grid-column: 2; }
+  .save-party__heading { display: block; }
+  .save-party__heading > span { display: inline-block; margin-top: 10px; }
+  .save-party__tabs, .save-party__identity, .save-party__build-import { grid-template-columns: 1fr; }
+  .save-party__identity .button, .save-party__identity > p { grid-column: auto; }
+  .save-party__tab { min-height: 46px; }
 }

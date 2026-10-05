@@ -59,7 +59,7 @@ Save open forms, then choose **Data & settings > Import & backup > Export backup
 
 Mods saved to the Mod library and their original source files are included in planner backups. Editor workspace originals and working drafts have separate downloads; export those drafts from **Mods > Editor workspace** before clearing browser storage or moving to another browser.
 
-Game saves opened in **Save editor** stay in memory for that tab. Download edited saves separately before leaving or reloading; planner backups do not include them.
+Game saves and save-specific mod definitions opened in **Save editor** stay in memory for that tab. CryKit automatically matches bundled Crystal Edit definitions and requests manual JSON only for exceptions. Supported disabled-mod residue can be reviewed for removal without changing the save's game mode. Download edited saves separately before leaving or reloading; planner backups do not include the opened saves or session-only manual definitions.
 
 **Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
 

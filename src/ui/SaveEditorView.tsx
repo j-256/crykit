@@ -1,17 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from '../catalog/mod-library'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { CRYSTAL_SAVE_LIMITS, CRYSTAL_SAVE_MIN_VERSION, CRYSTAL_SAVE_VERSION, crystalSaveVersion, isSupportedCrystalSaveVersion, decodeCrystalSave, encodeCrystalSave, type CrystalSave } from '../interchange/crystal-save'
-import { editSave, inspectSave, previewSaveChanges, saveEditorChoices, SAVE_EDITOR_MAX_CURRENCY, SAVE_EDITOR_MAX_LEVEL, type SaveEditCommand } from '../domain/save-editor'
+import { previewCrystalEdit } from '../interchange/crystal-edit'
+import { editSave, inspectSave, previewSaveChanges, previewVanillaConversion, saveEditorChoices, SAVE_EDITOR_MAX_CURRENCY, SAVE_EDITOR_MAX_LEVEL, type SaveEditCommand } from '../domain/save-editor'
+import { createSaveEditorModSource, resolveSaveEditorMods, saveEditorModProjectId, saveEditorModSourceKey, type SaveEditorModSource } from '../domain/save-editor-mods'
+import { MAX_MOD_SOURCE_BYTES, type BundledLibraryMod } from '../domain/mod-library'
+import type { LocalData } from '../domain/types'
 import { Button, Field, InlineNotice, ScreenHeader } from './components'
+import { DefinitionLibraryContext } from './definitions'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import { downloadBytes } from './model'
+import { SavePartyEditor } from './SavePartyEditor'
 import './save-editor.css'
 
 const INVENTORY_PAGE_SIZE = 30
-const CHOICES = saveEditorChoices(SAVE_EDITOR_CATALOG)
+const MAX_MOD_DEFINITION_FILES = 100
 const BULK_ACTIONS = [
   { type: 'overpowered', title: 'Overpowered preset', description: 'Raise the party to level 99, master classes and skills, and add money, travel items, and a broad equipment inventory. Keep the party\'s equipped loadouts.', button: 'Review overpowered preset' },
-  { type: 'unlock-jobs', title: 'Unlock all classes', description: 'Make the base-game classes available to each party member. Keep their learned skills and equipped classes.', button: 'Review class unlocks' },
+  { type: 'unlock-jobs', title: 'Unlock all classes', description: 'Make every class in the matched save definitions available to each party member. Keep their learned skills and equipped classes.', button: 'Review class unlocks' },
   { type: 'master-jobs', title: 'Master classes and skills', description: 'Learn the supported class abilities and learnable passives for every member, with class mastery and JP.', button: 'Review class mastery' },
   { type: 'reveal-maps', title: 'Reveal stored maps', description: 'Reveal the map regions already stored in this save. Areas absent from the save are not created.', button: 'Review map reveal' },
 ] as const
@@ -63,40 +70,110 @@ function playTime(save: CrystalSave) {
   return `${time.days ? `${time.days}d ` : ''}${time.hours}h ${time.minutes}m`
 }
 
-export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: DraftChangeHandler } = {}) {
+function bundledDefinitionsForSave(save: CrystalSave) {
+  const active = new Map(save.header.mods.map(mod => [mod.id, mod]))
+  const historical = new Set(save.header.modIdMaps.map(map => map.modId).filter(id => !active.has(id)))
+  return BUNDLED_MOD_LIBRARY.filter(mod => {
+    const id = saveEditorModProjectId(mod.id)
+    const saved = active.get(id)
+    if (!saved) return historical.has(id)
+    return (mod.declaredVersion ?? '') === saved.version && (saved.steamWorkshopFileId === 0n || mod.steamWorkshopFileId === saved.steamWorkshopFileId.toString())
+  })
+}
+
+async function loadBundledSaveEditorSource(mod: BundledLibraryMod) {
+  const source = await bundledModEditableSource(mod)
+  const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)
+  if (preview.errors.length) throw new Error(preview.errors[0]!.message)
+  const catalog = preview.proposed.catalogs[0]
+  if (!catalog) throw new Error(`${source.filename} is not a Crystal Edit project`)
+  return createSaveEditorModSource(catalog, preview.warnings, 'bundled', mod.key)
+}
+
+export function SaveEditorView({ localData: localDataProp, onDraftChange }: { readonly localData?: LocalData; readonly onDraftChange?: DraftChangeHandler } = {}) {
+  const definitionLibrary = useContext(DefinitionLibraryContext)
+  const localData = localDataProp ?? definitionLibrary?.localData
   const [opened, setOpened] = useState<OpenSave>()
   const [pending, setPending] = useState<Record<string, string>>({})
   const [revision, setRevision] = useState(0)
   const [exportedRevision, setExportedRevision] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [modBusy, setModBusy] = useState(false)
+  const [bundledBusy, setBundledBusy] = useState(false)
+  const [bundledIssue, setBundledIssue] = useState<string>()
+  const [modSources, setModSources] = useState<readonly SaveEditorModSource[]>([])
   const [error, setError] = useState<string>()
   const [status, setStatus] = useState<string>()
   const [review, setReview] = useState<ReviewedChange>()
+  const [partyDraftDirty, setPartyDraftDirty] = useState(false)
   const [query, setQuery] = useState('')
   const [inventoryKind, setInventoryKind] = useState('all')
   const [stockFilter, setStockFilter] = useState('all')
   const [inventoryLimit, setInventoryLimit] = useState(INVENTORY_PAGE_SIZE)
   const fileInput = useRef<HTMLInputElement>(null)
+  const modInput = useRef<HTMLInputElement>(null)
   const previewHeading = useRef<HTMLHeadingElement>(null)
   const reviewTrigger = useRef<HTMLButtonElement | null>(null)
   const openRequest = useRef(0)
+  const modRequest = useRef(0)
+  const bundledRequest = useRef(0)
   const actionsRef = useRef<DraftActions | undefined>(undefined)
   const registeredActions = useMemo<DraftActions>(() => ({ save: () => actionsRef.current?.save() ?? Promise.resolve(false), discard: () => actionsRef.current?.discard() }), [])
-  const summary = useMemo(() => opened?.draft ? inspectSave(opened.draft, SAVE_EDITOR_CATALOG) : undefined, [opened?.draft])
-  const changes = useMemo(() => opened?.original && opened.draft && opened.original !== opened.draft ? previewSaveChanges(opened.original, opened.draft, SAVE_EDITOR_CATALOG) : [], [opened?.original, opened?.draft])
+  const modResolution = useMemo(() => opened?.draft ? resolveSaveEditorMods(opened.draft, SAVE_EDITOR_CATALOG, modSources) : undefined, [modSources, opened?.draft])
+  const summary = useMemo(() => opened?.draft ? inspectSave(opened.draft, SAVE_EDITOR_CATALOG, modSources) : undefined, [modSources, opened?.draft])
+  const conversion = useMemo(() => opened?.draft ? previewVanillaConversion(opened.draft, SAVE_EDITOR_CATALOG) : undefined, [opened?.draft])
+  const choices = useMemo(() => saveEditorChoices(modResolution?.catalog ?? SAVE_EDITOR_CATALOG), [modResolution?.catalog])
+  const changes = useMemo(() => opened?.original && opened.draft && opened.original !== opened.draft ? previewSaveChanges(opened.original, opened.draft, SAVE_EDITOR_CATALOG, modSources) : [], [modSources, opened?.original, opened?.draft])
   const hasPending = Object.keys(pending).length > 0
-  const dirty = revision !== exportedRevision || hasPending || busy
-  const locked = busy || !summary?.editable || !!review
+  const dirty = revision !== exportedRevision || hasPending || partyDraftDirty || busy
+  const locked = busy || modBusy || bundledBusy || !summary?.editable || !!review
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const inventory = (summary?.inventory ?? []).filter(row => (inventoryKind === 'all' || row.kind === inventoryKind)
     && (stockFilter === 'all' || row.count > 0)
     && `${row.name} ${row.id}`.toLocaleLowerCase().includes(normalizedQuery))
+  const detectedMods = useMemo(() => {
+    const active = (modResolution?.activeMods ?? []).map(mod => {
+      const candidates = modSources.filter(source => source.id === mod.id && (source.version ?? '') === mod.version)
+      const saved = opened?.draft?.header.mods.find(candidate => candidate.id === mod.id && candidate.version === mod.version)
+      const matches = candidates.filter(source => !saved || saved.steamWorkshopFileId === 0n || source.steamWorkshopFileId === saved.steamWorkshopFileId.toString())
+      const source = matches.length === 1 ? matches[0] : undefined
+      return { id: mod.id, title: mod.title, version: mod.version, active: true, matched: mod.matched, source }
+    })
+    const historical = (modResolution?.historicalModIds ?? []).map(id => {
+      const sources = modSources.filter(source => source.id === id)
+      const bundled = BUNDLED_MOD_LIBRARY.find(mod => saveEditorModProjectId(mod.id) === id)
+      const source = sources.find(candidate => candidate.origin === 'file') ?? sources[0]
+      return { id, title: source?.title ?? bundled?.title ?? id, version: undefined, active: false, matched: sources.length > 0, source }
+    })
+    return [...active, ...historical]
+  }, [modResolution, modSources, opened?.draft])
 
   useEffect(() => {
     actionsRef.current = { save: async () => exportEdited(), discard: resetDraft }
   })
   useEffect(() => { onDraftChange?.(dirty, registeredActions) }, [dirty, onDraftChange, registeredActions])
-  useEffect(() => () => { openRequest.current++; onDraftChange?.(false) }, [onDraftChange])
+  useEffect(() => () => { openRequest.current++; modRequest.current++; bundledRequest.current++; onDraftChange?.(false) }, [onDraftChange])
+  useEffect(() => {
+    if (!opened?.original) return
+    const candidates = bundledDefinitionsForSave(opened.original)
+    const request = ++bundledRequest.current
+    setBundledIssue(undefined)
+    if (!candidates.length) { setBundledBusy(false); return }
+    setBundledBusy(true)
+    void Promise.all(candidates.map(async mod => {
+      try { return { source: await loadBundledSaveEditorSource(mod) } }
+      catch (reason) { return { issue: `${mod.title}: ${errorMessage(reason)}` } }
+    })).then(results => {
+      if (request !== bundledRequest.current) return
+      const loaded = results.flatMap(result => result.source ? [result.source] : [])
+      const issues = results.flatMap(result => result.issue ? [result.issue] : [])
+      if (loaded.length) setModSources(current => {
+        const existing = new Set(current.map(saveEditorModSourceKey))
+        return [...current, ...loaded.filter(source => !existing.has(saveEditorModSourceKey(source)))]
+      })
+      setBundledIssue(issues.length ? `Bundled mod definitions could not be loaded. ${issues.join(' ')}` : undefined)
+    }).finally(() => { if (request === bundledRequest.current) setBundledBusy(false) })
+  }, [opened?.original])
   useEffect(() => {
     if (review) previewHeading.current?.focus()
     else if (reviewTrigger.current) { reviewTrigger.current.focus(); reviewTrigger.current = null }
@@ -105,7 +182,7 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
   function resetDraft() {
     openRequest.current++
     setOpened(value => value ? { ...value, draft: value.original } : value)
-    setPending({}); setRevision(0); setExportedRevision(0); setReview(undefined); setError(undefined); setStatus(undefined); setBusy(false)
+    setPending({}); setPartyDraftDirty(false); setRevision(0); setExportedRevision(0); setReview(undefined); setError(undefined); setStatus(undefined); setBusy(false)
     onDraftChange?.(false)
   }
 
@@ -122,8 +199,8 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
   function apply(command: SaveEditCommand, fields: readonly string[]) {
     if (!opened?.draft || locked) return
     try {
-      const draft = editSave(opened.draft, SAVE_EDITOR_CATALOG, command)
-      const nextChanges = previewSaveChanges(opened.draft, draft, SAVE_EDITOR_CATALOG)
+      const draft = editSave(opened.draft, SAVE_EDITOR_CATALOG, command, new Date(), modSources)
+      const nextChanges = previewSaveChanges(opened.draft, draft, SAVE_EDITOR_CATALOG, modSources)
       if (nextChanges.length) { setOpened({ ...opened, draft }); setRevision(value => value + 1) }
       setPending(current => { const next = { ...current }; fields.forEach(key => { delete next[key] }); return next })
       setError(undefined); setStatus(nextChanges.length ? 'Changes applied to the draft. Export a save to use them in the game.' : 'This value already matches the draft.')
@@ -131,7 +208,7 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
   }
 
   async function openFile(file: File) {
-    if ((revision !== exportedRevision || hasPending) && !window.confirm('Open another save and discard the changes that have not been exported?')) return
+    if ((revision !== exportedRevision || hasPending || partyDraftDirty) && !window.confirm('Open another save and discard the changes that have not been exported?')) return
     const request = ++openRequest.current
     if (file.size > CRYSTAL_SAVE_LIMITS.maxFileBytes) { setBusy(false); setError('This file exceeds the 64 MiB save editor limit. The open draft has not changed.'); return }
     if (!file.size) { setBusy(false); setError('This file is empty. Choose a Crystal Project .sav file.'); return }
@@ -147,16 +224,45 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
         const original = decodeCrystalSave(originalBytes)
         next = { filename: file.name, originalBytes, original, draft: original }
       }
-      setOpened(next); setPending({}); setRevision(0); setExportedRevision(0); setReview(undefined)
+      setOpened(next); setPending({}); setPartyDraftDirty(false); setRevision(0); setExportedRevision(0); setReview(undefined)
+      setModSources(current => current.filter(source => source.origin === 'file'))
       setQuery(''); setInventoryKind('all'); setStockFilter('all'); setInventoryLimit(INVENTORY_PAGE_SIZE)
       setStatus('Save opened. The original remains unchanged.')
     } catch (reason) { if (request === openRequest.current) setError(`${errorMessage(reason)}${opened ? ' The open draft has not changed.' : ''}`) }
     finally { if (request === openRequest.current) setBusy(false) }
   }
 
+  async function openModFiles(files: readonly File[]) {
+    if (!files.length) return
+    if (files.length > MAX_MOD_DEFINITION_FILES) { setError(`Choose at most ${MAX_MOD_DEFINITION_FILES} mod definition files at once.`); return }
+    const request = ++modRequest.current
+    setModBusy(true); setError(undefined); setStatus(undefined)
+    try {
+      const loaded: SaveEditorModSource[] = []
+      for (const file of files) {
+        if (!file.size) throw new Error(`${file.name} is empty`)
+        if (file.size > MAX_MOD_SOURCE_BYTES) throw new Error(`${file.name} exceeds the 96 MiB Crystal Edit limit`)
+        const bytes = new Uint8Array(await file.arrayBuffer())
+        if (request !== modRequest.current) return
+        const preview = await previewCrystalEdit(bytes, file.name)
+        if (preview.errors.length) throw new Error(preview.errors[0]!.message)
+        const catalog = preview.proposed.catalogs[0]
+        if (!catalog) throw new Error(`${file.name} is not a Crystal Edit project`)
+        loaded.push(createSaveEditorModSource(catalog, preview.warnings, 'file'))
+      }
+      if (request !== modRequest.current) return
+      setModSources(current => {
+        const keys = new Set(loaded.map(saveEditorModSourceKey))
+        return [...current.filter(source => !keys.has(saveEditorModSourceKey(source))), ...loaded]
+      })
+      setStatus(`${loaded.length} mod definition ${loaded.length === 1 ? 'file' : 'files'} loaded for this tab.`)
+    } catch (reason) { if (request === modRequest.current) setError(`Mod definition import failed: ${errorMessage(reason)}.`) }
+    finally { if (request === modRequest.current) setModBusy(false) }
+  }
+
   function exportEdited() {
-    if (!opened?.draft || !summary?.editable || busy) return false
-    if (hasPending) { setError('Apply or discard pending input before exporting. Pending input has not been included in the draft.'); return false }
+    if (!opened?.draft || !summary?.editable || busy || modBusy || bundledBusy) return false
+    if (hasPending || partyDraftDirty) { setError('Apply or discard pending fields and loadout choices before exporting. Unreviewed input has not been included in the draft.'); return false }
     if (review) { setError('Apply or cancel the reviewed changes before exporting.'); return false }
     try {
       const now = new Date()
@@ -183,9 +289,26 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
   function prepareReview(action: typeof BULK_ACTIONS[number], trigger: HTMLButtonElement) {
     if (!opened?.draft || locked || hasPending) return
     try {
-      const draft = editSave(opened.draft, SAVE_EDITOR_CATALOG, { type: action.type })
+      const draft = editSave(opened.draft, SAVE_EDITOR_CATALOG, { type: action.type }, new Date(), modSources)
       reviewTrigger.current = trigger
-      setReview({ title: action.title, draft, changes: previewSaveChanges(opened.draft, draft, SAVE_EDITOR_CATALOG) })
+      setReview({ title: action.title, draft, changes: previewSaveChanges(opened.draft, draft, SAVE_EDITOR_CATALOG, modSources) })
+      setError(undefined); setStatus(undefined)
+    } catch (reason) { setError(errorMessage(reason)) }
+  }
+
+  function prepareVanillaReview(trigger: HTMLButtonElement) {
+    if (!conversion?.convertible || !conversion.draft || busy || modBusy || bundledBusy || hasPending || review) return
+    reviewTrigger.current = trigger
+    setReview({ title: 'Remove mod state', draft: conversion.draft, changes: conversion.changes })
+    setError(undefined); setStatus(undefined)
+  }
+
+  function prepareLoadoutReview(title: string, command: Extract<SaveEditCommand, { type: 'loadout' }>, trigger: HTMLButtonElement) {
+    if (!opened?.draft || locked || hasPending) return
+    try {
+      const draft = editSave(opened.draft, SAVE_EDITOR_CATALOG, command, new Date(), modSources)
+      reviewTrigger.current = trigger
+      setReview({ title, draft, changes: previewSaveChanges(opened.draft, draft, SAVE_EDITOR_CATALOG, modSources) })
       setError(undefined); setStatus(undefined)
     } catch (reason) { setError(errorMessage(reason)) }
   }
@@ -198,20 +321,25 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
   }
 
   return <div className="save-editor">
-    <ScreenHeader eyebrow="Tools" title="Save editor" description="Edit a Crystal Project save in your browser, then download a separate copy." unsavedObject={dirty} actions={<><Button tone="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>{opened ? 'Open another save' : 'Open save'}</Button>{opened?.draft && <Button disabled={locked || hasPending} icon="download" onClick={exportEdited}>Export edited save</Button>}</>}/>
+    <ScreenHeader eyebrow="Tools" title="Save editor" description="Edit a Crystal Project save in your browser, then download a separate copy." unsavedObject={dirty} actions={<><Button tone="secondary" disabled={busy || modBusy || bundledBusy} onClick={() => fileInput.current?.click()}>{opened ? 'Open another save' : 'Open save'}</Button>{opened?.draft && <Button disabled={locked || hasPending || partyDraftDirty} icon="download" onClick={exportEdited}>Export edited save</Button>}</>}/>
     <input className="save-editor__file-input" type="file" accept=".sav,application/octet-stream" aria-label="Open Crystal Project save" ref={fileInput} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void openFile(file) }}/>
-    {!opened && <section className="save-editor__panel save-editor__intro"><div><h2>A save with room to experiment</h2><p>Change party members, add inventory, unlock classes, or preview the overpowered preset. Open a <code>.sav</code> file to get started.</p><Button disabled={busy} onClick={() => fileInput.current?.click()}>Choose a save file</Button></div><div className="save-editor__scope"><strong>Browser-local, original preserved</strong><p>Your file stays in this tab. Nothing is uploaded or added to your Playthrough. Closing the editor discards its session; export the changes you want to keep.</p><p>Open and edit every save format recognized by the native reader, including legacy saves. Exports keep the original format. Unsupported game configurations remain read-only.</p></div></section>}
+    <input className="save-editor__file-input" type="file" multiple accept=".json,application/json" aria-label="Add Crystal Edit mod definitions" ref={modInput} onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''; if (files.length) void openModFiles(files) }}/>
+    {!opened && <section className="save-editor__panel save-editor__intro"><div><h2>A save with room to experiment</h2><p>Change party members, add inventory, unlock classes, or preview the overpowered preset. Open a <code>.sav</code> file to get started.</p><Button disabled={busy || modBusy || bundledBusy} onClick={() => fileInput.current?.click()}>Choose a save file</Button></div><div className="save-editor__scope"><strong>Browser-local, original preserved</strong><p>Your file stays in this tab. Nothing is uploaded or added to your Playthrough. Closing the editor discards its session; export the changes you want to keep.</p><p>Open and edit every save format recognized by the native reader, including legacy saves. Exports keep the original format. Unsupported game configurations remain read-only.</p></div></section>}
     {busy && <InlineNotice title="Opening save">Reading and validating the selected file...</InlineNotice>}
+    {modBusy && <InlineNotice title="Reading mod definitions">Validating Crystal Edit project data in this tab...</InlineNotice>}
+    {bundledBusy && <InlineNotice title="Matching bundled mod definitions">Checking the save against CryKit's bundled Crystal Edit projects...</InlineNotice>}
     {error && <InlineNotice title="Save editor needs attention" tone="danger">{error}</InlineNotice>}
     {status && !error && <p className="save-editor__note" role="status">{status}</p>}
     {opened && <>
-      <section className="save-editor__panel" aria-label="Open save details"><div className="save-editor__file-heading"><h2>{opened.filename}</h2><span className="save-editor__state">{dirty ? 'Changes not exported' : revision > 0 ? 'Draft exported' : 'Original open'}</span></div><dl className="save-editor__facts"><div><dt>Original size</dt><dd>{opened.originalBytes.byteLength.toLocaleString()} bytes</dd></div><div><dt>Save format</dt><dd>{opened.original?.header.version ?? crystalSaveVersion(opened.originalBytes[0])}</dd></div><div><dt>Editing rules</dt><dd>Windows PC 1.6.9</dd></div>{opened.original && <><div><dt>Saved date</dt><dd>{savedDate(opened.original)}</dd></div><div><dt>Play time</dt><dd>{playTime(opened.original)}</dd></div></>}{summary && <><div><dt>Party</dt><dd>{summary.members.length} members</dd></div><div><dt>Stored maps</dt><dd>{summary.mapCount}</dd></div><div><dt>Level cap</dt><dd>{summary.levelCap}</dd></div></>}</dl><div className="save-editor__actions" style={{ marginTop: 16 }}><Button tone="secondary" onClick={downloadOriginal}>Download original</Button>{opened.draft && <Button tone="quiet" disabled={busy || (!changes.length && !hasPending && !review)} onClick={() => { if (window.confirm('Reset all draft edits and pending input to the original save?')) resetDraft() }}>Reset to original</Button>}</div></section>
-      {(opened.issue || summary && !summary.editable) && <InlineNotice title="Read-only save" tone="warning">{opened.issue ?? <><p>The editor cannot safely apply its base-game rules to this save.</p><ul className="save-editor__error-list">{summary!.issues.map((issue, index) => <li key={index}>{issue}</li>)}</ul></>}</InlineNotice>}
+      <section className="save-editor__panel" aria-label="Open save details"><div className="save-editor__file-heading"><h2>{opened.filename}</h2><span className="save-editor__state">{dirty ? 'Changes not exported' : revision > 0 ? 'Draft exported' : 'Original open'}</span></div><dl className="save-editor__facts"><div><dt>Original size</dt><dd>{opened.originalBytes.byteLength.toLocaleString()} bytes</dd></div><div><dt>Save format</dt><dd>{opened.original?.header.version ?? crystalSaveVersion(opened.originalBytes[0])}</dd></div><div><dt>Editing rules</dt><dd>Windows PC 1.6.9</dd></div>{opened.original && <><div><dt>Saved date</dt><dd>{savedDate(opened.original)}</dd></div><div><dt>Play time</dt><dd>{playTime(opened.original)}</dd></div></>}{summary && <><div><dt>Game mode</dt><dd>{summary.mode.name}</dd></div><div><dt>Party</dt><dd>{summary.members.length} members</dd></div><div><dt>Stored maps</dt><dd>{summary.mapCount}</dd></div><div><dt>Level cap</dt><dd>{summary.levelCap}</dd></div></>}</dl><div className="save-editor__actions" style={{ marginTop: 16 }}><Button tone="secondary" onClick={downloadOriginal}>Download original</Button>{opened.draft && <Button tone="quiet" disabled={busy || modBusy || bundledBusy || (!changes.length && !hasPending && !partyDraftDirty && !review)} onClick={() => { if (window.confirm('Reset all draft edits and pending input to the original save?')) resetDraft() }}>Reset to original</Button>}</div></section>
+      {opened.draft && (modResolution?.hasHeaderModState || conversion?.relevant || modSources.length > 0) && <section className="save-editor__panel save-editor__mods" aria-label="Save mods"><h2>Save mods</h2><p>Bundled definitions load automatically. Add JSON only when an exact active revision or historical project is unavailable. Imported descriptions and formulas remain inert.</p>{detectedMods.length ? <ul className="save-editor__mod-list">{detectedMods.map(mod => <li key={`${mod.active ? 'active' : 'historical'}:${mod.id}:${mod.version ?? ''}`}><input className="save-editor__mod-check" type="checkbox" checked={mod.matched} disabled aria-label={`${mod.title} definition ${mod.matched ? 'available' : 'unavailable'}`}/><span className="save-editor__mod-copy"><strong>{mod.title}</strong><small>{mod.active ? `${mod.version || 'Unversioned'} · Active · ${mod.id}` : `Disabled mod · Saved revision unavailable · ${mod.id}`}</small></span><span className={mod.matched ? 'save-editor__mod-state save-editor__mod-state--matched' : 'save-editor__mod-state'}>{mod.matched ? mod.active ? `${mod.source?.origin === 'bundled' ? 'Bundled' : 'Imported'} definition matched` : `${mod.source?.origin === 'bundled' ? 'Bundled' : 'Imported'} project identified` : bundledBusy ? 'Checking bundled definitions...' : mod.active ? 'Definition required' : 'Project definition unavailable'}</span></li>)}</ul> : conversion?.relevant ? <p>No active mod metadata remains, but indexed save state extends beyond the native definitions.</p> : <p>No mods are recorded in this save.</p>}{bundledIssue && <InlineNotice title="Bundled mod match needs attention" tone="warning">{bundledIssue} Add the matching Crystal Edit JSON manually.</InlineNotice>}{modSources.length > 0 && <p className="save-editor__note">Available in this tab: {modSources.map(source => `${source.title} ${source.version ?? '(unversioned)'} (${source.origin === 'bundled' ? 'bundled' : 'imported'})`).join(', ')}</p>}<div className="save-editor__actions"><Button tone="secondary" disabled={busy || modBusy || bundledBusy || !!review} onClick={() => modInput.current?.click()}>Add missing mod JSON</Button></div>{conversion?.relevant && <div className="save-editor__conversion"><h3>Remove mod state</h3><p>Remove supported mod-owned identities, then clear the active list, redirects, and sticky modded flag. The save's Standard, Vanilla, or Chaos game mode stays unchanged. Historical rewards and other unattributable consequences remain.</p>{conversion.blockers.length > 0 && <ul className="save-editor__error-list">{conversion.blockers.map((blocker, index) => <li key={index}>{blocker}</li>)}</ul>}<Button disabled={!conversion.convertible || busy || modBusy || bundledBusy || hasPending || partyDraftDirty || !!review} onClick={event => prepareVanillaReview(event.currentTarget)}>Review mod-state removal</Button></div>}</section>}
+      {(opened.issue || summary && !summary.editable) && <InlineNotice title="Read-only save" tone="warning">{opened.issue ?? <><p>The editor cannot safely apply the available definitions and rules to this save.</p><ul className="save-editor__error-list">{summary!.issues.map((issue, index) => <li key={index}>{issue}</li>)}</ul></>}</InlineNotice>}
       {hasPending && <InlineNotice title="Pending input"><div className="save-editor__pending"><p>Apply the edited fields before reviewing bulk changes or exporting.</p><Button tone="secondary" disabled={busy} onClick={() => { setPending({}); setError(undefined) }}>Discard pending input</Button></div></InlineNotice>}
       {review && <section className="save-editor__panel save-editor__preview" aria-label="Review bulk changes"><h2 ref={previewHeading} tabIndex={-1}>Review: {review.title}</h2><p>These changes compare your draft with the proposed result. Apply them to the draft, then export when ready.</p>{review.changes.length ? <ul className="save-editor__changes">{review.changes.map((change, index) => <li key={index}>{change}</li>)}</ul> : <p>The draft already matches this preset.</p>}<div className="save-editor__actions"><Button disabled={busy || !review.changes.length} onClick={applyReview}>Apply reviewed changes</Button><Button tone="secondary" onClick={() => { setReview(undefined); setError(undefined) }}>Cancel review</Button></div></section>}
+      {opened.draft && <details className="save-editor__panel save-editor__review" open><summary>Draft review & export{changes.length ? ` (${changes.length})` : ''}</summary>{changes.length ? <ul className="save-editor__changes">{changes.map((change, index) => <li key={index}>{change}</li>)}</ul> : <p>The draft matches the original save.</p>}{partyDraftDirty && <p>Unapplied party loadout choices are still open below and are not included in this list.</p>}<div className="save-editor__actions"><Button disabled={locked || hasPending || partyDraftDirty} icon="download" onClick={exportEdited}>Export edited save</Button><small>A separate .sav download. The original file stays unchanged.</small></div></details>}
       {summary && <>
         <section className="save-editor__panel" aria-label="Money"><h2>Money</h2><form className="save-editor__money" onSubmit={event => { event.preventDefault(); try { apply({ type: 'currency', value: wholeNumber(pending.currency ?? String(summary.currency), 'Copper') }, ['currency']) } catch (reason) { setError(errorMessage(reason)) } }}><Field label="Copper" hint={`${currencyDisplay(summary.currency)} · maximum ${SAVE_EDITOR_MAX_CURRENCY.toLocaleString()} copper`}><input aria-label="Copper" inputMode="numeric" aria-invalid={invalidWholeNumber(pending.currency) || undefined} disabled={locked} value={pending.currency ?? String(summary.currency)} onChange={event => setField('currency', event.target.value, String(summary.currency))}/></Field><Button type="submit" tone="secondary" disabled={locked || pending.currency === undefined}>Apply currency</Button></form></section>
-        <section className="save-editor__panel" aria-label="Party editor"><h2>Party</h2><p>Apply each member's changes to the draft. Changing class or subclass returns equipped gear to inventory; choose your loadout in-game. Changing the main class also uses it for future growth. Existing growth levels are retained.</p><div className="save-editor__members">{summary.members.map(member => {
+        {localData && opened.draft ? <SavePartyEditor localData={localData} locked={locked} modSources={modSources} onApplyMember={apply} onDraftChange={setPartyDraftDirty} onError={setError} onFieldChange={setField} onReview={prepareLoadoutReview} pending={pending} save={opened.draft} summary={summary}/> : <section className="save-editor__panel" aria-label="Party editor"><h2>Party</h2><p>Apply each member's changes to the draft. Changing class or subclass returns equipped gear to inventory; choose your loadout in-game. Changing the main class also uses it for future growth. Existing growth levels are retained.</p><div className="save-editor__members">{summary.members.map(member => {
           const prefix = `member.${member.index}.`
           const keys = ['name', 'level', 'jobId', 'subJobId'].map(key => `${prefix}${key}`)
           const memberPending = keys.some(key => pending[key] !== undefined)
@@ -225,16 +353,15 @@ export function SaveEditorView({ onDraftChange }: { readonly onDraftChange?: Dra
                 ...(pending[`${prefix}subJobId`] !== undefined ? { subJobId: pending[`${prefix}subJobId`] === '' ? null : wholeNumber(pending[`${prefix}subJobId`], 'Subclass') } : {}),
               }, keys)
             } catch (reason) { setError(errorMessage(reason)) }
-          }}><h3>{member.index + 1}. {member.name}</h3><div className="save-editor__fields"><Field label="Name"><input aria-label={`Member ${member.index + 1} name`} disabled={locked} value={pending[`${prefix}name`] ?? member.name} onChange={event => setField(`${prefix}name`, event.target.value, member.name)}/></Field><Field label="Level" hint={summary.levelCap < SAVE_EDITOR_MAX_LEVEL ? `Above ${summary.levelCap} enables the level-cap assist, up to ${SAVE_EDITOR_MAX_LEVEL}` : `1 to ${SAVE_EDITOR_MAX_LEVEL}`}><input aria-label={`Member ${member.index + 1} level`} inputMode="numeric" aria-invalid={invalidWholeNumber(pending[`${prefix}level`]) || undefined} disabled={locked} value={pending[`${prefix}level`] ?? String(member.level)} onChange={event => setField(`${prefix}level`, event.target.value, String(member.level))}/></Field><Field label="Class"><select aria-label={`Member ${member.index + 1} class`} disabled={locked} value={pending[`${prefix}jobId`] ?? String(member.jobId)} onChange={event => setField(`${prefix}jobId`, event.target.value, String(member.jobId))}>{!CHOICES.jobs.some(job => job.id === member.jobId) && <option value={member.jobId}>Unknown class #{member.jobId}</option>}{CHOICES.jobs.map(job => <option key={job.id} value={job.id}>{job.name}</option>)}</select></Field><Field label="Subclass"><select aria-label={`Member ${member.index + 1} subclass`} disabled={locked} value={pending[`${prefix}subJobId`] ?? (member.subJobId === null ? '' : String(member.subJobId))} onChange={event => setField(`${prefix}subJobId`, event.target.value, (member.subJobId === null ? '' : String(member.subJobId)))}><option value="">None</option>{member.subJobId !== null && !CHOICES.jobs.some(job => job.id === member.subJobId) && <option value={member.subJobId}>Unknown class #{member.subJobId}</option>}{CHOICES.jobs.map(job => <option key={job.id} value={job.id}>{job.name}</option>)}</select></Field></div><p className="save-editor__member-summary">{member.unlockedJobs} classes unlocked · {member.masteredJobs} mastered<br/>{member.learnedAbilities} abilities · {member.learnedPassives} passives learned</p><Button type="submit" tone="secondary" disabled={locked || !memberPending}>Apply member {member.index + 1}</Button></form>
-        })}</div></section>
-        {summary.editable && <section className="save-editor__panel" aria-label="Unlocks and presets"><h2>Unlocks and presets</h2><p>Review every bulk change before applying it to the draft.</p><div className="save-editor__bulk">{BULK_ACTIONS.map(action => <article key={action.type} className={action.type === 'overpowered' ? 'save-editor__power' : undefined}><h3>{action.title}</h3><p>{action.description}</p><Button tone="secondary" disabled={locked || hasPending} onClick={event => prepareReview(action, event.currentTarget)}>{action.button}</Button></article>)}</div></section>}
+          }}><h3>{member.index + 1}. {member.name}</h3><div className="save-editor__fields"><Field label="Name"><input aria-label={`Member ${member.index + 1} name`} disabled={locked} value={pending[`${prefix}name`] ?? member.name} onChange={event => setField(`${prefix}name`, event.target.value, member.name)}/></Field><Field label="Level" hint={summary.levelCap < SAVE_EDITOR_MAX_LEVEL ? `Above ${summary.levelCap} enables the level-cap assist, up to ${SAVE_EDITOR_MAX_LEVEL}` : `1 to ${SAVE_EDITOR_MAX_LEVEL}`}><input aria-label={`Member ${member.index + 1} level`} inputMode="numeric" aria-invalid={invalidWholeNumber(pending[`${prefix}level`]) || undefined} disabled={locked} value={pending[`${prefix}level`] ?? String(member.level)} onChange={event => setField(`${prefix}level`, event.target.value, String(member.level))}/></Field><Field label="Class"><select aria-label={`Member ${member.index + 1} class`} disabled={locked} value={pending[`${prefix}jobId`] ?? String(member.jobId)} onChange={event => setField(`${prefix}jobId`, event.target.value, String(member.jobId))}>{!choices.jobs.some(job => job.id === member.jobId) && <option value={member.jobId}>Unknown class #{member.jobId}</option>}{choices.jobs.map(job => <option key={job.id} value={job.id}>{job.name}</option>)}</select></Field><Field label="Subclass"><select aria-label={`Member ${member.index + 1} subclass`} disabled={locked} value={pending[`${prefix}subJobId`] ?? (member.subJobId === null ? '' : String(member.subJobId))} onChange={event => setField(`${prefix}subJobId`, event.target.value, (member.subJobId === null ? '' : String(member.subJobId)))}><option value="">None</option>{member.subJobId !== null && !choices.jobs.some(job => job.id === member.subJobId) && <option value={member.subJobId}>Unknown class #{member.subJobId}</option>}{choices.jobs.map(job => <option key={job.id} value={job.id}>{job.name}</option>)}</select></Field></div><p className="save-editor__member-summary">{member.unlockedJobs} classes unlocked · {member.masteredJobs} mastered<br/>{member.learnedAbilities} abilities · {member.learnedPassives} passives learned</p><Button type="submit" tone="secondary" disabled={locked || !memberPending}>Apply member {member.index + 1}</Button></form>
+        })}</div></section>}
+        {summary.editable && <section className="save-editor__panel" aria-label="Unlocks and presets"><h2>Unlocks and presets</h2><p>Review every bulk change before applying it to the draft.</p><div className="save-editor__bulk">{BULK_ACTIONS.map(action => <article key={action.type} className={action.type === 'overpowered' ? 'save-editor__power' : undefined}><h3>{action.title}</h3><p>{action.description}</p><Button tone="secondary" disabled={locked || hasPending || partyDraftDirty} onClick={event => prepareReview(action, event.currentTarget)}>{action.button}</Button></article>)}</div></section>}
         <section className="save-editor__panel" aria-label="Inventory editor"><h2>Inventory</h2><p>Edit carried stock, including items absent from the save. Equipment limits account for copies the party has equipped.</p><div className="save-editor__inventory-tools"><Field label="Search inventory"><input type="search" value={query} placeholder="Item name or ID" onChange={event => { setQuery(event.target.value); setInventoryLimit(INVENTORY_PAGE_SIZE) }}/></Field><Field label="Inventory category"><select value={inventoryKind} onChange={event => { setInventoryKind(event.target.value); setInventoryLimit(INVENTORY_PAGE_SIZE) }}><option value="all">All categories</option><option value="item">Items</option><option value="equipment">Equipment</option></select></Field><Field label="Stock filter"><select value={stockFilter} onChange={event => { setStockFilter(event.target.value); setInventoryLimit(INVENTORY_PAGE_SIZE) }}><option value="all">All stock</option><option value="carried">Carried stock only</option></select></Field></div><p className="save-editor__note" role="status">{inventory.length.toLocaleString()} matching entries</p><div className="save-editor__inventory-list">{inventory.slice(0, inventoryLimit).map(row => {
           const key = `stock.${row.kind}.${row.id}`
           return <form className="save-editor__inventory-row" key={key} onSubmit={event => { event.preventDefault(); try { apply({ type: 'stock', kind: row.kind, id: row.id, count: wholeNumber(pending[key] ?? String(row.count), `${row.name} stock`) }, [key]) } catch (reason) { setError(errorMessage(reason)) } }}><div><strong>{row.name}</strong><small>{row.kind === 'item' ? 'Item' : 'Equipment'} #{row.id} · stock limit {row.capacity}{row.equipped ? ` · ${row.equipped} equipped` : ''}</small></div><Field label="Stock"><input aria-label={`${row.name} stock`} inputMode="numeric" aria-invalid={invalidWholeNumber(pending[key]) || undefined} disabled={locked} value={pending[key] ?? String(row.count)} onChange={event => setField(key, event.target.value, String(row.count))}/></Field><Button aria-label={`Apply ${row.name} stock`} type="submit" tone="secondary" disabled={locked || pending[key] === undefined}>Apply</Button></form>
         })}</div>{!inventory.length && <p>No matching items. Try another name, ID, or filter.</p>}{inventory.length > inventoryLimit && <Button tone="secondary" onClick={() => setInventoryLimit(value => value + INVENTORY_PAGE_SIZE)}>Show more inventory ({inventory.length - inventoryLimit} remaining)</Button>}</section>
       </>}
-      {opened.draft && <details className="save-editor__panel save-editor__review" open><summary>Original to draft review{changes.length ? ` (${changes.length})` : ''}</summary>{changes.length ? <ul className="save-editor__changes">{changes.map((change, index) => <li key={index}>{change}</li>)}</ul> : <p>The draft matches the original save.</p>}<div className="save-editor__actions"><Button disabled={locked || hasPending} icon="download" onClick={exportEdited}>Export edited save</Button><small>A separate .sav download. The original file stays unchanged.</small></div></details>}
-      <p className="save-editor__note">This session lives in this tab. Editing uses base-game Windows PC 1.6.9 rules. A save format number does not identify the game version or platform that created the file. Download your original before replacing a game save, and close the game while replacing it.</p>
+      <p className="save-editor__note">This session lives in this tab. Editing uses Windows PC 1.6.9 rules plus any exact mod definitions loaded for this save. A save format number does not identify the game version or platform that created the file. Download your original before replacing a game save, and close the game while replacing it.</p>
     </>}
   </div>
 }

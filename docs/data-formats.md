@@ -52,7 +52,7 @@ Research packages may declare `catalog_id` or `source_namespace` to preserve one
 
 ## Game save files
 
-Crystal Project `.sav` files use the separate **Save editor** workspace, not the planner import flow. Original bytes and edited copies remain in memory and are downloaded separately; they are not planner records, archived import sources, or part of a CryKit backup. See [save editor compatibility and recovery](save-editor.md).
+Crystal Project `.sav` files use the separate **Save editor** workspace, not the planner import flow. Original bytes, edited copies, automatically matched bundled definitions, and manual definitions selected for that save remain in memory; they are not planner records, archived import sources, or part of a CryKit backup. Active mod matching and reviewed mod-state removal do not change the persisted planner format. See [save editor compatibility, mod limits, and recovery](save-editor.md).
 
 ## Preview and restore
 

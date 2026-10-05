@@ -1,5 +1,9 @@
-import { CRYSTAL_SAVE_VERSION, isSupportedCrystalSaveVersion, type BsonDocument, type BsonValue, type CrystalSave } from '../interchange/crystal-save.ts'
-import type { NativeGameSnapshot, NativeRecord } from './native-game'
+import { CRYSTAL_SAVE_VERSION, decodeCrystalSave, encodeCrystalSave, isSupportedCrystalSaveVersion, type BsonDocument, type BsonValue, type CrystalSave } from '../interchange/crystal-save.ts'
+import type { NativeRecord } from './native-game'
+import { createSaveEditorCatalog, resolveSaveEditorMods, saveEditorCatalogForMode, type SaveEditorCatalog, type SaveEditorFamily, type SaveEditorMode, type SaveEditorModSource } from './save-editor-mods'
+
+export { createSaveEditorCatalog }
+export type { SaveEditorCatalog, SaveEditorMode, SaveEditorModSource }
 
 export const SAVE_EDITOR_MAX_CURRENCY = 999_999_999
 const DEFAULT_LEVEL_CAP = 60
@@ -13,34 +17,28 @@ const LEGACY_HEADER = Object.freeze({ flags: 14, mods: 24 })
 const LEVEL_ASSIST_FLAG = 128
 const TREASURE_FINDER_BONUS = 4
 const ENABLE_EQUIPMENT_TYPE = 406
+const DUAL_WIELD = 511
 const EMPTY_DATE = -62_135_596_800_000n
 const LEARNED = Object.freeze({ locked: 0, unlocked: 1, learned: 2 })
 const ATLAS = Object.freeze({ seen: 2, acquired: 4 })
 const DEBUG_NAME = /test|placeholder|debug|unused/i
 const PRESET_TOOL_IDS = new Set([55, 91, 97, 147, 149, 150, 151, 167, 186, 196, 201])
 const PRESET_MATERIAL_IDS = new Set([3, 4, 5, 67, 68, 69, 70, 71, 72, 157, 178, 179, 180, 181, 182, 183, 187, 188, 189, 190, 200, 202, 203, 204, 205])
-type Family = 'job' | 'ability' | 'passive' | 'item' | 'equipment' | 'gender'
+const MOD_GROUP_FIELDS = Object.freeze({ abilities: 'Abilities', animations: 'Animations', biomes: 'Biomes', difficulties: 'Difficulties', equipment: 'Equipment', genders: 'Genders', items: 'Items', jobs: 'Jobs', monsters: 'Monsters', passives: 'Passives', recipes: 'Recipes', sparks: 'Sparks', statuses: 'Statuses', troops: 'Troops', entities: 'Entities' })
+const CONVERTIBLE_MOD_GROUPS = new Set(['jobs', 'abilities', 'passives', 'items', 'equipment', 'genders'])
+type Family = SaveEditorFamily
 export type SaveInventoryKind = 'item' | 'equipment'
 export interface SaveEditorChoice { id: number; name: string }
-export interface SaveEditorCatalog { readonly source: string; readonly records: Readonly<Record<Family, ReadonlyMap<number, NativeRecord>>> }
-export interface SaveEditorMemberSummary { index: number; name: string; level: number; jobId: number; subJobId: number | null; growthJobId: number; unlockedJobs: number; masteredJobs: number; learnedAbilities: number; learnedPassives: number }
+export interface SaveEditorMemberSummary { index: number; name: string; level: number; jobId: number; subJobId: number | null; growthJobId: number; equipmentIds: readonly (number | null)[]; passiveIds: readonly number[]; unlockedJobIds: readonly number[]; learnedPassiveIds: readonly number[]; unlockedJobs: number; masteredJobs: number; learnedAbilities: number; learnedPassives: number }
 export interface SaveEditorInventoryRow extends SaveEditorChoice { kind: SaveInventoryKind; count: number; capacity: number; equipped: number }
-export interface SaveEditorSummary { editable: boolean; issues: string[]; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; mapCount: number; levelCap: number; assistEnabled: boolean }
+export interface SaveEditorSummary { editable: boolean; issues: string[]; mode: SaveEditorMode; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; mapCount: number; levelCap: number; assistEnabled: boolean }
+export interface SaveVanillaConversionPreview { relevant: boolean; convertible: boolean; changes: readonly string[]; blockers: readonly string[]; draft?: CrystalSave }
 export type SaveEditCommand =
   | { type: 'currency'; value: number }
   | { type: 'member'; index: number; name?: string; level?: number; jobId?: number; subJobId?: number | null }
+  | { type: 'loadout'; index: number; jobId: number; subJobId: number | null; equipmentIds: readonly (number | null)[]; passiveIds: readonly number[] }
   | { type: 'stock'; kind: SaveInventoryKind; id: number; count: number }
   | { type: 'unlock-jobs' | 'master-jobs' | 'overpowered' | 'reveal-maps' }
-
-export function createSaveEditorCatalog(snapshot: NativeGameSnapshot): SaveEditorCatalog {
-  const records = {} as Record<Family, ReadonlyMap<number, NativeRecord>>
-  for (const family of ['job', 'ability', 'passive', 'item', 'equipment', 'gender'] as const) {
-    const values = snapshot.databases[family]
-    if (!Array.isArray(values)) throw new Error(`Missing native ${family} definitions`)
-    records[family] = new Map(values.flatMap(value => value && typeof value === 'object' && !Array.isArray(value) && typeof value.ID === 'number' ? [[value.ID, value as NativeRecord] as const] : []))
-  }
-  return { source: `${snapshot.source.platform} PC ${snapshot.source.gameVersion}`, records }
-}
 
 function object(value: BsonValue | undefined, context: string): BsonDocument {
   if (value?.type !== 'document') throw new Error(`${context} must be a BSON document`)
@@ -58,6 +56,12 @@ function string(value: BsonValue | undefined, context: string): string {
   if (value?.type !== 'string') throw new Error(`${context} must be text`)
   return value.value
 }
+function unsignedBigInt(value: BsonValue | undefined, context: string): bigint {
+  if (value?.type === 'string' && /^\d+$/.test(value.value)) return BigInt(value.value)
+  if (value?.type === 'int64' && value.value >= 0n) return value.value
+  if ((value?.type === 'int32' || value?.type === 'double') && Number.isSafeInteger(value.value) && value.value >= 0) return BigInt(value.value)
+  throw new Error(`${context} must be an unsigned integer`)
+}
 function flag(value: BsonValue | undefined): boolean { return value?.type === 'boolean' && value.value }
 function int(value: number): BsonValue { return { type: 'int32', value } }
 function text(value: string): BsonValue { return { type: 'string', value } }
@@ -73,6 +77,11 @@ function known(catalog: SaveEditorCatalog, family: Family, id: number): NativeRe
   return result
 }
 function flags(save: CrystalSave): BsonDocument { return object(save.party.value.GameplayFlags ?? (save.header.version < CRYSTAL_SAVE_VERSION ? document({}) : undefined), 'GameplayFlags') }
+export function saveEditorMode(save: CrystalSave, nativeCatalog: SaveEditorCatalog): SaveEditorMode {
+  const bodyMode = number(flags(save).value.PatchMode ?? int(0), 'Patch mode')
+  if (save.header.patchMode !== bodyMode) throw new Error('Header and party game modes disagree')
+  return saveEditorCatalogForMode(nativeCatalog, bodyMode).mode
+}
 function subJob(member: BsonDocument, save: CrystalSave): number | null {
   const value = member.value.SubJob
   return value?.type === 'null' || (!value && save.header.version < CRYSTAL_SAVE_VERSION) ? null : number(value, 'SubJob')
@@ -112,17 +121,240 @@ function capacity(save: CrystalSave, catalog: SaveEditorCatalog, kind: SaveInven
   }, base))
 }
 
+function partyModDocument(save: CrystalSave): BsonDocument {
+  return object(save.party.value.Mods ?? (save.header.version < LEGACY_HEADER.mods ? document({ IsModded: { type: 'boolean', value: false }, Mods: list([]), Redirects: list([]) }) : undefined), 'Mods')
+}
+
+function partyModList(mods: BsonDocument): { id: string; title: string; version: string; steamWorkshopFileId: bigint }[] {
+  return array(mods.value.Mods, 'Mods').map((entry, index) => {
+    const value = object(entry, `Mod ${index + 1}`).value
+    return { id: string(value.ID, 'Mod ID'), title: string(value.Title, 'Mod title'), version: string(value.Version, 'Mod version'), steamWorkshopFileId: unsignedBigInt(value.SteamWorkshopFileID, 'Steam Workshop ID') }
+  })
+}
+
+function partyModMaps(mods: BsonDocument): CrystalSave['header']['modIdMaps'] {
+  return array(mods.value.Redirects, 'Mod redirects').map((entry, index) => {
+    const value = object(entry, `Mod redirect ${index + 1}`).value
+    const groups: CrystalSave['header']['modIdMaps'][number]['groups'] = Object.create(null)
+    for (const [group, field] of Object.entries(MOD_GROUP_FIELDS)) {
+      const collection = object(value[field], `${field} redirects`).value
+      const ids = array(collection.IDs, `${field} redirect IDs`).map(pair => {
+        const item = object(pair, `${field} redirect`).value
+        return { originalId: number(item.O, 'Original ID'), newId: number(item.N, 'New ID') }
+      })
+      if (number(collection.Count, `${field} redirect count`) !== ids.length) throw new Error(`${field} redirect count is inconsistent`)
+      groups[group] = ids
+    }
+    return { modId: string(value.ModID, 'Redirect mod ID'), groups }
+  })
+}
+
+function sameModList(left: CrystalSave['header']['mods'], right: CrystalSave['header']['mods']): boolean {
+  return left.length === right.length && left.every((mod, index) => {
+    const other = right[index]
+    return other && mod.id === other.id && mod.title === other.title && mod.version === other.version && mod.steamWorkshopFileId === other.steamWorkshopFileId
+  })
+}
+
+function sameModMaps(left: CrystalSave['header']['modIdMaps'], right: CrystalSave['header']['modIdMaps']): boolean {
+  return left.length === right.length && left.every((map, index) => {
+    const other = right[index]
+    if (!other || map.modId !== other.modId) return false
+    return Object.keys(MOD_GROUP_FIELDS).every(group => {
+      const pairs = map.groups[group] ?? []
+      const otherPairs = other.groups[group] ?? []
+      return pairs.length === otherPairs.length && pairs.every((pair, pairIndex) => pair.originalId === otherPairs[pairIndex]?.originalId && pair.newId === otherPairs[pairIndex]?.newId)
+    })
+  })
+}
+
+function nativeBound(catalog: SaveEditorCatalog, family: Family): number {
+  return Math.max(-1, ...catalog.records[family].keys()) + 1
+}
+
+function neutralAtlasEntry(id: number): BsonValue {
+  return document({ ID: int(id), S: int(0), HT: { type: 'datetime', value: EMPTY_DATE }, ST: { type: 'datetime', value: EMPTY_DATE }, AT: { type: 'datetime', value: EMPTY_DATE }, PT: { type: 'datetime', value: EMPTY_DATE }, BF: int(0) })
+}
+
+function sameNumberList(value: BsonValue[], expected: readonly number[]): boolean {
+  return value.length === expected.length && value.every((entry, index) => (entry.type === 'int32' || entry.type === 'double') && entry.value === expected[index])
+}
+
+export function previewVanillaConversion(input: CrystalSave, nativeCatalog: SaveEditorCatalog): SaveVanillaConversionPreview {
+  const blockers: string[] = []
+  const changes: string[] = []
+  let nonNativeState = false
+  const save = structuredClone(input)
+  let mods: BsonDocument
+  let bodyMods: ReturnType<typeof partyModList>
+  let bodyMaps: ReturnType<typeof partyModMaps>
+  try {
+    mods = partyModDocument(save)
+    bodyMods = partyModList(mods)
+    bodyMaps = partyModMaps(mods)
+  } catch (error) {
+    return { relevant: true, convertible: false, changes, blockers: [error instanceof Error ? error.message : 'Mod metadata could not be read'] }
+  }
+  const headerState = save.header.isModded || save.header.mods.length > 0 || save.header.modIdMaps.length > 0
+  const bodyState = flag(mods.value.IsModded) || bodyMods.length > 0 || bodyMaps.length > 0
+  let incompatibleConfiguration = false
+  if (!sameModList(save.header.mods, bodyMods) || !sameModMaps(save.header.modIdMaps, bodyMaps) || flag(mods.value.IsModded) !== save.header.isModded) blockers.push('Header and party mod metadata disagree')
+  if ((headerState || bodyState) && save.header.version < 25) blockers.push('Removing mod state requires save format 25 or newer when mod metadata is present')
+  try {
+    saveEditorMode(save, nativeCatalog)
+    const randomizer = object(save.party.value.RandomizerFlags ?? (save.header.version < LEGACY_HEADER.flags ? document({}) : undefined), 'RandomizerFlags')
+    if (save.header.randomizerFlags !== 0 || Object.values(randomizer.value).some(value => value.type === 'boolean' && value.value)) { incompatibleConfiguration = true; blockers.push('Removing mod state does not rewrite randomized identities') }
+  } catch (error) { incompatibleConfiguration = true; blockers.push(error instanceof Error ? error.message : 'Game mode flags could not be read') }
+  if (!headerState && !bodyState && incompatibleConfiguration) return { relevant: false, convertible: false, changes: [], blockers: [] }
+  const unsupported = [...new Set([...save.header.modIdMaps, ...bodyMaps].flatMap(map => Object.entries(map.groups).flatMap(([group, pairs]) => pairs.length && !CONVERTIBLE_MOD_GROUPS.has(group) ? [group] : [])))]
+  if (unsupported.length) blockers.push(`Conversion cannot verify saved redirects for ${unsupported.sort().join(', ')}`)
+
+  const memberChanges: string[] = []
+  for (const [index, member] of save.members.entries()) {
+    const name = (() => { try { return string(member.value.Name, 'Name') } catch { return `Member ${index + 1}` } })()
+    try {
+      const currentJob = number(member.value.Job, 'Job')
+      const currentGrowth = growthJob(member, save)
+      const currentSubJob = subJob(member, save)
+      const currentGender = number(member.value.Gender, 'Gender')
+      if (!nativeCatalog.records.job.has(currentJob)) { nonNativeState = true; blockers.push(`${name} uses mod-only current class ${currentJob}`) }
+      if (!nativeCatalog.records.job.has(currentGrowth)) { nonNativeState = true; blockers.push(`${name} uses mod-only growth class ${currentGrowth}`) }
+      if (currentSubJob !== null && !nativeCatalog.records.job.has(currentSubJob)) { nonNativeState = true; blockers.push(`${name} uses mod-only subclass ${currentSubJob}`) }
+      if (!nativeCatalog.records.gender.has(currentGender)) { nonNativeState = true; blockers.push(`${name} uses mod-only gender ${currentGender}`) }
+      const levels = object(member.value.Levels, 'Levels')
+      for (const field of ['Entries', 'Hist'] as const) {
+        const values = array(levels.value[field], field)
+        for (const [id, value] of values.entries()) if (!nativeCatalog.records.job.has(id)) {
+          nonNativeState = true
+          if (number(value, field) !== 0) blockers.push(`${name} has nonzero mod-only ${field === 'Entries' ? 'growth' : 'growth history'} for class ${id}`)
+        }
+        const bound = nativeBound(nativeCatalog, 'job')
+        let changed = false
+        for (let id = 0; id < Math.min(values.length, bound); id++) if (!nativeCatalog.records.job.has(id) && number(values[id], field) !== 0) { values[id] = int(0); changed = true }
+        if (values.length > bound) { values.splice(bound); changed = true }
+        if (changed) memberChanges.push(`${name}: mod-only ${field === 'Entries' ? 'growth slots' : 'growth history slots'} removed`)
+      }
+      let learningRemoved = 0
+      let learningTrimmed = false
+      for (const [field, family] of [['LearnedJobs', 'job'], ['LearnedAbilities', 'ability'], ['LearnedPassives', 'passive']] as const) {
+        const values = array(member.value[field], field)
+        const bound = nativeBound(nativeCatalog, family)
+        for (let id = 0; id < values.length; id++) if (!nativeCatalog.records[family].has(id)) {
+          nonNativeState = true
+          learningTrimmed = true
+          if (number(values[id], field) > 0) learningRemoved++
+          if (id < bound) values[id] = int(0)
+        }
+        if (values.length > bound) { nonNativeState = true; learningTrimmed = true; values.splice(bound) }
+      }
+      if (learningRemoved) memberChanges.push(`${name}: ${learningRemoved} mod-only learning entries removed`)
+      else if (learningTrimmed) memberChanges.push(`${name}: empty mod-only learning slots removed`)
+      const jp = object(member.value.JP, 'JP')
+      const jpEntries = array(jp.value.Entries, 'JP entries')
+      const retainedJp = jpEntries.filter(entry => {
+        const job = object(entry, 'JP entry').value.Job
+        return job?.type !== 'null' && nativeCatalog.records.job.has(number(job, 'JP class'))
+      })
+      if (retainedJp.length !== jpEntries.length) { nonNativeState = true; jp.value.Entries = list(retainedJp); memberChanges.push(`${name}: ${jpEntries.length - retainedJp.length} mod-only JP entries removed`) }
+      const passiveState = object(member.value.Passives, 'Equipped passives')
+      const passiveIds = numbers(passiveState.value.Passives, 'Equipped passive IDs')
+      const retainedPassives = passiveIds.filter(id => nativeCatalog.records.passive.has(id))
+      if (retainedPassives.length !== passiveIds.length) { nonNativeState = true; memberChanges.push(`${name}: ${passiveIds.length - retainedPassives.length} equipped mod-only passives removed`) }
+      const passiveCost = retainedPassives.reduce((sum, id) => sum + Number(nativeCatalog.records.passive.get(id)?.PP), 0)
+      if (!Number.isSafeInteger(passiveCost) || passiveCost > PASSIVE_POINT_BUDGET) blockers.push(`${name} has a native passive loadout above the ${PASSIVE_POINT_BUDGET} point limit`)
+      passiveState.value.Passives = list(retainedPassives.map(int))
+      passiveState.value.CurrentPP = int(PASSIVE_POINT_BUDGET - passiveCost)
+      const equipment = array(member.value.Equipment, 'Equipment')
+      let equipmentRemoved = 0
+      for (const [slot, value] of equipment.entries()) if (value.type !== 'null' && !nativeCatalog.records.equipment.has(number(value, 'Equipped ID'))) { equipment[slot] = { type: 'null' }; equipmentRemoved++ }
+      if (equipmentRemoved) { nonNativeState = true; memberChanges.push(`${name}: ${equipmentRemoved} equipped mod-only items removed`) }
+      const auto = member.value.AutoAbilityID
+      if (auto && auto.type !== 'null' && !nativeCatalog.records.ability.has(number(auto, 'Automatic ability'))) { nonNativeState = true; member.value.AutoAbilityID = { type: 'null' }; memberChanges.push(`${name}: mod-only automatic ability removed`) }
+    } catch (error) { blockers.push(error instanceof Error ? error.message : `${name} could not be converted`) }
+  }
+  changes.push(...memberChanges)
+
+  try {
+    for (const kind of ['item', 'equipment'] as const) {
+      const values = stock(save, kind)
+      const retained = values.filter(entry => nativeCatalog.records[kind].has(stockId(entry, kind)))
+      if (retained.length !== values.length) { nonNativeState = true; object(save.party.value[kind === 'item' ? 'Items' : 'Equipment'], kind).value.Stock = list(retained); changes.push(`${values.length - retained.length} mod-only ${kind} stock entries removed`) }
+    }
+    for (const kind of ['item', 'equipment'] as const) for (const entry of stock(save, kind)) {
+      const id = stockId(entry, kind)
+      const count = stockCount(entry)
+      const maximum = capacity(save, nativeCatalog, kind, id)
+      if (count > maximum) { object(entry, 'Stock entry').value.Count = int(maximum); changes.push(`${kind} ${id} stock reduced from ${count} to native limit ${maximum}`) }
+    }
+    updateTreasureFinder(save, nativeCatalog)
+  } catch (error) { blockers.push(error instanceof Error ? error.message : 'Inventory could not be converted') }
+
+  try {
+    const atlasDocument = save.party.value.Atlas
+    if (atlasDocument) {
+      const atlasValue = object(atlasDocument, 'Atlas').value
+      for (const [field, family] of [['Jobs', 'job'], ['Abilities', 'ability'], ['Passives', 'passive'], ['Items', 'item'], ['Equipment', 'equipment']] as const) {
+        const section = atlasValue[field]
+        if (!section) continue
+        const entries = array(object(section, `Atlas ${field}`).value.Entries, `Atlas ${field} entries`)
+        const bound = nativeBound(nativeCatalog, family)
+        let changed = false
+        for (let id = 0; id < Math.min(entries.length, bound); id++) if (!nativeCatalog.records[family].has(id)) { entries[id] = neutralAtlasEntry(id); changed = true }
+        if (entries.length > bound) { entries.splice(bound); changed = true }
+        if (changed) { nonNativeState = true; changes.push(`Mod-only ${field.toLocaleLowerCase()} atlas entries removed`) }
+      }
+    }
+    const mapping = save.party.value.RandomizerMapping
+    if (mapping) {
+      const mappingValue = object(mapping, 'Randomizer mapping').value
+      for (const [field, family] of [['AbilityJobs', 'ability'], ['AbilityMonsters', 'ability'], ['Equipment', 'equipment'], ['Items', 'item'], ['Jobs', 'job'], ['Passives', 'passive']] as const) {
+        const existing = mappingValue[field]
+        if (!existing) continue
+        const values = array(existing, `${field} mapping`)
+        const identity = Array.from({ length: nativeBound(nativeCatalog, family) }, (_, id) => id)
+        if (!sameNumberList(values, identity) && (headerState || bodyState || nonNativeState)) { mappingValue[field] = list(identity.map(int)); changes.push(`${field} mapping restored to native identities`) }
+      }
+    }
+  } catch (error) { blockers.push(error instanceof Error ? error.message : 'Indexed save records could not be converted') }
+
+  if (headerState || bodyState) {
+    save.header.isModded = false
+    save.header.mods = []
+    save.header.modIdMaps = []
+    mods.value.IsModded = { type: 'boolean', value: false }
+    mods.value.Mods = list([])
+    mods.value.Redirects = list([])
+    changes.push('Saved mod flags, active list, and ID redirects cleared')
+  }
+  const relevant = headerState || bodyState || nonNativeState
+  if (!relevant) return { relevant: false, convertible: false, changes: [], blockers: [] }
+  if (!blockers.length && relevant) {
+    try {
+      validate(save, nativeCatalog)
+      validate(decodeCrystalSave(encodeCrystalSave(save)), nativeCatalog)
+    } catch (error) { blockers.push(`Converted save is not valid against native definitions: ${error instanceof Error ? error.message : 'unsupported save data'}`) }
+  }
+  return { relevant, convertible: relevant && blockers.length === 0, changes: [...new Set(changes)], blockers: [...new Set(blockers)], ...(relevant && !blockers.length ? { draft: save } : {}) }
+}
+
 export function saveEditorChoices(catalog: SaveEditorCatalog): { jobs: SaveEditorChoice[]; items: SaveEditorChoice[]; equipment: SaveEditorChoice[] } {
   const choices = (family: Family): SaveEditorChoice[] => [...catalog.records[family]].filter(([, value]) => typeof value.Name === 'string' && !DEBUG_NAME.test(value.Name) && !value.Name.startsWith('Cinema')).map(([id, value]) => ({ id, name: String(value.Name) })).sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
   return { jobs: choices('job'), items: choices('item'), equipment: choices('equipment') }
 }
 
-function validate(save: CrystalSave, catalog: SaveEditorCatalog): void {
+function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): SaveEditorCatalog {
   if (!isSupportedCrystalSaveVersion(save.header.version)) throw new Error('Unsupported save format')
   if (save.header.isDemo || save.header.isHardcoreDefeat) throw new Error('Demo and defeated hardcore saves are read-only')
-  const mods = object(save.party.value.Mods ?? (save.header.version < LEGACY_HEADER.mods ? document({ Mods: list([]), Redirects: list([]) }) : undefined), 'Mods')
-  if (save.header.isModded || save.header.mods.length || save.header.modIdMaps.length || flag(mods.value.IsModded) || array(mods.value.Mods, 'Mods').length || array(mods.value.Redirects, 'Mod redirects').length) throw new Error('Modded saves are read-only because their definitions can differ')
-  if (save.header.patchMode !== 0 || number(flags(save).value.PatchMode ?? int(0), 'Patch mode') !== 0) throw new Error('Editing supports Standard mode; other mode rules are unresolved')
+  saveEditorMode(save, nativeCatalog)
+  const mods = partyModDocument(save)
+  const bodyMods = partyModList(mods)
+  const bodyMaps = partyModMaps(mods)
+  if (flag(mods.value.IsModded) !== save.header.isModded || !sameModList(save.header.mods, bodyMods) || !sameModMaps(save.header.modIdMaps, bodyMaps)) throw new Error('Header and party mod metadata disagree')
+  const resolution = resolveSaveEditorMods(save, nativeCatalog, modSources)
+  if (resolution.issues.length) throw new Error(resolution.issues[0])
+  if (!save.header.mods.length && resolution.hasHeaderModState) throw new Error('Disabled mod state must be removed before editing')
+  if (save.header.mods.length && !save.header.isModded) throw new Error('Active mods require the save modded flag')
+  const catalog = resolution.catalog
   const randomizer = object(save.party.value.RandomizerFlags ?? (save.header.version < LEGACY_HEADER.flags ? document({}) : undefined), 'RandomizerFlags')
   if (save.header.randomizerFlags !== 0 || Object.values(randomizer.value).some(value => value.type === 'boolean' && value.value)) throw new Error('Randomized saves are read-only because their identities can differ')
   const currency = number(object(save.party.value.Currency, 'Currency').value.Val, 'Currency')
@@ -172,15 +404,22 @@ function validate(save: CrystalSave, catalog: SaveEditorCatalog): void {
       bound(stockCount(entry), 0, capacity(save, catalog, kind, id), `${kind} ${id} quantity`)
     }
   }
+  return catalog
 }
 
-export function inspectSave(save: CrystalSave, catalog: SaveEditorCatalog): SaveEditorSummary {
-  const summary: SaveEditorSummary = { editable: false, issues: [], currency: save.header.currencyAmount, members: [], inventory: [], mapCount: save.maps.length, levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false }
-  try { validate(save, catalog); summary.editable = true } catch (error) { summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data') }
+export function inspectSave(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): SaveEditorSummary {
+  const resolution = resolveSaveEditorMods(save, nativeCatalog, modSources)
+  const catalog = resolution.catalog
+  const summary: SaveEditorSummary = { editable: false, issues: [], mode: catalog.mode, currency: save.header.currencyAmount, members: [], inventory: [], mapCount: save.maps.length, levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false }
+  try { validate(save, nativeCatalog, modSources); summary.editable = true } catch (error) { summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data') }
   try {
     summary.levelCap = levelCap(save)
     summary.assistEnabled = flag(flags(save).value.MaxLevelUp)
-    summary.members = save.members.map((member, index) => ({ index, name: string(member.value.Name, 'Name'), level: number(object(member.value.Levels, 'Levels').value.Level, 'Level'), jobId: number(member.value.Job, 'Job'), subJobId: subJob(member, save), growthJobId: growthJob(member, save), unlockedJobs: numbers(member.value.LearnedJobs, 'LearnedJobs').filter(value => value > 0).length, masteredJobs: numbers(member.value.LearnedJobs, 'LearnedJobs').filter(value => value === LEARNED.learned).length, learnedAbilities: numbers(member.value.LearnedAbilities, 'LearnedAbilities').filter(value => value === LEARNED.learned).length, learnedPassives: numbers(member.value.LearnedPassives, 'LearnedPassives').filter(value => value === LEARNED.learned).length }))
+    summary.members = save.members.map((member, index) => {
+      const jobs = numbers(member.value.LearnedJobs, 'LearnedJobs')
+      const passives = numbers(member.value.LearnedPassives, 'LearnedPassives')
+      return { index, name: string(member.value.Name, 'Name'), level: number(object(member.value.Levels, 'Levels').value.Level, 'Level'), jobId: number(member.value.Job, 'Job'), subJobId: subJob(member, save), growthJobId: growthJob(member, save), equipmentIds: array(member.value.Equipment, 'Equipment').map(value => value.type === 'null' ? null : number(value, 'Equipped ID')), passiveIds: numbers(object(member.value.Passives, 'Equipped passives').value.Passives, 'Equipped passive IDs'), unlockedJobIds: jobs.flatMap((state, id) => state > 0 ? [id] : []), learnedPassiveIds: passives.flatMap((state, id) => state === LEARNED.learned ? [id] : []), unlockedJobs: jobs.filter(value => value > 0).length, masteredJobs: jobs.filter(value => value === LEARNED.learned).length, learnedAbilities: numbers(member.value.LearnedAbilities, 'LearnedAbilities').filter(value => value === LEARNED.learned).length, learnedPassives: passives.filter(value => value === LEARNED.learned).length }
+    })
     const choices = saveEditorChoices(catalog)
     summary.inventory = (['item', 'equipment'] as const).flatMap(kind => {
       const entries = new Map((kind === 'item' ? choices.items : choices.equipment).map(choice => [choice.id, choice]))
@@ -324,8 +563,62 @@ function normalizeClassLoadout(member: BsonDocument, save: CrystalSave, catalog:
   }
 }
 
-export function editSave(input: CrystalSave, catalog: SaveEditorCatalog, command: SaveEditCommand, now = new Date()): CrystalSave {
-  validate(input, catalog)
+function statModifierTags(record: NativeRecord): readonly number[] {
+  return Array.isArray(record.StatMods) ? record.StatMods.flatMap(modifier => modifier && typeof modifier === 'object' && !Array.isArray(modifier) && typeof modifier.Tag === 'number' ? [modifier.Tag] : []) : []
+}
+
+function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, command: Extract<SaveEditCommand, { type: 'loadout' }>): void {
+  const equipped = array(member.value.Equipment, 'Equipment')
+  if (command.equipmentIds.length !== equipped.length) throw new Error(`A loadout needs exactly ${equipped.length} equipment slots`)
+  if (new Set(command.passiveIds).size !== command.passiveIds.length) throw new Error('A loadout cannot equip the same passive twice')
+  const learnedPassives = numbers(member.value.LearnedPassives, 'LearnedPassives')
+  const passiveRecords = command.passiveIds.map(id => {
+    const passive = known(catalog, 'passive', id)
+    if ((learnedPassives[id] ?? LEARNED.locked) !== LEARNED.learned) throw new Error(`${String(passive.Name ?? `Passive ${id}`)} has not been learned by this member`)
+    if (passive.IsLearnable === false) throw new Error(`${String(passive.Name ?? `Passive ${id}`)} cannot be equipped as a learned passive`)
+    return passive
+  })
+  const passiveCost = passiveRecords.reduce((sum, passive) => sum + Number(passive.PP), 0)
+  if (!Number.isSafeInteger(passiveCost) || passiveCost > PASSIVE_POINT_BUDGET) throw new Error(`Equipped passives exceed the ${PASSIVE_POINT_BUDGET} PP limit`)
+  const job = known(catalog, 'job', number(member.value.Job, 'Job'))
+  const innatePassives = nativeIds(job, 'PassiveIDs').flatMap(id => {
+    const passive = catalog.records.passive.get(id)
+    return passive?.IsInnate ? [passive] : []
+  })
+  const permissionRecords = [...passiveRecords, ...innatePassives]
+  const equipmentTypes = new Set(nativeIds(job, 'EquipmentTypes'))
+  for (const passive of permissionRecords) for (const modifier of Array.isArray(passive.StatMods) ? passive.StatMods : []) {
+    if (modifier && typeof modifier === 'object' && !Array.isArray(modifier) && modifier.Tag === ENABLE_EQUIPMENT_TYPE && typeof modifier.Value1 === 'number') equipmentTypes.add(modifier.Value1)
+  }
+  const dualWield = permissionRecords.some(passive => statModifierTags(passive).includes(DUAL_WIELD))
+  const requested = command.equipmentIds.map((id, index) => {
+    if (id === null) return null
+    const equipment = known(catalog, 'equipment', id)
+    const type = Number(equipment.EquipmentType)
+    const fitsSlot = index <= 1 ? type <= 11 : index === 2 ? type >= 12 && type <= 14 : index === 3 ? type >= 15 && type <= 17 : type === 18
+    if (!fitsSlot) throw new Error(`${String(equipment.Name ?? `Equipment ${id}`)} does not fit ${['main hand', 'off hand', 'head', 'body', 'accessory 1', 'accessory 2'][index]}`)
+    if (!equipmentTypes.has(type)) throw new Error(`${String(job.Name ?? 'This class')} cannot equip ${String(equipment.Name ?? `equipment ${id}`)}`)
+    if (index === 1 && type <= 10 && !dualWield) throw new Error(`${String(equipment.Name ?? `Equipment ${id}`)} requires Dual Wield in the off hand`)
+    return equipment
+  })
+  const counts = new Map<number, number>()
+  if ((requested[0]?.IsTwoHanded === true && requested[1]) || (requested[1]?.IsTwoHanded === true && requested[0])) throw new Error('A two-handed weapon requires the other hand to stay empty')
+  for (const [index, id] of command.equipmentIds.entries()) if (id !== null) {
+    const next = (counts.get(id) ?? 0) + 1
+    counts.set(id, next)
+    if (requested[index]?.IsOneOnly && next > 1) throw new Error(`${String(requested[index]?.Name ?? `Equipment ${id}`)} can only be equipped once`)
+  }
+  unequip(save, member)
+  for (const [id, count] of counts) if (quantity(save, 'equipment', id) < count) throw new Error(`Inventory needs ${count} ${String(catalog.records.equipment.get(id)?.Name ?? `equipment ${id}`)} for this loadout`)
+  for (const [id, count] of counts) setStock(save, 'equipment', id, quantity(save, 'equipment', id) - count)
+  member.value.Equipment = list(command.equipmentIds.map(id => id === null ? { type: 'null' } : int(id)))
+  const passives = object(member.value.Passives, 'Passives')
+  passives.value.Passives = list(command.passiveIds.map(int))
+  passives.value.CurrentPP = int(PASSIVE_POINT_BUDGET - passiveCost)
+}
+
+export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, command: SaveEditCommand, now = new Date(), modSources: readonly SaveEditorModSource[] = []): CrystalSave {
+  const catalog = validate(input, nativeCatalog, modSources)
   if (!Number.isFinite(now.getTime())) throw new Error('Edit timestamp is invalid')
   const save = structuredClone(input)
   if (command.type === 'currency' || command.type === 'overpowered') {
@@ -334,17 +627,17 @@ export function editSave(input: CrystalSave, catalog: SaveEditorCatalog, command
     object(save.party.value.Currency, 'Currency').value.Val = int(value)
     save.header.currencyAmount = value
   }
-  if (command.type === 'member') {
+  if (command.type === 'member' || command.type === 'loadout') {
     bound(command.index, 0, save.members.length - 1, 'Member index')
     const member = save.members[command.index]!
     let mainChanged = false
     let classChanged = false
-    if (command.name !== undefined) {
+    if (command.type === 'member' && command.name !== undefined) {
       if (!command.name.trim() || [...command.name].length > 32 || /[\u0000-\u001f\u007f]/.test(command.name)) throw new Error('Names need 1 to 32 characters without control characters')
       member.value.Name = text(command.name)
       save.header.members[command.index]!.name = command.name
     }
-    if (command.level !== undefined && command.level !== number(object(member.value.Levels, 'Levels').value.Level, 'Level')) setLevel(save, catalog, command.index, command.level, now)
+    if (command.type === 'member' && command.level !== undefined && command.level !== number(object(member.value.Levels, 'Levels').value.Level, 'Level')) setLevel(save, catalog, command.index, command.level, now)
     for (const [field, id] of [['Job', command.jobId], ['SubJob', command.subJobId]] as const) if (id !== undefined) {
       const previous = field === 'SubJob' ? subJob(member, save) : number(member.value.Job, 'Job')
       if (id === previous) continue
@@ -364,7 +657,11 @@ export function editSave(input: CrystalSave, catalog: SaveEditorCatalog, command
       member.value[field] = id === null ? { type: 'null' } : int(id)
       classChanged = true
     }
-    if (classChanged) { unequip(save, member); normalizeClassLoadout(member, save, catalog, mainChanged) }
+    if (classChanged) {
+      if (command.type === 'member') unequip(save, member)
+      normalizeClassLoadout(member, save, catalog, mainChanged)
+    }
+    if (command.type === 'loadout') applyLoadout(save, member, catalog, command)
   }
   if (command.type === 'stock') {
     known(catalog, command.kind, command.id)
@@ -393,13 +690,15 @@ export function editSave(input: CrystalSave, catalog: SaveEditorCatalog, command
     const remainder = map.lengthX * map.lengthY % 8
     if (remainder && map.data.length) map.data[map.data.length - 1] = (1 << remainder) - 1
   }
-  validate(save, catalog)
+  validate(save, nativeCatalog, modSources)
   return save
 }
 
-export function previewSaveChanges(before: CrystalSave, after: CrystalSave, catalog: SaveEditorCatalog): string[] {
-  const previous = inspectSave(before, catalog)
-  const next = inspectSave(after, catalog)
+export function previewSaveChanges(before: CrystalSave, after: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): string[] {
+  const previousCatalog = resolveSaveEditorMods(before, nativeCatalog, modSources).catalog
+  const nextCatalog = resolveSaveEditorMods(after, nativeCatalog, modSources).catalog
+  const previous = inspectSave(before, nativeCatalog, modSources)
+  const next = inspectSave(after, nativeCatalog, modSources)
   const result: string[] = []
   if (previous.currency !== next.currency) result.push(`Money: ${previous.currency.toLocaleString('en-US')} → ${next.currency.toLocaleString('en-US')} copper`)
   if (previous.levelCap !== next.levelCap) result.push(`Level cap: ${previous.levelCap} → ${next.levelCap}${next.assistEnabled ? ' (level-cap assist enabled)' : ''}`)
@@ -408,13 +707,14 @@ export function previewSaveChanges(before: CrystalSave, after: CrystalSave, cata
     if (!old) continue
     if (old.name !== member.name) result.push(`Member ${member.index + 1}: ${old.name} → ${member.name}`)
     if (old.level !== member.level) result.push(`${member.name}: level ${old.level} → ${member.level}; growth and experience updated`)
-    if (old.jobId !== member.jobId) result.push(`${member.name}: class ${catalog.records.job.get(old.jobId)?.Name ?? old.jobId} → ${catalog.records.job.get(member.jobId)?.Name ?? member.jobId}; future growth follows the new class; equipment returned to inventory`)
-    if (old.subJobId !== member.subJobId) result.push(`${member.name}: subclass ${old.subJobId === null ? 'None' : catalog.records.job.get(old.subJobId)?.Name ?? old.subJobId} → ${member.subJobId === null ? 'None' : catalog.records.job.get(member.subJobId)?.Name ?? member.subJobId}${old.jobId === member.jobId ? '; equipment returned to inventory' : ''}`)
+    if (old.jobId !== member.jobId) result.push(`${member.name}: class ${previousCatalog.records.job.get(old.jobId)?.Name ?? old.jobId} → ${nextCatalog.records.job.get(member.jobId)?.Name ?? member.jobId}; future growth follows the new class; equipment returned to inventory`)
+    if (old.subJobId !== member.subJobId) result.push(`${member.name}: subclass ${old.subJobId === null ? 'None' : previousCatalog.records.job.get(old.subJobId)?.Name ?? old.subJobId} → ${member.subJobId === null ? 'None' : nextCatalog.records.job.get(member.subJobId)?.Name ?? member.subJobId}${old.jobId === member.jobId ? '; equipment returned to inventory' : ''}`)
     if (old.unlockedJobs !== member.unlockedJobs || old.masteredJobs !== member.masteredJobs || old.learnedAbilities !== member.learnedAbilities || old.learnedPassives !== member.learnedPassives) result.push(`${member.name}: ${member.unlockedJobs} classes unlocked, ${member.masteredJobs} mastered, ${member.learnedAbilities} abilities and ${member.learnedPassives} passives learned`)
     else if (['LearnedJobs', 'LearnedAbilities', 'LearnedPassives'].some(field => !sameBson(before.members[member.index]?.value[field], after.members[member.index]?.value[field]))) result.push(`${member.name}: ability and passive unlock states updated`)
     if (!sameBson(before.members[member.index]?.value.JP, after.members[member.index]?.value.JP)) result.push(`${member.name}: class JP updated`)
     if (old.level === member.level && !sameBson(before.members[member.index]?.value.Levels, after.members[member.index]?.value.Levels)) result.push(`${member.name}: growth and experience bookkeeping updated`)
-    if (!sameBson(before.members[member.index]?.value.Passives, after.members[member.index]?.value.Passives)) result.push(`${member.name}: redundant passives removed and points returned`)
+    if (!sameBson(before.members[member.index]?.value.Passives, after.members[member.index]?.value.Passives)) result.push(`${member.name}: equipped passives and available points updated`)
+    if (!sameBson(before.members[member.index]?.value.Equipment, after.members[member.index]?.value.Equipment)) result.push(`${member.name}: equipped loadout updated and inventory reconciled`)
     if (!sameBson(before.members[member.index]?.value.AutoAbilityID, after.members[member.index]?.value.AutoAbilityID)) result.push(`${member.name}: unavailable automatic ability cleared`)
   }
   for (const kind of ['item', 'equipment'] as const) {
@@ -427,6 +727,7 @@ export function previewSaveChanges(before: CrystalSave, after: CrystalSave, cata
   if (mapChanges) result.push(`${mapChanges} stored maps revealed`)
   if (!sameBson(before.party.value.Atlas, after.party.value.Atlas)) result.push('Atlas entries updated to match the edited inventory and learning')
   if (!sameBson(object(before.party.value.Items, 'Items').value.TF, object(after.party.value.Items, 'Items').value.TF)) result.push('Treasure Finder availability updated')
+  if (before.header.isModded !== after.header.isModded || before.header.mods.length !== after.header.mods.length || before.header.modIdMaps.length !== after.header.modIdMaps.length) result.push('Saved mod flags, active list, and ID redirects updated')
   return result
 }
 
