@@ -96,6 +96,10 @@ Original workbooks, trackers, personal exports, and private screenshots do not b
 
 Use [GitHub issues](https://github.com/j-256/crykit/issues) for bugs, source corrections, and attribution concerns. Include reproducible steps and synthetic examples. Include the reference entry, platform, game version, enabled mods, expected value, and source evidence. Source fixes belong in the catalog extraction or interpretation pipeline. See [reference data boundaries](reference-data.md) for the distinction between source catalogs, standalone custom definitions, and retained catalog versions.
 
+## Save editor
+
+The [save editor](save-editor.md) separates bounded binary/BSON decoding, pure semantic edits, and the browser workspace. Keep untouched values and source bytes, reject unsupported editing profiles, and use synthetic fixtures in codec, domain, and browser tests. Saving a `.sav` exports a new file; it must not mutate Playthrough data or persisted planner formats. Add meaningful round-trip and rejected-operation coverage when expanding supported fields or formats.
+
 ## Bundle a mod source directory
 
 Package a directory of Crystal Edit exports without maintaining a filename list:
