@@ -11,6 +11,8 @@ const INDEX = 'src/catalog/bundled-mod-index.json'
 const VANILLA_RECEIPT = 'src/catalog/vanilla-catalog-v2.json'
 const GENERATED_AT = '1970-01-01T00:00:00.000Z'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
+const GZIP_OS_OFFSET = 9
+const GZIP_OS_UNKNOWN = 255
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const HELP = `Usage: node scripts/generate-mod-index.mjs [-c|--check] [-h|--help]
 Generate a compact search catalog for every directory-bundled Crystal Edit source
@@ -50,7 +52,9 @@ export async function generateModIndex({ check = false } = {}) {
       catalogs.push(modSearchCatalog(catalog))
     }
     const json = JSON.stringify({ schemaVersion: 1, catalogs })
-    const index = `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: gzipSync(json, { level: 9 }).toString('base64') })}\n`
+    const compressed = gzipSync(json, { level: 9 })
+    compressed[GZIP_OS_OFFSET] = GZIP_OS_UNKNOWN
+    const index = `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: compressed.toString('base64') })}\n`
     for (const [path, text] of [[INDEX, index], [VANILLA_RECEIPT, vanilla]]) {
       if (check) { if (await readFile(join(ROOT, path), 'utf8') !== text) throw new Error(`Generated output differs: ${path}`) }
       else await writeFile(join(ROOT, path), text)
