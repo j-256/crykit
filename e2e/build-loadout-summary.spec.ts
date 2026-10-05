@@ -7,6 +7,7 @@ const RAIL_TOGGLE_WIDTH_PX = 32
 const EXPANDED_RAIL_WIDTH_PX = 232
 const DENSE_LIBRARY_CARD_MAX_HEIGHT_PX = 230
 const DENSE_TEAM_CARD_MAX_HEIGHT_PX = 190
+const SHORT_DESKTOP_VIEWPORT_HEIGHTS = [720, 480]
 
 async function choose(page: Page, label: string, name: string) {
   const field = page.getByRole('combobox', { name: label, exact: true })
@@ -253,6 +254,59 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).not.toBeVisible()
+})
+
+test('desktop sidebar keeps navigation and footer tools reachable on short windows', async ({ page, isMobile }, testInfo) => {
+  test.skip(isMobile, 'The desktop sidebar is replaced by bottom navigation')
+  await page.goto('/#/builds/library')
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  const rail = page.locator('.rail')
+  const navigation = rail.getByRole('navigation', { name: 'Primary navigation', exact: true })
+  const footer = rail.locator('.rail__footer')
+  for (const height of SHORT_DESKTOP_VIEWPORT_HEIGHTS) {
+    await page.setViewportSize({ width: 1280, height })
+    for (const collapsed of [false, true]) {
+      const toggle = rail.getByRole('button', { name: collapsed ? 'Collapse sidebar' : 'Expand sidebar', exact: true })
+      if (await toggle.isVisible()) await toggle.click()
+      await expect(rail.getByRole('button', { name: collapsed ? 'Expand sidebar' : 'Collapse sidebar', exact: true })).toBeVisible()
+      const railBounds = (await rail.boundingBox())!
+      const footerBounds = (await footer.boundingBox())!
+      const paddingBottom = await rail.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom))
+      expect(footerBounds.y + footerBounds.height + paddingBottom).toBe(railBounds.y + railBounds.height)
+      const controls = [...await navigation.getByRole('button').all(), ...await navigation.getByRole('link').all(), ...await footer.getByRole('button').all()]
+      for (const control of controls) {
+        await control.focus()
+        await expect(control).toBeFocused()
+        await expect(control).toBeInViewport({ ratio: 1 })
+        expect(await control.evaluate(element => {
+          const bounds = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+          return hit === element || element.contains(hit)
+        })).toBe(true)
+        const label = control.locator('span')
+        if (collapsed && await label.count()) {
+          await expect(label).toHaveCSS('opacity', '1')
+          await expect(label).toBeInViewport({ ratio: 1 })
+          await expect.poll(() => control.evaluate(element => {
+            const controlBounds = element.getBoundingClientRect()
+            const labelBounds = element.querySelector('span')!.getBoundingClientRect()
+            return Math.abs(labelBounds.y + labelBounds.height / 2 - controlBounds.y - controlBounds.height / 2)
+          })).toBeLessThan(1)
+        }
+      }
+      expect(await footer.boundingBox()).toEqual(footerBounds)
+      if (collapsed) {
+        const builds = navigation.getByRole('button', { name: 'Builds', exact: true })
+        await builds.focus()
+        await builds.hover()
+        const label = builds.locator('span')
+        await expect(label).toHaveCSS('opacity', '1')
+        await expect(label).toBeInViewport({ ratio: 1 })
+        expect((await label.boundingBox())!.x).toBeGreaterThanOrEqual(railBounds.x + railBounds.width)
+      }
+      await page.screenshot({ path: testInfo.outputPath('sidebar-' + height + (collapsed ? '-collapsed' : '-expanded') + '.png') })
+    }
+  }
 })
 
 test('invalid builds remain saveable and stay red in the library and team', async ({ page }) => {
