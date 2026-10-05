@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
@@ -18,9 +18,12 @@ async function dataPanel(page: Page) {
 }
 
 async function loadFixture(page: Page, localData: LocalData = { ...screenshotTestLocalData(), changes: [] }) {
+  const setupId = localData.planningGameSetupRevisionId!
+  localData = { ...localData, gameSetups: { ...localData.gameSetups, [setupId]: { ...localData.gameSetups[setupId]!, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } } }
   await page.goto('/')
+  await skipInitialModSetup(page)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], evidence: [], history: [] }) })
+  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
   const panel = await dataPanel(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-learning.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()

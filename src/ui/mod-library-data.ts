@@ -6,6 +6,7 @@ import { recordedModNames } from '../domain/mods'
 import { definitionLineageRootRef } from '../domain/definitions'
 import type { CatalogId, CatalogSnapshot, LocalData } from '../domain/types'
 import type { DefinitionOption } from './definitions'
+import { isModSearchPreview } from '../domain/mod-search'
 
 export function modCatalogEntry(option: DefinitionOption, catalogs: readonly CatalogSnapshot[], data: LocalData): ModCatalogEntry {
   const name = option.record.fields['Source mod']
@@ -19,5 +20,6 @@ export function modCatalogEntry(option: DefinitionOption, catalogs: readonly Cat
 
 export function buildModLibraryCards(catalogs: readonly CatalogSnapshot[], options: readonly DefinitionOption[], data: LocalData) {
   const names = [...SWITCH_MOD_PACKS.flatMap(pack => pack.mods), ...Object.values(data.gameSetups).flatMap(recordedModNames)]
-  return modLibraryCards(completeModLibrary(catalogs, BUNDLED_MOD_LIBRARY), names, options.filter(option => option.preferred).map(option => modCatalogEntry(option, catalogs, data)))
+  const previews = new Set(catalogs.filter(isModSearchPreview).map(catalog => catalog.id))
+  return modLibraryCards(completeModLibrary(catalogs, BUNDLED_MOD_LIBRARY), names, options.filter(option => option.preferred && !(option.ref.kind === 'catalog' && previews.has(option.ref.catalogId))).map(option => modCatalogEntry(option, catalogs, data)))
 }

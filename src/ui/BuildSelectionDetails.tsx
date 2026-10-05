@@ -2,7 +2,7 @@ import { modPlanningReason } from '../catalog/mods'
 import { MoneyText } from './MoneyText'
 import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, hasNameEvidenceOnly, nativeStatSourceNotice, ppCostLabel, selectionSummaryLines } from './build-evidence'
 import { definitionKindLabel, type DefinitionOption } from './definitions'
-import { LEARNABLE_INNATE_SKILLS_MOD_LABEL, ModBadge } from './DefinitionModLabel'
+import { LegacyInnateModBadge, ModBadge } from './DefinitionModLabel'
 import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { classRatingField } from '../domain/stat-ratings'
 import { StatLabel } from './StatRatings'
@@ -57,7 +57,7 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
   const showSources = external.length > 0 || externalArtwork || externalIcons || uncertain || option.ref.kind === 'personal'
   const help = <p className="field__hint">Listed catalog values describe this definition. Build equipment checks and stat estimates show which facts are supported and which effects remain unresolved.</p>
   return <div className="build-selection-details">
-    <div className="cluster"><strong>{option.name}</strong>{option.kind === 'innate' && <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}<small>{definitionKindLabel(option.kind)}{!previous && ['passive', 'innate'].includes(option.kind) ? ` · ${ppCostLabel(option)}` : ''}</small></div>
+    <div className="cluster"><strong>{option.name}</strong>{option.kind === 'innate' && !option.modAvailability?.requiredMod && <LegacyInnateModBadge record={option.record}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}<small>{definitionKindLabel(option.kind)}{!previous && ['passive', 'innate'].includes(option.kind) ? ` · ${ppCostLabel(option)}` : ''}</small></div>
     {modPlanningReason(option.modAvailability) && <p className="field__hint">{modPlanningReason(option.modAvailability)}</p>}
     {option.kind === 'class' && !showClassPermissions && <p className="field__hint">The sub-command supplies its command. Class equipment permissions are not granted by the sub-command.</p>}
     {option.kind === 'class' && showClassRatings && <div className="build-selection-details__ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings. Numeric stats also depend on level and growth history.</p></div>}

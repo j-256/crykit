@@ -224,11 +224,15 @@ for (const wikiEntity of WIKI_DATA.entities) {
   mergedEntities.push(applyPlanningKnowledge({ ...wikiEntity, id: wikiEntity.id as EntityId }))
 }
 
-// Keep confirmed Switch identities separate from same-name wiki definitions
-for (const entity of confirmedSwitchDefinitions(mergedEntities)) {
-  const index = mergedEntities.findIndex(existing => existing.id === entity.id)
-  if (index < 0) mergedEntities.push(applyPlanningKnowledge(entity))
-  else mergedEntities[index] = applyPlanningKnowledge(entity)
+function starterDefinitions(includeModLearning: boolean): readonly CatalogEntity[] {
+  const definitions = [...mergedEntities]
+  // Keep confirmed Switch identities separate from same-name wiki definitions
+  for (const entity of confirmedSwitchDefinitions(definitions, { includeModLearning })) {
+    const index = definitions.findIndex(existing => existing.id === entity.id)
+    if (index < 0) definitions.push(applyPlanningKnowledge(entity))
+    else definitions[index] = applyPlanningKnowledge(entity)
+  }
+  return definitions
 }
 
 const unmatchedStarterRecords = STARTER_NAME_RECORDS.filter((record) => !matchedWikiIdentities.has(entityIdentity(record[1], record[2])))
@@ -369,35 +373,40 @@ const officialEntities: readonly CatalogEntity[] = [
 
 mergedEntities.push(coverageEntity, ...officialEntities)
 
-const entities = Object.fromEntries(mergedEntities.map((entity) => [entity.id, entity])) as Readonly<Record<string, CatalogEntity>>
+const starterEntities = starterDefinitions(true)
 
 export const STARTER_CATALOG_COUNTS = deepFreeze(
-  mergedEntities.reduce<Partial<Record<CatalogEntityKind, number>>>((counts, entity) => {
+  starterEntities.reduce<Partial<Record<CatalogEntityKind, number>>>((counts, entity) => {
     counts[entity.kind] = (counts[entity.kind] ?? 0) + 1
     return counts
   }, {}),
 )
 
-export const STARTER_CATALOG: CatalogSnapshot = deepFreeze({
-  id: STARTER_CATALOG_ID,
-  revisionId: STARTER_CATALOG_REVISION_ID,
-  schemaVersion: '1.0.0',
-  checksum: `builtin:sha256:${STARTER_CATALOG_CONTENT_DIGEST}`,
-  importedAt: WIKI_DATA.maxRevision as Timestamp,
-  applicability: {
-    state: 'unknown',
-    reason: 'The community wiki and supporting public sources do not establish complete Nintendo Switch or official mod-pack parity',
-  },
-  rights: {
-    state: 'unknown',
-    reason: `Wiki-derived content is ${WIKI_DATA.source.rights} with page-level attribution; supporting catalog sources have separate terms`,
-    sources: [{ sourceId: WIKI_DATA.source.rightsUrl, locator: WIKI_DATA.source.name }],
-  },
-  entities,
-  claims: [],
-  legacy: {
-    coverage: 'community-wiki-with-explicit-gaps',
-    provenance: 'revision-pinned-public-sources-and-in-game-confirmations',
-    wikiContentDigest: WIKI_DATA.contentDigest,
-  },
-})
+export function createReferenceSupplementCatalog({ includeModLearning = false }: { readonly includeModLearning?: boolean } = {}): CatalogSnapshot {
+  const entities = Object.fromEntries(starterDefinitions(includeModLearning).map(entity => [entity.id, entity]))
+  return {
+    id: STARTER_CATALOG_ID,
+    revisionId: STARTER_CATALOG_REVISION_ID,
+    schemaVersion: '1.0.0',
+    checksum: `builtin:sha256:${STARTER_CATALOG_CONTENT_DIGEST}`,
+    importedAt: WIKI_DATA.maxRevision as Timestamp,
+    applicability: {
+      state: 'unknown',
+      reason: 'The community wiki and supporting public sources do not establish complete Nintendo Switch or official mod-pack parity',
+    },
+    rights: {
+      state: 'unknown',
+      reason: `Wiki-derived content is ${WIKI_DATA.source.rights} with page-level attribution; supporting catalog sources have separate terms`,
+      sources: [{ sourceId: WIKI_DATA.source.rightsUrl, locator: WIKI_DATA.source.name }],
+    },
+    entities,
+    claims: [],
+    legacy: {
+      coverage: 'community-wiki-with-explicit-gaps',
+      provenance: 'revision-pinned-public-sources-and-in-game-confirmations',
+      wikiContentDigest: WIKI_DATA.contentDigest,
+    },
+  }
+}
+
+export const STARTER_CATALOG: CatalogSnapshot = deepFreeze(createReferenceSupplementCatalog({ includeModLearning: true }))

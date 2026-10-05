@@ -540,6 +540,7 @@ export interface LocalData {
   readonly changes: readonly ChangeEntry[]
   readonly skillTreeLayouts?: Readonly<Record<string, SkillTreeLayout>>
   readonly referenceLibrary?: ReferenceLibrarySettings
+  readonly modSetup?: { readonly version: 1; readonly state: 'pending' | 'skipped' | 'completed' }
 }
 
 export type TruthValue = 'true' | 'false' | 'unknown'

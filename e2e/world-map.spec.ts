@@ -1,7 +1,9 @@
+import { skipInitialModSetup } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import type { LocalData } from '../src/domain/types'
+import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -25,6 +27,7 @@ async function expectTerrain(page: Page) {
 
 test('world map navigation supports clustered zoom, keyboard exploration, and underground layers', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const navigation = page.getByRole('button', { name: 'World Map', exact: true }).filter({ visible: true })
   await navigation.click()
   await expectTerrain(page)
@@ -115,7 +118,7 @@ test('a build draft survives a map research detour without allowing an unrelated
   await page.goto('/#/builds/library/new')
   const equipment = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await equipment.fill('Iron Sword')
-  await page.getByRole('listbox', { name: 'Choose Main hand', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Main hand', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
   await expect(equipment).toHaveValue('Iron Sword')
   await page.getByRole('button', { name: 'World Map', exact: true }).filter({ visible: true }).click()
   await expectTerrain(page)
@@ -250,6 +253,28 @@ test('Equipment Expansion locations retain source badges, filters, reference lin
   await expect(page.getByLabel('Map layer', { exact: true })).toHaveValue('9')
   await page.screenshot({ path: testInfo.outputPath('world-map-offline-dungeon.png'), fullPage: true })
   expect(externalRequests).toEqual([])
+})
+
+test('bundled map links retain their exact source when a different project revision is loaded', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
+  const source = JSON.stringify({ ID: bundled.id.replace(/^crystal-edit:/, ''), Title: 'Synthetic Equipment Expansion update', Version: 'synthetic', EditorVersion: 34, Equipment: [{ ID: 617, Name: 'Synthetic replacement blade' }] })
+  await page.goto('/#/mods/editor')
+  await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: 'synthetic-expansion-update.json', mimeType: 'application/json', buffer: Buffer.from(source) })
+  await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
+  await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
+  const before = await storedData(page)
+  await page.goto('/#/map')
+  await expectTerrain(page)
+  await page.getByRole('searchbox', { name: 'Search map', exact: true }).fill('Backbreaker')
+  await page.getByRole('button', { name: 'Show Backbreaker on map', exact: true }).click()
+  const link = page.getByRole('region', { name: 'Map location details', exact: true }).getByRole('link', { name: 'Backbreaker', exact: true })
+  await link.click()
+  await expect(page.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Synthetic replacement blade', exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
 })
 
 test('an arbitrary placement-only mod previews native loot without changing saved Game Setups', async ({ page }) => {

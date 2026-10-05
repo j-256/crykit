@@ -8,7 +8,7 @@ import { addGameSetupRevision, asId, captureCharacter, createCharacter, upsertCh
 import { createSampleLocalData } from '../src/domain/sample-data'
 import { addTestDefinition, known, personalRef, TEST_NOW } from '../src/domain/test-helpers'
 import type { CharacterId, CharacterSnapshotId, LocalData } from '../src/domain/types'
-import { selectedPlaythrough, createBlankPlaythrough, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough, createBlankPlaythrough, replacePlannerData } from './local-data-helpers'
 
 const CURRENT_SNAPSHOT = asId<CharacterSnapshotId>('synthetic-overview-current')
 const DENSE_CHARACTER_CARD_MAX_HEIGHT_PX = 410
@@ -79,6 +79,7 @@ function field(container: Locator, label: string) {
 
 test('overview preserves the selected snapshot, slot context, knowledge states and independent learning records', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const original = syntheticOverview()
   await importLocalData(page, original)
   await expect(page).toHaveURL(/#\/characters$/)

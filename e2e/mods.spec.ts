@@ -1,6 +1,6 @@
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -60,6 +60,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(12), displayedStats: {}, equipment: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
   localData = { ...localData, changes: [] }
   await page.goto('/')
+  await skipInitialModSetup(page)
   await importBackup(page, backup(localData))
   await page.goto(`/#/characters/${CHARACTER}/current`)
   const help = page.getByRole('region', { name: 'Equipment', exact: true }).locator('.recorded-mod').filter({ has: page.locator('[data-mod-badge="Equipment Expansion"]') })
@@ -103,6 +104,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(14), displayedStats: {}, equipment: { [HAND_SLOT]: SHIELD }, note: 'Synthetic later mod observation', now: '2026-01-03T00:00:00.000Z' })
   localData = { ...localData, changes: [] }
   await page.goto('/')
+  await skipInitialModSetup(page)
   await importBackup(page, backup(localData))
   let palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(1)
@@ -159,7 +161,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await expect(disabledShield).toHaveAttribute('data-mod-state', 'disabled')
   await expect(disabledShield).toBeEnabled()
   await picker.getByRole('searchbox').fill('Heavy Edge')
-  await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Heavy Edge' })).toHaveCount(1)
+  await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Heavy Edge' }).filter({ hasText: `${DEFAULT_CATALOG.id} · revision ${DEFAULT_CATALOG.revisionId}` })).toHaveCount(1)
   await page.keyboard.press('Escape')
   await form.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'History', exact: true }).click()
@@ -204,6 +206,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   const appOrigin = new URL(test.info().project.use.baseURL!).origin
   page.on('request', request => { if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url()) })
   await page.goto('/')
+  await skipInitialModSetup(page)
   let panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
@@ -297,6 +300,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   })
   localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   await page.goto('/')
+  await skipInitialModSetup(page)
   await importBackup(page, backup(localData))
   const panel = await dataPanel(page)
   await openCurrentGameSetup(panel)
@@ -327,6 +331,7 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
     localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known([MOONLIGHT_PROJECT_MOD]), disabledMods: state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : known([]) })
     await page.goto('/')
+    await skipInitialModSetup(page)
     await importBackup(page, backup(localData))
     await page.goto('/#/builds/library')
     await page.getByRole('button', { name: 'synthetic-pinned-mod-build', exact: true }).click()
@@ -335,19 +340,19 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     const list = page.getByRole('listbox', { name: 'Choose Class', exact: true })
     await expect(list.getByRole('option').filter({ hasText: 'Warrior' }).first()).toBeVisible()
     await picker.fill('Brawler')
-    const choice = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
+    const choice = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) }).filter({ has: page.locator('[data-mod-badge="Moonlight Project"]') })
     await expect(choice).toBeVisible()
     await picker.fill('')
     await openBuildPickerFilters(page)
     await list.getByText('Broader planning options', { exact: true }).click()
     const includeUnavailable = list.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true })
     await expect(includeUnavailable).toBeChecked()
-    const states = await list.getByRole('option').evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
+    const states = await list.getByRole('option').filter({ has: page.locator('.picker-result__heading') }).evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
     const firstInactive = states.findIndex(value => value !== null && value !== 'enabled')
     expect(firstInactive).toBeGreaterThan(0)
     expect(states.slice(firstInactive).every(value => value !== null && value !== 'enabled')).toBe(true)
     await includeUnavailable.uncheck()
-    const scopedStates = await list.getByRole('option').evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
+    const scopedStates = await list.getByRole('option').filter({ has: page.locator('.picker-result__heading') }).evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
     expect(scopedStates.every(value => value === null || value === 'enabled')).toBe(true)
     await picker.fill('Brawler')
     await expect(choice).toHaveCount(state === 'enabled' ? 1 : 0)

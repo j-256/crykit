@@ -175,7 +175,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await editor.getByRole('combobox', { name: 'Class', exact: true }).click()
   const classPicker = page.getByRole('listbox', { name: 'Choose Class', exact: true })
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await classPicker.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await classPicker.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
   await expect(classPicker).not.toBeVisible()
   const newRevisionUrl = page.url()
   await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()

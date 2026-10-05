@@ -404,7 +404,7 @@ export function worldMapClusters(markers: readonly WorldMarker[], options: World
 }
 
 export function worldMapTargetRef(target: WorldMapTarget, catalogs: readonly CatalogSnapshot[], bundled: readonly BundledLibraryMod[] = []): CatalogRef | undefined {
-  const preferred = catalogs.filter(catalog => (target.sourceId === 'base' || catalog.id === target.sourceId) && (!target.sourceRevisionId || catalog.revisionId === target.sourceRevisionId))
+  const preferred = catalogs.filter(catalog => (target.sourceId === 'base' || catalog.id === target.sourceId) && (!target.sourceRevisionId || catalog.revisionId === target.sourceRevisionId || catalog.checksum === target.sourceRevisionId))
   for (const catalog of preferred) {
     const entity = Object.values(catalog.entities).find(entity => {
       const identity = nativeIdentity(entity)

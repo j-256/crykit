@@ -1,5 +1,5 @@
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
-import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -35,6 +35,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   page.on('pageerror', error => errors.push(error.message))
   const mods = await syntheticModLayers()
   await page.goto('/')
+  await skipInitialModSetup(page)
   for (const preview of [mods.first, mods.second]) {
     const panel = await openSettings(page, 'Import & backup')
     await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: preview.filename, mimeType: 'application/json', buffer: Buffer.from(preview.proposed.sources[0]!.bytes) })
@@ -117,6 +118,7 @@ test('changing layers requires an explicit personal override decision and label 
     'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   await page.goto('/')
+  await skipInitialModSetup(page)
   const importing = await openSettings(page, 'Import & backup')
   await importing.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mod-overrides.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(importing)

@@ -1,6 +1,6 @@
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -28,6 +28,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => { if (new URL(request.url()).origin !== new URL(baseURL!).origin) externalRequests.push(request.url()) })
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
   await expect(page.getByText('Short Sword', { exact: true })).toBeVisible()
@@ -67,7 +68,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const picker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await openBuildPickerFilters(page)
   await picker.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
-  await picker.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
+  await picker.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const saved = await exportLocalData(page)
@@ -92,6 +93,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
 
 test('an explicitly created blank playthrough keeps its records empty while shared Builds remain', async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.reload()
   await expect(page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')).toHaveCount(4)

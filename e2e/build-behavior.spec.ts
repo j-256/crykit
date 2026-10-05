@@ -1,4 +1,4 @@
-import { openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 import type { LocalData } from '../src/domain/types'
@@ -20,6 +20,7 @@ async function storedData(page: Page): Promise<LocalData> {
 
 async function openBuild(page: Page) {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
   const build = Object.values(original.builds)[0]!

@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import { referencePath } from './reference-helpers'
 
 const DESERT_PATH = referencePath('base:monster:316')
-const RED_PATH = referencePath('base:monster:57')
 const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
 
 test('base, mod, and supplemental entries use the bundled route contract directly', async ({ page }) => {
@@ -21,8 +20,8 @@ test('base, mod, and supplemental entries use the bundled route contract directl
 
 test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
   await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
-  const desert = page.locator(`a[href^="${DESERT_PATH.slice(1)}?"]`)
-  const red = page.locator(`a[href^="${RED_PATH.slice(1)}?"]`)
+  const desert = page.locator(`a[href^="${referencePath('base:monster:316', 'crystal-project-public-starter', 'catalog-v2').slice(1)}?"]`)
+  const red = page.locator(`a[href^="${referencePath('base:monster:57', 'crystal-project-public-starter', 'catalog-v2').slice(1)}?"]`)
   await expect(desert).toBeVisible()
   await expect(red).toBeVisible()
   await expect(desert).toHaveAttribute('href', /\/316\/brutish-quintar-desert\?/)

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "projects": [
+    {
+      "projectId": "3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+      "key": "equipment-expansion",
+      "names": [
+        "Equipment Expansion"
+      ],
+      "starter": true
+    },
+    {
+      "projectId": "d09a5ad1-d627-4703-84ca-dfe9e8511097",
+      "key": "learnable-innates",
+      "names": [
+        "Learnable Innate Skill"
+      ],
+      "starter": true,
+      "sourceRecordField": "Learnable Innate Skill v1.0 source record",
+      "nativeBaseReplacements": true
+    },
+    {
+      "projectId": "291840f3-509a-498f-bbf5-bc5d09956176",
+      "key": "moonlight-project",
+      "names": [
+        "Moonlight Project"
+      ],
+      "starter": true
+    }
+  ]
+}

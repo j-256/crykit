@@ -1,6 +1,7 @@
 export { CryKitDatabase, getDatabase, setDatabaseForTests } from './database'
 export {
   commitImport,
+  commitModSetup,
   exportBackup,
   loadLocalData,
   previewImport,

@@ -1,6 +1,6 @@
 import factsJson from './native-mechanics.json' with { type: 'json' }
 import codeEvidence from './game-code-evidence.json' with { type: 'json' }
-import { DEFAULT_CATALOG, BUNDLED_SOURCE_ENTITY_IDS } from './bundled'
+import { BUNDLED_CATALOGS, BUNDLED_SOURCE_ENTITY_IDS } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { sameValue } from '../domain/definition-values'
 import type { CatalogEntity, JsonValue, Knowledge, PersonalDefinition } from '../domain/types'
@@ -34,7 +34,8 @@ const receipts = new Map(facts.entries.map(receipt => [receipt.entityId, receipt
 export function nativeMechanic(entity: CatalogEntity | PersonalDefinition): NativeMechanic | undefined {
   if (!sourceMatches || 'revision' in entity) return undefined
   const receipt = receipts.get(entity.id)
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
+  if (!receipt) return undefined
+  const baseline = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).find(original => original && entity.kind === original.kind && sameValue(entity.fields, original.fields) && sameValue(entity.sources, original.sources))
   if (!receipt || !baseline || BUNDLED_SOURCE_ENTITY_IDS.get(receipt.sourceId) !== entity.id || entity.kind !== baseline.kind || entity.name !== baseline.name || entity.rawDescription !== receipt.expectedDescription || !sameValue(entity.fields, receipt.expectedFields) || !sameValue(entity.fields, baseline.fields) || !sameValue(entity.sources, baseline.sources)) return undefined
   return { description: receipt.description, scope: `Windows ${facts.source.gameVersion}`, replacedFields: receipt.replacedFields, originalFields: Object.fromEntries(receipt.replacedFields.flatMap(field => entity.fields[field] ? [[field, entity.fields[field]!]] : [])), originalDescription: receipt.expectedDescription, evidence: receipt.evidence, ...(receipt.calculationLinks ? { calculationLinks: receipt.calculationLinks } : {}) }
 }

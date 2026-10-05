@@ -8,7 +8,7 @@ import { known } from '../src/domain/test-helpers'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 import { defaultCalculation } from '../src/domain/calculation-plan'
 import { expectOfflineReady } from './offline-helpers'
-import { selectedPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough } from './local-data-helpers'
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -25,6 +25,7 @@ async function storedData(page: Page): Promise<LocalData> {
 
 for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? 'with' : 'without'} a model marker and personal definition details match the saved editor offline`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, context }, testInfo) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -92,6 +93,7 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
 
 test('model-less shares use native rules and retain unsupported inputs without writes', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const before = await storedData(page)
   const build = Object.values(before.builds)[0]!
@@ -132,6 +134,7 @@ test('model-less shares use native rules and retain unsupported inputs without w
 
 test('absent and unknown calculation inputs stay unknown until explicitly edited', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const before = await storedData(page)
   const build = Object.values(before.builds)[0]!
@@ -176,6 +179,7 @@ test('shares a saved build, supports manual copying, previews without writes and
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
   const build = Object.values(original.builds)[0]!
@@ -224,6 +228,7 @@ test('shares a saved build, supports manual copying, previews without writes and
 
 test('opens four portable team slots in a fresh browser and saves them as an independent Team', { tag: MOBILE_TEST_TAG }, async ({ page, browser, baseURL, isMobile }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const source = await storedData(page)
   const sourceTeam = Object.values(selectedPlaythrough(source).scenarios)[0]!
@@ -264,6 +269,7 @@ test('survives a link near the URL budget on navigation and reload without leaki
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => requests.push(request.url()))
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
   const revision = Object.values(original.buildRevisions)[0]!
@@ -291,6 +297,7 @@ test('survives a link near the URL budget on navigation and reload without leaki
 
 test('a failed copy rolls back, remains previewable and retries without duplicates', async ({ page, baseURL }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
   const revision = Object.values(original.buildRevisions)[0]!
@@ -333,6 +340,7 @@ test('a failed copy rolls back, remains previewable and retries without duplicat
 
 test('rejects invalid snapshots and unavailable catalog pins without writing', async ({ page, baseURL }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
   await page.goto('/#/share/v1/AAA')

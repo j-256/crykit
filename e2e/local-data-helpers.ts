@@ -18,6 +18,16 @@ export async function createBlankPlaythrough(page: Page): Promise<void> {
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
+export async function addBundledModToReference(page: Page, title: string): Promise<void> {
+  await page.goto('/')
+  await skipInitialModSetup(page)
+  await page.goto('/#/mods')
+  await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill(title)
+  const card = page.getByRole('region', { name: title, exact: true })
+  await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+}
+
 export async function replacePlannerData(panel: Locator): Promise<void> {
   await panel.getByRole('checkbox', { name: /Replace all local planner data after validation/ }).check()
   await panel.getByRole('button', { name: 'Replace planner data', exact: true }).click()
@@ -100,4 +110,28 @@ export async function applySavedGameSetup(panel: Locator): Promise<void> {
 export async function saveAndApplyGameSetup(panel: Locator): Promise<void> {
   await panel.getByRole('button', { name: /^(Create Game Setup|Save Game Setup)$/ }).click()
   await applySavedGameSetup(panel)
+}
+
+export async function skipInitialModSetup(page: Page): Promise<void> {
+  const selector = page.getByRole('dialog', { name: 'Choose your mods', exact: true })
+  const state = async () => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('crykit')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      if (!database.objectStoreNames.contains('localDatas')) return 'loading'
+      return await new Promise<string>((resolve, reject) => {
+        const request = database.transaction('localDatas').objectStore('localDatas').get('local-data-record')
+        request.onsuccess = () => resolve(request.result ? request.result.localData.modSetup?.state ?? 'legacy' : 'loading')
+        request.onerror = () => reject(request.error)
+      })
+    } finally { database.close() }
+  })
+  await expect.poll(state).not.toBe('loading')
+  if (await state() !== 'pending') return
+  await expect(selector).toBeVisible()
+  await selector.getByRole('button', { name: 'Skip for now', exact: true }).click()
+  await expect(selector).not.toBeVisible()
 }

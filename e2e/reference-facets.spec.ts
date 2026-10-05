@@ -1,3 +1,4 @@
+import { addBundledModToReference } from './local-data-helpers'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -9,6 +10,7 @@ async function showFilters(page: Page, isMobile: boolean) {
 }
 
 test('equipment categories combine base and mod records using stable keys', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  await addBundledModToReference(page, 'Equipment Expansion')
   await page.goto('/#/reference?v=1&kind=item')
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await showFilters(page, isMobile)
@@ -164,6 +166,7 @@ test('active filters remain removable when their values are absent from the libr
 })
 
 test('source mod facets include established catalog associations and agree with result badges', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  await addBundledModToReference(page, 'Equipment Expansion')
   await page.goto('/#/reference?v=1&kind=item')
   await showFilters(page, isMobile)
   await page.getByRole('button', { name: 'Source mod', exact: true }).click()

@@ -1,6 +1,6 @@
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { selectedPlaythrough, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough, replacePlannerData } from './local-data-helpers'
 import { selectWithSeparateEvents } from './select-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -51,6 +51,7 @@ async function dataPanel(page: Page) {
 
 async function loadFixture(page: Page, changedContext = false, nativeCalculations = false) {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const localData = syntheticLocalData(changedContext, nativeCalculations)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
@@ -185,6 +186,7 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
 test('member details stay pinned during pointer transit and follow deliberate focus', async ({ page, isMobile }) => {
   test.skip(isMobile, 'The shared member inspector is a desktop layout')
   await page.goto('/')
+  await skipInitialModSetup(page)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   const details = page.getByRole('complementary', { name: 'Selection details', exact: true })

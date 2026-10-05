@@ -121,6 +121,7 @@ type LocalDataUpdate = Partial<
     | 'importReceipts'
     | 'skillTreeLayouts'
     | 'referenceLibrary'
+    | 'modSetup'
   >
 >
 

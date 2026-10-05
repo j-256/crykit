@@ -2,7 +2,7 @@ import worldJson from './world-acquisition-v1.json' with { type: 'json' }
 import conditionJson from './acquisition-condition-facts.json' with { type: 'json' }
 import receiptJson from './acquisition-guidance-receipts.json' with { type: 'json' }
 import routeFactJson from './acquisition-route-facts.json' with { type: 'json' }
-import { DEFAULT_CATALOG } from './bundled'
+import { bundledCatalogForSnapshot } from './bundled'
 import { sameValue } from '../domain/definition-values'
 import { itemAcquisition, type AcquisitionConditionFacts, type AcquisitionKind, type AcquisitionRoute, type ItemAcquisition, type WorldAcquisitionSnapshot } from '../domain/item-acquisition'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
@@ -35,8 +35,9 @@ export interface AcquisitionGuidanceProjection {
 }
 
 function reviewedNativeEntity(catalog: CatalogSnapshot, entity: CatalogEntity): boolean {
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
-  return Boolean(catalog.id === DEFAULT_CATALOG.id && catalog.revisionId === DEFAULT_CATALOG.revisionId && catalog.checksum === DEFAULT_CATALOG.checksum && baseline && entity.kind === baseline.kind && sameValue(entity.sources, baseline.sources) && sameValue(nativeIdentity(baseline), nativeIdentity(entity)) && sameValue(nativeSourceRecord(baseline), nativeSourceRecord(entity)) && NATIVE_SCOPE_FIELDS.every(field => sameValue(entity.fields[field], baseline.fields[field])))
+  const snapshot = bundledCatalogForSnapshot(catalog)
+  const baseline = snapshot?.entities[entity.id]
+  return Boolean(snapshot && baseline && entity.kind === baseline.kind && sameValue(entity.sources, baseline.sources) && sameValue(nativeIdentity(baseline), nativeIdentity(entity)) && sameValue(nativeSourceRecord(baseline), nativeSourceRecord(entity)) && NATIVE_SCOPE_FIELDS.every(field => sameValue(entity.fields[field], baseline.fields[field])))
 }
 
 export function nativeItemAcquisition(catalog: CatalogSnapshot, entity: CatalogEntity, mode = nativeIdentity(entity)?.mode ?? 'base'): ItemAcquisition {
@@ -53,7 +54,8 @@ export function projectAcquisitionGuidance(catalog: CatalogSnapshot, entity: Cat
   const acquisition = nativeItemAcquisition(catalog, entity, mode)
   const originalGuides: AcquisitionGuidanceProjection['originalGuides'][number][] = []
   const disagreements: AcquisitionGuidanceProjection['disagreements'][number][] = []
-  const baseline = DEFAULT_CATALOG.entities[entity.id]
+  const snapshot = bundledCatalogForSnapshot(catalog)
+  const baseline = snapshot?.entities[entity.id]
   const eligible = mode === 'base' && nativeIdentity(entity)?.mode === 'base' && acquisition.worldMatched && RECEIPTS.worldContentDigest === WORLD.contentDigest && reviewedNativeEntity(catalog, entity)
   const matchesReceipt = (receipt: GuidanceReceipt): boolean => {
     const knowledge = entity.fields[receipt.field]

@@ -5,7 +5,7 @@ import { createBuild, createGameSetupRevision, saveBuildRevision, setPlaythrough
 import { DEFAULT_GAME_VERSION } from '../src/domain/local-data'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { BuildId, LocalData } from '../src/domain/types'
-import { openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
 
 const TEST_NOW = '2026-01-01T00:00:00.000Z'
 const ALTERNATE_GAME_SETUP = 'Synthetic alternate Game Setup'
@@ -45,6 +45,7 @@ function compatibilityFixture(includePersonalBuild = false): LocalData {
 
 async function loadFixture(page: Page, localData = compatibilityFixture()): Promise<void> {
   await page.goto('/')
+  await skipInitialModSetup(page)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
     'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { buildBehavior, saveBuildBehavior } from '../domain/build-behavior'
 import { buildContentForModSetup, selectBuildModRevision } from '../domain/build-mods'
 import { createBuildPlan, SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -20,7 +20,7 @@ import { commitImport, exportBackup, loadLocalData, prepareModCatalogs, previewI
 let database: CryKitDatabase
 beforeEach(() => { database = new CryKitDatabase(`mod-calculations-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
-const warrior: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
+const warrior: CatalogRef = { kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
 
 it('round-trips a versioned mod gender and its exact setup through backup and read-only shares', async () => {
   const mod = { ID: 'synthetic-persisted-gender', EditorVersion: 34, Genders: [{ ...NATIVE_DATA.records.gender[0], ID: 8, Name: 'Synthetic extra bonus', BoostStr: true }] }
@@ -39,7 +39,7 @@ it('round-trips a versioned mod gender and its exact setup through backup and re
   const planned = createBuildPlan(base, { id, revisionId, title: 'Synthetic extra gender', content, catalogLock: configured.setup.catalogLock })
   await saveLocalData(planned, loaded.revision)
   const saved = await loadLocalData()
-  const effective = modCatalogForPin(saved.catalogs, { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: configured.setup.catalogLock[DEFAULT_CATALOG.id]! })!
+  const effective = modCatalogForPin(saved.catalogs, { catalogId: CURRENT_CATALOG.id, catalogRevisionId: configured.setup.catalogLock[CURRENT_CATALOG.id]! })!
   const resolver = (ref: EntityRef) => resolveCalculationEntity(saved.localData, saved.catalogs, ref, configured.setup)
   const expected = calculatePCStats(content, SUGGESTED_BUILD_SLOTS, resolver, [], false, resolveGameRules(configured.setup, saved.catalogs))
   expect(expected.issues).toEqual([])
@@ -67,7 +67,7 @@ it('round-trips a versioned mod gender and its exact setup through backup and re
 it('rolls back a failed versioned gender save without changing old checkpoints', async () => {
   const loaded = await loadLocalData()
   const id = createId<BuildId>('build')
-  const planned = createBuildPlan(loaded.localData, { id, title: 'Synthetic gender rollback', catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, content: { primaryClass: warrior, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { ...defaultCalculation(warrior), genderSelection: { version: 1, id: 8 } } } })
+  const planned = createBuildPlan(loaded.localData, { id, title: 'Synthetic gender rollback', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, content: { primaryClass: warrior, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { ...defaultCalculation(warrior), genderSelection: { version: 1, id: 8 } } } })
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
   await expect(saveLocalData(planned, loaded.revision)).rejects.toMatchObject({ code: 'storage-failure' })
   expect((await loadLocalData()).localData).toEqual(loaded.localData)

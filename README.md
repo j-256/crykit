@@ -23,7 +23,7 @@ Rough drafts are available on the separate [preview site](https://preview.crykit
 
 ## Try your first build
 
-1. **Open the app.** It starts in **Builds** with a labeled sample Playthrough. The example characters and builds let you explore before entering your own records.
+1. **Open the app.** Choose the mods you use from a searchable list, use the optional starter selection, or skip for now. Selected revisions are added to Reference and enabled in your starting Game Setup. It starts in **Builds** with a labeled sample Playthrough. The example characters and builds let you explore before entering your own records.
 2. **Choose New Build.** Search the class, sub-command, equipment, or passive fields and select entries from the results. Fill in as much of the build as you want.
 3. **Give it a name if you like.** Enter **Build title** at the top of the sheet. Choose **Checks & notes** for play notes and a checkpoint name. Otherwise, the build is named after its selected class.
 4. **Choose Save build.** You can return to it from the build library and save further changes as new checkpoints, keeping earlier versions available.
@@ -34,7 +34,7 @@ Expand **Loadout > Stats & growth** to adjust level and class growth. If missing
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 
-The bundled reference combines Windows PC 1.6.9 game definitions, versioned mod exports, and attributed community evidence. It includes Moonlight Project, Equipment Expansion, and dated Learnable Innate Skills records. Source versions stay visible, and Switch or mod-pack parity is not assumed. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
+The bundled reference combines Windows PC 1.6.9 game definitions, versioned mod exports, and attributed community evidence. Fresh profiles browse the native base plus the mods they choose. Moonlight Project, Equipment Expansion and dated Learnable Innate Skill are available through the same library as other bundled projects. Source versions stay visible, and Switch or mod-pack parity is not assumed. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
 
 ## Track your own game when you are ready
 

@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import type { LocalData } from '../src/domain/types'
-import { openBuildGameSetup, openCurrentGameSetup, openGameSetupSection, saveAndApplyGameSetup } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, openCurrentGameSetup, openGameSetupSection, saveAndApplyGameSetup } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -22,6 +22,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const original = NATIVE_DATA.records.gender[0]!
   const mod = { ID: 'synthetic-bonus-profiles', Title: 'Synthetic bonus profiles', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, LearnAllJobZeroJPAbilities: true, TwoHandedPAtkFlat: NATIVE_DATA.battleConfig.TwoHandedPAtkFlat + 12, PerfectHitAtChanceOrHigher: NATIVE_DATA.battleConfig.PerfectHitAtChanceOrHigher - 5 } }, Genders: [{ ...original, Name: 'Synthetic focus', BoostHP: false, BoostStr: true }, { ...original, ID: 8, Name: 'Synthetic extra', BoostStr: true }] }
   await page.goto('/')
+  await skipInitialModSetup(page)
   const importing = await settings(page, 'Import & backup')
   await importing.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-profiles.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(mod)) })
   await importing.getByRole('button', { name: 'Add references', exact: true }).click()
@@ -42,7 +43,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await page.getByLabel('Build title', { exact: true }).fill('Synthetic mod calculation')
   const primary = page.getByRole('combobox', { name: 'Class', exact: true })
   await primary.fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   const hp = totals.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) }).getByRole('cell').first()
   const gender = page.getByRole('combobox', { name: 'Calculation gender', exact: true })

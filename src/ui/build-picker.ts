@@ -24,7 +24,7 @@ export function pickerSearchEntry(option: DefinitionOption, displayedName: strin
   return {
     names: [...new Set([displayedName, option.name])],
     aliases: option.aliases,
-    details: selectionSummaryLines(option),
+    details: [...selectionSummaryLines(option), option.sourceLabel, ...(option.modAvailability?.requiredMod ? [option.modAvailability.requiredMod] : [])],
     referenceText: option.description,
     conflictingReferenceStats: Boolean(nativeStatSourceNotice(option.record)),
   }

@@ -98,6 +98,28 @@ describe('Build picker interaction', () => {
     expect(props.onChange).not.toHaveBeenCalled()
   })
 
+  it('keeps an accepted selection in the inspector when closing moves the pointer over another result', async () => {
+    const props = await render()
+    await act(async () => results()[0]!.click())
+    await act(async () => results()[1]!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
+    expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: first.key }))
+    expect(props.onChange).toHaveBeenCalledWith(first.ref)
+    await render({ ...props, open: false })
+    await render(props)
+    await act(async () => results()[1]!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
+    expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: second.key }))
+  })
+
+  it('does not treat a touch entering a result as a hover preview', async () => {
+    const props = await render()
+    const event = new MouseEvent('pointerover', { bubbles: true })
+    Object.defineProperty(event, 'pointerType', { value: 'touch' })
+    await act(async () => results()[1]!.dispatchEvent(event))
+    expect(props.onInspect).not.toHaveBeenCalled()
+    await act(async () => results()[1]!.click())
+    expect(props.onInspect).toHaveBeenLastCalledWith(expect.objectContaining({ key: second.key }))
+  })
+
   it('shows unconfirmed mods by default and retains a selected choice when they are hidden', async () => {
     const props = await render()
     expect(checkbox('Include disabled or unconfirmed mods').checked).toBe(true)

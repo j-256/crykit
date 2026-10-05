@@ -3,6 +3,7 @@ import { CRYSTAL_EDIT_CATALOG_SCHEMA, modCatalogTitle } from './mod-layers'
 import type { CatalogId, CatalogRevisionId, CatalogSnapshot, JsonValue, ModCatalogPin } from './types'
 import { steamWorkshopFileId } from './mod-workshop'
 import { normalizeModName } from './mods'
+import { isModSearchPreview } from './mod-search'
 
 export const MAX_MOD_SOURCE_BYTES = 96 * 1024 * 1024
 export const MAX_MOD_SOURCE_NODES = 3_000_000
@@ -87,7 +88,7 @@ export function modLibraryCards(projects: readonly LibraryMod[], names: readonly
 }
 
 export function modRevision(catalog: CatalogSnapshot): ModRevision | undefined {
-  if (catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA) return undefined
+  if (catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA || isModSearchPreview(catalog)) return undefined
   const metadata = jsonRecord(catalog.legacy) ? catalog.legacy : {}
   return { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, title: modCatalogTitle(catalog), declaredVersion: typeof metadata.projectVersion === 'string' ? metadata.projectVersion : undefined, editorVersion: typeof metadata.editorVersion === 'number' ? metadata.editorVersion : undefined, sourceDigest: catalog.checksum, steamWorkshopFileId: steamWorkshopFileId(metadata.steamWorkshopFileId), rules: jsonRecord(metadata.gameRules) ? metadata.gameRules : undefined, catalog }
 }

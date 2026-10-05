@@ -1,7 +1,7 @@
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough, createBlankPlaythrough } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -19,7 +19,8 @@ async function choose(page: Page, label: string, name: string, options: { readon
     await results.getByText('Broader planning options', { exact: true }).click()
     await results.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).check()
   }
-  await results.getByRole('option').filter({ has: page.getByText(name, { exact: true }) }).click()
+  const choices = results.getByRole('option').filter({ has: page.getByText(name, { exact: true }) })
+  await choices.filter({ hasText: options.requiredMod ?? 'Windows 1.6.9' }).click()
   if (options.requiredMod) {
     const dialog = page.getByRole('dialog', { name: `Enable ${options.requiredMod}?`, exact: true })
     await expect(dialog).toContainText(`${name} requires ${options.requiredMod}`)
@@ -42,6 +43,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
 })
 
@@ -165,7 +167,7 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await hand.press('Escape')
   await expect(hand).toHaveValue('Muramasa')
   await hand.fill('Potion')
-  await expect(results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Potion$/ }) })).toHaveCount(0)
+  await expect(results.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Potion$/ }) })).toHaveCount(0)
   const head = page.getByRole('combobox', { name: 'Head', exact: true })
   if (isMobile) {
     await page.getByRole('heading', { name: 'Equipment', exact: true }).tap()
@@ -180,7 +182,7 @@ test('inline search accepts only exact choices and supports keyboard, touch, and
   await page.goForward()
   await expect(head).toHaveValue('Red Hat')
   if (isMobile) {
-    await page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Red Hat$/ }) }).tap()
+    await page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Red Hat$/ }) }).tap()
     await expect(page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Red Hat', exact: true })).toBeVisible()
     const details = page.getByLabel('Details for Red Hat', { exact: true })
     await expect(details).toHaveText('Details')
@@ -206,10 +208,11 @@ test('build details preview pointer and keyboard inspection without changing the
 
   const classField = page.getByRole('combobox', { name: 'Class', exact: true })
   await classField.fill('Wizard')
-  const candidate = page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) })
+  const candidate = page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) })
   await candidate.hover()
   await expect(details.getByRole('heading', { name: 'Wizard', exact: true })).toBeVisible()
-  await classField.press('ArrowDown')
+  await classField.press('Home')
+  await expect(candidate).toHaveClass(/picker-result--active/)
   await expect(details.getByRole('heading', { name: 'Wizard', exact: true })).toBeVisible()
   await classField.press('Escape')
   await expect(classField).toHaveValue('Warrior')

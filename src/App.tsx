@@ -69,8 +69,9 @@ import {
   type ValidationReport,
 } from './domain'
 import type { DraftActions, DraftChangeHandler } from './ui/drafts'
-import { DEFAULT_CATALOG } from './catalog/bundled'
-import { commitImport, exportBackup, loadLocalData, previewImport, prepareModCatalogs, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from './catalog/bundled'
+import { BUNDLED_MOD_LIBRARY } from './catalog/mod-library-metadata'
+import { commitModSetup, commitImport, exportBackup, loadLocalData, previewImport, prepareModCatalogs, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
 import type { ImportCommitMode, ImportPreview, LoadedLocalData } from './interchange/types'
 import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } from './ui/BuildsView'
 import { WorkspaceHeaderScope } from './ui/WorkspaceHeader'
@@ -143,7 +144,11 @@ function LoadingView() {
   return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening Crystal Kit</h1><p>Loading local records from this browser...</p></div></main>
 }
 
+const ModSetupSelector = lazy(() => import('./ui/ModSetupSelector').then(module => ({ default: module.ModSetupSelector })))
+
 export default function App() {
+  const initialLanding = useRef(!window.location.hash || window.location.hash === '#/' )
+  const [modSelectorOpen, setModSelectorOpen] = useState(false)
   const [loadedData, setLoadedData] = useState<LoadedLocalData>()
   const loadedDataRef = useRef<LoadedLocalData | undefined>(undefined)
   const commitQueueRef = useRef<Promise<void>>(Promise.resolve())
@@ -167,7 +172,7 @@ export default function App() {
   const [importBusy, setImportBusy] = useState(false)
   const [externalUpdate, setExternalUpdate] = useState(false)
   const [routeCatalogs, setRouteCatalogs] = useState<readonly CatalogSnapshot[]>([])
-  const resolveEntityName = useMemo(() => createEntityRouteNameResolver([...(loadedData?.catalogs ?? []), ...routeCatalogs]), [loadedData?.catalogs, routeCatalogs])
+  const resolveEntityName = useMemo(() => createEntityRouteNameResolver([...BUNDLED_CATALOGS, ...(loadedData?.catalogs ?? []), ...routeCatalogs]), [loadedData?.catalogs, routeCatalogs])
   const navigation = useNavigationController({
     resolveEntityName,
     shouldBlock: (from, to) => {
@@ -191,6 +196,7 @@ export default function App() {
       loadedDataRef.current = loaded
       persistedRevisionRef.current = loaded.localData.revision
       setLoadedData(loaded)
+      if (initialLanding.current && loaded.localData.modSetup?.state === 'pending') setModSelectorOpen(true)
     }).catch((error: unknown) => { if (live) setLoadingError(formatAppError(error, 'Local records could not be opened.')) })
     return () => { live = false }
   }, [])
@@ -516,7 +522,7 @@ export default function App() {
     const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: 'equipment', order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
     const sourceRevisionId = draft.sourceGameSetupRevisionId
     const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
-    const catalogLock = { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, ...source?.catalogLock }
+    const catalogLock = { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId, ...source?.catalogLock }
     const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, difficulty: draft.difficulty, mods: draft.mods, disabledMods: draft.disabledMods, customMods: draft.customMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides, id: options.id, activate: false, expectedRevision: localData.revision }
     const next = sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
     return next
@@ -545,7 +551,7 @@ export default function App() {
 
   const createLocalPlaythrough = useCallback(async (label: string, setupId?: GameSetupRevisionId) => {
     await waitForSafeTransition()
-    await commitLocalData((localData) => createPlaythroughWithSetup(localData, { label, currentGameSetupRevisionId: setupId, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, select: true, expectedRevision: localData.revision }))
+    await commitLocalData((localData) => createPlaythroughWithSetup(localData, { label, currentGameSetupRevisionId: setupId, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, select: true, expectedRevision: localData.revision }))
   }, [commitLocalData, waitForSafeTransition])
 
   const selectLocalPlaythrough = useCallback(async (playthroughId: PlaythroughId) => {
@@ -632,6 +638,27 @@ export default function App() {
     } finally { setImportBusy(false) }
   }, [installLoadedData])
 
+  const applyModSetup = useCallback(async (ids: readonly CatalogId[]) => {
+    await waitForSafeTransition()
+    setImportBusy(true)
+    try {
+      const previews: ImportPreview[] = []
+      for (const id of ids) {
+        const mod = BUNDLED_MOD_LIBRARY.find(mod => mod.id === id)
+        if (!mod) throw new Error('The selected mod is unavailable in this bundled library.')
+        const source = await bundledModEditableSource(mod)
+        previews.push(await previewImport(new TextEncoder().encode(source.text), source.filename))
+      }
+      await waitForSafeTransition()
+      installLoadedData(await commitModSetup(previews, persistedRevisionRef.current))
+    } finally { setImportBusy(false) }
+  }, [installLoadedData, waitForSafeTransition])
+
+  const skipModSetup = useCallback(async () => {
+    await waitForSafeTransition()
+    installLoadedData(await commitModSetup([], persistedRevisionRef.current, true))
+  }, [installLoadedData, waitForSafeTransition])
+
   const setReferenceMembership = useCallback(async (modId: string, included: boolean) => {
     await waitForSafeTransition()
     await commitLocalData(data => setModInReference(data, modId, included, data.revision), { rollbackOnFailure: true })
@@ -669,6 +696,15 @@ export default function App() {
     return exportBackup(dirtyRef.current ? current.localData : undefined)
   }, [])
 
+  const definitionCatalogs = useMemo(() => {
+    const catalogs = loadedData?.catalogs ?? []
+    const page = navigation.route.page
+    if (page.page !== 'reference' || page.view !== 'detail' || page.ref.kind !== 'catalog') return catalogs
+    const ref = page.ref
+    if (catalogs.some(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)) return catalogs
+    return [...catalogs, ...BUNDLED_CATALOGS.filter(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)]
+  }, [loadedData?.catalogs, navigation.route.page])
+
   if (loadingError) return <main className="error-screen panel"><div className="panel__body stack"><p className="eyebrow">Local planner data unavailable</p><h1>Your records could not be opened</h1><InlineNotice title="No data was cleared" tone="danger">{loadingError}</InlineNotice><Button icon="history" onClick={() => window.location.reload()}>Reload application</Button></div></main>
   if (!loadedData) return <LoadingView/>
 
@@ -682,12 +718,12 @@ export default function App() {
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
   const content = sharedPage ? <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">The requested address is unknown or contains an invalid identity. Crystal Kit did not substitute another record.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'save-editor' ? <Suspense fallback={<p role="status">Opening save editor...</p>}><SaveEditorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'map' ? <Suspense fallback={<p role="status">Opening world map...</p>}><WorldMapView localData={localData} catalogs={loadedData.catalogs}/></Suspense> : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onSetReference={setReferenceMembership}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onSaveMember={savePlanningTeamMember} onAdopt={adoptPlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : destination === 'save-editor' ? <Suspense fallback={<p role="status">Opening save editor...</p>}><SaveEditorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'map' ? <Suspense fallback={<p role="status">Opening world map...</p>}><WorldMapView localData={localData} catalogs={loadedData.catalogs}/></Suspense> : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onSetReference={setReferenceMembership} onChooseMods={() => setModSelectorOpen(true)}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onSaveMember={savePlanningTeamMember} onAdopt={adoptPlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
   const buildContent = buildRoute && <WorkspaceHeaderScope active={destination === 'builds'}><div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView shareBlocked={dirty || formDirty || saveState === 'saving'} catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveDetails={saveBuildDetails} onSaveRevision={saveRevision} localData={localData} validations={validations}/></NavigationProvider></div></WorkspaceHeaderScope>
   const draftReminder = (destination === 'reference' || destination === 'map') && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Explore reference records and map locations, then return to finish your build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={loadedData.catalogs} onLoadBundledMod={loadBuildModSource} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} developmentRefreshBlocked={developmentRefreshBlocked} onDevelopmentRefresh={refreshDevelopment} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : destination === 'save-editor' ? 'Export and continue' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update global-save-alert"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry saving or export a recovery copy.' : 'Resolve the error, then retry the action.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}{!dirty && <Button aria-label="Dismiss save alert" onClick={() => setSaveError(undefined)} tone="quiet" type="button">Dismiss</Button>}</div>}{buildContent}{draftReminder}{content}</Shell><DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={definitionCatalogs} onLoadBundledMod={loadBuildModSource} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} developmentRefreshBlocked={developmentRefreshBlocked} onDevelopmentRefresh={refreshDevelopment} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div className="external-update"><InlineNotice title="Unsaved edits are still open" tone="warning">Choose how to resolve the open edits, then continue to the page you selected.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : destination === 'save-editor' ? 'Export and continue' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Review or finish any open form before loading the newer local revision.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish the open draft before loading' : 'Load newer revision'}</Button></div>}{saveError && <div className="external-update global-save-alert"><InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger">{saveError} {dirty ? 'Your draft remains open. Retry saving or export a recovery copy.' : 'Resolve the error, then retry the action.'}</InlineNotice>{dirty && <Button disabled={saveState === 'saving'} onClick={() => void retrySave().catch(() => undefined)} tone="secondary">{saveState === 'saving' ? 'Retrying...' : 'Retry save'}</Button>}{!dirty && <Button aria-label="Dismiss save alert" onClick={() => setSaveError(undefined)} tone="quiet" type="button">Dismiss</Button>}</div>}{!modSelectorOpen && localData.modSetup?.state === 'pending' && !sharedPage && <div className="external-update"><InlineNotice title="Choose the mods you use">Add selected mods to Reference and enable their versions in your starting Game Setup.</InlineNotice><Button disabled={dirty || formDirty || importBusy} onClick={() => setModSelectorOpen(true)} tone="secondary">Choose mods</Button><Button disabled={dirty || formDirty || importBusy} tone="quiet" onClick={() => void skipModSetup().catch(reason => setSaveError(formatAppError(reason, 'Mod selection could not be skipped.')))}>Skip for now</Button></div>}{buildContent}{draftReminder}{content}</Shell>{modSelectorOpen && <Suspense fallback={<p role="status">Opening mod selection...</p>}><ModSetupSelector setup={localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined} onApply={applyModSetup} onSkip={skipModSetup} onClose={() => setModSelectorOpen(false)}/></Suspense>}<DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
 }

@@ -1,3 +1,4 @@
+import { skipInitialModSetup } from './local-data-helpers'
 import { chooseTeamCheckpoint } from './team-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
@@ -32,6 +33,7 @@ async function checkLoadoutOrder(sheet: Locator) {
 
 test('build, character, and shared loadouts put controls before collapsible stats', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toBeInViewport()
   await checkLoadoutOrder(page.locator('.loadout-sheet'))
@@ -91,6 +93,7 @@ test('new and shared plans report their own persistence until explicitly saved',
 
 test('character sub-commands identify the source class without implying equipment permissions', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true })).toBeVisible()
   const before = await storedData(page)
   const playthrough = before.playthroughs[before.selectedPlaythroughId!]!
@@ -101,7 +104,7 @@ test('character sub-commands identify the source class without implying equipmen
   await subCommand.click()
   const picker = page.getByRole('dialog', { name: 'Choose Sub-Command', exact: true })
   await picker.getByRole('searchbox').fill('Wizard')
-  await picker.getByRole('button', { name: /^Black Magic \(Wizard\)/ }).click()
+  await picker.getByRole('button', { name: /^Black Magic \(Wizard\)/ }).filter({ hasNot: page.locator('[data-mod-badge]') }).click()
   await expect(subCommand).toContainText('Black Magic (Wizard)')
   const details = isMobile ? page.locator('[data-field-key="secondary-class"] .member-mobile-detail') : page.getByRole('complementary', { name: 'Selection details', exact: true })
   if (isMobile) await details.locator(':scope > summary').click()
@@ -114,6 +117,7 @@ test('character sub-commands identify the source class without implying equipmen
 
 test('team equipment names remain visible and keyboard activation opens exact details without changing a checkpoint', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await expect(page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true })).toBeVisible()
   await page.goto('/#/teams/new')
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible()

@@ -4,7 +4,7 @@ import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
 import bundledSources from '../src/catalog/bundled-mod-sources.json' with { type: 'json' }
-import { DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import { createPersonalDefinition } from '../src/domain'
 import { bundledModIdentity } from '../src/domain/bundled-mods'
@@ -14,6 +14,12 @@ import { openBuildGameSetup, openGameSetupSection } from './local-data-helpers'
 import { referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+
+async function includeObservedDoge(page: Page) {
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
+  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+}
 
 const MOD_ID = 'synthetic-editor-library'
 const SOURCE = JSON.stringify({ ID: MOD_ID, Title: 'Synthetic calculation mod', Version: '1', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, TwoHandedPAtkFlat: 80, StrWhileUnarmedBonusFlat: 60 } }, Passives: [{ ID: 9000, Name: 'Synthetic unarmed', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [{ Tag: 474, Value1: 0, Value2: 0 }] }] })
@@ -84,6 +90,7 @@ test('upgrades a historical browser profile before Reference changes and a new b
 
 test('Reference save failures stay visible beside the action and retry without changing other records', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
+  await includeObservedDoge(page)
   const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
   const toggle = card.getByRole('button', { name: 'Remove from Reference', exact: true })
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
@@ -135,6 +142,7 @@ test('Reference save failures stay visible beside the action and retry without c
 
 test('a rolled-back save alert stays on screen while scrolling and can be dismissed independently', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
+  await includeObservedDoge(page)
   const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.evaluate(() => {
@@ -196,6 +204,7 @@ test('every Reference toggle confirms the saved result on its own card, includin
 
 test('Reference retry retains the requested membership after another tab completes the change', async ({ page, context }) => {
   await page.goto('/#/mods')
+  await includeObservedDoge(page)
   const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   const other = await context.newPage()
@@ -293,7 +302,7 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
   await expect(page.locator('.game-setup-derived')).toContainText('80')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
   await expect(page.getByText('Balance mode: vanilla · from Game Setup', { exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'PC balance mode', exact: true })).toHaveCount(0)
   await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')
@@ -443,8 +452,8 @@ test('validates project identity for updates and links exact bundled records whe
   await expect(page.getByRole('alert')).toContainText('different Crystal Edit project ID')
   expect(await storedData(page)).toEqual(before)
   const source = bundledSources.mods.find(mod => mod.title === 'Equipment Expansion')!
-  const target = Object.values(DEFAULT_CATALOG.entities).find(entity => bundledModIdentity(entity)?.key === 'equipment-expansion' && bundledModIdentity(entity)?.family === 'Equipment')!
-  const identity = bundledModIdentity(target)!
+  const target = Object.values(CURRENT_CATALOG.entities).find(entity => entity.id === 'base:equipment:0')!
+  const identity = { modelId: 0 }
   const update = JSON.stringify({ ID: source.projectId, Title: source.title, Version: 'Synthetic update', EditorVersion: 34, Equipment: [{ ID: identity.modelId, Name: 'Synthetic revised equipment', EquipmentType: 0 }], FutureSetting: { value: null } })
   await input.setInputFiles({ name: 'synthetic-update.json', mimeType: 'application/json', buffer: Buffer.from(update) })
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
@@ -541,6 +550,8 @@ test('keeps an unavailable mod scope empty until the filter is cleared', async (
 test('browses one temporary catalog without saving it, then explicitly adds it to Reference', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
   const count = Object.values(source.models).reduce((sum, ids) => sum + ids.length, 0)
+  await page.goto('/#/mods')
+  await includeObservedDoge(page)
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
   await referenceSearch.fill('Doge Shield')
@@ -661,6 +672,11 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
 test('toggles built-in and source-less catalogs while retaining game enablement, sources, and saved selections', async ({ page }) => {
   await page.goto('/#/mods')
   await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toBeVisible()
+  for (const name of ['Equipment Expansion', 'Doge Shield']) {
+    const card = page.getByRole('region', { name, exact: true })
+    await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
+    await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  }
   const before = await storedData(page)
   const archive = await archiveDigests(page)
   for (const [name, entry] of [['Equipment Expansion', 'Ace of Diamonds'], ['Doge Shield', 'Doge Shield']]) {
@@ -700,6 +716,7 @@ test('keeps failed temporary catalog loads separate from the standing library', 
   const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
   await page.goto('/#/mods')
   await expect(page.getByRole('region', { name: source.title, exact: true })).toBeVisible()
+  await includeObservedDoge(page)
   const before = await archiveDigests(page)
   await page.route(`**/*${source.sha256}*`, route => route.abort())
   await page.getByRole('region', { name: source.title, exact: true }).getByRole('button', { name: 'View catalog entries', exact: true }).click()

@@ -1,6 +1,6 @@
 import { Sources } from './Sources'
 import { useId, useMemo, useRef, useState } from 'react'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
 import { bundledModReplacementLinks, composeModLayers, MAX_MOD_LAYERS, MOD_COMPOSITION_VERSION, modCatalogForPin, modCatalogTitle, modModelRecords, modReplacementKindMatches, nativeModReplacementLinks } from '../domain/mod-layers'
 import { catalogEntity } from '../domain/entity-identities'
@@ -41,10 +41,11 @@ function TargetPicker({ entity, baseline, target, occupied, onChange }: { entity
   </div>
 }
 
-export function ModLayersEditor({ composition, onChange }: { composition?: ModComposition; onChange: (value: ModComposition) => void }) {
+export function ModLayersEditor({ composition, catalogLock, onChange }: { composition?: ModComposition; catalogLock?: Readonly<Record<string, ModComposition["baseline"]["catalogRevisionId"]>>; onChange: (value: ModComposition) => void }) {
   const library = useDefinitionLibrary()
   const catalogs = library.catalogs
-  const current: ModComposition = useMemo(() => composition ?? { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [], links: [] }, [composition])
+  const baseRevision = catalogLock?.[CURRENT_CATALOG.id] ?? CURRENT_CATALOG.revisionId
+  const current: ModComposition = useMemo(() => composition ?? { baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: baseRevision }, layers: [], links: [] }, [composition, baseRevision])
   const [project, setProject] = useState('')
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(RECORD_PAGE_SIZE)

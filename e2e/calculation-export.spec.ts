@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
-import { createBlankPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, createBlankPlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 
 test('the first expanded package export works offline without loading it at startup', async ({
@@ -8,6 +8,7 @@ test('the first expanded package export works offline without loading it at star
   context,
 }) => {
   await page.goto('/')
+  await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
   const button = page.getByRole('button', { name: 'Export calculation package', exact: true })
@@ -55,6 +56,7 @@ test.describe('failed package downloads', () => {
     page,
   }) => {
     await page.goto('/')
+    await skipInitialModSetup(page)
     await createBlankPlaythrough(page)
     await page.goto('/#/builds/library/new')
     const classField = page.getByRole('combobox', { name: 'Class', exact: true })
@@ -63,6 +65,7 @@ test.describe('failed package downloads', () => {
       .getByRole('listbox', { name: 'Choose Class', exact: true })
       .getByRole('option')
       .filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) })
+      .filter({ hasText: 'Windows 1.6.9' })
       .click()
     const packageUrl = '**/assets/calculation-package-*.js'
     await page.route(packageUrl, (route) => route.abort())

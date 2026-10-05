@@ -17,7 +17,7 @@ import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalDa
 
 export const CRYSTAL_EDIT_FORMAT = CRYSTAL_EDIT_CATALOG_SCHEMA
 export const CRYSTAL_EDIT_JSON_LIMITS = Object.freeze({ maxNodes: MAX_MOD_SOURCE_NODES })
-export const MOD_LIBRARY_IMPORT_REVISION = 'library-v2'
+export const MOD_LIBRARY_IMPORT_REVISION = 'library-v3'
 const MAX_MODELS = 20_000
 const modelId = z.number().int().min(0).max(0xffffffff)
 const ids = z.array(modelId).max(MAX_MODELS)
@@ -40,14 +40,14 @@ export function isCrystalEdit(value: JsonValue): boolean {
   return jsonRecord(value) && typeof value.ID === 'string' && (value.EditorVersion === undefined || typeof value.EditorVersion === 'number') && (Object.keys(FAMILIES).some(key => Array.isArray(value[key])) || Array.isArray(value.Entities) || hasRuleData(value))
 }
 
-export async function previewCrystalEdit(bytes: Uint8Array, filename: string): Promise<ImportPreview> {
+export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at?: import('../domain/types').Timestamp): Promise<ImportPreview> {
   const root = parseBoundedJson(bytes, filename, CRYSTAL_EDIT_JSON_LIMITS)
   if (!isCrystalEdit(root) || !jsonRecord(root) || typeof root.ID !== 'string' || !root.ID.trim() || root.ID.length > 512 || root.EditorVersion !== undefined && (!Number.isSafeInteger(root.EditorVersion) || (root.EditorVersion as number) < 0 || (root.EditorVersion as number) > 0x7fffffff)) {
     throw new AppDataError('schema-mismatch', 'Crystal Edit JSON requires a valid project ID, an optional non-negative editor version, and model arrays or calculation settings', { recoverable: true })
   }
   const editorVersion = typeof root.EditorVersion === 'number' ? root.EditorVersion : 0
   const digest = await sha256(bytes)
-  const importedAt = nowTimestamp()
+  const importedAt = at ?? nowTimestamp()
   const warnings: ImportProblem[] = []
   if (!supportsCrystalEditVersion(editorVersion)) warnings.push({ severity: 'warning', code: 'unsupported-editor-format', message: `Editor format ${editorVersion} is retained, but planning interpretation only supports formats 0 through ${CURRENT_CRYSTAL_EDIT_VERSION}.` })
   const archived = ARCHIVED_FAMILIES.flatMap(family => Array.isArray(root[family]) && root[family].length ? [`${family}: ${root[family].length}`] : [])
@@ -68,13 +68,14 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
       const parsed = (family === 'Jobs' ? job : model).safeParse(entry)
       if (!parsed.success) throw new AppDataError('schema-mismatch', `Invalid Crystal Edit record at /${family}/${index}: ${parsed.error.issues[0]?.message ?? 'Invalid fields'}`, { recoverable: true })
       const record = parsed.data as Record<string, JsonValue>
+      const effectiveKind = family === 'Passives' && record.IsInnate === true ? 'innate' : kind
       const id = bundledModEntityId(projectKey, family, record.ID as number)
       identities[`crystal-edit:${family}:${record.ID}`] = id
       if (entities[id]) throw new AppDataError('schema-mismatch', `Duplicate ${family} ID ${record.ID}`, { recoverable: true })
       const source: SourceRef = { sourceId, locator: `/${family}/${index}`, snapshot: `Crystal Edit ${editorVersion}; project version ${typeof root.Version === 'string' ? root.Version.slice(0, 100) : 'unspecified'}`, applicability: 'Values from this project export; references may point to base-game definitions absent from the file' }
       const fields = {
         [MOD_PROJECT_FIELD]: { state: 'known' as const, value: `crystal-edit:${root.ID}`, sources: [source] },
-        ...gameRecordFacts(root.IsLocalization === true ? record : interpretCrystalEditRecord(record, family, editorVersion), kind, source, NATIVE_GAME_DATA.enums),
+        ...gameRecordFacts(root.IsLocalization === true ? record : interpretCrystalEditRecord(record, family, editorVersion), effectiveKind, source, NATIVE_GAME_DATA.enums),
         'Crystal Edit model ID': { state: 'known' as const, value: record.ID!, sources: [source] },
         'Crystal Edit model type': { state: 'known' as const, value: family, sources: [source] },
         'Crystal Edit source record': { state: 'known' as const, value: record, sources: [source] },
@@ -83,7 +84,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string): P
         ...(family === 'Jobs' ? classFields(record, source) : {}),
         ...(family === 'Jobs' ? { 'Class change': { state: 'known' as const, value: (record.ID as number) <= LAST_VANILLA_JOB_ID ? `Edits vanilla class ID ${record.ID}` : 'Adds a custom class', sources: [source, { sourceId: 'community:geef-modding-guide', locator: 'Crystal Edit anatomy > Editor controls and Grid viewers', applicability: 'Vanilla job IDs 0 through 23 are editable and cannot be deleted' }] } } : {}),
       }
-      entities[id] = { id, kind, name: record.Name as string, aliases: [], fields, sources: [source], ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}) }
+      entities[id] = { id, kind: effectiveKind, name: record.Name as string, aliases: [], fields, sources: [source], ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}), ...(['passive', 'innate'].includes(effectiveKind) && typeof record.PP === 'number' ? { ppCost: { state: 'known' as const, value: record.PP, sources: [source] } } : {}) }
     }
   }
   if (!total && !hasRuleData(root)) warnings.push({ severity: 'warning', code: 'unmodeled-mod-content', message: 'This mod has no supported planning definitions or calculation settings. Its complete source is saved for editing; other game effects remain unmodeled.' })
