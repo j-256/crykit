@@ -1,5 +1,6 @@
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
+import { battleCalculationReferences } from '../domain/battle-plan'
 import { assertModConfiguration } from '../domain/mods'
 import { composeModCatalog, expandModCatalogs, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { TEAM_SIZE } from '../domain/scenarios'
@@ -296,6 +297,7 @@ function validateLocalDataEntityRefs(
     for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
     for (const [index, ref] of (revision.content.calculation?.statuses ?? []).entries()) check(ref, `${label}.buildRevisions.${id}.content.calculation.statuses.${index}`)
     if (revision.content.calculation?.ability) check(revision.content.calculation.ability, `${label}.buildRevisions.${id}.content.calculation.ability`)
+    for (const { ref, path } of battleCalculationReferences(revision.content.calculation?.battle)) check(ref, `${label}.buildRevisions.${id}.content.calculation.battle.${path}`)
     for (const [slotId, selection] of Object.entries(revision.content.equipment)) {
       if (selection) check(selection.ref, `${label}.buildRevisions.${id}.content.equipment.${slotId}.ref`)
     }
@@ -315,6 +317,7 @@ function validateLocalDataEntityRefs(
         for (const [index, row] of (snapshot.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${calculationLabel}.growth.${index}.classRef`)
         for (const [index, ref] of (snapshot.calculation?.statuses ?? []).entries()) check(ref, `${calculationLabel}.statuses.${index}`)
         if (snapshot.calculation?.ability) check(snapshot.calculation.ability, `${calculationLabel}.ability`)
+        for (const { ref, path } of battleCalculationReferences(snapshot.calculation?.battle)) check(ref, `${calculationLabel}.battle.${path}`)
         for (const ref of knowledgeValues(snapshot.primaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.primaryClass`)
         for (const ref of knowledgeValues(snapshot.secondaryClass)) check(ref, `${playthroughLabel}.characters.${characterId}.snapshots.${snapshotId}.secondaryClass`)
         for (const [slotId, ref] of Object.entries(snapshot.equipment)) {

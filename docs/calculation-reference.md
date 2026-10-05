@@ -680,7 +680,7 @@ else:
   attack = user.Stats.PAtk
 extraPower = (if (ability modifier DamagePerTargetDebuff != none) then if (ability modifier DamagePerTargetDebuff.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier DamagePerTargetDebuff.Value1 (if record is none: 0) * context.targetDebuffCount)) / 100)) else (ability modifier DamagePerTargetDebuff.Value1 (if record is none: 0) * context.targetDebuffCount) else 0 + if (ability modifier DamagePerSelfBuff != none) then if (ability modifier DamagePerSelfBuff.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier DamagePerSelfBuff.Value1 (if record is none: 0) * context.userBuffCount)) / 100)) else (ability modifier DamagePerSelfBuff.Value1 (if record is none: 0) * context.userBuffCount) else 0 + if (ability modifier ConsumeComboTokens != none) then if (ability modifier ConsumeComboTokens.Value2 (if record is none: 0) = 0) then trunc(((attack * (ability modifier ConsumeComboTokens.Value1 (if record is none: 0) * first(target.Statuses, where status: (status.ID = 46)).Count (if record is none: 0))) / 100)) else (ability modifier ConsumeComboTokens.Value1 (if record is none: 0) * first(target.Statuses, where status: (status.ID = 46)).Count (if record is none: 0)) else 0)
 power = abilityPower(attack, ability, extraPower, user)
-resources = sum(ability.AbilityMods, for each mod: if (mod.Tag = 42) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 0, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 0, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 0, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 37) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 0, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 43) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 1, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 1, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 1, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 38) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 1, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 44) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 2, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 2, mod.Value1, false, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 2, mod.Value1, false, target.Stats.PercentDmgTakenMult) else 0 else if (mod.Tag = 39) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 2, mod.Value1, false, user.Stats.PercentDmgTakenMult) else 0 else 0)
+resources = sum(ability.AbilityMods, for each mod: if (mod.Tag = 42) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(0, target.HPCurrent, 0, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(0, target.MPCurrent, 0, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(0, target.APCurrent, 0, mod.Value1, false, 100) else 0 else if (mod.Tag = 37) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(0, user.HPCurrent, 0, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(0, user.MPCurrent, 0, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(0, user.APCurrent, 0, mod.Value1, false, 100) else 0 else if (mod.Tag = 43) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, target.HPCurrent, 1, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, target.MPCurrent, 1, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, target.APCurrent, 1, mod.Value1, false, 100) else 0 else if (mod.Tag = 38) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, user.HPCurrent, 1, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, user.MPCurrent, 1, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, user.APCurrent, 1, mod.Value1, false, 100) else 0 else if (mod.Tag = 44) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(target.Stats.HP, 0, 2, mod.Value1, true, target.Stats.PercentDmgTakenMult) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(target.Stats.MP, 0, 2, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(target.Stats.AP, 0, 2, mod.Value1, false, 100) else 0 else if (mod.Tag = 39) then if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 0) then resourceTerm(user.Stats.HP, 0, 2, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 1) then resourceTerm(user.Stats.MP, 0, 2, mod.Value1, false, 100) else if (if (mod.Value2 = 6) then ability.Attribute else mod.Value2 = 2) then resourceTerm(user.Stats.AP, 0, 2, mod.Value1, false, 100) else 0 else 0)
 result = (power + resources)
 ```
 
@@ -703,11 +703,11 @@ Formula ID: `defense`. Inputs, in order: `damage`, `user`, `target`, `ability`, 
 VIT and SPI enter the defense seed; they are not flat DEF/RES bonuses. Physical-only abilities use target VIT, magical-only use target SPI. Mixed or untyped abilities select by original defense coefficients. DamageHitsMDef redirects defense rates, not this attribute-selection rule.
 
 ```text
-if (target.HPCurrent >= target.Stats.HP):
+if ((target.Stats.PDefAtFullHPMult != 100) and (target.HPCurrent >= target.Stats.HP)):
   physicalDefense = trunc(((target.Stats.PDef * target.Stats.PDefAtFullHPMult) / 100))
 else:
   physicalDefense = target.Stats.PDef
-if (target.HPCurrent >= target.Stats.HP):
+if ((target.Stats.MDefAtFullHPMult != 100) and (target.HPCurrent >= target.Stats.HP)):
   magicalDefense = trunc(((target.Stats.MDef * target.Stats.MDefAtFullHPMult) / 100))
 else:
   magicalDefense = target.Stats.MDef
@@ -849,8 +849,14 @@ Only used for nonhealing member-to-monster actions. All threat bonuses share the
 ```text
 forceTop = (context.calcTestMode and ((ability modifier TopThreatDamageMult.Value1 (if record is none: 0) > 0) or (ability modifier NotBottomThreatDamageMult.Value1 (if record is none: 0) > 0) or (ability modifier BottomThreatDamageMult.Value1 (if record is none: 0) < 0) or (ability modifier NotTopThreatDamageMult.Value1 (if record is none: 0) < 0)))
 forceBottom = (context.calcTestMode and ((ability modifier TopThreatDamageMult.Value1 (if record is none: 0) < 0) or (ability modifier NotBottomThreatDamageMult.Value1 (if record is none: 0) < 0) or (ability modifier BottomThreatDamageMult.Value1 (if record is none: 0) > 0) or (ability modifier NotTopThreatDamageMult.Value1 (if record is none: 0) > 0)))
-bottom = ((context.bottomThreat and not(forceTop)) or forceBottom)
-top = ((context.topThreat and not(forceBottom)) or forceTop)
+if ((ability modifier BottomThreatDamageMult != none) or (ability modifier NotBottomThreatDamageMult != none) or (ability.IsPAbil and (user.Stats.PDmgWithBottomThreatMult != 100))):
+  bottom = ((context.bottomThreat and not(forceTop)) or forceBottom)
+else:
+  bottom = false
+if ((ability modifier TopThreatDamageMult != none) or (ability modifier NotTopThreatDamageMult != none)):
+  top = ((context.topThreat and not(forceBottom)) or forceTop)
+else:
+  top = false
 if bottom:
   if (ability modifier BottomThreatDamageMult != none):
     bottomBonus = (trunc(((damage * (100 + ability modifier BottomThreatDamageMult.Value1 (if record is none: 0))) / 100)) - damage)
@@ -906,12 +912,12 @@ if healing:
 else:
   healingGiven = damage
 damage = healingGiven
-if (healing and not(context.sameBattler) and ((user.HPCurrent / user.Stats.HP) < (target.HPCurrent / target.Stats.HP))):
+if (healing and (user.Stats.SelflessCureMult != 100) and not(context.sameBattler) and ((user.HPCurrent / user.Stats.HP) < (target.HPCurrent / target.Stats.HP))):
   selflessCure = trunc(((damage * user.Stats.SelflessCureMult) / 100))
 else:
   selflessCure = damage
 damage = selflessCure
-if (healing and (target.HPCurrent <= target.HPCriticalValue)):
+if (healing and (user.Stats.CriticalCureMult != 100) and (target.HPCurrent <= target.HPCriticalValue)):
   criticalCure = trunc(((damage * user.Stats.CriticalCureMult) / 100))
 else:
   criticalCure = damage
@@ -921,7 +927,7 @@ if (not(healing) and ability.IsPAbil):
 else:
   physicalGiven = damage
 damage = physicalGiven
-if (not(healing) and ability.IsPAbil and (user.HPCurrent <= user.HPCriticalValue)):
+if (not(healing) and ability.IsPAbil and (user.Stats.PDmgGivenWhenCriticalMult != 100) and (user.HPCurrent <= user.HPCriticalValue)):
   physicalGivenCritical = trunc(((damage * user.Stats.PDmgGivenWhenCriticalMult) / 100))
 else:
   physicalGivenCritical = damage
@@ -971,14 +977,17 @@ if ((ability.Scope != 0) and user has TargetSingleWithBonus):
 else:
   singleTarget = damage
 damage = singleTarget
-if (not(healing) and ability.IsPAbil and (first(target.Statuses, where status: (status.ID = 11)).Count (if record is none: 0) > 0)):
+if (not(healing) and ability.IsPAbil and (user.Stats.PDmgGivenAgainstSleepMult != 100) and (first(target.Statuses, where status: (status.ID = 11)).Count (if record is none: 0) > 0)):
   sleep = trunc(((damage * user.Stats.PDmgGivenAgainstSleepMult) / 100))
 else:
   sleep = damage
 damage = sleep
-repeat = trunc(((damage * repeatMultiplier(user.Stats.RepeatActionDmgMult, user.Stats.RepeatActionDmgMultCap, context.repeatCount)) / 100))
+if (user.Stats.RepeatActionDmgMult != 100):
+  repeat = trunc(((damage * repeatMultiplier(user.Stats.RepeatActionDmgMult, user.Stats.RepeatActionDmgMultCap, context.repeatCount)) / 100))
+else:
+  repeat = damage
 damage = repeat
-if (not(healing) and context.targetCharging):
+if (not(healing) and (target.Stats.DmgTakenWhileChargingMult != 100) and context.targetCharging):
   charging = trunc(((damage * target.Stats.DmgTakenWhileChargingMult) / 100))
 else:
   charging = damage
@@ -1011,7 +1020,7 @@ if (ability modifier MaxDamageGiven != none):
 else:
   abilityCap = userCap
 damage = abilityCap
-if (ability.IsPAbil and (target.HPCurrent <= trunc(((damage * user.Stats.PDmgOnKillMult) / 100)))):
+if (ability.IsPAbil and (user.Stats.PDmgOnKillMult != 100) and (target.HPCurrent <= trunc(((damage * user.Stats.PDmgOnKillMult) / 100)))):
   onKill = trunc(((damage * user.Stats.PDmgOnKillMult) / 100))
 else:
   onKill = damage
@@ -1435,7 +1444,7 @@ Formula ID: `ordinaryHitChance`. Inputs, in order: `user`, `target`, `ability`, 
 Physical takes precedence over magical for hybrid abilities. Zero target evasion bypasses physical hit modifiers. PerfectHit is checked before PerfectDodge.
 
 ```text
-if (target.Stats.PEvaRating > 0):
+if (ability.IsPAbil and (target.Stats.PEvaRating > 0)):
   physical = trunc(((trunc((((ability.BaseAcc + physicalHitCurve(user.Stats.PAccRating, target.Stats.PEvaRating) + user.Stats.PHitChanceGivenAddi + target.Stats.PHitChanceTakenAddi) * user.Stats.PHitChanceGivenMult) / 100)) * target.Stats.PHitChanceTakenMult) / 100))
 else:
   physical = (ability.BaseAcc + 100)
@@ -2041,6 +2050,339 @@ Formula ID: `agilityRatingBonus`. Inputs, in order: `agility`.
 ```text
 result = agility
 ```
+
+## Effective modifier aggregation
+
+Aggregate equipment, class innates and equipped passives, and active statuses in separate groups. Start each group with the native neutral defaults below. Apply each modifier in source order with integer truncation, then merge equipment, passives and statuses in that order. Multipliers merge by truncated multiplication divided by 100; flat and additive values merge by addition. Nullable damage caps select the smaller present cap; nullable status limits add their present values. The modifier verification fixtures compare these operations against unchanged compiled native methods.
+
+### Native neutral defaults
+
+| Field | Neutral value |
+| --- | --- |
+| `HP` | 0 |
+| `MP` | 0 |
+| `AP` | 0 |
+| `TT` | 0 |
+| `BonusHPAddi` | 0 |
+| `BonusMPAddi` | 0 |
+| `BonusAPAddi` | 0 |
+| `BonusHPMult` | 0 |
+| `Str` | 0 |
+| `Vit` | 0 |
+| `Dex` | 0 |
+| `Agi` | 0 |
+| `Mnd` | 0 |
+| `Spi` | 0 |
+| `Spd` | 0 |
+| `Lck` | 0 |
+| `BonusStrAddi` | 0 |
+| `BonusVitAddi` | 0 |
+| `BonusDexAddi` | 0 |
+| `BonusAgiAddi` | 0 |
+| `BonusMndAddi` | 0 |
+| `BonusSpiAddi` | 0 |
+| `BonusSpdAddi` | 0 |
+| `BonusLckAddi` | 0 |
+| `PAtk` | 0 |
+| `PDef` | 0 |
+| `MDef` | 0 |
+| `PCritChance` | 0 |
+| `PCritDmg` | 0 |
+| `PAccRating` | 0 |
+| `PEvaRating` | 0 |
+| `PPen` | 0 |
+| `MPen` | 0 |
+| `PVariance` | 0 |
+| `BonusPAtkAddi` | 0 |
+| `BonusPDefAddi` | 0 |
+| `BonusMDefAddi` | 0 |
+| `BonusPAccRatingAddi` | 0 |
+| `BonusPEvaRatingAddi` | 0 |
+| `BonusPPenAddi` | 0 |
+| `BonusMPenAddi` | 0 |
+| `MVarianceMult` | 100 |
+| `MVariance` | 0 |
+| `PDmgGivenMult` | 100 |
+| `PDmgTakenMult` | 100 |
+| `MDmgGivenMult` | 100 |
+| `MDmgTakenMult` | 100 |
+| `PCritChanceGivenMult` | 100 |
+| `PCritChanceTakenMult` | 100 |
+| `PCritDmgGivenMult` | 100 |
+| `PCritDmgTakenMult` | 100 |
+| `PNonCritDmgGivenMult` | 100 |
+| `PNonCritDmgTakenMult` | 100 |
+| `PHitChanceGivenAddi` | 0 |
+| `PHitChanceTakenAddi` | 0 |
+| `PHitChanceGivenMult` | 100 |
+| `PHitChanceTakenMult` | 100 |
+| `MHitChanceGivenAddi` | 0 |
+| `MHitChanceTakenAddi` | 0 |
+| `TTAtBattleStart` | 0 |
+| `CritResist` | 0 |
+| `PCritDmgGivenFlat` | 0 |
+| `PCritDmgTakenFlat` | 0 |
+| `HealingGivenMult` | 100 |
+| `HealingTakenMult` | 100 |
+| `MPCostsMult` | 100 |
+| `APCostsMult` | 100 |
+| `RepeatActionDmgMult` | 100 |
+| `RepeatActionDmgMultCap` | 100 |
+| `MPCostsFlat` | 0 |
+| `APCostsFlat` | 0 |
+| `PercentDmgTakenMult` | 100 |
+| `DamagePerTurnHPFlat` | 0 |
+| `DamagePerTurnHPAddi` | 0 |
+| `DamagePerTurnMPFlat` | 0 |
+| `DamagePerTurnMPAddi` | 0 |
+| `DamagePerTurnAPFlat` | 0 |
+| `DamagePerTurnAPAddi` | 0 |
+| `DamageTakenPerTurnMult` | 100 |
+| `HealingTakenPerTurnMult` | 100 |
+| `APBonusOnBattleStart` | 0 |
+| `APBonusOnTurn` | 0 |
+| `APBonusOnAttack` | 0 |
+| `APBonusOnDamaged` | 0 |
+| `APBonusOnMagic` | 0 |
+| `OnStanceChangeHPRate` | 0 |
+| `OnStanceChangeMPRate` | 0 |
+| `OnStanceChangeAPFlat` | 0 |
+| `InitialThreat` | 0 |
+| `ThreatGainMult` | 100 |
+| `ThreatDecayMult` | 100 |
+| `TTNextTurnMult` | 100 |
+| `CTMult` | 100 |
+| `PDmgHPReturnFlat` | 0 |
+| `PDmgMPReturnFlat` | 0 |
+| `PDmgAPReturnFlat` | 0 |
+| `PDmgHPReturnAddi` | 0 |
+| `PDmgMPReturnAddi` | 0 |
+| `PDmgAPReturnAddi` | 0 |
+| `PDmgHPReturnOnKillAddi` | 0 |
+| `PDmgMPReturnOnKillAddi` | 0 |
+| `PDmgAPReturnOnKillAddi` | 0 |
+| `MDmgHPReturnAddi` | 0 |
+| `MDmgMPReturnAddi` | 0 |
+| `MDmgAPReturnAddi` | 0 |
+| `MDmgHPReturnOnKillAddi` | 0 |
+| `MDmgMPReturnOnKillAddi` | 0 |
+| `MDmgAPReturnOnKillAddi` | 0 |
+| `HealingHPReturnAddi` | 0 |
+| `HealingMPReturnAddi` | 0 |
+| `HealingAPReturnAddi` | 0 |
+| `HealingReturnAddi` | 0 |
+| `BasicAttackOverridePriority` | 0 |
+| `ForceTurnAbilityPriority` | 0 |
+| `BasicAttackMult` | 100 |
+| `APAccumulateMult` | 100 |
+| `PDmgWithBottomThreatMult` | 100 |
+| `PDmgOnKillMult` | 100 |
+| `SelflessCureMult` | 100 |
+| `CriticalCureMult` | 100 |
+| `PDefAtFullHPMult` | 100 |
+| `MDefAtFullHPMult` | 100 |
+| `DmgTakenWhileChargingMult` | 100 |
+| `PDmgGivenWhenCriticalMult` | 100 |
+| `PDmgGivenAgainstSleepMult` | 100 |
+| `BuffDurationAddi` | 0 |
+| `DebuffDurationAddi` | 0 |
+| `ApplyBuffDurationAddi` | 0 |
+| `ApplyDebuffDurationAddi` | 0 |
+| `BuffDurationFlat` | 0 |
+| `DebuffDurationFlat` | 0 |
+| `ApplyBuffDurationFlat` | 0 |
+| `ApplyDebuffDurationFlat` | 0 |
+| `CooldownsFlat` | 0 |
+| `GoldGainUp` | 0 |
+| `LootChanceUp` | 0 |
+| `LootConsumableChanceUp` | 0 |
+| `StealChanceUp` | 0 |
+| `ExpBoostRate` | 100 |
+| `JPBoostAllRate` | 100 |
+| `AppearanceSpecialOverride` | 0 |
+| `MaxBuffCount` | No limit |
+| `MaxDebuffCount` | No limit |
+| `MaxDamageTaken` | No limit |
+| `MaxDamageGiven` | No limit |
+
+### Scalar modifier operations
+
+Here v1 and v2 are the typed modifier values. add adds v1; multiply multiplies by v1 / 100; percent multiplies by (100 + v1) / 100; level adds v1 * level / v2; turn adds v1 * min(turn, v2); repeatCap multiplies by (100 + v1 * v2) / 100. Every division truncates toward zero. Invalid or unavailable inputs remain unresolved only for the affected fields and their dependent calculations.
+
+| Modifier | Native field | Operation |
+| --- | --- | --- |
+| `Flat_HP` | `HP` | `add` |
+| `Flat_MP` | `MP` | `add` |
+| `Flat_AP` | `AP` | `add` |
+| `Flat_Str` | `Str` | `add` |
+| `Flat_Vit` | `Vit` | `add` |
+| `Flat_Dex` | `Dex` | `add` |
+| `Flat_Agi` | `Agi` | `add` |
+| `Flat_Mnd` | `Mnd` | `add` |
+| `Flat_Spi` | `Spi` | `add` |
+| `Flat_Spd` | `Spd` | `add` |
+| `Flat_Lck` | `Lck` | `add` |
+| `Flat_AllStats` | `HP` | `add` |
+| `Flat_AllStats` | `MP` | `add` |
+| `Flat_AllStats` | `Str` | `add` |
+| `Flat_AllStats` | `Vit` | `add` |
+| `Flat_AllStats` | `Dex` | `add` |
+| `Flat_AllStats` | `Agi` | `add` |
+| `Flat_AllStats` | `Mnd` | `add` |
+| `Flat_AllStats` | `Spi` | `add` |
+| `Flat_AllStats` | `Spd` | `add` |
+| `Flat_AllStats` | `Lck` | `add` |
+| `Addi_HP` | `BonusHPAddi` | `add` |
+| `Addi_MP` | `BonusMPAddi` | `add` |
+| `Addi_AP` | `BonusAPAddi` | `add` |
+| `Addi_Str` | `BonusStrAddi` | `add` |
+| `Addi_Vit` | `BonusVitAddi` | `add` |
+| `Addi_Dex` | `BonusDexAddi` | `add` |
+| `Addi_Agi` | `BonusAgiAddi` | `add` |
+| `Addi_Mnd` | `BonusMndAddi` | `add` |
+| `Addi_Spi` | `BonusSpiAddi` | `add` |
+| `Addi_Spd` | `BonusSpdAddi` | `add` |
+| `Addi_Lck` | `BonusLckAddi` | `add` |
+| `Flat_PAtk` | `PAtk` | `add` |
+| `Flat_PPen` | `PPen` | `add` |
+| `Flat_PDef` | `PDef` | `add` |
+| `Addi_PCritChance` | `PCritChance` | `add` |
+| `Addi_PCritDmg` | `PCritDmg` | `add` |
+| `Flat_PAccRating` | `PAccRating` | `add` |
+| `Flat_PEvaRating` | `PEvaRating` | `add` |
+| `Flat_MPen` | `MPen` | `add` |
+| `Flat_MDef` | `MDef` | `add` |
+| `Mult_BasicAttack_100` | `BasicAttackMult` | `multiply` |
+| `Mult_PHitChance_Given_100` | `PHitChanceGivenMult` | `multiply` |
+| `Mult_PHitChance_Taken_100` | `PHitChanceTakenMult` | `multiply` |
+| `Flat_TTAtBattleStart` | `TTAtBattleStart` | `add` |
+| `Flat_CritResist` | `CritResist` | `add` |
+| `Addi_PAtk` | `BonusPAtkAddi` | `add` |
+| `Addi_PPen` | `BonusPPenAddi` | `add` |
+| `Addi_PDef` | `BonusPDefAddi` | `add` |
+| `Addi_PHitChance_Given` | `PHitChanceGivenAddi` | `add` |
+| `Addi_PHitChance_Taken` | `PHitChanceTakenAddi` | `add` |
+| `Addi_PAccRating` | `BonusPAccRatingAddi` | `add` |
+| `Addi_PEvaRating` | `BonusPEvaRatingAddi` | `add` |
+| `Addi_MPen` | `BonusMPenAddi` | `add` |
+| `Addi_MDef` | `BonusMDefAddi` | `add` |
+| `Addi_MHitChance_Given` | `MHitChanceGivenAddi` | `add` |
+| `Addi_MHitChance_Taken` | `MHitChanceTakenAddi` | `add` |
+| `Addi_PVariance` | `PVariance` | `add` |
+| `Mult_MVariance` | `MVarianceMult` | `percent` |
+| `Addi_MVariance` | `MVariance` | `add` |
+| `Flat_HP_PerLevel` | `HP` | `level` |
+| `Flat_MP_PerLevel` | `MP` | `level` |
+| `Flat_AP_PerLevel` | `AP` | `level` |
+| `Flat_Str_PerLevel` | `Str` | `level` |
+| `Flat_Vit_PerLevel` | `Vit` | `level` |
+| `Flat_Dex_PerLevel` | `Dex` | `level` |
+| `Flat_Agi_PerLevel` | `Agi` | `level` |
+| `Flat_Mnd_PerLevel` | `Mnd` | `level` |
+| `Flat_Spi_PerLevel` | `Spi` | `level` |
+| `Flat_Spd_PerLevel` | `Spd` | `level` |
+| `Flat_Lck_PerLevel` | `Lck` | `level` |
+| `Flat_PAtk_PerLevel` | `PAtk` | `level` |
+| `Flat_PPen_PerLevel` | `PPen` | `level` |
+| `Flat_PDef_PerLevel` | `PDef` | `level` |
+| `Addi_PCritChance_PerLevel` | `PCritChance` | `level` |
+| `Addi_PCritDmg_PerLevel` | `PCritDmg` | `level` |
+| `Flat_PAccRating_PerLevel` | `PAccRating` | `level` |
+| `Flat_PEvaRating_PerLevel` | `PEvaRating` | `level` |
+| `Flat_MPen_PerLevel` | `MPen` | `level` |
+| `Flat_MDef_PerLevel` | `MDef` | `level` |
+| `Flat_HP_PerTurn` | `HP` | `turn` |
+| `Flat_MP_PerTurn` | `MP` | `turn` |
+| `Flat_AP_PerTurn` | `AP` | `turn` |
+| `Flat_Str_PerTurn` | `Str` | `turn` |
+| `Flat_Vit_PerTurn` | `Vit` | `turn` |
+| `Flat_Dex_PerTurn` | `Dex` | `turn` |
+| `Flat_Agi_PerTurn` | `Agi` | `turn` |
+| `Flat_Mnd_PerTurn` | `Mnd` | `turn` |
+| `Flat_Spi_PerTurn` | `Spi` | `turn` |
+| `Flat_Spd_PerTurn` | `Spd` | `turn` |
+| `Flat_Lck_PerTurn` | `Lck` | `turn` |
+| `Flat_PAtk_PerTurn` | `PAtk` | `turn` |
+| `Flat_PPen_PerTurn` | `PPen` | `turn` |
+| `Flat_PDef_PerTurn` | `PDef` | `turn` |
+| `Addi_PCritChance_PerTurn` | `PCritChance` | `turn` |
+| `Addi_PCritDmg_PerTurn` | `PCritDmg` | `turn` |
+| `Flat_PAccRating_PerTurn` | `PAccRating` | `turn` |
+| `Flat_PEvaRating_PerTurn` | `PEvaRating` | `turn` |
+| `Flat_MPen_PerTurn` | `MPen` | `turn` |
+| `Flat_MDef_PerTurn` | `MDef` | `turn` |
+| `Mult_PDmg_Given_100` | `PDmgGivenMult` | `multiply` |
+| `Mult_PDmg_Taken_100` | `PDmgTakenMult` | `multiply` |
+| `Mult_MDmg_Given_100` | `MDmgGivenMult` | `multiply` |
+| `Mult_MDmg_Taken_100` | `MDmgTakenMult` | `multiply` |
+| `Mult_PCritDmg_Given_100` | `PCritDmgGivenMult` | `multiply` |
+| `Mult_PCritDmg_Taken_100` | `PCritDmgTakenMult` | `multiply` |
+| `Mult_PCritChance_Given_100` | `PCritChanceGivenMult` | `multiply` |
+| `Mult_PCritChance_Taken_100` | `PCritChanceTakenMult` | `multiply` |
+| `Flat_PCritDmg_Given` | `PCritDmgGivenFlat` | `add` |
+| `Flat_PCritDmg_Taken` | `PCritDmgTakenFlat` | `add` |
+| `Mult_Healing_Given_100` | `HealingGivenMult` | `multiply` |
+| `Mult_Healing_Taken_100` | `HealingTakenMult` | `multiply` |
+| `Mult_MPCosts` | `MPCostsMult` | `percent` |
+| `Mult_APCosts` | `APCostsMult` | `percent` |
+| `Mult_RepeatActionDmg` | `RepeatActionDmgMult` | `percent` |
+| `Mult_RepeatActionDmg` | `RepeatActionDmgMultCap` | `repeatCap` |
+| `Flat_MPCosts` | `MPCostsFlat` | `add` |
+| `Flat_APCosts` | `APCostsFlat` | `add` |
+| `Mult_PercentDmg_Taken_100` | `PercentDmgTakenMult` | `multiply` |
+| `Mult_PNonCritDmg_Given_100` | `PNonCritDmgGivenMult` | `multiply` |
+| `Mult_PNonCritDmg_Taken_100` | `PNonCritDmgTakenMult` | `multiply` |
+| `Flat_DamagePerTurnHP` | `DamagePerTurnHPFlat` | `add` |
+| `Addi_DamagePerTurnHP` | `DamagePerTurnHPAddi` | `add` |
+| `Flat_DamagePerTurnMP` | `DamagePerTurnMPFlat` | `add` |
+| `Addi_DamagePerTurnMP` | `DamagePerTurnMPAddi` | `add` |
+| `Flat_DamagePerTurnAP` | `DamagePerTurnAPFlat` | `add` |
+| `Addi_DamagePerTurnAP` | `DamagePerTurnAPAddi` | `add` |
+| `Mult_DamagePerTurn_Taken_100` | `DamageTakenPerTurnMult` | `multiply` |
+| `Mult_HealingPerTurn_Taken_100` | `HealingTakenPerTurnMult` | `multiply` |
+| `APBonus_OnBattleStart` | `APBonusOnBattleStart` | `add` |
+| `APBonus_OnTurn` | `APBonusOnTurn` | `add` |
+| `APBonus_OnAttack` | `APBonusOnAttack` | `add` |
+| `APBonus_OnDamaged` | `APBonusOnDamaged` | `add` |
+| `APBonus_OnMagic` | `APBonusOnMagic` | `add` |
+| `Mult_ThreatGain` | `ThreatGainMult` | `percent` |
+| `Mult_ThreatDecay` | `ThreatDecayMult` | `percent` |
+| `Mult_CT_100` | `CTMult` | `multiply` |
+| `Mult_TT_NextTurn_100` | `TTNextTurnMult` | `multiply` |
+| `Mult_HP` | `BonusHPMult` | `add` |
+| `ExpBoost` | `ExpBoostRate` | `percent` |
+| `JPBoostAll` | `JPBoostAllRate` | `percent` |
+| `Addi_BuffDuration` | `BuffDurationAddi` | `add` |
+| `Addi_DebuffDuration` | `DebuffDurationAddi` | `add` |
+| `Addi_ApplyBuffDuration` | `ApplyBuffDurationAddi` | `add` |
+| `Addi_ApplyDebuffDuration` | `ApplyDebuffDurationAddi` | `add` |
+| `Flat_BuffDuration` | `BuffDurationFlat` | `add` |
+| `Flat_DebuffDuration` | `DebuffDurationFlat` | `add` |
+| `Flat_ApplyBuffDuration` | `ApplyBuffDurationFlat` | `add` |
+| `Flat_ApplyDebuffDuration` | `ApplyDebuffDurationFlat` | `add` |
+| `MaxBuffCount` | `MaxBuffCount` | `add` |
+| `MaxDebuffCount` | `MaxDebuffCount` | `add` |
+| `Flat_Cooldowns` | `CooldownsFlat` | `add` |
+| `OnStanceChange_GetHPRate` | `OnStanceChangeHPRate` | `add` |
+| `OnStanceChange_GetMPRate` | `OnStanceChangeMPRate` | `add` |
+| `OnStanceChange_GetAPFlat` | `OnStanceChangeAPFlat` | `add` |
+| `GoldGainUp` | `GoldGainUp` | `add` |
+| `Mult_PDmgWithBottomThreat` | `PDmgWithBottomThreatMult` | `percent` |
+| `Mult_SelflessCure` | `SelflessCureMult` | `percent` |
+| `Mult_PDefAtFullHP` | `PDefAtFullHPMult` | `percent` |
+| `InitialThreat` | `InitialThreat` | `add` |
+| `LootChanceUp` | `LootChanceUp` | `add` |
+| `LootConsumableChanceUp` | `LootConsumableChanceUp` | `add` |
+| `StealChanceUp` | `StealChanceUp` | `add` |
+| `Mult_PDmgOnKill` | `PDmgOnKillMult` | `percent` |
+| `PDmgBonusVsSleep` | `PDmgGivenAgainstSleepMult` | `percent` |
+| `BlockAPGains` | `APAccumulateMult` | `percent` |
+| `Mult_CriticalCure` | `CriticalCureMult` | `percent` |
+| `Mult_PDmg_GivenWhenCritical_100` | `PDmgGivenWhenCriticalMult` | `multiply` |
+| `Mult_MDefAtFullHP` | `MDefAtFullHPMult` | `percent` |
+| `DmgTakenWhileCharging` | `DmgTakenWhileChargingMult` | `percent` |
+
+Ability-specific damage and element modifiers start at 100 and multiply by (100 + v2) / 100 for identity v1. Ability-specific MP and AP costs start at zero and add v2 for identity v1. Group merging uses multiplication for damage and elements and addition for costs. Resource-return modifiers select HP, MP, or AP with v1 and add v2; healing return also supports the matching ability resource. Boolean tags and physical elements form unions; status immunity declarations remain explicit. Automatic statuses are separate from resting stats and require an explicit battle snapshot. Chance, life state, immunity, application history, and finite-duration uncertainty constrain their inclusion.
 
 ## Ordered character-sheet stages
 

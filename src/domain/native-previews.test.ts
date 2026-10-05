@@ -77,7 +77,7 @@ describe('native preview stages', () => {
       const raw = ability({ ID: 9000, EquipmentType: 0, StatMods: values.map(Value1 => ({ Tag: 0, Value1 })) })
       const result = calculateBuildStats(equipped, SUGGESTED_BUILD_SLOTS, selected => selected.kind === 'catalog' && selected.entityId === imported.entityId ? { ...raw, kind: 'item' } : resolve(selected))
       expect(result.stats.HP.value).toBeNull()
-      expect(result.issues).toContain('Synthetic power: a numeric modifier cannot be calculated.')
+      expect(result.issues).toContain('Synthetic power: Flat_HP has an unavailable numeric input.')
     }
     expect(() => calculateCombat('abilityPower', [2_147_483_647, { BasePower: 0, BasePAtkRate: 200, ScalingPower: null, ScalingPAtkRate: null, StrRate: 0, VitRate: 0, DexRate: 0, AgiRate: 0, MndRate: 0, SpiRate: 0, SpdRate: 0, LckRate: 0 }, 0, { Stats: { Str: 1, Vit: 1, Dex: 1, Agi: 1, Mnd: 1, Spi: 1, Spd: 1, Lck: 1 } }])).toThrow(/signed integer range/)
   })

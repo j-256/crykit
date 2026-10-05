@@ -24,7 +24,7 @@ import './build-picker.css'
 export const BUILD_DEFINITION_PAGE_SIZE = 100
 const MAX_CONFLICT_EXAMPLES = 3
 const FIELD_ICONS: Readonly<Record<string, IconName>> = Object.freeze({ Class: 'crystal', 'Sub-command': 'tome', 'Main hand': 'sword', 'Off hand': 'shield', Head: 'character', Body: 'chest', 'Accessory 1': 'ring', 'Accessory 2': 'ring' })
-export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, allowEmpty = true, includeInnates = false, gameSetup, equipmentPermissions, equipmentSlot, buildContent, equipmentSlots, passiveIndex, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect, onConfigureMod }: {
+export function BuildDefinitionField({ label, allowedKinds, value, open, query, resultLimit, allowEmpty = true, includeInnates = false, showSelectionDetails = true, gameSetup, equipmentPermissions, equipmentSlot, buildContent, equipmentSlots, passiveIndex, excludedRefs, onOpen, onClose, onDismiss, onQueryChange, onResultLimitChange, onChange, onInspect, onConfigureMod }: {
   label: string
   allowedKinds: readonly CatalogEntityKind[]
   value: EntityRef | null
@@ -33,12 +33,14 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   resultLimit: number
   allowEmpty?: boolean
   includeInnates?: boolean
+  showSelectionDetails?: boolean
   gameSetup?: GameSetupRevision
   equipmentPermissions?: BuildEquipmentPermissions
   equipmentSlot?: SlotDefinition
   buildContent?: BuildRevisionContent
   equipmentSlots?: readonly SlotDefinition[]
   passiveIndex?: number
+  excludedRefs?: readonly EntityRef[]
   onOpen: () => void
   onClose: () => void
   onDismiss: () => void
@@ -72,11 +74,12 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState('name')
   const allowedKindKey = allowedKinds.join(',')
+  const excludedKeys = useMemo(() => new Set(excludedRefs?.map(ref => logicalEntityKey(localData, ref))), [excludedRefs, localData])
   const definitionIndex = useMemo(() => new Map(open ? options.map(option => [option.key, option.record]) : []), [open, options])
   const slotOptions = useMemo(() => {
     const kinds = new Set(allowedKindKey.split(','))
-    return availableOptions.filter(option => option.key === selected?.key || kinds.has(option.kind) && !isReferenceArticle(localData, option.ref) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)))
-  }, [allowedKindKey, availableOptions, equipmentSlot, label, localData, selected?.key])
+    return availableOptions.filter(option => option.key === selected?.key || kinds.has(option.kind) && !excludedKeys.has(logicalEntityKey(localData, option.ref)) && !isReferenceArticle(localData, option.ref) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)))
+  }, [allowedKindKey, availableOptions, equipmentSlot, excludedKeys, label, localData, selected?.key])
   const permissionAssessments = useMemo(() => new Map(equipmentPermissions && open ? slotOptions.map(option => [option.key, buildContent && equipmentSlot && equipmentSlots
     ? pickerEquipmentAssessment(option, buildContent, equipmentSlot, equipmentSlots, ref => definitionIndex.get(entityDefinitionKey(ref)), ref => logicalEntityKey(localData, ref))
     : assessEquipmentPermission(option.record, equipmentPermissions)]) : []), [buildContent, definitionIndex, equipmentPermissions, equipmentSlot, equipmentSlots, localData, open, slotOptions])
@@ -178,6 +181,6 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
     </Dropdown>
-    {selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected} showClassPermissions={label !== 'Sub-command'}/>{pickerHandedness(selected) && <p className="field__hint">{pickerHandedness(selected)}</p>}{modPlanningReason(selected.modAvailability) && <p className="field__hint">{modPlanningReason(selected.modAvailability)} This existing selection is retained.</p>}{selected.modAvailability?.requiredMod && onConfigureMod && <div className="build-field__mod-action"><Button aria-label={`${selected.name} mod settings`} onClick={() => onConfigureMod(selected.modAvailability!.requiredMod!)} tone="quiet" type="button">Mod settings</Button></div>}{isReferenceArticle(localData, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected} showClassPermissions={label !== 'Sub-command'}/></details></div>}
+    {showSelectionDetails && selected && <div className="build-field__evidence"><BuildSelectionFacts option={selected} showClassPermissions={label !== 'Sub-command'}/>{pickerHandedness(selected) && <p className="field__hint">{pickerHandedness(selected)}</p>}{modPlanningReason(selected.modAvailability) && <p className="field__hint">{modPlanningReason(selected.modAvailability)} This existing selection is retained.</p>}{selected.modAvailability?.requiredMod && onConfigureMod && <div className="build-field__mod-action"><Button aria-label={`${selected.name} mod settings`} onClick={() => onConfigureMod(selected.modAvailability!.requiredMod!)} tone="quiet" type="button">Mod settings</Button></div>}{isReferenceArticle(localData, selected.ref) && <p className="field__hint">This saved selection is a reference article, not a specific equipment item. Choose a replacement.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} option={selected} showClassPermissions={label !== 'Sub-command'}/></details></div>}
   </div>
 }

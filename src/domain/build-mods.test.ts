@@ -73,7 +73,7 @@ it('changes revisions in place, keeps layer order and unrelated links, and disca
   const initial = buildBehavior(data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!)
   const catalogs = [DEFAULT_CATALOG, first, second, newer]
   const enabled = selectBuildModRevision(selectBuildModRevision(initial, first, catalogs), second, catalogs)
-  const linked = { ...enabled, modComposition: { ...enabled.modComposition!, links: [{ modelKey: 'crystal-edit:Equipment:9000', targetEntityId: 'old-target' as CatalogRef['entityId'] }, { modelKey: 'crystal-edit:Equipment:9001', targetEntityId: 'other-target' as CatalogRef['entityId'] }] } }
+  const linked = { ...enabled, modComposition: { ...enabled.modComposition!, links: [{ projectId: first.id, modelKey: 'crystal-edit:Equipment:9000', targetEntityId: 'old-target' as CatalogRef['entityId'] }, { projectId: second.id, modelKey: 'crystal-edit:Equipment:9001', targetEntityId: 'other-target' as CatalogRef['entityId'] }] } }
   const changed = selectBuildModRevision(linked, newer, catalogs)
   expect(changed.modComposition!.layers.map(layer => layer.catalogId)).toEqual([first.id, second.id])
   expect(changed.modComposition!.layers[0]!.catalogRevisionId).toBe(newer.revisionId)
