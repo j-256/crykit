@@ -263,9 +263,11 @@ function totalExperience(level: number): number {
 function setLevel(save: CrystalSave, catalog: SaveEditorCatalog, index: number, level: number, now: Date): void {
   bound(level, 1, SAVE_EDITOR_MAX_LEVEL, 'Level')
   const member = save.members[index]!
-  const values = flags(save).value
+  const gameplay = flags(save)
+  const values = gameplay.value
   if (level > levelCap(save)) {
     if (flag(values.NoAssistOptions) || flag(values.MaxLevelDown)) throw new Error('This challenge prevents raising the level cap')
+    save.party.value.GameplayFlags ??= gameplay
     values.MaxLevelUp = { type: 'boolean', value: true }
     values.MaxLevelUpVal = int(level)
     values.MaxLevelUpTS = save.party.value.PlayTime!
@@ -326,7 +328,6 @@ export function editSave(input: CrystalSave, catalog: SaveEditorCatalog, command
   validate(input, catalog)
   if (!Number.isFinite(now.getTime())) throw new Error('Edit timestamp is invalid')
   const save = structuredClone(input)
-  if (save.header.version < CRYSTAL_SAVE_VERSION && !save.party.value.GameplayFlags && (command.type === 'overpowered' || command.type === 'member' && command.level !== undefined)) save.party.value.GameplayFlags = document({})
   if (command.type === 'currency' || command.type === 'overpowered') {
     const value = command.type === 'currency' ? command.value : SAVE_EDITOR_MAX_CURRENCY
     bound(value, 0, SAVE_EDITOR_MAX_CURRENCY, 'Currency')
