@@ -17,10 +17,10 @@ test('export CLI and browser package share the pinned numeric sources without pr
     execFileSync(process.execPath, ['scripts/export-calculations.mjs', '--output', output])
     const exported = JSON.parse(readFileSync(output, 'utf8'))
     assert.equal(exported.format, 'crystal-project-calculations')
-    assert.equal(exported.schemaVersion, 2)
+    assert.equal(exported.schemaVersion, 3)
     assert.deepEqual(exported, calculationPackage())
     const schema = fromJSONSchema(
-      JSON.parse(readFileSync('src/calculations/package-v2.schema.json', 'utf8')),
+      JSON.parse(readFileSync('src/calculations/package-v3.schema.json', 'utf8')),
     )
     const validated = schema.safeParse(exported)
     assert.ok(validated.success, validated.error?.message)
@@ -42,6 +42,13 @@ test('export CLI and browser package share the pinned numeric sources without pr
       exported.previewVerification,
       JSON.parse(readFileSync('src/calculations/preview-parity-v1.json', 'utf8')),
     )
+    assert.equal(exported.modifiers.executableSha256, exported.data.executableSha256)
+    assert.deepEqual(exported.modifiers.sourceFiles, exported.modifierVerification.evidence.files)
+    for (const [tag, operations] of Object.entries(exported.modifiers.operations)) {
+      assert.ok(Object.values(exported.rules.statMods).some(value => value.name === tag), tag)
+      assert.ok(exported.modifierVerification.cases.some(fixture => fixture.name.startsWith(`${tag} `)), tag)
+      for (const operation of operations) assert.ok(Object.hasOwn(exported.modifiers.defaults, operation.field), operation.field)
+    }
     const data = JSON.stringify(exported)
     assert.doesNotMatch(data, /\/Users\/|playthroughs|personalDefinitions|displayedStats/)
     for (const [entityId, binding] of Object.entries(exported.data.bindings)) {
@@ -118,12 +125,19 @@ test('format 1 remains byte-equivalent to the original package shape', () => {
   )
   assert.ok(schema.safeParse(JSON.parse(exported)).success)
   assert.deepEqual(JSON.parse(exported).legacy, JSON.parse(readFileSync('src/calculations/guide-v1.json', 'utf8')))
-  for (const version of ['', '0', '3', '2.5'])
+  for (const version of ['', '0', '4', '2.5'])
     assert.equal(
       spawnSync(process.execPath, ['scripts/export-calculations.mjs', '--schema-version', version])
         .status,
       2,
     )
+})
+
+test('format 2 retains the historical combat package without modifier extensions', () => {
+  const exported = execFileSync(process.execPath, ['scripts/export-calculations.mjs', '--schema-version=2'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
+  assert.equal(exported, JSON.stringify(calculationPackage(2), null, 2) + '\n')
+  assert.ok(fromJSONSchema(JSON.parse(readFileSync('src/calculations/package-v2.schema.json', 'utf8'))).safeParse(JSON.parse(exported)).success)
+  assert.equal(Object.hasOwn(JSON.parse(exported), 'modifiers'), false)
 })
 
 test('every arithmetic formula has valid calls, source evidence, and a generated reference entry', () => {

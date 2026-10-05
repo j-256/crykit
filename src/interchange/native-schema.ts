@@ -1,9 +1,12 @@
 import { PC_LEVEL_CAP } from '../domain/calculation-rules'
 import { GENDER_SELECTION_VERSION, MAX_GENDER_ID } from '../domain/calculation-genders'
 import { CALCULATION_GENDERS } from '../domain/calculation-plan'
+import { BATTLE_CALCULATION_VERSION, validateBattleCalculation } from '../domain/battle-plan'
+import { MAX_NATIVE_INTEGER } from '../domain/native-number'
+import type { BattleCalculationPlan } from '../domain/types'
 import { QUINTAR_BREEDING_STEP_IDS } from '../catalog/quintar-breeding'
 import { STAT_KEYS } from '../domain/crystal-edit'
-import { MAX_MOD_LAYERS } from '../domain/mod-layers'
+import { assertModComposition, MAX_MOD_LAYERS } from '../domain/mod-layers'
 import { REFERENCE_LIBRARY_SETTINGS_VERSION } from '../domain/reference-library'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
@@ -187,11 +190,14 @@ const gameSetupRevision = z.object({
   catalogLock,
   definitionOverrides: z.array(personalRef).max(MAX_COLLECTION_LENGTH).optional(),
   modComposition: z.object({
-    version: z.literal(2).optional(),
+    version: z.union([z.literal(2), z.literal(3)]).optional(),
+    identityMappings: z.array(z.object({ projectId: id, family: id, originalId: nonnegativeInteger.max(MAX_NATIVE_INTEGER), effectiveId: nonnegativeInteger.max(MAX_NATIVE_INTEGER) }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
     baseline: z.object({ catalogId: id, catalogRevisionId: id }).strict(),
     layers: z.array(z.object({ catalogId: id, catalogRevisionId: id, enabled: z.boolean() }).strict()).max(MAX_MOD_LAYERS),
-    links: z.array(z.object({ modelKey: id, targetEntityId: id.nullable() }).strict()).max(MAX_COLLECTION_LENGTH),
-  }).strict().optional(),
+    links: z.array(z.object({ projectId: id.optional(), modelKey: id, targetEntityId: id.nullable() }).strict()).max(MAX_COLLECTION_LENGTH),
+  }).strict().superRefine((value, context) => {
+    try { assertModComposition(value as unknown as import('../domain/types').ModComposition) } catch (error) { context.addIssue({ code: 'custom', message: error instanceof Error ? error.message : 'Invalid mod composition' }) }
+  }).optional(),
   createdAt: timestamp,
 }).strict()
 
@@ -231,6 +237,30 @@ const inventoryEvent = z.object({
 }).strict()
 
 const observedStat = z.object({ value: knowledge(finiteNumber), unit: nonemptyText }).strict()
+const battleQuantity = z.number().int().min(0).max(MAX_NATIVE_INTEGER).nullable()
+const battleResources = z.object({ hp: battleQuantity, mp: battleQuantity, ap: battleQuantity }).strict()
+const battleStatuses = z.array(z.object({ ref: entityRef, count: z.number().int().min(1).max(MAX_NATIVE_INTEGER).nullable() }).strict()).max(MAX_COLLECTION_LENGTH)
+const battleCalculation = z.object({
+  version: z.literal(BATTLE_CALCULATION_VERSION),
+  turnCount: battleQuantity,
+  targetTurnCount: battleQuantity,
+  automaticStatuses: z.boolean(),
+  statuses: battleStatuses,
+  user: battleResources,
+  target: z.union([z.literal('self'), entityRef]).nullable(),
+  targetResources: battleResources,
+  targetStatuses: battleStatuses,
+  repeatCount: battleQuantity,
+  bottomThreat: z.boolean().nullable(),
+  topThreat: z.boolean().nullable(),
+  targetIsThreatTarget: z.boolean().nullable(),
+  targetCharging: z.boolean().nullable(),
+  previouslyAppliedStatuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
+  userPreviouslyAppliedStatuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
+}).strict().superRefine((battle, context) => {
+  try { validateBattleCalculation(battle as unknown as BattleCalculationPlan, () => undefined) }
+  catch (error) { context.addIssue({ code: 'custom', message: error instanceof Error ? error.message : 'Invalid battle calculation' }) }
+})
 const calculationPlan = z.object({
   model: z.literal('pc-1.6.9-v1').optional(),
   growthMode: z.enum(['primary', 'manual']).optional(),
@@ -243,6 +273,7 @@ const calculationPlan = z.object({
   statuses: z.array(entityRef).max(MAX_COLLECTION_LENGTH),
   ability: entityRef.nullable().optional(),
   targetEvasion: finiteNumber.nonnegative().nullable().optional(),
+  battle: battleCalculation.optional(),
 }).strict().refine(plan => plan.gender === undefined || plan.genderSelection === undefined, 'Choose only one calculation gender')
 const characterSnapshot = z.object({
   id,

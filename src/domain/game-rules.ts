@@ -2,7 +2,8 @@ import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { NATIVE_DATA } from './calculation-rules'
 import { nativeInteger } from './native-number'
 import { jsonRecord } from './crystal-edit'
-import { MOD_COMPOSITION_VERSION, modCatalogForPin, modModelRecords } from './mod-layers'
+import { modCatalogForPin, modModelRecords } from './mod-layers'
+import { modIdentityMappings, remapModRecord } from './mod-identities'
 import { modRevision } from './mod-library'
 import { CURRENT_CRYSTAL_EDIT_VERSION, interpretCrystalEditBattleConfig, supportsCrystalEditVersion } from './crystal-edit-compatibility'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
@@ -79,6 +80,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   applyDifficulties(NATIVE_GAME_DATA.databases.difficulty, source, 'native')
   const mode = setup?.mode ? gameSetupMode({ mode: setup.mode }) : undefined
   const genders = new Map(nativeGenderDefinitions(mode).map(gender => [gender.id, gender]))
+  const mappings = setup?.modComposition?.version === 3 ? modIdentityMappings(setup.modComposition, catalogs) : []
   const addedModels = new Map<string, { readonly project: string; readonly title: string }>()
   if (mode && ['vanilla', 'chaos'].includes(mode)) {
     const patches = NATIVE_GAME_DATA.databases.patch
@@ -105,14 +107,14 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
       }
       continue
     }
-    if (setup?.modComposition?.version === MOD_COMPOSITION_VERSION) for (const modelKey of modModelRecords(catalog!).keys()) {
+    if (setup?.modComposition?.version === 2) for (const modelKey of modModelRecords(catalog!).keys()) {
       const family = modelKey.split(':')[1]!
       if (!Object.hasOwn(CALCULATION_FAMILIES, family) || BASE_CALCULATION_MODELS.has(modelKey)) continue
       const previous = addedModels.get(modelKey)
       if (previous && previous.project !== catalog!.id) issues.push(`${modelKey}: added identity occurs in both ${previous.title} and ${title}. Runtime remapping of added IDs is not modeled; combined calculations are unresolved.`)
       addedModels.set(modelKey, { project: catalog!.id, title })
     }
-    applyDifficulties(metadata.difficulties, title, 'mod')
+    applyDifficulties(Array.isArray(metadata.difficulties) ? metadata.difficulties.map(record => jsonRecord(record) ? remapModRecord(record, 'Difficulties', catalog!.id, mappings) : record) : metadata.difficulties, title, 'mod')
     if (Array.isArray(metadata.unsupported) && metadata.unsupported.length) issues.push(`${title}: ${metadata.unsupported.join(', ')} changes are retained but not modeled in this imported revision. Reimport and explicitly select the new revision to use supported settings.`)
     if (metadata.version === IMPORTED_RULES_VERSION) {
       if (!Array.isArray(metadata.genders)) issues.push(`${title}: gender definitions are not a supported list.`)
@@ -121,7 +123,8 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
         for (const record of metadata.genders) {
           if (!jsonRecord(record) || !nativeInteger(record.ID) || record.ID < 0 || record.ID > MAX_GENDER_ID || ids.has(record.ID)) { issues.push(`${title}: gender identities are invalid or ambiguous.`); continue }
           ids.add(record.ID)
-          genders.set(record.ID, genderDefinition(record, title, 'mod'))
+          const effective = remapModRecord(record, 'Genders', catalog!.id, mappings)
+          genders.set(effective.ID as number, genderDefinition(effective, title, 'mod'))
         }
       }
     }

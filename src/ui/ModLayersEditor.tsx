@@ -2,7 +2,8 @@ import { Sources } from './Sources'
 import { useId, useMemo, useRef, useState } from 'react'
 import { CURRENT_CATALOG } from '../catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
-import { bundledModReplacementLinks, composeModLayers, MAX_MOD_LAYERS, MOD_COMPOSITION_VERSION, modCatalogForPin, modCatalogTitle, modModelRecords, modReplacementKindMatches, nativeModReplacementLinks } from '../domain/mod-layers'
+import { bundledModReplacementLinks, composeModLayers, MAX_MOD_LAYERS, MOD_COMPOSITION_VERSION, modLinkKey, prepareModComposition, modCatalogForPin, modCatalogTitle, modModelRecords, modReplacementKindMatches, nativeModReplacementLinks } from '../domain/mod-layers'
+import { originalModIdentity } from '../domain/mod-identities'
 import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogEntity, CatalogSnapshot, EntityId, ModComposition } from '../domain/types'
 import { modLibrary } from '../domain/mod-library'
@@ -58,21 +59,31 @@ export function ModLayersEditor({ composition, catalogLock, onChange }: { compos
   }, [catalogs, current])
   const baseline = modCatalogForPin(catalogs, current.baseline)
   const change = (value: ModComposition) => {
+    const prepared = prepareModComposition(current, catalogs)
+    value = { ...value, version: MOD_COMPOSITION_VERSION, identityMappings: prepared.identityMappings, links: value.links.map(link => {
+      const previous = prepared.links.find(candidate => candidate.modelKey === link.modelKey && (link.projectId === undefined || candidate.projectId === link.projectId))
+      return previous ? { ...link, ...(previous.projectId ? { projectId: previous.projectId } : {}) } : link
+    }) }
     const availableKeys = new Set(value.layers.flatMap(layer => {
       const catalog = modCatalogForPin(catalogs, layer)
       return catalog ? [...modModelRecords(catalog).keys()] : []
     }))
-    const links = value.links.filter(link => availableKeys.has(link.modelKey))
+    const links = value.links.filter(link => {
+      if (!link.projectId) return availableKeys.has(link.modelKey)
+      const layer = value.layers.find(candidate => candidate.catalogId === link.projectId)
+      const source = layer && modCatalogForPin(catalogs, layer)
+      return source && modModelRecords(source).has(link.modelKey)
+    })
     const original = modCatalogForPin(catalogs, value.baseline)
     if (original) for (const layer of value.layers) {
       if (current.layers.some(previous => previous.catalogId === layer.catalogId && previous.catalogRevisionId === layer.catalogRevisionId)) continue
       const incoming = modCatalogForPin(catalogs, layer)
       if (!incoming) continue
       for (const link of [...bundledModReplacementLinks(original, incoming, BUNDLED_MOD_LIBRARY), ...nativeModReplacementLinks(original, incoming)]) {
-        if (!links.some(previous => previous.modelKey === link.modelKey || previous.targetEntityId === link.targetEntityId)) links.push(link)
+        if (!links.some(previous => modLinkKey(previous) === modLinkKey(link) || previous.targetEntityId === link.targetEntityId)) links.push(link)
       }
     }
-    onChange({ ...value, version: MOD_COMPOSITION_VERSION, links })
+    onChange(prepareModComposition({ ...value, links }, catalogs))
   }
   const add = () => {
     const chosen = projectChoices.find(catalog => catalog.id === project) ?? projectChoices[0]
@@ -88,8 +99,9 @@ export function ModLayersEditor({ composition, catalogLock, onChange }: { compos
   const records = (result.value?.changes ?? []).filter(value => `${value.entity.name} ${value.modelKey} ${value.sourceTitle}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const unresolved = result.value?.changes.filter(value => value.targetState === 'unresolved').length ?? 0
   return <section aria-label="Imported mod layers" className="stack mod-layers">
-    <div className="split"><div><h3>Imported mod layers</h3><p>Enable exact imported versions and arrange their priority. Later enabled layers replace earlier records with the same model family and native ID.</p></div><Badge tone="info">{current.layers.filter(layer => layer.enabled).length} enabled</Badge></div>
+    <div className="split"><div><h3>Imported mod layers</h3><p>Enable exact imported versions and arrange their priority. Later enabled layers replace earlier changes to original game records. Added definitions keep each project's own identity and references.</p></div><Badge tone="info">{current.layers.filter(layer => layer.enabled).length} enabled</Badge></div>
     <p className="field__hint">This is the planner's selected priority. Confirm it against your game's mod order. Importing a file alone does not enable it. Matching native families and IDs suggest replacement links automatically; review those links below.</p>
+    {composition && composition.version !== MOD_COMPOSITION_VERSION && <InlineNotice title="Earlier composition rules">This saved setup keeps its original mod identity rules. Editing its layers creates a new setup with project-specific added identities; earlier saved setups stay unchanged.</InlineNotice>}
     {imported.length === 0 && <InlineNotice title="No imported mod files">Save a Crystal Edit JSON from the Mods editor to CryKit, then select its version here.</InlineNotice>}
     {projectChoices.length > 0 && <div className="mod-layers__add"><Field label="Imported mod to add"><select onChange={event => setProject(event.target.value)} value={project || projectChoices[0]!.id}>{projectChoices.map(catalog => <option key={catalog.id} value={catalog.id}>{modCatalogTitle(catalog)}</option>)}</select></Field><Button disabled={current.layers.length >= MAX_MOD_LAYERS} onClick={add} tone="secondary" type="button">Add mod layer</Button></div>}
     <ol aria-label="Mod priority" className="mod-layers__list">{current.layers.map((layer, index) => {
@@ -108,10 +120,15 @@ export function ModLayersEditor({ composition, catalogLock, onChange }: { compos
       {result.value.unresolvedReferences.length > 0 && <InlineNotice title="Definitions still missing">{result.value.unresolvedReferences.slice(0, RECORD_PAGE_SIZE).join(', ')}{result.value.unresolvedReferences.length > RECORD_PAGE_SIZE ? ' and additional references' : ''}. These IDs are absent from all enabled layers; their costs and effects remain unresolved.</InlineNotice>}
       <details><summary>Review effective records and replacement links</summary><div className="stack">
         <Field label="Search effective mod records"><input onChange={event => { setQuery(event.target.value); setLimit(RECORD_PAGE_SIZE) }} value={query}/></Field>
-        <ul className="mod-layers__records">{records.slice(0, limit).map(record => <li key={record.modelKey}>
+        <ul className="mod-layers__records">{records.slice(0, limit).map(record => {
+          const modelKey = record.originalModelKey ?? record.modelKey
+          const [, family, originalId] = modelKey.split(':')
+          const link = { modelKey, ...(current.version === MOD_COMPOSITION_VERSION && !originalModIdentity(family!, Number(originalId)) ? { projectId: record.identityProjectId ?? record.source.catalogId } : {}) }
+          const key = modLinkKey(link)
+          return <li key={record.modelKey}>
           <div><Sources anchor={<strong>{record.entity.name}</strong>} label={`Sources for ${record.entity.name} winning record`}><pre>{JSON.stringify(record.entity.fields['Crystal Edit source record'], null, 2)}</pre></Sources><small>{record.entity.id} · {record.sourceTitle}</small><p>{record.superseded.length ? `Replaces ${record.superseded.join(', ')}` : 'No earlier enabled record with this native identity'}</p></div>
-          {baseline && <TargetPicker occupied={current.links.filter(link => link.modelKey !== record.modelKey && link.targetEntityId !== null).map(link => link.targetEntityId!)} baseline={baseline} entity={record.entity} onChange={id => change({ ...current, links: [...current.links.filter(link => link.modelKey !== record.modelKey), ...(id === undefined ? [] : [{ modelKey: record.modelKey, targetEntityId: id }])] })} target={current.links.find(link => link.modelKey === record.modelKey)?.targetEntityId}/>}
-        </li>)}</ul>{records.length > limit && <Button onClick={() => setLimit(value => value + RECORD_PAGE_SIZE)} tone="secondary" type="button">Show more effective records</Button>}{records.length === 0 && <p>No effective imported records match this search.</p>}
+          {baseline && <TargetPicker occupied={current.links.filter(link => modLinkKey(link) !== key && link.targetEntityId !== null).map(link => link.targetEntityId!)} baseline={baseline} entity={record.entity} onChange={id => change({ ...current, links: [...current.links.filter(link => modLinkKey(link) !== key), ...(id === undefined ? [] : [{ ...link, targetEntityId: id }])] })} target={current.links.find(link => modLinkKey(link) === key)?.targetEntityId ?? (record.targetState === 'separate' ? null : undefined)}/>}
+        </li>})}</ul>{records.length > limit && <Button onClick={() => setLimit(value => value + RECORD_PAGE_SIZE)} tone="secondary" type="button">Show more effective records</Button>}{records.length === 0 && <p>No effective imported records match this search.</p>}
       </div></details>
       <InlineNotice title="Supported rules and remaining gaps">Exported class ratings, equipment permissions, native passive costs, and other supported definition fields drive planning. Missing fields stay unknown. Supported battle constants and difficulty definitions come from the selected mod revisions. Other project settings, unmapped modifier tags, and unsupported battle behavior remain unresolved.</InlineNotice>
       <p className="field__hint">Saving pins this baseline, each chosen revision, and the effective result. Earlier Game Setups, builds, and observations keep their original definitions.</p>

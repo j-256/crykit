@@ -1,0 +1,20 @@
+.combat-ability-summary { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-900); }
+.combat-ability-summary__heading { display: flex; align-items: flex-start; gap: 12px; }
+.combat-ability-summary__identity { flex: 1; min-width: 0; }
+.combat-ability-summary .combat-ability-summary__identity h4 { margin: 0 0 10px; font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.combat-ability-summary__artwork { flex: 0 0 48px; display: grid; place-items: center; min-height: 48px; }
+.combat-ability-summary__facts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
+.combat-ability-summary__facts > div { display: grid; gap: 3px; }
+.combat-ability-summary__facts dt, .combat-ability-summary__label { color: var(--text-faint); font-size: .68rem; }
+.combat-ability-summary__facts dd { margin: 0; color: var(--text); font-size: .8rem; font-weight: 600; }
+.combat-ability-summary__behavior { display: grid; gap: 10px; font-size: .8rem; line-height: 1.5; }
+.combat-ability-summary__behavior:empty { display: none; }
+.combat-ability-summary__behavior p { margin: 0; }
+.combat-ability-summary__behavior p > span { display: block; color: var(--text-faint); font-size: .72rem; }
+.combat-ability-summary__behavior ul { display: grid; gap: 5px; margin: 4px 0 0; padding-left: 18px; }
+.combat-ability-summary__unknown { color: var(--text-dim); font-size: .75rem; line-height: 1.5; }
+@media (max-width: 480px) {
+  .combat-ability-summary { padding: 12px; }
+  .combat-ability-summary__heading { gap: 8px; }
+  .combat-ability-summary .combat-ability-summary__identity h4 { font-size: 1.2rem; }
+}

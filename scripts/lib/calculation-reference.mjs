@@ -95,7 +95,7 @@ function formulaSection(section, id, formula, enums) {
   ].join('\n\n')
 }
 
-export function buildCalculationReference({ rules, combat, combatData, example }) {
+export function buildCalculationReference({ rules, combat, combatData, example, modifiers }) {
   const sections = [
     { id: 'sheet', title: 'Character-sheet equations', formulas: rules.formulas },
     { id: 'combat', title: 'Combat equations', formulas: combat.formulas },
@@ -165,6 +165,16 @@ export function buildCalculationReference({ rules, combat, combatData, example }
         example.user.Stats.PAtk +
         ' ATK; it is not a real character or recommendation.',
       body,
+      ...(modifiers ? [
+        '## Effective modifier aggregation',
+        'Aggregate equipment, class innates and equipped passives, and active statuses in separate groups. Start each group with the native neutral defaults below. Apply each modifier in source order with integer truncation, then merge equipment, passives and statuses in that order. Multipliers merge by truncated multiplication divided by 100; flat and additive values merge by addition. Nullable damage caps select the smaller present cap; nullable status limits add their present values. The modifier verification fixtures compare these operations against unchanged compiled native methods.',
+        '### Native neutral defaults',
+        ['| Field | Neutral value |', '| --- | --- |', ...Object.entries(modifiers.defaults).map(([field, value]) => '| ' + inline(field) + ' | ' + (value === null ? 'No limit' : value) + ' |')].join('\n'),
+        '### Scalar modifier operations',
+        'Here v1 and v2 are the typed modifier values. add adds v1; multiply multiplies by v1 / 100; percent multiplies by (100 + v1) / 100; level adds v1 * level / v2; turn adds v1 * min(turn, v2); repeatCap multiplies by (100 + v1 * v2) / 100. Every division truncates toward zero. Invalid or unavailable inputs remain unresolved only for the affected fields and their dependent calculations.',
+        ['| Modifier | Native field | Operation |', '| --- | --- | --- |', ...Object.entries(modifiers.operations).flatMap(([tag, operations]) => operations.map(operation => '| ' + inline(tag) + ' | ' + inline(operation.field) + ' | ' + inline(operation.operation) + ' |'))].join('\n'),
+        'Ability-specific damage and element modifiers start at 100 and multiply by (100 + v2) / 100 for identity v1. Ability-specific MP and AP costs start at zero and add v2 for identity v1. Group merging uses multiplication for damage and elements and addition for costs. Resource-return modifiers select HP, MP, or AP with v1 and add v2; healing return also supports the matching ability resource. Boolean tags and physical elements form unions; status immunity declarations remain explicit. Automatic statuses are separate from resting stats and require an explicit battle snapshot. Chance, life state, immunity, application history, and finite-duration uncertainty constrain their inclusion.',
+      ] : []),
       '## Ordered character-sheet stages',
       'Apply these after the source-group modifiers have been collected as specified in the package guide. Order is significant; later stages use updated values.',
       stages,

@@ -1,0 +1,1167 @@
+{
+  "schemaVersion": 1,
+  "engine": "pc-1.6.9-v1",
+  "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+  "evidence": "BattlerStats.Clear, ApplyStatMod, Add; BattlerMember.RecalcEquipStats, RecalcPassiveStats, RecalcStatusStats",
+  "defaults": {
+    "HP": 0,
+    "MP": 0,
+    "AP": 0,
+    "TT": 0,
+    "BonusHPAddi": 0,
+    "BonusMPAddi": 0,
+    "BonusAPAddi": 0,
+    "BonusHPMult": 0,
+    "Str": 0,
+    "Vit": 0,
+    "Dex": 0,
+    "Agi": 0,
+    "Mnd": 0,
+    "Spi": 0,
+    "Spd": 0,
+    "Lck": 0,
+    "BonusStrAddi": 0,
+    "BonusVitAddi": 0,
+    "BonusDexAddi": 0,
+    "BonusAgiAddi": 0,
+    "BonusMndAddi": 0,
+    "BonusSpiAddi": 0,
+    "BonusSpdAddi": 0,
+    "BonusLckAddi": 0,
+    "PAtk": 0,
+    "PDef": 0,
+    "MDef": 0,
+    "PCritChance": 0,
+    "PCritDmg": 0,
+    "PAccRating": 0,
+    "PEvaRating": 0,
+    "PPen": 0,
+    "MPen": 0,
+    "PVariance": 0,
+    "BonusPAtkAddi": 0,
+    "BonusPDefAddi": 0,
+    "BonusMDefAddi": 0,
+    "BonusPAccRatingAddi": 0,
+    "BonusPEvaRatingAddi": 0,
+    "BonusPPenAddi": 0,
+    "BonusMPenAddi": 0,
+    "MVarianceMult": 100,
+    "MVariance": 0,
+    "PDmgGivenMult": 100,
+    "PDmgTakenMult": 100,
+    "MDmgGivenMult": 100,
+    "MDmgTakenMult": 100,
+    "PCritChanceGivenMult": 100,
+    "PCritChanceTakenMult": 100,
+    "PCritDmgGivenMult": 100,
+    "PCritDmgTakenMult": 100,
+    "PNonCritDmgGivenMult": 100,
+    "PNonCritDmgTakenMult": 100,
+    "PHitChanceGivenAddi": 0,
+    "PHitChanceTakenAddi": 0,
+    "PHitChanceGivenMult": 100,
+    "PHitChanceTakenMult": 100,
+    "MHitChanceGivenAddi": 0,
+    "MHitChanceTakenAddi": 0,
+    "TTAtBattleStart": 0,
+    "CritResist": 0,
+    "PCritDmgGivenFlat": 0,
+    "PCritDmgTakenFlat": 0,
+    "HealingGivenMult": 100,
+    "HealingTakenMult": 100,
+    "MPCostsMult": 100,
+    "APCostsMult": 100,
+    "RepeatActionDmgMult": 100,
+    "RepeatActionDmgMultCap": 100,
+    "MPCostsFlat": 0,
+    "APCostsFlat": 0,
+    "PercentDmgTakenMult": 100,
+    "DamagePerTurnHPFlat": 0,
+    "DamagePerTurnHPAddi": 0,
+    "DamagePerTurnMPFlat": 0,
+    "DamagePerTurnMPAddi": 0,
+    "DamagePerTurnAPFlat": 0,
+    "DamagePerTurnAPAddi": 0,
+    "DamageTakenPerTurnMult": 100,
+    "HealingTakenPerTurnMult": 100,
+    "APBonusOnBattleStart": 0,
+    "APBonusOnTurn": 0,
+    "APBonusOnAttack": 0,
+    "APBonusOnDamaged": 0,
+    "APBonusOnMagic": 0,
+    "OnStanceChangeHPRate": 0,
+    "OnStanceChangeMPRate": 0,
+    "OnStanceChangeAPFlat": 0,
+    "InitialThreat": 0,
+    "ThreatGainMult": 100,
+    "ThreatDecayMult": 100,
+    "TTNextTurnMult": 100,
+    "CTMult": 100,
+    "PDmgHPReturnFlat": 0,
+    "PDmgMPReturnFlat": 0,
+    "PDmgAPReturnFlat": 0,
+    "PDmgHPReturnAddi": 0,
+    "PDmgMPReturnAddi": 0,
+    "PDmgAPReturnAddi": 0,
+    "PDmgHPReturnOnKillAddi": 0,
+    "PDmgMPReturnOnKillAddi": 0,
+    "PDmgAPReturnOnKillAddi": 0,
+    "MDmgHPReturnAddi": 0,
+    "MDmgMPReturnAddi": 0,
+    "MDmgAPReturnAddi": 0,
+    "MDmgHPReturnOnKillAddi": 0,
+    "MDmgMPReturnOnKillAddi": 0,
+    "MDmgAPReturnOnKillAddi": 0,
+    "HealingHPReturnAddi": 0,
+    "HealingMPReturnAddi": 0,
+    "HealingAPReturnAddi": 0,
+    "HealingReturnAddi": 0,
+    "BasicAttackOverridePriority": 0,
+    "ForceTurnAbilityPriority": 0,
+    "BasicAttackMult": 100,
+    "APAccumulateMult": 100,
+    "PDmgWithBottomThreatMult": 100,
+    "PDmgOnKillMult": 100,
+    "SelflessCureMult": 100,
+    "CriticalCureMult": 100,
+    "PDefAtFullHPMult": 100,
+    "MDefAtFullHPMult": 100,
+    "DmgTakenWhileChargingMult": 100,
+    "PDmgGivenWhenCriticalMult": 100,
+    "PDmgGivenAgainstSleepMult": 100,
+    "BuffDurationAddi": 0,
+    "DebuffDurationAddi": 0,
+    "ApplyBuffDurationAddi": 0,
+    "ApplyDebuffDurationAddi": 0,
+    "BuffDurationFlat": 0,
+    "DebuffDurationFlat": 0,
+    "ApplyBuffDurationFlat": 0,
+    "ApplyDebuffDurationFlat": 0,
+    "CooldownsFlat": 0,
+    "GoldGainUp": 0,
+    "LootChanceUp": 0,
+    "LootConsumableChanceUp": 0,
+    "StealChanceUp": 0,
+    "ExpBoostRate": 100,
+    "JPBoostAllRate": 100,
+    "AppearanceSpecialOverride": 0,
+    "MaxBuffCount": null,
+    "MaxDebuffCount": null,
+    "MaxDamageTaken": null,
+    "MaxDamageGiven": null
+  },
+  "operations": {
+    "Flat_HP": [
+      {
+        "field": "HP",
+        "operation": "add"
+      }
+    ],
+    "Flat_MP": [
+      {
+        "field": "MP",
+        "operation": "add"
+      }
+    ],
+    "Flat_AP": [
+      {
+        "field": "AP",
+        "operation": "add"
+      }
+    ],
+    "Flat_Str": [
+      {
+        "field": "Str",
+        "operation": "add"
+      }
+    ],
+    "Flat_Vit": [
+      {
+        "field": "Vit",
+        "operation": "add"
+      }
+    ],
+    "Flat_Dex": [
+      {
+        "field": "Dex",
+        "operation": "add"
+      }
+    ],
+    "Flat_Agi": [
+      {
+        "field": "Agi",
+        "operation": "add"
+      }
+    ],
+    "Flat_Mnd": [
+      {
+        "field": "Mnd",
+        "operation": "add"
+      }
+    ],
+    "Flat_Spi": [
+      {
+        "field": "Spi",
+        "operation": "add"
+      }
+    ],
+    "Flat_Spd": [
+      {
+        "field": "Spd",
+        "operation": "add"
+      }
+    ],
+    "Flat_Lck": [
+      {
+        "field": "Lck",
+        "operation": "add"
+      }
+    ],
+    "Flat_AllStats": [
+      {
+        "field": "HP",
+        "operation": "add"
+      },
+      {
+        "field": "MP",
+        "operation": "add"
+      },
+      {
+        "field": "Str",
+        "operation": "add"
+      },
+      {
+        "field": "Vit",
+        "operation": "add"
+      },
+      {
+        "field": "Dex",
+        "operation": "add"
+      },
+      {
+        "field": "Agi",
+        "operation": "add"
+      },
+      {
+        "field": "Mnd",
+        "operation": "add"
+      },
+      {
+        "field": "Spi",
+        "operation": "add"
+      },
+      {
+        "field": "Spd",
+        "operation": "add"
+      },
+      {
+        "field": "Lck",
+        "operation": "add"
+      }
+    ],
+    "Addi_HP": [
+      {
+        "field": "BonusHPAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_MP": [
+      {
+        "field": "BonusMPAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_AP": [
+      {
+        "field": "BonusAPAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Str": [
+      {
+        "field": "BonusStrAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Vit": [
+      {
+        "field": "BonusVitAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Dex": [
+      {
+        "field": "BonusDexAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Agi": [
+      {
+        "field": "BonusAgiAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Mnd": [
+      {
+        "field": "BonusMndAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Spi": [
+      {
+        "field": "BonusSpiAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Spd": [
+      {
+        "field": "BonusSpdAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_Lck": [
+      {
+        "field": "BonusLckAddi",
+        "operation": "add"
+      }
+    ],
+    "Flat_PAtk": [
+      {
+        "field": "PAtk",
+        "operation": "add"
+      }
+    ],
+    "Flat_PPen": [
+      {
+        "field": "PPen",
+        "operation": "add"
+      }
+    ],
+    "Flat_PDef": [
+      {
+        "field": "PDef",
+        "operation": "add"
+      }
+    ],
+    "Addi_PCritChance": [
+      {
+        "field": "PCritChance",
+        "operation": "add"
+      }
+    ],
+    "Addi_PCritDmg": [
+      {
+        "field": "PCritDmg",
+        "operation": "add"
+      }
+    ],
+    "Flat_PAccRating": [
+      {
+        "field": "PAccRating",
+        "operation": "add"
+      }
+    ],
+    "Flat_PEvaRating": [
+      {
+        "field": "PEvaRating",
+        "operation": "add"
+      }
+    ],
+    "Flat_MPen": [
+      {
+        "field": "MPen",
+        "operation": "add"
+      }
+    ],
+    "Flat_MDef": [
+      {
+        "field": "MDef",
+        "operation": "add"
+      }
+    ],
+    "Mult_BasicAttack_100": [
+      {
+        "field": "BasicAttackMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PHitChance_Given_100": [
+      {
+        "field": "PHitChanceGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PHitChance_Taken_100": [
+      {
+        "field": "PHitChanceTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Flat_TTAtBattleStart": [
+      {
+        "field": "TTAtBattleStart",
+        "operation": "add"
+      }
+    ],
+    "Flat_CritResist": [
+      {
+        "field": "CritResist",
+        "operation": "add"
+      }
+    ],
+    "Addi_PAtk": [
+      {
+        "field": "BonusPAtkAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PPen": [
+      {
+        "field": "BonusPPenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PDef": [
+      {
+        "field": "BonusPDefAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PHitChance_Given": [
+      {
+        "field": "PHitChanceGivenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PHitChance_Taken": [
+      {
+        "field": "PHitChanceTakenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PAccRating": [
+      {
+        "field": "BonusPAccRatingAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PEvaRating": [
+      {
+        "field": "BonusPEvaRatingAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_MPen": [
+      {
+        "field": "BonusMPenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_MDef": [
+      {
+        "field": "BonusMDefAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_MHitChance_Given": [
+      {
+        "field": "MHitChanceGivenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_MHitChance_Taken": [
+      {
+        "field": "MHitChanceTakenAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_PVariance": [
+      {
+        "field": "PVariance",
+        "operation": "add"
+      }
+    ],
+    "Mult_MVariance": [
+      {
+        "field": "MVarianceMult",
+        "operation": "percent"
+      }
+    ],
+    "Addi_MVariance": [
+      {
+        "field": "MVariance",
+        "operation": "add"
+      }
+    ],
+    "Flat_HP_PerLevel": [
+      {
+        "field": "HP",
+        "operation": "level"
+      }
+    ],
+    "Flat_MP_PerLevel": [
+      {
+        "field": "MP",
+        "operation": "level"
+      }
+    ],
+    "Flat_AP_PerLevel": [
+      {
+        "field": "AP",
+        "operation": "level"
+      }
+    ],
+    "Flat_Str_PerLevel": [
+      {
+        "field": "Str",
+        "operation": "level"
+      }
+    ],
+    "Flat_Vit_PerLevel": [
+      {
+        "field": "Vit",
+        "operation": "level"
+      }
+    ],
+    "Flat_Dex_PerLevel": [
+      {
+        "field": "Dex",
+        "operation": "level"
+      }
+    ],
+    "Flat_Agi_PerLevel": [
+      {
+        "field": "Agi",
+        "operation": "level"
+      }
+    ],
+    "Flat_Mnd_PerLevel": [
+      {
+        "field": "Mnd",
+        "operation": "level"
+      }
+    ],
+    "Flat_Spi_PerLevel": [
+      {
+        "field": "Spi",
+        "operation": "level"
+      }
+    ],
+    "Flat_Spd_PerLevel": [
+      {
+        "field": "Spd",
+        "operation": "level"
+      }
+    ],
+    "Flat_Lck_PerLevel": [
+      {
+        "field": "Lck",
+        "operation": "level"
+      }
+    ],
+    "Flat_PAtk_PerLevel": [
+      {
+        "field": "PAtk",
+        "operation": "level"
+      }
+    ],
+    "Flat_PPen_PerLevel": [
+      {
+        "field": "PPen",
+        "operation": "level"
+      }
+    ],
+    "Flat_PDef_PerLevel": [
+      {
+        "field": "PDef",
+        "operation": "level"
+      }
+    ],
+    "Addi_PCritChance_PerLevel": [
+      {
+        "field": "PCritChance",
+        "operation": "level"
+      }
+    ],
+    "Addi_PCritDmg_PerLevel": [
+      {
+        "field": "PCritDmg",
+        "operation": "level"
+      }
+    ],
+    "Flat_PAccRating_PerLevel": [
+      {
+        "field": "PAccRating",
+        "operation": "level"
+      }
+    ],
+    "Flat_PEvaRating_PerLevel": [
+      {
+        "field": "PEvaRating",
+        "operation": "level"
+      }
+    ],
+    "Flat_MPen_PerLevel": [
+      {
+        "field": "MPen",
+        "operation": "level"
+      }
+    ],
+    "Flat_MDef_PerLevel": [
+      {
+        "field": "MDef",
+        "operation": "level"
+      }
+    ],
+    "Flat_HP_PerTurn": [
+      {
+        "field": "HP",
+        "operation": "turn"
+      }
+    ],
+    "Flat_MP_PerTurn": [
+      {
+        "field": "MP",
+        "operation": "turn"
+      }
+    ],
+    "Flat_AP_PerTurn": [
+      {
+        "field": "AP",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Str_PerTurn": [
+      {
+        "field": "Str",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Vit_PerTurn": [
+      {
+        "field": "Vit",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Dex_PerTurn": [
+      {
+        "field": "Dex",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Agi_PerTurn": [
+      {
+        "field": "Agi",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Mnd_PerTurn": [
+      {
+        "field": "Mnd",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Spi_PerTurn": [
+      {
+        "field": "Spi",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Spd_PerTurn": [
+      {
+        "field": "Spd",
+        "operation": "turn"
+      }
+    ],
+    "Flat_Lck_PerTurn": [
+      {
+        "field": "Lck",
+        "operation": "turn"
+      }
+    ],
+    "Flat_PAtk_PerTurn": [
+      {
+        "field": "PAtk",
+        "operation": "turn"
+      }
+    ],
+    "Flat_PPen_PerTurn": [
+      {
+        "field": "PPen",
+        "operation": "turn"
+      }
+    ],
+    "Flat_PDef_PerTurn": [
+      {
+        "field": "PDef",
+        "operation": "turn"
+      }
+    ],
+    "Addi_PCritChance_PerTurn": [
+      {
+        "field": "PCritChance",
+        "operation": "turn"
+      }
+    ],
+    "Addi_PCritDmg_PerTurn": [
+      {
+        "field": "PCritDmg",
+        "operation": "turn"
+      }
+    ],
+    "Flat_PAccRating_PerTurn": [
+      {
+        "field": "PAccRating",
+        "operation": "turn"
+      }
+    ],
+    "Flat_PEvaRating_PerTurn": [
+      {
+        "field": "PEvaRating",
+        "operation": "turn"
+      }
+    ],
+    "Flat_MPen_PerTurn": [
+      {
+        "field": "MPen",
+        "operation": "turn"
+      }
+    ],
+    "Flat_MDef_PerTurn": [
+      {
+        "field": "MDef",
+        "operation": "turn"
+      }
+    ],
+    "Mult_PDmg_Given_100": [
+      {
+        "field": "PDmgGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PDmg_Taken_100": [
+      {
+        "field": "PDmgTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_MDmg_Given_100": [
+      {
+        "field": "MDmgGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_MDmg_Taken_100": [
+      {
+        "field": "MDmgTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PCritDmg_Given_100": [
+      {
+        "field": "PCritDmgGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PCritDmg_Taken_100": [
+      {
+        "field": "PCritDmgTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PCritChance_Given_100": [
+      {
+        "field": "PCritChanceGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PCritChance_Taken_100": [
+      {
+        "field": "PCritChanceTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Flat_PCritDmg_Given": [
+      {
+        "field": "PCritDmgGivenFlat",
+        "operation": "add"
+      }
+    ],
+    "Flat_PCritDmg_Taken": [
+      {
+        "field": "PCritDmgTakenFlat",
+        "operation": "add"
+      }
+    ],
+    "Mult_Healing_Given_100": [
+      {
+        "field": "HealingGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_Healing_Taken_100": [
+      {
+        "field": "HealingTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_MPCosts": [
+      {
+        "field": "MPCostsMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_APCosts": [
+      {
+        "field": "APCostsMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_RepeatActionDmg": [
+      {
+        "field": "RepeatActionDmgMult",
+        "operation": "percent"
+      },
+      {
+        "field": "RepeatActionDmgMultCap",
+        "operation": "repeatCap"
+      }
+    ],
+    "Flat_MPCosts": [
+      {
+        "field": "MPCostsFlat",
+        "operation": "add"
+      }
+    ],
+    "Flat_APCosts": [
+      {
+        "field": "APCostsFlat",
+        "operation": "add"
+      }
+    ],
+    "Mult_PercentDmg_Taken_100": [
+      {
+        "field": "PercentDmgTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PNonCritDmg_Given_100": [
+      {
+        "field": "PNonCritDmgGivenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_PNonCritDmg_Taken_100": [
+      {
+        "field": "PNonCritDmgTakenMult",
+        "operation": "multiply"
+      }
+    ],
+    "Flat_DamagePerTurnHP": [
+      {
+        "field": "DamagePerTurnHPFlat",
+        "operation": "add"
+      }
+    ],
+    "Addi_DamagePerTurnHP": [
+      {
+        "field": "DamagePerTurnHPAddi",
+        "operation": "add"
+      }
+    ],
+    "Flat_DamagePerTurnMP": [
+      {
+        "field": "DamagePerTurnMPFlat",
+        "operation": "add"
+      }
+    ],
+    "Addi_DamagePerTurnMP": [
+      {
+        "field": "DamagePerTurnMPAddi",
+        "operation": "add"
+      }
+    ],
+    "Flat_DamagePerTurnAP": [
+      {
+        "field": "DamagePerTurnAPFlat",
+        "operation": "add"
+      }
+    ],
+    "Addi_DamagePerTurnAP": [
+      {
+        "field": "DamagePerTurnAPAddi",
+        "operation": "add"
+      }
+    ],
+    "Mult_DamagePerTurn_Taken_100": [
+      {
+        "field": "DamageTakenPerTurnMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_HealingPerTurn_Taken_100": [
+      {
+        "field": "HealingTakenPerTurnMult",
+        "operation": "multiply"
+      }
+    ],
+    "APBonus_OnBattleStart": [
+      {
+        "field": "APBonusOnBattleStart",
+        "operation": "add"
+      }
+    ],
+    "APBonus_OnTurn": [
+      {
+        "field": "APBonusOnTurn",
+        "operation": "add"
+      }
+    ],
+    "APBonus_OnAttack": [
+      {
+        "field": "APBonusOnAttack",
+        "operation": "add"
+      }
+    ],
+    "APBonus_OnDamaged": [
+      {
+        "field": "APBonusOnDamaged",
+        "operation": "add"
+      }
+    ],
+    "APBonus_OnMagic": [
+      {
+        "field": "APBonusOnMagic",
+        "operation": "add"
+      }
+    ],
+    "Mult_ThreatGain": [
+      {
+        "field": "ThreatGainMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_ThreatDecay": [
+      {
+        "field": "ThreatDecayMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_CT_100": [
+      {
+        "field": "CTMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_TT_NextTurn_100": [
+      {
+        "field": "TTNextTurnMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_HP": [
+      {
+        "field": "BonusHPMult",
+        "operation": "add"
+      }
+    ],
+    "ExpBoost": [
+      {
+        "field": "ExpBoostRate",
+        "operation": "percent"
+      }
+    ],
+    "JPBoostAll": [
+      {
+        "field": "JPBoostAllRate",
+        "operation": "percent"
+      }
+    ],
+    "Addi_BuffDuration": [
+      {
+        "field": "BuffDurationAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_DebuffDuration": [
+      {
+        "field": "DebuffDurationAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_ApplyBuffDuration": [
+      {
+        "field": "ApplyBuffDurationAddi",
+        "operation": "add"
+      }
+    ],
+    "Addi_ApplyDebuffDuration": [
+      {
+        "field": "ApplyDebuffDurationAddi",
+        "operation": "add"
+      }
+    ],
+    "Flat_BuffDuration": [
+      {
+        "field": "BuffDurationFlat",
+        "operation": "add"
+      }
+    ],
+    "Flat_DebuffDuration": [
+      {
+        "field": "DebuffDurationFlat",
+        "operation": "add"
+      }
+    ],
+    "Flat_ApplyBuffDuration": [
+      {
+        "field": "ApplyBuffDurationFlat",
+        "operation": "add"
+      }
+    ],
+    "Flat_ApplyDebuffDuration": [
+      {
+        "field": "ApplyDebuffDurationFlat",
+        "operation": "add"
+      }
+    ],
+    "MaxBuffCount": [
+      {
+        "field": "MaxBuffCount",
+        "operation": "add"
+      }
+    ],
+    "MaxDebuffCount": [
+      {
+        "field": "MaxDebuffCount",
+        "operation": "add"
+      }
+    ],
+    "Flat_Cooldowns": [
+      {
+        "field": "CooldownsFlat",
+        "operation": "add"
+      }
+    ],
+    "OnStanceChange_GetHPRate": [
+      {
+        "field": "OnStanceChangeHPRate",
+        "operation": "add"
+      }
+    ],
+    "OnStanceChange_GetMPRate": [
+      {
+        "field": "OnStanceChangeMPRate",
+        "operation": "add"
+      }
+    ],
+    "OnStanceChange_GetAPFlat": [
+      {
+        "field": "OnStanceChangeAPFlat",
+        "operation": "add"
+      }
+    ],
+    "GoldGainUp": [
+      {
+        "field": "GoldGainUp",
+        "operation": "add"
+      }
+    ],
+    "Mult_PDmgWithBottomThreat": [
+      {
+        "field": "PDmgWithBottomThreatMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_SelflessCure": [
+      {
+        "field": "SelflessCureMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_PDefAtFullHP": [
+      {
+        "field": "PDefAtFullHPMult",
+        "operation": "percent"
+      }
+    ],
+    "InitialThreat": [
+      {
+        "field": "InitialThreat",
+        "operation": "add"
+      }
+    ],
+    "LootChanceUp": [
+      {
+        "field": "LootChanceUp",
+        "operation": "add"
+      }
+    ],
+    "LootConsumableChanceUp": [
+      {
+        "field": "LootConsumableChanceUp",
+        "operation": "add"
+      }
+    ],
+    "StealChanceUp": [
+      {
+        "field": "StealChanceUp",
+        "operation": "add"
+      }
+    ],
+    "Mult_PDmgOnKill": [
+      {
+        "field": "PDmgOnKillMult",
+        "operation": "percent"
+      }
+    ],
+    "PDmgBonusVsSleep": [
+      {
+        "field": "PDmgGivenAgainstSleepMult",
+        "operation": "percent"
+      }
+    ],
+    "BlockAPGains": [
+      {
+        "field": "APAccumulateMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_CriticalCure": [
+      {
+        "field": "CriticalCureMult",
+        "operation": "percent"
+      }
+    ],
+    "Mult_PDmg_GivenWhenCritical_100": [
+      {
+        "field": "PDmgGivenWhenCriticalMult",
+        "operation": "multiply"
+      }
+    ],
+    "Mult_MDefAtFullHP": [
+      {
+        "field": "MDefAtFullHPMult",
+        "operation": "percent"
+      }
+    ],
+    "DmgTakenWhileCharging": [
+      {
+        "field": "DmgTakenWhileChargingMult",
+        "operation": "percent"
+      }
+    ]
+  },
+  "sourceFiles": {
+    "Sang/Battle/BattlerStats.cs": "96bc8e69894c36e6a83c878c35405f8fa68e78b0764140edc702625958b0e6a2",
+    "Sang/Utility/IDValuePair.cs": "d073049deb8a0f270a1e0294a4c314d302ef72a86d9285b29d8dc493fcef5c91",
+    "Sang/Battle/Structs/StatusApply.cs": "6f12f5302270e8a570c8a4e93fa542b70c17402984febbc501e22ec2cea91fca",
+    "Sang/Battle/Structs/Reaction.cs": "6d7ab981c1719b9ea3ff51512a91d5d8667e5c53a6db008a432b7d923e722cb1",
+    "Sang/SangData/SangDataEnums/SangStatModTag.cs": "98ccfe38b6d2e22c7e2595caeedceb383ac99b850e16d0932db6867eb1fe6d2c",
+    "Sang/SangData/SangDataEnums/SangStatusCategory.cs": "26fd16a5cde8b3fa13085c73e8afd131272ae05d2b15e9a82d052a4fe0a84d66",
+    "Sang/SangData/SangDataEnums/SangAbilityAttribute.cs": "ec0a58b8b57132034ede9fe288507a300a07d4ce58aa00640e37ae448d168888",
+    "Sang/SangData/SangDataEnums/ElementType.cs": "fc9aaa19c99f413b96f1b81b526339722aa444cb7ebb06e611300c1f57306c96",
+    "Sang/SangData/SangDataEnums/EquipmentType.cs": "623be8478393e186929f328610ba9ee43bcf7b43cc9df16962517c0138cb0f2b",
+    "Sang/SangData/SangDataEnums/ReactionType.cs": "864276f4d6d61338c7fc9e6469071c16b85cd003ed2595609d5c7abb6b07d8a2"
+  }
+}

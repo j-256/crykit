@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
-const USAGE = `Usage: node scripts/export-calculations.mjs [-o <file>] [--schema-version <1|2>]
+const USAGE = `Usage: node scripts/export-calculations.mjs [-o <file>] [--schema-version <1|2|3>]
 Export bundled Crystal Project calculation rules and numeric records as JSON.
   -o, --output <file>  Write a file instead of stdout
-      --schema-version <1|2>  Export format 2 (default) or the unchanged legacy format 1
+      --schema-version <1|2|3>  Export format 3 (default), or unchanged historical formats 1 or 2
   -h, --help           Show help
 No game installation, saves, private data, or network access are needed.
 JSON goes to stdout by default; errors go to stderr. Exit: 0 success,
@@ -19,7 +19,7 @@ try {
   values = parseArgs({
     options: {
       output: { type: 'string', short: 'o' },
-      'schema-version': { type: 'string', default: '2' },
+      'schema-version': { type: 'string', default: '3' },
       help: { type: 'boolean', short: 'h' },
     },
     strict: true,
@@ -30,8 +30,8 @@ try {
   }
   if (values.output !== undefined && !values.output.trim())
     throw new Error('Output filename must not be empty')
-  if (!['1', '2'].includes(values['schema-version']))
-    throw new Error('Schema version must be 1 or 2')
+  if (!['1', '2', '3'].includes(values['schema-version']))
+    throw new Error('Schema version must be 1, 2 or 3')
 } catch (error) {
   console.error(error.message)
   process.exit(2)
@@ -92,6 +92,12 @@ try {
       example,
       enemy,
     }
+  }
+  if (values['schema-version'] === '3') {
+    const modifiers = await read('src/calculations/native-modifiers-v1.json')
+    const modifierVerification = await read('src/calculations/modifier-parity-v1.json')
+    if (modifiers.engine !== rules.id || modifierVerification.engine !== rules.id || modifiers.executableSha256 !== data.executableSha256 || modifierVerification.evidence.executableSha256 !== data.executableSha256 || Object.entries(modifiers.sourceFiles).some(([file, digest]) => modifierVerification.evidence.files[file] !== digest)) throw new Error('Modifier calculation identities differ')
+    exported = { ...exported, schemaVersion: 3, id: 'pc-1.6.9-package-v3', modifiers, modifierVerification }
   }
   const json = `${JSON.stringify(exported, null, 2)}\n`
   if (values.output) await writeFile(values.output, json)

@@ -111,12 +111,27 @@ export function compareBuildRevisions(left: BuildRevision, right: BuildRevision)
   )
 
   const calculationValue = (revision: BuildRevision): JsonValue | undefined => revision.content.calculation ? {
+    model: revision.content.calculation.model ?? null,
+    growthMode: revision.content.calculation.growthMode ?? null,
+    pcMode: revision.content.calculation.pcMode ?? null,
+    gender: revision.content.calculation.gender ?? null,
+    genderSelection: revision.content.calculation.genderSelection ? { ...revision.content.calculation.genderSelection } : null,
     level: revision.content.calculation.level,
     growth: revision.content.calculation.growth.map(row => ({ classRef: refValue(row.classRef), levels: row.levels })),
     bonuses: revision.content.calculation.bonuses,
     statuses: revision.content.calculation.statuses.map(refValue),
     ability: refValue(revision.content.calculation.ability ?? null),
     targetEvasion: revision.content.calculation.targetEvasion ?? null,
+    battle: revision.content.calculation.battle ? {
+      ...revision.content.calculation.battle,
+      user: { ...revision.content.calculation.battle.user },
+      targetResources: { ...revision.content.calculation.battle.targetResources },
+      target: revision.content.calculation.battle.target === 'self' ? 'self' : refValue(revision.content.calculation.battle.target),
+      statuses: revision.content.calculation.battle.statuses.map(row => ({ ref: refValue(row.ref), count: row.count })),
+      targetStatuses: revision.content.calculation.battle.targetStatuses.map(row => ({ ref: refValue(row.ref), count: row.count })),
+      previouslyAppliedStatuses: revision.content.calculation.battle.previouslyAppliedStatuses.map(refValue),
+      userPreviouslyAppliedStatuses: revision.content.calculation.battle.userPreviouslyAppliedStatuses.map(refValue),
+    } : null,
   } : undefined
   pushDifference(differences, 'content.calculation', 'Calculation inputs', calculationValue(left), calculationValue(right))
 

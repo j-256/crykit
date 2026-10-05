@@ -10,6 +10,7 @@ export const ABILITY_COSTS = ['HP', 'MP', 'AP', 'CT', 'CD'] as const
 export interface AbilityEstimate {
   readonly baseAmount: StatRange | null
   readonly costs: Readonly<Record<typeof ABILITY_COSTS[number], number | null>>
+  readonly baseCosts: Readonly<Record<typeof ABILITY_COSTS[number], number | null>>
   readonly learning: { readonly jp: number; readonly displayedLp: number; readonly requiredWholeLp: number } | null
   readonly notes: readonly string[]
 }
@@ -18,10 +19,15 @@ export function learningCost(jp: unknown): AbilityEstimate['learning'] {
   return nativeInteger(jp) && jp >= 0 ? { jp, displayedLp: calculateCombat('learningLP', [jp]) as number, requiredWholeLp: calculateCombat('learningWholeLP', [jp]) as number } : null
 }
 
-export function estimateAbility(definition: MechanicsDefinition, stats: BuildStatEstimate['stats'], numericRecord: NativeRecord | undefined = definitionSourceRecord(definition)): AbilityEstimate {
+export function estimateAbility(definition: MechanicsDefinition, stats: BuildStatEstimate['stats'], numericRecord: NativeRecord | undefined = definitionSourceRecord(definition), effectiveUser?: CombatValue): AbilityEstimate {
   const record = numericRecord
   const notes: string[] = []
-  const costs = Object.fromEntries(ABILITY_COSTS.map(cost => [cost, nativeInteger(record?.[`${cost}Cost`]) && (record![`${cost}Cost`] as number) >= 0 ? record![`${cost}Cost`] : null])) as AbilityEstimate['costs']
+  const baseCosts = Object.fromEntries(ABILITY_COSTS.map(cost => [cost, nativeInteger(record?.[`${cost}Cost`]) && (record![`${cost}Cost`] as number) >= 0 ? record![`${cost}Cost`] : null])) as AbilityEstimate['costs']
+  const formulas = { HP: 'hpCost', MP: 'mpCost', AP: 'apCost', CT: 'chargeTime', CD: 'cooldown' }
+  const costs = !effectiveUser ? baseCosts : Object.fromEntries(ABILITY_COSTS.map(cost => {
+    try { return [cost, record ? calculateCombat(formulas[cost], [effectiveUser, record as CombatValue]) as number : null] }
+    catch { notes.push(`${cost} cost needs complete effective modifiers${cost === 'HP' ? ' and maximum HP' : ''}`); return [cost, null] }
+  })) as AbilityEstimate['costs']
   const learning = learningCost(record?.JP)
   let baseAmount: StatRange | null = null
   if (record) {
@@ -39,5 +45,5 @@ export function estimateAbility(definition: MechanicsDefinition, stats: BuildSta
     if (Array.isArray(record.AbilityMods) && record.AbilityMods.length) notes.push('Ability modifiers need battle context and are excluded from this coefficient stage')
   }
   if (!baseAmount) notes.push('Native power coefficient needs a supported numeric ability record and complete integer loadout stats')
-  return { baseAmount, costs, learning, notes }
+  return { baseAmount, costs, baseCosts, learning, notes }
 }

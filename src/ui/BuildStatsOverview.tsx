@@ -34,7 +34,7 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
   const [ratingField, ratings] = classRatingField(primary)
   const genderLabel = calculationGenderLabel(plan, rules.genders)
   return <section aria-label="Class stats" className="build-stat-overview">
-    <header><div className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={content.primaryClass}/><h3>{primary.name} stats</h3></div><span className="field__hint">Resting stat preview</span></header>
+    <header><div className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={content.primaryClass}/><h3>{primary.name} stats</h3></div><span className="field__hint">{plan?.battle ? 'Battle scenario stats' : 'Resting stat preview'}</span></header>
     <div className="build-stat-overview__sections">
       <section aria-label="Class growth ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings for base-stat scaling and growth.</p></section>
       <section aria-label="Stats at selected level">
@@ -42,13 +42,13 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
         {plan && onCalculationChange ? <CalculationGenderField genders={rules.genders} plan={plan} onChange={onCalculationChange}/> : <p className="field__hint">Gender: {genderLabel}</p>}
         {plan ? <>
           {!hasTotals && <CalculationStatus issues={result.issues} partial={columns.length > 0} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>}
-          {columns.length > 0 && <><div className="structured-value__table"><table aria-label="Planned build stats" className="stat-breakdown"><thead><tr><th scope="col">Stat</th>{columns.map(column => <th className={`stat-breakdown__${column}`} key={column} scope="col">{COLUMN_LABELS[column]}</th>)}</tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row"><abbr aria-hidden="true" title={STAT_LABELS[stat]}>{stat}</abbr><span className="sr-only">{STAT_LABELS[stat]}</span></th>{columns.map(column => {
+          {columns.length > 0 && <><div className="structured-value__table"><table aria-label="Planned build stats" className="stat-breakdown"><thead><tr><th scope="col">Stat</th>{columns.map(column => <th className={`stat-breakdown__${column}`} key={column} scope="col">{column === 'equipment' && plan?.battle ? 'Equipment + statuses' : COLUMN_LABELS[column]}</th>)}</tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row"><abbr aria-hidden="true" title={STAT_LABELS[stat]}>{stat}</abbr><span className="sr-only">{STAT_LABELS[stat]}</span></th>{columns.map(column => {
             const value = breakdown[stat][column]
             const text = formatStatRange(value)
             const displayed = value && column !== 'base' && column !== 'total' && value.low >= 0 && value.high > 0 ? `+${text}` : text
             return <td className={`stat-breakdown__${column}`} key={column}>{column === 'total' ? <strong>{displayed}</strong> : displayed}</td>
           })}</tr>)}</tbody></table></div>
-          <p className="field__hint">Base: level 1 in the primary class, before equipment and gender. Level: the selected level and growth history. Equipment: the loadout's net effect, including passives. Gender: its effect after modifiers and rounding. {hasTotals ? 'Native integer stages and caps apply. Columns add up to Total.' : 'Unavailable columns are omitted until their inputs can be resolved.'}</p></>}
+          <p className="field__hint">Base: level 1 in the primary class, before equipment and gender. Level: the selected level and growth history. Equipment: the loadout's net effect, including passives{plan?.battle ? ', active scenario statuses, and elapsed-turn effects' : ''}. Gender: its effect after modifiers and rounding. {hasTotals ? 'Native integer stages and caps apply. Columns add up to Total.' : 'Unavailable columns are omitted until their inputs can be resolved.'}</p></>}
         </> : <p className="field__hint">No calculation inputs saved. Base and equipped totals remain unknown.</p>}
       </section>
     </div>

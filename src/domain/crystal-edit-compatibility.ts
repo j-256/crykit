@@ -64,6 +64,7 @@ export function crystalEditPlanningRecord(definition: { readonly fields: Readonl
   const version = marker?.state === 'known' ? marker.value : bundled ? BUNDLED_MOD_LIBRARY.find(mod => mod.key === bundled.key && mod.sourceDigest === `sha256:${bundled.sourceDigest}`)?.editorVersion : undefined
   if (version === undefined) return source.value
   if (!supportsCrystalEditVersion(version)) return undefined
+  if (legacy?.modRecordVersion === 3) return source.value
   const family = definition?.fields['Crystal Edit model type']
   return family?.state === 'known' && typeof family.value === 'string' ? interpretCrystalEditRecord(source.value, family.value, version) : source.value
 }

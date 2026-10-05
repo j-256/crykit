@@ -3,6 +3,7 @@ import type { BuildCalculationPlan, EntityRef } from './types'
 import { DomainError } from './core'
 import { STAT_KEYS } from './crystal-edit'
 import { GENDER_SELECTION_VERSION, MAX_GENDER_ID } from './calculation-genders'
+import { validateBattleCalculation } from './battle-plan'
 
 export const CALCULATION_GENDERS = ['male', 'female'] as const
 export const CALCULATION_GENDER_LABELS = Object.freeze({ male: 'Male', female: 'Female' })
@@ -43,6 +44,7 @@ export function validateCalculationPlan(plan: BuildCalculationPlan, assertRef: (
   }
   for (const ref of plan.statuses) assertRef(ref, 'Calculation status')
   if (plan.ability) assertRef(plan.ability, 'Calculation ability')
+  if (plan.battle) validateBattleCalculation(plan.battle, assertRef)
   if (plan.targetEvasion != null && (!Number.isFinite(plan.targetEvasion) || plan.targetEvasion < 0)) throw new DomainError('INVALID_INPUT', 'Target evasion must be nonnegative or unknown')
   if (plan.model !== undefined && plan.model !== PC_MODEL) throw new DomainError('INVALID_INPUT', 'Unsupported calculation model')
   if (plan.growthMode !== undefined && !['primary', 'manual'].includes(plan.growthMode)) throw new DomainError('INVALID_INPUT', 'Unsupported growth mode')

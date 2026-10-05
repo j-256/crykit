@@ -216,12 +216,21 @@ export interface ModLayer extends ModCatalogPin {
 }
 
 export interface ModDefinitionLink {
+  readonly projectId?: CatalogId
   readonly modelKey: string
   readonly targetEntityId: EntityId | null
 }
 
+export interface ModIdentityMapping {
+  readonly projectId: CatalogId
+  readonly family: string
+  readonly originalId: number
+  readonly effectiveId: number
+}
+
 export interface ModComposition {
-  readonly version?: 2
+  readonly version?: 2 | 3
+  readonly identityMappings?: readonly ModIdentityMapping[]
   readonly baseline: ModCatalogPin
   readonly layers: readonly ModLayer[]
   readonly links: readonly ModDefinitionLink[]
@@ -379,6 +388,36 @@ export interface BuildRevisionContent {
   readonly calculation?: BuildCalculationPlan
 }
 
+export interface BattleResourceInputs {
+  readonly hp: number | null
+  readonly mp: number | null
+  readonly ap: number | null
+}
+
+export interface BattleStatusInput {
+  readonly ref: EntityRef
+  readonly count: number | null
+}
+
+export interface BattleCalculationPlan {
+  readonly version: 1
+  readonly turnCount: number | null
+  readonly targetTurnCount: number | null
+  readonly automaticStatuses: boolean
+  readonly statuses: readonly BattleStatusInput[]
+  readonly user: BattleResourceInputs
+  readonly target: 'self' | EntityRef | null
+  readonly targetResources: BattleResourceInputs
+  readonly targetStatuses: readonly BattleStatusInput[]
+  readonly repeatCount: number | null
+  readonly bottomThreat: boolean | null
+  readonly topThreat: boolean | null
+  readonly targetIsThreatTarget: boolean | null
+  readonly targetCharging: boolean | null
+  readonly previouslyAppliedStatuses: readonly EntityRef[]
+  readonly userPreviouslyAppliedStatuses: readonly EntityRef[]
+}
+
 export interface BuildCalculationPlan {
   readonly model?: 'pc-1.6.9-v1'
   readonly growthMode?: 'primary' | 'manual'
@@ -391,6 +430,7 @@ export interface BuildCalculationPlan {
   readonly statuses: readonly EntityRef[]
   readonly ability?: EntityRef | null
   readonly targetEvasion?: number | null
+  readonly battle?: BattleCalculationPlan
 }
 
 export interface BuildRevision {

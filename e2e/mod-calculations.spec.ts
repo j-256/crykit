@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
+import { NATIVE_GAME_DATA } from '../src/catalog/native-game'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import type { LocalData } from '../src/domain/types'
@@ -119,7 +120,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const build = Object.values(localData.builds).find(build => build.title === 'Synthetic mod calculation')!
   const revision = localData.buildRevisions[build.latestRevisionId!]!
   expect(revision.content.calculation?.genderSelection).toEqual({ version: 1, id: 8 })
-  expect(localData.gameSetups[revision.gameSetupRevisionId]!.modComposition?.version).toBe(2)
+  expect(localData.gameSetups[revision.gameSetupRevisionId]!.modComposition?.version).toBe(3)
   await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
   const shareUrl = createShareUrl(createSharePayload(localData, { kind: 'build', revisionId: revision.id }), `${baseURL}/`)
   await page.goto(shareUrl)
@@ -134,6 +135,107 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await page.reload()
   await expect(shared.getByText('Gender: Synthetic extra', { exact: true })).toBeVisible()
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(errors).toEqual([])
+})
+
+
+test('mod automatic statuses and ability cost overrides survive checkpoints, backup, sharing, and offline reload', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  const addedId = 9000
+  const statTag = (name: string) => Number(Object.entries(NATIVE_GAME_DATA.enums.SangStatModTag!).find(([, label]) => label === name)![0])
+  const warrior = NATIVE_DATA.records.job.find(record => record.ID === 0)!
+  const modifier = (name: string, Value1: number, Value2 = 0, Value3 = 0) => ({ Tag: statTag(name), Value1, Value2, Value3 })
+  const mod = {
+    ID: 'synthetic-battle-mod', Title: 'Synthetic battle mod', EditorVersion: 34,
+    Jobs: [{ ...warrior, Name: 'Synthetic battle Warrior', AbilityIDs: [addedId], PassiveIDs: [...warrior.PassiveIDs, addedId] }],
+    Abilities: [{ ...NATIVE_DATA.records.ability[0], ID: addedId, Name: 'Synthetic beam', IsBasic: false, MPCost: 16 }],
+    Passives: [{ ID: addedId, Name: 'Synthetic battle innate', IsInnate: true, StatMods: [modifier('StatusAuto', addedId, 100, 255), modifier('Flat_AbilityMPCost', addedId, -5)] }],
+    Statuses: [{ ID: addedId, Name: 'Synthetic automatic vitality', Category: 1, PersistsThroughDeath: true, ReApplyResistance: false, StatMods: [modifier('Flat_HP', 100)] }],
+  }
+  await page.goto('/')
+  await skipInitialModSetup(page)
+  const importing = await settings(page, 'Import & backup')
+  await importing.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-battle-mod.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(mod)) })
+  await importing.getByRole('button', { name: 'Add references', exact: true }).click()
+  await expect(importing).not.toBeVisible()
+  const setup = await settings(page, 'Game Setup')
+  await openGameSetupSection(setup, 'Imported mod files')
+  const layers = setup.getByRole('region', { name: 'Imported mod layers', exact: true })
+  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:synthetic-battle-mod')
+  await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
+  await saveAndApplyGameSetup(setup)
+  await setup.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.goto('/#/builds/library/new')
+  await openBuildGameSetup(page)
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
+  await page.getByLabel('Build title', { exact: true }).fill('Synthetic mod battle calculation')
+  await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Synthetic battle Warrior')
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic battle Warrior$/ }) }).click()
+  const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
+  const hp = totals.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) }).getByRole('cell').first()
+  await expect(hp).toHaveText('1,244')
+  await expect(totals).not.toContainText('Unknown')
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await page.getByRole('combobox', { name: 'Preview ability', exact: true }).fill('Synthetic beam')
+  await page.getByRole('listbox', { name: 'Choose Preview ability', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic beam$/ }) }).click()
+  const mpCost = page.getByLabel('Effective ability costs', { exact: true }).locator('.definition-row').filter({ has: page.getByText('MP cost', { exact: true }) })
+  await expect(mpCost.locator('strong')).toHaveText('11')
+  const baseCosts = page.getByLabel('Base ability costs', { exact: true })
+  await expect(baseCosts).not.toBeVisible()
+  await page.locator('summary').filter({ hasText: /^Base ability costs$/ }).click()
+  await expect(baseCosts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^MP cost$/ }) }).locator('dd')).toHaveText('16')
+  await page.locator('summary').filter({ hasText: /^Base ability costs$/ }).click()
+  await page.getByRole('button', { name: 'Add battle scenario', exact: true }).click()
+  await page.getByRole('button', { name: 'Loadout', exact: true }).click()
+  await expect(hp).toHaveText('1,344')
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await page.locator('details.battle-advanced').locator('summary').first().click()
+  await page.getByRole('checkbox', { name: 'Include guaranteed automatic battle-start statuses', exact: true }).uncheck()
+  await page.getByRole('button', { name: 'Loadout', exact: true }).click()
+  await expect(hp).toHaveText('1,244')
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await page.locator('details.battle-advanced').locator('summary').first().click()
+  await page.getByRole('checkbox', { name: 'Include guaranteed automatic battle-start statuses', exact: true }).check()
+  await expect(mpCost.locator('strong')).toHaveText('11')
+  await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(hp).toHaveText('1,344')
+  const previewStats = await totals.locator('th, td').allTextContents()
+  const exporting = await settings(page, 'Import & backup')
+  const download = page.waitForEvent('download')
+  await exporting.getByRole('button', { name: 'Export backup', exact: true }).click()
+  const files = unzipSync(await readFile((await (await download).path())!))
+  const { localData } = JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }
+  const build = Object.values(localData.builds).find(build => build.title === 'Synthetic mod battle calculation')!
+  const revision = localData.buildRevisions[build.latestRevisionId!]!
+  expect(revision.content.calculation?.battle).toMatchObject({ version: 1, automaticStatuses: true, turnCount: 0, targetTurnCount: 0, statuses: [] })
+  const composition = localData.gameSetups[revision.gameSetupRevisionId]!.modComposition!
+  expect(composition.version).toBe(3)
+  expect(composition.identityMappings).toEqual(expect.arrayContaining(['Abilities', 'Passives', 'Statuses'].map(family => ({ projectId: 'crystal-edit:synthetic-battle-mod', family, originalId: addedId, effectiveId: addedId }))))
+  await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.goto(createShareUrl(createSharePayload(localData, { kind: 'build', revisionId: revision.id }), `${baseURL}/`))
+  const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
+  await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await shared.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await expect(mpCost.locator('strong')).toHaveText('11')
+  await expect(shared.getByRole('region', { name: 'Combat preview', exact: true })).toContainText('Automatic battle-start statuses: Included when guaranteed')
+  const offline = await settings(page, 'Offline & storage')
+  await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
+  await expectOfflineReady(offline)
+  await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await context.setOffline(true)
+  await page.reload()
+  await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
+  await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await shared.getByText('Ability and hit-chance preview', { exact: true }).click()
+  await expect(mpCost.locator('strong')).toHaveText('11')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   expect(errors).toEqual([])
 })

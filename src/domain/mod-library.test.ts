@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { completeModLibrary, modLibraryCards, modCardIncludesEntry } from './mod-library'
-import { bundledModReplacementLinks, composeModLayers } from './mod-layers'
+import { bundledModReplacementLinks, composeModLayers, prepareModComposition } from './mod-layers'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { asTimestamp } from './core'
 import type { CatalogId } from './types'
@@ -77,10 +77,23 @@ it('links updates by verified project, family and ID without relying on names', 
   const record = { ID: id.state === 'known' ? id.value : -1, Name: 'Synthetic renamed equipment' }
   const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { [family.state === 'known' ? String(family.value) : 'Equipment']: [record] })
   const links = bundledModReplacementLinks(DEFAULT_CATALOG, update, BUNDLED_MOD_LIBRARY)
-  expect(links).toEqual([{ modelKey: `crystal-edit:${family.state === 'known' ? family.value : ''}:${record.ID}`, targetEntityId: target.id }])
+  const historicalLinks = [{ modelKey: `crystal-edit:${family.state === 'known' ? family.value : ''}:${record.ID}`, targetEntityId: target.id }]
+  expect(links).toEqual([{ ...historicalLinks[0], projectId: update.id }])
   const before = JSON.stringify(DEFAULT_CATALOG)
-  const result = composeModLayers({ baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [{ catalogId: update.id, catalogRevisionId: update.revisionId, enabled: true }], links }, [DEFAULT_CATALOG, update])
+  const catalogs = [DEFAULT_CATALOG, update]
+  const composition = { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [{ catalogId: update.id, catalogRevisionId: update.revisionId, enabled: true }], links }
+  const prepared = prepareModComposition(composition, catalogs)
+  expect(prepared.version).toBe(3)
+  expect(prepared.links).toEqual(links)
+  const result = composeModLayers(prepared, catalogs)
   expect(result.entities[target.id]?.name).toBe(record.Name)
+  for (const version of [undefined, 2] as const) {
+    const historical = { ...composition, version, links: historicalLinks }
+    const saved = JSON.stringify(historical)
+    expect(composeModLayers(historical, catalogs).entities[target.id]?.name).toBe(record.Name)
+    expect(JSON.stringify(historical)).toBe(saved)
+    expect(() => composeModLayers({ ...historical, links }, catalogs)).toThrow('selected version 3 layer')
+  }
   expect(JSON.stringify(DEFAULT_CATALOG)).toBe(before)
   expect(bundledModReplacementLinks(DEFAULT_CATALOG, { ...update, id: 'crystal-edit:unrelated' as CatalogId }, BUNDLED_MOD_LIBRARY)).toEqual([])
 })

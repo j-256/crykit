@@ -11,7 +11,7 @@ Rough drafts are available on the separate [preview site](https://preview.crykit
 ## What you can do
 
 - **Plan builds:** mix classes, sub-commands, equipment, and passives, save variations, and compare them without entering everything you own.
-- **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, including enabled mod overrides and added bonus profiles. Missing inputs and unsupported rules stay explicit. See [calculation scope](docs/planner-mechanics.md) and [mod calculation boundaries](docs/mod-calculations.md).
+- **Explore calculated stats:** adjust level, class growth, and gender to compare supported loadout totals, including enabled mod overrides and added bonus profiles. Add a saved battle scenario for active statuses, effective ability costs, target damage or healing, and periodic effects. Missing inputs and unsupported rules stay explicit. See [calculation scope](docs/planner-mechanics.md) and [mod calculation boundaries](docs/mod-calculations.md).
 - **Share builds and teams:** copy a link to a saved snapshot for someone else to preview and save in their browser. The snapshot is carried in the URL, so links can exceed chat message limits. See [share links](docs/share-links.md) for transfer options and catalog requirements.
 - **Track progress:** use the class-seal board, Travel & unlocks checklist, Summons board, and Golden Quintar breeding guide. Marks save to the selected Playthrough and stay separate from inventory and character learning. See [progress tracking](docs/user-guide.md#track-inventory-and-progress).
 - **Look things up:** browse items, skills, class learn trees, monsters, and more. Native effects and stats lead the reference; item and equipment pages collect supported routes and reward conditions under **How to obtain**. Guide notes stay readable, with **Sources** icons for external claims and uncertain values.
@@ -31,6 +31,8 @@ Rough drafts are available on the separate [preview site](https://preview.crykit
 You can plan with equipment or skills you have not acquired. The planner checks documented build rules and keeps missing or conflicting information visible. Game data may differ by platform, version, or mods; see [reference sources and coverage](docs/catalog-sources.md) for the limits.
 
 Expand **Loadout > Stats & growth** to adjust level and class growth. If missing setup information prevents calculations, choose **Review Game Setup**. Selecting content from a mod that is not enabled asks you to enable it for that Build; adding a mod to the library alone does not enable it. See [Mods and Game Setups](docs/mods.md).
+
+For an ability preview, open **Checks & notes > Ability and hit-chance preview**, choose an ability, then choose **Add battle scenario** and select a target. Character stats come from your build; monster stats use its Game Setup. The preview emphasizes damage or healing, with hit and critical thresholds alongside it. Expand **Damage breakdown** or **Base ability costs** for supporting values. Current HP, MP, and AP are optional: enter them under **Resources** when a result asks for them. Statuses and **Advanced conditions** let you refine the saved scenario. See [battle scenarios](docs/mod-calculations.md#battle-scenarios).
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
 

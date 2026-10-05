@@ -1,5 +1,6 @@
 .build-mechanics { border-top: 1px solid var(--line); padding-top: 1rem; min-width: 0; }
 .build-mechanics h3 { margin-bottom: .5rem; }
+.build-mechanics > details[open] > .stack { padding-top: 12px; }
 .mechanics-findings { padding-left: 1.3rem; }
 .mechanics-findings li { margin: .4rem 0; }
 .mechanics-findings [data-status="invalid"] strong { color: var(--rust); }
@@ -9,3 +10,18 @@
 .build-mechanics .structured-value__table { overflow-x: auto; max-width: 100%; }
 .build-mechanics table { min-width: 32rem; }
 @media (max-width: 640px) { .mechanics-growth-row { grid-template-columns: minmax(0, 1fr); } }
+.hit-chance-calculator { border-top: 1px solid var(--line); padding-top: 12px; }
+.hit-chance-calculator > summary { cursor: pointer; color: var(--text-dim); font-size: .8rem; }
+.hit-chance-calculator > .stack { padding-top: 16px; }
+.hit-chance-calculator__flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; gap: 16px; }
+.hit-chance-calculator__accuracy { display: grid; gap: 8px; }
+.hit-chance-calculator__accuracy > span, .hit-chance-calculator__result > span { color: var(--text-faint); font-size: .75rem; }
+.hit-chance-calculator__accuracy > strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.hit-chance-calculator__result { display: grid; gap: 8px; padding: 16px; border-left: 3px solid var(--cyan-500); background: rgba(78, 166, 207, .06); }
+.hit-chance-calculator__result > span { display: flex; align-items: center; gap: 6px; }
+.hit-chance-calculator__result svg { width: 18px; height: 18px; flex-shrink: 0; }
+.hit-chance-calculator__result > strong { color: var(--cyan-300); font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .hit-chance-calculator__flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hit-chance-calculator__result { grid-column: 1 / -1; }
+}

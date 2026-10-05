@@ -54,6 +54,14 @@ function checkbox(label: string) {
 }
 
 describe('Build picker interaction', () => {
+  it('can hide duplicate selected details while retaining search result facts', async () => {
+    await render({ value: first.ref })
+    expect(container.querySelector('.build-field__evidence')).not.toBeNull()
+    await render({ value: first.ref, showSelectionDetails: false })
+    expect(container.querySelector('.build-field__evidence')).toBeNull()
+    expect(results().find(result => result.textContent?.includes(first.name))?.textContent).toContain('First passive effect summary')
+  })
+
   it('keeps advanced controls collapsed and selects a sole search result with Enter', async () => {
     const props = await render({ query: first.name })
     expect(container.querySelector('details.build-picker-filters')?.hasAttribute('open')).toBe(false)
