@@ -595,7 +595,8 @@
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
         "docs/deployment.md",
-        "docs/development.md"
+        "docs/development.md",
+        "src/ui/PreviewNotice.tsx"
       ],
       "catalogs": [],
       "outcomes": {
@@ -41037,6 +41038,20 @@
       },
       "reasons": []
     },
+    "https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#certificates": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://developers.cloudflare.com/workers/platform/limits/#static-assets": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -52787,6 +52802,21 @@
       "files": [
         "src/calculations/package-v1.schema.json",
         "src/calculations/package-v2.schema.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://preview.crykit.lasers.app/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "README.md",
+        "docs/deployment.md"
       ],
       "catalogs": [],
       "outcomes": {
@@ -65387,6 +65417,20 @@
       "reason": "Artwork attribution and redistribution rights are independent of gameplay corroboration",
       "files": [
         "src/catalog/wiki-sprites.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://steamcommunity.com/app/1637730/discussions/0/2962796621651898428/": {
+      "disposition": "claim-specific",
+      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
+      "files": [
+        "docs/save-editor.md"
       ],
       "catalogs": [],
       "outcomes": {
