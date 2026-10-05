@@ -4,6 +4,7 @@ import type { BuildBehavior } from '../domain/build-behavior'
 import { buildModRequirements, recordedProjectModNames, selectBuildModRevision, type BuildModRequirement } from '../domain/build-mods'
 import { completeModLibrary, type LibraryMod } from '../domain/mod-library'
 import { resolveGameRules } from '../domain/game-rules'
+import { prepareModComposition } from '../domain/mod-layers'
 import { modState, recordedModNames, updateModSelections } from '../domain/mods'
 import { CURRENT_CRYSTAL_EDIT_VERSION, supportsCrystalEditVersion } from '../domain/crystal-edit-compatibility'
 import type { BuildRevisionContent, CatalogSnapshot } from '../domain/types'
@@ -66,7 +67,8 @@ function BuildModCard({ project, requirement, value, catalogs, busy, pending, on
   const name = requirement?.name ?? project.title
   const disable = () => {
     const choices = recordedModNames(value).filter(candidate => names.includes(candidate)).map(candidate => ({ name: candidate, state: 'disabled' as const }))
-    onChange({ ...value, ...updateModSelections(value, choices), ...(pin ? { modComposition: { ...value.modComposition!, layers: value.modComposition!.layers.map(layer => layer.catalogId === project.id ? { ...layer, enabled: false } : layer) } } : {}) })
+    const composition = pin ? prepareModComposition(value.modComposition!, catalogs) : undefined
+    onChange({ ...value, ...updateModSelections(value, choices), ...(composition ? { modComposition: { ...composition, layers: composition.layers.map(layer => layer.catalogId === project.id ? { ...layer, enabled: false } : layer) } } : {}) })
   }
   return <section aria-label={`Mod ${name}`} className="build-mod-card stack" data-build-mod={name}>
     <div className="split"><strong>{name}</strong><Badge tone={state === 'enabled' && pin ? 'positive' : state === 'disabled' ? 'neutral' : 'warning'}>{state === 'enabled' && !pin ? 'Enabled name; choose a version' : state === 'unknown' ? 'Not enabled for this build' : state}</Badge></div>

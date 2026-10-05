@@ -166,12 +166,15 @@ describe('source-backed mod calculation inputs', () => {
     expect(context.resolve(buildContentForModSetup(content(), context.setup, context.effective).primaryClass!)?.name).toBe('Translated class')
   })
 
-  it('keeps colliding added identities unresolved instead of claiming runtime remapping parity', async () => {
+  it('preserves historical collision warnings while new compositions keep project identities separate', async () => {
     const first = await importMod('first additions', { Genders: [{ ID: 8, Name: 'First extra', ...bonuses }] })
     const second = await importMod('second additions', { Genders: [{ ID: 8, Name: 'Second extra', ...bonuses, BoostHP: true }] })
     const context = configured([first, second])
-    expect(context.rules.issues.join(' ')).toContain('Runtime remapping of added IDs is not modeled')
-    expect(context.calculate().neutral.HP).toBeNull()
+    const historical = { ...context.setup, modComposition: { ...context.setup.modComposition!, version: 2 as const, identityMappings: undefined } }
+    expect(resolveGameRules(historical, context.catalogs).issues.join(' ')).toContain('Runtime remapping of added IDs is not modeled')
+    expect(context.rules.issues).toEqual([])
+    expect(context.rules.genders.filter(gender => gender.sourceKind === 'mod').map(gender => gender.name)).toEqual(['First extra', 'Second extra'])
+    expect(context.calculate().neutral.HP).not.toBeNull()
     const disabled = { ...context.setup, modComposition: { ...context.setup.modComposition!, layers: context.setup.modComposition!.layers.map(layer => ({ ...layer, enabled: layer.catalogId === first.id })) } }
     expect(resolveGameRules(disabled, context.catalogs).issues).toEqual([])
   })

@@ -359,12 +359,12 @@ export function buildCombatRules(native) {
         eq(iff(eq('mod.Value2', 6), 'ability.Attribute', 'mod.Value2'), attr),
         call(
           'resourceTerm',
-          `${who}.Stats.${resource}`,
-          `${who}.${resource}Current`,
+          mode === 0 ? 0 : `${who}.Stats.${resource}`,
+          mode === 2 ? 0 : `${who}.${resource}Current`,
           mode,
           'mod.Value1',
           who === 'target' && attr === 0,
-          `${who}.Stats.PercentDmgTakenMult`,
+          who === 'target' && attr === 0 ? `${who}.Stats.PercentDmgTakenMult` : 100,
         ),
         amount,
       )
@@ -446,7 +446,7 @@ export function buildCombatRules(native) {
       [
         'physicalDefense',
         iff(
-          ge('target.HPCurrent', 'target.Stats.HP'),
+          and(ne('target.Stats.PDefAtFullHPMult', 100), ge('target.HPCurrent', 'target.Stats.HP')),
           pct('target.Stats.PDef', 'target.Stats.PDefAtFullHPMult'),
           'target.Stats.PDef',
         ),
@@ -454,7 +454,7 @@ export function buildCombatRules(native) {
       [
         'magicalDefense',
         iff(
-          ge('target.HPCurrent', 'target.Stats.HP'),
+          and(ne('target.Stats.MDefAtFullHPMult', 100), ge('target.HPCurrent', 'target.Stats.HP')),
           pct('target.Stats.MDef', 'target.Stats.MDefAtFullHPMult'),
           'target.Stats.MDef',
         ),
@@ -677,8 +677,8 @@ export function buildCombatRules(native) {
           ),
         ),
       ],
-      ['bottom', or(and('context.bottomThreat', not('forceTop')), 'forceBottom')],
-      ['top', or(and('context.topThreat', not('forceBottom')), 'forceTop')],
+      ['bottom', iff(or(has('BottomThreatDamageMult'), has('NotBottomThreatDamageMult'), and('ability.IsPAbil', ne('user.Stats.PDmgWithBottomThreatMult', 100))), or(and('context.bottomThreat', not('forceTop')), 'forceBottom'), false)],
+      ['top', iff(or(has('TopThreatDamageMult'), has('NotTopThreatDamageMult')), or(and('context.topThreat', not('forceBottom')), 'forceTop'), false)],
       [
         'bottomBonus',
         iff(
@@ -758,6 +758,7 @@ export function buildCombatRules(native) {
     modify(
       and(
         'healing',
+        ne('user.Stats.SelflessCureMult', 100),
         not('context.sameBattler'),
         lt(div('user.HPCurrent', 'user.Stats.HP'), div('target.HPCurrent', 'target.Stats.HP')),
       ),
@@ -766,7 +767,7 @@ export function buildCombatRules(native) {
     ),
     ['damage', 'selflessCure'],
     modify(
-      and('healing', le('target.HPCurrent', 'target.HPCriticalValue')),
+      and('healing', ne('user.Stats.CriticalCureMult', 100), le('target.HPCurrent', 'target.HPCriticalValue')),
       'user.Stats.CriticalCureMult',
       'criticalCure',
     ),
@@ -774,7 +775,7 @@ export function buildCombatRules(native) {
     modify(and(not('healing'), 'ability.IsPAbil'), 'user.Stats.PDmgGivenMult', 'physicalGiven'),
     ['damage', 'physicalGiven'],
     modify(
-      and(not('healing'), 'ability.IsPAbil', le('user.HPCurrent', 'user.HPCriticalValue')),
+      and(not('healing'), 'ability.IsPAbil', ne('user.Stats.PDmgGivenWhenCriticalMult', 100), le('user.HPCurrent', 'user.HPCriticalValue')),
       'user.Stats.PDmgGivenWhenCriticalMult',
       'physicalGivenCritical',
     ),
@@ -850,14 +851,14 @@ export function buildCombatRules(native) {
     ],
     ['damage', 'singleTarget'],
     modify(
-      and(not('healing'), 'ability.IsPAbil', gt(statusCount('target', 11), 0)),
+      and(not('healing'), 'ability.IsPAbil', ne('user.Stats.PDmgGivenAgainstSleepMult', 100), gt(statusCount('target', 11), 0)),
       'user.Stats.PDmgGivenAgainstSleepMult',
       'sleep',
     ),
     ['damage', 'sleep'],
     [
       'repeat',
-      pct(
+      iff(ne('user.Stats.RepeatActionDmgMult', 100), pct(
         'damage',
         call(
           'repeatMultiplier',
@@ -865,11 +866,11 @@ export function buildCombatRules(native) {
           'user.Stats.RepeatActionDmgMultCap',
           'context.repeatCount',
         ),
-      ),
+      ), 'damage'),
     ],
     ['damage', 'repeat'],
     modify(
-      and(not('healing'), 'context.targetCharging'),
+      and(not('healing'), ne('target.Stats.DmgTakenWhileChargingMult', 100), 'context.targetCharging'),
       'target.Stats.DmgTakenWhileChargingMult',
       'charging',
     ),
@@ -912,7 +913,7 @@ export function buildCombatRules(native) {
     [
       'onKill',
       iff(
-        and('ability.IsPAbil', le('target.HPCurrent', pct('damage', 'user.Stats.PDmgOnKillMult'))),
+        and('ability.IsPAbil', ne('user.Stats.PDmgOnKillMult', 100), le('target.HPCurrent', pct('damage', 'user.Stats.PDmgOnKillMult'))),
         pct('damage', 'user.Stats.PDmgOnKillMult'),
         'damage',
       ),
@@ -1248,7 +1249,7 @@ export function buildCombatRules(native) {
       [
         'physical',
         iff(
-          gt('target.Stats.PEvaRating', 0),
+          and('ability.IsPAbil', gt('target.Stats.PEvaRating', 0)),
           pct(
             pct(
               add(

@@ -185,7 +185,13 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()
   await expect(cure).toHaveCount(1)
   await cure.click()
-  await expect(page.getByLabel('Ability estimate', { exact: true })).toContainText('MP cost')
+  const costs = page.getByLabel('Effective ability costs', { exact: true })
+  await expect(costs).toBeVisible()
+  await expect(costs).toContainText('MP cost')
+  await page.locator('summary').filter({ hasText: /^Formula reference$/ }).click()
+  const ability = page.getByLabel('Ability estimate', { exact: true })
+  await expect(ability.getByRole('heading', { name: 'Cure', exact: true })).toBeVisible()
+  await expect(ability.locator('dt').filter({ hasText: /^Power coefficient$/ }).locator('..').locator('dd')).toHaveText(/^-\d[\d,]*$/)
 })
 
 test('new native loot icons, status cells, and distinct enemy sprites stay available offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {

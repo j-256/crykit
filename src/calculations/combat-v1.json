@@ -2263,7 +2263,7 @@
                 [
                   "call",
                   "resourceTerm",
-                  "target.Stats.HP",
+                  0,
                   "target.HPCurrent",
                   0,
                   "mod.Value1",
@@ -2289,12 +2289,12 @@
                   [
                     "call",
                     "resourceTerm",
-                    "target.Stats.MP",
+                    0,
                     "target.MPCurrent",
                     0,
                     "mod.Value1",
                     false,
-                    "target.Stats.PercentDmgTakenMult"
+                    100
                   ],
                   [
                     "if",
@@ -2315,12 +2315,12 @@
                     [
                       "call",
                       "resourceTerm",
-                      "target.Stats.AP",
+                      0,
                       "target.APCurrent",
                       0,
                       "mod.Value1",
                       false,
-                      "target.Stats.PercentDmgTakenMult"
+                      100
                     ],
                     0
                   ]
@@ -2352,12 +2352,12 @@
                   [
                     "call",
                     "resourceTerm",
-                    "user.Stats.HP",
+                    0,
                     "user.HPCurrent",
                     0,
                     "mod.Value1",
                     false,
-                    "user.Stats.PercentDmgTakenMult"
+                    100
                   ],
                   [
                     "if",
@@ -2378,12 +2378,12 @@
                     [
                       "call",
                       "resourceTerm",
-                      "user.Stats.MP",
+                      0,
                       "user.MPCurrent",
                       0,
                       "mod.Value1",
                       false,
-                      "user.Stats.PercentDmgTakenMult"
+                      100
                     ],
                     [
                       "if",
@@ -2404,12 +2404,12 @@
                       [
                         "call",
                         "resourceTerm",
-                        "user.Stats.AP",
+                        0,
                         "user.APCurrent",
                         0,
                         "mod.Value1",
                         false,
-                        "user.Stats.PercentDmgTakenMult"
+                        100
                       ],
                       0
                     ]
@@ -2472,7 +2472,7 @@
                         1,
                         "mod.Value1",
                         false,
-                        "target.Stats.PercentDmgTakenMult"
+                        100
                       ],
                       [
                         "if",
@@ -2498,7 +2498,7 @@
                           1,
                           "mod.Value1",
                           false,
-                          "target.Stats.PercentDmgTakenMult"
+                          100
                         ],
                         0
                       ]
@@ -2535,7 +2535,7 @@
                         1,
                         "mod.Value1",
                         false,
-                        "user.Stats.PercentDmgTakenMult"
+                        100
                       ],
                       [
                         "if",
@@ -2561,7 +2561,7 @@
                           1,
                           "mod.Value1",
                           false,
-                          "user.Stats.PercentDmgTakenMult"
+                          100
                         ],
                         [
                           "if",
@@ -2587,7 +2587,7 @@
                             1,
                             "mod.Value1",
                             false,
-                            "user.Stats.PercentDmgTakenMult"
+                            100
                           ],
                           0
                         ]
@@ -2620,7 +2620,7 @@
                           "call",
                           "resourceTerm",
                           "target.Stats.HP",
-                          "target.HPCurrent",
+                          0,
                           2,
                           "mod.Value1",
                           true,
@@ -2646,11 +2646,11 @@
                             "call",
                             "resourceTerm",
                             "target.Stats.MP",
-                            "target.MPCurrent",
+                            0,
                             2,
                             "mod.Value1",
                             false,
-                            "target.Stats.PercentDmgTakenMult"
+                            100
                           ],
                           [
                             "if",
@@ -2672,11 +2672,11 @@
                               "call",
                               "resourceTerm",
                               "target.Stats.AP",
-                              "target.APCurrent",
+                              0,
                               2,
                               "mod.Value1",
                               false,
-                              "target.Stats.PercentDmgTakenMult"
+                              100
                             ],
                             0
                           ]
@@ -2709,11 +2709,11 @@
                             "call",
                             "resourceTerm",
                             "user.Stats.HP",
-                            "user.HPCurrent",
+                            0,
                             2,
                             "mod.Value1",
                             false,
-                            "user.Stats.PercentDmgTakenMult"
+                            100
                           ],
                           [
                             "if",
@@ -2735,11 +2735,11 @@
                               "call",
                               "resourceTerm",
                               "user.Stats.MP",
-                              "user.MPCurrent",
+                              0,
                               2,
                               "mod.Value1",
                               false,
-                              "user.Stats.PercentDmgTakenMult"
+                              100
                             ],
                             [
                               "if",
@@ -2761,11 +2761,11 @@
                                 "call",
                                 "resourceTerm",
                                 "user.Stats.AP",
-                                "user.APCurrent",
+                                0,
                                 2,
                                 "mod.Value1",
                                 false,
-                                "user.Stats.PercentDmgTakenMult"
+                                100
                               ],
                               0
                             ]
@@ -2858,9 +2858,17 @@
           "value": [
             "if",
             [
-              "gte",
-              "target.HPCurrent",
-              "target.Stats.HP"
+              "and",
+              [
+                "ne",
+                "target.Stats.PDefAtFullHPMult",
+                100
+              ],
+              [
+                "gte",
+                "target.HPCurrent",
+                "target.Stats.HP"
+              ]
             ],
             [
               "trunc",
@@ -2885,9 +2893,17 @@
           "value": [
             "if",
             [
-              "gte",
-              "target.HPCurrent",
-              "target.Stats.HP"
+              "and",
+              [
+                "ne",
+                "target.Stats.MDefAtFullHPMult",
+                100
+              ],
+              [
+                "gte",
+                "target.HPCurrent",
+                "target.Stats.HP"
+              ]
             ],
             [
               "trunc",
@@ -4062,31 +4078,110 @@
         {
           "name": "bottom",
           "value": [
-            "or",
+            "if",
             [
-              "and",
-              "context.bottomThreat",
+              "or",
               [
-                "not",
-                "forceTop"
+                "ne",
+                [
+                  "find",
+                  "ability.AbilityMods",
+                  "mod",
+                  [
+                    "eq",
+                    "mod.Tag",
+                    83
+                  ]
+                ],
+                null
+              ],
+              [
+                "ne",
+                [
+                  "find",
+                  "ability.AbilityMods",
+                  "mod",
+                  [
+                    "eq",
+                    "mod.Tag",
+                    84
+                  ]
+                ],
+                null
+              ],
+              [
+                "and",
+                "ability.IsPAbil",
+                [
+                  "ne",
+                  "user.Stats.PDmgWithBottomThreatMult",
+                  100
+                ]
               ]
             ],
-            "forceBottom"
+            [
+              "or",
+              [
+                "and",
+                "context.bottomThreat",
+                [
+                  "not",
+                  "forceTop"
+                ]
+              ],
+              "forceBottom"
+            ],
+            false
           ]
         },
         {
           "name": "top",
           "value": [
-            "or",
+            "if",
             [
-              "and",
-              "context.topThreat",
+              "or",
               [
-                "not",
-                "forceBottom"
+                "ne",
+                [
+                  "find",
+                  "ability.AbilityMods",
+                  "mod",
+                  [
+                    "eq",
+                    "mod.Tag",
+                    87
+                  ]
+                ],
+                null
+              ],
+              [
+                "ne",
+                [
+                  "find",
+                  "ability.AbilityMods",
+                  "mod",
+                  [
+                    "eq",
+                    "mod.Tag",
+                    88
+                  ]
+                ],
+                null
               ]
             ],
-            "forceTop"
+            [
+              "or",
+              [
+                "and",
+                "context.topThreat",
+                [
+                  "not",
+                  "forceBottom"
+                ]
+              ],
+              "forceTop"
+            ],
+            false
           ]
         },
         {
@@ -4506,6 +4601,11 @@
               "and",
               "healing",
               [
+                "ne",
+                "user.Stats.SelflessCureMult",
+                100
+              ],
+              [
                 "not",
                 "context.sameBattler"
               ],
@@ -4552,6 +4652,11 @@
             [
               "and",
               "healing",
+              [
+                "ne",
+                "user.Stats.CriticalCureMult",
+                100
+              ],
               [
                 "lte",
                 "target.HPCurrent",
@@ -4625,6 +4730,11 @@
                 "healing"
               ],
               "ability.IsPAbil",
+              [
+                "ne",
+                "user.Stats.PDmgGivenWhenCriticalMult",
+                100
+              ],
               [
                 "lte",
                 "user.HPCurrent",
@@ -5114,6 +5224,11 @@
               ],
               "ability.IsPAbil",
               [
+                "ne",
+                "user.Stats.PDmgGivenAgainstSleepMult",
+                100
+              ],
+              [
                 "gt",
                 [
                   "field",
@@ -5158,25 +5273,34 @@
         {
           "name": "repeat",
           "value": [
-            "trunc",
+            "if",
             [
-              "div",
-              [
-                "i32",
-                [
-                  "mul",
-                  "damage",
-                  [
-                    "call",
-                    "repeatMultiplier",
-                    "user.Stats.RepeatActionDmgMult",
-                    "user.Stats.RepeatActionDmgMultCap",
-                    "context.repeatCount"
-                  ]
-                ]
-              ],
+              "ne",
+              "user.Stats.RepeatActionDmgMult",
               100
-            ]
+            ],
+            [
+              "trunc",
+              [
+                "div",
+                [
+                  "i32",
+                  [
+                    "mul",
+                    "damage",
+                    [
+                      "call",
+                      "repeatMultiplier",
+                      "user.Stats.RepeatActionDmgMult",
+                      "user.Stats.RepeatActionDmgMultCap",
+                      "context.repeatCount"
+                    ]
+                  ]
+                ],
+                100
+              ]
+            ],
+            "damage"
           ]
         },
         {
@@ -5192,6 +5316,11 @@
               [
                 "not",
                 "healing"
+              ],
+              [
+                "ne",
+                "target.Stats.DmgTakenWhileChargingMult",
+                100
               ],
               "context.targetCharging"
             ],
@@ -5407,6 +5536,11 @@
             [
               "and",
               "ability.IsPAbil",
+              [
+                "ne",
+                "user.Stats.PDmgOnKillMult",
+                100
+              ],
               [
                 "lte",
                 "target.HPCurrent",
@@ -7791,9 +7925,13 @@
           "value": [
             "if",
             [
-              "gt",
-              "target.Stats.PEvaRating",
-              0
+              "and",
+              "ability.IsPAbil",
+              [
+                "gt",
+                "target.Stats.PEvaRating",
+                0
+              ]
             ],
             [
               "trunc",

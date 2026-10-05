@@ -1,6 +1,7 @@
 import type { BuildCalculationPlan, CatalogSnapshot, LocalData } from '../domain/types'
 import { calculationGenderLabel, type GenderDefinition } from '../domain/calculation-genders'
 import { entityName } from './model'
+import { battleCalculationSummary } from './battle-calculation-summary'
 
 export function CalculationInputs({ plan, localData, catalogs, genders }: { plan: BuildCalculationPlan; localData: LocalData; catalogs: readonly CatalogSnapshot[]; genders?: readonly GenderDefinition[] }) {
   const values = [
@@ -13,6 +14,7 @@ export function CalculationInputs({ plan, localData, catalogs, genders }: { plan
     ['Statuses', plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ') || 'None selected'],
     ['Ability', entityName(localData, catalogs, plan.ability, 'None selected')],
     ['Target evasion', plan.targetEvasion ?? 'Unknown'],
+    ...(plan.battle ? battleCalculationSummary(plan.battle, ref => entityName(localData, catalogs, ref)) : []),
   ]
   return <dl aria-label="Calculation inputs" className="definition-list">{values.map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
 }
