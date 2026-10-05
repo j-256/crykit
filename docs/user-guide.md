@@ -2,11 +2,11 @@
 
 Start with the [first-build walkthrough](../README.md#try-your-first-build) if you are new to Crystal Kit. This guide covers the details you can explore as you need them.
 
-[Getting around](#getting-around) · [Builds](#create-and-save-builds) · [Teams](#check-a-team) · [Characters](#record-characters) · [Inventory and progress](#track-inventory-and-progress) · [World Map](#explore-the-world-map) · [Reference](#browse-reference-data) · [Backups](#imports-backups-and-privacy) · [Offline use](#use-the-app-offline)
+[Getting around](#getting-around) · [Builds](#create-and-save-builds) · [Teams](#check-a-team) · [Characters](#record-characters) · [Inventory and progress](#track-inventory-and-progress) · [World Map](#explore-the-world-map) · [Reference](#browse-reference-data) · [Save editor](#edit-a-game-save) · [Backups](#imports-backups-and-privacy) · [Offline use](#use-the-app-offline)
 
 ## Getting around
 
-The app opens to the build library. Builds, Teams, Reference, World Map, and Mods share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
+The app opens to the build library. Builds, Teams, Reference, World Map, Mods, and Save editor share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it.
 
 The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, reusable Builds, and an active sample party plan. These synthetic records are for exploring the planner. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again.
 
@@ -217,6 +217,12 @@ Build drafts can remain open while browsing Reference or World Map in the same t
 Pages, record details, settings sections, and modal workflows have semantic URLs. Copy the address bar to bookmark the selected view or reopen a dialog. Browser Back and Forward follow the same navigation, including nested definition pickers and editors. See [navigation and local links](navigation.md) for refresh, draft, and missing-data behavior.
 
 Ordinary page and record links open a view without transferring your saved records. **Share build** and **Share team** instead encode a snapshot for another browser to preview and save; see [share links](share-links.md). Use a backup to move your complete planner data.
+
+## Edit a game save
+
+Choose **Save editor** to open a supported Crystal Project `.sav` in your browser. Edit party members, money, and inventory, or review a preset before applying it. Download the edited copy and keep the original separately. Save editing uses its own workspace and does not create or update tracked Playthrough records.
+
+Opened saves and edits remain in memory until you leave or reload the workspace. Export before closing it; planner backups do not include game saves. See [save editing](save-editor.md) for supported versions, preservation rules, and installation steps.
 
 ## Imports, backups, and privacy
 

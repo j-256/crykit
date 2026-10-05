@@ -160,7 +160,11 @@ describe('navigation controller history', () => {
     expect(window.location.hash).toBe('#/inventory/new')
     expect(document.querySelector('#draft')?.textContent).toBe('changed')
 
-    await act(async () => { window.history.forward(); await tick() })
+    await act(async () => {
+      const traversed = new Promise<void>(resolve => window.addEventListener('popstate', () => resolve(), { once: true }))
+      window.history.forward()
+      await traversed
+    })
     expect(window.location.hash).toContain('/pick/item-definition')
     expect(document.querySelector('#draft')?.textContent).toBe('changed')
     await act(async () => root.unmount())

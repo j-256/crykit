@@ -19,7 +19,7 @@ import type {
   TeamId,
 } from '../domain/types'
 
-export type Destination = 'inventory' | 'characters' | 'builds' | 'teams' | 'progress' | 'reference' | 'mods' | 'map'
+export type Destination = 'inventory' | 'characters' | 'builds' | 'teams' | 'progress' | 'reference' | 'mods' | 'map' | 'save-editor'
 export type CharacterTab = 'current' | 'history'
 export type SettingsSection = 'playthrough' | 'data' | 'game-setup' | 'history' | 'storage' | 'credits'
 
@@ -93,7 +93,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' }
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'share'; readonly encoded: string } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' } | { readonly page: 'save-editor' }
 
 export interface SearchOverlay {
   readonly kind: 'search'
@@ -235,7 +235,7 @@ function unresolved(requestedPath: string, recovery: Destination, reason: Unreso
 
 function recoveryFor(segments: readonly string[]): Destination {
   const root = segments[0]
-  return root === 'teams' || root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' || root === 'mods' || root === 'map' ? root : 'builds'
+  return root === 'teams' || root === 'inventory' || root === 'characters' || root === 'progress' || root === 'reference' || root === 'mods' || root === 'map' || root === 'save-editor' ? root : 'builds'
 }
 
 function overlayStartsAt(segments: readonly string[], index: number): boolean {
@@ -245,6 +245,7 @@ function overlayStartsAt(segments: readonly string[], index: number): boolean {
 
 function parsePage(segments: readonly string[], requestedPath: string): { readonly page: PageRoute; readonly consumed: number; readonly legacy?: true } {
   const bad = (recovery = recoveryFor(segments), reason?: UnresolvedPageRoute['reason']) => ({ page: unresolved(requestedPath, recovery, reason), consumed: segments.length })
+  if (segments[0] === 'save-editor') return overlayStartsAt(segments, 1) ? { page: { page: 'save-editor' }, consumed: 1 } : bad('save-editor')
   if (segments[0] === 'map') return overlayStartsAt(segments, 1) ? { page: { page: 'map' }, consumed: 1 } : bad('map')
   if (segments[0] === 'mods') {
     if (overlayStartsAt(segments, 1)) return { page: { page: 'mods', view: 'library' }, consumed: 1 }
@@ -510,6 +511,7 @@ export function parseAppRoute(hash: string): AppRoute {
 }
 
 function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver): string {
+  if (page.page === 'save-editor') return '/save-editor'
   if (page.page === 'map') return '/map'
   if (page.page === 'mods') return page.view === 'editor' ? '/mods/editor' : '/mods'
   if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : ''}`
@@ -610,6 +612,7 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-picker') return 'Choose definition | CryKit'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | CryKit`
   const page = route.page
+  if (page.page === 'save-editor') return 'Save editor | CryKit'
   if (page.page === 'map') return 'World Map | CryKit'
   if (page.page === 'mods') return `${page.view === 'editor' ? 'Mod editor' : 'Mods'} | CryKit`
   if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : 'Teams'} | CryKit`
@@ -632,6 +635,7 @@ export function routeForDestination(destination: Destination): AppRoute {
       : destination === 'progress' ? PROGRESS_PAGES[0].page
       : destination === 'mods' ? { page: 'mods', view: 'library' }
       : destination === 'map' ? { page: 'map' }
+      : destination === 'save-editor' ? { page: 'save-editor' }
       : { page: 'reference', view: 'list' },
     overlays: [],
     query: {},
