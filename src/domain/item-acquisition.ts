@@ -135,6 +135,7 @@ function recipeRoute(catalog: CatalogSnapshot, records: ReadonlyMap<string, Cata
 }
 
 function conditionRequirements(catalog: CatalogSnapshot, records: ReadonlyMap<string, CatalogEntity>, condition: AcquisitionCondition): AcquisitionMaterial[] {
+  // Only positive conjunctive conditions establish required stock; an OR branch or negation cannot prove it
   if (condition.negated) return []
   if (condition.type === 'Operation' && condition.data.Op === 'And') return ['LHS', 'RHS'].flatMap(key => nativeRecord(condition.data[key]) ? conditionRequirements(catalog, records, condition.data[key] as unknown as AcquisitionCondition) : [])
   if (condition.type === 'CheckInventory' && typeof condition.data.LootValue === 'number' && typeof condition.data.Count === 'number' && ['Item', 'Equipment'].includes(String(condition.data.LootType))) return [material(catalog, records, condition.data.LootType === 'Item' ? 'item' : 'equipment', condition.data.LootValue, condition.data.Count)]
@@ -193,6 +194,7 @@ export function itemAcquisition(catalog: CatalogSnapshot, entity: CatalogEntity,
   const metadata = nativeRecord(catalog.legacy) ? catalog.legacy : {}
   const nativeSource = nativeRecord(metadata.nativeSource) ? metadata.nativeSource : {}
   const executable = nativeRecord(nativeSource.executable) ? nativeSource.executable : {}
+  // Numeric IDs alone cannot join world routes to a catalog; the source fingerprints must match too
   const worldMatched = Boolean(world && metadata.sourceContentDigest === world.source.nativeContentDigest && executable.sha256 === world.source.gameExecutableSha256 && nativeSource.platform === world.source.platform && nativeSource.gameVersion === world.source.gameVersion)
   if (worldMatched && world) {
     const reviewed = conditionFacts?.worldContentDigest === world.contentDigest && conditionFacts.gameExecutableSha256 === world.source.gameExecutableSha256 && conditionFacts.nativeContentDigest === world.source.nativeContentDigest ? conditionFacts.conditions : []

@@ -218,6 +218,7 @@ function parseCell(cell: Element, sharedStrings: readonly string[]): RawXlsxCell
     throw new AppDataError('schema-mismatch', 'An XLSX cell address is invalid', { recoverable: true })
   }
   const type = cell.getAttribute('t')
+  // Formula text stays inert and distinct from its cached value; neither is proof of a freshly calculated result
   const formula = firstElement(cell, SPREADSHEET_NS, 'f')?.textContent ?? undefined
   if (type === 'inlineStr') {
     const value = elements(cell, SPREADSHEET_NS, 't').map((text) => text.textContent ?? '').join('')

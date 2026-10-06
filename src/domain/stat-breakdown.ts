@@ -27,6 +27,8 @@ export function calculateStatBreakdownResult(content: BuildRevisionContent, slot
   const current = calculatePCStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules)
   const initial = calculatePCStats(initialContent, slots, resolve, [], false, gameRules)
   const total = selectedPCStats(current, plan?.gender, plan?.genderSelection)
+  // Columns describe net differences from the shared evaluator, not independently applied modifiers
+  // Native rounding and caps can change a contribution, so decomposing raw bonuses would not sum to Total
   const stats = Object.fromEntries(STAT_KEYS.map(stat => [stat, {
     base: exact(initial.base[stat]),
     equipment: difference(exact(current.neutral[stat]), exact(current.base[stat])),

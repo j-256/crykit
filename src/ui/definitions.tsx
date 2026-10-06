@@ -198,6 +198,8 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLo
   }, [canSearchBundled, searchRequested])
   const bundledSearchPending = canSearchBundled && searchCatalogs === undefined && !bundledSearchError
   const searchable = useMemo(() => canSearchBundled && searchCatalogs ? mergeModSearchCatalogs(catalogs, searchCatalogs) : catalogs, [catalogs, canSearchBundled, searchCatalogs])
+  // Catalog metadata can be reused, but stock, personal revisions, and setup labels must follow each local save
+  // Rebuilding the catalog projection on every tile click delays the immediate-save queue
   const catalogOptions = useMemo(() => buildCatalogDefinitionOptions(searchable), [searchable])
   const options = useMemo(() => updateDefinitionOptions(localData, searchable, catalogOptions), [searchable, catalogOptions, localData])
   const availableOptions = useMemo(() => {

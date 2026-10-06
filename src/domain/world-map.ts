@@ -226,6 +226,7 @@ export function composeWorldMap(manifest: WorldMapManifest, layers: readonly Wor
   }
   for (const [markerId, { layer, entity }] of winners) {
     const entityId = entity.ID as number
+    // Remove the old placement before validating its replacement; invalid mod data must not revive the vanilla placement
     markers.delete(markerId)
     const markerWarnings: string[] = []
     const coord = entity.Coord

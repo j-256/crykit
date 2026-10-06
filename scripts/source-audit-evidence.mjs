@@ -17,6 +17,7 @@ const strings = value => Array.isArray(value) && value.length > 0 && value.every
 
 export function citationSourceId(value) {
   if (!record(value) || typeof value.sourceId !== 'string') return undefined
+  // Link descriptors and corroboration rules also carry sourceId, but do not declare attribution citations
   if (typeof value.targetId === 'string' && typeof value.relation === 'string') return undefined
   if (typeof value.entityId === 'string' && record(value.expectedFields)) return undefined
   return value.sourceId
@@ -26,6 +27,7 @@ export function validateProjectionEvidence(file, receipt, { evidence, snapshot, 
   const fail = reason => { throw new Error(`${reason}: ${file}`) }
   if (!PROJECTION_EVIDENCE.includes(file) || !record(receipt)) fail('Unknown or invalid projection receipt')
   const files = {}
+  // Receipts must agree on the reviewed code bytes; a matching game version label alone is not proof
   const appendFiles = (values, calculation = false) => {
     if (!record(values) || Object.keys(values).length === 0) fail('Projection code files are missing')
     for (const [path, sha256] of Object.entries(values)) {

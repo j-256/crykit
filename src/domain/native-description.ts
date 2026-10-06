@@ -79,6 +79,7 @@ export function formatNativeTemplate(template: string, general: NativeRecord, va
     unsupported = true
     return token
   })
+  // Unknown tokens invalidate the projection instead of turning a partial expansion into an authoritative description
   return unsupported || /[\[\]]/.test(result) ? undefined : nativeVocabularyText(result, general)
 }
 

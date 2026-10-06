@@ -374,6 +374,8 @@ export async function saveLocalDataWithStatus(localData: LocalData, expectedRevi
     const preparedCatalogs = await prepareModCatalogs(localData, availableCatalogs)
     const originalKeys = new Set(availableCatalogs.map(catalogKey))
     const composed = preparedCatalogs.filter(catalog => !originalKeys.has(catalogKey(catalog))).map(compactModCatalog)
+    // Check the persisted revision inside the write transaction so another tab cannot win between check and save
+    // Catalogs, planner state, and undo history must commit together or all roll back
     await database.transaction('rw', database.localDatas, database.history, database.catalogs, async () => {
       const record = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
       if (!record) throw new AppDataError('not-found', 'The planner data no longer exists', { recoverable: true })
@@ -506,6 +508,8 @@ export async function commitImport(
   const database = getDatabase()
   const mode = options.mode ?? 'replace'
   let committed = false
+  // Candidate bytes, evidence, catalogs, and the planner root share one rollback boundary
+  // Notifying other tabs before this transaction resolves would advertise data that may never commit
   try {
     await database.transaction(
       'rw',
@@ -667,6 +671,8 @@ function textBytes(value: unknown): Uint8Array {
 }
 
 function zipReadableByImporter(entries: Readonly<Record<string, Uint8Array>>): Uint8Array {
+  // Highly compressible valid data can exceed our importer's inflation limit
+  // Store only those entries uncompressed so our own backups remain readable without weakening import limits
   const compressed = zipSync(entries)
   const directory = inspectZip(compressed, {
     ...NATIVE_BACKUP_ARCHIVE_LIMITS,
