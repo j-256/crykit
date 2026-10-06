@@ -86,8 +86,10 @@ async function chooseMods(...selected: File[]) {
 }
 
 async function waitForText(value: string) {
-  for (let attempt = 0; attempt < 20 && !container.textContent?.includes(value); attempt++) await act(async () => new Promise(resolve => setTimeout(resolve, 0)))
-  expect(container.textContent).toContain(value)
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.textContent).toContain(value)
+  })
 }
 
 async function open(bytes = encodeCrystalSave(createSaveEditorFixture())) {
