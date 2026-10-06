@@ -38,6 +38,6 @@ export function estimateAbility(definition: MechanicsDefinition, stats: BuildSta
     }
     if (Array.isArray(record.AbilityMods) && record.AbilityMods.length) notes.push('Ability modifiers need battle context and are excluded from this coefficient stage')
   }
-  if (!baseAmount) notes.push('Native coefficient power needs a supported numeric ability record and complete integer loadout stats')
+  if (!baseAmount) notes.push('Native power coefficient needs a supported numeric ability record and complete integer loadout stats')
   return { baseAmount, costs, learning, notes }
 }
