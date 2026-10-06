@@ -99,6 +99,31 @@ describe('native ability and item descriptions', () => {
     expect(description.complete).toBe(true)
   })
 
+  it('bounds recursive status references and retains their incomplete result without mutating the source', () => {
+    const recursive: NativeRecord = { ID: 1, Name: 'Synthetic loop', Description: 'Synthetic loop facts', HideDurationFromDescription: true, StatMods: [stat('StatusAuto', 1, 100, 255)] }
+    const changed: NativeGameSnapshot = { ...snapshot, databases: { ...snapshot.databases, status: [recursive] } }
+    const original = structuredClone(recursive)
+    expect(describeNativeRecord(changed, 'status', recursive)).toEqual({
+      lines: ['Synthetic loop facts', 'At battle start, get: Synthetic loop (permanent).'],
+      complete: false,
+      unresolved: ['Unresolved status description'],
+    })
+    expect(recursive).toEqual(original)
+    expect(nativeDescriptionRecord(changed, 'status', 1)).toBe(recursive)
+  })
+
+  it('preserves authored, ability, nested status, and flavor order in an item description', () => {
+    const ability: NativeRecord = { ...record('ability', 362), Description: 'Synthetic ability', AbilityMods: [], TargetStatuses: [{ StatusID: 1, Chance: 100, Count: 255 }] }
+    const status: NativeRecord = { ID: 1, Name: 'Synthetic status effect', Description: 'Synthetic status', HideDurationFromDescription: true, HideStatModsFromDescription: true }
+    const item: NativeRecord = { Description: 'Synthetic item', AbilityID: 362, Flavor: 'Synthetic flavor' }
+    const changed: NativeGameSnapshot = { ...snapshot, databases: { ...snapshot.databases, ability: [ability], status: [status] } }
+    expect(describeNativeRecord(changed, 'item', item)).toEqual({
+      lines: ['Synthetic item', 'Synthetic ability', 'Single target.', 'Apply: Synthetic status effect (permanent).', 'Synthetic status', 'Synthetic flavor'],
+      complete: true,
+      unresolved: [],
+    })
+  })
+
   it('rejects unknown modes and resolves a known mode through its own overrides', () => {
     expect(nativeDescriptionRecord(snapshot, 'item', 132, 'unverified-mode')).toBeUndefined()
     expect(describeNativeRecord(snapshot, 'item', record('item', 132), 'unverified-mode')).toMatchObject({ lines: [], complete: false })
