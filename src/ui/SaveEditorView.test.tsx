@@ -6,7 +6,7 @@ import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode } from '../domain/save-editor.fixture'
+import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../domain/save-editor.fixture'
 import { saveEditorModProjectId } from '../domain/save-editor-mods'
 import { createSampleLocalData } from '../domain/sample-data'
 import { CRYSTAL_SAVE_LIMITS, decodeCrystalSave, encodeCrystalSave } from '../interchange/crystal-save'
@@ -150,6 +150,26 @@ describe('save editor session', () => {
     const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
     expect(edited.header).toMatchObject({ patchMode, currencyAmount: 456 })
     expect(inspectSave(edited, SAVE_EDITOR_CATALOG)).toMatchObject({ editable: true, mode: { name } })
+  })
+
+  it('shows, edits, and preserves a randomized Chaos save', async () => {
+    const save = setSaveEditorFixtureRandomizer(setSaveEditorFixtureMode(createSaveEditorFixture(), 2), { flags: { Equipment: true } })
+    const mapping = structuredClone(save.party.value.RandomizerMapping)
+    const flags = structuredClone(save.party.value.RandomizerFlags)
+    if (mapping?.type !== 'document' || flags?.type !== 'document') throw new Error('Expected synthetic randomizer state')
+    await open(encodeCrystalSave(save))
+    const details = container.querySelector('[aria-label="Open save details"]')?.textContent
+    expect(details).toContain('Game modeChaos')
+    expect(details).toContain('RandomizerEnabled')
+    expect(details).not.toContain('Stored maps')
+    expect(container.textContent).not.toContain('Read-only save')
+    await type('Copper', '456')
+    await act(async () => button('Apply currency').click())
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.header).toMatchObject({ patchMode: 2, randomizerFlags: 8, currencyAmount: 456 })
+    expect(edited.party.value.RandomizerFlags).toMatchObject({ type: 'document', value: flags.value })
+    expect(edited.party.value.RandomizerMapping).toMatchObject({ type: 'document', value: mapping.value })
   })
 
   it('exports a no-op save byte exactly and retains the untouched original after editing', async () => {

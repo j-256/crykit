@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 import { decodeCrystalSave, encodeCrystalSave, type CrystalSave } from '../src/interchange/crystal-save'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode } from '../src/domain/save-editor.fixture'
+import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../src/domain/save-editor.fixture'
 import { saveEditorModProjectId } from '../src/domain/save-editor-mods'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -67,6 +67,24 @@ for (const [patchMode, name] of [[1, 'Vanilla'], [2, 'Chaos']] as const) test(`e
   const edited = decodeCrystalSave((await downloadSave(page, 'Export edited save')).bytes)
   expect(edited.header).toMatchObject({ patchMode, currencyAmount: 456 })
   expect(edited.party.value.GameplayFlags).toMatchObject({ type: 'document', value: { PatchMode: { value: patchMode } } })
+})
+
+test('edits a randomized Chaos save without changing its randomizer state', async ({ page }) => {
+  await page.goto(ROUTE)
+  const save = setSaveEditorFixtureRandomizer(setSaveEditorFixtureMode(createSaveEditorFixture(), 2), { flags: { Equipment: true } })
+  const mapping = structuredClone(save.party.value.RandomizerMapping)
+  const flags = structuredClone(save.party.value.RandomizerFlags)
+  if (mapping?.type !== 'document' || flags?.type !== 'document') throw new Error('Expected synthetic randomizer state')
+  await openSave(page, save)
+  await expect(page.getByRole('definition').filter({ hasText: 'Chaos' })).toBeVisible()
+  await expect(page.getByRole('definition').filter({ hasText: 'Enabled' })).toBeVisible()
+  await expect(page.getByText('Read-only save', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Copper', { exact: true }).fill('456')
+  await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  const edited = decodeCrystalSave((await downloadSave(page, 'Export edited save')).bytes)
+  expect(edited.header).toMatchObject({ patchMode: 2, randomizerFlags: 8, currencyAmount: 456 })
+  expect(edited.party.value.RandomizerFlags).toMatchObject({ type: 'document', value: flags.value })
+  expect(edited.party.value.RandomizerMapping).toMatchObject({ type: 'document', value: mapping.value })
 })
 
 test('opens, edits, and downloads a separate save with exact original recovery', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
