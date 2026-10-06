@@ -41,6 +41,15 @@
   color: var(--cyan-300);
 }
 
+.build-picker-group-heading {
+  padding: .55rem .75rem;
+  border-block: 1px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--cyan-300);
+  font-size: .8rem;
+  font-weight: 700;
+}
+
 .build-field .picker-result--empty {
   min-height: 36px;
 }
