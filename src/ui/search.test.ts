@@ -16,6 +16,7 @@ import {
   buildReferenceSearchItems,
   decodeReferenceEntityKey,
   encodeReferenceEntityKey,
+  findReferenceSearchItem,
   partitionPersonalDefinitionOptions,
   partitionReferenceItems,
   personalDefinitionCategoryValues,
@@ -130,6 +131,30 @@ describe('reference search projection', () => {
     ])
     expect(aggregateKnowledgeCounts(items)).toMatchObject({ unknown: 2, conflicting: 1 })
     expect(projectReferenceEntity(snapshot, spear).claims).toHaveLength(1)
+  })
+
+  it('opens an exact revision without enumerating unrelated definitions', () => {
+    const historical = { ...snapshot, revisionId: 'r:historical' as CatalogRevisionId, entities: { [spear.id]: { ...spear, name: 'Historical spear' } } }
+    const guarded = { ...snapshot, entities: { [spear.id]: spear } }
+    Object.defineProperty(guarded.entities, 'unrelated', { enumerable: true, get: () => { throw new Error('Unrelated definitions must not be projected for a detail') } })
+    const ref = { catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: spear.id }
+    const detail = findReferenceSearchItem([historical, guarded], ref)
+    expect(detail?.catalog).toBe(guarded)
+    expect({ ...detail, catalog: snapshot }).toEqual(items.find(item => item.entity.id === spear.id))
+    expect(findReferenceSearchItem([historical, guarded], { ...ref, catalogRevisionId: historical.revisionId })?.entity.name).toBe('Historical spear')
+    expect(findReferenceSearchItem([historical, guarded], { ...ref, catalogRevisionId: 'missing' })).toBeUndefined()
+    expect(findReferenceSearchItem([historical, guarded], { ...ref, entityId: 'missing' })).toBeUndefined()
+    expect(findReferenceSearchItem([historical, guarded], { ...ref, entityId: 'toString' })).toBeUndefined()
+  })
+
+  it('keeps mode audiences and extraction artifact visibility consistent between details and search', () => {
+    const mode = DEFAULT_CATALOG.entities['base:monster:201:mode:Chaos']!
+    const artifact = entity('base:other:ref-911', { kind: 'other', name: 'Artifact' })
+    const modeCatalog = catalog([spear, mode, artifact])
+    const indexed = buildReferenceSearchItems([modeCatalog])
+    for (const item of indexed) expect(findReferenceSearchItem([modeCatalog], item.keyParts)).toEqual(item)
+    expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: mode.id })?.audience).toBe('alternatives')
+    expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: artifact.id })).toBeUndefined()
   })
 
   it('projects reference audiences and suppresses explicit extraction artifacts', () => {

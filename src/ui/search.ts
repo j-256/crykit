@@ -216,6 +216,19 @@ export function projectReferenceEntity(
   }
 }
 
+function catalogReferenceSearchItem(catalog: CatalogSnapshot, entity: CatalogEntity, claims?: readonly CatalogClaim[]): ReferenceSearchItem {
+  const item = projectReferenceEntity(catalog, entity, claims)
+  const native = nativeIdentity(entity)
+  const alternative = native ? native.mode !== 'base' : Boolean(preferredNativeReferenceId(catalog, entity.id))
+  return alternative && item.audience === 'default' ? { ...item, audience: 'alternatives' } : item
+}
+
+export function findReferenceSearchItem(catalogs: readonly CatalogSnapshot[], ref: ReferenceEntityKey): ReferenceSearchItem | undefined {
+  const catalog = catalogs.find(snapshot => snapshot.id === ref.catalogId && snapshot.revisionId === ref.catalogRevisionId)
+  const entity = catalog && Object.hasOwn(catalog.entities, ref.entityId) ? catalog.entities[ref.entityId] : undefined
+  return catalog && entity && !isReferenceArtifact(entity) ? catalogReferenceSearchItem(catalog, entity) : undefined
+}
+
 export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]): readonly ReferenceSearchItem[] {
   return catalogs
     .flatMap((catalog) => {
@@ -225,12 +238,7 @@ export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]):
         claims.push(claim)
         claimsByEntity.set(claim.entityId, claims)
       }
-      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => {
-        const item = projectReferenceEntity(catalog, entity, claimsByEntity.get(entity.id) ?? [])
-        const native = nativeIdentity(entity)
-        const alternative = native ? native.mode !== 'base' : Boolean(preferredNativeReferenceId(catalog, entity.id))
-        return alternative && item.audience === 'default' ? { ...item, audience: 'alternatives' as const } : item
-      })
+      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
     })
     .sort((left, right) => (
       compareText(left.entity.name, right.entity.name) ||

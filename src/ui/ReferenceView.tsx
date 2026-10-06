@@ -51,6 +51,7 @@ import {
   aggregateKnowledgeCounts,
   buildFacetOptions,
   buildReferenceSearchItems,
+  findReferenceSearchItem,
   partitionPersonalDefinitionOptions,
   partitionReferenceItems,
   personalDefinitionCategoryValues,
@@ -196,8 +197,17 @@ export function ReferenceView({ localData, catalogs, onOpenData, onPromoteDefini
   const [promotionBusy, setPromotionBusy] = useState(false)
   const [promotionError, setPromotionError] = useState<string>()
   const exactRef = page.view === 'detail' && page.ref.kind === 'catalog' ? page.ref : undefined
+  const requestedEnemyMode = navigation.route.query[ENEMY_MODE_QUERY]?.[0]
   const detailCatalogs = useMemo(() => exactRef && !catalogs.some(catalog => catalog.id === exactRef.catalogId && catalog.revisionId === exactRef.catalogRevisionId) ? [...catalogs, ...BUNDLED_CATALOGS.filter(catalog => catalog.id === exactRef.catalogId && catalog.revisionId === exactRef.catalogRevisionId)] : catalogs, [catalogs, exactRef])
-  const items = useMemo(() => buildReferenceSearchItems(detailCatalogs), [detailCatalogs])
+  const items = useMemo(() => {
+    if (page.view !== 'detail') return buildReferenceSearchItems(detailCatalogs)
+    if (!exactRef) return []
+    const selected = findReferenceSearchItem(detailCatalogs, exactRef)
+    if (!selected) return []
+    const mode = resolveReferenceEnemyMode(selected.catalog, selected.entity, requestedEnemyMode)
+    const alternate = mode?.entityId && mode.entityId !== selected.entity.id ? findReferenceSearchItem(detailCatalogs, { ...exactRef, entityId: mode.entityId }) : undefined
+    return alternate ? [selected, alternate] : [selected]
+  }, [detailCatalogs, exactRef, page.view, requestedEnemyMode])
   const optionsByKey = useMemo(() => new Map(options.map(option => [option.key, option])), [options])
   const modCards = useMemo(() => buildModLibraryCards(associationCatalogs, options, localData), [associationCatalogs, options, localData])
   const scopedMod = route.libraryMod ? modCards.find(card => card.id === route.libraryMod) : undefined
