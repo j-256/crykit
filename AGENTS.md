@@ -12,6 +12,8 @@ GitHub Actions must remain disabled while the repository is private. Verify publ
 
 Use strict TypeScript and pure domain functions for validation. Keep React out of the domain layer. Verify save failures, import rollback, unknown quantities, simultaneous stock conflicts, backup round-trips, and offline behavior.
 
+Prefer icons over text for familiar, compact controls when the icon stays clear in context. Give icon-only controls accessible names and hover hints, and keep visible text when an icon would make the action ambiguous.
+
 When changing shared behavior, review dependent assertions and tests introduced by synchronization. Distinguish intended contract changes from regressions before updating expectations; do not weaken assertions or expand timeouts to make a failure disappear. Keep literal URL expectations in dedicated route contract coverage and use shared reference helpers in feature tests. Follow [publication verification](docs/development.md#publication-verification) after committing and synchronizing; focused checks help during implementation but do not establish that unrelated consumers remain compatible.
 
 Use the shared `useQueuedTileUpdates` hook for immediate-save tile boards. Follow [the queued tile update pattern](docs/queued-tile-updates.md): hold the latest requested state until its queue drains, keep tile clicks enabled, suppress transient saving labels, and verify stable surrounding tiles and controls.
