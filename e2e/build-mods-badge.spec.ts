@@ -60,7 +60,7 @@ test('Build Mods badges consolidate requirements without overflow or changing sa
   const tooltip = card.getByRole('tooltip')
   await expect(badge).toHaveText('Mods')
   await expect(card.locator('.build-loadout-summary .mod-badge')).toHaveCount(0)
-  await expect(page.locator('.build-card__header .build-mods-badge')).toHaveCount(1)
+  await expect(card.locator('.build-card__header .build-mods-badge')).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'Mods for Rowan: sample Warrior', exact: true })).toHaveCount(0)
   await expect(tooltip).not.toBeVisible()
   expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)

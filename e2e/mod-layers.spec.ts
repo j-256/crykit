@@ -46,6 +46,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   const layers = panel.getByRole('region', { name: 'Imported mod layers', exact: true })
   await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:layer-a')
   await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
+  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:layer-b')
   await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
   await expect(layers.getByLabel('Effective mod summary', { exact: true })).toHaveText('5 effective imported records · 5 with replacements · 0 bundled targets unresolved')
   await layers.getByText('Review effective records and replacement links', { exact: true }).click()

@@ -2,14 +2,14 @@ import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { setAcquisitionProgress, upsertProgress } from '../domain'
 import { createTestLocalData } from '../domain/test-helpers'
 import type { Knowledge, LocalData } from '../domain/types'
 import { NavigationProvider, useNavigationController } from './navigation'
 import { TravelUnlocksView, travelUnlockEntries, type TravelUnlocksViewProps } from './TravelUnlocksView'
 
-const SUBJECT = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities['base:item:196']!.id }
+const SUBJECT = { kind: 'catalog' as const, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: CURRENT_CATALOG.entities['base:item:196']!.id }
 
 function Harness(props: TravelUnlocksViewProps) {
   const navigation = useNavigationController()
@@ -39,7 +39,7 @@ async function render(localData: LocalData, onSetAcquired: TravelUnlocksViewProp
 describe('travel acquisition certainty and identity', () => {
   it('keeps acquisition records attached to their exact catalog revision', () => {
     const other = { ...SUBJECT, catalogRevisionId: 'synthetic-other-revision' as typeof SUBJECT.catalogRevisionId }
-    const catalog = { ...DEFAULT_CATALOG, revisionId: other.catalogRevisionId }
+    const catalog = { ...CURRENT_CATALOG, revisionId: other.catalogRevisionId }
     let localData = setAcquisitionProgress(createTestLocalData(), { subject: other, displayName: 'Treasure Finder', acquired: true })
     localData = setAcquisitionProgress(localData, { subject: SUBJECT, displayName: 'Treasure Finder', acquired: false })
     const before = JSON.stringify(localData)

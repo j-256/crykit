@@ -24,7 +24,7 @@ async function importedData() {
 }
 
 it('saves immutable effective catalogs, preserves earlier setup values, and round-trips all sources through backup', async () => {
-  const { loaded, composition } = await importedData()
+  const { loaded, composition, first, second } = await importedData()
   const previousSetup = loaded.localData.planningGameSetupRevisionId!
   const planned = updateGameSetupRevision(loaded.localData, { sourceRevisionId: previousSetup, modComposition: composition })
   const saved = await saveLocalData(planned, loaded.revision)
@@ -41,7 +41,8 @@ it('saves immutable effective catalogs, preserves earlier setup values, and roun
   const latest = await loadLocalData()
   expect(latest.catalogs.find(catalog => catalog.revisionId === effective.revisionId)?.entities).toEqual(effective.entities)
   const backup = await previewImport(await exportBackup(), 'mod-backup.zip')
-  expect(backup.proposed.sources.filter(source => source.format === 'crystal-edit-json-1')).toHaveLength(2)
+  expect(backup.proposed.sources.map(source => source.id).sort()).toEqual((await database.sources.toArray()).map(source => source.id).sort())
+  expect(backup.proposed.sources.map(source => source.id)).toEqual(expect.arrayContaining([first.proposed.sources[0]!.id, second.proposed.sources[0]!.id]))
   await commitImport(backup)
   const restored = await loadLocalData()
   expect(restored.localData.gameSetups).toEqual(latest.localData.gameSetups)

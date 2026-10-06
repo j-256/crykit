@@ -3,7 +3,6 @@ import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { buildBehavior } from '../src/domain/build-behavior'
 import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
-import { BUNDLED_VERSION_PREFIX } from '../src/ui/build-mod-sources'
 import { formatAppRoute } from '../src/ui/navigation'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -206,7 +205,9 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await expect(dialog).toContainText(`Version ${source.declaredVersion}`)
   await dialog.getByText('Version details', { exact: true }).click()
   const version = dialog.getByRole('combobox', { name: 'Mod version', exact: true })
-  await expect(version).toHaveValue(`${BUNDLED_VERSION_PREFIX}${source.sourceDigest}`)
+  const savedVersion = Object.values(before.gameSetups).flatMap(setup => setup.modComposition?.layers ?? []).find(layer => layer.catalogId === source.id)?.catalogRevisionId
+  expect(savedVersion).toBeDefined()
+  await expect(version).toHaveValue(savedVersion!)
   await expect(version.locator('option:checked')).toContainText(`format ${source.editorVersion}`)
   await confirm.click()
   await expect(dialog).toHaveCount(0)

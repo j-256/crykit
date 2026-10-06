@@ -18,6 +18,12 @@ export const BUNDLED_CATALOGS = [BUNDLED_CATALOG, PREVIOUS_CATALOG, CURRENT_CATA
 // Preserve the historical export for persisted fixtures and catalog-v1 integrations
 export const DEFAULT_CATALOG = BUNDLED_CATALOG
 
+export function preferredStarterCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
+  // Imported historical revisions may precede the current bundled revision in catalog lists
+  return catalogs.find(catalog => catalog.id === CURRENT_CATALOG.id && catalog.revisionId === CURRENT_CATALOG.revisionId)
+    ?? catalogs.find(catalog => catalog.id === CURRENT_CATALOG.id)
+}
+
 export const BUNDLED_SOURCE_ENTITY_IDS: ReadonlyMap<string, EntityId> = new Map(Object.entries(historical.sourceEntityIds))
 
 export function compileBundledSourceId(sourceId: string): EntityId {

@@ -1,4 +1,5 @@
-import { zipSync } from 'fflate'
+import { strFromU8, unzipSync, zipSync } from 'fflate'
+import { readFile } from 'node:fs/promises'
 import { replacePlannerData } from './local-data-helpers'
 import { expect, type Page } from '@playwright/test'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
@@ -24,12 +25,17 @@ export async function readPlannerData(page: Page): Promise<LocalData> {
 
 async function storeFixture(page: Page, localData: LocalData, definition: PersonalDefinition) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({
-    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: localData.updatedAt, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs: BUNDLED_CATALOGS.map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum })), evidence: [], history: [] }),
-  })
   await page.goto('/#/settings/data')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const downloaded = page.waitForEvent('download')
+  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  const path = await (await downloaded).path()
+  if (!path) throw new Error('The fixture backup download did not finish')
+  const files = unzipSync(await readFile(path))
+  const bundle = JSON.parse(strFromU8(files['bundle.json']!))
+  // Keep the exact catalog and source receipts while replacing only synthetic planner state
+  files['bundle.json'] = encode({ ...bundle, localData: { ...localData, changes: [] }, history: [] })
+  const archive = zipSync(files)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-saved-definition.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
