@@ -218,6 +218,7 @@ describe('semantic navigation routes', () => {
       { page: 'teams', view: 'list' },
       { page: 'teams', view: 'new' },
       { page: 'teams', view: 'team', teamId: 'team / one' },
+      { page: 'teams', view: 'edit', teamId: 'team / one' },
       { page: 'teams', view: 'adopt', teamId: 'team / one' },
       { page: 'builds', view: 'library' },
       { page: 'builds', view: 'build-new' },

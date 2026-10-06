@@ -3,6 +3,7 @@ import type { SVGProps } from 'react'
 export type IconName =
   | 'archive'
   | 'arrow-left'
+  | 'arrow-right'
   | 'book'
   | 'box'
   | 'check'
@@ -19,6 +20,9 @@ export type IconName =
   | 'egg'
   | 'history'
   | 'info'
+  | 'layout-grid'
+  | 'layout-page'
+  | 'layout-row'
   | 'layers'
   | 'menu'
   | 'more'
@@ -46,6 +50,7 @@ const paths: Record<IconName, React.ReactNode> = {
   tome: <g shapeRendering="crispEdges" stroke="none"><path d="M5 3h15v18H5v-2H3V5h2z" fill="#17232b"/><path d="M5 4h13v13H5z" fill="#ba8360"/><path d="M7 4h2v13H7zM11 7h5v2h-5zM11 11h5v1h-5z" fill="#e9bf7b"/><path d="M5 17h13v3H5z" fill="#ece2c5"/><path d="M5 18h11v1H5z" fill="#b3a997"/></g>,
   archive: <><path d="M4 7h16v13H4z"/><path d="M3 3h18v4H3z"/><path d="M9 11h6"/></>,
   'arrow-left': <><path d="m15 18-6-6 6-6"/><path d="M9 12h10"/></>,
+  'arrow-right': <><path d="m9 18 6-6-6-6"/><path d="M15 12H5"/></>,
   book: <><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></>,
   box: <><path d="m4 7 8-4 8 4-8 4z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4z"/><path d="M12 11v10"/></>,
   check: <path d="m5 12 4 4L19 6"/>,
@@ -59,6 +64,9 @@ const paths: Record<IconName, React.ReactNode> = {
   egg: <><path d="M19 14c0 4.4-3.1 7-7 7s-7-2.6-7-7S8.1 3 12 3s7 6.6 7 11Z"/><path d="m6 12 3 2 3-3 3 3 3-2"/></>,
   history: <><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8"/><path d="M4 3v5h5"/><path d="M12 7v5l3 2"/></>,
   info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></>,
+  'layout-row': <><rect x="2" y="5" width="4" height="14" rx=".5"/><rect x="7.5" y="5" width="4" height="14" rx=".5"/><rect x="13" y="5" width="4" height="14" rx=".5"/><rect x="18.5" y="5" width="4" height="14" rx=".5"/></>,
+  'layout-grid': <><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></>,
+  'layout-page': <><rect x="5" y="2" width="14" height="16" rx="1"/><path d="M8 21h2m3 0h3"/></>,
   layers: <><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></>,
   menu: <><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>,
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,

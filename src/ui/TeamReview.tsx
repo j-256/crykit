@@ -25,9 +25,10 @@ export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData
     const mainHandDefinition = mainHand ? resolve(mainHand.ref) : undefined
     const occupiesBothHands = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true
     const emptyEquipment = equipmentSlots.filter(slot => !revision.content.equipment[slot.id] && !(equipmentRole(slot) === 'offHand' && occupiesBothHands)).map(slot => slot.label)
-    return [{ revision, report, classSelected: Boolean(revision.content.primaryClass), emptyEquipment, label: `Slot ${index + 1}: ${localData.builds[revision.buildId]?.title ?? 'Build'}`, newer: newerTeamCheckpoint(localData, revision) }]
+    return [{ index, revision, report, classSelected: Boolean(revision.content.primaryClass), emptyEquipment, label: `Slot ${index + 1}: ${localData.builds[revision.buildId]?.title ?? 'Build'}`, newer: newerTeamCheckpoint(localData, revision) }]
   })
   return {
+    members,
     filled: members.length,
     classesSelected: members.filter(member => member.classSelected).length,
     emptyEquipment: members.filter(member => member.emptyEquipment.length > 0).map(member => ({ member: member.label, slots: member.emptyEquipment })),

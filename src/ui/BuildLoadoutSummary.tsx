@@ -73,7 +73,7 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
   </span>
 }
 
-export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false, showModLabels = true }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean; showModLabels?: boolean }) {
+export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false, showClasses = true, showModLabels = true }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean; showClasses?: boolean; showModLabels?: boolean }) {
   const [inspectedSlotId, setInspectedSlotId] = useState<string>()
   const slots = [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
   const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
@@ -90,10 +90,10 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
   const invalidIssues = report.issues.filter(issue => issue.status === 'invalid').length
   return <span className="build-loadout-summary" data-validity={report.status}>
     {report.status === 'invalid' && <span className="build-loadout-summary__warning"><Icon name="warning"/><strong>Needs changes</strong><small>{invalidIssues} known {invalidIssues === 1 ? 'issue' : 'issues'}</small></span>}
-    <span className="build-card__classes">
+    {showClasses && <span className="build-card__classes">
       <SummarySelection catalogs={catalogs} empty="No class selected" label="Class" localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={content.primaryClass}/>
       <SummarySelection catalogs={catalogs} empty="No sub-command" label="Sub-command" localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={content.secondaryClass} displayName={secondary ? subCommandLabel({ record: secondary, name: secondary.name }) : undefined}/>
-    </span>
+    </span>}
     <span className="build-card__summary-group">
       <span className="build-card__summary-label" title="Equipment"><Icon name="sword"/><span className="sr-only">Equipment</span></span>
       <span aria-label="Equipment" className="build-card__equipment" data-show-names={equipmentNames || undefined} role="group">{slots.map(slot => {
