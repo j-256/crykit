@@ -54,6 +54,44 @@ function checkbox(label: string) {
 }
 
 describe('Build picker interaction', () => {
+  it('places class groups before other results and preserves keyboard selection across pagination', async () => {
+    const priorityGroups = [
+      { key: 'class', label: 'Class: Hunter', refs: [second.ref] },
+      { key: 'subclass', label: 'Subclass: Wizard', refs: [second.ref, first.ref] },
+    ]
+    const props = await render({ priorityGroups, otherGroupLabel: 'Other abilities', resultLimit: 1 })
+    const input = container.querySelector('[role="combobox"]')!
+    expect([...container.querySelectorAll('[role="group"]')].map(group => group.textContent)).toEqual([expect.stringContaining('Class: Hunter')])
+    expect(results()[0]!.textContent).toContain(second.name)
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })))
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(props.onChange).toHaveBeenCalledWith(second.ref)
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })))
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(props.onResultLimitChange).toHaveBeenCalledWith(101)
+
+    await render({ ...props, resultLimit: 100 })
+    expect([...container.querySelectorAll('.build-picker-group-heading')].map(heading => heading.textContent)).toEqual(['Class: Hunter', 'Subclass: Wizard', 'Other abilities'])
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toEqual([second.name, first.name, unavailable.name])
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })))
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })))
+    await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(props.onChange).toHaveBeenLastCalledWith(first.ref)
+  })
+
+  it('filters every priority group without hiding other matches or duplicating shared choices', async () => {
+    const priorityGroups = [{ key: 'class', label: 'Class: Hunter', refs: [second.ref] }]
+    await render({ priorityGroups, query: first.name, otherGroupLabel: 'Other abilities' })
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toEqual([first.name])
+    expect(container.querySelector('.build-picker-group-heading')?.textContent).toBe('Other abilities')
+    await render({ priorityGroups, query: 'No matching ability' })
+    expect(container.querySelector('[role="group"]')).toBeNull()
+    expect(container.textContent).toContain('No matching definitions')
+    await render()
+    expect(container.querySelector('[role="group"]')).toBeNull()
+    expect(results()[0]!.textContent).toContain(first.name)
+  })
+
   it('can hide duplicate selected details while retaining search result facts', async () => {
     await render({ value: first.ref })
     expect(container.querySelector('.build-field__evidence')).not.toBeNull()
