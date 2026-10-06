@@ -50,7 +50,7 @@ test('first-load selection keeps hidden choices, saves exact source priority and
   expect(setup.modComposition?.layers.map(layer => layer.catalogId)).toEqual(['crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176', 'crystal-edit:3c1f2e0b-a46d-4feb-904d-7ceb49f8a578'])
   expect(setup.modComposition?.layers.every(layer => layer.enabled && selected.catalogs.some(catalog => catalog.id === layer.catalogId && catalog.revisionId === layer.catalogRevisionId))).toBe(true)
   expect(selected.sources.every(size => size > 0)).toBe(true)
-  expect(selected.sources).toHaveLength(2)
+  expect(selected.sources).toHaveLength(original.sources.length + 1)
   expect(selected.data.buildRevisions).toEqual(original.data.buildRevisions)
   expect(selected.data.gameSetups).toMatchObject(original.data.gameSetups)
   for (const layer of setup.modComposition!.layers) expect(selected.data.referenceLibrary?.excludedMods).not.toContain(layer.catalogId)
@@ -61,11 +61,11 @@ test('first-load selection keeps hidden choices, saves exact source priority and
   expect(errors).toEqual([])
 })
 
-test('a skipped profile discovers an unloaded mod in a picker and enables it only for the new Build', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('a skipped profile discovers an inactive mod in a picker and enables it only for the new Build', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   const original = await stored(page)
-  expect(original.sources).toEqual([])
+  expect(original.sources.every(size => size > 0)).toBe(true)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Freelancer Moonlight')
   const picker = page.getByRole('listbox', { name: 'Choose Class', exact: true })
@@ -87,7 +87,7 @@ test('a skipped profile discovers an unloaded mod in a picker and enables it onl
   expect(saved.data.gameSetups[checkpoint.gameSetupRevisionId]?.modComposition?.layers[0]?.enabled).toBe(true)
   expect(saved.data.gameSetups[original.data.planningGameSetupRevisionId!]).toEqual(original.data.gameSetups[original.data.planningGameSetupRevisionId!])
   expect(saved.data.referenceLibrary).toEqual(original.data.referenceLibrary)
-  expect(saved.sources).toHaveLength(1)
+  expect(saved.sources).toHaveLength(original.sources.length)
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Freelancer')
 })

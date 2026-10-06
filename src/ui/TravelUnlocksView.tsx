@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
+import { preferredStarterCatalog } from '../catalog/bundled'
 import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlock-groups'
 import { catalogEntity } from '../domain/entity-identities'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
@@ -25,7 +26,7 @@ interface TravelUnlockEntry {
 }
 
 export function travelUnlockEntries(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly TravelUnlockEntry[] {
-  const catalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID)
+  const catalog = preferredStarterCatalog(catalogs)
   if (!catalog) return []
   const records = new Map(Object.values(requirePlaythrough(localData).progress).map(record => [logicalEntityKey(localData, record.subject), record]))
   return TRAVEL_UNLOCK_GROUPS.flatMap(group => group.entityIds.flatMap(entityId => {

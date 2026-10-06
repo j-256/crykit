@@ -130,7 +130,9 @@ test('a failed confirmation retains the field and supports an explicit retry', a
   await page.goto('/#/builds/library/new')
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toBeVisible()
   const before = await storedData(page)
-  const dialog = await promptFreelancer(page)
+  await choose(page, 'Class', 'Blade Dancer', 'Jobs - Blade Dancer and Adept')
+  const dialog = page.getByRole('dialog', { name: 'Enable Jobs - Blade Dancer and Adept?', exact: true })
+  await expect(dialog).toBeVisible()
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add
     let failOnce = true
@@ -139,16 +141,17 @@ test('a failed confirmation retains the field and supports an explicit retry', a
       return add.apply(this, args)
     }
   })
-  await dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Enable and select Blade Dancer', exact: true }).click()
   await expect(dialog.getByText('Mod could not be enabled', { exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(before)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('')
-  await dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Enable and select Blade Dancer', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
+  await page.getByLabel('Build title', { exact: true }).fill('Synthetic source retry build')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Freelancer build', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Synthetic source retry build', exact: true })).toBeVisible()
   expect((await storedData(page)).playthroughs).toEqual(before.playthroughs)
 })
 

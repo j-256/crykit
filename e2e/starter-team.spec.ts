@@ -35,7 +35,8 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const original = await exportLocalData(page)
   expect(selectedPlaythrough(original).label).toBe('Sample playthrough')
   expect(Object.values(selectedPlaythrough(original).characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan', 'Sol', 'Tavi'])
-  expect(Object.values(original.builds)).toHaveLength(4)
+  expect(Object.values(original.builds)).toHaveLength(8)
+  expect(Object.values(original.builds).filter(build => build.title.includes(': sample '))).toHaveLength(4)
   const team = selectedPlaythrough(original).scenarios[selectedPlaythrough(original).activeScenarioId!]!
   expect(team.memberIds).toEqual(Object.keys(selectedPlaythrough(original).characters))
   expect(Object.keys(team.assignments)).toHaveLength(4)
@@ -60,7 +61,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   }
   await page.screenshot({ path: testInfo.outputPath('sample-team.png'), fullPage: true })
 
-  const build = Object.values(original.builds)[0]!
+  const build = Object.values(original.builds).find(build => build.title === 'Rowan: sample Warrior')!
   await page.goto(`/#/builds/library/${encodeURIComponent(build.id)}`)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Short Sword')
@@ -96,12 +97,12 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.reload()
-  await expect(page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')).toHaveCount(4)
+  await expect(page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')).toHaveCount(8)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
   const localData = await exportLocalData(page)
   for (const key of ['characters', 'inventory', 'scenarios'] as const) expect(selectedPlaythrough(localData)[key]).toEqual({})
-  expect(Object.values(localData.builds)).toHaveLength(4)
+  expect(Object.values(localData.builds)).toHaveLength(8)
 })
 
 test('Game Setup starts with core fields and reveals optional settings on demand', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {

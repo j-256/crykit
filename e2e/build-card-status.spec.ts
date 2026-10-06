@@ -18,7 +18,7 @@ async function archiveBuildFixture(page: Page): Promise<readonly string[]> {
       transaction.oncomplete = () => { database.close(); resolve(titles) }
       read.onsuccess = () => {
         const record = read.result[0] as { localData: LocalData }
-        const archived = Object.values(record.localData.builds)[0]
+        const archived = Object.values(record.localData.builds).find(build => build.title === 'Rowan: sample Warrior')
         if (!archived) { transaction.abort(); return }
         titles = [archived.title]
         store.put({ ...record, localData: { ...record.localData, builds: {
@@ -33,13 +33,13 @@ async function archiveBuildFixture(page: Page): Promise<readonly string[]> {
 test('saved and cloned Builds have no classification badges', async ({ page }) => {
   await page.goto('/#/builds/library')
   await expect(page.getByRole('button', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
-  await expect(page.locator('.build-card__header .badge')).toHaveCount(0)
+  await expect(page.locator('.build-card__header > .badge')).toHaveCount(0)
   await page.getByRole('button', { name: ORIGINAL_TITLE, exact: true }).click()
   await clickBuildAction(page, 'Clone Build')
   await expect(page.getByRole('heading', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   await expect(page.getByRole('button', { name: `${ORIGINAL_TITLE} (copy)`, exact: true })).toBeVisible()
-  await expect(page.locator('.build-card__header .badge')).toHaveCount(0)
+  await expect(page.locator('.build-card__header > .badge')).toHaveCount(0)
   await expect(page.locator('.build-card .badge').filter({ hasText: /^sample$/ }).first()).toBeVisible()
 })
 
@@ -51,6 +51,6 @@ test('archived Builds stay hidden without lifecycle classifications', async ({ p
   await page.reload()
   await expect(page.getByRole('button', { name: archived, exact: true })).toHaveCount(0)
   await expect(page.locator('.build-card')).toHaveCount(originalCount - 1)
-  await expect(page.locator('.build-card__header .badge')).toHaveCount(0)
+  await expect(page.locator('.build-card__header > .badge')).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

@@ -281,7 +281,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Saved setups', exact: true }).click()
-  await panel.getByRole('button', { name: 'Edit setup', exact: true }).first().click()
+  await panel.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic Switch choices', exact: true }) }).getByRole('button', { name: 'Edit setup', exact: true }).click()
   await applySavedGameSetup(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()

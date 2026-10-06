@@ -1,7 +1,11 @@
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { referenceLibraryWithMod } from '../domain/reference-library'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
+import { bundledModEditableSource } from '../catalog/mod-library'
+import { unpackJson } from '../catalog/packed-json'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
+import { previewCrystalEdit } from '../interchange/crystal-edit'
+import { decodeSharePayload, saveSharedCopy } from '../interchange/share'
 import { createSampleLocalData } from '../domain/sample-data'
 import { SWITCH_MOD_PACKS } from '../catalog/mods'
 import { normalizeModName } from '../domain/mods'
@@ -44,8 +48,11 @@ import {
   type LocalDataRecord,
 } from './database'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
+import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
+import starterBuildModCatalogs from './starter-build-mod-catalogs.packed.json' with { type: 'json' }
 
 const LOCAL_DATA_RECORD_KEY = 'local-data-record'
+const STARTER_BUILD_TITLE_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({ 'Brawler build': 'Prudence' })
 const CHANNEL_NAME = 'crykit-local-data'
 const MAX_LOCAL_DATA_CHANGES = 500
 const MAX_HISTORY_ENTRIES = 500
@@ -158,13 +165,43 @@ async function removePersistedBundledCatalogs(database: CryKitDatabase): Promise
 }
 
 async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalDataRecord> {
-  return database.transaction('rw', database.localDatas, async () => {
+  let localData = createSampleLocalData(CURRENT_CATALOG)
+  for (const encoded of starterBuildShares) {
+    const payload = decodeSharePayload(encoded)
+    if (payload.kind !== 'build') throw new Error('A starter Build snapshot is not a Build')
+    const copied = saveSharedCopy(localData, payload)
+    const build = copied.localData.builds[copied.buildId!]!
+    // The shared Brawler snapshot predates its corrected starter title; keep its checkpoint and source intact
+    localData = {
+      ...copied.localData,
+      builds: { ...copied.localData.builds, [build.id]: { ...build, title: STARTER_BUILD_TITLE_OVERRIDES[payload.title] ?? build.title, tags: [...new Set([...build.tags, 'sample'])] } },
+    }
+  }
+  // The entire first-run seed is one baseline, so it must not create undo checkpoints or a changed revision
+  localData = { ...localData, revision: 0, changes: [], updatedAt: localData.createdAt }
+  localData = { ...localData, modSetup: { version: 1, state: 'pending' }, referenceLibrary: { version: 1, excludedMods: [...new Set([...BUNDLED_MOD_LIBRARY.map(mod => mod.id), ...SWITCH_MOD_PACKS.flatMap(pack => pack.mods).map(name => `name:${normalizeModName(name)}`)])] } }
+  const layerPins = new Map(Object.values(localData.gameSetups).flatMap(setup => setup.modComposition?.layers ?? []).map(pin => [`${pin.catalogId}:${pin.catalogRevisionId}`, pin]))
+  // These snapshots were interpreted by library-v2; newer imports of the same bytes have different revisions
+  const modCatalogs = unpackJson<readonly CatalogSnapshot[]>(starterBuildModCatalogs).map(catalog => ({ ...catalog, importedAt: localData.createdAt }))
+  for (const pin of layerPins.values()) {
+    if (!modCatalogForPin(modCatalogs, pin)) throw new Error(`A starter Build requires an unavailable Crystal Edit revision: ${pin.catalogId}@${pin.catalogRevisionId}`)
+  }
+  const modSources = await Promise.all(modCatalogs.map(async catalog => {
+    const mod = BUNDLED_MOD_LIBRARY.find(candidate => candidate.id === catalog.id && candidate.sourceDigest === catalog.checksum)
+    if (!mod) throw new Error(`A starter Build source is unavailable: ${catalog.id}@${catalog.revisionId}`)
+    const source = await bundledModEditableSource(mod)
+    const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename, localData.createdAt)
+    if (`sha256:${preview.sourceDigest}` !== catalog.checksum) throw new Error(`A starter Build source digest changed: ${catalog.id}`)
+    return preview.proposed.sources[0]!
+  }))
+  const preparedCatalogs = await prepareModCatalogs(localData, [...BUNDLED_CATALOGS, ...modCatalogs])
+  const starterCatalogs = preparedCatalogs.filter(catalog => !BUNDLED_CATALOG_KEYS.has(catalogKey(catalog))).map(compactModCatalog)
+  validateLocalDataForStorage(localData, preparedCatalogs)
+  return database.transaction('rw', database.localDatas, database.catalogs, database.sources, async () => {
     const active = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
     if (active) return active
     const existing = await database.localDatas.orderBy('updatedAt').last()
     if (existing) return existing
-    const localData: LocalData = { ...createSampleLocalData(CURRENT_CATALOG), modSetup: { version: 1, state: 'pending' }, referenceLibrary: { version: 1, excludedMods: [...new Set([...BUNDLED_MOD_LIBRARY.map(mod => mod.id), ...SWITCH_MOD_PACKS.flatMap(pack => pack.mods).map(name => `name:${normalizeModName(name)}`)])] } }
-    validateLocalDataForStorage(localData, BUNDLED_CATALOGS)
     const record: LocalDataRecord = {
       id: LOCAL_DATA_RECORD_KEY,
       revision: localData.revision,
@@ -172,6 +209,8 @@ async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalD
       localData,
       lineage: { rootLocalDataId: localData.id },
     }
+    await database.catalogs.bulkPut(starterCatalogs.map(toCatalogRecord))
+    await database.sources.bulkPut(modSources)
     await database.localDatas.add(record)
     return record
   })

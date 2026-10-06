@@ -129,7 +129,7 @@ test('desktop character and build summaries share a compact card width', async (
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/#/builds/library')
 
-  const libraryCards = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')
+  const libraryCards = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ has: page.getByRole('button', { name: /: sample (Warrior|Cleric|Rogue|Wizard)$/ }) })
   await expect(libraryCards).toHaveCount(4)
   const libraryBoxes = await libraryCards.evaluateAll(cards => cards.map(card => ({ y: card.getBoundingClientRect().y, width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })))
   expect(new Set(libraryBoxes.map(box => box.y)).size).toBe(1)

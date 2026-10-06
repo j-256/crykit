@@ -82,7 +82,7 @@ test('plans and shares four checkpoints with no tracked characters and retries a
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New Team', exact: true }).click()
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic independent Team')
-  const revisions = Object.values(before.builds).map(build => build.latestRevisionId!)
+  const revisions = Object.values(before.builds).filter(build => build.title.includes(': sample ')).map(build => build.latestRevisionId!)
   for (let index = 0; index < 4; index += 1) await chooseTeamCheckpoint(page, index + 1, revisions[index]!)
   await failNextSave(page)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()

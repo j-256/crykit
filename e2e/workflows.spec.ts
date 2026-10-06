@@ -193,7 +193,7 @@ test('import previews before writing and native restore keeps original source by
   expect(selectedPlaythrough(payload.localData).characters).toEqual({})
   const files = unzipSync(bytes)
   const manifest = JSON.parse(strFromU8(files['manifest.json']!))
-  expect(strFromU8(files[manifest.sources[0].path]!)).toBe(JSON.stringify(SYNTHETIC_RESEARCH))
+  expect(manifest.sources.some((source: { path: string }) => strFromU8(files[source.path]!) === JSON.stringify(SYNTHETIC_RESEARCH))).toBe(true)
   const restore = await openData(page)
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
   await restore.getByText('File details and source notices', { exact: true }).click()
