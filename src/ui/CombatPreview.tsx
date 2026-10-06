@@ -12,6 +12,7 @@ import { CalculationPicker } from './CalculationPicker'
 import { CombatAbilitySummary } from './CombatAbilitySummary'
 import { CombatStatusImpact } from './CombatStatusImpact'
 import { combatPreviewInputAction, type CombatPreviewInputField } from './combat-preview-inputs'
+import { previewAbilityGroups } from './preview-ability-groups'
 import { Button, InlineNotice } from './components'
 import { entityName, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
@@ -52,6 +53,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
   const section = useRef<HTMLElement>(null)
   const plan = content.calculation
   const battle = plan?.battle
+  const abilityGroups = useMemo(() => previewAbilityGroups(content, localData, catalogs, gameSetup), [content, localData, catalogs, gameSetup])
   const preview = useMemo(() => calculateBuildCombatPreview(content, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), resolveGameRules(gameSetup, catalogs), unknownInputs, unknownSecondaryClass), [content, slots, localData, catalogs, gameSetup, unknownInputs, unknownSecondaryClass])
   const [comparedStatusKey, setComparedStatusKey] = useState('')
   const statusChoices = useMemo(() => listActiveStatusImpactChoices(content, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), resolveGameRules(gameSetup, catalogs)), [content, localData, catalogs, gameSetup])
@@ -90,7 +92,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
       {onChange && <Button tone="quiet" type="button" onClick={() => update({ battle: battle ? undefined : defaultBattleCalculation() })}>{battle ? 'Use resting stats' : 'Add battle scenario'}</Button>}
     </div>
     <div className="combat-selection">
-      <div className="combat-selection__ability">{onChange && <CalculationPicker showSelectionDetails={false} gameSetup={gameSetup} kinds={ABILITY_KINDS} label="Preview ability" onChange={ability => update({ ability })} value={plan?.ability ?? null}/>}
+      <div className="combat-selection__ability">{onChange && <CalculationPicker showSelectionDetails={false} gameSetup={gameSetup} kinds={ABILITY_KINDS} label="Preview ability" priorityGroups={abilityGroups} otherGroupLabel="Other abilities" resetSearchOnOpen onChange={ability => update({ ability })} value={plan?.ability ?? null}/>}
         <CombatAbilitySummary abilityRef={plan?.ability ?? null} localData={localData} catalogs={catalogs} gameSetup={gameSetup} pcMode={plan?.pcMode}/>
       </div>
       {battle && <BattleTargetPicker context={{ localData, catalogs, gameSetup }} battle={battle} onChange={onChange ? battle => update({ battle }) : undefined}/>}
