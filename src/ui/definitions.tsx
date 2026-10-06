@@ -8,8 +8,8 @@ import { passivePointCost } from '../domain/mechanics-facts'
 import { bundledModLabel } from '../domain/bundled-mods'
 import { modListPriority } from '../domain/mods'
 import { MOD_PROJECT_FIELD, type BundledLibraryMod } from '../domain/mod-library'
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
-import { starterEntitySourceLabel } from '../catalog'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PropsWithChildren, type RefObject } from 'react'
+import { starterEntitySourceLabel } from '../catalog/provenance'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
 import { entityDefinitionKey, isEditablePersonalDefinition, logicalEntityKey, preferredDefinitionRef, preferredPersonalDefinitions, selectedPlaythrough } from '../domain'
 import type { CatalogEntity, CatalogEntityKind, CatalogRef, CatalogSnapshot, EntityRef, GameSetupRevision, JsonValue, Knowledge, PersonalDefinition, LocalData } from '../domain/types'
@@ -26,7 +26,7 @@ import { DefinitionArtwork } from './GameIcon'
 import { ModBadge } from './DefinitionModLabel'
 import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA, modCatalogTitle } from '../domain/mod-layers'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
-import { BUNDLED_MOD_SEARCH_CATALOGS } from '../catalog/mod-search'
+import { bundledModSearchCatalogs } from '../catalog/mod-search'
 import { isModSearchPreview, mergeModSearchCatalogs } from '../domain/mod-search'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
@@ -70,6 +70,9 @@ export interface DefinitionLibraryValue {
   readonly availablePlanningOptions: readonly DefinitionOption[]
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
   readonly onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>
+  readonly onRequestBundledSearch: () => void
+  readonly bundledSearchPending: boolean
+  readonly bundledSearchError?: string
 }
 
 export const DefinitionLibraryContext = createContext<DefinitionLibraryValue | undefined>(undefined)
@@ -101,7 +104,28 @@ function catalogProvenance(catalogs: readonly CatalogSnapshot[], ref: EntityRef 
   return entity ? starterEntitySourceLabel(entity) : undefined
 }
 
-export function buildDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly DefinitionOption[] {
+type CatalogDefinitionOption = Omit<DefinitionOption, 'ref' | 'record' | 'stockLabel' | 'gameSetupStatus' | 'modAvailability'> & { readonly ref: CatalogRef; readonly record: CatalogEntity }
+
+function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): readonly CatalogDefinitionOption[] {
+  return catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): CatalogDefinitionOption => {
+    const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
+    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? (snapshot.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? modCatalogTitle(snapshot) : starterEntitySourceLabel(entity))
+    const effectiveLayer = entity.fields['Effective mod layer']
+    const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
+    const category = categoryKnowledge(entity.fields)
+    return {
+      key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
+      description: referenceDescription(entity),
+      nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
+      ...(category === undefined ? {} : { category }),
+      ppCost: passivePointCost(entity),
+      sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,
+      preferred: true, record: entity,
+    }
+  }))
+}
+
+function updateDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[], catalogOptions: readonly CatalogDefinitionOption[]): readonly DefinitionOption[] {
   const preferredPersonalIds = new Set(preferredPersonalDefinitions(localData).map((definition) => definition.id))
   const activeGameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
   const personal = Object.values(localData.personalDefinitions).map((definition): DefinitionOption => {
@@ -120,24 +144,20 @@ export function buildDefinitionOptions(localData: LocalData, catalogs: readonly 
       ...(activeGameSetup?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup definition collection' : 'No current Game Setup definition collection' }),
     }
   })
-  const catalog = catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): DefinitionOption => {
-    const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
-    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? (snapshot.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? modCatalogTitle(snapshot) : starterEntitySourceLabel(entity))
-    const effectiveLayer = entity.fields['Effective mod layer']
-    const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
+  const catalog = catalogOptions.map((option): DefinitionOption => {
+    const ref = option.ref
     return {
-      key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
-      description: referenceDescription(entity),
-      nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
-      ...(categoryKnowledge(entity.fields) === undefined ? {} : { category: categoryKnowledge(entity.fields) }),
-      ppCost: passivePointCost(entity),
-      sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,
-      stockLabel: inventoryLabel(localData, ref), preferred: true, record: entity,
+      ...option,
+      stockLabel: inventoryLabel(localData, ref),
       modAvailability: definitionModAvailability(localData, ref, activeGameSetup, catalogs),
-      ...(activeGameSetup?.catalogLock[snapshot.id] === snapshot.revisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
+      ...(activeGameSetup?.catalogLock[ref.catalogId] === ref.catalogRevisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
     }
-  }))
+  })
   return [...personal, ...catalog].sort((left, right) => Number(right.preferred) - Number(left.preferred) || left.name.localeCompare(right.name) || Number(nativeIdentity(right.record)?.mode === 'base') - Number(nativeIdentity(left.record)?.mode === 'base') || left.sourceLabel.localeCompare(right.sourceLabel) || left.key.localeCompare(right.key))
+}
+
+export function buildDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly DefinitionOption[] {
+  return updateDefinitionOptions(localData, catalogs, buildCatalogDefinitionOptions(catalogs))
 }
 
 export function definitionOptionsForRevisions(options: readonly DefinitionOption[], catalogLock: Readonly<Record<string, string>> = {}): readonly DefinitionOption[] {
@@ -163,20 +183,35 @@ export function definitionOptionsForSetup(options: readonly DefinitionOption[], 
   })
 }
 
-export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot> }>) {
-  const searchable = useMemo(() => onLoadBundledMod ? mergeModSearchCatalogs(catalogs, BUNDLED_MOD_SEARCH_CATALOGS) : catalogs, [catalogs, onLoadBundledMod])
-  const options = useMemo(() => buildDefinitionOptions(localData, searchable), [searchable, localData])
+export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, onRequestParentSearch, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>; onRequestParentSearch?: () => void }>) {
+  const [searchRequested, setSearchRequested] = useState(false)
+  const [searchCatalogs, setSearchCatalogs] = useState<readonly CatalogSnapshot[]>()
+  const [bundledSearchError, setBundledSearchError] = useState<string>()
+  const canSearchBundled = Boolean(onLoadBundledMod)
+  const onRequestBundledSearch = useCallback(() => { setSearchRequested(true); onRequestParentSearch?.() }, [onRequestParentSearch])
+  useEffect(() => {
+    if (!canSearchBundled || !searchRequested) return
+    const timer = window.setTimeout(() => {
+      try { setSearchCatalogs(bundledModSearchCatalogs()) } catch (reason) { setBundledSearchError(formatAppError(reason, 'Mod choices could not be loaded. Reload to try again.')) }
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [canSearchBundled, searchRequested])
+  const bundledSearchPending = canSearchBundled && searchCatalogs === undefined && !bundledSearchError
+  const searchable = useMemo(() => canSearchBundled && searchCatalogs ? mergeModSearchCatalogs(catalogs, searchCatalogs) : catalogs, [catalogs, canSearchBundled, searchCatalogs])
+  const catalogOptions = useMemo(() => buildCatalogDefinitionOptions(searchable), [searchable])
+  const options = useMemo(() => updateDefinitionOptions(localData, searchable, catalogOptions), [searchable, catalogOptions, localData])
   const availableOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return definitionOptionsForSetup(options, searchable, gameSetup)
   }, [searchable, options, localData])
   const baseline = planningCatalogs ?? searchable
-  const planningOptions = useMemo(() => baseline === searchable ? options : buildDefinitionOptions(localData, baseline), [baseline, searchable, options, localData])
+  const planningCatalogOptions = useMemo(() => baseline === searchable ? catalogOptions : buildCatalogDefinitionOptions(baseline), [baseline, searchable, catalogOptions])
+  const planningOptions = useMemo(() => baseline === searchable ? options : updateDefinitionOptions(localData, baseline, planningCatalogOptions), [baseline, searchable, options, planningCatalogOptions, localData])
   const availablePlanningOptions = useMemo(() => {
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
   }, [baseline, planningOptions, localData])
-  const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, options, planningOptions, localData])
+  const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 
@@ -289,7 +324,8 @@ export interface DefinitionDropdownProps {
 
 export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, selected, allowUnknown = true, allowEmpty = false, emptyLabel = 'Empty', emptyDescription = 'Nothing is equipped in this slot', createLabel = 'Create personal definition', compact = false, filterOption, optionLabel = defaultOptionLabel, onInspect, query: controlledQuery, resultLimit: controlledLimit, onQueryChange, onResultLimitChange, onClose, onSelect }: DefinitionDropdownProps) {
   const navigation = useNavigation()
-  const { localData, catalogs, options, availableOptions, onLoadBundledMod } = useDefinitionLibrary()
+  const { localData, catalogs, options, availableOptions, onLoadBundledMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError } = useDefinitionLibrary()
+  useEffect(() => { if (open) onRequestBundledSearch() }, [open, onRequestBundledSearch])
   const [includeAlternatives, setIncludeAlternatives] = useState(false)
   const [loadError, setLoadError] = useState<string>()
   const [loadingSource, setLoadingSource] = useState(false)
@@ -382,7 +418,9 @@ export function DefinitionDropdown({ id, anchorRef, open, title, allowedKinds, s
         {selectedOption && !selectedVisible && <button aria-pressed="true" className="picker-result" data-definition-result="true" disabled={loadingSource} onClick={() => void choose(selectedOption.ref)} tabIndex={-1} type="button"><span className="picker-result__content"><span className="picker-result__heading"><strong>{nativeDisplayName(selectedOption.record)}</strong>{selectedOption.modAvailability?.requiredMod && <ModBadge name={selectedOption.modAvailability.requiredMod} state={selectedOption.modAvailability.state}/>}</span><small>{definitionKindLabel(selectedOption.kind)} · {selectedOption.sourceLabel}</small><small>Current exact selection</small></span><Icon name="check"/></button>}
         {visible.map((option) => <button aria-pressed={selected ? entityDefinitionKey(selected) === option.key : false} className="picker-result" data-definition-result="true" data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} key={option.key} disabled={loadingSource} onClick={() => void choose(option.ref)} onFocus={() => onInspect?.(option)} tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{displayOptionLabel(option)}</strong>{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} state={option.modAvailability.state}/>}{option.ppCost?.state === 'known' && <span className="picker-result__cost"><Badge tone="info">{option.ppCost.value} PP</Badge></span>}{selected && entityDefinitionKey(selected) === option.key && <Icon name="check"/>}</span>{optionLabel(option) !== option.name && <small>{option.name} class</small>}{option.description && <small className="picker-result__description" title={moneyTextLabel(option.description)}><MoneyText>{option.description}</MoneyText></small>}{!compact && <small className="picker-result__source">{definitionKindLabel(option.kind)} · {option.sourceLabel}</small>}<span className="picker-result__status">{!compact && option.kind === 'item' && <small>{option.stockLabel}</small>}{!compact && option.gameSetupStatus && <small className="picker-result__warning">{option.gameSetupStatus}</small>}{!option.preferred && <small>Historical or base</small>}</span></span></button>)}
         {candidates.length > limit && <Button onClick={() => setLimit(limit + DEFINITION_RESULT_PAGE_SIZE)} tone="quiet" type="button">Show {Math.min(DEFINITION_RESULT_PAGE_SIZE, candidates.length - limit)} more</Button>}
-        {candidates.length === 0 && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
+        {bundledSearchPending && <p role="status">Loading mod choices...</p>}
+        {bundledSearchError && <InlineNotice title="Mod choices unavailable" tone="warning">{bundledSearchError} Reload to try again.</InlineNotice>}
+        {candidates.length === 0 && !bundledSearchPending && <p className="definition-dropdown__empty" role="status">No matching definitions. Try another search or create a personal definition.</p>}
       </div>
       <div className="definition-dropdown__actions">{selectedOption && isEditablePersonalDefinition(localData, selectedOption.ref) && <Button icon="edit" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'override', ref: preferredDefinitionRef(localData, selectedOption.ref) }))} tone="quiet" type="button">Edit selected definition</Button>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet" type="button">{query.trim() ? `Create "${query.trim().slice(0, 80)}"` : createLabel}</Button></div>
     </Dropdown>

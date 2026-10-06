@@ -25,7 +25,7 @@ const second = passive('Second passive', 7)
 const unavailable = passive('Unconfirmed mod passive', 3, 'Synthetic mod')
 const options = [first, second, unavailable]
 const localData = { ...createBlankLocalData(), personalDefinitions: Object.fromEntries(options.map(option => [option.record.id, option.record])) as Record<string, PersonalDefinition> }
-const library = { localData, catalogs: [], options, planningOptions: options, availableOptions: options, availablePlanningOptions: options, onSaveDefinition: async () => first.ref }
+const library = { localData, catalogs: [], options, planningOptions: options, availableOptions: options, availablePlanningOptions: options, onSaveDefinition: async () => first.ref, onRequestBundledSearch: () => undefined, bundledSearchPending: false }
 let container: HTMLDivElement
 let root: Root
 

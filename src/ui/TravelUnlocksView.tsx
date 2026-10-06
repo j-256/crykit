@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { TRAVEL_UNLOCK_GROUPS } from '../catalog/travel-unlock-groups'
 import { catalogEntity } from '../domain/entity-identities'
 import { acquisitionState, logicalEntityKey, preferredDefinitionRef, requirePlaythrough } from '../domain'
