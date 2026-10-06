@@ -30,6 +30,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
 
 async function expectClassProvenance(page: Page, name = 'Warrior') {
   await expect(page.getByRole('region', { name: 'Game details', exact: true })).toHaveCount(0)
+  await expect(page.locator('.reference-technical')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Planning fields', exact: true })).toBeVisible()
   const sources = page.getByRole('dialog', { name: `Sources for ${name}`, exact: true })
   await expect(sources).toHaveCount(0)
@@ -249,6 +250,7 @@ test('native personal class versions retain external attribution and exact sourc
   const saved = await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic personal Warrior', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Game details', exact: true })).toHaveCount(0)
+  await expect(page.locator('.reference-technical')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Planning fields', exact: true })).toBeVisible()
   const trigger = page.getByRole('button', { name: 'Sources for Synthetic personal Warrior', exact: true })
   const sources = page.getByRole('dialog', { name: 'Sources for Synthetic personal Warrior', exact: true })

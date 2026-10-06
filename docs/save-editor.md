@@ -1,6 +1,6 @@
-# Crystal Project save editor
+# Crystal Project Save Editor
 
-Open **Save editor** from CryKit's main menu to edit a Crystal Project `.sav` file locally. Choose a file, review its party and inventory, make changes, and download an edited copy. The original file stays available as a separate download. Save editing does not import records into a Playthrough or change planner data.
+Open **Save Editor** from CryKit's main menu to edit a Crystal Project `.sav` file locally. Choose a file, review its party and inventory, make changes, and download an edited copy. The original file stays available as a separate download. Save editing does not import records into a Playthrough or change planner data.
 
 ## Supported saves
 
@@ -57,7 +57,7 @@ Save files are processed in browser memory and are never uploaded. Opened files 
 
 **Download original** returns the exact opened bytes. Resetting changes restores that original. An unchanged codec round-trip preserves bytes exactly, including BSON numeric types, dates, field order, and untouched sections. Imported text is displayed as text, never executed.
 
-Prepare CryKit for offline use under **Data & settings > Offline & storage** before disconnecting. The save editor and its bundled rules work offline with the rest of the app. Mod-aware editing also requires the matching JSON files to remain available on the device for manual selection.
+Prepare CryKit for offline use under **Data & settings > Offline & storage** before disconnecting. The Save Editor and its bundled rules work offline with the rest of the app. Mod-aware editing also requires the matching JSON files to remain available on the device for manual selection.
 
 ## Implementation and verification
 

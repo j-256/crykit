@@ -9,9 +9,13 @@ import { GRID_STEP, GRID_X, GRID_Y, SQUARE_SIZE } from '../interchange/skill-gri
 import { Button, Field, InlineNotice } from './components'
 import { Sheet } from './Sheet'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker } from './navigation'
+import { useNavigationNotice } from './useNavigationNotice'
 import { CONFIRMED_SKILL_MAP_SETS, skillMapSetForGameSetup, suggestSkillTreeMap } from '../catalog/skill-maps'
+import { Icon } from './icons'
+import './tool-workflows.css'
 
 interface Choice { readonly ref: EntityRef; readonly name: string; readonly kind: CatalogEntityKind; readonly className?: string; readonly requiredMod?: string; readonly modAvailability?: DefinitionModAvailability }
+const SCREENSHOT_STEPS = ['Upload', 'Match character & class', 'Review squares', 'Save'] as const
 interface Draft { readonly preview: ScreenshotPreview; readonly characterId?: CharacterId; readonly classRef?: EntityRef; readonly classMatch?: ScreenshotClassNameMatch<Choice>; readonly mappings: readonly SkillTreeMapping[]; readonly reviewed: boolean; readonly included: boolean }
 const SQUARE_LABELS: Readonly<Record<SkillSquareState, string>> = { learned: 'Learned', available: 'Available, not learned', locked: 'Locked, not learned', unknown: 'Unknown' }
 
@@ -60,6 +64,8 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
   const [progress, setProgress] = useState('')
   const [error, setError] = useState<string>()
   const [closeWarning, setCloseWarning] = useState(false)
+  const { noticeRef, revealNotice } = useNavigationNotice()
+  const warnBeforeClosing = () => { setCloseWarning(true); revealNotice() }
   const [search, setSearch] = useState('')
   const [allClasses, setAllClasses] = useState(false)
   const retained = useRef<readonly ScreenshotPreview[]>([])
@@ -67,7 +73,7 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
   const blocked = useRef(false)
   const exitAllowed = useRef(false)
   blocked.current = !exitAllowed.current && (drafts.length > 0 || busy)
-  useNavigationBlocker(scope.current, () => blocked.current, () => setCloseWarning(true))
+  useNavigationBlocker(scope.current, () => blocked.current, warnBeforeClosing)
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (blocked.current) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', beforeUnload)
@@ -87,9 +93,10 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
   const candidates = options.filter(option => option.kind !== 'class' && (allClasses || !activeClass || option.className === activeClass || mapping && sameLogicalEntity(localData, option.ref, mapping.ref)) && option.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
   const included = drafts.filter(draft => draft.included && !draft.preview.error && !draft.preview.duplicateOf)
   const ready = included.length > 0 && included.every(draft => draft.reviewed && draft.classRef && draft.characterId)
+  const currentStep = drafts.length === 0 ? 0 : included.some(draft => !draft.characterId || !draft.classRef) ? 1 : ready ? 3 : 2
   const stale = localData.id !== localDataId.current || localData.revision !== revision.current || localData.planningGameSetupRevisionId !== gameSetup.current
   const finish = () => { exitAllowed.current = true; blocked.current = false; controller.current?.abort(); navigation.close() }
-  const requestClose = () => { if (blocked.current) { setCloseWarning(true); return false } return true }
+  const requestClose = () => { if (blocked.current) { warnBeforeClosing(); return false } return true }
   const update = (patch: Partial<Draft>) => { if (active) setDrafts(current => current.map(draft => draft.preview.id === active.preview.id ? { ...draft, ...patch } : draft)) }
   const setClass = (ref?: EntityRef) => {
     if (!active) return
@@ -134,12 +141,16 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
   }
   return <Sheet description="Read local Learn-menu screenshots, review the character and class, then save observations." onClose={finish} onRequestClose={requestClose} open title="Import skill screenshots" width="wide">
     <div className="stack">
-      {drafts.length === 0 && <p>Gold squares are learned. Blue squares are available but not learned; dim squares are locked. Screenshots stay on this device.</p>}
-      {drafts.length === 0 && <Field hint="Choose the game's configuration to fill names from confirmed class maps. Saved playthrough maps are preserved." label="Class maps"><select aria-label="Class maps" disabled={busy} onChange={event => setMapSetId(event.target.value)} value={mapSetId}><option value="">Saved playthrough maps only</option>{CONFIRMED_SKILL_MAP_SETS.map(set => <option key={set.id} value={set.id}>{set.label}</option>)}</select></Field>}
-      {mapSet && <details><summary>View map configuration</summary><p>{mapSet.platform}. Game version: {mapSet.gameVersion ?? 'unreported'}.</p><p><strong>Enabled:</strong> {mapSet.enabledMods.join(', ')}</p><p><strong>Disabled:</strong> {mapSet.disabledMods.join(', ')}</p></details>}
+      <ol aria-label="Screenshot import steps" className="screenshot-import__steps">{SCREENSHOT_STEPS.map((label, index) => <li aria-current={currentStep === index ? 'step' : undefined} key={label}><span aria-hidden="true">{index < currentStep ? <Icon name="check"/> : index + 1}</span>{label}</li>)}</ol>
+      {/* Map selection changes how squares are interpreted, so show its scope before parsing files */}
+      <section aria-label="Screenshot mapping setup" className="stack screenshot-import__configuration">
+        {drafts.length === 0 ? <Field hint="Use confirmed class maps for your game's configuration. Saved Playthrough mappings are preserved." label="Class maps"><select aria-label="Class maps" disabled={busy} onChange={event => setMapSetId(event.target.value)} value={mapSetId}><option value="">Saved playthrough maps only</option>{CONFIRMED_SKILL_MAP_SETS.map(set => <option key={set.id} value={set.id}>{set.label}</option>)}</select></Field> : <p><strong>Class maps:</strong> {mapSet?.label ?? 'Saved playthrough maps only'}</p>}
+        {mapSet && <div><p>{mapSet.platform}. Game version: {mapSet.gameVersion ?? 'unreported'}.</p><p><strong>Enabled:</strong> {mapSet.enabledMods.join(', ')}</p><p><strong>Disabled:</strong> {mapSet.disabledMods.join(', ')}</p></div>}
+      </section>
       {drafts.length === 0 && <Field hint="Full 16:9 PNG or JPEG captures. Duplicates are skipped; source files are unchanged." label="Skill screenshots"><input aria-label="Skill screenshots" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled={busy || drafts.length > 0} multiple onChange={event => { const files = [...(event.target.files ?? [])]; if (files.length) void selectFiles(files); event.target.value = '' }} type="file"/></Field>}
+      <ul aria-label="Skill square colors" className="screenshot-import__legend"><li><span className="screenshot-import__swatch" data-state="learned"/>Learned</li><li><span className="screenshot-import__swatch" data-state="available"/>Available, not learned</li><li><span className="screenshot-import__swatch" data-state="locked"/>Locked</li></ul>
+      {drafts.length === 0 && <p className="field__hint">Screenshots stay on this device. Nothing is uploaded.</p>}
       {busy && <p role="status">{progress || 'Saving reviewed observations...'}</p>}
-      {closeWarning && <InlineNotice title="Unsaved screenshot review" tone="warning">Finish the review or use Cancel and discard to close it.</InlineNotice>}
       {error && <InlineNotice title="Screenshot import not saved" tone="danger">{error} The review is retained. If storage failed, close this review and use Retry save or export a recovery backup.</InlineNotice>}
       {stale && <InlineNotice title="Playthrough changed" tone="warning">Close and reopen this review before importing into the updated playthrough.</InlineNotice>}
       {drafts.length > 0 && <>
@@ -180,7 +191,8 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
           </>}
         </fieldset>}
       </>}
-      <div className="form-actions"><Button disabled={busy && !progress} onClick={finish} tone="quiet">{error ? 'Close review' : drafts.length || busy ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy || !ready || stale} icon="check" onClick={() => void save()}>Save reviewed screenshots</Button></div>
+      {/* Keep the blocked-close explanation with the review choices rather than above a long screenshot */}
+      <div aria-label="Screenshot navigation warning" className="stack" ref={noticeRef} role="region" tabIndex={-1}>{closeWarning && <InlineNotice title="Unsaved screenshot review" tone="warning">Finish the review or use Cancel and discard to close it.</InlineNotice>}<div className="form-actions"><Button disabled={busy && !progress} onClick={finish} tone="quiet">{error ? 'Close review' : drafts.length || busy ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy || !ready || stale} icon="check" onClick={() => void save()}>Save reviewed screenshots</Button></div></div>
       <p className="field__hint">Saving preserves unresolved squares and existing learning conflicts. It does not set mastery or paid LP. One Undo removes the batch.</p>
     </div>
   </Sheet>

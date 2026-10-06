@@ -19,9 +19,11 @@ import { formatAppError } from './model'
 import { ShareButton } from './ShareButton'
 import { Sheet } from './Sheet'
 import { useNavigation, useNavigationBlocker } from './navigation'
+import { useNavigationNotice } from './useNavigationNotice'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
 
 const emptyTeamSlots = (): readonly (BuildRevisionId | null)[] => Array.from({ length: TEAM_SIZE }, () => null)
+const TEAM_EXIT_MESSAGE = 'Save or discard your Team and member changes before leaving.'
 
 interface Props {
   readonly localData: LocalData
@@ -42,6 +44,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
   const [slots, setSlots] = useState<readonly (BuildRevisionId | null)[]>(team?.slots ?? emptyTeamSlots())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const { noticeRef, revealNotice } = useNavigationNotice()
   const [member, setMember] = useState<{ readonly index: number; readonly revisionId?: BuildRevisionId; readonly initialFieldKey?: string }>()
   const returnPositionRef = useRef<{ readonly main: number; readonly window: number; readonly index: number } | undefined>(undefined)
   const openMember = (next: NonNullable<typeof member>) => {
@@ -79,7 +82,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
     navigation.navigate({ page: { page: 'teams', view: 'edit', teamId: savedMemberTeamId }, overlays: [], query: {} }, { replace: true })
     setSavedMemberTeamId(undefined)
   }, [navigation, savedMemberTeamId])
-  useNavigationBlocker(navigation.route, () => dirtyRef.current, () => setError('Save or discard your Team and member changes before leaving.'))
+  useNavigationBlocker(navigation.route, () => dirtyRef.current, () => { setError(TEAM_EXIT_MESSAGE); revealNotice() })
   useEffect(() => {
     if (!dirty) return
     const preventLoss = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
@@ -130,7 +133,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
       {!title.trim() && <p>The Team will be saved as "New Team". You can rename it on return.</p>}
       {!sourceRevision && reusedSetup && <p>Starting with this Team's Game Setup: {localData.gameSetups[reusedSetup]?.label ?? 'Saved setup'}. You can review or change it below.</p>}
     </section>
-    {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
+    {error && <div aria-label="Team navigation warning" ref={noticeRef} role="region" tabIndex={-1}><InlineNotice title={error === TEAM_EXIT_MESSAGE ? 'Team edits are still open' : 'Team not saved'} tone={error === TEAM_EXIT_MESSAGE ? 'warning' : 'danger'}><p>{error} Your selections remain available.</p><div className="cluster"><Button disabled={busy} onClick={() => void actionsRef.current?.save()} tone="secondary" type="button">Save pending changes</Button><Button disabled={busy} onClick={() => actionsRef.current?.discard()} tone="quiet" type="button">Discard pending changes</Button></div></InlineNotice></div>}
     <TeamBuildEditor catalogs={catalogs} gameSetupRevisionId={reusedSetup} initialFieldKey={member.initialFieldKey} localData={localData} onCancel={closeMember} onDraftChange={memberDraftChange} sourceRevision={sourceRevision} onSubmit={async (build, revision, buildTitle) => {
       setBusy(true)
       setError(undefined)
@@ -149,7 +152,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
   </div>
   return <form className="stack" id={formId} onSubmit={submit} ref={formRef}>
     <ScreenHeader eyebrow="Buildcrafting" title={team ? `Edit ${team.title}` : 'New Team'} description="Create members here or choose saved checkpoints. Draft Teams can be saved at any stage." breadcrumb={<Button disabled={busy} icon="arrow-left" onClick={back} tone="quiet" type="button">{team ? dirty ? 'Discard and return' : 'Return to Team' : dirty ? 'Discard and return' : 'All Teams'}</Button>} actions={team && <ShareButton disabled={busy || dirty || !slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/>}/>
-    {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
+    {error && <div aria-label="Team navigation warning" ref={noticeRef} role="region" tabIndex={-1}><InlineNotice title={error === TEAM_EXIT_MESSAGE ? 'Team edits are still open' : 'Team not saved'} tone={error === TEAM_EXIT_MESSAGE ? 'warning' : 'danger'}><p>{error} Your selections remain available.</p><div className="cluster"><Button disabled={busy} onClick={() => void actionsRef.current?.save()} tone="secondary" type="button">Save pending changes</Button><Button disabled={busy} onClick={() => actionsRef.current?.discard()} tone="quiet" type="button">Discard pending changes</Button></div></InlineNotice></div>}
     <Field label="Team name" required><input disabled={busy} required value={title} onChange={event => setTitle(event.target.value)}/></Field>
     <TeamReview catalogs={catalogs} localData={localData} saved={!!team && !dirty} slots={slots}/>
     <div className="share-team-grid">{slots.map((slotId, index) => {

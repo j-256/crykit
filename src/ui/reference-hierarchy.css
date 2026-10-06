@@ -1,0 +1,21 @@
+.reference-layout a.reference-card { display: flex; flex-direction: column; gap: .5rem; }
+.reference-card > .reference-title { order: 0; }
+.reference-card > .reference-card__meta { order: 1; margin: 0; }
+.reference-card > :is(.reference-description, .skill-summary, p) { order: 2; }
+.reference-source-label { color: var(--text-dim); font-size: .78rem; overflow-wrap: anywhere; }
+.reference-layout .reference-card .reference-title h3 { color: var(--text); font-size: 1.2rem; }
+.reference-layout .reference-card[data-mod-state="unknown"] .reference-title h3 { color: var(--text); }
+.reference-layout .reference-card[data-mod-state="unknown"] p { color: var(--text-dim); }
+.reference-layout .reference-card[data-mod-state="unknown"] :is(.wiki-sprite, .game-icon, .artwork-placeholder) { filter: none; opacity: 1; }
+.reference-identity { display: flex; flex-direction: column; gap: .55rem; }
+.reference-identity > .reference-title { order: 0; }
+.reference-identity > .reference-card__meta { order: 1; margin: 0; }
+.reference-identity > :is(.reference-description, p, small) { order: 2; }
+.reference-technical { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem 1rem; }
+.reference-technical > summary { cursor: pointer; }
+.reference-technical > summary .icon-label { display: inline-flex; color: var(--text); }
+.reference-technical__hint { margin-left: .7rem; color: var(--text-dim); font-size: .8rem; }
+.reference-technical > .stack { margin-top: 1rem; }
+@media (max-width: 600px) {
+  .reference-technical__hint { display: block; margin: .35rem 0 0 1.5rem; }
+}

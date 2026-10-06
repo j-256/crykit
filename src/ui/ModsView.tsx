@@ -25,7 +25,7 @@ export function ModsView({ onDraftChange, onSaveToLibrary, onSetReference, onCho
   const creating = overlay?.kind === 'definition-editor' && overlay.mode === 'new'
   const navigate = (next: ModWorkspaceView, draftId?: string) => navigation.navigate(modWorkspaceRoute(next, draftId ? { draft: [draftId] } : navigation.route.query))
   return <div className="stack">
-    <ScreenHeader eyebrow="Buildcrafting" title="Mods" description="Manage mods, author map placements, and edit Crystal Edit JSON." actions={<Button onClick={onChooseMods}>Choose mods</Button>}/>
+    <ScreenHeader eyebrow="Buildcrafting" title="Mods" description="Browse mod content, author map placements, and choose which mods your Game Setup uses." actions={<Button icon="layers" onClick={onChooseMods}>Choose mods</Button>}/>
     <ModWorkspaceNavigation id={navigationId} view={workspaceView} disabled={disabledViews} onChange={next => navigate(next)}/>
     {view === 'library' ? <section role="tabpanel" id={`${navigationId}-library-panel`} aria-labelledby={`${navigationId}-library-tab`} tabIndex={0}><ModLibrary onSetReference={onSetReference} onOpenEditor={() => navigate('document')} onImport={onSaveToLibrary} onEditBundled={async mod => {
       const source = await bundledModEditableSource(mod)

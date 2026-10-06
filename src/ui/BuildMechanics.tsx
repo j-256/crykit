@@ -40,7 +40,7 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
   const numberInput = (value: string) => value.trim() ? Number(value) : null
   const hasSelections = Object.values(content.equipment).some(Boolean) || content.passives.length > 0
   return <section aria-label="Build mechanics" className="build-mechanics stack">
-    <div><h3>Equipment checks</h3><p>Primary-class permissions, selected permission effects, equipment roles, shared copies, and known unique flags. Sub-commands supply equipment permissions only through an explicit effect.</p>
+    <div><h3>Equipment checks</h3><details className="equipment-check-coverage"><summary>What these checks cover</summary><p>Primary-class permissions, equipment roles, shared copies, and known unique-item restrictions. Sub-commands grant equipment permissions only when an explicit effect says so.</p></details>
       {equipment.length ? <ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}</li>)}</ul> : <p role="status">{hasSelections ? 'No conflict found in the supported equipment checks.' : 'Add equipment to check this build.'}</p>}
     </div>
     <p>Native calculated stats and growth are on the Loadout tab.</p>

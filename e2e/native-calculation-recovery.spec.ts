@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -30,7 +31,9 @@ test('existing 1.6.6 Builds open with numeric level-60 drafts without rewriting 
   const original = before.buildRevisions[build.latestRevisionId!]!
   expect(original.content.calculation).toBeUndefined()
   await page.getByRole('button', { name: SAMPLE_BUILD, exact: true }).click()
+  await openStatBreakdown(page)
   await expect(page.getByRole('heading', { name: 'Level 60 stats', exact: true })).toBeVisible()
+  await openStatBreakdown(page)
   const overview = page.getByRole('table', { name: 'Planned build stats', exact: true })
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   await expect(overview).not.toContainText('Unknown')
@@ -59,8 +62,10 @@ test('unsupported setup recovery explains the blocker and opens the existing set
   await page.getByRole('button', { name: 'Enter exact version', exact: true }).click()
   await page.getByLabel('Exact game version', { exact: true }).fill('1.7.0')
   await page.locator('.build-behavior > summary').click()
+  await openStatBreakdown(page)
   const overview = page.getByRole('region', { name: 'Class stats', exact: true })
   await expect(overview).toContainText('Native calculations do not support game version 1.7.0.')
+  await openStatBreakdown(page)
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true })).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Damage benchmarks', exact: true })).toHaveCount(0)
@@ -76,6 +81,7 @@ test('incomplete growth retains known components and recovers after correcting t
   await openSample(page)
   await page.getByText(/^Level-up growth/).click()
   await page.getByLabel('Growth levels 1', { exact: true }).fill('55')
+  await openStatBreakdown(page)
   const overview = page.getByRole('table', { name: 'Planned build stats', exact: true })
   await expect(overview.getByRole('columnheader')).toHaveText(['Stat', 'Base'])
   await expect(overview).not.toContainText('Unknown')
@@ -94,6 +100,7 @@ test('an explicitly saved unknown level remains unknown when the Build is reopen
   await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
   await page.reload()
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('')
+  await openStatBreakdown(page)
   await expect(page.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('Choose a supported native calculation level.')

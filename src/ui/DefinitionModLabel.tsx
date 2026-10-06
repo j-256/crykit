@@ -19,7 +19,8 @@ export function LegacyInnateModBadge({ record }: { readonly record: Pick<Catalog
 }
 
 function modStateTone(state?: DefinitionModAvailability['state']) {
-  return state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'warning' : 'info'
+  // An unrecorded state is ordinary missing information, not an actionable conflict
+  return state === 'enabled' ? 'positive' : state === 'disabled' || state === 'conflicting' ? 'danger' : state === 'unknown' ? 'neutral' : 'info'
 }
 
 export function ModStateBadge({ state, disabledLabel = MOD_STATE_LABELS.disabled }: { readonly state: DefinitionModAvailability['state']; readonly disabledLabel?: string }) {

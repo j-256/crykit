@@ -23,7 +23,8 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(page.getByRole('button', { name: 'Playthrough: Sample playthrough', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
   const menu = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true })
-  await expect(menu.getByRole('button')).toHaveText(['Builds', 'Teams', 'Reference', 'World Map', 'Mods', 'Save editor', 'Characters', 'Inventory', 'Progress'])
+  const destinations = ['Builds', 'Teams', 'Reference', 'World Map', 'Mods', 'Save Editor', 'Characters', 'Inventory', 'Progress']
+  await expect(menu.getByRole('button')).toHaveText(isMobile ? [...destinations, 'More'] : destinations)
   await expect(menu.getByRole('group', { name: 'Tracking', exact: true }).getByRole('button')).toHaveText(['Characters', 'Inventory', 'Progress'])
   await expect(menu.getByRole('button', { name: 'Builds', exact: true })).toHaveAttribute('aria-current', 'page')
   if (isMobile) {

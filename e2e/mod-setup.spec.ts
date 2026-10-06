@@ -31,6 +31,7 @@ test('first-load selection keeps hidden choices, saves exact source priority and
   const chooser = page.getByRole('dialog', { name: 'Choose your mods', exact: true })
   await expect(chooser).toBeVisible()
   const original = await stored(page)
+  await chooser.getByRole('button', { name: 'Choose mods', exact: true }).click()
   await chooser.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Boots')
   await chooser.getByRole('checkbox', { name: 'Boots of Flight', exact: true }).check()
   await chooser.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Moonlight')
@@ -95,6 +96,7 @@ test('a failed initial mod save preserves choices and rolls back sources until r
   const chooser = page.getByRole('dialog', { name: 'Choose your mods', exact: true })
   await expect(chooser).toBeVisible()
   const original = await stored(page)
+  await chooser.getByRole('button', { name: 'Choose mods', exact: true }).click()
   await chooser.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Free Maps')
   await chooser.getByRole('checkbox', { name: 'Free Maps', exact: true }).check()
   await page.evaluate(() => {

@@ -7,9 +7,8 @@ import { STAT_LABELS } from '../domain/build-stats'
 import { calculationGenderLabel } from '../domain/calculation-genders'
 import { calculateStatBreakdownResult, STAT_BREAKDOWN_COLUMNS } from '../domain/stat-breakdown'
 import { classRatingField } from '../domain/stat-ratings'
-import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, GameSetupRevision, LocalData, SlotDefinition } from '../domain/types'
+import type { BuildRevisionContent, CatalogSnapshot, GameSetupRevision, LocalData, SlotDefinition } from '../domain/types'
 import { formatStatRange } from './BuildMechanics'
-import { CalculationGenderField } from './CalculationGenderField'
 import { DefinitionArtwork } from './GameIcon'
 import { resolveEntity, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
@@ -20,7 +19,7 @@ import { useBuildModSelection } from './BuildModSelectionGate'
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 const COLUMN_LABELS = Object.freeze({ base: 'Base', equipment: 'Equipment', level: 'Level', gender: 'Gender', total: 'Total' })
 
-export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onCalculationChange, onReviewGameSetup, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
+export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onReviewGameSetup, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onReviewGameSetup?: () => void; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
   const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
   const modSelection = useBuildModSelection()
   const requiredMod = useMemo(() => buildModRequirements(content, localData, catalogs, gameSetup).find(requirement => requirement.state !== 'enabled'), [content, localData, catalogs, gameSetup])
@@ -39,7 +38,7 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
       <section aria-label="Class growth ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings for base-stat scaling and growth.</p></section>
       <section aria-label="Stats at selected level">
         <h4>Level {plan?.level ?? 'unknown'} stats</h4>
-        {plan && onCalculationChange ? <CalculationGenderField genders={rules.genders} plan={plan} onChange={onCalculationChange}/> : <p className="field__hint">Gender: {genderLabel}</p>}
+        <p className="field__hint">Gender: {genderLabel}</p>
         {plan ? <>
           {!hasTotals && <CalculationStatus issues={result.issues} partial={columns.length > 0} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>}
           {columns.length > 0 && <><div className="structured-value__table"><table aria-label="Planned build stats" className="stat-breakdown"><thead><tr><th scope="col">Stat</th>{columns.map(column => <th className={`stat-breakdown__${column}`} key={column} scope="col">{column === 'equipment' && plan?.battle ? 'Equipment + statuses' : COLUMN_LABELS[column]}</th>)}</tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row"><abbr aria-hidden="true" title={STAT_LABELS[stat]}>{stat}</abbr><span className="sr-only">{STAT_LABELS[stat]}</span></th>{columns.map(column => {

@@ -4,6 +4,7 @@ import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
 import { TEAM_SIZE } from '../domain/scenarios'
 import type { BuildRevision, BuildRevisionId, CatalogSnapshot, LocalData } from '../domain/types'
 import { Badge } from './components'
+import { Icon } from './icons'
 import { resolveEntity } from './model'
 
 export function newerTeamCheckpoint(localData: LocalData, revision: BuildRevision): BuildRevision | undefined {
@@ -44,10 +45,12 @@ export function TeamReview({ slots, localData, catalogs, saved = false }: { read
   const complete = review.filled === TEAM_SIZE
   return <section aria-label="Team review" className="team-review">
     <div className="cluster"><strong>{complete ? saved ? 'Saved Team' : 'Team members selected' : saved ? 'Saved draft Team' : 'Draft Team'}</strong><Badge tone={complete ? 'positive' : 'neutral'}>{review.filled}/{TEAM_SIZE} slots filled</Badge></div>
-    {review.filled > 0 && <p>{review.classesSelected}/{review.filled} selected members have a class. Equipment slots may be intentionally empty.</p>}
-    <p>{review.filled ? `${review.valid}/${review.filled} selected checkpoints have no known build issues.` : 'Choose a checkpoint to see build checks.'}{review.invalid > 0 && ` ${review.invalid} need changes.`}{review.unresolved > 0 && ` ${review.unresolved} have unresolved checks.`}</p>
+    {review.classesSelected < review.filled && <p className="field__hint">{review.filled - review.classesSelected} {review.filled - review.classesSelected === 1 ? 'member still needs' : 'members still need'} a class</p>}
+    {review.invalid > 0 && <p className="team-review__issues"><Icon name="warning"/>{review.invalid} {review.invalid === 1 ? 'member needs' : 'members need'} changes</p>}
+    {review.unresolved > 0 && <p className="team-review__issues"><Icon name="info"/>{review.unresolved} {review.unresolved === 1 ? 'member has' : 'members have'} unresolved checks</p>}
+    {review.filled > 0 && review.valid === review.filled && <p className="team-review__clear"><Icon name="check"/>No known build issues</p>}
     {review.newer > 0 && <p className="team-review__updates">{review.newer} {review.newer === 1 ? 'slot has a newer checkpoint' : 'slots have newer checkpoints'} available. Review before updating.</p>}
     {review.emptyEquipment.length > 0 && <details><summary>Review empty equipment slots</summary><ul>{review.emptyEquipment.map(member => <li key={member.member}>{member.member}: {member.slots.join(', ')}</li>)}</ul><p>Empty slots do not prevent saving a Team or mean its members are incompatible.</p></details>}
-    {!complete && <small>Partial Teams can be saved and completed later. Choose a checkpoint for each remaining member slot.</small>}
+
   </section>
 }

@@ -162,12 +162,12 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await page.goto('/#/builds/teams')
   const team = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) })
   const setup = team.locator('.validation-group').filter({ hasText: 'Setup needs review' })
-  const defaults = team.locator('.validation-group').filter({ hasText: 'Planner defaults in use' })
+  const defaults = team.locator('.validation-group').filter({ hasText: 'Standard equipment slots in use' })
   const coverage = team.locator('.validation-group').filter({ hasText: 'Reference coverage is limited' })
 
   await expect(team.getByText('Setup and reference coverage', { exact: true })).toBeVisible()
   await expect(setup.locator('summary')).toHaveText('Setup needs review · 2 fields')
-  await expect(defaults.locator('summary')).toHaveText('Planner defaults in use · 6 slots')
+  await expect(defaults.locator('summary')).toHaveText('Standard equipment slots in use · 6 slots')
   await expect(coverage).toHaveCount(0)
   await expect(team.getByText('Game Setup settings need evidence', { exact: true })).toHaveCount(0)
   await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
@@ -181,7 +181,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 
   await defaults.locator('summary').click()
-  await defaults.getByRole('button', { name: 'Review planner defaults', exact: true }).click()
+  await defaults.getByRole('button', { name: 'Review equipment slots', exact: true }).click()
   panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await expect(panel.locator('.game-setup-derived')).toHaveAttribute('open')
   await expect(panel.getByText('Saved equipment layout', { exact: true })).toBeVisible()
@@ -221,7 +221,7 @@ test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ 
   }
 
   const windowsTeam = await createTeam('Synthetic Windows context')
-  await expect(windowsTeam.getByText('Game data parity is unresolved', { exact: true })).toHaveCount(0)
+  await expect(windowsTeam.getByText('Compatibility has not been verified', { exact: true })).toHaveCount(0)
   await page.goto('/#/settings/game-setup?scope=playthrough')
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
@@ -232,7 +232,7 @@ test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ 
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.goto('/#/builds/teams')
   const switchTeam = await createTeam('Synthetic Switch context')
-  const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Game data parity is unresolved' })
+  const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })
   await scope.locator('summary').click()
   await expect(scope).toContainText('Equivalence between Windows 1.6.9 game data and Nintendo Switch 1.6.6 is unresolved')
   await scope.getByRole('button', { name: 'Review setup', exact: true }).click()

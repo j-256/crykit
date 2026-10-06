@@ -14,7 +14,7 @@ export function routeTitle(route: AppRoute): string {
   if (top?.kind === 'definition-picker') return 'Choose definition | CryKit'
   if (top?.kind === 'definition-editor') return `${top.mode === 'new' ? 'Create' : 'Edit'} definition | CryKit`
   const page = route.page
-  if (page.page === 'save-editor') return 'Save editor | CryKit'
+  if (page.page === 'save-editor') return 'Save Editor | CryKit'
   if (page.page === 'map') return 'World Map | CryKit'
   if (page.page === 'mods') return `${page.view === 'editor' ? 'Mod editor' : 'Mods'} | CryKit`
   if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : page.view === 'edit' ? 'Edit Team' : 'Teams'} | CryKit`

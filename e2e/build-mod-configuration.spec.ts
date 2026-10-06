@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -113,6 +114,7 @@ test('confirming Freelancer enables the exact legacy source and preserves earlie
   const card = page.getByRole('region', { name: 'Mod Moonlight Project', exact: true })
   await expect(card).toContainText('format 27')
   await card.getByRole('button', { name: 'Disable Moonlight Project', exact: true }).click()
+  await openStatBreakdown(page)
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })
   await expect(stats).toContainText('Enable Moonlight Project to calculate stats')
   await expect(stats).not.toContainText('Stats unavailable')

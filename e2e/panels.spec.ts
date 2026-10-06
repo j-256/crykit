@@ -136,8 +136,8 @@ test('definition dropdowns stay anchored, support keyboard selection, and leave 
   else await heading.click()
   await expect(dropdown).not.toBeVisible()
   await expect(form).toBeVisible()
-  await form.getByRole('combobox', { name: 'Current possession', exact: true }).selectOption('owned')
-  await expect(form.getByRole('combobox', { name: 'Current possession', exact: true })).toHaveValue('owned')
+  await form.getByRole('combobox', { name: 'Do you own it?', exact: true }).selectOption('owned')
+  await expect(form.getByRole('combobox', { name: 'Do you own it?', exact: true })).toHaveValue('owned')
 })
 
 test('dropdown scrolling and Tab preserve keyboard access and dialogs are centered', { tag: MOBILE_TEST_TAG }, async ({ page }) => {

@@ -42,6 +42,7 @@ async function importBackup(page: Page, bytes: Uint8Array) {
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
   const manifest = JSON.parse(strFromU8(unzipSync(bytes)['manifest.json']!)) as { formatVersion: string }
+  await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText(`native-backup-${manifest.formatVersion}`, { exact: true })).toBeVisible({ timeout: NATIVE_BACKUP_PREVIEW_TIMEOUT_MS })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()

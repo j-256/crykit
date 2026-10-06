@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { openBuildActions } from './planning-header-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -21,8 +22,10 @@ async function planNativeSample(page: Page) {
 test('build details separate fixed class ratings from level stats and keep editing usable across viewport sizes', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/builds/library')
   await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
+  await openStatBreakdown(page)
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })
   await expect(stats.getByRole('heading', { name: 'Warrior stats', exact: true })).toBeVisible()
+  await openStatBreakdown(page)
   const classRatings = stats.getByRole('region', { name: 'Class growth ratings', exact: true })
   await expect(classRatings).toBeVisible()
   await expect(classRatings.locator('.stat-rating')).toHaveCount(10)
@@ -30,11 +33,17 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^MND$/ }) }).getByRole('img', { name: '0.5 of 5 stars', exact: true })).toBeVisible()
   await expect(stats.getByRole('heading', { name: 'Level 60 stats', exact: true })).toBeVisible()
   await expect(stats).not.toContainText('assumed for preview')
+  await openStatBreakdown(page)
   await expect(stats.getByRole('table', { name: 'Planned build stats', exact: true })).not.toContainText('Unknown')
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).not.toContainText('Unknown')
-  await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('Game version 1.6.6 is treated as equivalent to PC 1.6.9 for calculations.')
+  const calculated = page.getByRole('region', { name: 'Calculated stats', exact: true })
+  await expect(calculated.locator('.calculation-coverage')).toHaveJSProperty('open', false)
+  await expect(calculated.getByText('Game version 1.6.6 is treated as equivalent to PC 1.6.9 for calculations.', { exact: true })).toBeVisible()
+  await expect(calculated.getByText('Covers the resting loadout, with no active statuses or accumulated battle effects.', { exact: true })).toBeVisible()
+  await expect(calculated.getByText(/^Balance mode:/)).toBeVisible()
   await expect(stats).not.toContainText('Crystal Edit')
   await expect(stats.getByText('Rating sources', { exact: true })).toHaveCount(0)
+  await openStatBreakdown(page)
   await expect(stats.getByRole('table', { name: 'Planned build stats' })).toBeVisible()
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('60')
   const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
@@ -79,6 +88,7 @@ test('build details separate fixed class ratings from level stats and keep editi
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
   await page.reload()
+  await openStatBreakdown(page)
   await expect(stats.getByRole('heading', { name: 'Wizard stats', exact: true })).toBeVisible()
 })
 
@@ -86,10 +96,13 @@ test('level and allocated growth change numeric stats while class ratings remain
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await openStatBreakdown(page)
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })
+  await openStatBreakdown(page)
   const classRatings = stats.getByRole('region', { name: 'Class growth ratings', exact: true }).locator('.rating-stars')
   await expect(classRatings.first()).toBeVisible()
   const ratings = await classRatings.evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')))
+  await openStatBreakdown(page)
   const overview = stats.getByRole('table', { name: 'Planned build stats', exact: true })
   const hp = overview.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
   await expect(hp).not.toContainText('Unknown')
@@ -119,6 +132,7 @@ test('level and allocated growth change numeric stats while class ratings remain
 
 test('gender contributions reconcile colored columns and persist alongside the selected total', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await planNativeSample(page)
+  await openStatBreakdown(page)
   const table = page.getByRole('table', { name: 'Planned build stats', exact: true })
   await expect(table.getByRole('columnheader')).toHaveText(['Stat', 'Base', 'Equipment', 'Level', 'Gender', 'Total'])
   const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
@@ -139,6 +153,7 @@ test('gender contributions reconcile colored columns and persist alongside the s
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r3')
   await page.reload()
+  await openStatBreakdown(page)
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('male')
   await expect(hp.getByRole('cell')).toHaveText(cells)
   await page.getByText('Growth and loadout breakdown', { exact: true }).click()
@@ -157,6 +172,7 @@ test('the first female selection and balance mode change survive separate native
   const checkpoint = page.getByRole('combobox', { name: /^Editor checkpoint/ })
   const gender = page.getByLabel('Calculation gender', { exact: true })
   const mode = page.getByLabel('Game mode', { exact: true })
+  await openStatBreakdown(page)
   const mp = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max MP', exact: true }) })
   await expect(checkpoint).toBeEnabled()
   const neutral = Number(await mp.getByRole('cell').nth(4).innerText())
@@ -174,6 +190,7 @@ test('the first female selection and balance mode change survive separate native
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(checkpoint.locator('option:checked')).toContainText('r3')
   await page.reload()
+  await openStatBreakdown(page)
   await page.locator('.build-behavior > summary').click()
   await page.locator('.game-setup-base-details > summary').click()
   await expect(mode).toHaveValue('Vanilla')

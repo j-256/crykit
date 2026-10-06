@@ -115,9 +115,23 @@ function CharacterCard({ character, localData, catalogs }: { readonly character:
   const passiveSlots: readonly SnapshotSlot[] = snapshot?.passives.state === 'known' ? snapshot.passives.value.map((selection, index) => ({ ...passivePosition(index), selection })) : []
   const stats = Object.entries(snapshot?.displayedStats ?? {})
   const otherStats = stats.filter(([label]) => !vitalKind(label))
+  // Collapse only wholly unrecorded lists; recording actions, known zero and conflicts remain visible
+  const statsRecorded = stats.some(([, stat]) => stat.value.state !== 'unknown')
+  const learningRecorded = Boolean(progress && (progress.observedLp.state !== 'unknown' || progress.mastered.state !== 'unknown')) || Object.keys(character.learnedNodes).length > 0
   const className = (value: Knowledge<EntityRef> | undefined) => knowledgeLabel(value ?? UNKNOWN, ref => entityName(localData, catalogs, ref))
   const classRef = (value: Knowledge<EntityRef> | undefined) => value?.state === 'known' ? value.value : undefined
   const memberPage = { page: 'characters', view: 'character', characterId: character.id, tab: 'current' } as const
+
+  const recordedStats = <section aria-label={`${character.name}: recorded stats`} className="roster-stats"><h3>Recorded stats</h3><dl>
+          <RecordedVitals stats={stats}/>
+          {otherStats.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>)}
+        </dl></section>
+
+  const recordedLearning = <section aria-label={`${character.name}: character learning`} className="roster-learning"><h3>Learning records</h3><dl>
+          <div><dt>Primary class LP</dt><dd><RecordedNumber value={progress?.observedLp ?? UNKNOWN}/></dd></div>
+          <div><dt>Primary class mastered</dt><dd data-state={progress?.mastered.state ?? 'unknown'}>{knowledgeLabel(progress?.mastered ?? UNKNOWN, mastered => mastered ? 'Yes' : 'No')}</dd></div>
+          <div><dt>Learned skills</dt><dd title={learnedSummary(Object.values(character.learnedNodes))}>{learnedSummary(Object.values(character.learnedNodes))}</dd></div>
+        </dl></section>
 
   return <article aria-labelledby={headingId} className="roster-card">
     <header className="roster-card__header">
@@ -127,20 +141,13 @@ function CharacterCard({ character, localData, catalogs }: { readonly character:
     {snapshot ? <>
       <div className="roster-card__body">
         <dl className="roster-classes"><div><dt>Primary class</dt><dd>{className(snapshot.primaryClass)}<DefinitionModLabel localData={localData} gameSetup={gameSetup} value={classRef(snapshot.primaryClass)}/></dd></div><div><dt>Secondary class</dt><dd>{className(snapshot.secondaryClass)}<DefinitionModLabel localData={localData} gameSetup={gameSetup} value={classRef(snapshot.secondaryClass)}/></dd></div></dl>
-        <section aria-label={`${character.name}: recorded stats`} className="roster-stats"><h3>Recorded stats</h3><dl>
-          <RecordedVitals stats={stats}/>
-          {otherStats.map(([label, stat]) => <StatValue key={label} label={label} stat={stat}/>)}
-        </dl></section>
+        {statsRecorded ? recordedStats : <div className="roster-unrecorded-group"><details className="roster-unrecorded"><summary>Stats not recorded</summary>{recordedStats}</details><OverviewLink className="roster-unrecorded__action" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture stats</OverviewLink></div>}
         <section aria-label={`${character.name}: recorded equipment`} className="roster-equipment"><h3>{slots.some(slot => slot.kind === 'unmapped') ? 'Equipment & other slots' : 'Equipment'}</h3>{slots.length ? <RecordedSlots catalogs={catalogs} localData={localData} gameSetup={gameSetup} slotPage={memberPage} slots={slots}/> : <p className="roster-empty">No equipment recorded</p>}{!gameSetup && <p className="roster-empty">Slot context unrecorded</p>}</section>
-        <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} localData={localData} gameSetup={gameSetup} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty"><Icon name="warning"/>{knowledgeLabel(snapshot.passives)}</p>}</section>
-        <section aria-label={`${character.name}: character learning`} className="roster-learning"><h3>Learning records</h3><dl>
-          <div><dt>Primary class LP</dt><dd><RecordedNumber value={progress?.observedLp ?? UNKNOWN}/></dd></div>
-          <div><dt>Primary class mastered</dt><dd data-state={progress?.mastered.state ?? 'unknown'}>{knowledgeLabel(progress?.mastered ?? UNKNOWN, mastered => mastered ? 'Yes' : 'No')}</dd></div>
-          <div><dt>Learned skills</dt><dd title={learnedSummary(Object.values(character.learnedNodes))}>{learnedSummary(Object.values(character.learnedNodes))}</dd></div>
-        </dl></section>
+        <section aria-label={`${character.name}: recorded passives`} className="roster-passives"><h3>Equipped passives</h3>{snapshot.passives.state === 'known' ? passiveSlots.length > 0 ? <RecordedSlots catalogs={catalogs} localData={localData} gameSetup={gameSetup} showNames slots={passiveSlots}/> : <p className="roster-empty"><Icon name="spark"/>None equipped</p> : <p className="roster-empty" data-state={snapshot.passives.state}><Icon name={snapshot.passives.state === 'conflicting' ? 'warning' : 'spark'}/>{knowledgeLabel(snapshot.passives)}</p>}</section>
+        {learningRecorded ? recordedLearning : <div className="roster-unrecorded-group"><details className="roster-unrecorded"><summary>Learning not recorded</summary>{recordedLearning}</details><OverviewLink className="roster-unrecorded__action" page={memberPage}>Record learning</OverviewLink></div>}
       </div>
     </> : <div className="roster-card__blank"><Icon name="character"/><div><strong>{character.currentSnapshotId ? 'Current snapshot unavailable' : 'No snapshot recorded'}</strong><p>{character.currentSnapshotId ? 'The referenced snapshot is missing. Earlier snapshots remain in History.' : 'Capture a character sheet to add stats, equipment, and passives.'}</p>{Object.keys(character.learnedNodes).length > 0 && <p>Learned skills: {learnedSummary(Object.values(character.learnedNodes))}</p>}</div><OverviewLink className="button button--secondary" page={{ page: 'characters', view: 'snapshot-new', characterId: character.id }}>Capture snapshot</OverviewLink></div>}
-    <footer className="roster-card__footer"><div className="roster-observation">{snapshot ? <span title={`Recorded ${formatRelativeDate(snapshot.recordedAt)}`}>{snapshot.observedAt ? `Observed ${formatRelativeDate(snapshot.observedAt)}` : 'Observation date unknown'}</span> : <span>Stats and equipment unknown</span>}</div><nav aria-label={`${character.name} shortcuts`}><OverviewLink page={memberPage} title="Skills"><Icon name="spark"/><span className="sr-only">Skills</span></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }} title="History"><Icon name="history"/><span className="sr-only">History</span></OverviewLink></nav></footer>
+    <footer className="roster-card__footer"><div className="roster-observation">{snapshot?.observedAt && <span title={`Recorded ${formatRelativeDate(snapshot.recordedAt)}`}>Observed {formatRelativeDate(snapshot.observedAt)}</span>}</div><nav aria-label={`${character.name} shortcuts`}><OverviewLink page={memberPage} title="Skills"><Icon name="spark"/><span className="sr-only">Skills</span></OverviewLink><OverviewLink page={{ ...memberPage, tab: 'history' }} title="History"><Icon name="history"/><span className="sr-only">History</span></OverviewLink></nav></footer>
   </article>
 }
 

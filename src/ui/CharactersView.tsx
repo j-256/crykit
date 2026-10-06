@@ -21,6 +21,7 @@ import { activeGameSetup, ownRecordValue } from './model'
 import { Sheet } from './Sheet'
 import { DefinitionPickerField } from './definitions'
 import { routeWithoutOverlays, useNavigation, useNavigationBlocker, type CharactersPageRoute, type CharacterTab } from './navigation'
+import { useNavigationNotice } from './useNavigationNotice'
 import { MemberSheet, MemberSkillsToggle, MemberSummary } from './MemberSheet'
 import { CharacterLearning } from './CharacterLearning'
 import './member.css'
@@ -184,13 +185,15 @@ function SnapshotForm({ localData, initial, onSubmit }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [closeWarning, setCloseWarning] = useState(false)
+  const { noticeRef, revealNotice } = useNavigationNotice()
+  const warnBeforeClosing = () => { setCloseWarning(true); revealNotice() }
   const scope = useRef(routeWithoutOverlays(navigation.route))
   const initialSignature = useRef(JSON.stringify({ draft, stats }))
   const dirty = JSON.stringify({ draft, stats }) !== initialSignature.current
   const exitAllowed = useRef(false)
   const blocked = useRef(false)
   blocked.current = !exitAllowed.current && (dirty || busy)
-  useNavigationBlocker(scope.current, () => blocked.current, () => setCloseWarning(true))
+  useNavigationBlocker(scope.current, () => blocked.current, warnBeforeClosing)
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (blocked.current) { event.preventDefault(); event.returnValue = '' }
@@ -200,7 +203,7 @@ function SnapshotForm({ localData, initial, onSubmit }: {
   }, [])
   const finish = () => { exitAllowed.current = true; blocked.current = false; navigation.close() }
   const requestClose = () => {
-    if (blocked.current) { setCloseWarning(true); return false }
+    if (blocked.current) { warnBeforeClosing(); return false }
     return true
   }
   const pickerOverlay = navigation.route.overlays[0]?.kind === 'definition-picker' ? navigation.route.overlays[0] : undefined
@@ -228,7 +231,6 @@ function SnapshotForm({ localData, initial, onSubmit }: {
   }
   const updateStat = (id: number, patch: Partial<StatRow>) => setStats((current) => current.map((stat) => stat.id === id ? { ...stat, ...patch } : stat))
   return <Sheet description="Save your character's in-game stats and equipment. Earlier snapshots stay unchanged." onClose={() => navigation.close()} onRequestClose={requestClose} open title="Capture character snapshot" width="wide"><form className="stack" onSubmit={submit}>
-    {closeWarning && <InlineNotice title="Unsaved snapshot" tone="warning">Save this snapshot or choose {error ? 'Close form' : 'Cancel and discard'} before leaving.</InlineNotice>}
     {initial && initial.gameSetupRevisionId !== gameSetup?.id && <InlineNotice title="Record equipment again" tone="warning">The previous snapshot has different or unrecorded equipment-slot context. Its equipment selections have not been copied into this Game Setup. The separate passive list remains carried forward.</InlineNotice>}
     {initial && <InlineNotice title="Starting from the latest snapshot">Review the carried-forward values before saving this snapshot. The observation date and note start blank.</InlineNotice>}
     <NumberKnowledgeField hint="Record the displayed value only." label="Level" min={1} onChange={(level) => setDraft({ ...draft, level })} value={draft.level}/>
@@ -251,7 +253,8 @@ function SnapshotForm({ localData, initial, onSubmit }: {
     {missingPicker && <InlineNotice title="Character field unavailable" tone="warning">The requested equipment slot or passive position is unavailable. No other field was opened. <Button onClick={() => navigation.close()} tone="quiet" type="button">Close picker route</Button></InlineNotice>}
     <InlineNotice title="Stats are saved as entered">Recorded totals stay unchanged when equipment changes. The current character page shows calculated loadout totals separately.</InlineNotice>
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your entered values remain in this form.</InlineNotice>}
-    <div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">{error ? 'Close form' : dirty ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div>
+    {/* The warning and its choices share a reveal target even when earlier fields fill the dialog */}
+    <div aria-label="Snapshot navigation warning" className="stack" ref={noticeRef} role="region" tabIndex={-1}>{closeWarning && <InlineNotice title="Unsaved snapshot" tone="warning">Save this snapshot or choose {error ? 'Close form' : 'Cancel and discard'} before leaving.</InlineNotice>}<div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">{error ? 'Close form' : dirty ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy} icon="check" type="submit">{busy ? 'Saving...' : 'Save snapshot'}</Button></div></div>
   </form></Sheet>
 }
 

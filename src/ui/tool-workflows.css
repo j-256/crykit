@@ -1,0 +1,28 @@
+.import-preview h3 { overflow-wrap: anywhere; margin: .25rem 0; }
+.import-preview__replacement { display: grid; gap: .75rem; }
+.import-preview__replacement .check-row { padding: .75rem; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.import-preview__details { min-width: 0; padding-top: .75rem; border-top: 1px solid var(--line); color: var(--text-dim); font-size: .85rem; }
+.import-preview__details > summary { cursor: pointer; font-weight: 650; }
+.import-preview__warnings > summary { cursor: pointer; color: var(--amber); font-size: .85rem; font-weight: 650; }
+.import-preview__details p, .import-preview__details .definition-list { overflow-wrap: anywhere; }
+.import-preview > .button { justify-self: start; }
+.screenshot-import__steps { display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: 0; margin: 0; list-style: none; color: var(--text-dim); }
+.screenshot-import__steps li { display: flex; align-items: center; gap: .4rem; font-size: .85rem; }
+.screenshot-import__steps li > span { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 50%; font-weight: 700; }
+.screenshot-import__steps svg { width: 16px; height: 16px; }
+.screenshot-import__steps li[aria-current="step"] { color: var(--text); font-weight: 700; }
+.screenshot-import__steps li[aria-current="step"] > span { border-color: var(--cyan-300); background: var(--selection); color: var(--cyan-300); }
+.screenshot-import__legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: 0; padding: 0; list-style: none; color: var(--text-dim); font-size: .85rem; }
+.screenshot-import__legend li { display: flex; align-items: center; gap: .45rem; }
+.screenshot-import__swatch { width: 16px; height: 16px; border: 1px solid var(--line-strong); background: #303c45; }
+.screenshot-import__swatch[data-state="learned"] { background: #d6b95c; }
+.screenshot-import__swatch[data-state="available"] { background: #4d9dd1; }
+.screenshot-import__configuration { font-size: .85rem; color: var(--text-dim); }
+.screenshot-import__configuration summary { cursor: pointer; }
+.screenshot-import__configuration .field { margin-top: .75rem; }
+@media (max-width: 600px) {
+  .import-preview .import-preview__counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-preview .metric { padding: .75rem; }
+  .import-preview > .button { width: 100%; }
+  .screenshot-import__steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

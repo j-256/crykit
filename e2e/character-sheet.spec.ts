@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup, selectedPlaythrough, replacePlannerData } from './local-data-helpers'
@@ -60,6 +61,7 @@ async function loadFixture(page: Page, changedContext = false, nativeCalculation
   })
   const panel = await dataPanel(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-sheet.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
@@ -89,6 +91,7 @@ test('character growth calculations save separately from observed level and disp
   const hp = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
   await expect(hp).not.toContainText('Unknown')
   await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
+  await openStatBreakdown(page)
   const overviewHP = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) })
   await expect(overviewHP.getByRole('cell').nth(4)).toHaveText(await hp.getByRole('cell').first().innerText())
   await selectWithSeparateEvents(page.getByLabel('Calculation gender', { exact: true }), 'female')
@@ -102,6 +105,7 @@ test('character growth calculations save separately from observed level and disp
   await expect(page.getByRole('table', { name: 'Recorded character stats', exact: true })).toContainText('777')
   await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText('Growth allocates 19 of 24 levels.')
   await expect(overviewHP).not.toContainText('Unknown')
+  await openStatBreakdown(page)
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('columnheader')).toHaveText(['Stat', 'Base'])
   await page.getByLabel('Calculation level', { exact: true }).fill('19')
   await expect(hp).not.toContainText('Unknown')
@@ -409,6 +413,7 @@ test('the grouped member sheet aligns loadout sections and learning shares a sin
   await page.goto('/#/characters')
   await page.getByRole('article', { name: 'Rowan', exact: true }).getByRole('link', { name: 'Rowan', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Rowan', exact: true })).toBeVisible()
+  await openStatBreakdown(page)
   await expect(page.getByRole('region', { name: 'Class growth ratings', exact: true }).locator('.stat-rating').first()).toBeVisible()
   await expect(page.getByRole('region', { name: 'Stats at selected level', exact: true })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(0)

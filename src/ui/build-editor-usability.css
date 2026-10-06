@@ -13,3 +13,40 @@
 .build-passive-options > summary { cursor: pointer; color: var(--text-dim); }
 .build-passive-options[open] > summary { margin-bottom: 8px; }
 .build-sample-filter { font-size: .82rem; }
+
+/* Routine draft and success states stay compact so class choices lead the editor */
+.build-sheet .build-validity[data-status="draft"], .build-sheet .build-validity[data-status="valid"] { padding: .55rem .7rem; margin: 0; background: transparent }
+.build-sheet .build-validity[data-status="draft"] { border-color: var(--line); color: var(--text-dim) }
+.build-sheet .build-validity__summary { font-size: .85rem }
+.build-sheet .build-behavior > summary { padding-block: .5rem }
+.build-sheet .build-behavior > summary small { font-size: .8rem }
+.build-sheet .build-sheet__identity { gap: .5rem }
+.loadout-stat-breakdown > summary { cursor: pointer; font-weight: 650 }
+.loadout-stat-breakdown[open] > .build-stat-overview { margin-top: .75rem }
+@media (max-width: 600px) {
+  .build-sheet { gap: .65rem }
+  .build-sheet .loadout-sheet { gap: .65rem }
+  .build-sheet .build-sheet__identity > .field { margin: 0 }
+}
+
+.build-sheet .build-validity__summary > strong { font-size: .85rem }
+.build-sheet .build-validity[data-status="draft"] .build-validity__summary > svg { color: var(--text-dim) }
+
+.build-title-input { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.build-title-input__field { min-width: 0; width: 100%; min-height: 32px; padding: 4px 6px; border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; text-overflow: ellipsis; }
+.build-title-input__field:hover, .build-title-input__field:focus-visible { border-color: var(--line-strong); background: var(--ink-950); }
+.build-title-input__field::placeholder { color: var(--text); opacity: 1; }
+.build-title-input__icon { flex: none; width: 16px; height: 16px; color: var(--text-dim); }
+.build-title-inline { position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.build-title-inline > h1 { flex: 1; }
+.build-title-inline__rename { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; min-height: 32px; padding: 4px 6px; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.build-title-inline__rename:hover, .build-title-inline__rename:focus-visible { border-color: var(--line-strong); background: var(--ink-950); }
+.build-title-inline__rename > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.build-title-inline__rename > svg { flex: none; width: 16px; height: 16px; color: var(--text-dim); }
+.build-title-inline__actions { display: flex; flex: none; gap: 4px; }
+.build-title-inline__error { position: absolute; top: calc(100% + 6px); left: 0; z-index: 25; width: max-content; max-width: min(360px, 100%); max-height: min(300px, 50dvh); overflow: auto; overflow-wrap: anywhere; padding: 8px 10px; border: 1px solid var(--danger-border); border-radius: var(--radius-sm); background: var(--danger-surface); color: var(--text); font-size: .82rem; line-height: 1.4; box-shadow: var(--shadow); }
+.build-title-inline__error details { margin-top: 4px; }
+.build-title-inline__error summary { cursor: pointer; }
+@media (max-width: 600px) {
+  .build-title-input__field, .build-title-inline__rename { min-height: 44px; }
+}

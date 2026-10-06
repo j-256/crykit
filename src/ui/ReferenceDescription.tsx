@@ -1,6 +1,6 @@
 import { nativeDescription, referenceDescription } from '../catalog/native-description'
 import { nativeMechanic } from '../catalog/native-mechanics'
-import { nativeDisplayDescription, nativeRecord } from '../domain/native-game'
+import { nativeDisplayDescription, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import type { CatalogEntity, CatalogSnapshot } from '../domain/types'
 import { MoneyText } from './MoneyText'
 import { SourceReferences } from './KnowledgeValue'
@@ -21,11 +21,14 @@ export function referenceNarrativeDescription(entity: CatalogEntity): string | u
   return !nativeMechanic(entity) && inheritedDescription && native?.lines.length && original && original !== referenceDescription(entity) && !native.lines.includes(original) ? original : undefined
 }
 
-export function ReferenceDescription({ entity, catalog, compact = false, fallback = 'No description supplied.' }: { entity: CatalogEntity; catalog?: CatalogSnapshot; compact?: boolean; fallback?: string }) {
-  const description = referenceDescription(entity)
+export function ReferenceDescription({ entity, catalog, compact = false, fallback = 'No description supplied.', hideGeneratedSummary = false }: { entity: CatalogEntity; catalog?: CatalogSnapshot; compact?: boolean; fallback?: string; hideGeneratedSummary?: boolean }) {
+  const record = nativeSourceRecord(entity)
+  const native = nativeDescription(entity)
+  const generatedSummary = record && native && !record.Description && !native.lines.length && !(nativeRecord(entity.legacy) && entity.legacy.nativeDescriptionSupplemental === true)
+  // A source-record inventory is useful in evidence, but it is not a gameplay description
+  const description = hideGeneratedSummary && generatedSummary ? undefined : referenceDescription(entity)
   const narrative = compact ? undefined : referenceNarrativeDescription(entity)
   const mechanic = nativeMechanic(entity)
-  const native = nativeDescription(entity)
   const field = entity.fields.Description
   const sourcesFor = (text: string) => {
     const matchesField = field?.state === 'known' && typeof field.value === 'string' && descriptionTextMatches(field.value, text)

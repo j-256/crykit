@@ -32,12 +32,12 @@
 .team-overview__identity p { margin: .25rem 0 0; overflow-wrap: anywhere; color: var(--text-dim); font-size: .85rem }
 .team-overview__identity p strong { color: var(--text) }
 .team-overview__slot { align-self: start; flex: 0 0 auto; color: var(--cyan-300); font-family: var(--font-menu); font-size: 1rem }
-.team-overview__metadata { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .8rem; padding: .55rem .8rem 0; color: var(--text-dim); font-size: .72rem }
+.team-overview__metadata { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .8rem; padding: .55rem .8rem 0; color: var(--text-dim); font-size: .8rem }
 .team-overview__quickgear { display: flex; align-items: center; gap: .65rem; min-width: 0; margin: 0 .6rem .6rem; padding: .5rem .6rem; background: rgba(9, 22, 30, .32) }
 .team-overview__weapon-art { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px }
 .team-overview__weapon-art .wiki-sprite { display: grid; place-items: center; width: 28px; min-height: 0 }
 .team-overview__quickgear > span:last-child { display: grid; min-width: 0; gap: .1rem }
-.team-overview__quickgear small { color: var(--text-dim); font-size: .65rem }
+.team-overview__quickgear small { color: var(--text-dim); font-size: .75rem }
 .team-overview__quickgear strong { overflow-wrap: anywhere; font-size: .8rem }
 .team-overview__loadout { min-width: 0; display: grid; gap: .65rem; padding: .7rem .8rem .8rem }
 .team-overview__notes { min-width: 0; padding-top: .5rem; border-top: 1px solid var(--line) }
@@ -56,7 +56,7 @@
 .team-overview--compact .team-overview__portrait .wiki-sprite img { max-width: 38px; max-height: 42px }
 .team-overview--compact .team-overview__identity h3 { font-size: 1.1rem }
 .team-overview--compact .team-overview__identity p { font-size: .75rem }
-.team-overview--compact .team-overview__metadata { padding: .4rem .6rem; font-size: .68rem }
+.team-overview--compact .team-overview__metadata { padding: .4rem .6rem; font-size: .78rem }
 .team-detail__tracking { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel) }
 .team-detail__tracking h2 { margin: 0; font-size: 1rem }
 .team-detail__tracking p { margin: .25rem 0 0; color: var(--text-dim); font-size: .82rem }
@@ -90,3 +90,8 @@
   .team-checkpoint-comparison__loadouts { grid-template-columns: minmax(0, 1fr) }
   .team-slot-actions > button { flex: 1 1 auto }
 }
+
+.team-review__issues, .team-review__clear { display: flex; align-items: center; gap: .5rem }
+.team-review__issues svg { width: 17px; height: 17px; color: var(--amber) }
+.team-review__clear { color: var(--text-dim) }
+.team-review__clear svg { width: 17px; height: 17px; color: var(--moss) }

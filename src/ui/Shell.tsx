@@ -5,6 +5,7 @@ import { ContextSelectors } from './ContextSelectors'
 import { DevelopmentRefresh } from './DevelopmentRefresh'
 import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
+import { Sheet } from './Sheet'
 import { UniversalSearch } from './UniversalSearch'
 import { ProgressBoards } from './ProgressBoards'
 import { ModWorkspaceLinks } from './ModWorkspaceLinks'
@@ -22,7 +23,7 @@ const MAIN_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'reference', label: 'Reference', icon: 'tome' },
   { id: 'map', label: 'World Map', icon: 'compass' },
   { id: 'mods', label: 'Mods', icon: 'edit' },
-  { id: 'save-editor', label: 'Save editor', icon: 'archive' },
+  { id: 'save-editor', label: 'Save Editor', icon: 'archive' },
 ]
 const TRACKING_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'characters', label: 'Characters', icon: 'character' },
@@ -56,16 +57,18 @@ function Brand() {
 export function Shell({ localData, catalogs, destination, saveState, contextBusy, developmentRefreshBlocked, onDevelopmentRefresh, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; developmentRefreshBlocked: boolean; onDevelopmentRefresh: () => void; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null)
   const [unsavedObject, setUnsavedObject] = useState(false)
   const [primaryTarget, setPrimaryTarget] = useState<HTMLElement | null>(null)
+  const [titleTarget, setTitleTarget] = useState<HTMLElement | null>(null)
   const contextRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
-  const bottomNavRef = useRef<HTMLElement>(null)
+  const bottomNavRef = useRef<HTMLDivElement>(null)
   const railRef = useRef<HTMLElement>(null)
   const partyPage = navigation.route.page.page === 'builds' && ['teams', 'scenario', 'scenario-new'].includes(navigation.route.page.view)
   const tracking = (navigation.route.page.page === 'teams' && navigation.route.page.view === 'adopt') || partyPage || TRACKING_DESTINATIONS.some(item => item.id === destination)
-  const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget, setUnsavedObject }, [tracking, headerTarget, primaryTarget])
+  const headerSlots = useMemo(() => tracking ? null : { active: true, target: headerTarget, primaryTarget, setPrimaryTarget, titleTarget, setTitleTarget, setUnsavedObject }, [tracking, headerTarget, primaryTarget, titleTarget])
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : partyPage ? 'characters' : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const page = navigation.route.page
@@ -76,9 +79,13 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const statusState = sharedSnapshot || (newPlan && saveState === 'saved') ? 'unsaved' : saveState
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
+    // Close even when a draft guard keeps the page so its recovery choices remain visible
+    setMobileNavigationOpen(false)
   }
   const destinationButton = (item: MenuDestination) => <button aria-current={activeDestination === item.id ? 'page' : undefined} className="nav-link" key={item.id} onClick={() => navigate(item.id)} title={item.label} type="button"><Icon name={item.icon}/><span>{item.label}</span></button>
   const openSearch = () => {
+    // Navigation has no draft to preserve when the search shortcut replaces its menu
+    setMobileNavigationOpen(false)
     if (searchOpen) return
     navigation.navigate(routeWithOverlay(navigation.route, { kind: 'search', query: '' }))
   }
@@ -147,7 +154,8 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       </header>
       <WorkspaceHeaderContext value={headerSlots}><div className="content"><PreviewNotice/>{children}</div></WorkspaceHeaderContext>
     </main>
-    <nav aria-label="Primary navigation" className="bottom-nav" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></nav>
+    <nav aria-label="Primary navigation" className="bottom-nav"><div className="bottom-nav__scroll" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></div><button aria-label="More destinations" aria-expanded={mobileNavigationOpen} aria-haspopup="dialog" className="bottom-nav__more" onClick={() => setMobileNavigationOpen(true)} type="button"><Icon name="menu"/><span>More</span></button></nav>
+    <Sheet description="Choose a planning tool or track your Playthrough." onClose={() => setMobileNavigationOpen(false)} open={mobileNavigationOpen} title="Navigate CryKit"><nav aria-label="All destinations" className="mobile-destinations"><section><h3>Planning</h3>{MAIN_DESTINATIONS.map(destinationButton)}</section><section><h3>Tracking</h3>{TRACKING_DESTINATIONS.map(destinationButton)}</section><button className="nav-link" onClick={() => { setMobileNavigationOpen(false); onOpenData() }} type="button"><Icon name="settings"/><span>Data & settings</span></button></nav></Sheet>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }

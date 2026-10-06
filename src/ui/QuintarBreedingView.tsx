@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { LEGACY_CATALOG_REVISION_ID } from '../catalog/legacy-version'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY, QUINTAR_PHASES, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements, type QuintarBreedingStep, type QuintarBreedingStepId } from '../catalog/quintar-breeding'
 import { QUINTAR_NATIVE_EVIDENCE } from '../catalog/quintar-native-rules'
@@ -39,19 +39,23 @@ function QuintarStepArtwork({ step, loading = 'eager' }: {
   return artwork && !artworkFailed ? <img alt="" decoding="async" height={artwork.asset.height} loading={loading} onError={() => setArtworkFailed(true)} src={artwork.url} width={artwork.asset.width}/> : <Icon name={step ? PHASE_ICONS[step.phase] : 'check'}/>
 }
 
-const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, next, pending, missingParents, catalog, onToggle }: {
+const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, next, guideNext, pending, missingParents, catalog, onToggle }: {
   readonly step: QuintarBreedingStep
   readonly number: number
   readonly complete: boolean
   readonly next: boolean
+  readonly guideNext: boolean
   readonly pending: boolean
   readonly missingParents: string
   readonly catalog?: CatalogSnapshot
   readonly onToggle: (stepId: QuintarBreedingStepId, complete: boolean) => void
 }) {
+  const [guideOpen, setGuideOpen] = useState(guideNext)
+  useEffect(() => setGuideOpen(guideNext), [guideNext])
   const races = quintarRaceRequirements(step)
   const ocarinaPrice = step.id === QUINTAR_STEP.ocarina ? quintarOcarinaPrice(catalog) : undefined
   const parents = quintarParentsAfterStep(step)
+  const hasPairingGuidance = Boolean(step.parents || races.length || parents.keep.length || parents.release.length || missingParents)
   const references = QUINTAR_STEP_REFERENCES[step.id].filter(target => catalog?.entities[target.entityId]?.kind === target.kind)
   return <article aria-busy={pending || undefined} className="quintar-tile" data-complete={complete} data-next={next || undefined} data-step={step.id} data-type={step.result?.type}>
     <button aria-label={`Step ${number}: ${step.title}. ${complete ? 'Mark incomplete' : 'Mark complete'}`} aria-pressed={complete} className="quintar-tile__toggle" id={`quintar-step-${step.id}`} onClick={() => onToggle(step.id, complete)} type="button">
@@ -60,15 +64,21 @@ const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, 
       <strong>{step.title}</strong>
       <small>{complete ? 'Click to undo' : 'Click when done'}</small>
     </button>
-    <div className="quintar-tile__guide">
+    {/* Pairing requirements and retention advice must be visible before a player acts on a step */}
+    {hasPairingGuidance && <div className="quintar-tile__guide">
       {step.parents && <p className="quintar-tile__pair"><strong>{step.parents[0].name}</strong><span role="img" aria-label="paired with">+</span><strong>{step.parents[1].name}</strong></p>}
-      <p><MoneyText>{step.instruction}</MoneyText>{ocarinaPrice !== undefined && <> Shop price: <Money copper={ocarinaPrice}/>.</>}</p>
-      {races.length > 0 && <div className="quintar-tile__races"><span>First-place wins before breeding</span>{races.map(parent => <p key={parent.name}><strong>{parent.name}</strong><span>{parent.wins === 0 ? 'No wins required' : `${parent.wins} different ${parent.wins === 1 ? 'track' : 'tracks'} total`}</span></p>)}</div>}
-      {parents.keep.length > 0 && <p className="quintar-tile__keep"><strong>Keep:</strong> {parents.keep.join(' and ')} for later pairings.</p>}
+      {races.length > 0 && <div className="quintar-tile__races"><span><Icon name="trophy"/>First-place wins before breeding</span>{races.map(parent => <p key={parent.name}><strong>{parent.name}</strong><span>{parent.wins === 0 ? 'No wins required' : `${parent.wins} different ${parent.wins === 1 ? 'track' : 'tracks'} total`}</span></p>)}</div>}
+      {parents.keep.length > 0 && <p className="quintar-tile__keep"><Icon name="shield"/><span><strong>Keep:</strong> {parents.keep.join(' and ')} for later pairings.</span></p>}
       {parents.release.length > 0 && <p className="quintar-tile__release"><strong>After hatching:</strong> {parents.release.join(' and ')} can be released for this route.</p>}
-      {missingParents && <p className="quintar-tile__missing">Prerequisites not marked: {missingParents}.</p>}
+      {missingParents && <p className="quintar-tile__missing">Prerequisites not marked: {missingParents}. You can record this step independently.</p>}
+    </div>}
+    <details className="quintar-tile__instructions" onToggle={event => setGuideOpen(event.currentTarget.open)} open={guideOpen}>
+      <summary>Step instructions</summary>
+      <div className="quintar-tile__guide">
+      <p><MoneyText>{step.instruction}</MoneyText>{ocarinaPrice !== undefined && <> Shop price: <Money copper={ocarinaPrice}/>.</>}</p>
       {catalog && references.length > 0 && <nav aria-label={`Reference pages for ${step.title}`} className="quintar-tile__refs"><span>Reference:</span>{references.map(target => <ReferenceLink key={target.entityId} refValue={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: target.entityId as EntityId }}>{target.label ?? catalog.entities[target.entityId].name}</ReferenceLink>)}</nav>}
-    </div>
+      </div>
+    </details>
   </article>
 })
 
@@ -86,6 +96,11 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
   const isComplete = (stepId: QuintarBreedingStepId) => queuedUpdates.get(stepId)?.state ?? Boolean(completed && Object.hasOwn(completed, stepId))
   const completeCount = QUINTAR_BREEDING_STEPS.filter(step => isComplete(step.id)).length
   const nextStep = QUINTAR_BREEDING_STEPS.find(step => !isComplete(step.id))
+  const [guidanceStepId, setGuidanceStepId] = useState(nextStep?.id)
+  useEffect(() => {
+    // Keep instruction panels steady while optimistic tile clicks are being saved
+    if (queuedUpdates.size === 0) setGuidanceStepId(nextStep?.id)
+  }, [nextStep?.id, queuedUpdates.size])
   const toggle = useCallback((stepId: QuintarBreedingStepId, complete: boolean) => {
     setFailure(undefined)
     enqueue(stepId, complete, state => !state, () => onToggle(stepId), (reason) => {
@@ -95,6 +110,8 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
   const focusNextStep = () => {
     if (!nextStep) return
     const button = document.getElementById(`quintar-step-${nextStep.id}`)
+    const guide = button?.closest('article')?.querySelector('details')
+    if (guide) guide.open = true
     button?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     button?.focus({ preventScroll: true })
   }
@@ -115,7 +132,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
       const count = steps.filter(step => isComplete(step.id)).length
       return <section aria-label={phase.title} className="quintar-phase" key={phase.id}>
         <header><div><h2>{phase.title}</h2><p>{phase.description}</p></div><span>{count} / {steps.length}</span></header>
-        <div className="quintar-board">{steps.map(step => <QuintarStepTile catalog={referenceCatalog} complete={isComplete(step.id)} key={step.id} missingParents={step.requires.filter(id => !isComplete(id)).map(id => QUINTAR_BREEDING_STEPS.find(entry => entry.id === id)!.title).join(', ')} next={step.id === nextStep?.id} number={QUINTAR_BREEDING_STEPS.indexOf(step) + 1} onToggle={toggle} pending={queuedUpdates.has(step.id)} step={step}/>)}</div>
+        <div className="quintar-board">{steps.map(step => <QuintarStepTile catalog={referenceCatalog} complete={isComplete(step.id)} guideNext={step.id === guidanceStepId} key={step.id} missingParents={step.requires.filter(id => !isComplete(id)).map(id => QUINTAR_BREEDING_STEPS.find(entry => entry.id === id)!.title).join(', ')} next={step.id === nextStep?.id} number={QUINTAR_BREEDING_STEPS.indexOf(step) + 1} onToggle={toggle} pending={queuedUpdates.has(step.id)} step={step}/>)}</div>
       </section>
     })}</div>
   </ProgressPage>

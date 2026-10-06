@@ -118,7 +118,7 @@ test('failed title persistence retains both drafts for retry without creating a 
     }
   })
   await page.getByRole('button', { name: 'Save details', exact: true }).click()
-  await expect(page.getByText('Build details not saved', { exact: true })).toBeVisible()
+  await expect(page.locator('.context-bar').getByRole('alert').getByText('Build details not saved.', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toHaveValue(RENAMED_TITLE)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
@@ -140,7 +140,7 @@ test('a blank title cannot pass the navigation guard and discard leaves the name
   await closeBuildActions(page)
   await openBuildComparison(page)
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
-  await expect(page.getByText('Build details not saved', { exact: true })).toBeVisible()
+  await expect(page.locator('.context-bar').getByRole('alert').getByText('Enter a Build title.', { exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toHaveValue('   ')
   await expect(page.getByRole('heading', { name: ORIGINAL_TITLE, exact: true })).toBeVisible()
   await closeBuildActions(page)

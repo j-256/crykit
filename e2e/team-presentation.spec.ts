@@ -24,11 +24,13 @@ async function checkLoadoutOrder(sheet: Locator) {
   expect((await equipment.boundingBox())!.y).toBeLessThan((await stats.boundingBox())!.y)
   await stats.locator(':scope > summary').click()
   await expect(stats).not.toHaveAttribute('open')
-  await expect(sheet.getByRole('region', { name: 'Class stats', exact: true })).not.toBeVisible()
+  await expect(sheet.getByRole('region', { name: 'Calculated stats', exact: true })).not.toBeVisible()
   await sheet.getByRole('navigation', { name: 'Loadout sections', exact: true }).getByRole('button', { name: 'Jump to stats and growth', exact: true }).click()
   await expect(stats).toHaveAttribute('open')
   await expect(stats).toBeFocused()
-  await expect(sheet.getByRole('region', { name: 'Class stats', exact: true })).toBeVisible()
+  await expect(sheet.getByRole('region', { name: 'Calculated stats', exact: true })).toBeVisible()
+  await expect(sheet.locator('.loadout-stat-breakdown')).not.toHaveAttribute('open')
+  await expect(sheet.getByRole('table', { name: 'Gender stat comparison', exact: true })).not.toBeVisible()
 }
 
 test('build, character, and shared loadouts put controls before collapsible stats', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {

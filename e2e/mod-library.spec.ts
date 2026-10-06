@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
@@ -23,6 +24,44 @@ async function includeObservedDoge(page: Page) {
 
 const MOD_ID = 'synthetic-editor-library'
 const SOURCE = JSON.stringify({ ID: MOD_ID, Title: 'Synthetic calculation mod', Version: '1', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, TwoHandedPAtkFlat: 80, StrWhileUnarmedBonusFlat: 60 } }, Passives: [{ ID: 9000, Name: 'Synthetic unarmed', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [{ Tag: 474, Value1: 0, Value2: 0 }] }] })
+
+test('mod cards separate Reference browsing from Game Setup state and secondary editing', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const card = page.getByRole('region', { name: 'Equipment Expansion', exact: true })
+  await expect(card.getByRole('button', { name: 'View catalog entries', exact: true })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  await expect(card).toContainText('Not in Reference')
+  await expect(card.getByText('Enabled status not recorded', { exact: true })).toHaveClass(/badge--neutral/)
+  await expect(card.getByRole('button', { name: 'Edit mod JSON', exact: true })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Add catalog entry', exact: true })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Import updated version', exact: true })).toBeVisible()
+  await expect(card.locator('.mod-library__identity').getByText('Bundled JSON', { exact: true })).toBeVisible()
+  for (const name of ['Import mod', 'Open mod editor', 'Game Setups']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible()
+  const manual = page.getByRole('region', { name: 'Cheap Maps', exact: true })
+  await expect(manual.getByText('Mod JSON unavailable', { exact: true })).toBeVisible()
+  await expect(manual.getByRole('button', { name: 'Add catalog entry', exact: true })).toBeEnabled()
+  expect(await manual.getByRole('button', { name: 'Add catalog entry', exact: true }).evaluate(element => element.closest('details'))).toBeNull()
+  await expect(page.getByText('Add to Reference controls browsing.', { exact: false })).toBeVisible()
+  await card.locator('.mod-library__versions > summary').click()
+  await expect(card).toContainText('Bundled JSON')
+  await expect(card.getByRole('button', { name: 'Edit bundled copy', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('temporary mod details retain reporting without publishing or editing the catalog', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto('/#/mods')
+  const before = await storedData(page)
+  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await card.getByRole('button', { name: 'View catalog entries', exact: true }).click()
+  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Doge Shield', exact: true }) }).click()
+  await page.getByRole('button', { name: 'Actions', exact: true }).click()
+  const actions = page.getByRole('dialog', { name: 'Reference actions', exact: true })
+  await expect(actions.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
+  await expect(actions.getByRole('button', { name: 'Collect into Game Setup revision', exact: true })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(actions).toHaveCount(0)
+  expect(await storedData(page)).toEqual(before)
+})
 
 test('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const before = createSampleLocalData(DEFAULT_CATALOG)
@@ -308,6 +347,7 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')
   await page.getByRole('listbox', { name: 'Choose Equipped passive 1', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic unarmed$/ }) }).click()
   await page.getByRole('combobox', { name: 'Calculation gender', exact: true }).selectOption('male')
+  await openStatBreakdown(page)
   const strength = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
   await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
   const total = await strength.getByRole('cell').last().innerText()

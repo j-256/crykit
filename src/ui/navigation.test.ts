@@ -47,7 +47,7 @@ describe('semantic navigation routes', () => {
     expect(formatAppRoute(editor)).toBe('#/save-editor')
     expect(parseAppRoute('#/save-editor')).toEqual(editor)
     expect(routeDestination(editor)).toBe('save-editor')
-    expect(routeTitle(editor)).toBe('Save editor | CryKit')
+    expect(routeTitle(editor)).toBe('Save Editor | CryKit')
     expect(isReferenceResearchRoute(editor)).toBe(false)
     const search = parseAppRoute('#/save-editor/search?q=tonic')
     expect(search).toMatchObject({ page: { page: 'save-editor' }, overlays: [{ kind: 'search', query: 'tonic' }] })

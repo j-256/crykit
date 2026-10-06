@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH } from '../src/interchange/share'
@@ -47,8 +48,11 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   const payload = createSharePayload({ ...scopedSource, buildRevisions: { ...scopedSource.buildRevisions, [revision.id]: { ...revision, gameSetupRevisionId: nativeSetupId, content } } }, { kind: 'build', revisionId: revision.id }, true)
   await page.goto(createShareUrl(payload, `${baseURL}/`))
   const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  await openStatBreakdown(shared)
   await expect(shared.getByRole('region', { name: 'Class stats', exact: true })).toContainText('Synthetic shared class')
+  await openStatBreakdown(shared)
   const overview = shared.getByRole('table', { name: 'Planned build stats', exact: true })
+  await openStatBreakdown(shared)
   await expect(shared.getByRole('region', { name: 'Class growth ratings', exact: true })).toBeVisible()
   const previewOverview = await overview.locator('th, td').allTextContents()
   await expect(overview).not.toContainText('Unknown')
@@ -77,6 +81,7 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   expect(await storedData(page)).toEqual(before)
   await context.setOffline(true)
   await page.reload()
+  await openStatBreakdown(page)
   await expect(stats.locator('th, td')).toHaveText(previewStats)
   await expect(overview.locator('th, td')).toHaveText(previewOverview)
   await page.screenshot({ path: testInfo.outputPath('shared-grouped-loadout.png'), fullPage: true })
@@ -85,6 +90,7 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('24')
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('female')
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
+  await openStatBreakdown(page)
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td')).toHaveText(previewOverview)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Synthetic shared class')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -107,7 +113,9 @@ test('model-less shares use native rules and retain unsupported inputs without w
   const payload = createSharePayload({ ...scopedSource, buildRevisions: { ...scopedSource.buildRevisions, [revision.id]: { ...revision, gameSetupRevisionId: nativeSetupId, content } } }, { kind: 'build', revisionId: revision.id })
   await page.goto(createShareUrl(payload, `${baseURL}/`))
   const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  await openStatBreakdown(shared)
   const previewOverview = await shared.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td').allTextContents()
+  await openStatBreakdown(shared)
   await expect(shared.getByRole('region', { name: 'Class growth ratings', exact: true }).locator('.stat-rating').first()).toBeVisible()
   await expect(shared.getByRole('heading', { name: 'Level 20 stats', exact: true })).toBeVisible()
   await expect(shared.getByText('Gender: Male', { exact: true })).toBeVisible()
@@ -125,6 +133,7 @@ test('model-less shares use native rules and retain unsupported inputs without w
   expect(await storedData(page)).toEqual(before)
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('male')
+  await openStatBreakdown(page)
   await expect(page.getByRole('table', { name: 'Planned build stats', exact: true }).locator('th, td')).toHaveText(previewOverview)
   expect(previewStats).toEqual([])
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
@@ -151,9 +160,11 @@ test('absent and unknown calculation inputs stay unknown until explicitly edited
     const payload = createSharePayload({ ...before, buildRevisions: { ...before.buildRevisions, [revision.id]: { ...revision, content } } }, { kind: 'build', revisionId: revision.id })
     await page.goto(createShareUrl(payload, `${baseURL}/`))
     const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+    await openStatBreakdown(shared)
     await expect(shared.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
     await expect(shared).not.toContainText('assumed for preview')
     if (calculation) {
+      await openStatBreakdown(shared)
       const stats = shared.getByRole('table', { name: 'Planned build stats', exact: true })
       await expect(stats.getByRole('columnheader')).toHaveText(['Stat', 'Base'])
       await expect(stats).not.toContainText('Unknown')
@@ -162,6 +173,7 @@ test('absent and unknown calculation inputs stay unknown until explicitly edited
     } else await expect(shared).toContainText('No calculation inputs saved.')
     await expect(shared.locator('input, select, textarea')).toHaveCount(0)
     await page.reload()
+    await openStatBreakdown(shared)
     await expect(shared.getByRole('heading', { name: 'Level unknown stats', exact: true })).toBeVisible()
     expect(await storedData(page)).toEqual(before)
   }
@@ -172,6 +184,7 @@ test('absent and unknown calculation inputs stay unknown until explicitly edited
   expect(copiedRevision.content.calculation).toEqual(unknownCalculation)
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('')
   await page.getByLabel('Calculation level', { exact: true }).fill('24')
+  await openStatBreakdown(page)
   await expect(page.getByRole('region', { name: 'Class stats', exact: true })).not.toContainText('assumed for preview')
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   const saved = await storedData(page)

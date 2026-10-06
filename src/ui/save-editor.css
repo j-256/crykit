@@ -16,10 +16,21 @@
 .save-editor__file-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .save-editor__file-heading h2 { margin: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
 .save-editor__state { color: var(--cyan-300); font-size: .78rem; }
+.save-editor__facts--format { padding-top: .75rem; border-top: 1px solid var(--line); }
+.save-editor__original-actions { margin-top: 1rem; }
+.save-editor__draft > .save-editor__note { margin: .5rem 0 .8rem; }
+.save-editor__navigation { display: flex; flex-wrap: wrap; gap: .5rem; }
+.save-editor__navigation .button { min-height: 44px; }
+.save-editor :is(#save-editor-party, #save-editor-money, #save-editor-inventory, #save-editor-presets) { scroll-margin-top: 1rem; }
+@media (min-width: 821px) {
+  /* Desktop scrolls the page beneath a fixed header; mobile already pads its scroll container */
+  .save-editor :is(#save-editor-party, #save-editor-money, #save-editor-inventory, #save-editor-presets) { scroll-margin-top: calc(var(--desktop-header-height) + 1rem); }
+}
 .save-editor__facts { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 16px 0 0; }
 .save-editor__facts > div { min-width: 0; }
 .save-editor__facts dt { color: var(--text-dim); font-size: .72rem; }
 .save-editor__facts dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: .9rem; }
+.save-editor__facts--format dd { color: var(--text-dim); font-size: .8125rem; }
 .save-editor__note { margin: 0; font-size: .78rem; }
 .save-editor__mods { border-color: color-mix(in srgb, var(--cyan-300) 55%, var(--line)); }
 .save-editor__mod-list { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
@@ -97,6 +108,7 @@
   .save-party__identity .button, .save-party__identity > p { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
+  .save-editor__navigation .button { flex: 1 1 calc(50% - .5rem); }
   .save-editor__panel { padding: 14px; }
   .save-editor__member, .save-editor__bulk > article { padding: 12px; }
   .save-editor__inventory-row { grid-template-columns: minmax(0, 1fr) 80px; gap: 8px; }
