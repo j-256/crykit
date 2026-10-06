@@ -23,7 +23,7 @@ Rough drafts are available on the separate [preview site](https://preview.crykit
 
 ## Try your first build
 
-1. **Open the app.** Choose the mods you use from a searchable list, use the optional starter selection, or skip for now. Selected revisions are added to Reference and enabled in your starting Game Setup. It starts in **Builds** with a labeled sample Playthrough. The example characters and builds let you explore before entering your own records.
+1. **Open the app.** Choose the mods you use from a searchable list, use the optional starter selection, or skip for now. Selected revisions are added to Reference and enabled in your starting Game Setup. It starts in **Builds** with a labeled sample Playthrough. The example characters, Builds, and saved Team let you explore before entering your own records.
 2. **Choose New Build.** Search the class, sub-command, equipment, or passive fields and select entries from the results. Fill in as much of the build as you want.
 3. **Give it a name if you like.** Enter **Build title** at the top of the sheet. Choose **Checks & notes** for play notes and a checkpoint name. Otherwise, the build is named after its selected class.
 4. **Choose Save build.** You can return to it from the build library and save further changes as new checkpoints, keeping earlier versions available.

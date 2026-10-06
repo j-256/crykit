@@ -69,7 +69,7 @@ test('renames and edits a member in Team context, retries atomically, and explic
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toHaveValue('Synthetic member workflow')
   await expect(page.getByText('Team not saved', { exact: true })).toHaveCount(0)
   const saved = await storedData(page)
-  const team = Object.values(saved.teams)[0]!
+  const team = Object.values(saved.teams).find(team => team.title === 'Synthetic member workflow')!
   const next = saved.buildRevisions[team.slots[0]!]!
   expect(new URL(page.url()).hash).toBe(formatAppRoute({ page: { page: 'teams', view: 'edit', teamId: team.id }, overlays: [], query: {} }))
   expect(next.revision).toBe(original.revision + 1)
@@ -133,7 +133,7 @@ test('creates members directly in Team slots and reuses the first member setup',
   await page.getByRole('button', { name: SAVE_MEMBER, exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toHaveValue('Synthetic reusable setup')
   const firstSaved = await storedData(page)
-  const team = Object.values(firstSaved.teams)[0]!
+  const team = Object.values(firstSaved.teams).find(team => team.title === 'Synthetic reusable setup')!
   const firstRevision = firstSaved.buildRevisions[team.slots[0]!]!
   const first = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   await first.getByRole('button', { name: 'Edit member', exact: true }).click()
@@ -289,7 +289,7 @@ test('rejects a blank member title and saves a rename through the navigation gua
   const saved = await storedData(page)
   expect(saved.builds[source.buildId]!.title).toBe('Synthetic guarded rename')
   expect(saved.buildRevisions[source.id]).toEqual(source)
-  const team = Object.values(saved.teams)[0]!
+  const team = Object.values(saved.teams).find(team => !before.teams[team.id])!
   expect(saved.buildRevisions[team.slots[0]!]!.buildId).toBe(source.buildId)
 })
 
@@ -331,7 +331,7 @@ test('enters lower member edits at the top and bridges equipment details to the 
   await expect(page.getByLabel('Team overview')).toContainText('4/4 members')
   await page.getByRole('button', { name: 'Edit Team', exact: true }).click()
   const saved = await storedData(page)
-  const team = Object.values(saved.teams)[0]!
+  const team = Object.values(saved.teams).find(team => team.title === 'Synthetic scroll Team')!
   const fourth = page.getByRole('region', { name: 'Team slot 4 loadout', exact: true })
   const edit = fourth.getByRole('button', { name: 'Edit member', exact: true })
   await edit.scrollIntoViewIfNeeded()

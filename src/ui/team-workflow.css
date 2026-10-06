@@ -81,6 +81,8 @@
   .team-overview--compact .team-overview__members { grid-template-columns: minmax(0, 1fr) }
 }
 @media (max-width: 700px) {
+  .team-list-card .panel__header { align-items: stretch; flex-direction: column }
+  .team-list-card .panel__header .cluster { justify-content: flex-start }
   .team-overview__layout { justify-self: stretch }
   .team-overview__layout button { flex: 1 }
   .team-overview__page-links { order: -1; flex-basis: 100% }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createId, entityDefinitionKey, requirePlaythrough, validateScenario } from '../domain'
 import { createScenario, TEAM_SIZE } from '../domain/scenarios'
 import { sameBuildBehavior } from '../domain/build-behavior'
@@ -17,6 +17,7 @@ import './team-workflow.css'
 import { Button, EmptyState, Field, InlineNotice, ScreenHeader } from './components'
 import { formatAppError } from './model'
 import { ShareButton } from './ShareButton'
+import { Sheet } from './Sheet'
 import { useNavigation, useNavigationBlocker } from './navigation'
 import { WorkspacePrimaryAction } from './WorkspaceHeader'
 
@@ -28,6 +29,7 @@ interface Props {
   readonly onDraftChange: DraftChangeHandler
   readonly onSave: (input: SaveTeamInput) => Promise<TeamId>
   readonly onAdopt: (id: TeamId, characterIds: readonly CharacterId[]) => Promise<void>
+  readonly onDelete: (id: TeamId) => Promise<void>
   readonly onSaveMember: (input: { readonly team: SaveTeamInput; readonly slotIndex: number; readonly build?: BuildDraft; readonly buildTitle?: string; readonly revision: RevisionDraft; readonly sourceRevisionId?: BuildRevisionId }) => Promise<{ buildId: BuildId; revisionId: BuildRevisionId }>
 }
 
@@ -171,10 +173,10 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
   </form>
 }
 
-function SavedTeam({ team, localData, catalogs }: Props & { readonly team: Team }) {
+function SavedTeam({ team, localData, catalogs, onRequestDelete }: Props & { readonly team: Team; readonly onRequestDelete: (team: Team) => void }) {
   const navigation = useNavigation()
   return <div className="stack team-detail">
-    <ScreenHeader eyebrow="Buildcrafting" title={team.title} description="Plan and share up to four pinned Build checkpoints." breadcrumb={<Button icon="arrow-left" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="quiet" type="button">All Teams</Button>} actions={<><Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'edit', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Edit Team</Button><ShareButton disabled={!team.slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/></>}/>
+    <ScreenHeader eyebrow="Buildcrafting" title={team.title} description="Plan and share up to four pinned Build checkpoints." breadcrumb={<Button icon="arrow-left" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="quiet" type="button">All Teams</Button>} actions={<><Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'edit', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Edit Team</Button><ShareButton disabled={!team.slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/><Button icon="trash" onClick={() => onRequestDelete(team)} tone="quiet" type="button">Delete Team</Button></>}/>
     <TeamOverview catalogs={catalogs} localData={localData} slots={team.slots}/>
     <section className="team-detail__tracking"><div><h2>Use with Tracking</h2><p>Build checks cover individual checkpoints. Adopt into a Playthrough to check shared stock and character readiness.</p></div><Button disabled={team.slots.some(id => !id)} onClick={() => navigation.navigate({ page: { page: 'teams', view: 'adopt', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Adopt Team</Button></section>
   </div>
@@ -232,13 +234,30 @@ function AdoptTeam({ team, localData, catalogs, onAdopt }: Props & { readonly te
 export function TeamsView(props: Props) {
   const navigation = useNavigation()
   const page = navigation.route.page
+  const [deletingTeam, setDeletingTeam] = useState<Team>()
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string>()
+  const requestDelete = (team: Team) => { setDeleteError(undefined); setDeletingTeam(team) }
+  const confirmDelete = async () => {
+    if (!deletingTeam || deleteBusy) return
+    setDeleteBusy(true)
+    setDeleteError(undefined)
+    try {
+      await props.onDelete(deletingTeam.id)
+      setDeletingTeam(undefined)
+      if (page.page === 'teams' && page.view !== 'list') navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} }, { replace: true })
+    } catch (reason) { setDeleteError(formatAppError(reason, 'The Team could not be deleted.')) }
+    finally { setDeleteBusy(false) }
+  }
+  // Keep the confirmation mounted while optimistic storage updates remove a Team card
+  const withDeleteDialog = (content: ReactNode) => <>{content}<Sheet description={`Delete ${deletingTeam?.title ?? 'Team'} from this browser?`} footer={<div className="form-actions"><Button disabled={deleteBusy} onClick={() => setDeletingTeam(undefined)} tone="secondary" type="button">Cancel</Button><Button disabled={deleteBusy} icon="trash" onClick={() => void confirmDelete()} tone="danger" type="button">{deleteBusy ? 'Deleting...' : 'Delete Team'}</Button></div>} onClose={() => setDeletingTeam(undefined)} onRequestClose={() => !deleteBusy} open={Boolean(deletingTeam)} title="Delete Team"><p>The saved Team will be removed. Its Builds, checkpoints, tracked characters, and party plans will remain.</p>{deleteError && <InlineNotice title="Team not deleted" tone="danger">{deleteError} The Team is still saved.</InlineNotice>}</Sheet></>
   if (page.page !== 'teams') return null
   const team = 'teamId' in page ? props.localData.teams[page.teamId] : undefined
-  if ('teamId' in page && !team) return <><ScreenHeader title="Teams" description="The requested Team is not saved in this browser." actions={<Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="secondary">All Teams</Button>}/><InlineNotice title="Team unavailable">The requested Team is not saved in this browser.</InlineNotice></>
-  if (page.view === 'adopt' && team) return <AdoptTeam {...props} team={team} key={`${team.id}:${props.localData.selectedPlaythroughId}`}/>
-  if (page.view === 'team' && team) return <SavedTeam {...props} team={team} key={team.id}/>
-  if (page.view !== 'list') return <TeamEditor {...props} team={team} key={team?.id ?? 'new'}/>
+  if ('teamId' in page && !team) return withDeleteDialog(<><ScreenHeader title="Teams" description="The requested Team is not saved in this browser." actions={<Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="secondary">All Teams</Button>}/><InlineNotice title="Team unavailable">The requested Team is not saved in this browser.</InlineNotice></>)
+  if (page.view === 'adopt' && team) return withDeleteDialog(<AdoptTeam {...props} team={team} key={`${team.id}:${props.localData.selectedPlaythroughId}`}/>)
+  if (page.view === 'team' && team) return withDeleteDialog(<SavedTeam {...props} onRequestDelete={requestDelete} team={team} key={team.id}/>)
+  if (page.view !== 'list') return withDeleteDialog(<TeamEditor {...props} team={team} key={team?.id ?? 'new'}/>)
   const teams = Object.values(props.localData.teams).sort((left, right) => left.title.localeCompare(right.title))
   const create = () => navigation.navigate({ page: { page: 'teams', view: 'new' }, overlays: [], query: {} })
-  return <div className="stack"><ScreenHeader eyebrow="Buildcrafting" title="Teams" description="Group up to four Builds for planning and sharing independently of any Playthrough." actions={<Button onClick={create} icon="plus">New Team</Button>}/>{teams.length === 0 ? <EmptyState title="Plan a Team" description="Create members or choose saved build checkpoints. Tracking is optional." icon="team"><Button onClick={create}>Create Team</Button></EmptyState> : teams.map(team => <section className="panel team-list-card" key={team.id}><header className="panel__header"><h2>{team.title}</h2><Button tone="secondary" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} })}>Open Team</Button></header><div className="panel__body"><TeamOverview catalogs={props.catalogs} compact localData={props.localData} slots={team.slots}/></div></section>)}</div>
+  return withDeleteDialog(<div className="stack"><ScreenHeader eyebrow="Buildcrafting" title="Teams" description="Group up to four Builds for planning and sharing independently of any Playthrough." actions={<Button onClick={create} icon="plus">New Team</Button>}/>{teams.length === 0 ? <EmptyState title="Plan a Team" description="Create members or choose saved build checkpoints. Tracking is optional." icon="team"><Button onClick={create}>Create Team</Button></EmptyState> : teams.map(team => <section className="panel team-list-card" key={team.id}><header className="panel__header"><h2>{team.title}</h2><div className="cluster"><Button tone="secondary" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} })}>Open Team</Button><Button icon="trash" onClick={() => requestDelete(team)} tone="quiet" type="button">Delete Team</Button></div></header><div className="panel__body"><TeamOverview catalogs={props.catalogs} compact localData={props.localData} slots={team.slots}/></div></section>)}</div>)
 }

@@ -14,8 +14,13 @@ describe('sample starter team', () => {
     expect(localData.changes).toEqual([])
     expect(Object.values(requirePlaythrough(localData).characters).map(character => character.name)).toEqual(['Rowan', 'Mira', 'Tavi', 'Sol'])
     expect(Object.values(localData.builds)).toHaveLength(4)
+    const savedTeam = Object.values(localData.teams)
+    expect(savedTeam).toHaveLength(1)
+    expect(savedTeam[0]!.title).toBe('Sample starter Team')
+    expect(new Set(savedTeam[0]!.slots).size).toBe(4)
     expect(Object.values(requirePlaythrough(localData).scenarios)).toHaveLength(1)
     const scenario = requirePlaythrough(localData).scenarios[requirePlaythrough(localData).activeScenarioId!]!
+    expect(savedTeam[0]!.slots).toEqual(scenario.memberIds.map(id => scenario.assignments[id]))
     expect(scenario.gameSetupRevisionId).toBe(localData.planningGameSetupRevisionId)
     expect(scenario.inventoryPolicy.enforceStock).toBe(true)
     expect(localData.gameSetups[scenario.gameSetupRevisionId]!.ppLimit).toEqual({ state: 'known', value: 10 })

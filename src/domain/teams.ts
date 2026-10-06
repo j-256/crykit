@@ -26,6 +26,16 @@ export function saveTeam(localData: LocalData, input: SaveTeamInput): LocalData 
   return updateLocalData(localData, { teams: { ...localData.teams, [id]: team } }, previous ? 'team.update' : 'team.create', [`teams.${id}`], at)
 }
 
+export function deleteTeam(localData: LocalData, input: { readonly teamId: TeamId; readonly expectedRevision?: number; readonly now?: Timestamp | string }): LocalData {
+  assertExpectedRevision(localData, input.expectedRevision)
+  if (!localData.teams[input.teamId]) throw new DomainError('INVALID_INPUT', 'The Team is unavailable')
+  const teams = { ...localData.teams }
+  delete teams[input.teamId]
+  const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
+  // Team pins are independent of saved Builds and Playthrough records
+  return updateLocalData(localData, { teams }, 'team.delete', [`teams.${input.teamId}`], at)
+}
+
 export interface RecordBuildInput {
   readonly playthroughId?: PlaythroughId
   readonly characterId: CharacterId
