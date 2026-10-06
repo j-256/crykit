@@ -60,7 +60,7 @@ export type BuildsPageRoute =
 export type TeamsPageRoute =
   | { readonly page: 'teams'; readonly view: 'list' }
   | { readonly page: 'teams'; readonly view: 'new' }
-  | { readonly page: 'teams'; readonly view: 'team' | 'adopt'; readonly teamId: TeamId }
+  | { readonly page: 'teams'; readonly view: 'team' | 'edit' | 'adopt'; readonly teamId: TeamId }
 
 export type ProgressPageRoute =
   | { readonly page: 'progress'; readonly view: 'list' }
@@ -358,6 +358,7 @@ function parsePage(segments: readonly string[], requestedPath: string): { readon
     if (segments[1] === 'new' && overlayStartsAt(segments, 2)) return { page: { page: 'teams', view: 'new' }, consumed: 2 }
     const teamId = decodeSegment(segments[1] ?? '') as TeamId | undefined
     if (!teamId) return bad('teams', 'malformed-identifier')
+    if (segments[2] === 'edit' && overlayStartsAt(segments, 3)) return { page: { page: 'teams', view: 'edit', teamId }, consumed: 3 }
     if (segments[2] === 'adopt' && overlayStartsAt(segments, 3)) return { page: { page: 'teams', view: 'adopt', teamId }, consumed: 3 }
     return overlayStartsAt(segments, 2) ? { page: { page: 'teams', view: 'team', teamId }, consumed: 2 } : bad('teams')
   }
@@ -515,7 +516,7 @@ function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver): stri
   if (page.page === 'save-editor') return '/save-editor'
   if (page.page === 'map') return '/map'
   if (page.page === 'mods') return page.view === 'editor' ? '/mods/editor' : '/mods'
-  if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : ''}`
+  if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : page.view === 'edit' ? '/edit' : ''}`
   if (page.page === 'share') {
     if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
     return `${SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
@@ -616,7 +617,7 @@ export function routeTitle(route: AppRoute): string {
   if (page.page === 'save-editor') return 'Save editor | CryKit'
   if (page.page === 'map') return 'World Map | CryKit'
   if (page.page === 'mods') return `${page.view === 'editor' ? 'Mod editor' : 'Mods'} | CryKit`
-  if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : 'Teams'} | CryKit`
+  if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : page.view === 'edit' ? 'Edit Team' : 'Teams'} | CryKit`
   if (page.page === 'share') return 'Shared snapshot | CryKit'
   if (page.page === 'unresolved') return 'Page unavailable | CryKit'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | CryKit`
@@ -646,7 +647,7 @@ export function routeForDestination(destination: Destination): AppRoute {
 export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (route.overlays.length) return { ...route, overlays: route.overlays.slice(0, -1) }
   const page = route.page
-  if (page.page === 'teams') return page.view === 'list' ? undefined : page.view === 'adopt' ? { ...route, page: { page: 'teams', view: 'team', teamId: page.teamId } } : { ...route, page: { page: 'teams', view: 'list' } }
+  if (page.page === 'teams') return page.view === 'list' ? undefined : page.view === 'adopt' || page.view === 'edit' ? { ...route, page: { page: 'teams', view: 'team', teamId: page.teamId } } : { ...route, page: { page: 'teams', view: 'list' } }
   if (page.page === 'share') return BUILDS_ROUTE
   if (page.page === 'inventory' && page.view !== 'list') return { ...route, page: { page: 'inventory', view: 'list' } }
   if (page.page === 'characters') {
