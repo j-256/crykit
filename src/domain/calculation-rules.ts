@@ -32,6 +32,7 @@ export const NATIVE_DATA = nativeData
 type ArithmeticRules = { readonly limits: Pick<CalculationRules['limits'], 'expressionDepth' | 'expressionNodes'>; readonly formulas: CalculationRules['formulas'] }
 
 function roundEven(value: number): number {
+  // Native midpoint rounding chooses the even neighbor, including negative ties; Math.round alone differs
   const floor = Math.floor(value)
   const fraction = value - floor
   return fraction === 0.5 ? floor % 2 === 0 ? floor : floor + 1 : Math.round(value)
@@ -50,6 +51,7 @@ export function evaluateExpression(expression: Expression, variables: Readonly<R
     const [operator, ...args] = node
     const arity = (count: number) => { if (args.length !== count) throw new Error(`Invalid arity for ${operator}`) }
     const at = (index: number) => evaluate(args[index]!, scope, depth + 1)
+    // Unused branches can contain invalid arithmetic; evaluating both would reject valid native cases
     if (operator === 'if') { arity(3); return at(0) !== 0 ? at(1) : at(2) }
     if (operator === 'and') { arity(2); return at(0) !== 0 && at(1) !== 0 ? 1 : 0 }
     if (operator === 'call') {

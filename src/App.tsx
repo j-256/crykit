@@ -248,6 +248,7 @@ export default function App() {
       if (options.deferUntilPaint) await waitForNextPaint()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
+      // A retained failed draft is a recovery boundary; applying another transform would obscure unsaved intent
       if (dirtyRef.current) throw new Error('A previous change is retained after a failed save. Close this form, then use Retry save or export a recovery backup before making another change.')
       let optimistic: LoadedLocalData | undefined
       try {
@@ -284,7 +285,9 @@ export default function App() {
         throw error
       }
     }
+    // Read and transform the latest state when the serialized task runs, not when its click was rendered
     const queued = commitQueueRef.current.then(run, run)
+    // Recover the queue tail while returning the original rejection to the action's failure UI
     commitQueueRef.current = queued.catch(() => undefined)
     const settle = () => {
       pendingCommitCountRef.current = Math.max(0, pendingCommitCountRef.current - 1)

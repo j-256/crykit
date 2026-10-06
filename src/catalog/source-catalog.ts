@@ -40,6 +40,8 @@ function sourcedEntity(entity: CatalogEntity): CatalogEntity {
 export function reconcileNativeSourceIdentities(base: CatalogSnapshot): CatalogSnapshot {
   const entities: Record<string, CatalogEntity> = { ...base.entities }
   const bindings: Record<string, string> = { ...NATIVE_GAME_DATA.identityBindings }
+  // Tree coordinates establish identities only for the exact databases they were reviewed against
+  // Accepting a changed source here could bind a valid-looking skill to a different native record
   for (const [family, digest] of Object.entries(treeIdentities.databaseSha256)) if (NATIVE_GAME_DATA.source.files.find(file => file.path === `Database/${family}.dat`)?.sha256 !== digest) throw new Error('Base skill identity evidence does not match native source hashes')
   for (const identity of Object.values(treeIdentities.classes)) for (const node of identity.nodes) {
     const family = node.nodeType === 2 ? 'ability' : 'passive'
@@ -65,6 +67,7 @@ export function projectSourceCatalog(base: CatalogSnapshot): CatalogSnapshot {
     const record = nativeSourceRecord(entity)
     if (entity.kind !== 'class' || !identity || !Array.isArray(record?.PassiveIDs)) continue
     const passives = Object.fromEntries(record.PassiveIDs.filter((id): id is number => typeof id === 'number').flatMap(id => {
+      // A base fallback must not override a mode replacement, or class innate links use the wrong rules
       const target = modeBindings[`${identity.mode}:passive:${id}`] ?? modeBindings[`base:passive:${id}`]
       return target ? [[String(id), target]] : []
     }))

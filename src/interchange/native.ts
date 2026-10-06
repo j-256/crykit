@@ -42,6 +42,8 @@ function freezeCatalogValue(value: unknown): void {
 }
 
 export function immutableCatalogSnapshot(catalog: CatalogSnapshot): CatalogSnapshot {
+  // Validation may be reused by object identity only after every nested value is frozen
+  // A shallow freeze would let later mutation bypass structural checks during rapid saves
   if (validatedImmutableCatalogs.has(catalog)) return catalog
   if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
   freezeCatalogValue(catalog)

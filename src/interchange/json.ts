@@ -2,6 +2,7 @@ import type { JsonValue } from '../domain/types'
 import { AppDataError } from './errors'
 import { decodeUtf8 } from './xml'
 
+// Imported objects later cross ordinary object merges, so null-prototype parsing alone is not sufficient
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 const MAX_JSON_DEPTH = 64
 const MAX_JSON_NODES = 2_000_000

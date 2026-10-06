@@ -56,6 +56,7 @@ function visitRefs(value: unknown, visit: (ref: EntityRef) => void): void {
 }
 
 function definitionReferences(definition: PersonalDefinition) {
+  // Follow typed dependencies only; opaque source fields are not references into the shared planner graph
   return { baseRef: definition.baseRef, previousRevision: definition.previousRevision, requirements: definition.requirements }
 }
 
@@ -88,6 +89,7 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
     const build = revision && own(localData.builds, revision.buildId)
     if (!revision || !build) throw new Error('A pinned build checkpoint is missing.')
     addSetup(revision.gameSetupRevisionId)
+    // Snapshot notes are opt-in; copying the checkpoint wholesale would bypass the sharing choice
     const { rotationNotes, contextAssumptions, ...content } = revision.content
     revisions[id] = {
       id, buildId: build.id, revision: revision.revision, gameSetupRevisionId: revision.gameSetupRevisionId,

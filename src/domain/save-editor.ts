@@ -426,6 +426,8 @@ export function previewVanillaConversion(input: CrystalSave, nativeCatalog: Save
     }
   } catch (error) { blockers.push(error instanceof Error ? error.message : 'Indexed save records could not be converted') }
 
+  // Clear both metadata copies last, after removing supported non-native indexed state
+  // Otherwise a partially converted draft would claim to be native while still containing mod-only references
   if (headerState || bodyState) {
     save.header.isModded = false
     save.header.mods = []
@@ -716,6 +718,8 @@ function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEdit
     counts.set(id, next)
     if (requested[index]?.IsOneOnly && next > 1) throw new Error(`${String(requested[index]?.Name ?? `Equipment ${id}`)} can only be equipped once`)
   }
+  // Return this member's old gear before checking demand, allowing reuse of those copies in the new loadout
+  // This mutates only editSave's clone, so insufficient stock discards the whole edit
   unequip(save, member)
   for (const [id, count] of counts) if (quantity(save, 'equipment', id) < count) throw new Error(`Inventory needs ${count} ${String(catalog.records.equipment.get(id)?.Name ?? `equipment ${id}`)} for this loadout`)
   for (const [id, count] of counts) setStock(save, 'equipment', id, quantity(save, 'equipment', id) - count)
@@ -726,6 +730,7 @@ function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEdit
 }
 
 export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, command: SaveEditCommand, now = new Date(), modSources: readonly SaveEditorModSource[] = []): CrystalSave {
+  // Multi-field edits may fail after inventory or learning changes; never mutate the caller's source save
   const { catalog, randomizer } = validate(input, nativeCatalog, modSources)
   if (!Number.isFinite(now.getTime())) throw new Error('Edit timestamp is invalid')
   const save = structuredClone(input)

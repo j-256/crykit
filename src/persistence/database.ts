@@ -59,6 +59,8 @@ export class CryKitDatabase extends Dexie {
       imports: 'id, sourceDigest, localDataId',
       meta: 'key',
     })
+    // Roots and undo snapshots must migrate in the same upgrade transaction
+    // A bad history entry must roll back roots and the database version rather than leave undo incompatible
     const migrate = async (transaction: import('dexie').Transaction) => {
       const storedCatalogs = (await transaction.table<CatalogRecord>('catalogs').toArray()).map(record => record.snapshot)
       const catalogs = [...new Map([...storedCatalogs, ...BUNDLED_CATALOGS].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]

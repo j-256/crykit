@@ -595,6 +595,7 @@ function candidateId(kind, name) {
 }
 
 function mergeKnowledge(existing, incoming) {
+  // Disagreeing sources remain separate claims; iteration order must not pick a supposedly authoritative value
   if (!existing) return incoming
   if (existing.state === 'unknown') return incoming.state === 'known' ? incoming : existing
   if (incoming.state === 'unknown') return existing

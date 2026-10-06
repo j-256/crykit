@@ -25,6 +25,7 @@ export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve:
   const definition = resolve(ref)
   if (!definition || (family === 'job' ? definition.kind !== 'class' : family === 'passive' ? !['passive', 'innate'].includes(definition.kind) : family === 'equipment' ? definition.kind !== 'item' : family === 'ability' ? !['ability', 'monsterMagic'].includes(definition.kind) : family === 'status' ? definition.kind !== 'status' : false)) return undefined
   const explicit = crystalRecord(definition)
+  // Export-local IDs are not native identities; use explicit imported records before native mode patches
   if (explicit) return explicit
   const native = definitionSourceRecord(definition)
   if (native) {

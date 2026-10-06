@@ -108,9 +108,11 @@ export async function bundleModDirectory(input, output, manifestPath) {
   try { retained = JSON.parse(await readFile(manifestPath, 'utf8')).mods }
   catch (error) { if (error.code !== 'ENOENT') throw error }
   if (retained.length) await checkModLibrary(output, manifestPath)
+  // Retain older source digests so a directory refresh cannot remove revisions pinned by saved setups
   const revisions = new Map(retained.map(source => [source.sha256, source]))
   for (const { source } of snapshots.values()) revisions.set(source.sha256, source)
   const mods = [...revisions.values()].sort((left, right) => left.projectId.localeCompare(right.projectId) || (right.timestamp ?? '').localeCompare(left.timestamp ?? '') || left.sha256.localeCompare(right.sha256))
+  // Compress the original bytes, not parsed JSON; BOMs and line endings are part of the archived digest
   const generated = [...snapshots.values()].map(({ source, bytes }) => ({ path: join(output, `${source.sha256}.json`), text: jsonText({ schemaVersion: 1, encoding: 'gzip-base64', sha256: source.sha256, sourceBytes: bytes.length, data: gzipSync(bytes, { level: 9 }).toString('base64') }) }))
   for (const file of generated) {
     try { if (await readFile(file.path, 'utf8') !== file.text) throw new Error('Immutable source asset differs') }

@@ -137,6 +137,7 @@ function uniqueSources(sources: readonly SourceRef[]): readonly SourceRef[] {
 }
 
 export function coalesceEquivalentSourceClaims(field: string, value: Knowledge<JsonValue>): Knowledge<JsonValue> {
+  // Notes may distinguish claims that look equal; presentation normalization must not erase that evidence
   if (value.state !== 'conflicting' || value.claims.length < 2 || value.claims.some(claim => claim.note !== undefined)) return value
   const normalized = value.claims.map(claim => normalizedClaimValue(field, claim.value))
   let compatibleValue = normalized.every(candidate => JSON.stringify(candidate) === JSON.stringify(normalized[0])) ? normalized[0] : undefined
