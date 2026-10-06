@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { decodeCrystalSave, encodeCrystalSave, type BsonDocument, type BsonValue, type CrystalSave } from '../interchange/crystal-save'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModSourceFixture, setSaveEditorFixtureMode, SYNTHETIC_SAVE_MOD } from './save-editor.fixture'
+import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModSourceFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from './save-editor.fixture'
 import { editSave, inspectSave, previewSaveChanges, previewVanillaConversion, SAVE_EDITOR_MAX_CURRENCY } from './save-editor'
 import { resolveSaveEditorMods } from './save-editor-mods'
 
@@ -11,6 +11,7 @@ function doc(value: BsonValue | undefined): BsonDocument { if (value?.type !== '
 function arr(value: BsonValue | undefined): BsonValue[] { if (value?.type !== 'array') throw new Error('Expected array'); return value.value }
 function num(value: BsonValue | undefined): number { if (value?.type !== 'int32') throw new Error('Expected integer'); return value.value }
 function flag(save: CrystalSave, key: string): void { doc(save.party.value.GameplayFlags).value[key] = { type: 'boolean', value: true } }
+function swap(length: number, left: number, right: number): number[] { const values = Array.from({ length }, (_, id) => id); [values[left], values[right]] = [values[right]!, values[left]!]; return values }
 
 describe('browser-local save editing', () => {
   it.each(Array.from({ length: 29 }, (_, version) => version))('edits format %i without upgrading it or losing unknown records', version => {
@@ -79,19 +80,65 @@ describe('browser-local save editing', () => {
     expect(vanilla.records.passive.get(74)?.PP).toBe(0)
     expect(catalog.records.ability.get(13)?.BasePower).toBe(400)
     expect(chaos.records.ability.get(13)?.BasePower).toBe(10_000)
+    expect(catalog.randomizerRecords.monster.get(1)?.NoAuto).toBe(false)
+    expect(chaos.randomizerRecords.monster.get(1)?.NoAuto).toBe(true)
 
     const modded = setSaveEditorFixtureMode(createModdedSaveEditorFixture(), 1)
     expect(inspectSave(modded, catalog, [createSaveEditorModSourceFixture()])).toMatchObject({ editable: true, mode: { name: 'Vanilla' } })
   })
 
-  it('keeps randomized Vanilla and Chaos saves read-only', () => {
-    for (const patchMode of [1, 2]) {
-      const save = setSaveEditorFixtureMode(createSaveEditorFixture(), patchMode)
-      save.header.randomizerFlags = 1
-      doc(save.party.value.RandomizerFlags).value.Equipment = { type: 'boolean', value: true }
-      expect(inspectSave(save, catalog)).toMatchObject({ editable: false, mode: { value: patchMode } })
-      expect(inspectSave(save, catalog).issues).toContain('Randomized saves are read-only because their identities can differ')
-    }
+  it.each([[0, 'Standard'], [1, 'Vanilla'], [2, 'Chaos']] as const)('edits randomized %s mode saves without changing their seed or mappings', (patchMode, name) => {
+    const save = setSaveEditorFixtureRandomizer(setSaveEditorFixtureMode(createSaveEditorFixture(), patchMode), { flags: { Equipment: true }, mappings: { Equipment: swap(591, 0, 381) } })
+    const originalFlags = structuredClone(save.party.value.RandomizerFlags)
+    const originalMapping = structuredClone(save.party.value.RandomizerMapping)
+    expect(inspectSave(save, catalog)).toMatchObject({ editable: true, randomized: true, mode: { value: patchMode, name } })
+    const edited = editSave(save, catalog, { type: 'currency', value: 456 }, NOW)
+    expect(inspectSave(edited, catalog)).toMatchObject({ editable: true, randomized: true, currency: 456, mode: { value: patchMode, name } })
+    expect(edited.party.value.RandomizerFlags).toEqual(originalFlags)
+    expect(edited.party.value.RandomizerMapping).toEqual(originalMapping)
+  })
+
+  it('uses randomized abilities and innate passives for class and loadout rules', () => {
+    const save = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), {
+      flags: { JobAbilities: true, InnatePassives: true },
+      mappings: { AbilityJobs: swap(508, 28, 344), Passives: swap(88, 50, 72) },
+    })
+    arr(save.members[0]!.value.LearnedAbilities)[344] = { type: 'int32', value: 2 }
+    save.members[0]!.value.AutoAbilityID = { type: 'int32', value: 344 }
+    const changedClass = editSave(save, catalog, { type: 'member', index: 0, subJobId: null }, NOW)
+    expect(changedClass.members[0]!.value.AutoAbilityID).toEqual({ type: 'int32', value: 344 })
+    const loadout = editSave(save, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, 0, null, null, null, null], passiveIds: [] }, NOW)
+    expect(arr(loadout.members[0]!.value.Equipment).slice(0, 2).map(num)).toEqual([0, 0])
+  })
+
+  it('rejects inconsistent or malformed randomizer state', () => {
+    const mismatch = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), { flags: { Equipment: true } })
+    mismatch.header.randomizerFlags = 0
+    expect(inspectSave(mismatch, catalog).issues).toContain('Header and party randomizer flags disagree')
+
+    const duplicate = Array.from({ length: 508 }, (_, id) => id)
+    duplicate[2] = 3
+    const invalid = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), { flags: { JobAbilities: true }, mappings: { AbilityJobs: duplicate } })
+    expect(inspectSave(invalid, catalog).issues).toContain('Job ability randomizer mapping targets ID 3 more than once')
+
+    const incomplete = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), { flags: { Crystals: true }, mappings: { Jobs: Array.from({ length: 23 }, (_, id) => id) } })
+    expect(inspectSave(incomplete, catalog).issues).toContain('Class randomizer mapping has 23 entries; expected 24')
+  })
+
+  it('allows non-mapping randomizer options without requiring identity tables', () => {
+    const save = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), { flags: { StartWithAllMaps: true } })
+    delete save.party.value.RandomizerMapping
+    expect(inspectSave(save, catalog)).toMatchObject({ editable: true, randomized: true })
+    expect(editSave(save, catalog, { type: 'currency', value: 456 }, NOW).header.currencyAmount).toBe(456)
+  })
+
+  it('applies randomizer mappings after exact active mod redirects', () => {
+    const save = setSaveEditorFixtureRandomizer(createModdedSaveEditorFixture({ relocated: true }), { flags: { InnatePassives: true } })
+    const source = createSaveEditorModSourceFixture()
+    expect(inspectSave(save, catalog, [source])).toMatchObject({ editable: true, randomized: true })
+    const edited = editSave(save, catalog, { type: 'currency', value: 456 }, NOW, [source])
+    expect(inspectSave(edited, catalog, [source])).toMatchObject({ editable: true, randomized: true, currency: 456 })
+    expect(edited.party.value.RandomizerMapping).toEqual(save.party.value.RandomizerMapping)
   })
 
   it('edits an active mod save only with an exact matching source', () => {
@@ -196,10 +243,7 @@ describe('browser-local save editing', () => {
   })
 
   it('does not present an unmodded randomizer save as a mod-state removal candidate', () => {
-    const save = createSaveEditorFixture()
-    save.header.randomizerFlags = 1
-    const flags = doc(save.party.value.RandomizerFlags)
-    flags.value.Equipment = { type: 'boolean', value: true }
+    const save = setSaveEditorFixtureRandomizer(createSaveEditorFixture(), { flags: { Equipment: true } })
     expect(previewVanillaConversion(save, catalog)).toEqual({ relevant: false, convertible: false, changes: [], blockers: [] })
   })
 

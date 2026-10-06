@@ -12,13 +12,24 @@ export const SAVE_EDITOR_FAMILIES = ['job', 'ability', 'passive', 'item', 'equip
 export type SaveEditorFamily = typeof SAVE_EDITOR_FAMILIES[number]
 export type SaveEditorModeKey = 'standard' | 'vanilla' | 'chaos'
 export interface SaveEditorMode { readonly value: number; readonly key: SaveEditorModeKey; readonly name: 'Standard' | 'Vanilla' | 'Chaos' }
-export interface SaveEditorModePatch { readonly mode: SaveEditorMode; readonly records: Readonly<Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>> }
+export interface SaveEditorRandomizerRecords {
+  readonly troop: ReadonlyMap<number, NativeRecord>
+  readonly monster: ReadonlyMap<number, NativeRecord>
+  readonly difficulty: ReadonlyMap<number, NativeRecord>
+}
+export interface SaveEditorModePatch {
+  readonly mode: SaveEditorMode
+  readonly records: Readonly<Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>>
+  readonly randomizerRecords: SaveEditorRandomizerRecords
+}
 export interface SaveEditorCatalog {
   readonly source: string
   readonly mode: SaveEditorMode
   readonly records: Readonly<Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>>
   readonly baseRecords: Readonly<Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>>
   readonly modePatches: ReadonlyMap<number, SaveEditorModePatch>
+  readonly randomizerRecords: SaveEditorRandomizerRecords
+  readonly baseRandomizerRecords: SaveEditorRandomizerRecords
 }
 export interface SaveEditorModSource {
   readonly id: string
@@ -56,6 +67,7 @@ export interface SaveEditorModResolution {
 
 const MODEL_FAMILIES: Readonly<Record<string, SaveEditorFamily | undefined>> = Object.freeze({ Jobs: 'job', Abilities: 'ability', Passives: 'passive', Items: 'item', Equipment: 'equipment', Genders: 'gender' })
 const PATCH_FIELDS: Readonly<Record<SaveEditorFamily, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', item: 'Items', equipment: 'Equipment', gender: 'Genders' })
+const RANDOMIZER_PATCH_FIELDS: Readonly<Record<keyof SaveEditorRandomizerRecords, string>> = Object.freeze({ troop: 'Troops', monster: 'Monsters', difficulty: 'Difficulties' })
 const REDIRECT_GROUPS: Readonly<Record<SaveEditorFamily, string>> = Object.freeze({ job: 'jobs', ability: 'abilities', passive: 'passives', item: 'items', equipment: 'equipment', gender: 'genders' })
 const UNSUPPORTED_REDIRECT_GROUPS = ['animations', 'biomes', 'difficulties', 'monsters', 'recipes', 'sparks', 'statuses', 'troops', 'entities'] as const
 const LEARN_NODE = Object.freeze({ ability: 2, passive: 3 })
@@ -70,6 +82,11 @@ function nativeRecords(values: unknown, context: string): ReadonlyMap<number, Na
 export function createSaveEditorCatalog(snapshot: NativeGameSnapshot): SaveEditorCatalog {
   const records = {} as Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>
   for (const family of SAVE_EDITOR_FAMILIES) records[family] = nativeRecords(snapshot.databases[family], family)
+  const randomizerRecords: SaveEditorRandomizerRecords = {
+    troop: nativeRecords(snapshot.databases.troop, 'troop'),
+    monster: nativeRecords(snapshot.databases.monster, 'monster'),
+    difficulty: nativeRecords(snapshot.databases.difficulty, 'difficulty'),
+  }
   const modePatches = new Map<number, SaveEditorModePatch>()
   if (!Array.isArray(snapshot.databases.patch)) throw new Error('Missing native patch definitions')
   for (const value of snapshot.databases.patch) {
@@ -80,15 +97,17 @@ export function createSaveEditorCatalog(snapshot: NativeGameSnapshot): SaveEdito
     if (modePatches.has(mode.value)) throw new Error(`Duplicate native game mode ${mode.value}`)
     const patchRecords = {} as Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>
     for (const family of SAVE_EDITOR_FAMILIES) patchRecords[family] = nativeRecords(value[PATCH_FIELDS[family]], `${mode.name} ${family}`)
-    modePatches.set(mode.value, { mode, records: patchRecords })
+    const patchRandomizerRecords = {} as Record<keyof SaveEditorRandomizerRecords, ReadonlyMap<number, NativeRecord>>
+    for (const family of Object.keys(RANDOMIZER_PATCH_FIELDS) as (keyof SaveEditorRandomizerRecords)[]) patchRandomizerRecords[family] = nativeRecords(value[RANDOMIZER_PATCH_FIELDS[family]], `${mode.name} ${family}`)
+    modePatches.set(mode.value, { mode, records: patchRecords, randomizerRecords: patchRandomizerRecords })
   }
   for (const name of Object.keys(PATCH_MODE_NAMES)) if (![...modePatches.values()].some(patch => patch.mode.name === name)) throw new Error(`Missing native ${name} game mode`)
-  return { source: `${snapshot.source.platform} PC ${snapshot.source.gameVersion}`, mode: STANDARD_MODE, records, baseRecords: records, modePatches }
+  return { source: `${snapshot.source.platform} PC ${snapshot.source.gameVersion}`, mode: STANDARD_MODE, records, baseRecords: records, modePatches, randomizerRecords, baseRandomizerRecords: randomizerRecords }
 }
 
 export function saveEditorCatalogForMode(catalog: SaveEditorCatalog, value: number): SaveEditorCatalog {
   if (catalog.mode.value === value) return catalog
-  if (value === STANDARD_MODE.value) return { ...catalog, mode: STANDARD_MODE, records: catalog.baseRecords }
+  if (value === STANDARD_MODE.value) return { ...catalog, mode: STANDARD_MODE, records: catalog.baseRecords, randomizerRecords: catalog.baseRandomizerRecords }
   const patch = catalog.modePatches.get(value)
   if (!patch) throw new Error(`Unsupported game mode ${value}`)
   const records = {} as Record<SaveEditorFamily, ReadonlyMap<number, NativeRecord>>
@@ -101,7 +120,17 @@ export function saveEditorCatalogForMode(catalog: SaveEditorCatalog, value: numb
     }
     records[family] = merged
   }
-  return { ...catalog, source: `${catalog.source} ${patch.mode.name} mode`, mode: patch.mode, records }
+  const randomizerRecords = {} as Record<keyof SaveEditorRandomizerRecords, ReadonlyMap<number, NativeRecord>>
+  for (const family of Object.keys(RANDOMIZER_PATCH_FIELDS) as (keyof SaveEditorRandomizerRecords)[]) {
+    const merged = new Map(catalog.baseRandomizerRecords[family])
+    for (const [id, record] of patch.randomizerRecords[family]) {
+      const base = merged.get(id)
+      if (!base) throw new Error(`${patch.mode.name} mode references unknown native ${family} ${id}`)
+      merged.set(id, { ...base, ...record })
+    }
+    randomizerRecords[family] = merged
+  }
+  return { ...catalog, source: `${catalog.source} ${patch.mode.name} mode`, mode: patch.mode, records, randomizerRecords }
 }
 
 export function createSaveEditorModSource(catalog: CatalogSnapshot, warnings: readonly { readonly code: string }[] = [], origin: SaveEditorModSource['origin'] = 'file', bundledKey?: string): SaveEditorModSource {

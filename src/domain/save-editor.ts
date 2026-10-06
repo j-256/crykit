@@ -14,6 +14,12 @@ const PASSIVE_POINT_BUDGET = 10
 const PRESET_EQUIPMENT_COPIES = 10
 const LEARN_NODE = Object.freeze({ ability: 2, passive: 3 })
 const LEGACY_HEADER = Object.freeze({ flags: 14, mods: 24 })
+const RANDOMIZER_HEADER_FLAGS = Object.freeze({ Crystals: 1, Monsters: 2, Items: 4, Equipment: 8, JobAbilities: 16, MonsterAbilities: 32, Passives: 64, InnatePassives: 128, TeleportPoints: 256, Music: 512, ProgressionGate: 1024, StartWithHomePointStone: 2048, StartWithTreasureFinder: 4096, StartWithAllMaps: 8192, MonsterDifficulties: 16384 })
+const RANDOMIZER_BOOLEAN_FIELDS = ['Crystals', 'Monsters', 'MonstersScaled', 'Bosses', 'BossesScaled', 'Items', 'IncludeRecovery', 'IncludeQuest', 'IncludeProgression', 'ItemsScaled', 'Equipment', 'EquipmentScaled', 'JobAbilities', 'IncludeScholar', 'IncludeSummoner', 'JobAbilitiesUnrestricted', 'MonsterAbilities', 'MonsterDifficulties', 'Passives', 'InnatePassives', 'TeleportPoints', 'Music', 'ProgressionGate', 'StartWithHomePointStone', 'StartWithTreasureFinder', 'StartWithAllMaps', 'EnableSpoilerLog'] as const
+const RANDOMIZER_PRIMARY_FIELDS = ['Crystals', 'Monsters', 'Bosses', 'Items', 'Equipment', 'JobAbilities', 'MonsterAbilities', 'MonsterDifficulties', 'Passives', 'InnatePassives', 'TeleportPoints', 'Music'] as const
+const RANDOMIZER_TELEPORT_POINT_IDS = new Set([0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31])
+const RANDOMIZER_TRACK_CUE_IDS = new Set([...Array.from({ length: 5 }, (_, index) => index + 1), ...Array.from({ length: 23 }, (_, index) => index + 8), ...Array.from({ length: 43 }, (_, index) => index + 32), ...Array.from({ length: 7 }, (_, index) => index + 96)])
+const RANDOMIZER_ENUM_BOUNDS = Object.freeze({ TeleportPoints: 32, Music: 103 })
 const LEVEL_ASSIST_FLAG = 128
 const TREASURE_FINDER_BONUS = 4
 const ENABLE_EQUIPMENT_TYPE = 406
@@ -31,8 +37,12 @@ export type SaveInventoryKind = 'item' | 'equipment'
 export interface SaveEditorChoice { id: number; name: string }
 export interface SaveEditorMemberSummary { index: number; name: string; level: number; jobId: number; subJobId: number | null; growthJobId: number; equipmentIds: readonly (number | null)[]; passiveIds: readonly number[]; unlockedJobIds: readonly number[]; learnedPassiveIds: readonly number[]; unlockedJobs: number; masteredJobs: number; learnedAbilities: number; learnedPassives: number }
 export interface SaveEditorInventoryRow extends SaveEditorChoice { kind: SaveInventoryKind; count: number; capacity: number; equipped: number }
-export interface SaveEditorSummary { editable: boolean; issues: string[]; mode: SaveEditorMode; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; mapCount: number; levelCap: number; assistEnabled: boolean }
+export interface SaveEditorSummary { editable: boolean; issues: string[]; mode: SaveEditorMode; randomized: boolean; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; levelCap: number; assistEnabled: boolean }
 export interface SaveVanillaConversionPreview { relevant: boolean; convertible: boolean; changes: readonly string[]; blockers: readonly string[]; draft?: CrystalSave }
+type RandomizerBooleanField = typeof RANDOMIZER_BOOLEAN_FIELDS[number]
+type RandomizerMappingField = 'AbilityJobs' | 'AbilityMonsters' | 'Equipment' | 'Items' | 'Jobs' | 'Passives' | 'Troops' | 'MonsterDifficulties' | 'TeleportPoints' | 'Music'
+interface SaveEditorRandomizerState { readonly enabled: boolean; readonly flags: Readonly<Record<RandomizerBooleanField, boolean>>; readonly mappings?: Readonly<Record<RandomizerMappingField, readonly number[]>> }
+interface ValidatedSaveEditor { readonly catalog: SaveEditorCatalog; readonly randomizer: SaveEditorRandomizerState }
 export type SaveEditCommand =
   | { type: 'currency'; value: number }
   | { type: 'member'; index: number; name?: string; level?: number; jobId?: number; subJobId?: number | null }
@@ -170,6 +180,105 @@ function sameModMaps(left: CrystalSave['header']['modIdMaps'], right: CrystalSav
 
 function nativeBound(catalog: SaveEditorCatalog, family: Family): number {
   return Math.max(-1, ...catalog.records[family].keys()) + 1
+}
+
+function recordBound(records: ReadonlyMap<number, NativeRecord>): number {
+  return Math.max(-1, ...records.keys()) + 1
+}
+
+function randomizerFlagValues(save: CrystalSave): { readonly document: BsonDocument; readonly flags: Record<RandomizerBooleanField, boolean> } {
+  const randomizer = object(save.party.value.RandomizerFlags ?? (save.header.version < LEGACY_HEADER.flags ? document({}) : undefined), 'RandomizerFlags')
+  const values = {} as Record<RandomizerBooleanField, boolean>
+  for (const field of RANDOMIZER_BOOLEAN_FIELDS) {
+    const value = randomizer.value[field]
+    if (value !== undefined && value.type !== 'boolean') throw new Error(`Randomizer ${field} flag must be a boolean`)
+    values[field] = value?.type === 'boolean' && value.value
+  }
+  return { document: randomizer, flags: values }
+}
+
+function randomizerStateHint(save: CrystalSave): boolean {
+  if (save.header.randomizerFlags !== 0) return true
+  const value = save.party.value.RandomizerFlags
+  return value?.type === 'document' && Object.values(value.value).some(entry => entry.type === 'boolean' && entry.value)
+}
+
+function validateRandomizerPermutation(label: string, values: readonly number[], records: ReadonlyMap<number, NativeRecord>, active: boolean): void {
+  const expected = recordBound(records)
+  if (values.length !== expected) throw new Error(`${label} randomizer mapping has ${values.length} entries; expected ${expected}`)
+  const targets = new Set<number>()
+  for (const [source, target] of values.entries()) {
+    if (!Number.isSafeInteger(target) || target < 0) throw new Error(`${label} randomizer mapping contains an invalid ID`)
+    if (!records.has(source)) {
+      if (target !== source) throw new Error(`${label} randomizer mapping redirects an unavailable source ID ${source}`)
+      continue
+    }
+    if (!records.has(target)) throw new Error(`${label} randomizer mapping targets unknown ID ${target}`)
+    if (targets.has(target)) throw new Error(`${label} randomizer mapping targets ID ${target} more than once`)
+    targets.add(target)
+    if (!active && target !== source) throw new Error(`${label} randomizer mapping is active while its option is disabled`)
+  }
+}
+
+function validateRandomizerEnumPermutation(label: 'TeleportPoints' | 'Music', values: readonly number[], validIds: ReadonlySet<number>, active: boolean): void {
+  const expected = RANDOMIZER_ENUM_BOUNDS[label]
+  if (values.length !== expected) throw new Error(`${label} randomizer mapping has ${values.length} entries; expected ${expected}`)
+  const targets = new Set<number>()
+  for (const [source, target] of values.entries()) {
+    if (!Number.isSafeInteger(target) || target < 0 || target >= expected) throw new Error(`${label} randomizer mapping contains an invalid ID`)
+    if (!validIds.has(source)) {
+      if (target !== source) throw new Error(`${label} randomizer mapping redirects unavailable source ID ${source}`)
+      continue
+    }
+    if (!validIds.has(target)) throw new Error(`${label} randomizer mapping targets unknown ID ${target}`)
+    if (targets.has(target)) throw new Error(`${label} randomizer mapping targets ID ${target} more than once`)
+    targets.add(target)
+    if (!active && target !== source) throw new Error(`${label} randomizer mapping is active while its option is disabled`)
+  }
+}
+
+function readRandomizerState(save: CrystalSave, catalog: SaveEditorCatalog): SaveEditorRandomizerState {
+  const { document: randomizer, flags } = randomizerFlagValues(save)
+  const expectedHeader = Object.entries(RANDOMIZER_HEADER_FLAGS).reduce((value, [field, bit]) => value | (flags[field as keyof typeof RANDOMIZER_HEADER_FLAGS] ? bit : 0), 0)
+  if (save.header.version >= LEGACY_HEADER.flags && save.header.randomizerFlags !== expectedHeader) throw new Error('Header and party randomizer flags disagree')
+  if ((!flags.Monsters && flags.MonstersScaled) || (!flags.Bosses && flags.BossesScaled)) throw new Error('Scaled monster randomizer options require their matching monster option')
+  if (!flags.Items && (flags.IncludeRecovery || flags.IncludeQuest || flags.IncludeProgression || flags.ItemsScaled)) throw new Error('Item randomizer sub-options require item randomization')
+  if (!flags.IncludeProgression && flags.EnableSpoilerLog) throw new Error('The spoiler log requires randomized progression items')
+  if (!flags.Equipment && flags.EquipmentScaled) throw new Error('Scaled equipment requires equipment randomization')
+  if (!flags.JobAbilities && (flags.IncludeScholar || flags.IncludeSummoner || flags.JobAbilitiesUnrestricted)) throw new Error('Job ability sub-options require job ability randomization')
+  const primaryEnabled = RANDOMIZER_PRIMARY_FIELDS.some(field => flags[field])
+  const enabled = Object.values(flags).some(Boolean)
+  const seed = randomizer.value.Seed
+  if (seed !== undefined && seed.type !== 'null' && seed.type !== 'string') throw new Error('Randomizer seed must be text or null')
+  if (primaryEnabled && (seed?.type !== 'string' || !seed.value)) throw new Error('Enabled randomizer options require a saved seed')
+  if (!primaryEnabled) return { enabled, flags }
+
+  const mapping = object(save.party.value.RandomizerMapping, 'RandomizerMapping')
+  const mappings = {} as Record<RandomizerMappingField, readonly number[]>
+  for (const field of ['AbilityJobs', 'AbilityMonsters', 'Equipment', 'Items', 'Jobs', 'Passives', 'Troops', 'MonsterDifficulties', 'TeleportPoints', 'Music'] as const) mappings[field] = numbers(mapping.value[field], `${field} randomizer mapping`)
+  validateRandomizerPermutation('Job ability', mappings.AbilityJobs, catalog.records.ability, flags.JobAbilities)
+  validateRandomizerPermutation('Monster ability', mappings.AbilityMonsters, catalog.records.ability, flags.MonsterAbilities)
+  validateRandomizerPermutation('Equipment', mappings.Equipment, catalog.records.equipment, flags.Equipment)
+  validateRandomizerPermutation('Item', mappings.Items, catalog.records.item, flags.Items)
+  validateRandomizerPermutation('Class', mappings.Jobs, catalog.records.job, flags.Crystals)
+  validateRandomizerPermutation('Passive', mappings.Passives, catalog.records.passive, flags.Passives || flags.InnatePassives)
+  validateRandomizerPermutation('Troop', mappings.Troops, catalog.randomizerRecords.troop, flags.Monsters || flags.Bosses)
+
+  const monsterBound = recordBound(catalog.randomizerRecords.monster)
+  if (mappings.MonsterDifficulties.length !== monsterBound) throw new Error(`Monster difficulty randomizer mapping has ${mappings.MonsterDifficulties.length} entries; expected ${monsterBound}`)
+  const defaultDifficulty = [...catalog.randomizerRecords.difficulty].find(([, record]) => record.IsDefault)?.[0]
+  if (defaultDifficulty === undefined) throw new Error('Native randomizer data has no default difficulty')
+  for (const target of mappings.MonsterDifficulties) {
+    if (!Number.isSafeInteger(target) || !catalog.randomizerRecords.difficulty.has(target)) throw new Error(`Monster difficulty randomizer mapping targets unknown ID ${target}`)
+    if (!flags.MonsterDifficulties && target !== defaultDifficulty) throw new Error('Monster difficulty randomizer mapping is active while its option is disabled')
+  }
+  validateRandomizerEnumPermutation('TeleportPoints', mappings.TeleportPoints, RANDOMIZER_TELEPORT_POINT_IDS, flags.TeleportPoints)
+  validateRandomizerEnumPermutation('Music', mappings.Music, RANDOMIZER_TRACK_CUE_IDS, flags.Music)
+  return { enabled: true, flags, mappings }
+}
+
+function randomizedId(randomizer: SaveEditorRandomizerState, field: 'AbilityJobs' | 'Passives', id: number): number {
+  return randomizer.mappings?.[field][id] ?? id
 }
 
 function neutralAtlasEntry(id: number): BsonValue {
@@ -342,7 +451,7 @@ export function saveEditorChoices(catalog: SaveEditorCatalog): { jobs: SaveEdito
   return { jobs: choices('job'), items: choices('item'), equipment: choices('equipment') }
 }
 
-function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): SaveEditorCatalog {
+function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): ValidatedSaveEditor {
   if (!isSupportedCrystalSaveVersion(save.header.version)) throw new Error('Unsupported save format')
   if (save.header.isDemo || save.header.isHardcoreDefeat) throw new Error('Demo and defeated hardcore saves are read-only')
   saveEditorMode(save, nativeCatalog)
@@ -355,8 +464,7 @@ function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSource
   if (!save.header.mods.length && resolution.hasHeaderModState) throw new Error('Disabled mod state must be removed before editing')
   if (save.header.mods.length && !save.header.isModded) throw new Error('Active mods require the save modded flag')
   const catalog = resolution.catalog
-  const randomizer = object(save.party.value.RandomizerFlags ?? (save.header.version < LEGACY_HEADER.flags ? document({}) : undefined), 'RandomizerFlags')
-  if (save.header.randomizerFlags !== 0 || Object.values(randomizer.value).some(value => value.type === 'boolean' && value.value)) throw new Error('Randomized saves are read-only because their identities can differ')
+  const randomizer = readRandomizerState(save, catalog)
   const currency = number(object(save.party.value.Currency, 'Currency').value.Val, 'Currency')
   bound(currency, 0, SAVE_EDITOR_MAX_CURRENCY, 'Currency')
   if (currency !== save.header.currencyAmount) throw new Error('Header currency disagrees with party currency')
@@ -404,14 +512,14 @@ function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSource
       bound(stockCount(entry), 0, capacity(save, catalog, kind, id), `${kind} ${id} quantity`)
     }
   }
-  return catalog
+  return { catalog, randomizer }
 }
 
 export function inspectSave(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): SaveEditorSummary {
   const resolution = resolveSaveEditorMods(save, nativeCatalog, modSources)
   const catalog = resolution.catalog
-  const summary: SaveEditorSummary = { editable: false, issues: [], mode: catalog.mode, currency: save.header.currencyAmount, members: [], inventory: [], mapCount: save.maps.length, levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false }
-  try { validate(save, nativeCatalog, modSources); summary.editable = true } catch (error) { summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data') }
+  const summary: SaveEditorSummary = { editable: false, issues: [], mode: catalog.mode, randomized: randomizerStateHint(save), currency: save.header.currencyAmount, members: [], inventory: [], levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false }
+  try { const validated = validate(save, nativeCatalog, modSources); summary.editable = true; summary.randomized = validated.randomizer.enabled } catch (error) { summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data') }
   try {
     summary.levelCap = levelCap(save)
     summary.assistEnabled = flag(flags(save).value.MaxLevelUp)
@@ -467,17 +575,17 @@ function treeNodes(value: unknown): { type: number; id: number }[] {
   if (value && typeof value === 'object' && 'NodeType' in value && 'DataID' in value && typeof value.NodeType === 'number' && typeof value.DataID === 'number') return [{ type: value.NodeType, id: value.DataID }]
   return []
 }
-function learnJobs(save: CrystalSave, catalog: SaveEditorCatalog, master: boolean, now: Date): void {
+function learnJobs(save: CrystalSave, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, master: boolean, now: Date): void {
   for (const member of save.members) {
     for (const [id, job] of catalog.records.job) {
       learn(save, member, 'LearnedJobs', id, master ? LEARNED.learned : LEARNED.unlocked, now)
-      const abilityIds = new Set([...nativeIds(job, 'AbilityIDs'), ...(master ? treeNodes(job.LearnTree).filter(node => node.type === LEARN_NODE.ability).map(node => node.id) : [])])
+      const abilityIds = new Set([...nativeIds(job, 'AbilityIDs'), ...(master ? treeNodes(job.LearnTree).filter(node => node.type === LEARN_NODE.ability).map(node => node.id) : [])].map(id => randomizedId(randomizer, 'AbilityJobs', id)))
       for (const abilityId of abilityIds) { const ability = known(catalog, 'ability', abilityId); if (master || !ability.IsDefaultLocked) learn(save, member, 'LearnedAbilities', abilityId, master || ability.JP === 0 ? LEARNED.learned : LEARNED.unlocked, now) }
-      for (const passiveId of nativeIds(job, 'PassiveIDs')) { const passive = known(catalog, 'passive', passiveId); if (master || !passive.IsDefaultLocked) learn(save, member, 'LearnedPassives', passiveId, passive.IsLearnable && (master || passive.JP === 0) ? LEARNED.learned : LEARNED.unlocked, now) }
+      for (const sourceId of nativeIds(job, 'PassiveIDs')) { const passiveId = randomizedId(randomizer, 'Passives', sourceId); const passive = known(catalog, 'passive', passiveId); if (master || !passive.IsDefaultLocked) learn(save, member, 'LearnedPassives', passiveId, passive.IsLearnable && (master || passive.JP === 0) ? LEARNED.learned : LEARNED.unlocked, now) }
     }
     if (master) {
       const passives = new Set([...catalog.records.passive].filter(([, passive]) => passive.IsLearnable).map(([id]) => id))
-      for (const job of catalog.records.job.values()) for (const node of treeNodes(job.LearnTree)) if (node.type === LEARN_NODE.passive) passives.add(node.id)
+      for (const job of catalog.records.job.values()) for (const node of treeNodes(job.LearnTree)) if (node.type === LEARN_NODE.passive) passives.add(randomizedId(randomizer, 'Passives', node.id))
       for (const id of passives) learn(save, member, 'LearnedPassives', id, LEARNED.learned, now)
       const jp = object(member.value.JP, 'JP')
       const entries = array(jp.value.Entries, 'JP entries')
@@ -538,11 +646,11 @@ function unequip(save: CrystalSave, member: BsonDocument): void {
   for (const [index, value] of equipped.entries()) if (value.type !== 'null') { const id = number(value, 'Equipped ID'); setStock(save, 'equipment', id, quantity(save, 'equipment', id) + 1); equipped[index] = { type: 'null' } }
 }
 
-function normalizeClassLoadout(member: BsonDocument, save: CrystalSave, catalog: SaveEditorCatalog, mainChanged: boolean): void {
+function normalizeClassLoadout(member: BsonDocument, save: CrystalSave, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, mainChanged: boolean): void {
   const job = known(catalog, 'job', number(member.value.Job, 'Job'))
   if (mainChanged) {
     const passives = object(member.value.Passives, 'Passives')
-    const jobPassives = new Set(nativeIds(job, 'PassiveIDs'))
+    const jobPassives = new Set(nativeIds(job, 'PassiveIDs').map(id => randomizedId(randomizer, 'Passives', id)))
     const jobEquipment = new Set(nativeIds(job, 'EquipmentTypes'))
     const retained = numbers(passives.value.Passives, 'Equipped passives').filter(id => {
       const passive = known(catalog, 'passive', id)
@@ -558,7 +666,7 @@ function normalizeClassLoadout(member: BsonDocument, save: CrystalSave, catalog:
   if (member.value.AutoAbilityID && member.value.AutoAbilityID.type !== 'null') {
     const id = number(member.value.AutoAbilityID, 'Automatic ability')
     const secondary = subJob(member, save)
-    const commands = [...nativeIds(job, 'AbilityIDs'), ...(secondary === null ? [] : nativeIds(known(catalog, 'job', secondary), 'AbilityIDs'))]
+    const commands = [...nativeIds(job, 'AbilityIDs'), ...(secondary === null ? [] : nativeIds(known(catalog, 'job', secondary), 'AbilityIDs'))].map(command => randomizedId(randomizer, 'AbilityJobs', command))
     if (!commands.includes(id) || (numbers(member.value.LearnedAbilities, 'LearnedAbilities')[id] ?? 0) < LEARNED.learned) member.value.AutoAbilityID = { type: 'null' }
   }
 }
@@ -567,7 +675,7 @@ function statModifierTags(record: NativeRecord): readonly number[] {
   return Array.isArray(record.StatMods) ? record.StatMods.flatMap(modifier => modifier && typeof modifier === 'object' && !Array.isArray(modifier) && typeof modifier.Tag === 'number' ? [modifier.Tag] : []) : []
 }
 
-function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, command: Extract<SaveEditCommand, { type: 'loadout' }>): void {
+function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, command: Extract<SaveEditCommand, { type: 'loadout' }>): void {
   const equipped = array(member.value.Equipment, 'Equipment')
   if (command.equipmentIds.length !== equipped.length) throw new Error(`A loadout needs exactly ${equipped.length} equipment slots`)
   if (new Set(command.passiveIds).size !== command.passiveIds.length) throw new Error('A loadout cannot equip the same passive twice')
@@ -581,7 +689,7 @@ function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEdit
   const passiveCost = passiveRecords.reduce((sum, passive) => sum + Number(passive.PP), 0)
   if (!Number.isSafeInteger(passiveCost) || passiveCost > PASSIVE_POINT_BUDGET) throw new Error(`Equipped passives exceed the ${PASSIVE_POINT_BUDGET} PP limit`)
   const job = known(catalog, 'job', number(member.value.Job, 'Job'))
-  const innatePassives = nativeIds(job, 'PassiveIDs').flatMap(id => {
+  const innatePassives = nativeIds(job, 'PassiveIDs').map(id => randomizedId(randomizer, 'Passives', id)).flatMap(id => {
     const passive = catalog.records.passive.get(id)
     return passive?.IsInnate ? [passive] : []
   })
@@ -618,7 +726,7 @@ function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEdit
 }
 
 export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, command: SaveEditCommand, now = new Date(), modSources: readonly SaveEditorModSource[] = []): CrystalSave {
-  const catalog = validate(input, nativeCatalog, modSources)
+  const { catalog, randomizer } = validate(input, nativeCatalog, modSources)
   if (!Number.isFinite(now.getTime())) throw new Error('Edit timestamp is invalid')
   const save = structuredClone(input)
   if (command.type === 'currency' || command.type === 'overpowered') {
@@ -659,9 +767,9 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
     }
     if (classChanged) {
       if (command.type === 'member') unequip(save, member)
-      normalizeClassLoadout(member, save, catalog, mainChanged)
+      normalizeClassLoadout(member, save, catalog, randomizer, mainChanged)
     }
-    if (command.type === 'loadout') applyLoadout(save, member, catalog, command)
+    if (command.type === 'loadout') applyLoadout(save, member, catalog, randomizer, command)
   }
   if (command.type === 'stock') {
     known(catalog, command.kind, command.id)
@@ -670,7 +778,7 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
     if (command.count > 0) atlas(save, command.kind === 'item' ? 'Items' : 'Equipment', command.id, ATLAS.acquired, now)
     updateTreasureFinder(save, catalog)
   }
-  if (command.type === 'unlock-jobs' || command.type === 'master-jobs' || command.type === 'overpowered') learnJobs(save, catalog, command.type !== 'unlock-jobs', now)
+  if (command.type === 'unlock-jobs' || command.type === 'master-jobs' || command.type === 'overpowered') learnJobs(save, catalog, randomizer, command.type !== 'unlock-jobs', now)
   if (command.type === 'overpowered') {
     for (const [index] of save.members.entries()) setLevel(save, catalog, index, SAVE_EDITOR_MAX_LEVEL, now)
     const choices = saveEditorChoices(catalog)
