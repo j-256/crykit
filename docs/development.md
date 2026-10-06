@@ -54,6 +54,8 @@ Tag a test for mobile when its assertions depend on viewport geometry, touch beh
 
 Each test receives an isolated browser context and establishes its own data. Keep fixtures independent so `fullyParallel` can distribute individual tests across shards. Avoid shared mutable files, external services, or suite-wide state. CI runs each shard with one worker, retains per-test durations in a `browser-timings` artifact, and preserves traces and screenshots on failure. Compare timings on the same runner and build before changing workers, diagnostic capture, or timeouts; local performance does not establish CI runtime.
 
+Wait for a new tab's document to load before asserting application content, matching the navigation readiness provided by `page.goto`. A context's page event identifies the opened tab before that navigation finishes. Keep navigation readiness separate from the existing rendering assertion budget.
+
 ## Publication verification
 
 During implementation, run focused checks for the affected flows. When changing shared routes, presentation, catalog interpretation, or persistence, review assertions in every consumer and tests introduced by synchronization. Establish the intended behavior before updating an expectation: a failing assertion may identify a regression rather than an obsolete test.
