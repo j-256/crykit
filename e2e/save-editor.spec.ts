@@ -6,6 +6,7 @@ import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEdito
 import { saveEditorModProjectId } from '../src/domain/save-editor-mods'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
+import { skipInitialModSetup } from './local-data-helpers'
 
 const ROUTE = '/#/save-editor'
 const FILENAME = 'synthetic-party.sav'
@@ -91,6 +92,7 @@ test('opens, edits, and downloads a separate save with exact original recovery',
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
+  await skipInitialModSetup(page)
   await page.getByRole('button', { name: 'Save editor', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Save editor', exact: true })).toBeVisible()
   const originalBytes = await openSave(page)
