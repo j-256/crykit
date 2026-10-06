@@ -378,7 +378,7 @@ export function buildCombatRules(native) {
     )
   rule(
     'abilityPower',
-    'Native coefficient power before resource and contextual effects',
+    'Native power coefficient before resource and contextual effects',
     ['attack', 'ability', 'extraPower', 'user'],
     [
       ['base', add('ability.BasePower', pct('attack', 'ability.BasePAtkRate'), 'extraPower')],

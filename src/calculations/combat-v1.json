@@ -1536,7 +1536,7 @@
       ]
     },
     "abilityPower": {
-      "title": "Native coefficient power before resource and contextual effects",
+      "title": "Native power coefficient before resource and contextual effects",
       "inputs": [
         "attack",
         "ability",

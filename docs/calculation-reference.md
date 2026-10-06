@@ -96,7 +96,7 @@ The arithmetic engine evaluates only bundled rules. Importing a description or f
 - [Item consumption](#combat-itemconsumption)
 - [Time until the next turn](#combat-nextturn)
 - [Percentage-resource contribution to base damage](#combat-resourceterm)
-- [Native coefficient power before resource and contextual effects](#combat-abilitypower)
+- [Native power coefficient before resource and contextual effects](#combat-abilitypower)
 - [Base ability damage or healing](#combat-basedamage)
 - [Nonlinear defense seed](#combat-defenseseed)
 - [Damage after defense and penetration](#combat-defense)
@@ -652,7 +652,7 @@ else:
 
 <a id="combat-abilitypower"></a>
 
-### Native coefficient power before resource and contextual effects
+### Native power coefficient before resource and contextual effects
 
 Formula ID: `abilityPower`. Inputs, in order: `attack`, `ability`, `extraPower`, `user`.
 

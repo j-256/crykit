@@ -54,7 +54,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   await choose(page, 'Preview ability', 'Cure')
   const ability = page.getByLabel('Ability estimate', { exact: true })
-  await expect(ability).toContainText('Native coefficient power before battle effects: -192')
+  await expect(ability).toContainText('Native power coefficient before battle effects: -192')
   await expect(ability).toContainText('display 0 LP')
   await page.getByLabel('Target evasion', { exact: true }).fill('0')
   await expect(page.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: 100%')
