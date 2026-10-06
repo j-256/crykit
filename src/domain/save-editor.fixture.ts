@@ -51,6 +51,39 @@ export function setSaveEditorFixtureMode(save: CrystalSave, patchMode: number): 
   return save
 }
 
+const RANDOMIZER_FIXTURE_HEADER_FLAGS = Object.freeze({ Crystals: 1, Monsters: 2, Items: 4, Equipment: 8, JobAbilities: 16, MonsterAbilities: 32, Passives: 64, InnatePassives: 128, TeleportPoints: 256, Music: 512, ProgressionGate: 1024, StartWithHomePointStone: 2048, StartWithTreasureFinder: 4096, StartWithAllMaps: 8192, MonsterDifficulties: 16384 })
+const RANDOMIZER_FIXTURE_BOOLEAN_FIELDS = ['Crystals', 'Monsters', 'MonstersScaled', 'Bosses', 'BossesScaled', 'Items', 'IncludeRecovery', 'IncludeQuest', 'IncludeProgression', 'ItemsScaled', 'Equipment', 'EquipmentScaled', 'JobAbilities', 'IncludeScholar', 'IncludeSummoner', 'JobAbilitiesUnrestricted', 'MonsterAbilities', 'MonsterDifficulties', 'Passives', 'InnatePassives', 'TeleportPoints', 'Music', 'ProgressionGate', 'StartWithHomePointStone', 'StartWithTreasureFinder', 'StartWithAllMaps', 'EnableSpoilerLog'] as const
+type RandomizerFixtureFlag = typeof RANDOMIZER_FIXTURE_BOOLEAN_FIELDS[number]
+type RandomizerFixtureMapping = 'AbilityJobs' | 'AbilityMonsters' | 'Equipment' | 'Items' | 'Jobs' | 'Passives' | 'Troops' | 'MonsterDifficulties' | 'TeleportPoints' | 'Music'
+
+export function setSaveEditorFixtureRandomizer(save: CrystalSave, options: { readonly flags?: Readonly<Partial<Record<RandomizerFixtureFlag, boolean>>>; readonly mappings?: Readonly<Partial<Record<RandomizerFixtureMapping, readonly number[]>>> } = {}): CrystalSave {
+  const flags = Object.fromEntries(RANDOMIZER_FIXTURE_BOOLEAN_FIELDS.map(field => [field, options.flags?.[field] ?? false])) as Record<RandomizerFixtureFlag, boolean>
+  const existing = save.party.value.RandomizerMapping?.type === 'document' ? save.party.value.RandomizerMapping.value : {}
+  const identity = (field: RandomizerFixtureMapping, length: number): number[] => {
+    const value = existing[field]
+    if (value?.type === 'array') return value.value.map(entry => entry.type === 'int32' || entry.type === 'double' ? entry.value : -1)
+    return Array.from({ length }, (_, id) => id)
+  }
+  const mappings: Record<RandomizerFixtureMapping, readonly number[]> = {
+    AbilityJobs: identity('AbilityJobs', 508),
+    AbilityMonsters: identity('AbilityMonsters', 508),
+    Equipment: identity('Equipment', 591),
+    Items: identity('Items', 264),
+    Jobs: identity('Jobs', 24),
+    Passives: identity('Passives', 88),
+    Troops: identity('Troops', 339),
+    MonsterDifficulties: Array<number>(324).fill(0),
+    TeleportPoints: identity('TeleportPoints', 32),
+    Music: identity('Music', 103),
+    ...options.mappings,
+  }
+  const primaryEnabled = ['Crystals', 'Monsters', 'Bosses', 'Items', 'Equipment', 'JobAbilities', 'MonsterAbilities', 'MonsterDifficulties', 'Passives', 'InnatePassives', 'TeleportPoints', 'Music'].some(field => flags[field as RandomizerFixtureFlag])
+  save.party.value.RandomizerFlags = bson({ Seed: primaryEnabled ? 'synthetic-seed' : null, ...flags })
+  save.party.value.RandomizerMapping = bson(Object.fromEntries(Object.entries(mappings).map(([field, values]) => [field, [...values]])))
+  save.header.randomizerFlags = Object.entries(RANDOMIZER_FIXTURE_HEADER_FLAGS).reduce((value, [field, bit]) => value | (flags[field as keyof typeof RANDOMIZER_FIXTURE_HEADER_FLAGS] ? bit : 0), 0)
+  return save
+}
+
 export const SYNTHETIC_SAVE_MOD = Object.freeze({ id: 'synthetic-save-mod', title: 'Synthetic Save Mod', version: '1.0', jobId: 24, passiveIds: [88, 111] as const })
 type SaveEditorFixtureMod = { readonly id: string; readonly title: string; readonly version: string; readonly steamWorkshopFileId?: string; readonly jobId?: number; readonly passiveIds?: readonly number[] }
 
