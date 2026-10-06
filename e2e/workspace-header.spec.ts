@@ -140,7 +140,7 @@ test('Team header saves use native validation and sharing leaves the saved Team 
   await name.evaluate(input => (input as HTMLInputElement).setCustomValidity('Synthetic invalid Team name'))
   await save.click()
   await expect(header.getByRole('heading', { name: 'New Team', exact: true })).toBeVisible()
-  expect(Object.values((await storedData(page)).teams)).toEqual([])
+  expect(Object.values((await storedData(page)).teams).map(team => team.title)).toEqual(['Sample starter Team'])
   await name.evaluate(input => (input as HTMLInputElement).setCustomValidity(''))
   await save.click()
   await expect(header.getByRole('heading', { name: 'Synthetic header Team', exact: true })).toBeVisible()

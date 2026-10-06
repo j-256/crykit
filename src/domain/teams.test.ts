@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adoptTeam, recordBuildForCharacter, saveTeam } from './teams'
+import { adoptTeam, deleteTeam, recordBuildForCharacter, saveTeam } from './teams'
 import { addTestBuild, addTestCharacter, addTestTeam, createTestLocalData, TEST_NOW, TEST_PLAYTHROUGH_ID } from './test-helpers'
 import { asId, requirePlaythrough } from './core'
 import { captureCharacter } from './characters'
@@ -14,6 +14,22 @@ const teamFrom = (data = addTestBuild(createTestLocalData(), 'build', '', {})) =
 }
 
 describe('independent Teams and optional tracking', () => {
+  it('deletes only the saved Team while retaining checkpoints and adopted records', () => {
+    const roster = addTestTeam(addTestBuild(createTestLocalData(), 'build', '', {}))
+    const { data, team } = teamFrom(roster.localData)
+    const adopted = adoptTeam(data, { teamId: team.id, characterIds: roster.memberIds, now: TEST_NOW })
+    const removed = deleteTeam(adopted, { teamId: team.id, expectedRevision: adopted.revision, now: TEST_NOW })
+    expect(removed.teams[team.id]).toBeUndefined()
+    expect(removed.builds).toBe(adopted.builds)
+    expect(removed.buildRevisions).toBe(adopted.buildRevisions)
+    expect(removed.playthroughs).toBe(adopted.playthroughs)
+    expect(removed.revision).toBe(adopted.revision + 1)
+    expect(removed.changes.at(-1)).toMatchObject({ command: 'team.delete', changedPaths: [`teams.${team.id}`] })
+    expect(() => deleteTeam(adopted, { teamId: team.id, expectedRevision: adopted.revision - 1 })).toThrow('revision')
+    expect(() => deleteTeam(removed, { teamId: team.id })).toThrow('unavailable')
+    validateNativeLocalDataGraph(removed, [])
+  })
+
   it('creates and edits four build slots without any Playthrough or characters', () => {
     const builds = addTestBuild(createTestLocalData(), 'build', '', {})
     const original = { ...builds, selectedPlaythroughId: undefined, planningGameSetupRevisionId: undefined, playthroughs: {} }

@@ -38,6 +38,7 @@ export type IconName =
   | 'sword'
   | 'team'
   | 'tome'
+  | 'trash'
   | 'upload'
   | 'user'
   | 'warning'
@@ -80,6 +81,7 @@ const paths: Record<IconName, React.ReactNode> = {
   sources: <><path d="M10 5H4v7h6V5ZM20 5h-6v7h6V5ZM10 12c0 4-2 6-6 7M20 12c0 4-2 6-6 7"/></>,
   spark: <path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7z"/>,
   team: <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M14 15.5A5 5 0 0 1 21 20"/></>,
+  trash: <><path d="M4 6h16M9 6V4h6v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></>,
   upload: <><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></>,
   user: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
   warning: <><path d="M12 3 2.5 20h19z"/><path d="M12 9v5"/><path d="M12 17h.01"/></>,

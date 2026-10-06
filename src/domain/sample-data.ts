@@ -5,6 +5,7 @@ import { createId, DomainError } from './core'
 import { observeInventory } from './inventory'
 import { addGameSetupRevision, createBlankLocalData, createPlaythrough, DEFAULT_GAME_DIFFICULTY } from './local-data'
 import { createScenario } from './scenarios'
+import { saveTeam } from './teams'
 import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, LocalData, SourceRef, Timestamp } from './types'
 
 const SAMPLE_NOTE = 'Sample data for exploring the planner. Replace it with your own observations.'
@@ -49,6 +50,7 @@ export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Time
   const gameSetupId = localData.gameSetups[gameSetupRevisionId]!.gameSetupId
   localData = createPlaythrough(localData, { label: 'Sample playthrough', currentGameSetupRevisionId: gameSetupRevisionId, now })
   const assignments: Record<string, BuildRevisionId> = {}
+  const teamSlots: BuildRevisionId[] = []
   const memberIds: CharacterId[] = []
   const stock = new Map<string, { ref: CatalogRef; quantity: number }>()
 
@@ -85,12 +87,15 @@ export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Time
       },
     })
     assignments[characterId] = revisionId
+    teamSlots.push(revisionId)
     memberIds.push(characterId)
   }
 
   for (const { ref, quantity } of stock.values()) {
     localData = observeInventory(localData, { ref, possession: 'owned', quantity: { kind: 'exact', value: quantity }, sources: [SAMPLE_SOURCE], note: SAMPLE_NOTE, now })
   }
+  // The saved Team pins the starter checkpoints without coupling later edits to the party plan
+  localData = saveTeam(localData, { title: 'Sample starter Team', slots: teamSlots, now })
   localData = createScenario(localData, { label: 'Sample starter team', memberIds, assignments, gameSetupRevisionId, activate: true, now })
   return { ...localData, revision: 0, changes: [] }
 }
