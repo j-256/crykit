@@ -52,6 +52,7 @@ test('enemy loot supports modifier-click in a new tab and ordinary in-app naviga
   const opened = context.waitForEvent('page')
   await cookie.click({ modifiers: ['ControlOrMeta'] })
   const tab = await opened
+  await tab.waitForLoadState('load')
   await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
   await tab.close()
