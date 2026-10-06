@@ -104,6 +104,7 @@ export async function previewSkillScreenshots(files: readonly File[], onProgress
         if (grid.squares.length < 3 || grid.selectedRow === undefined) throw new Error('No supported Learn screen found. Include the character header, selected class row, and full tree')
         if (!worker) {
           const { createWorker, OEM, PSM } = await import('tesseract.js')
+          // Pin every OCR resource to bundled assets so processing screenshots does not depend on a remote service
           const base = new URL('ocr/', new URL(import.meta.env.BASE_URL, document.baseURI)).href
           worker = await abortable(createWorker('eng', OEM.LSTM_ONLY, { workerPath: `${base}worker.min.js`, corePath: base, langPath: base, workerBlobURL: false, errorHandler: () => undefined }).then(created => {
             if (signal?.aborted) { void created.terminate(); signal.throwIfAborted() }

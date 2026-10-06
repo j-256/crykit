@@ -269,6 +269,8 @@ export function safeUnzip(
     select?: ReadonlySet<string> | ((entry: ZipEntryMetadata) => boolean)
   } = {},
 ): SafeUnzipResult {
+  // Validate directory paths, sizes, and inflation bounds before allocating decompressed entries
+  // Check the extracted bytes again because declared metadata alone does not establish payload integrity
   const directory = inspectZip(bytes, options.limits)
   const selected = new Set(
     directory.entries

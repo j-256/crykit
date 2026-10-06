@@ -10,6 +10,7 @@ export function useQueuedTileUpdates<Key, State>() {
   const [queuedUpdates, setQueuedUpdates] = useState(queuedRef.current)
   const pendingCount = useMemo(() => [...queuedUpdates.values()].reduce((total, update) => total + update.count, 0), [queuedUpdates])
   const enqueue = useCallback((key: Key, baseState: State, transition: (state: State) => State, commit: () => Promise<void>, onError: (reason: unknown) => void) => {
+    // Refs carry same-frame clicks before React renders; saved props can still describe an earlier intent
     const queued = queuedRef.current.get(key)
     const next = new Map(queuedRef.current)
     next.set(key, { count: (queued?.count ?? 0) + 1, state: transition(queued ? queued.state : baseState) })
@@ -20,6 +21,7 @@ export function useQueuedTileUpdates<Key, State>() {
       const current = queuedRef.current.get(key)
       if (!current) return
       const updated = new Map(queuedRef.current)
+      // Keep the latest requested state until this key drains, even after intermediate acknowledgments or failures
       if (current.count === 1) updated.delete(key)
       else updated.set(key, { ...current, count: current.count - 1 })
       queuedRef.current = updated

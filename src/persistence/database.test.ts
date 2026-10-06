@@ -122,6 +122,7 @@ describe('persisted behavior format migration', () => {
     const database = new CryKitDatabase(fixture.name)
     await expect(database.open()).rejects.toThrow()
     database.close()
+    // Reopen through the old schema so assertions cannot trigger another migration and hide partial writes
     const original = new Dexie(fixture.name)
     original.version(1).stores(TABLES)
     const stored = await original.table('localDatas').get('local-data-record')

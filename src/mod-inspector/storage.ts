@@ -227,6 +227,8 @@ export class InspectorStorage {
       const originalText = await this.payload(row, PAYLOAD_KIND.original)
       await this.payload(row, PAYLOAD_KIND.draft, false)
       const updated: StoredDraft = { ...row, fileInfo: deriveInspectorFileInfo(document, originalText !== draftText), draftPayload: manifest, revision: row.revision + 1, updatedAt: new Date().toISOString() }
+      // Replacement chunks and their manifest share the revision check and transaction
+      // A failed chunk write must leave the previous draft readable with its original payload intact
       await this.chunks.where(CHUNK_KIND_INDEX).equals([id, PAYLOAD_KIND.draft]).delete()
       await writeChunks(this.chunks, id, PAYLOAD_KIND.draft, draftText, updated.revision)
       await this.drafts.put(updated)

@@ -331,6 +331,7 @@ function validateClassReadiness(
     touch(accumulator, 'characterReadiness')
     validateCatalogRefLock(localData, ref, revision, character.id, accumulator)
     const progress = character.classProgress[logicalEntityKey(localData, ref)]
+    // Party-wide unlock and mastery do not establish this member's readiness to use the class
     const definition = resolveDefinition(localData, catalogs, ref)
     if (!definition) {
       issue(accumulator, {
@@ -481,6 +482,7 @@ function validateInventory(
   for (const entry of selected.filter((value) => value.slot.kind === 'equipment')) {
     const key = logicalEntityKey(localData, entry.ref)
     const demand = demands.get(key) ?? { ref: entry.ref, assignments: new Set<string>() }
+    // Shared slots count one copy within a member, but the same allocation label on another member still needs stock
     demand.assignments.add(`${entry.characterId}\u0000${entry.buildRevision.id}\u0000${entry.allocationKey}`)
     demands.set(key, demand)
   }
@@ -507,6 +509,7 @@ function validateInventory(
     if (available.lower >= demand) {
       continue
     }
+    // A lower bound below demand is not a shortage unless a known upper bound also excludes enough copies
     if (available.upper === undefined) {
       issue(accumulator, {
         code: 'STOCK_UPPER_BOUND_UNKNOWN',

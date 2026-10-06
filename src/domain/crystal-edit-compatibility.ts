@@ -18,6 +18,7 @@ export function supportsCrystalEditVersion(version: unknown): version is number 
 export function interpretCrystalEditRecord(record: Readonly<Record<string, JsonValue>>, family: string, version: number): Readonly<Record<string, JsonValue>> {
   if (!supportsCrystalEditVersion(version)) return record
   const next = { ...record }
+  // Compatibility defaults belong to the planning projection; mutating the source would corrupt provenance
   if (STAT_FAMILIES.has(family) && Array.isArray(record.StatMods)) next.StatMods = record.StatMods.map(value => {
     if (!jsonRecord(value)) return value
     const modifier = { ...value }

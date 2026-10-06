@@ -46,6 +46,7 @@ export function nativeArtworkIdentity(mapping) {
 
 export function verifyReviewedNativeDatabase(mapping, bytes, record) {
   if (mapping.sourceKey !== REVIEWED_NATIVE_IDENTITY_SOURCE) return
+  // A same-name record at a reused ID cannot carry an old review across changed database bytes
   if (hash(bytes) !== mapping.databaseSha256) throw new Error(`Reviewed native identity needs review for changed database bytes: ${mapping.database}`)
   if (record?.ID !== mapping.databaseId || record.Name !== mapping.name) throw new Error(`Reviewed native identity does not match the installed record: ${mapping.name}`)
 }

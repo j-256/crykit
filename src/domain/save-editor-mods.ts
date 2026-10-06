@@ -290,6 +290,7 @@ export function resolveSaveEditorMods(save: CrystalSave, nativeCatalog: SaveEdit
   const activeMods: SaveEditorActiveMod[] = []
   if (save.header.mods.length && save.header.version < 25) issues.push('Mod-aware editing requires save format 25 or newer with saved ID redirects')
   for (const saved of save.header.mods) {
+    // Titles and model numbers cannot identify a source; ambiguous exact declared matches must block editing
     const declaredMatches = sources.filter(source => source.id === saved.id && (source.version ?? '') === saved.version)
     const matches = declaredMatches.filter(source => saved.steamWorkshopFileId === 0n || source.steamWorkshopFileId === saved.steamWorkshopFileId.toString())
     activeMods.push({ id: saved.id, title: saved.title, version: saved.version, matched: matches.length === 1, ...(matches.length === 1 ? { sourceChecksum: matches[0]!.checksum } : {}) })

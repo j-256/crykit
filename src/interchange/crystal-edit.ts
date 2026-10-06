@@ -73,6 +73,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
       identities[`crystal-edit:${family}:${record.ID}`] = id
       if (entities[id]) throw new AppDataError('schema-mismatch', `Duplicate ${family} ID ${record.ID}`, { recoverable: true })
       const source: SourceRef = { sourceId, locator: `/${family}/${index}`, snapshot: `Crystal Edit ${editorVersion}; project version ${typeof root.Version === 'string' ? root.Version.slice(0, 100) : 'unspecified'}`, applicability: 'Values from this project export; references may point to base-game definitions absent from the file' }
+      // Project supported facts without rewriting the archived record or executing descriptions and formulas
       const fields = {
         [MOD_PROJECT_FIELD]: { state: 'known' as const, value: `crystal-edit:${root.ID}`, sources: [source] },
         ...gameRecordFacts(root.IsLocalization === true ? record : interpretCrystalEditRecord(record, family, editorVersion), effectiveKind, source, NATIVE_GAME_DATA.enums),
@@ -115,6 +116,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
   }
   if (missing.size) warnings.push({ severity: 'warning', code: 'external-model-references', message: `${missing.size} referenced ability or passive definitions are absent. Their IDs and tree positions are retained; names, costs, and effects remain unresolved.` })
   const catalog: CatalogSnapshot = {
+    // Identical bytes interpreted by a changed parser need a new revision, preserving saved snapshot meanings
     id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
     checksum: `sha256:${digest}`, importedAt, entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },

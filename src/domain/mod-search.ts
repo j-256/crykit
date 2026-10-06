@@ -12,6 +12,7 @@ export function isModSearchPreview(catalog: CatalogSnapshot): boolean {
 }
 
 export function modSearchCatalog(catalog: CatalogSnapshot): CatalogSnapshot {
+  // Discovery snapshots deliberately omit source detail; they must not become saved revisions or calculation inputs
   const entities: Record<string, CatalogEntity> = {}
   for (const entity of Object.values(catalog.entities)) {
     const fields: Record<string, Knowledge<JsonValue>> = {}
@@ -27,6 +28,7 @@ export function modSearchCatalog(catalog: CatalogSnapshot): CatalogSnapshot {
 }
 
 export function mergeModSearchCatalogs(loaded: readonly CatalogSnapshot[], previews: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
+  // Any loaded project suppresses its preview, avoiding discovery data competing with exact archived revisions
   const projects = new Set(loaded.map(catalog => catalog.id))
   return [...loaded, ...previews.filter(catalog => !projects.has(catalog.id))]
 }

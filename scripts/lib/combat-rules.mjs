@@ -26,6 +26,7 @@ const sum = (a, name, expr) => op('sum', a, name, expr),
   fold = (a, seed, expr) => op('fold', a, 'item', 'acc', 'index', seed, expr)
 const find = (a, name, expr) => op('find', a, name, expr),
   field = (a, name, fallback = 0) => op('field', a, name, fallback)
+// Round each native single-precision operation; rounding only the final result changes curve boundaries
 const f32 = (a) => op('f32', a),
   fadd = (a, b) => f32(op('add', a, b)),
   fsub = (a, b) => f32(op('sub', a, b)),
@@ -399,6 +400,7 @@ export function buildCombatRules(native) {
       ],
       [
         'attributes',
+        // Keep both truncations within each term; factoring the sum changes integer coefficients
         add(
           ...core.map((stat) => pct('scaling', pct(`user.Stats.${stat}`, `ability.${stat}Rate`))),
         ),

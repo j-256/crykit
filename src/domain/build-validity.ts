@@ -95,6 +95,7 @@ export function validateBuildContent(
         add('PP_LIMIT_EXCEEDED', 'invalid', `Selected passives cost ${knownSubtotal} PP, above the ${limit.value} PP limit`)
       }
     } else if (knownSubtotal > limit.value && gameSetup?.ppCostsNonNegative.state === 'known' && gameSetup.ppCostsNonNegative.value) {
+      // Only the nonnegative-cost constraint proves unknown costs cannot bring an excessive subtotal back under budget
       ppStatus = 'invalid'
       add('PP_LIMIT_EXCEEDED', 'invalid', `Known passive costs already exceed the ${limit.value} PP limit`)
     } else {

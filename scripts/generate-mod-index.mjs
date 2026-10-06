@@ -32,6 +32,7 @@ integrity failure, 2 invalid options, 3 missing dependencies.
 function packedJson(value) {
   const json = JSON.stringify(value)
   const compressed = gzipSync(json, { level: 9 })
+  // The gzip OS byte varies by platform even for identical input; neutralize it for reproducible snapshots
   compressed[GZIP_OS_OFFSET] = GZIP_OS_UNKNOWN
   return `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: compressed.toString('base64') })}\n`
 }

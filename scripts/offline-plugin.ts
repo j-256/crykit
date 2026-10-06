@@ -70,6 +70,7 @@ const refreshCache = async () => {
     try {
       const staged = await caches.open(name);
       await downloadFiles(staged, assetUrls);
+      // Publish the pointer only after every asset succeeds; a failed refresh must keep the usable installation
       const cache = await caches.open(CACHE_NAME);
       await cache.put(refreshPointerUrl, new Response(name));
       committed = true;

@@ -186,6 +186,7 @@ export function formatEntityRefPath(ref: EntityRef, resolveName: EntityRouteName
   const entityPath = parts ? parts.map(part => encodeIdentitySegment(part, ENTITY_ID_RESERVED_SEGMENTS)).join('/') : `${OPAQUE_ENTITY_ID_SEGMENT}/${encodeSegment(ref.entityId)}`
   const slug = encodeIdentitySegment(entityRouteSlug(resolveName(ref)), ENTITY_ID_RESERVED_SEGMENTS)
   const bundled = ref.catalogId === STARTER_CATALOG_ID && ref.catalogRevisionId === STARTER_CATALOG_REVISION_ID
+  // Escape alias-shaped literal IDs before parsing; otherwise an imported "v1" catalog becomes the bundled alias
   const catalogId = encodeIdentitySegment(ref.catalogId, CATALOG_ROUTE_ALIAS_PATTERN.test(ref.catalogId) ? new Set([ref.catalogId]) : new Set())
   const catalogPath = bundled ? BUNDLED_CATALOG_ROUTE_ALIAS : `${catalogId}/${encodeSegment(ref.catalogRevisionId)}`
   return `catalog/${catalogPath}/${entityPath}/${slug}`
@@ -789,6 +790,7 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
       const nextHash = href(next)
       const state = navigationState(event instanceof PopStateEvent ? event.state : window.history.state)
       const pending = pendingReversalRef.current
+      // Reversing a blocked history traversal emits another event; accept that reversal without blocking it again
       if (pending) {
         if ((state?.index === pending.index || !state) && nextHash === pending.hash) {
           pendingReversalRef.current = undefined

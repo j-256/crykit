@@ -9,6 +9,7 @@ export function compiledEntityId(entity: CatalogEntity, supplementalIds: Supplem
   if (native) return nativeEntityId(native.database, native.databaseId, native.mode)
   const mod = bundledModIdentity(entity)
   if (mod) return bundledModEntityId(mod.key, mod.family, mod.modelId)
+  // Supplemental allocations are permanent identities; list positions and name slugs cannot replace them
   const id = supplementalIds[entity.id]
   const parts = entity.id.split(':')
   if (!Number.isSafeInteger(id) || id! <= 0 || !['base', 'mod'].includes(parts[0]!) || parts.length < 3) throw new Error(`Missing supplemental identity allocation: ${entity.id}`)

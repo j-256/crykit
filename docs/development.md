@@ -56,6 +56,18 @@ Each test receives an isolated browser context and establishes its own data. Kee
 
 Wait for a new tab's document to load before asserting application content, matching the navigation readiness provided by `page.goto`. A context's page event identifies the opened tab before that navigation finishes. Keep navigation readiness separate from the existing rendering assertion budget.
 
+## Code reasoning and review
+
+New or changed code is incomplete when a future maintainer cannot understand its non-obvious constraints from the code and nearby documentation. The [project instructions](../AGENTS.md) require contributors and agents to document these constraints as part of the change. Review the implementation and its explanations together before committing or approving a change:
+
+- Identify non-obvious invariants; ordering, transactional, or rollback requirements; persistence and backward-compatibility constraints; source authority, identity, provenance, and unknown-value boundaries; verified external behavior; security and privacy assumptions; exact arithmetic, rounding, truncation, and evaluation order; workarounds whose simpler replacement would be incorrect; and failure consequences that names and types do not reveal
+- Add or update comments close to the logic they govern, explaining why it exists, what must remain true, and what breaks if the constraint is violated. Prefer clearer names and structure when they fully communicate intent; remove comments that merely repeat names, types, expressions, or control flow
+- Review existing comments whenever the associated behavior changes. Correct or remove stale explanations as defects, and check factual claims against code, tests, documentation, history, or direct evidence. Preserve uncertainty instead of asserting an inferred explanation
+- Use JSDoc only for genuine API contracts. Code comments use plain ASCII and straight quotes, with no terminal periods, private paths, proprietary details, credentials, transient counts, commit hashes, or session-relative wording
+- Inspect tests and utilities for non-obvious setup or assertion contracts without mechanically narrating fixtures. Leave generated files to their generators
+
+This is a reasoning review requirement, not a comment quota. Comments on every function, comment-count checks, and blanket JSDoc enforcement reward noise and do not establish that the important reasoning is explained. Automated checks complement this review but cannot certify it.
+
 ## Publication verification
 
 During implementation, run focused checks for the affected flows. When changing shared routes, presentation, catalog interpretation, or persistence, review assertions in every consumer and tests introduced by synchronization. Establish the intended behavior before updating an expectation: a failing assertion may identify a regression rather than an obsolete test.

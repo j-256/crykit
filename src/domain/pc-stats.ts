@@ -82,6 +82,7 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
   const main = gear.find(entry => equipmentRole(entry.slot) === 'mainHand')
   const off = gear.find(entry => equipmentRole(entry.slot) === 'offHand')
   if (main?.selection?.allocationId && main.selection.allocationId === off?.selection?.allocationId) {
+    // Two hand selections can represent one physical copy, whose modifiers count only once
     if (entityDefinitionKey(main.selection.ref) !== entityDefinitionKey(off.selection.ref)) issues.push('A shared weapon copy has conflicting identities.')
     else { off.selection = null; off.record = undefined }
   }
@@ -129,8 +130,10 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
       if (flat !== null) scope[`stat.${stat}`] = evaluateExpression(['add', start, flat!], {})
       if (percent !== null) scope[`percent.${stat}`] = percent!
     }
+    // Unresolved effects block a complete sheet total even when base growth is known
     if (!known || fatal) return empty
     const unavailable = new Set<string>()
+    // Each native stage consumes earlier results, including their truncation and caps
     for (const stage of PC_RULES.sheetStages) {
       try { scope[`stat.${stage.stat}`] = evaluateExpression(stage.value, scope) }
       catch { delete scope[`stat.${stage.stat}`]; unavailable.add(stage.stat) }

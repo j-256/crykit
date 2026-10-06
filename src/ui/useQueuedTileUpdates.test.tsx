@@ -59,6 +59,7 @@ describe('queued tile updates', () => {
     expect(button('second').dataset).toMatchObject({ state: '1', pending: 'true' })
     expect(button('first').disabled).toBe(false)
     expect(container.querySelector('output')!.textContent).toBe('8')
+    // Acknowledge one persisted step at a time to expose flicker hidden by immediately resolved saves
     await act(async () => { render({ first: 1, second: 0 }); requests[0]!.resolve() })
     expect(button('first').dataset).toMatchObject({ state: '3', pending: 'true' })
     await act(async () => { render({ first: 1, second: 1 }); requests[7]!.resolve() })

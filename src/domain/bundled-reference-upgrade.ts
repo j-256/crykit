@@ -2,6 +2,7 @@ import { DomainError } from './core'
 import { logicalEntityKey } from './definitions'
 import type { CatalogSnapshot, EntityId, EntityRef, LocalData } from './types'
 
+// Rewrite typed references only; source payloads may contain similar-looking IDs with unrelated meanings
 const OPAQUE_FIELDS = new Set(['fields', 'legacy', 'sources', 'changes'])
 
 export function upgradeBundledReferences(data: LocalData, catalog: CatalogSnapshot, sourceIds: ReadonlyMap<string, EntityId>): LocalData {
@@ -32,6 +33,7 @@ export function upgradeBundledReferences(data: LocalData, catalog: CatalogSnapsh
     let changed = false
     for (const [key, value] of Object.entries(entries)) {
       const nextKey = logicalEntityKey(next, ref(value))
+      // A migration must reject collisions rather than silently merge distinct character observations
       if (Object.hasOwn(result, nextKey)) throw new DomainError('INVALID_INPUT', 'The catalog reference upgrade would merge distinct character records')
       result[nextKey] = value
       if (key !== nextKey) changed = true

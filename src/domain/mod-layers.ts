@@ -159,6 +159,7 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
       const target = links.get(linkKey)
       const original = previous?.entity ?? (target ? baseline.entities[target] : undefined)
       if (localization && !original) continue
+      // Localization changes display text and source attribution without replacing mechanical fields
       const effective = localization ? { ...original!, ...(scoped ? { sources: [...original!.sources, ...entity.sources] } : {}), name: entity.name, ...(entity.rawDescription !== undefined ? { rawDescription: entity.rawDescription } : {}), fields: { ...original!.fields, ...(entity.fields.Description ? { Description: entity.fields.Description } : {}) } } : entity
       winners.set(modelKey, { modelKey, ...(scoped ? { originalModelKey, identityProjectId: localization ? previous?.identityProjectId ?? previous?.source.catalogId ?? layer.catalogId : layer.catalogId } : {}), entity: effective, source: layer, sourceTitle: modCatalogTitle(catalog), superseded: previous ? [...previous.superseded, previous.sourceTitle] : [] })
     }
@@ -184,8 +185,10 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     const linkKey = modLinkKey({ modelKey: originalKey, ...(added ? { projectId: winner.identityProjectId ?? winner.source.catalogId } : {}) })
     const target = links.get(linkKey)
     const targetEntityId = target ?? winner.entity.id
+    // Explicit null and newly added records remain separate; absent replacement links stay unresolved
     const targetState = target ? 'linked' : links.has(linkKey) || added ? 'separate' : 'unresolved'
     const record = winner.entity.fields['Crystal Edit source record']
+    // Unversioned compositions retain their historical target kind so old backups are not reinterpreted
     const kind = composition.version !== undefined ? ['innate', 'passive'].includes(winner.entity.kind) && record?.state === 'known' && jsonRecord(record.value) && typeof record.value.IsInnate === 'boolean' ? record.value.IsInnate ? 'innate' : 'passive' : winner.entity.kind : target ? baseline.entities[target]!.kind : winner.entity.kind
     const entity: CatalogEntity = { ...winner.entity, id: targetEntityId, kind, fields: { ...winner.entity.fields, 'Effective mod layer': { state: 'known', value: winner.sourceTitle, sources: winner.entity.sources } } }
     entities[targetEntityId] = entity

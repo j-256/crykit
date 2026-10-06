@@ -10,6 +10,7 @@ const SOURCE_MOD_SCOPES = new Set(BUNDLED_MOD_LIBRARY.map(mod => mod.key))
 
 export function referenceSupplements(): CatalogSnapshot {
   const authored = addTravelUnlockDefinitions(addModdingGuideFacts(addCrystalEditFacts(createReferenceSupplementCatalog())))
+  // Source-backed mods belong to their exact library revisions, not the base catalog's supplemental facts
   const entities = Object.fromEntries(Object.entries(authored.entities).filter(([id, entity]) => {
     const mod = entity.fields['Source mod']
     const [scope, project] = id.split(':')

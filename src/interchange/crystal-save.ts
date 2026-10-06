@@ -536,6 +536,7 @@ export function encodeCrystalSave(save: CrystalSave): Uint8Array {
     writer.int32(map.data.length)
     writer.append(map.data)
   }
+  // Combat state is opaque to this editor; reconstructing it from known fields would discard unsupported state
   writer.append(save.combatBytes)
   const bytes = writer.finish()
   for (let index = prefixBytes(save.header.version); index < bytes.length; index++) bytes[index] ^= 0xff
