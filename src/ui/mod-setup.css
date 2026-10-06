@@ -1,4 +1,9 @@
 .mod-setup { gap: .65rem; }
+.mod-setup-start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); }
+.mod-setup-start > div { flex: 1 1 220px; }
+.mod-setup-start h3 { margin: 0 0 .35rem; }
+.mod-setup-start p, .mod-setup-description { margin: 0; color: var(--text-dim); font-size: .875rem; }
+.mod-setup > .button { align-self: start; }
 .mod-setup-search { display: grid; gap: .4rem; }
 .mod-setup-list { display: grid; gap: .2rem; }
 .mod-setup-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(5rem, auto); align-items: center; gap: .65rem; padding: .35rem .65rem; border: 1px solid var(--line); border-radius: .4rem; cursor: pointer; }
@@ -14,3 +19,5 @@
 }
 
 .mod-setup-row input[type="checkbox"] { width: 1.2rem; height: 1.2rem; min-height: 0; padding: 0; margin: 0; }
+
+.mod-setup [hidden] { display: none; }

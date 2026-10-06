@@ -1,6 +1,8 @@
-.calculated-stats { min-width: 0; padding: 16px 0; border-top: 1px solid var(--line); }
+.calculated-stats { min-width: 0; padding: .5rem 0; }
 .calculated-stats h3 { margin: 0; }
 .calculated-stats__table { overflow-x: auto; }
+/* Keep a short totals table close enough for label-to-value scanning */
+.calculated-stats__table--totals { max-inline-size: 40rem; }
 .calculated-stats table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .calculated-stats th, .calculated-stats td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .calculated-stats th:first-child { text-align: left; }
@@ -20,3 +22,6 @@
   .growth-control__steps button { padding: 8px 3px; min-width: 30px; }
   .calculated-stats > .split { flex-wrap: wrap; gap: 8px; }
 }
+
+.calculated-stats > details > summary { cursor: pointer; font-weight: 650 }
+.calculated-stats .calculation-coverage .button { margin-top: .5rem }

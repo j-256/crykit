@@ -61,7 +61,7 @@ Save open forms, then choose **Data & settings > Import & backup > Export backup
 
 Mods saved to the Mod Library and their original source files are included in planner backups. Editor workspace originals and working drafts have separate downloads; export those drafts from **Mods > Map Editor** or **Mods > JSON Editor** before clearing browser storage or moving to another browser.
 
-Game saves and save-specific mod definitions opened in **Save editor** stay in memory for that tab. CryKit automatically matches bundled Crystal Edit definitions and requests manual JSON only for exceptions. Supported disabled-mod residue can be reviewed for removal without changing the save's game mode. Download edited saves separately before leaving or reloading; planner backups do not include the opened saves or session-only manual definitions.
+Game saves and save-specific mod definitions opened in **Save Editor** stay in memory for that tab. CryKit automatically matches bundled Crystal Edit definitions and requests manual JSON only for exceptions. Supported disabled-mod residue can be reviewed for removal without changing the save's game mode. Download edited saves separately before leaving or reloading; planner backups do not include the opened saves or session-only manual definitions.
 
 **Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
 
@@ -81,7 +81,7 @@ The same section offers **Apply app update** for a staged update and **Refresh a
 | Export versioned character/combat rules or read their equations | [Calculation package](docs/calculations.md), [human-readable reference](docs/calculation-reference.md) |
 | Use mods or import custom classes | [Mods](docs/mods.md) and [Crystal Edit imports](docs/crystal-edit.md) |
 | Decode IDs and edit mod JSON | [Mods and the editor workspace](docs/mod-inspector.md) |
-| Edit a Crystal Project save | [Save editor](docs/save-editor.md) |
+| Edit a Crystal Project save | [Save Editor](docs/save-editor.md) |
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Report incorrect reference data | [GitHub issues](https://github.com/j-256/crykit/issues) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |

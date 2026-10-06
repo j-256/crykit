@@ -1,0 +1,8 @@
+.inventory-row .inventory-quantity > strong { color: var(--text); font-family: var(--font-menu); font-size: 1.25rem; white-space: nowrap }
+.inventory-policies { display: flex; flex-wrap: wrap; gap: .25rem .6rem }
+.inventory-policies small { display: inline-flex; align-items: center; gap: .3rem }
+.inventory-policies svg { width: 15px; height: 15px; color: var(--amber) }
+@media (max-width: 600px) {
+  .inventory-row .list-row__primary { grid-column: 1 / -1 }
+  .inventory-row .inventory-quantity { min-width: 0 }
+}

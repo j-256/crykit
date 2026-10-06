@@ -76,7 +76,10 @@ test('step tiles toggle with mouse and keyboard, persist, and keep other records
   await expect(tiles).toHaveCount(QUINTAR_BREEDING_STEPS.length)
   await expect(tiles.locator('button[aria-pressed="true"]')).toHaveCount(0)
   await expectSummaryArtwork(page, QUINTAR_STEP.babel)
+  await expect(page.locator(`[data-step="${QUINTAR_STEP.babel}"] .quintar-tile__instructions`)).toHaveAttribute('open')
+  await expect(page.locator(`[data-step="${QUINTAR_STEP.golden}"] .quintar-tile__instructions`)).not.toHaveAttribute('open')
   const golden = tiles.filter({ has: page.getByRole('button', { name: /Hatch Golden Quintar/ }) })
+  await expect(golden.locator('.quintar-tile__missing')).toBeVisible()
   const button = golden.getByRole('button')
   const art = golden.locator('.quintar-tile__art')
   expect(await art.evaluate(element => getComputedStyle(element).opacity)).toBe('0.78')
@@ -119,6 +122,7 @@ test('step reference links open exact local details without marking progress', a
   ]
   for (const example of examples) {
     const tile = page.locator(`[data-step="${example.step}"]`)
+    if (!await tile.locator('.quintar-tile__instructions').evaluate((details: HTMLDetailsElement) => details.open)) await tile.locator('.quintar-tile__instructions > summary').click()
     await tile.getByRole('link', { name: example.name, exact: true }).click()
     await expect(page.getByRole('heading', { name: example.heading ?? example.name, exact: true })).toBeVisible()
     await page.goBack()
@@ -131,9 +135,19 @@ test('native race minimums, shop price, and care facts are actionable in the gui
   const highland = page.locator(`[data-step="${QUINTAR_STEP.fancyHighland}"]`)
   const desert = page.locator(`[data-step="${QUINTAR_STEP.fancyDesert}"]`)
   for (const tile of [highland, desert]) {
+    await expect(tile.locator('.quintar-tile__instructions')).toHaveJSProperty('open', false)
+    await expect(tile.locator('.quintar-tile__pair')).toBeVisible()
+    await expect(tile.locator('.quintar-tile__missing')).toBeVisible()
+    await expect(tile.locator('.quintar-tile__races')).toBeVisible()
     await expect(tile.locator('.quintar-tile__races')).toContainText('First-place wins before breeding')
     await expect(tile.locator('.quintar-tile__races p').filter({ hasText: 'Fancy Red' })).toHaveText('Fancy Red1 different track total')
   }
+  await expect(highland.locator('.quintar-tile__keep')).toBeVisible()
+  await expect(highland.locator('.quintar-tile__keep')).toHaveText('Keep: Fancy Red for later pairings.')
+  await expect(highland.locator('.quintar-tile__release')).toBeVisible()
+  await expect(highland.locator('.quintar-tile__release')).toHaveText('After hatching: Brutish Highland can be released for this route.')
+  await highland.locator('.quintar-tile__instructions > summary').click()
+  await page.locator(`[data-step="${QUINTAR_STEP.ocarina}"] .quintar-tile__instructions > summary`).click()
   await expect(page.locator(`[data-step="${QUINTAR_STEP.ocarina}"]`).getByRole('img', { name: '12 gold', exact: true })).toBeVisible()
   await expect(highland.getByRole('link', { name: 'Incubator', exact: true })).toBeVisible()
   await expect(highland.getByRole('link', { name: 'Quintar Egg', exact: true })).toHaveCount(0)
@@ -184,6 +198,8 @@ test('rapid toggles hold the final requested state without flashing or changing 
   await expect(target).toHaveAttribute('data-complete', 'true')
   await expect(target.getByRole('button')).toBeEnabled()
   await waitForSaves(page)
+  await expect(target.locator('.quintar-tile__instructions')).not.toHaveAttribute('open')
+  await expect(page.locator(`[data-step="${QUINTAR_STEP.ocarina}"] .quintar-tile__instructions`)).toHaveAttribute('open')
   await target.evaluate(tile => {
     const button = tile.querySelector<HTMLButtonElement>('button')!
     button.click()

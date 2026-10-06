@@ -32,6 +32,16 @@ const FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   [CRYSTAL_EDIT_FIELDS.equipment]: 'Equipment permissions',
   [CRYSTAL_EDIT_FIELDS.command]: 'Class command',
   'Crystal Edit crystal name': 'Crystal name',
+  'Is Two Handed': 'Two-handed',
+  'Is One Only': 'One copy per loadout',
+  'Is Learnable': 'Learnable',
+  'Is Innate': 'Innate',
+  'Is Sellable': 'Can be sold',
+  'Is Consumable': 'Consumable',
+  'Is Starting Job': 'Available as a starting class',
+  'Is Unselectable Job': 'Primary class selection disabled',
+  'Is Unselectable Sub Job': 'Secondary class selection disabled',
+  'Is Not Crystal Job': 'Excluded from crystal count',
 })
 
 export function isGameExportSource(source: SourceRef): boolean {

@@ -1,4 +1,5 @@
-import { openSavedCatalogVersion } from './definition-fixtures'
+import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
+import { currentReferencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
@@ -7,6 +8,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
+import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
+import { encodeCrystalSave } from '../src/interchange/crystal-save'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -73,6 +76,32 @@ test('universal search focuses the input on shortcuts, reopening, and the search
   await expect(trigger).toBeFocused()
 })
 
+test('search distinguishes duplicate native records and replaces the mobile navigation menu', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  const before = await readPlannerData(page)
+  const menu = page.getByRole('dialog', { name: 'Navigate CryKit', exact: true })
+  if (isMobile) {
+    await page.getByRole('button', { name: 'More destinations', exact: true }).click()
+    await expect(menu).toBeVisible()
+  }
+  const palette = await search(page, 'Potion')
+  await expect(menu).toHaveCount(0)
+  const first = palette.getByRole('link', { name: /^Potion Ability · Game data · .+ · Record #10$/ })
+  const second = palette.getByRole('link', { name: /^Potion Ability · Game data · .+ · Record #236$/ })
+  await expect(first).toBeVisible()
+  await expect(second).toBeVisible()
+  await expect(first).toContainText('base database')
+  await expect(second).toContainText('base database')
+  await expect(first).toHaveAttribute('href', currentReferencePath('base:ability:10').slice(1))
+  await expect(second).toHaveAttribute('href', currentReferencePath('base:ability:236').slice(1))
+  await expect(palette.getByRole('link', { name: 'Potion Item · Game data', exact: true })).toBeVisible()
+  await second.click()
+  await expect(palette).not.toBeVisible()
+  await expect(page.getByText('Navigation blocked', { exact: true })).toHaveCount(0)
+  await expect(page).toHaveURL(referenceUrlPattern('base:ability:236'))
+  await expect(page.getByRole('heading', { name: 'Potion', exact: true })).toBeVisible()
+  expect(await readPlannerData(page)).toEqual(before)
+})
+
 test('starter picklists and universal search work without importing or inventing personal state', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile, baseURL }) => {
   const externalRequests: string[] = []
   const appOrigin = new URL(baseURL!).origin
@@ -93,8 +122,8 @@ test('starter picklists and universal search work without importing or inventing
   await chooseDefinition(page, form, 'Item definition', 'Potion', 'Potion')
   await expect(form.getByRole('button', { name: 'Choose Item definition', exact: true })).toContainText('Potion')
   await expect(form.getByRole('textbox', { name: 'Item name', exact: true })).not.toBeVisible()
-  await form.getByLabel('Current possession').selectOption('owned')
-  await form.getByLabel('Quantity certainty').selectOption('exact')
+  await form.getByLabel('Do you own it?').selectOption('owned')
+  await form.getByLabel('How many?').selectOption('exact')
   await form.getByLabel('Current count').fill('3')
   await form.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(form).not.toBeVisible()
@@ -195,9 +224,12 @@ test('nested definition creation preserves the observation and universal search 
   const palette = await search(page, 'Warrior')
   await palette.locator('[data-universal-result="true"]').first().click()
   await expect(palette.getByText('Navigation blocked', { exact: true })).toBeVisible()
+  await expect(palette.getByRole('region', { name: 'Resolve search navigation', exact: true })).toBeFocused()
+  await expect(palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })).toHaveValue('Warrior')
   await page.keyboard.press('Escape')
   await expect(form).toBeVisible()
   await expect(form.getByRole('textbox', { name: 'Item name', exact: true })).toHaveValue('Unfinished observation')
+  await expect(form.getByRole('textbox', { name: 'Item name', exact: true })).toBeFocused()
 
   await form.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Item definition', exact: true })
@@ -229,6 +261,45 @@ test('nested definition creation preserves the observation and universal search 
   await expect(page.getByRole('heading', { name: 'Synthetic glass lantern', exact: true })).toBeVisible()
 })
 
+test('blocked deep search results reveal local recovery repeatedly and return to the retained editor', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
+  await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-search-recovery.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
+  const copper = page.getByLabel('Copper', { exact: true })
+  await copper.fill('789')
+  const editorUrl = page.url()
+  const palette = await search(page, 'Item')
+  const searchUrl = page.url()
+  const results = palette.locator('[data-universal-result="true"]')
+  const body = palette.locator('.sheet__body')
+  const notice = palette.getByRole('region', { name: 'Resolve search navigation', exact: true })
+  await expect(results.last()).toBeAttached()
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await results.last().scrollIntoViewIfNeeded()
+    expect(await body.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+    await results.last().click()
+    await expect(notice).toBeFocused()
+    await expect(notice.getByText('Navigation blocked', { exact: true })).toBeVisible()
+    await expect(notice.getByRole('button', { name: 'Return to editor', exact: true })).toBeVisible()
+    await expect(palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })).toHaveValue('Item')
+    await expect(page).toHaveURL(searchUrl)
+    expect(await palette.evaluate(element => element.contains(document.activeElement))).toBe(true)
+    const noticeBounds = await notice.boundingBox()
+    const bodyBounds = await body.boundingBox()
+    expect(noticeBounds).not.toBeNull()
+    expect(bodyBounds).not.toBeNull()
+    expect(noticeBounds!.y).toBeGreaterThanOrEqual(bodyBounds!.y)
+    expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(bodyBounds!.y + bodyBounds!.height)
+  }
+  await notice.getByRole('button', { name: 'Return to editor', exact: true }).click()
+  await expect(palette).not.toBeVisible()
+  await expect(page).toHaveURL(editorUrl)
+  await expect(page.getByRole('heading', { name: 'Save Editor', exact: true })).toBeVisible()
+  await expect(copper).toHaveValue('789')
+  const warning = page.getByRole('region', { name: 'Resolve unsaved edits', exact: true })
+  await expect(warning).toBeFocused()
+  await expect(warning.getByRole('button', { name: 'Export and continue', exact: true })).toBeVisible()
+})
+
 test('saved catalog versions preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
   const settings = await openData(page)
   await openCurrentGameSetup(settings)
@@ -240,8 +311,8 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const stock = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   await chooseDefinition(page, stock, 'Item definition', 'Iron Sword', 'Iron Sword')
-  await stock.getByLabel('Current possession').selectOption('owned')
-  await stock.getByLabel('Quantity certainty').selectOption('exact')
+  await stock.getByLabel('Do you own it?').selectOption('owned')
+  await stock.getByLabel('How many?').selectOption('exact')
   await stock.getByLabel('Current count').fill('2')
   await stock.getByRole('button', { name: 'Add item', exact: true }).click()
   await expect(stock).not.toBeVisible()
@@ -251,7 +322,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
-  await creation.getByLabel('Build title').fill('Synthetic catalog checkpoint')
+  await page.locator('.context-bar').getByRole('textbox', { name: 'Build title', exact: true }).fill('Synthetic catalog checkpoint')
   const buildEditor = page.locator('.build-sheet')
   await buildEditor.getByRole('button', { name: 'Loadout', exact: true }).click()
   await buildEditor.getByRole('combobox', { name: 'Main hand', exact: true }).click()

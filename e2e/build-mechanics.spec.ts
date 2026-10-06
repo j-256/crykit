@@ -1,3 +1,4 @@
+import { openCalculationSources, openStatBreakdown } from './calculation-presentation-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -19,6 +20,7 @@ async function choose(page: Page, label: string, name: string, options: { includ
 async function expectIncompleteGrowth(page: Page, allocated: number, level: number) {
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Calculated stats', exact: true })).toContainText(`Growth allocates ${allocated} of ${level} levels.`)
+  await openStatBreakdown(page)
   const overview = page.getByRole('table', { name: 'Planned build stats', exact: true })
   await expect(overview.getByRole('columnheader')).toHaveText(['Stat', 'Base'])
   await expect(overview).not.toContainText('Unknown')
@@ -93,6 +95,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expect(page.getByRole('combobox', { name: 'Growth class 1', exact: true })).toHaveValue('Wizard')
   await expect(page.getByRole('combobox', { name: 'Growth class 2', exact: true })).toHaveCount(0)
   const download = page.waitForEvent('download')
+  await openCalculationSources(page)
   await page.getByRole('button', { name: 'Export calculation package', exact: true }).click()
   const file = await download
   expect(file.suggestedFilename()).toBe('crystal-project-calculations-pc-1.6.9-package-v3.json')
@@ -126,6 +129,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await expectIncompleteGrowth(page, 19, 20)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   const offlineDownload = page.waitForEvent('download')
+  await openCalculationSources(page)
   await page.getByRole('button', { name: 'Export calculation package', exact: true }).click()
   const offlinePath = await (await offlineDownload).path()
   if (!offlinePath) throw new Error('Offline calculation download failed')

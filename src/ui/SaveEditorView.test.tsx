@@ -3,6 +3,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
+import * as bundledLibrary from '../catalog/mod-library'
+import * as crystalEdit from '../interchange/crystal-edit'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
@@ -98,6 +100,27 @@ async function open(bytes = encodeCrystalSave(createSaveEditorFixture())) {
   return bytes
 }
 
+async function openBundledSave(bytes: Uint8Array) {
+  const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModEditableSource')
+  const previewSpy = vi.spyOn(crystalEdit, 'previewCrystalEdit')
+  try {
+    await open(bytes)
+    // Both stages hash asynchronously after the module import, so await their real work before checking the UI
+    await act(async () => {
+      expect(sourceSpy).toHaveBeenCalledTimes(1)
+      expect(sourceSpy).toHaveBeenCalledWith(CHEAT_PASSIVES)
+      expect(sourceSpy.mock.results[0]?.type).toBe('return')
+      await sourceSpy.mock.results[0]!.value
+      expect(previewSpy).toHaveBeenCalledTimes(1)
+      expect(previewSpy.mock.results[0]?.type).toBe('return')
+      await previewSpy.mock.results[0]!.value
+    })
+  } finally {
+    previewSpy.mockRestore()
+    sourceSpy.mockRestore()
+  }
+}
+
 function draftActions() {
   return onDraftChange.mock.calls.at(-1)![1]!
 }
@@ -109,7 +132,13 @@ describe('save editor session', () => {
     await choose(file(encodeCrystalSave(createSaveEditorFixture())))
     expect(container.textContent).toContain('Party & loadouts')
     expect(container.textContent).toContain('Load a compatible Build')
-    const review = container.querySelector('.save-editor__review')!
+    expect(container.querySelector('[aria-label="Open save details"] button')?.closest('details')).toBeNull()
+    expect(container.querySelector('[aria-label="Open save details"] dl')?.closest('details')).toBeNull()
+    expect(container.querySelector('.save-editor__review')).toBeNull()
+    expect(button('Export edited save').closest('header')).not.toBeNull()
+    expect([...container.querySelectorAll('button')].filter(element => element.textContent === 'Export edited save')).toHaveLength(1)
+    expect(container.querySelector('nav[aria-label="Save Editor sections"]')?.textContent).toContain('PartyInventoryMoneyUnlocks & presets')
+    const review = container.querySelector('[aria-label="Draft and export"]')!
     const inventory = container.querySelector('[aria-label="Inventory editor"]')!
     expect(review.compareDocumentPosition(inventory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await act(async () => button('Clear Main hand').click())
@@ -119,6 +148,7 @@ describe('save editor session', () => {
     expect(container.textContent).toContain("Review: Alex's loadout")
     expect(container.textContent).toContain('equipped loadout updated and inventory reconciled')
     await act(async () => button('Apply reviewed changes').click())
+    expect(container.querySelector<HTMLDetailsElement>('.save-editor__review')!.open).toBe(true)
     expect(container.querySelector('.save-editor__review')!.textContent).toContain('equipped loadout updated and inventory reconciled')
     await act(async () => button('Export edited save').click())
     const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
@@ -283,16 +313,16 @@ describe('save editor session', () => {
   })
 
   it('loads an exact bundled active mod definition without a manual import', async () => {
-    await open(encodeCrystalSave(createModdedSaveEditorFixture({ mod: CHEAT_PASSIVES_FIXTURE })))
-    await waitForText('Bundled definition matched')
+    await openBundledSave(encodeCrystalSave(createModdedSaveEditorFixture({ mod: CHEAT_PASSIVES_FIXTURE })))
+    expect(container.textContent).toContain('Bundled definition matched')
     expect(input('Cheat Passives definition available').checked).toBe(true)
     expect(container.textContent).toContain('Cheat Passives 2.0 (bundled)')
     expect(input('Copper').disabled).toBe(false)
   })
 
   it('identifies a bundled disabled mod while disclosing that its saved revision is unavailable', async () => {
-    await open(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE })))
-    await waitForText('Bundled project identified')
+    await openBundledSave(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE })))
+    expect(container.textContent).toContain('Bundled project identified')
     expect(input('Cheat Passives definition available').checked).toBe(true)
     expect(container.textContent).toContain('Saved revision unavailable')
     expect(input('Copper').disabled).toBe(true)

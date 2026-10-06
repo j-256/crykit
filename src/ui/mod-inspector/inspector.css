@@ -6,6 +6,13 @@
 .inspector-empty p { margin-bottom: 0; }
 .inspector-file-input { display: none; }
 .inspector-local-note, .inspector-source { margin: 0; font-size: .78rem; }
+.inspector-local-note > summary { cursor: pointer; }
+.inspector-local-note > p { margin: .5rem 0 0; }
+.inspector-document-actions { display: grid; gap: .5rem; padding: .8rem 0; border-block: 1px solid var(--line); }
+.inspector-copy-actions .button { color: var(--text-dim); }
+.inspector-format { color: var(--text-dim); font-size: .85rem; }
+.inspector-format > summary { cursor: pointer; }
+.inspector-format[data-state="invalid"] > summary, .inspector-format[data-state="older"] > summary, .inspector-format[data-state="newer"] > summary { color: var(--amber); }
 .inspector-reference { font-size: .78rem; color: var(--text-dim); }
 .inspector-reference p { margin: 8px 0 0; }
 .inspector-toolbar, .inspector-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

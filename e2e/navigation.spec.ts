@@ -146,7 +146,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   const creation = page.locator('.build-sheet')
   await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
-  await creation.getByLabel('Build title').fill('Synthetic routed character build')
+  await page.locator('.context-bar').getByLabel('Build title', { exact: true }).fill('Synthetic routed character build')
   const editor = page.locator('.build-sheet')
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)
   await editor.getByLabel('Rotation or use notes').fill('Draft retained across nested history')

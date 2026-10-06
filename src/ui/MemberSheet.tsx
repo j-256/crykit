@@ -12,6 +12,7 @@ import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { Sources } from './Sources'
 import { entityName, formatAppError, formatRelativeDate, knowledgeLabel, ownRecordValue, resolveEntity } from './model'
 import { routeWithOverlay, routeWithoutOverlays, useNavigation, useNavigationBlocker, type AppRoute } from './navigation'
+import { useNavigationNotice } from './useNavigationNotice'
 import { CatalogArtwork } from './WikiSprite'
 import { DefinitionArtwork } from './GameIcon'
 import { RecordedModStatus, SnapshotValueView } from './CharacterSheet'
@@ -112,6 +113,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [warning, setWarning] = useState(false)
+  const { noticeRef, revealNotice } = useNavigationNotice()
   const [note, setNote] = useState('')
   const submissionBase = useRef(snapshot.id)
   const retained = Boolean(error && snapshot.id !== submissionBase.current)
@@ -141,7 +143,7 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
     setWarning(false)
     blocked.current = false
   }, [retained, hasPendingSave, busy, draft])
-  useNavigationBlocker(routeWithoutOverlays(navigation.route), () => blocked.current, () => setWarning(true))
+  useNavigationBlocker(routeWithoutOverlays(navigation.route), () => blocked.current, () => { setWarning(true); revealNotice() })
   useEffect(() => {
     const leave = (event: BeforeUnloadEvent) => { if (blocked.current) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', leave)
@@ -220,7 +222,6 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
   const unknownInputs = [...(draft.passives.state === 'known' ? [] : ['Equipped passive list is unknown.']), ...slots.filter(slot => slot.selection === undefined || slot.kind === 'unmapped').map(slot => `${slot.label}: equipment is unknown or unmapped.`)]
   const pp = gameSetup && draft.passives.state === 'known' ? validateBuildContent(content, gameSetup, gameSetup.slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref)).pp : undefined
   return <div className="recorded-sheet member-sheet">
-    {warning && <InlineNotice title="Unsaved member changes" tone="warning">Save changes or discard them before leaving this member.</InlineNotice>}
     {!gameSetup || gameSetup.id !== localData.planningGameSetupRevisionId ? <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the current Game Setup. This snapshot keeps its original slot labels. <Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record under current Game Setup</Button></InlineNotice> : null}
     <section aria-label="Equipment and equipped passives"><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} slots={gameSetup?.slots ?? []} view={view} onViewChange={setView} viewLabel="Character sheet view" selection={selectedOption} showClassPermissions={active !== SECONDARY_CLASS}
       classFields={<>{classField('primaryClass', PRIMARY_CLASS, 'Class')}<div className="member-row member-row--static"><span className="member-row__label">Command</span><span className="member-row__value">{primaryCommand ? <KnowledgeValue compact field="Command" value={primaryCommand}/> : 'Unknown'}</span></div>{classField('secondaryClass', SECONDARY_CLASS, 'Sub-Command')}</>}
@@ -235,7 +236,8 @@ export function MemberSheet({ localData, catalogs, snapshot, hasPendingSave, onS
     /></section>
     {statusOpen && <section aria-label="Displayed final stats" className="member-status"><div className="split"><h3>Status</h3><Button disabled={dirty || busy} onClick={onRecord} tone="quiet">Record status</Button></div><p>Saved in-game totals stay unchanged. Calculated loadout totals appear separately above.</p><dl className="recorded-stats"><div><dt>Level</dt><dd>{knowledgeLabel(snapshot.level)}</dd></div>{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView catalogs={catalogs} localData={localData} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl>{!Object.keys(snapshot.displayedStats).length && <p>No displayed stats recorded.</p>}</section>}
     {picker && ![PRIMARY_CLASS, SECONDARY_CLASS, ...slots.map(slot => `slot:${slot.id}`), ...Array.from({ length: passiveRefs.length + 1 }, (_, index) => `slot:passive-${index + 1}`)].includes(picker.fieldKey) && <InlineNotice title="Character field unavailable" tone="warning">The requested field is not in this snapshot. <Button onClick={() => navigation.close()} tone="quiet">Close picker route</Button></InlineNotice>}
-    {dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={discard} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}
+    {/* Keep blocked-exit feedback beside the existing choices so revealing it exposes recovery controls */}
+    {(dirty || warning) && <div aria-label="Member navigation warning" className="stack" ref={noticeRef} role="region" tabIndex={-1}>{warning && <InlineNotice title="Unsaved member changes" tone="warning">Save changes or discard them before leaving this member.</InlineNotice>}{dirty && <div className="member-save"><div><strong>Unsaved changes</strong><small>Save after confirming these selections in game. Displayed stats retain their recorded values.</small></div><label className="sr-only" htmlFor="member-note">Snapshot note</label><input disabled={busy || retained} id="member-note" onChange={event => setNote(event.target.value)} placeholder="Optional note" value={note}/><div><Button disabled={busy || retained} onClick={discard} tone="quiet">Discard changes</Button><Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : retained ? 'Retry member save' : 'Save changes'}</Button></div></div>}</div>}
     {error && <InlineNotice title="Snapshot not saved" tone="danger">{error} Your choices are retained for retry.</InlineNotice>}
     <details className="member-record"><summary>Observation details<span>{snapshot.observedAt ? formatRelativeDate(snapshot.observedAt) : 'Date unknown'}</span></summary><Sources anchor={<p>Recorded {formatRelativeDate(snapshot.recordedAt)}</p>} label="Sources for character observation"><SourceReferences includeGameExports sources={snapshot.sources}/></Sources>{snapshot.note && <p>{snapshot.note}</p>}<p>{gameSetup ? `${gameSetup.label} · revision ${gameSetup.revision}` : 'Slot context was not recorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><KnowledgeValue showSources value={gameSetup?.mods ?? UNKNOWN}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><KnowledgeValue showSources value={gameSetup?.disabledMods ?? UNKNOWN}/></dd></div></dl><SnapshotValueView catalogs={catalogs} localData={localData} gameSetup={gameSetup} value={{ kind: 'reference', value: snapshot.primaryClass }}/><SnapshotValueView catalogs={catalogs} localData={localData} gameSetup={gameSetup} value={{ kind: 'reference', value: snapshot.secondaryClass }}/>{slots.map(slot => <div key={slot.id}><span>{slot.label}: </span><SnapshotValueView catalogs={catalogs} localData={localData} gameSetup={gameSetup} value={{ kind: 'selection', value: slot.selection }}/></div>)}{passiveRefs.map((ref, index) => <div key={`${entityDefinitionKey(ref)}:${index}`}><span>Equipped passive {index + 1}: </span><SnapshotValueView catalogs={catalogs} localData={localData} gameSetup={gameSetup} value={{ kind: 'selection', value: ref }}/></div>)}</details>
   </div>
