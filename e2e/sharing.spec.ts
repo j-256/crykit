@@ -65,7 +65,7 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await expect(shared.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
   await shared.locator('summary').filter({ hasText: 'Ability and hit-chance preview' }).click()
-  await expect(shared.getByLabel('Ability estimate', { exact: true })).toContainText('Native coefficient power before battle effects: -159')
+  await expect(shared.getByLabel('Ability estimate', { exact: true })).toContainText('Native power coefficient before battle effects: -159')
   await expect(shared.getByLabel('Ability estimate', { exact: true }).getByRole('heading', { name: 'Cure', exact: true })).toBeVisible()
   await expect(shared.getByLabel('Base physical hit chance', { exact: true })).toHaveText('Base physical hit chance: 100%')
   await shared.locator('summary').filter({ hasText: 'Build notes and assumptions' }).click()
