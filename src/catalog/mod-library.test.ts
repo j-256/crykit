@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { BUNDLED_MOD_SEARCH_CATALOGS } from './mod-search'
+import { bundledModSearchCatalogs } from './mod-search'
 import { mergeModSearchCatalogs } from '../domain/mod-search'
 import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from './mod-library'
 import { previewImport } from '../interchange/import'
@@ -15,7 +15,7 @@ it('opens every bundled full source with exact bytes and supported planning impo
     expect(`crystal-edit:${root.ID}`).toBe(mod.id)
     const preview = await previewImport(bytes, source.filename)
     expect(preview.proposed.catalogs[0]?.id).toBe(mod.id)
-    const search = BUNDLED_MOD_SEARCH_CATALOGS.find(catalog => catalog.id === mod.id)
+    const search = bundledModSearchCatalogs().find(catalog => catalog.id === mod.id)
     if (search?.revisionId === preview.proposed.catalogs[0]!.revisionId) {
       expect(Object.keys(search.entities)).toEqual(Object.keys(preview.proposed.catalogs[0]!.entities))
       for (const entity of Object.values(search.entities)) {

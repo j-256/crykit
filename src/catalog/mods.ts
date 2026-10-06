@@ -1,7 +1,7 @@
 import { definitionLineageRootRef } from '../domain/definitions'
 import { modState, normalizeModName, type DefinitionModAvailability } from '../domain/mods'
 import type { CatalogId, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision } from '../domain/types'
-import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import { nativeRecord } from '../domain/native-game'
 import { catalogEntity } from '../domain/entity-identities'

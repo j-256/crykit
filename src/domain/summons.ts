@@ -1,5 +1,5 @@
 import { SUMMONS, type Summon, type SummonId } from '../catalog/summons'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { upsertProgress } from './characters'
 import { assertExpectedRevision, DomainError, requirePlaythrough } from './core'
 import { logicalEntityKey, logicalEntityRef } from './definitions'

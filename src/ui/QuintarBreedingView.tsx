@@ -4,7 +4,7 @@ import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY,
 import { QUINTAR_NATIVE_EVIDENCE } from '../catalog/quintar-native-rules'
 import { QUINTAR_STEP_REFERENCES, quintarOcarinaPrice } from '../catalog/quintar-references'
 import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/sprites'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { requirePlaythrough } from '../domain/core'
 import type { CatalogSnapshot, EntityId, LocalData } from '../domain/types'
 import { Button, InlineNotice } from './components'

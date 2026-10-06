@@ -14,7 +14,7 @@ import { Sheet } from './Sheet'
 import { routeWithOverlay, useNavigation } from './navigation'
 import { ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
-import { starterEntitySourceLabel } from '../catalog'
+import { starterEntitySourceLabel } from '../catalog/provenance'
 import { NavigationLink } from './NavigationLink'
 
 const UNIVERSAL_RESULT_LIMIT = 60
@@ -53,7 +53,7 @@ function itemScore(item: UniversalSearchItem, query: string) {
 export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
   const { localData, options } = useDefinitionLibrary()
-  const referenceOptions = useMemo(() => standingReferenceOptions(options, catalogs, localData), [options, catalogs, localData])
+  const referenceOptions = useMemo(() => open ? standingReferenceOptions(options, catalogs, localData) : [], [open, options, catalogs, localData])
   const [error, setError] = useState<string>()
   const [createdName, setCreatedName] = useState<string>()
   const [includeOtherSources, setIncludeOtherSources] = useState(false)
@@ -70,6 +70,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     navigation.navigate({ ...navigation.route, overlays }, { replace: true })
   }
   const items = useMemo(() => {
+    if (!open) return []
     const names = new Map(options.map((option) => [option.key, option.name]))
     const snapshots = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog]))
     const definitionChoices = includeOtherSources ? referenceOptions : preferredDefinitionChoices(referenceOptions)
@@ -89,7 +90,7 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     const progress: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).progress).map((record) => ({ key: `progress:${record.id}`, title: record.displayName, subtitle: 'Party progress', keywords: `${record.stage.state === 'known' ? record.stage.value : ''} ${definitionName(localData, names, record.subject)}`, section: 'Progress', target: { kind: 'progress', recordId: record.id } }))
     const skillLists: UniversalSearchItem[] = WEAPON_TYPES.map(weapon => ({ key: `weapon-skills:${weapon}`, title: `Skills usable with ${weapon}`, subtitle: 'Weapon skills · all classes', keywords: `${weapon}s ${weapon === 'Staff' ? 'staves' : ''} weapon skills abilities`, section: 'Skill lists', target: { kind: 'weaponSkills', weapon } }))
     return [...skillLists, ...definitions, ...inventory, ...characters, ...builds, ...teams, ...scenarios, ...progress]
-  }, [referenceOptions, options, localData, catalogs, includeOtherSources])
+  }, [open, referenceOptions, options, localData, catalogs, includeOtherSources])
   const results = useMemo(() => {
     const normalizedQuery = normalize(query.trim())
     if (!normalizedQuery) return []

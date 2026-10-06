@@ -9,6 +9,7 @@ import { parseArgs } from 'node:util'
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const INDEX = 'src/catalog/bundled-mod-index.json'
 const VANILLA_RECEIPT = 'src/catalog/vanilla-catalog-v2.json'
+const VANILLA_PACKED = 'src/catalog/vanilla-catalog-v2.packed.json'
 const GENERATED_AT = '1970-01-01T00:00:00.000Z'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
 const GZIP_OS_OFFSET = 9
@@ -18,8 +19,9 @@ const HELP = `Usage: node scripts/generate-mod-index.mjs [-c|--check] [-h|--help
 Generate a compact search catalog for every directory-bundled Crystal Edit source
 using the application's import interpreter. Preserve full originals unchanged.
 Read src/catalog/bundled-mod-sources.json, digest-named gzip/base64 source assets,
-native databases and attributed reference sources. Write the mod search index and vanilla
-catalog checksum receipt. Requires Node >=22.12 and npm ci dependencies. No
+native databases and attributed reference sources. Write the mod search index,
+independent vanilla catalog snapshot and checksum receipt. Requires Node >=22.12
+and npm ci dependencies. No
 environment variables, private inputs, or network requests are used.
   -c, --check  Verify generated outputs without writing
   -h, --help   Show help
@@ -27,17 +29,27 @@ Results use stdout; diagnostics use stderr. Exit: 0 success/help, 1 content or
 integrity failure, 2 invalid options, 3 missing dependencies.
 `
 
+function packedJson(value) {
+  const json = JSON.stringify(value)
+  const compressed = gzipSync(json, { level: 9 })
+  compressed[GZIP_OS_OFFSET] = GZIP_OS_UNKNOWN
+  return `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: compressed.toString('base64') })}\n`
+}
+
 export async function generateModIndex({ check = false } = {}) {
   const { createServer } = await import('vite')
-  const server = await createServer({ root: ROOT, configFile: false, logLevel: 'error', server: { middlewareMode: true }, appType: 'custom' })
+  const server = await createServer({ root: ROOT, configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   try {
     const manifest = JSON.parse(await readFile(join(ROOT, 'src/catalog/bundled-mod-sources.json'), 'utf8'))
     const { vanillaCatalog } = await server.ssrLoadModule('/src/catalog/vanilla-catalog.ts')
     const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')
+    const { immutableCatalogSnapshot } = await server.ssrLoadModule('/src/interchange/native.ts')
     const { previewCrystalEdit } = await server.ssrLoadModule('/src/interchange/crystal-edit.ts')
     const { modSearchCatalog } = await server.ssrLoadModule('/src/domain/mod-search.ts')
     const { checksum: _checksum, ...content } = vanillaCatalog('')
-    const vanilla = `${JSON.stringify({ schemaVersion: 1, checksum: `builtin:sha256:${digest(catalogContentForChecksum(content))}` }, null, 2)}\n`
+    const checksum = `builtin:sha256:${digest(catalogContentForChecksum(content))}`
+    const vanilla = `${JSON.stringify({ schemaVersion: 1, checksum }, null, 2)}\n`
+    const vanillaPacked = packedJson(immutableCatalogSnapshot({ ...content, checksum }))
     const catalogs = []
     const seenProjects = new Set()
     for (const source of manifest.mods) {
@@ -52,10 +64,8 @@ export async function generateModIndex({ check = false } = {}) {
       catalogs.push(modSearchCatalog(catalog))
     }
     const json = JSON.stringify({ schemaVersion: 1, catalogs })
-    const compressed = gzipSync(json, { level: 9 })
-    compressed[GZIP_OS_OFFSET] = GZIP_OS_UNKNOWN
-    const index = `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: compressed.toString('base64') })}\n`
-    for (const [path, text] of [[INDEX, index], [VANILLA_RECEIPT, vanilla]]) {
+    const index = packedJson({ schemaVersion: 1, catalogs })
+    for (const [path, text] of [[INDEX, index], [VANILLA_RECEIPT, vanilla], [VANILLA_PACKED, vanillaPacked]]) {
       if (check) { if (await readFile(join(ROOT, path), 'utf8') !== text) throw new Error(`Generated output differs: ${path}`) }
       else await writeFile(join(ROOT, path), text)
     }

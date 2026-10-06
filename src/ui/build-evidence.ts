@@ -1,5 +1,5 @@
 import { nativeDescription } from '../catalog/native-description'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { nativeDefinitionLabel, nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import { effectText } from '../domain/mechanics-facts'

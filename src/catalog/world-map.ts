@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { MAX_MOD_SOURCE_BYTES, MAX_MOD_SOURCE_NODES } from '../domain/mod-library'
 import { modCatalogForPin, modCatalogTitle } from '../domain/mod-layers'
 import { WORLD_MARKER_KINDS, worldMapModLayer, worldMapTargetRef as targetRef } from '../domain/world-map'
-import { BUNDLED_MOD_SEARCH_CATALOGS } from './mod-search'
+import { bundledModSearchCatalogs } from './mod-search'
 import type { WorldMapDefinition, WorldMapManifest, WorldMapModLayer, WorldMapLayer, WorldMapTarget } from '../domain/world-map'
 import type { CatalogRef, CatalogSnapshot, ModCatalogPin } from '../domain/types'
 import { parseBoundedJson } from '../interchange/json'
@@ -11,7 +11,7 @@ import { readModSource } from '../persistence/mod-library'
 import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from './mod-library'
 import { NATIVE_GAME_DATA } from './native-game'
 
-export function worldMapTargetRef(target: WorldMapTarget, catalogs: readonly CatalogSnapshot[]): CatalogRef | undefined { return targetRef(target, catalogs, BUNDLED_MOD_LIBRARY) ?? targetRef(target, BUNDLED_MOD_SEARCH_CATALOGS, BUNDLED_MOD_LIBRARY) }
+export function worldMapTargetRef(target: WorldMapTarget, catalogs: readonly CatalogSnapshot[]): CatalogRef | undefined { return targetRef(target, catalogs, BUNDLED_MOD_LIBRARY) ?? targetRef(target, bundledModSearchCatalogs(), BUNDLED_MOD_LIBRARY) }
 
 const MANIFEST_URLS = import.meta.glob<string>('./world-map.json', { query: '?url', import: 'default', eager: true })
 const IMAGE_URLS = import.meta.glob<string>('../assets/world-map/*.png', { query: '?url', import: 'default', eager: true })

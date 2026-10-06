@@ -15,7 +15,7 @@ import { definitionChoiceSourceLabel, hasNameEvidenceOnly, isReferenceArticle, p
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { LegacyInnateModBadge, ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
-import { Button } from './components'
+import { Button, InlineNotice } from './components'
 import { useBuildModSelection } from './BuildModSelectionGate'
 import { PICKER_STAT_FIELDS, pickerAvailableForSetup, pickerCategoryKey, pickerEquipmentAssessment, pickerHandedness, pickerListedStat, pickerRemainingPp, pickerSearchEntry, pickerSearchMatch } from './build-picker'
 import { referenceCategoryLabel } from './reference-categories'
@@ -48,7 +48,8 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   onConfigureMod?: (name: string) => void
   onInspect: (option: DefinitionOption | undefined) => void
 }) {
-  const { localData, catalogs, planningOptions: options, availablePlanningOptions: libraryOptions } = useDefinitionLibrary()
+  const { localData, catalogs, planningOptions: options, availablePlanningOptions: libraryOptions, onRequestBundledSearch, bundledSearchPending, bundledSearchError } = useDefinitionLibrary()
+  useEffect(() => { if (open) onRequestBundledSearch() }, [open, onRequestBundledSearch])
   const selectedBase = findDefinitionOption(options, value)
   const selected = useMemo(() => selectedBase ? { ...selectedBase, modAvailability: definitionModAvailability(localData, selectedBase.ref, gameSetup, catalogs) } : undefined, [catalogs, gameSetup, localData, selectedBase])
   const availableOptions = useMemo(() => {
@@ -164,6 +165,8 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
         </div>
       </details>
       <div className="picker-results">
+        {bundledSearchPending && <p role="status">Loading mod choices...</p>}
+        {bundledSearchError && <InlineNotice title="Mod choices unavailable" tone="warning">{bundledSearchError} Reload to try again.</InlineNotice>}
         <div className="build-picker-results-summary" role="presentation"><small>{candidates.length} {candidates.length === 1 ? 'result' : 'results'}{candidates.length === 1 ? ' · Enter to select' : ''}</small>{hiddenConflicts.length > 0 && <button onClick={() => setCompatibleOnly(false)} type="button">Show {hiddenConflicts.length} {hiddenConflicts.length === 1 ? 'conflict' : 'conflicts'}</button>}</div>
         {allowEmpty && <button aria-selected={value === null} className="picker-result picker-result--empty" onMouseDown={(event) => event.preventDefault()} onClick={() => choose(null)} role="option" tabIndex={-1} type="button"><span className="picker-result__content"><strong>Leave empty</strong></span></button>}
         {visible.map((option, index) => {
@@ -171,7 +174,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
           const modReason = modPlanningReason(option.modAvailability)
           return <button aria-selected={value ? entityDefinitionKey(value) === option.key : false} className={`picker-result${activeIndex === index ? ' picker-result--active' : ''}`} data-mod-state={option.modAvailability?.requiredMod ? option.modAvailability.state : undefined} data-permission-state={assessment?.status} id={`${id}-option-${index}`} key={option.key} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option.ref)} onPointerEnter={event => { if (!open || selectionPending.current || event.pointerType === 'touch') return; setActiveIndex(index); onInspect(option) }} role="option" tabIndex={-1} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option.ref}/><span className="picker-result__content"><span className="picker-result__heading"><strong>{optionName(option)}</strong>{option.kind === 'innate' && !option.modAvailability?.requiredMod && <LegacyInnateModBadge record={option.record}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}{['passive', 'innate'].includes(option.kind) && <small className="picker-result__cost">{ppCostLabel(option)}</small>}</span><small>{definitionKindLabel(option.kind)} · {definitionChoiceSourceLabel(option)}</small>{pickerHandedness(option) && <small className="picker-result__handedness">{pickerHandedness(option)}</small>}{modReason && <small className="picker-result__mod-reason">{modReason}</small>}{assessment?.reason && <small className="picker-result__permission">{assessment.reason}</small>}{sort !== 'name' && <small>Listed {sort}: {pickerListedStat(option, sort) ?? 'Unknown'}</small>}{searchMatches.get(option.key)?.explanation && <small className="picker-result__match">{searchMatches.get(option.key)!.explanation}</small>}<small className="picker-result__description"><BuildSelectionFacts interactiveHelp={false} option={option} showClassPermissions={label !== 'Sub-command'}/></small></span></button>
         })}
-        {!candidates.length && <div className="definition-dropdown__empty" role="presentation">{hiddenConflicts.length ? <><strong>{hiddenConflicts.length} matching {hiddenConflicts.length === 1 ? 'choice is' : 'choices are'} hidden by equipment conflicts.</strong><ul>{conflictReasons.slice(0, MAX_CONFLICT_EXAMPLES).map(reason => <li key={reason}>{reason}</li>)}</ul><p>{needsDualWield ? 'Choose a class that grants Dual Wield, or choose a permitted off-hand item. Off hand can also stay empty.' : 'Review your Class and occupied equipment slots, or show conflicts to inspect each requirement.'}</p></> : duplicatePassives.length ? <>That passive is already selected in another slot. Choose a different passive or clear the existing selection first.</> : <>No matching definitions. Search names, stats, or effects, or expand Search filters for broader planning options. Only listed selections are saved.</>}</div>}
+        {!candidates.length && !bundledSearchPending && <div className="definition-dropdown__empty" role="presentation">{hiddenConflicts.length ? <><strong>{hiddenConflicts.length} matching {hiddenConflicts.length === 1 ? 'choice is' : 'choices are'} hidden by equipment conflicts.</strong><ul>{conflictReasons.slice(0, MAX_CONFLICT_EXAMPLES).map(reason => <li key={reason}>{reason}</li>)}</ul><p>{needsDualWield ? 'Choose a class that grants Dual Wield, or choose a permitted off-hand item. Off hand can also stay empty.' : 'Review your Class and occupied equipment slots, or show conflicts to inspect each requirement.'}</p></> : duplicatePassives.length ? <>That passive is already selected in another slot. Choose a different passive or clear the existing selection first.</> : <>No matching definitions. Search names, stats, or effects, or expand Search filters for broader planning options. Only listed selections are saved.</>}</div>}
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
     </Dropdown>

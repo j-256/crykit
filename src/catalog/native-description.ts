@@ -21,7 +21,8 @@ export function nativeDescription(entity: Definition): NativeDescription | undef
   if (!identity) return undefined
   const cached = descriptions.get(entity)
   if (cached && BUNDLED_CATALOGS.some(catalog => catalog.entities[entity.id] === entity)) return cached
-  const baseline = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).find(original => original && (entity === original || sameValue(entity, original) || sameValue(entity, projectSourceSemantics(original))))
+  const originals = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).filter(original => original !== undefined)
+  const baseline = originals.find(original => entity === original) ?? originals.find(original => sameValue(entity, original) || sameValue(entity, projectSourceSemantics(original)))
   const record = nativeSourceRecord(entity)
   const version = entity.fields['Game version']
   const expected = identity && nativeDescriptionRecord(NATIVE_GAME_DATA, identity.database, identity.databaseId, identity.mode)

@@ -10,9 +10,11 @@ import { NATIVE_REFERENCE_LINKS, preferredNativeReferenceId } from './native-ref
 import { projectAcquisitionGuidance } from './acquisition-guidance'
 import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { sha256 } from '../interchange/util'
+import { vanillaCatalog } from './vanilla-catalog'
 
 it('pins an independently assembled native base without source-backed mods or dated innate overrides', async () => {
   expect(CURRENT_CATALOG.revisionId).not.toBe(BUNDLED_CATALOG.revisionId)
+  expect(CURRENT_CATALOG).toEqual(vanillaCatalog(CURRENT_CATALOG.checksum))
   const { checksum: _checksum, ...content } = CURRENT_CATALOG
   expect(CURRENT_CATALOG.checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
   for (const entity of Object.values(CURRENT_CATALOG.entities)) {

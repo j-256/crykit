@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { MAX_ID_LENGTH } from '../domain'
 import { bundledEntityRouteName, entityRouteSlug, isEntityRouteSlug, type EntityRouteNameResolver } from './entity-route-names'
 import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
-import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from '../catalog/catalog-ids'
 import type {
   BuildId,
   BuildRevisionId,

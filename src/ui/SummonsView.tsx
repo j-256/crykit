@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SUMMONS, type Summon, type SummonId } from '../catalog/summons'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { logicalEntityKey, preferredDefinitionRef } from '../domain/definitions'
 import { entityDefinitionKey, requirePlaythrough } from '../domain/core'
 import { summonUnlockState } from '../domain/summons'
