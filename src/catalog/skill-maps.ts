@@ -4,7 +4,7 @@ import { asId, entityDefinitionKey } from '../domain/core'
 import { definitionLineageRootRef, preferredDefinitionRef, resolveDefinition, sameLogicalEntity } from '../domain/definitions'
 import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-trees'
 import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, LocalData, GameSetupRevision, GameSetupRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
-import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
 import { compileBundledSourceId } from './bundled'
 
 export const SWITCH_MOD_PACKS_MAP_SET = CONFIRMED_SWITCH_MOD_SETUP.id

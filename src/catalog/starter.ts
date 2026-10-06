@@ -1,8 +1,6 @@
 import type {
   CatalogEntity,
   CatalogEntityKind,
-  CatalogId,
-  CatalogRevisionId,
   CatalogSnapshot,
   EntityId,
   JsonValue,
@@ -18,9 +16,9 @@ import {
 } from './data'
 import wikiDataJson from './wiki-data.json' with { type: 'json' }
 import { confirmedSwitchDefinitions, SWITCH_CLASS_SOURCE } from './switch'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
 
-export const STARTER_CATALOG_ID = 'crystal-project-public-starter' as CatalogId
-export const STARTER_CATALOG_REVISION_ID = 'catalog-v1' as CatalogRevisionId
+export { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
 
 const SOURCE_APPLICABILITY = 'Name evidence only; platform and enabled-mod applicability are unverified'
 const WIKI_GAP_REASON = 'No matching detail page or structured row was found in the bundled community wiki snapshot'
