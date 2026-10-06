@@ -84,6 +84,7 @@ test('new and shared plans report their own persistence until explicitly saved',
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic saved draft Team')
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
   await expect(page.locator('.context-status')).toHaveText('Saved locally')
+  await page.getByRole('button', { name: 'Edit Team', exact: true }).click()
   await page.getByRole('region', { name: 'Team slot 1 loadout', exact: true }).getByRole('button', { name: 'Create member', exact: true }).click()
   await expect(page.locator('.context-status')).toHaveText('Not yet saved')
   await page.getByRole('button', { name: 'Return to Team', exact: true }).click()

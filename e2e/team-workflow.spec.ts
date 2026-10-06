@@ -39,7 +39,7 @@ async function failNextSave(page: Page) {
   })
 }
 
-test('renames and edits a member in Team context, retries atomically, and explicitly updates a pinned sibling slot', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('renames and edits a member in Team context, retries atomically, and explicitly updates a pinned sibling slot', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic member workflow')
   const before = await storedData(page)
@@ -71,7 +71,7 @@ test('renames and edits a member in Team context, retries atomically, and explic
   const saved = await storedData(page)
   const team = Object.values(saved.teams)[0]!
   const next = saved.buildRevisions[team.slots[0]!]!
-  expect(new URL(page.url()).hash).toBe(formatAppRoute({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} }))
+  expect(new URL(page.url()).hash).toBe(formatAppRoute({ page: { page: 'teams', view: 'edit', teamId: team.id }, overlays: [], query: {} }))
   expect(next.revision).toBe(original.revision + 1)
   expect(saved.builds[original.buildId]).toMatchObject({ title: memberTitle, tags: before.builds[original.buildId]!.tags, latestRevisionId: next.id })
   for (const [id, build] of Object.entries(before.builds)) if (id !== original.buildId) expect(saved.builds[id]).toEqual(build)
@@ -88,8 +88,11 @@ test('renames and edits a member in Team context, retries atomically, and explic
   await second.getByRole('button', { name: `Update this slot to r${next.revision}`, exact: true }).click()
   expect((await storedData(page)).teams[team.id]!.slots[1]).toBe(original.id)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save Team', exact: true })).toBeDisabled()
+  if (testInfo.project.name === 'mobile') await page.getByRole('navigation', { name: 'Top Team member pages' }).getByRole('button', { name: /^2\./ }).click()
+  await expect(page.getByRole('region', { name: 'Team slot 2 overview', exact: true })).toContainText(`Checkpoint r${next.revision}`)
   await page.reload()
+  await expect(page.getByRole('region', { name: 'Team slot 1 overview', exact: true })).toContainText(memberTitle)
+  await page.getByRole('button', { name: 'Edit Team', exact: true }).click()
   await expect(first.getByRole('heading', { name: memberTitle, exact: true })).toBeVisible()
   await expect(teamCheckpointControl(page, 2)).toHaveAttribute('data-revision-id', next.id)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -116,7 +119,7 @@ test('canceling a member rename or creation preserves the unsaved Team name and 
   await expect(teamCheckpointControl(page, 2)).toHaveAttribute('data-revision-id', '')
   expect(await storedData(page)).toEqual(before)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Team review', exact: true })).toContainText('Saved draft Team')
+  await expect(page.getByLabel('Team overview')).toContainText('1/4 members')
 })
 
 test('creates members directly in Team slots and reuses the first member setup', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -325,7 +328,8 @@ test('enters lower member edits at the top and bridges equipment details to the 
   const warrior = Object.values(before.builds).find(build => build.title.includes('Warrior'))!
   for (let index = 1; index <= 4; index += 1) await chooseTeamCheckpoint(page, index, warrior.latestRevisionId!)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Team review', exact: true })).toContainText('Saved Team')
+  await expect(page.getByLabel('Team overview')).toContainText('4/4 members')
+  await page.getByRole('button', { name: 'Edit Team', exact: true }).click()
   const saved = await storedData(page)
   const team = Object.values(saved.teams)[0]!
   const fourth = page.getByRole('region', { name: 'Team slot 4 loadout', exact: true })

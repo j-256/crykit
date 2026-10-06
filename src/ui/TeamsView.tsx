@@ -11,6 +11,7 @@ import { BuildLoadoutSummary } from './BuildLoadoutSummary'
 import { TeamBuildEditor, type BuildDraft, type RevisionDraft } from './BuildsView'
 import { TeamCheckpointComparison } from './TeamCheckpointComparison'
 import { TeamCheckpointPicker } from './TeamCheckpointPicker'
+import { TeamOverview } from './TeamOverview'
 import { TeamReview, newerTeamCheckpoint } from './TeamReview'
 import './team-workflow.css'
 import { Button, EmptyState, Field, InlineNotice, ScreenHeader } from './components'
@@ -73,7 +74,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
   useEffect(() => {
     if (!savedMemberTeamId) return
     dirtyRef.current = false
-    navigation.navigate({ page: { page: 'teams', view: 'team', teamId: savedMemberTeamId }, overlays: [], query: {} }, { replace: true })
+    navigation.navigate({ page: { page: 'teams', view: 'edit', teamId: savedMemberTeamId }, overlays: [], query: {} }, { replace: true })
     setSavedMemberTeamId(undefined)
   }, [navigation, savedMemberTeamId])
   useNavigationBlocker(navigation.route, () => dirtyRef.current, () => setError('Save or discard your Team and member changes before leaving.'))
@@ -83,7 +84,12 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
     window.addEventListener('beforeunload', preventLoss)
     return () => window.removeEventListener('beforeunload', preventLoss)
   }, [dirty])
-  const back = () => { dirtyRef.current = false; onDraftChange(false); navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} }) }
+  const back = () => {
+    dirtyRef.current = false
+    onDraftChange(false)
+    if (team) navigation.navigate({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} })
+    else navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })
+  }
   const save = async (adopt = false) => {
     if (busy || !title.trim() || formRef.current && !formRef.current.reportValidity()) return false
     setBusy(true)
@@ -140,7 +146,7 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
     }}/>
   </div>
   return <form className="stack" id={formId} onSubmit={submit} ref={formRef}>
-    <ScreenHeader eyebrow="Buildcrafting" title={team ? team.title : 'New Team'} description="Create members here or choose saved checkpoints. Draft Teams can be saved at any stage." breadcrumb={<Button disabled={busy} icon="arrow-left" onClick={back} tone="quiet" type="button">{dirty ? 'Discard and return' : 'All Teams'}</Button>} actions={team && <ShareButton disabled={busy || dirty || !slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/>}/>
+    <ScreenHeader eyebrow="Buildcrafting" title={team ? `Edit ${team.title}` : 'New Team'} description="Create members here or choose saved checkpoints. Draft Teams can be saved at any stage." breadcrumb={<Button disabled={busy} icon="arrow-left" onClick={back} tone="quiet" type="button">{team ? dirty ? 'Discard and return' : 'Return to Team' : dirty ? 'Discard and return' : 'All Teams'}</Button>} actions={team && <ShareButton disabled={busy || dirty || !slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/>}/>
     {error && <InlineNotice title="Team not saved" tone="danger">{error} Your selections remain available.</InlineNotice>}
     <Field label="Team name" required><input disabled={busy} required value={title} onChange={event => setTitle(event.target.value)}/></Field>
     <TeamReview catalogs={catalogs} localData={localData} saved={!!team && !dirty} slots={slots}/>
@@ -163,6 +169,15 @@ function TeamEditor({ team, localData, catalogs, onSave, onSaveMember, onDraftCh
     <WorkspacePrimaryAction><Button disabled={busy || !title.trim() || !!team && !dirty} form={formId} icon="check" type="submit">{busy ? 'Saving...' : 'Save Team'}</Button></WorkspacePrimaryAction>
     {team && <details><summary>Use with Tracking</summary><div className="stack"><p>Compare these builds with tracked characters, then record the Team as their current loadouts.</p><Button disabled={busy || slots.some(id => !id) || !title.trim()} onClick={() => dirty ? void save(true) : navigation.navigate({ page: { page: 'teams', view: 'adopt', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">{dirty ? 'Save and adopt Team' : 'Adopt Team'}</Button></div></details>}
   </form>
+}
+
+function SavedTeam({ team, localData, catalogs }: Props & { readonly team: Team }) {
+  const navigation = useNavigation()
+  return <div className="stack team-detail">
+    <ScreenHeader eyebrow="Buildcrafting" title={team.title} description="Plan and share up to four pinned Build checkpoints." breadcrumb={<Button icon="arrow-left" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="quiet" type="button">All Teams</Button>} actions={<><Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'edit', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Edit Team</Button><ShareButton disabled={!team.slots.some(Boolean)} localData={localData} target={{ kind: 'team', teamId: team.id }}/></>}/>
+    <TeamOverview catalogs={catalogs} localData={localData} slots={team.slots}/>
+    <section className="team-detail__tracking"><div><h2>Use with Tracking</h2><p>Build checks cover individual checkpoints. Adopt into a Playthrough to check shared stock and character readiness.</p></div><Button disabled={team.slots.some(id => !id)} onClick={() => navigation.navigate({ page: { page: 'teams', view: 'adopt', teamId: team.id }, overlays: [], query: {} })} tone="secondary" type="button">Adopt Team</Button></section>
+  </div>
 }
 
 function AdoptTeam({ team, localData, catalogs, onAdopt }: Props & { readonly team: Team }) {
@@ -221,8 +236,9 @@ export function TeamsView(props: Props) {
   const team = 'teamId' in page ? props.localData.teams[page.teamId] : undefined
   if ('teamId' in page && !team) return <><ScreenHeader title="Teams" description="The requested Team is not saved in this browser." actions={<Button onClick={() => navigation.navigate({ page: { page: 'teams', view: 'list' }, overlays: [], query: {} })} tone="secondary">All Teams</Button>}/><InlineNotice title="Team unavailable">The requested Team is not saved in this browser.</InlineNotice></>
   if (page.view === 'adopt' && team) return <AdoptTeam {...props} team={team} key={`${team.id}:${props.localData.selectedPlaythroughId}`}/>
+  if (page.view === 'team' && team) return <SavedTeam {...props} team={team} key={team.id}/>
   if (page.view !== 'list') return <TeamEditor {...props} team={team} key={team?.id ?? 'new'}/>
   const teams = Object.values(props.localData.teams).sort((left, right) => left.title.localeCompare(right.title))
   const create = () => navigation.navigate({ page: { page: 'teams', view: 'new' }, overlays: [], query: {} })
-  return <div className="stack"><ScreenHeader eyebrow="Buildcrafting" title="Teams" description="Four builds designed to work together. Plan, save, and share them independently of any Playthrough." actions={<Button onClick={create} icon="plus">New Team</Button>}/>{teams.length === 0 ? <EmptyState title="Plan a Team" description="Create members or choose saved build checkpoints. Tracking is optional." icon="team"><Button onClick={create}>Create Team</Button></EmptyState> : teams.map(team => <section className="panel" key={team.id}><header className="panel__header"><h2>{team.title}</h2><Button tone="secondary" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} })}>Open Team</Button></header><div className="panel__body stack"><TeamReview catalogs={props.catalogs} localData={props.localData} saved slots={team.slots}/><ol>{team.slots.map((id, index) => { const revision = id ? props.localData.buildRevisions[id] : undefined; const newer = revision ? newerTeamCheckpoint(props.localData, revision) : undefined; return <li key={index}>{revision ? `${props.localData.builds[revision.buildId]?.title ?? 'Build'} · r${revision.revision}${newer ? ` (r${newer.revision} available)` : ''}` : 'Empty slot'}</li> })}</ol></div></section>)}</div>
+  return <div className="stack"><ScreenHeader eyebrow="Buildcrafting" title="Teams" description="Group up to four Builds for planning and sharing independently of any Playthrough." actions={<Button onClick={create} icon="plus">New Team</Button>}/>{teams.length === 0 ? <EmptyState title="Plan a Team" description="Create members or choose saved build checkpoints. Tracking is optional." icon="team"><Button onClick={create}>Create Team</Button></EmptyState> : teams.map(team => <section className="panel team-list-card" key={team.id}><header className="panel__header"><h2>{team.title}</h2><Button tone="secondary" onClick={() => navigation.navigate({ page: { page: 'teams', view: 'team', teamId: team.id }, overlays: [], query: {} })}>Open Team</Button></header><div className="panel__body"><TeamOverview catalogs={props.catalogs} compact localData={props.localData} slots={team.slots}/></div></section>)}</div>
 }

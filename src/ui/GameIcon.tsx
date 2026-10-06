@@ -25,17 +25,17 @@ export function GameIcon({ iconKey, placeholderKind }: { iconKey?: string; place
   return icon && iconKey ? <IconImage icon={icon} iconKey={iconKey} key={`${iconKey}:${icon.asset.file}`} placeholderKind={placeholderKind}/> : null
 }
 
-export function DefinitionArtwork({ localData, catalogs, value }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null }) {
+export function DefinitionArtwork({ localData, catalogs, value, compact = true }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null; compact?: boolean }) {
   if (!value) return null
   const entity = resolveDefinition(localData, catalogs, value)
-  if (!entity) return <ArtworkPlaceholder compact entity={{ kind: 'other', name: 'Unresolved definition' }}/>
+  if (!entity) return <ArtworkPlaceholder compact={compact} entity={{ kind: 'other', name: 'Unresolved definition' }}/>
   if (value.kind === 'catalog') {
     const artworkEntity = { ...entity, id: value.entityId }
-    if (catalogArtwork(value.catalogId, artworkEntity)) return <CatalogArtwork catalogId={value.catalogId} compact entity={artworkEntity}/>
+    if (catalogArtwork(value.catalogId, artworkEntity)) return <CatalogArtwork catalogId={value.catalogId} compact={compact} entity={artworkEntity}/>
   }
   const iconKey = definitionIconKey(entity)
   if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>
-  return <ArtworkPlaceholder compact entity={entity}/>
+  return <ArtworkPlaceholder compact={compact} entity={entity}/>
 }
 
 function externalFieldIconKeys(fields: CatalogEntity['fields']): readonly string[] {
