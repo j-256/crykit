@@ -1,7 +1,7 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { SUMMONS, type SummonId } from '../catalog/summons'
 import { requirePlaythrough, upsertProgress } from '../domain'
 import { toggleSummonProgress } from '../domain/summons'
@@ -97,7 +97,7 @@ describe('Summons board', () => {
   })
 
   it('shows imported uncertainty until confirmation and rolls a failed toggle back before retry', async () => {
-    const subject = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: SHAKU as EntityId }
+    const subject = { kind: 'catalog' as const, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: SHAKU as EntityId }
     const localData = upsertProgress(createTestLocalData(), { subject, displayName: 'Imported summon', unlocked: { state: 'unknown' } })
     const onToggle = vi.fn(async () => { throw new Error('Synthetic storage failure') })
     await render(localData, onToggle)

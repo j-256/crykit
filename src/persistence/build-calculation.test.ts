@@ -61,8 +61,9 @@ it('round-trips native and earlier bundled catalog revisions together without re
     data = savedCatalogVersion(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
   }
   await saveLocalData(data, before.revision)
+  const saved = await loadLocalData()
   const preview = await previewImport(await exportBackup(), 'synthetic-mixed-catalogs.zip')
-  expect(preview.proposed.catalogs.map(catalog => catalog.revisionId).sort()).toEqual(BUNDLED_CATALOGS.map(catalog => catalog.revisionId).sort())
+  expect(preview.proposed.catalogs.map(catalog => catalog.revisionId).sort()).toEqual(saved.catalogs.map(catalog => catalog.revisionId).sort())
   const restored = await commitImport(preview)
   expect(restored.localData.personalDefinitions).toEqual(data.personalDefinitions)
 }, MIXED_CATALOG_BACKUP_TIMEOUT_MS)

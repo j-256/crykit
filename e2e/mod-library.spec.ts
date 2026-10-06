@@ -12,7 +12,7 @@ import { bundledModIdentity } from '../src/domain/bundled-mods'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
 import { openBuildGameSetup, openGameSetupSection } from './local-data-helpers'
-import { referencePath } from './reference-helpers'
+import { currentReferencePath, referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
@@ -20,6 +20,11 @@ async function includeObservedDoge(page: Page) {
   const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
   await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+}
+
+function currentDogeShieldHeading(page: Page) {
+  const href = currentReferencePath('mod:doge-shield:item:ref-1084').slice(1)
+  return page.locator(`a.reference-card[href^=${JSON.stringify(href)}]`).getByRole('heading', { name: 'Doge Shield', exact: true })
 }
 
 const MOD_ID = 'synthetic-editor-library'
@@ -605,7 +610,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
   await referenceSearch.fill('Doge Shield')
-  await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toBeVisible()
+  await expect(currentDogeShieldHeading(page)).toBeVisible()
   await referenceSearch.fill('Raging Crash')
   await expect(page.getByRole('heading', { name: 'Raging Crash', exact: true })).toHaveCount(0)
   const standingRoute = await page.evaluate(() => sessionStorage.getItem('crykit:reference-route:v1'))
@@ -731,6 +736,7 @@ test('toggles bundled and source-less catalogs while retaining game enablement, 
   const archive = await archiveDigests(page)
   for (const [name, entry] of [['Equipment Expansion', 'Ace of Diamonds'], ['Bloodmage', 'Bloodmage']]) {
     const mod = page.getByRole('region', { name, exact: true })
+    const heading = entry === 'Doge Shield' ? currentDogeShieldHeading(page) : page.getByRole('heading', { name: entry, exact: true })
     await expect(mod.getByText(`Mod: ${name}`, { exact: true })).toHaveCount(0)
     await expect(mod.getByText('Enabled status not recorded', { exact: true })).toBeVisible()
     await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
@@ -741,11 +747,11 @@ test('toggles bundled and source-less catalogs while retaining game enablement, 
     await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
     await expect(mod.getByRole('button', { name: 'Remove from Reference', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await page.goto(`/#/reference?v=1&q=${encodeURIComponent(entry!)}`)
-    await expect(page.getByRole('heading', { name: entry, exact: true })).toBeVisible()
+    await expect(heading).toBeVisible()
     await page.goto('/#/mods')
     await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
     await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill(entry!)
-    await expect(page.getByRole('heading', { name: entry, exact: true })).toBeVisible()
+    await expect(heading).toBeVisible()
     await page.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
     await expect(page).not.toHaveURL(/library-mod=/)
     await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill(entry!)
@@ -775,5 +781,5 @@ test('keeps failed temporary catalog loads separate from the standing library', 
   await page.getByRole('button', { name: 'Return to Reference', exact: true }).click()
   await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toBeVisible()
   await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Doge Shield')
-  await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toBeVisible()
+  await expect(currentDogeShieldHeading(page)).toBeVisible()
 })

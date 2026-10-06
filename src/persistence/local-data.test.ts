@@ -4,7 +4,9 @@ import { createPersonalDefinition, requirePlaythrough, setAcquisitionProgress } 
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
+import { decodeSharePayload } from '../interchange/share'
 import { TEAM_SIZE } from '../domain/scenarios'
+import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
@@ -56,13 +58,43 @@ describe('local planner persistence', () => {
     expect(await database.localDatas.count()).toBe(1)
   })
 
-  it('keeps catalog inputs stable across planner changes without new mod compositions', async () => {
+  it('adds the supplied shared Builds alongside the original sample team', async () => {
+    const { localData, canUndo } = await loadLocalData()
+    const titles = ['Judite', 'Marco', 'Prudence', 'Marcy']
+    expect(Object.values(localData.builds).map(build => build.title)).toEqual(expect.arrayContaining(titles))
+    expect(Object.values(localData.builds)).toHaveLength(TEAM_SIZE + starterBuildShares.length)
+    expect(Object.values(requirePlaythrough(localData).scenarios)).toHaveLength(1)
+    expect(localData.revision).toBe(0)
+    expect(canUndo).toBe(false)
+    const withoutCatalogRevision = (value: unknown) => JSON.parse(JSON.stringify(value, (key, entry) => key === 'catalogRevisionId' ? undefined : entry))
+
+    for (const encoded of starterBuildShares) {
+      const source = decodeSharePayload(encoded)
+      const sourceRevision = Object.values(source.records.buildRevisions)[0]!
+      const title = source.title === 'Brawler build' ? 'Prudence' : source.title
+      const build = Object.values(localData.builds).find(build => build.title === title)!
+      const revision = localData.buildRevisions[build.latestRevisionId!]!
+      const setup = localData.gameSetups[revision.gameSetupRevisionId]!
+      const sourceSetup = source.records.gameSetups[sourceRevision.gameSetupRevisionId]!
+      expect(build.tags).toContain('sample')
+      expect(withoutCatalogRevision(revision.content)).toEqual(withoutCatalogRevision(sourceRevision.content))
+      expect(setup.modComposition).toEqual(sourceSetup.modComposition)
+    }
+
+    const reloaded = await loadLocalData()
+    expect(reloaded.localData.builds).toEqual(localData.builds)
+    const backup = await previewImport(await exportBackup(), 'starter-builds.zip')
+    expect(backup.proposed.localData.builds).toEqual(localData.builds)
+    expect(backup.proposed.localData.buildRevisions).toEqual(localData.buildRevisions)
+  })
+
+  it('keeps catalog contents stable across planner changes without new mod compositions', async () => {
     const loaded = await loadLocalData()
     const changed = createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Synthetic stable catalog fixture', expectedRevision: loaded.revision })
 
-    expect(await prepareModCatalogs(changed, loaded.catalogs)).toBe(loaded.catalogs)
+    expect(await prepareModCatalogs(changed, loaded.catalogs)).toEqual(loaded.catalogs)
     const saved = await saveLocalData(changed, loaded.revision)
-    expect(await prepareModCatalogs(saved, loaded.catalogs)).toBe(loaded.catalogs)
+    expect(await prepareModCatalogs(saved, loaded.catalogs)).toEqual(loaded.catalogs)
   })
 
   it('reuses only frozen catalog shapes and checks new snapshots and references on every save', async () => {
@@ -76,7 +108,8 @@ describe('local planner persistence', () => {
     expect(Reflect.set(entity, 'name', 'Synthetic mutation')).toBe(false)
     validateLocalDataForStorage(loaded.localData, loaded.catalogs)
     validateLocalDataForStorage(loaded.localData, loaded.catalogs)
-    expect(parse).not.toHaveBeenCalled()
+    expect(parse).toHaveBeenCalled()
+    expect(parse.mock.calls.every(([input]) => input !== catalog)).toBe(true)
 
     const invalidCatalog = { ...catalog, entities: { ...catalog.entities, [entity.id]: { ...entity, name: 0 as unknown as string } } }
     expect(() => validateLocalDataForStorage(loaded.localData, [invalidCatalog, ...loaded.catalogs.slice(1)])).toThrow('unsupported shape')

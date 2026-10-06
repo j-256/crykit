@@ -105,7 +105,7 @@ const WorldMapView = lazy(() => import('./ui/WorldMapView'))
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 const PAINT_WAIT_FALLBACK_MS = 250
-const INTERACTIVE_PROGRESS_COMMIT = Object.freeze({ showSavingState: false, deferUntilPaint: true })
+const INTERACTIVE_PROGRESS_COMMIT = Object.freeze({ showSavingState: false, deferUntilPaint: true, validateOnCommitOnly: true })
 
 function waitForNextPaint(): Promise<void> {
   return new Promise(resolve => {
@@ -253,7 +253,7 @@ export default function App() {
     })
   }, [loadedData?.localData.id])
 
-  const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean; deferUntilPaint?: boolean } = {}) => {
+  const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean; deferUntilPaint?: boolean; validateOnCommitOnly?: boolean } = {}) => {
     pendingCommitCountRef.current += 1
     if (import.meta.env.DEV) setPendingCommitCount(pendingCommitCountRef.current)
     const run = async () => {
@@ -266,8 +266,12 @@ export default function App() {
       try {
         const nextLocalData = transform(current.localData)
         if (nextLocalData === current.localData) return
-        const catalogs = await prepareModCatalogs(nextLocalData, current.catalogs)
-        validateLocalDataForStorage(nextLocalData, catalogs)
+        // Progress and other planner-only saves keep the same setups, so reuse their expanded catalogs
+        const catalogs = nextLocalData.gameSetups === current.localData.gameSetups
+          ? current.catalogs
+          : await prepareModCatalogs(nextLocalData, current.catalogs)
+        // Immediate progress saves avoid a second full graph walk; persistence validates before writing
+        if (!options.validateOnCommitOnly) validateLocalDataForStorage(nextLocalData, catalogs)
         optimistic = { ...current, catalogs, localData: nextLocalData, revision: nextLocalData.revision }
         loadedDataRef.current = optimistic
         setLoadedData(optimistic)
@@ -429,7 +433,7 @@ export default function App() {
   const toggleQuintarProgress = useCallback(async (stepId: QuintarBreedingStepId) => {
     const playthroughId = loadedDataRef.current?.localData.selectedPlaythroughId
     if (!playthroughId) throw new Error('Select a playthrough before recording quintar progress.')
-    await commitLocalData(localData => toggleQuintarStep(localData, { stepId, playthroughId, expectedRevision: localData.revision }), { rollbackOnFailure: true, showSavingState: false })
+    await commitLocalData(localData => toggleQuintarStep(localData, { stepId, playthroughId, expectedRevision: localData.revision }), { rollbackOnFailure: true, showSavingState: false, validateOnCommitOnly: true })
   }, [commitLocalData])
 
   const toggleSummon = useCallback(async (summonId: SummonId) => {

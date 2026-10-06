@@ -14,14 +14,16 @@ beforeEach(() => { database = new CryKitDatabase(`mod-setup-${crypto.randomUUID(
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 const source = (id = 'synthetic-mod-setup') => new TextEncoder().encode(JSON.stringify({ ID: id, Name: 'Synthetic selectable mod', EditorVersion: 34, Version: '1', Equipment: [{ ID: 9000, Name: 'Synthetic test sword', Type: 0, Hands: 1, StatMods: [] }], Passives: [{ ID: 8000, Name: 'Synthetic innate', IsInnate: true, PP: 2 }], UnknownRoot: { retained: true } }))
 
-it('starts fresh profiles with vanilla and skips once without loading mod sources or changing setups', async () => {
+it('starts fresh profiles with pending mod setup and skips once without changing seeded sources or setups', async () => {
   const original = await loadLocalData()
-  expect(original.catalogs).toEqual([CURRENT_CATALOG])
+  const originalSources = await database.sources.toArray()
+  expect(original.catalogs).toContainEqual(CURRENT_CATALOG)
+  expect(originalSources.length).toBeGreaterThan(0)
   expect(original.localData.modSetup).toEqual({ version: 1, state: 'pending' })
   const skipped = await commitModSetup([], original.revision, true)
   expect(skipped.localData.modSetup?.state).toBe('skipped')
   expect(skipped.localData.gameSetups).toEqual(original.localData.gameSetups)
-  expect(await database.sources.count()).toBe(0)
+  expect(await database.sources.toArray()).toEqual(originalSources)
   expect((await loadLocalData()).localData.modSetup?.state).toBe('skipped')
 })
 
@@ -50,12 +52,14 @@ it('saves source bytes, Reference membership, exact enabled revisions and priori
 
 it('rolls back sources, catalogs and setup together on a save failure, then permits retry and undo', async () => {
   const original = await loadLocalData()
+  const initialSources = await database.sources.count()
+  const initialCatalogs = await database.catalogs.count()
   const preview = await previewCrystalEdit(source(), 'synthetic.json')
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
   await expect(commitModSetup([preview], original.revision)).rejects.toMatchObject({ code: 'storage-failure' })
   expect((await loadLocalData()).localData).toEqual(original.localData)
-  expect(await database.sources.count()).toBe(0)
-  expect(await database.catalogs.count()).toBe(0)
+  expect(await database.sources.count()).toBe(initialSources)
+  expect(await database.catalogs.count()).toBe(initialCatalogs)
   expect(await database.imports.count()).toBe(0)
   const configured = await commitModSetup([preview], original.revision)
   await expect(commitModSetup([], original.revision, true)).rejects.toMatchObject({ code: 'revision-conflict' })
@@ -66,6 +70,7 @@ it('rolls back sources, catalogs and setup together on a save failure, then perm
 
 it('keeps unrelated imported layers when bundled choices are changed later', async () => {
   const original = await loadLocalData()
+  const initialSources = await database.sources.count()
   const preview = await previewCrystalEdit(source(), 'synthetic.json')
   const imported = await commitModSetup([preview], original.revision)
   const previous = imported.localData.gameSetups[imported.localData.planningGameSetupRevisionId!]!
@@ -73,7 +78,7 @@ it('keeps unrelated imported layers when bundled choices are changed later', asy
   const setup = changed.localData.gameSetups[changed.localData.planningGameSetupRevisionId!]!
   expect(setup.modComposition?.layers).toEqual(previous.modComposition?.layers)
   expect(changed.localData.gameSetups[previous.id]).toEqual(previous)
-  expect(await database.sources.count()).toBe(1)
+  expect(await database.sources.count()).toBe(initialSources + 1)
 })
 
 it('preserves old profiles and catalog pins without introducing an onboarding prompt', async () => {
