@@ -177,7 +177,7 @@ test('adopts a whole Team atomically after reviewing characters and shared equip
   await page.getByText('Compare with current loadout', { exact: true }).first().click()
   await expect(page.getByRole('columnheader', { name: 'Recorded now' })).toBeVisible()
   await page.getByText('Check party readiness and shared equipment', { exact: true }).click()
-  await expect(page.getByText('Inventory sufficiency', { exact: true })).toBeVisible()
+  await expect(page.getByText('Shared stock', { exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(before)
   await page.getByRole('checkbox', { name: 'I applied these builds in game', exact: true }).check()
   await failNextSave(page)

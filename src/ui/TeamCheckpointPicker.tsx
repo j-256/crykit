@@ -38,7 +38,6 @@ export function TeamCheckpointPicker({ slotNumber, value, localData, catalogs, d
   const choose = (id: BuildRevisionId | null) => { onChange(id); setOpen(false) }
   return <div className="team-checkpoint-picker">
     <Button aria-label={`Choose checkpoint for Team slot ${slotNumber}`} aria-haspopup="dialog" data-revision-id={value ?? ''} disabled={disabled} icon="search" onClick={() => setOpen(true)} tone="secondary" type="button">{value ? 'Change checkpoint' : 'Choose a build checkpoint'}</Button>
-    <p className="field__hint">{value ? 'This slot keeps its selected checkpoint until you change it.' : 'Search saved checkpoints or create a member below.'}</p>
     <Sheet open={open} title={`Choose checkpoint for Team slot ${slotNumber}`} description="Compare classes and equipment before choosing. Each result is an exact saved checkpoint." initialFocusRef={searchRef} onClose={() => setOpen(false)} footer={value && <Button onClick={() => choose(null)} tone="quiet" type="button">Clear this Team slot</Button>}>
       <div className="team-checkpoint-picker__search">
         <Field label="Search build checkpoints" hint="Search names, classes, commands, equipment, Game Setups, or checkpoint notes."><input autoComplete="off" onChange={event => { setQuery(event.target.value); setLimit(CHECKPOINT_PAGE_SIZE) }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (matching.length === 1) choose(matching[0]!.revision.id) } }} ref={searchRef} type="search" value={query}/></Field>

@@ -54,6 +54,11 @@ function syntheticOverview(): LocalData {
   localData = { ...localData, playthroughs: { ...localData.playthroughs, [playthrough.id]: { ...playthrough, label: 'Synthetic overview', characters: { ...playthrough.characters, [rowan.id]: { ...playthrough.characters[rowan.id]!, currentSnapshotId: CURRENT_SNAPSHOT } } } } }
   localData = createCharacter(localData, { id: asId<CharacterId>('synthetic-neri'), name: 'Synthetic Neri', now: TEST_NOW })
   localData = upsertLearnedNode(localData, { characterId: asId<CharacterId>('synthetic-neri'), ref: personalRef('Synthetic focus'), kind: 'passive', learned: known(true), now: TEST_NOW })
+  for (const name of ['Mira', 'Tavi']) {
+    const member = Object.values(selectedPlaythrough(localData).characters).find(character => character.name === name)!
+    const snapshot = member.snapshots[member.currentSnapshotId!]!
+    localData = captureCharacter(localData, { ...snapshot, characterId: member.id, passives: name === 'Mira' ? { state: 'unknown' } : { state: 'conflicting', claims: [{ value: [personalRef('Synthetic focus')], sources: [] }, { value: [], sources: [] }] }, now: TEST_NOW })
+  }
   const gameSetup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
   localData = addGameSetupRevision(localData, { ...gameSetup, id: undefined, label: 'Different slot context', slots: gameSetup.slots.map(slot => ({ ...slot, label: `Changed ${slot.label}` })), activate: true, now: TEST_NOW })
   return { ...localData, changes: [] }
@@ -67,6 +72,7 @@ async function importLocalData(page: Page, localData: LocalData) {
   })
   const panel = await openData(page)
   await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overview.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
@@ -109,8 +115,21 @@ test('overview preserves the selected snapshot, slot context, knowledge states a
   const passives = rowan.getByRole('region', { name: 'Rowan: recorded passives', exact: true })
   await expect(field(passives, 'Equipped passive 1')).toHaveText('Synthetic focus')
   const mira = page.getByRole('article', { name: 'Mira', exact: true })
+  await expect(mira.getByText('Stats not recorded', { exact: true })).toBeVisible()
+  await expect(mira.getByRole('link', { name: 'Capture stats', exact: true })).toBeVisible()
+  await mira.locator('.roster-unrecorded > summary').filter({ hasText: 'Stats not recorded' }).click()
   await expect(field(mira, 'HP')).toHaveText('Unknown')
+  await expect(mira.getByText('Learning not recorded', { exact: true })).toBeVisible()
+  await expect(mira.getByRole('link', { name: 'Record learning', exact: true })).toBeVisible()
+  await mira.locator('.roster-unrecorded > summary').filter({ hasText: 'Learning not recorded' }).click()
   await expect(field(mira, 'Learned skills')).toHaveText('Unrecorded')
+  const unknownPassives = mira.getByRole('region', { name: 'Mira: recorded passives', exact: true }).locator('p[data-state="unknown"]')
+  await expect(unknownPassives).toHaveText('Unknown')
+  const conflictingPassives = page.getByRole('article', { name: 'Tavi', exact: true }).getByRole('region', { name: 'Tavi: recorded passives', exact: true }).locator('p[data-state="conflicting"]')
+  await expect(conflictingPassives).toHaveText('Conflicting claims')
+  await expect(conflictingPassives).toBeVisible()
+  await expect(conflictingPassives.locator('svg')).toBeVisible()
+  expect(await conflictingPassives.evaluate(element => getComputedStyle(element).color)).not.toBe(await unknownPassives.evaluate(element => getComputedStyle(element).color))
   const neri = page.getByRole('article', { name: 'Synthetic Neri', exact: true })
   await expect(neri.getByText('No snapshot recorded', { exact: true })).toBeVisible()
   await expect(neri).toContainText('Learned skills: 1 confirmed')

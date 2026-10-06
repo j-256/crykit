@@ -1,3 +1,4 @@
+import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -62,7 +63,8 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await expect(buildSetup).not.toHaveAttribute('open')
   await expect(buildSetup.locator(':scope > summary')).toContainText('Enabled: Synthetic bonus profiles')
   await expect(page.getByLabel('Game Setup gender bonuses', { exact: true })).not.toBeVisible()
-  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('Equipment and passive-point checks')
+  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('No known loadout conflicts')
+  await openStatBreakdown(page)
   await expect(page.getByRole('region', { name: 'Class stats', exact: true })).toContainText('Resting stat preview')
   await openGameSetupSection(buildSetup, 'Rules from game data')
   const selectedProfile = page.getByRole('region', { name: 'Selected gender bonuses', exact: true })
@@ -125,6 +127,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const shareUrl = createShareUrl(createSharePayload(localData, { kind: 'build', revisionId: revision.id }), `${baseURL}/`)
   await page.goto(shareUrl)
   const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  await openStatBreakdown(shared)
   await expect(shared.getByText('Gender: Synthetic extra', { exact: true })).toBeVisible()
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
   const offline = await settings(page, 'Offline & storage')
@@ -133,6 +136,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
+  await openStatBreakdown(shared)
   await expect(shared.getByText('Gender: Synthetic extra', { exact: true })).toBeVisible()
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

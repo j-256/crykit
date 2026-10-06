@@ -1,14 +1,15 @@
 import { normalizeWeaponType, WEAPON_TYPES } from '../domain/skill-weapons'
 import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity, nativeRelationships } from '../domain/native-game'
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { entityDefinitionKey, requirePlaythrough } from '../domain'
 import { modListPriority } from '../domain/mods'
 import type { DefinitionModAvailability } from '../catalog/mods'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
-import { Badge, Button, InlineNotice } from './components'
+import { Button, InlineNotice } from './components'
 import { DefinitionEditor, definitionKindLabel, useDefinitionLibrary } from './definitions'
 import { standingReferenceOptions } from './reference-library'
-import { Icon } from './icons'
+import { Icon, type IconName } from './icons'
+import { DefinitionArtwork } from './GameIcon'
 import { routeForSearchTarget, type UniversalSearchTarget } from './search-navigation'
 import { Sheet } from './Sheet'
 import { routeWithOverlay, useNavigation } from './navigation'
@@ -16,10 +17,13 @@ import { ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
 import { starterEntitySourceLabel } from '../catalog/provenance'
 import { NavigationLink } from './NavigationLink'
+import { useNavigationNotice } from './useNavigationNotice'
 
 const UNIVERSAL_RESULT_LIMIT = 60
 const ALL_DEFINITION_KINDS: readonly CatalogEntityKind[] = ['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']
 const OPEN_PARENT_DIALOG_SELECTOR = 'dialog[open]:not([data-universal-search])'
+const BLOCKED_NAVIGATION_MESSAGE = 'Finish or discard the open form before navigating to this result.'
+const SEARCH_TARGET_ICONS: Readonly<Record<UniversalSearchTarget['kind'], IconName>> = Object.freeze({ weaponSkills: 'sword', definition: 'tome', inventory: 'chest', character: 'character', build: 'sword', team: 'team', scenario: 'compare', progress: 'crystal' })
 
 interface UniversalSearchItem {
   readonly key: string
@@ -28,6 +32,8 @@ interface UniversalSearchItem {
   readonly keywords: string
   readonly section: string
   readonly target: UniversalSearchTarget
+  readonly artworkRef?: EntityRef
+  readonly nativeContext?: string
   readonly preferred?: boolean
   readonly modAvailability?: DefinitionModAvailability
 }
@@ -55,10 +61,23 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
   const { localData, options } = useDefinitionLibrary()
   const referenceOptions = useMemo(() => open ? standingReferenceOptions(options, catalogs, localData) : [], [open, options, catalogs, localData])
   const [error, setError] = useState<string>()
+  const { noticeRef, revealNotice } = useNavigationNotice()
   const [createdName, setCreatedName] = useState<string>()
   const [includeOtherSources, setIncludeOtherSources] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+  const restoreFocusRef = useRef(false)
+  useLayoutEffect(() => {
+    if (open) {
+      // Capture the editor control before the search Sheet moves focus into its top layer
+      const focused = document.activeElement
+      returnFocusRef.current = focused instanceof HTMLElement ? focused : null
+    } else if (restoreFocusRef.current) {
+      restoreFocusRef.current = false
+      if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus({ preventScroll: true })
+    }
+  }, [open])
   const searchIndex = navigation.route.overlays.findLastIndex((overlay) => overlay.kind === 'search')
   const searchOverlay = searchIndex >= 0 ? navigation.route.overlays[searchIndex] : undefined
   const query = searchOverlay?.kind === 'search' ? searchOverlay.query : ''
@@ -79,10 +98,10 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
       const catalog = option.ref.kind === 'catalog' ? snapshots.get(JSON.stringify([option.ref.catalogId, option.ref.catalogRevisionId])) : undefined
       const level = option.record.fields.Level
       const location = identity?.database === 'monster' && catalog ? nativeRelationships(catalog, option.record).find(link => link.label === '/LocationBiomeID')?.name : undefined
-      const details = identity ? [identity.database === 'monster' ? level?.state === 'known' ? `Level ${level.value}` : 'Level unresolved' : undefined, location, nativeDefinitionLabel(option.record), `Record #${identity.databaseId}`] : [starterEntitySourceLabel(option.record) ?? option.sourceLabel]
-      return { key: `definition:${option.key}`, title: nativeDisplayName(option.record), subtitle: [definitionKindLabel(option.kind), ...details].filter(Boolean).join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel} ${option.modAvailability?.requiredMod ?? ''}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, preferred: option.preferred, modAvailability: option.modAvailability }
+      const details = identity ? [identity.database === 'monster' ? level?.state === 'known' ? `Level ${level.value}` : 'Level unresolved' : undefined, location, 'Game data'] : [starterEntitySourceLabel(option.record) ?? option.sourceLabel]
+      return { key: `definition:${option.key}`, title: nativeDisplayName(option.record), subtitle: [definitionKindLabel(option.kind), ...details].filter(Boolean).join(' · '), keywords: `${option.aliases.join(' ')} ${option.description ?? ''} ${option.kind} ${option.sourceLabel} ${identity ? `Record #${identity.databaseId} ${nativeDefinitionLabel(option.record)}` : ''} ${option.modAvailability?.requiredMod ?? ''}`, section: 'Definitions', target: { kind: 'definition', ref: option.ref }, artworkRef: option.ref, nativeContext: identity ? [nativeDefinitionLabel(option.record), `Record #${identity.databaseId}`].filter(Boolean).join(' · ') : undefined, preferred: option.preferred, modAvailability: option.modAvailability }
     })
-    const inventory: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).inventory).map((position) => ({ key: `inventory:${position.id}`, title: position.observedName ?? definitionName(localData, names, position.ref), subtitle: 'Inventory observation', keywords: `${position.note ?? ''} ${position.possession}`, section: 'Inventory', target: { kind: 'inventory', positionId: position.id } }))
+    const inventory: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).inventory).map((position) => ({ key: `inventory:${position.id}`, title: position.observedName ?? definitionName(localData, names, position.ref), subtitle: 'Inventory observation', keywords: `${position.note ?? ''} ${position.possession}`, section: 'Inventory', artworkRef: position.ref, target: { kind: 'inventory', positionId: position.id } }))
     const characters: UniversalSearchItem[] = Object.values(requirePlaythrough(localData).characters).map((character) => ({ key: `character:${character.id}`, title: character.name, subtitle: 'Character', keywords: character.appearanceLabel ?? '', section: 'Characters', target: { kind: 'character', characterId: character.id } }))
     const builds: UniversalSearchItem[] = Object.values(localData.builds).map((build) => ({ key: `build:${build.id}`, title: build.title, subtitle: 'Build', keywords: build.tags.join(' '), section: 'Builds & teams', target: { kind: 'build', buildId: build.id } }))
     const teams: UniversalSearchItem[] = Object.values(localData.teams).map(team => ({ key: `team:${team.id}`, title: team.title, subtitle: 'Team', keywords: team.slots.map(id => id ? localData.builds[localData.buildRevisions[id]?.buildId ?? '']?.title ?? '' : '').join(' '), section: 'Builds & teams', target: { kind: 'team', teamId: team.id } }))
@@ -95,15 +114,33 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     const normalizedQuery = normalize(query.trim())
     if (!normalizedQuery) return []
     const tokens = normalizedQuery.split(/\s+/).filter(Boolean)
-    return items.filter((item) => tokens.every((token) => normalize(`${item.title} ${item.subtitle} ${item.keywords}`).includes(token))).sort((left, right) => modListPriority(left.modAvailability) - modListPriority(right.modAvailability) || itemScore(left, normalizedQuery) - itemScore(right, normalizedQuery) || Number(right.preferred ?? true) - Number(left.preferred ?? true) || left.title.localeCompare(right.title) || left.key.localeCompare(right.key)).slice(0, UNIVERSAL_RESULT_LIMIT)
+    const matches = items.filter((item) => tokens.every((token) => normalize(`${item.title} ${item.subtitle} ${item.keywords}`).includes(token))).sort((left, right) => modListPriority(left.modAvailability) - modListPriority(right.modAvailability) || itemScore(left, normalizedQuery) - itemScore(right, normalizedQuery) || Number(right.preferred ?? true) - Number(left.preferred ?? true) || left.title.localeCompare(right.title) || left.key.localeCompare(right.key)).slice(0, UNIVERSAL_RESULT_LIMIT)
+    const labelCounts = new Map<string, number>()
+    for (const item of matches) {
+      const key = JSON.stringify([item.title, item.subtitle])
+      labelCounts.set(key, (labelCounts.get(key) ?? 0) + 1)
+    }
+    // Exact native records can share a name; add context after ranking only when labels collide
+    return matches.map(item => item.nativeContext && (labelCounts.get(JSON.stringify([item.title, item.subtitle])) ?? 0) > 1 ? { ...item, subtitle: `${item.subtitle} · ${item.nativeContext}` } : item)
   }, [items, query])
+  const blockNavigation = () => {
+    setError(BLOCKED_NAVIGATION_MESSAGE)
+    // The open search dialog owns recovery focus while the underlying editor is inert
+    revealNotice()
+  }
+  const closeSearch = () => {
+    setError(undefined)
+    // Route-driven closure removes the dialog before its native close can restore focus
+    restoreFocusRef.current = true
+    if (!navigation.close()) restoreFocusRef.current = false
+  }
   const choose = (target: UniversalSearchTarget) => {
     if (document.querySelector(OPEN_PARENT_DIALOG_SELECTOR)) {
-      setError('Finish or discard the open form before navigating to this result.')
+      blockNavigation()
       return
     }
     const accepted = navigation.navigate(routeForSearchTarget(target))
-    if (!accepted) { setError('Finish or discard the open form before navigating to this result.'); return }
+    if (!accepted) { blockNavigation(); return }
     setError(undefined)
   }
   const focusResult = (direction: 1 | -1, event: KeyboardEvent<HTMLElement>) => {
@@ -115,11 +152,11 @@ export function UniversalSearch({ open, catalogs }: { open: boolean; catalogs: r
     buttons[next]?.focus()
   }
   return <>
-    <Sheet description="Search definitions and this Playthrough's observations and plans." initialFocusRef={searchRef} layer={searchIndex + 1} onClose={() => { setError(undefined); navigation.close() }} open={open} title="Search CryKit" universalSearch width="command"><div className="universal-search"><div className="search-field universal-search__input"><Icon name="search"/><input aria-label="Search CryKit" onChange={(event) => { setQuery(event.target.value); setError(undefined) }} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Definitions, characters, builds, inventory, teams, or progress" ref={searchRef} type="search" value={query}/><kbd>Esc</kbd></div>
+    <Sheet description="Search definitions and this Playthrough's observations and plans." initialFocusRef={searchRef} layer={searchIndex + 1} onClose={closeSearch} open={open} title="Search CryKit" universalSearch width="command"><div className="universal-search"><div className="search-field universal-search__input"><Icon name="search"/><input aria-label="Search CryKit" onChange={(event) => { setQuery(event.target.value); setError(undefined) }} onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event) }} placeholder="Definitions, characters, builds, inventory, teams, or progress" ref={searchRef} type="search" value={query}/><kbd>Esc</kbd></div>
       <label className="check-row universal-search__sources"><input checked={includeOtherSources} onChange={event => setIncludeOtherSources(event.target.checked)} type="checkbox"/><span>Include other sources and mode variants</span></label>
-      {error && <InlineNotice title="Navigation blocked" tone="warning">{error} Your search and open draft remain unchanged.</InlineNotice>}
+      {error && <div aria-label="Resolve search navigation" ref={noticeRef} role="region" tabIndex={-1}><InlineNotice title="Navigation blocked" tone="warning">{error} Your search and open draft remain unchanged.<div className="cluster"><Button icon="arrow-left" onClick={closeSearch} tone="secondary" type="button">Return to editor</Button></div></InlineNotice></div>}
       {createdName && <InlineNotice title="Personal definition created">{createdName} is saved. Select its exact result when you are ready to navigate.</InlineNotice>}
-      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Type a name, weapon type, alias, description, or planner record.</p><small>{catalogs.length} local reference {catalogs.length === 1 ? 'pack' : 'packs'} available</small><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <NavigationLink className="universal-search__result" data-universal-result="true" data-mod-state={item.modAvailability?.requiredMod ? item.modAvailability.state : undefined} key={item.key} route={routeForSearchTarget(item.target)} onNavigate={() => choose(item.target)}><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="universal-search__result-meta">{item.modAvailability?.requiredMod && <ModBadge name={item.modAvailability.requiredMod} state={item.modAvailability.state}/>}<Badge>{item.section}</Badge></span></NavigationLink>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="secondary">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
+      {!query.trim() ? <div className="universal-search__empty"><Icon name="compass"/><p>Search for an item, class, character, Build, or Team.</p><Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet">Create personal definition</Button></div> : <div className="universal-search__results" onKeyDown={(event) => { if (event.key === 'ArrowDown') focusResult(1, event); if (event.key === 'ArrowUp') focusResult(-1, event) }} ref={resultsRef}>{results.map((item) => <NavigationLink className="universal-search__result" data-universal-result="true" data-mod-state={item.modAvailability?.requiredMod ? item.modAvailability.state : undefined} key={item.key} route={routeForSearchTarget(item.target)} onNavigate={() => choose(item.target)}><span aria-hidden="true" className="universal-search__artwork">{item.artworkRef ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={item.artworkRef}/> : <Icon name={SEARCH_TARGET_ICONS[item.target.kind]}/>}</span><span className="universal-search__copy"><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="universal-search__result-meta">{item.modAvailability?.requiredMod && <ModBadge name={item.modAvailability.requiredMod} state={item.modAvailability.state}/>}</span></NavigationLink>)}{results.length === 0 && <InlineNotice title="No matches">Try another term or create a personal definition using this exact search.</InlineNotice>}<Button icon="plus" onClick={() => navigation.navigate(routeWithOverlay(navigation.route, { kind: 'definition-editor', mode: 'new' }))} tone="quiet">Create "{query.trim().slice(0, 80)}"</Button>{results.length === UNIVERSAL_RESULT_LIMIT && <small>Showing the first {UNIVERSAL_RESULT_LIMIT} matches. Refine the search to reach more.</small>}</div>}
     </div></Sheet>
     {creating && <DefinitionEditor allowedKinds={ALL_DEFINITION_KINDS} initialName={query} key={`universal-create:${query}`} onClose={() => navigation.close()} onSaved={() => { const savedName = query.trim() || 'The new definition'; navigation.close(); setCreatedName(savedName); setQuery(savedName) }} open routeIndex={searchIndex + 1}/>}
   </>

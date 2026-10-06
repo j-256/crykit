@@ -26,7 +26,7 @@ export function ScreenHeader({ eyebrow, title, titleSources, description, action
     return () => setUnsavedObject(false)
   }, [active, setUnsavedObject, unsavedObject])
   const header = <header className={`screen-header${workspace ? ' workspace-header' : ''}`} hidden={workspace ? !workspace.active : undefined}>
-    <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<h1 title={title}>{title}</h1>{titleSources}</div>{context}<p className="screen-header__description">{description}</p></div>
+    <div className="workspace-header__identity"><p className="eyebrow">{eyebrow}</p><div className="workspace-header__title">{breadcrumb}<div className="workspace-header__heading" ref={workspace?.setTitleTarget}><h1 title={title}>{title}</h1></div>{titleSources}</div>{context}<p className="screen-header__description">{description}</p></div>
     {(workspace || actions) && <div className="screen-header__actions">{workspace && <span className="workspace-header__primary" ref={workspace.setPrimaryTarget}/>} {actions}</div>}
   </header>
   return workspace ? workspace.target ? createPortal(header, workspace.target) : null : header

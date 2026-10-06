@@ -13,7 +13,7 @@
 .quintar-phase h2 { margin: 0; font-size: 1.05rem; }
 .quintar-phase header p { margin: 5px 0 0; color: var(--text-faint); font-size: .75rem; }
 .quintar-phase header > span { flex-shrink: 0; padding: 5px 10px; color: var(--text-dim); border: 1px solid var(--line); border-radius: var(--radius); font-size: .72rem; }
-.quintar-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.quintar-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; gap: 12px; }
 .quintar-tile { --quintar-color: var(--cyan-300); min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(32, 39, 44, .8); box-shadow: var(--window-edge); }
 .quintar-tile[data-type="Red"] { --quintar-color: #f5a3a3; }
 .quintar-tile[data-type="River"] { --quintar-color: #9cd6bc; }
@@ -23,36 +23,39 @@
 .quintar-tile[data-type="Gold"] { --quintar-color: #ffe09b; }
 .quintar-tile[data-next="true"] { border-color: rgba(123, 216, 243, .55); }
 .quintar-tile[data-complete="true"] { border-color: rgba(155, 183, 121, .75); background: linear-gradient(155deg, rgba(155, 183, 121, .1), rgba(32, 39, 44, .9) 62%); }
-.quintar-tile__toggle { width: 100%; min-height: 210px; display: grid; justify-items: center; align-content: start; gap: 6px; padding: 12px 14px 14px; color: inherit; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: center; cursor: pointer; }
+.quintar-tile__toggle { width: 100%; min-height: 180px; display: grid; justify-items: center; align-content: start; gap: 6px; padding: 12px 14px 14px; color: inherit; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: center; cursor: pointer; }
 .quintar-tile__toggle:hover { background: rgba(123, 216, 243, .055); }
 .quintar-tile__top { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .quintar-tile__number { color: var(--text-faint); font-family: var(--font-menu); font-size: 1.4rem; }
-.quintar-tile__status { color: var(--text-faint); font-size: .65rem; font-weight: 700; }
+.quintar-tile__status { color: var(--text-faint); font-size: .75rem; font-weight: 700; }
 .quintar-tile[data-next="true"] .quintar-tile__status { color: var(--cyan-300); }
 .quintar-tile[data-complete="true"] .quintar-tile__status { color: #c3df9f; }
 .quintar-tile__check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line-strong); background: rgba(23, 29, 34, .8); }
 .quintar-tile__check svg { width: 16px; height: 16px; color: #c3df9f; }
-.quintar-tile__art { display: grid; justify-items: center; align-content: center; gap: 5px; width: 94px; height: 95px; color: var(--quintar-color); opacity: .78; }
+.quintar-tile__art { display: grid; justify-items: center; align-content: center; gap: 5px; width: 94px; height: 75px; color: var(--quintar-color); opacity: .78; }
 .quintar-tile__art > svg { width: 55px; height: 55px; }
-.quintar-tile__art > img { width: 82px; height: 75px; object-fit: contain; image-rendering: pixelated; }
+.quintar-tile__art > img { width: 70px; height: 58px; object-fit: contain; image-rendering: pixelated; }
 .quintar-tile__art > span { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 .quintar-tile[data-complete="true"] .quintar-tile__art { opacity: 1; }
 .quintar-tile__toggle > strong { color: var(--text-dim); font-size: .9rem; line-height: 1.35; }
 .quintar-tile[data-complete="true"] .quintar-tile__toggle > strong { color: var(--ivory-100); }
-.quintar-tile__toggle > small { color: var(--text-faint); font-size: .65rem; }
-.quintar-tile__guide { display: grid; align-content: start; gap: 12px; padding: 14px; color: var(--text-dim); font-size: .73rem; line-height: 1.6; }
+.quintar-tile__toggle > small { color: var(--text-faint); font-size: .75rem; }
+.quintar-tile__instructions > summary { padding: 12px 14px; cursor: pointer; color: var(--text-dim); font-size: .82rem; font-weight: 650; }
+.quintar-tile__guide { display: grid; align-content: start; gap: 12px; padding: 0 14px 14px; color: var(--text-dim); font-size: .85rem; line-height: 1.6; }
 .quintar-tile__guide p { margin: 0; }
 .quintar-tile__pair { display: grid; gap: 0; justify-items: center; padding: 9px; border: 1px solid var(--line); background: rgba(23, 29, 34, .5); }
 .quintar-tile__pair strong { color: var(--text); }
 .quintar-tile__pair > span { color: var(--text-faint); }
 .quintar-tile__races { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--line); }
-.quintar-tile__races > span { color: var(--text-faint); font-size: .62rem; font-weight: 700; text-transform: uppercase; }
+.quintar-tile__races > span { display: flex; align-items: center; gap: .4rem; color: var(--quintar-color); font-size: .8rem; font-weight: 700; }
+.quintar-tile__races > span svg, .quintar-tile__keep > svg { width: 18px; height: 18px; flex: 0 0 18px; }
 .quintar-tile__races p { display: grid; gap: 1px; }
-.quintar-tile__races p > span { font-size: .69rem; }
+.quintar-tile__races p > span { font-size: .82rem; }
+.quintar-tile__keep { display: flex; align-items: start; gap: .4rem; padding: .5rem; border-left: 2px solid #c3df9f; background: rgba(155, 183, 121, .08); }
 .quintar-tile__keep strong { color: #c3df9f; }
 .quintar-tile__release { color: var(--text-faint); }
-.quintar-tile__missing { color: #e7bd80; font-size: .67rem; }
-.quintar-tile__refs { display: flex; flex-wrap: wrap; gap: 4px 9px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .68rem; }
+.quintar-tile__missing { color: var(--text-faint); font-size: .8rem; }
+.quintar-tile__refs { display: flex; flex-wrap: wrap; gap: 4px 9px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .82rem; }
 .quintar-tile__refs > span { color: var(--text-faint); font-weight: 700; }
 .quintar-tile__refs a { color: var(--cyan-300); text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 650px) {
@@ -61,12 +64,12 @@
   .quintar-summary__copy > strong { font-size: .9rem; }
   .quintar-summary__next p { grid-column: 1 / -1; }
   .quintar-summary__next .button { grid-row: 1; width: 90px; padding-inline: 8px; white-space: normal; }
-  .quintar-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .quintar-tile__toggle { min-height: 216px; padding-inline: 8px; }
+  .quintar-board { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .quintar-tile__toggle { min-height: 170px; padding-inline: 12px; }
   .quintar-tile__top { gap: 4px; }
-  .quintar-tile__guide { padding: 10px; font-size: .7rem; }
+  .quintar-tile__guide { padding: 0 12px 12px; }
   .quintar-tile__number { font-size: 1.2rem; }
-  .quintar-tile__status { font-size: .58rem; }
+  .quintar-tile__status { font-size: .75rem; }
   .quintar-phase > header { align-items: flex-start; }
 }
 @media (max-width: 350px) {

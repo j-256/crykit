@@ -1,3 +1,4 @@
+import { openCalculationSources } from './calculation-presentation-helpers'
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import { skipInitialModSetup, createBlankPlaythrough } from './local-data-helpers'
@@ -12,6 +13,7 @@ test('the first expanded package export works offline without loading it at star
   await createBlankPlaythrough(page)
   await page.goto('/#/builds/library/new')
   const button = page.getByRole('button', { name: 'Export calculation package', exact: true })
+  await openCalculationSources(page)
   await expect(button).toBeVisible()
   expect(
     await page.evaluate(() =>
@@ -32,6 +34,7 @@ test('the first expanded package export works offline without loading it at star
   await context.setOffline(true)
   await page.reload()
   const download = page.waitForEvent('download')
+  await openCalculationSources(page)
   await button.click()
   const file = await download
   expect(file.suggestedFilename()).toBe('crystal-project-calculations-pc-1.6.9-package-v3.json')
@@ -72,6 +75,7 @@ test.describe('failed package downloads', () => {
     const button = page.getByRole('button', { name: 'Export calculation package', exact: true })
     const level = page.getByLabel('Calculation level', { exact: true })
     await level.fill('20')
+    await openCalculationSources(page)
     await button.click()
     await expect(page.getByRole('alert')).toContainText(/fetch|load|import/i)
     await expect(
@@ -86,6 +90,7 @@ test.describe('failed package downloads', () => {
     await page.unroute(packageUrl)
     await page.reload()
     const download = page.waitForEvent('download')
+    await openCalculationSources(page)
     await button.click()
     expect((await download).suggestedFilename()).toBe(
       'crystal-project-calculations-pc-1.6.9-package-v3.json',

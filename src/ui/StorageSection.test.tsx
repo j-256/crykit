@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createBlankLocalData } from '../domain'
 import type { OfflineStatus } from '../offline'
 import { NavigationProvider, useNavigationController } from './navigation'
-import { StorageSection } from './StorageSection'
+import { APP_REFRESH_PENDING_MESSAGE, StorageSection } from './StorageSection'
 
-const refresh = vi.hoisted(() => vi.fn(async () => undefined))
+const refresh = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => undefined))
 
 vi.mock('../offline', () => ({
   activateOfflineUpdate: vi.fn(),
@@ -25,11 +25,13 @@ type Props = Parameters<typeof StorageSection>[0]
 
 function Harness(props: Props) {
   const navigation = useNavigationController()
-  return <NavigationProvider controller={navigation}><StorageSection {...props}/></NavigationProvider>
+  return <NavigationProvider controller={navigation}><StorageSection {...props}/><button onClick={() => navigation.navigate({ page: { page: 'inventory', view: 'list' }, overlays: [], query: {} })}>Leave storage</button></NavigationProvider>
 }
 
 let container: HTMLDivElement
 let root: Root
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+const scrollIntoView = vi.fn()
 
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -38,6 +40,7 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
 })
 
 afterEach(async () => {
@@ -45,6 +48,8 @@ afterEach(async () => {
   container.remove()
   vi.clearAllMocks()
   vi.unstubAllEnvs()
+  if (originalScrollIntoView) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView)
+  else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView
 })
 
 async function render(props: Partial<Props> = {}) {
@@ -84,5 +89,37 @@ describe('development preview refresh controls', () => {
     expect(container.textContent).toContain('Refresh the app files and reload this tab.')
     expect(container.textContent).toContain('A connection is required.')
     expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('reveals repeated blocked navigation without abandoning or completing a pending refresh', async () => {
+    let completeRefresh!: () => void
+    const pendingRefresh = new Promise<void>(resolve => { completeRefresh = resolve })
+    refresh.mockImplementationOnce(() => pendingRefresh)
+    const onReloadingChange = vi.fn()
+    const refreshButton = await render({ onReloadingChange })
+    const leaveButton = [...container.querySelectorAll('button')].find(button => button.textContent === 'Leave storage')!
+    const originalHash = window.location.hash
+
+    await act(async () => refreshButton.click())
+    expect(onReloadingChange.mock.calls).toEqual([[true]])
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      leaveButton.focus()
+      await act(async () => leaveButton.click())
+      const notice = container.querySelector<HTMLDivElement>('[aria-label="Storage navigation warning"]')!
+      expect(document.activeElement).toBe(notice)
+      expect(notice.textContent).toContain('App refresh is still in progress')
+      expect(notice.textContent).toContain(APP_REFRESH_PENDING_MESSAGE)
+      expect(notice.textContent).not.toContain('Storage operation failed')
+      expect(window.location.hash).toBe(originalHash)
+      expect(onReloadingChange.mock.calls).toEqual([[true]])
+      expect(refresh).toHaveBeenCalledTimes(1)
+    }
+    expect(scrollIntoView).toHaveBeenCalledTimes(2)
+
+    await act(async () => { completeRefresh(); await pendingRefresh })
+    expect(onReloadingChange.mock.calls).toEqual([[true], [false]])
+    expect(window.location.hash).toBe(originalHash)
+    await act(async () => leaveButton.click())
+    expect(window.location.hash).not.toBe(originalHash)
   })
 })

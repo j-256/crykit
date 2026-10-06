@@ -13,7 +13,8 @@ describe('Team review', () => {
     const markup = renderToStaticMarkup(<TeamReview catalogs={[]} localData={data} saved slots={slots}/>)
     expect(markup).toContain('Saved draft Team')
     expect(markup).toContain('1/4 slots filled')
-    expect(markup).toContain('Equipment slots may be intentionally empty')
+    expect(markup).toContain('member still needs')
+    expect(markup).toContain('Empty slots do not prevent saving a Team')
   })
 
   it('counts both hands occupied by a two-handed weapon while retaining unresolved checks', () => {
@@ -39,7 +40,8 @@ describe('Team review', () => {
     const markup = renderToStaticMarkup(<TeamReview catalogs={[]} localData={data} saved slots={[id, id, id, id]}/>)
     expect(markup).toContain('Saved Team')
     expect(markup).not.toContain('draft Team')
-    expect(markup).toContain('4/4 selected members have a class')
+    expect(markup).not.toContain('still needs')
+    expect(markup).toContain('No known build issues')
     expect(markup).toContain('Slot 4:')
     expect(markup).toContain('Review empty equipment slots')
   })

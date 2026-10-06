@@ -17,8 +17,16 @@ describe('Build draft and compatibility feedback', () => {
     const markup = renderToStaticMarkup(<BuildValidity hasPrimaryClass report={{ ...report, status: 'valid', issues: [] }}/>)
     expect(markup).toContain('data-status="valid"')
     expect(markup).toContain('No known loadout conflicts')
-    expect(markup).toContain('Equipment and passive-point checks')
-    expect(markup).toContain('Stat calculation coverage is shown with the totals')
+    expect(markup).not.toContain('Equipment and passive-point checks')
+    expect(markup).not.toContain('validation-issues')
     expect(markup).not.toContain('draft')
+  })
+
+  it('keeps actionable conflicts and their review controls expanded', () => {
+    const markup = renderToStaticMarkup(<BuildValidity fieldLabels={{ body: 'Body' }} onReviewField={() => undefined} report={{ ...report, status: 'invalid', issues: [{ code: 'EQUIPMENT_PERMISSION', status: 'invalid', message: 'This class cannot equip the selected armor', slotId: 'body' }] }}/>)
+    expect(markup).toContain('Build needs changes')
+    expect(markup).toContain('This class cannot equip the selected armor')
+    expect(markup).toContain('Review Body')
+    expect(markup).toContain('Equipment and passive-point checks')
   })
 })

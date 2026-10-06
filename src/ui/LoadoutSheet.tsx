@@ -61,8 +61,8 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
       {showStats && <details className="loadout-stats" open ref={statsSection} tabIndex={-1}>
         <summary>Stats & growth</summary>
         <div className="stack">
-          <BuildStatsOverview gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onCalculationChange={onCalculationChange} onReviewGameSetup={onReviewGameSetup} slots={slots} unknownPrimaryClass={unknownPrimaryClass} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
           <CalculatedStats gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onChange={onCalculationChange} onReviewGameSetup={onReviewGameSetup} recorded={recorded} slots={slots} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
+          <details className="loadout-stat-breakdown"><summary>Class growth and stat breakdown</summary><BuildStatsOverview gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onReviewGameSetup={onReviewGameSetup} slots={slots} unknownPrimaryClass={unknownPrimaryClass} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/></details>
         </div>
       </details>}
     </> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">
