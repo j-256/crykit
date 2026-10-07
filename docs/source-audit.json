@@ -426,6 +426,20 @@
       },
       "reasons": []
     },
+    "https://archive.ubuntu.com/ubuntu/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        ".github/workflows/deploy.yml"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://cdn.discordapp.com/attachments/810002093250838551/961697401360490536/unknown.png": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
