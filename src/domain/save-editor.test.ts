@@ -7,6 +7,7 @@ import { resolveSaveEditorMods } from './save-editor-mods'
 
 const NOW = new Date('2026-01-02T03:04:05Z')
 const catalog = SAVE_EDITOR_CATALOG
+const LEVEL_CAP_ASSIST_FLAG = 128
 function doc(value: BsonValue | undefined): BsonDocument { if (value?.type !== 'document') throw new Error('Expected document'); return value }
 function arr(value: BsonValue | undefined): BsonValue[] { if (value?.type !== 'array') throw new Error('Expected array'); return value.value }
 function num(value: BsonValue | undefined): number { if (value?.type !== 'int32') throw new Error('Expected integer'); return value.value }
@@ -367,13 +368,95 @@ describe('browser-local save editing', () => {
     flag(save, 'NoSubJob')
     flag(save, 'NoAssistOptions')
     expect(editSave(save, catalog, { type: 'member', index: 0, name: 'Avery', jobId: 0, subJobId: 4 }, NOW).header.members[0]?.name).toBe('Avery')
-    expect(() => editSave(save, catalog, { type: 'member', index: 0, jobId: 4 }, NOW)).toThrow('challenge')
-    expect(() => editSave(save, catalog, { type: 'member', index: 0, subJobId: null }, NOW)).toThrow('challenge')
-    expect(() => editSave(save, catalog, { type: 'overpowered' }, NOW)).toThrow('challenge')
+    expect(() => editSave(save, catalog, { type: 'member', index: 0, jobId: 4 }, NOW)).toThrowError(new Error('This challenge prevents that class change'))
+    expect(() => editSave(save, catalog, { type: 'member', index: 0, subJobId: null }, NOW)).toThrowError(new Error('This challenge prevents that class change'))
+    expect(() => editSave(save, catalog, { type: 'overpowered' }, NOW)).toThrowError(new Error('This save disables assist options. Setting level 99 above the current cap of 60 requires the level-cap assist.'))
     expect(inspectSave(save, catalog).currency).toBe(123)
     flag(save, 'MaxLevelDown')
     doc(save.party.value.GameplayFlags).value.MaxLevelDownVal = { type: 'int32', value: 10 }
-    expect(() => editSave(save, catalog, { type: 'member', index: 0, level: 11 }, NOW)).toThrow('challenge')
+    expect(() => editSave(save, catalog, { type: 'member', index: 0, level: 11 }, NOW)).toThrowError(new Error("This save's maximum-level challenge limits characters to level 10. Level 11 is not allowed."))
+  })
+
+  it.each([false, true])('enforces a level-59 challenge before assist restrictions when NoAssistOptions is %s', noAssistOptions => {
+    const fixture = createSaveEditorFixture()
+    flag(fixture, 'MaxLevelDown')
+    const gameplay = doc(fixture.party.value.GameplayFlags)
+    gameplay.value.MaxLevelDownVal = { type: 'int32', value: 59 }
+    gameplay.value.NoAssistOptions = { type: 'boolean', value: noAssistOptions }
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, levelCap: 59, levelCapCanBeRaised: false, assistEnabled: false })
+
+    const permitted = editSave(original, catalog, { type: 'member', index: 0, level: 59 }, NOW)
+    expect(inspectSave(permitted, catalog)).toMatchObject({ levelCap: 59, levelCapCanBeRaised: false, assistEnabled: false, members: [{ level: 59 }, {}, {}, {}] })
+    expect(permitted.header.assistFlags & LEVEL_CAP_ASSIST_FLAG).toBe(0)
+    expect(doc(permitted.party.value.GameplayFlags).value.MaxLevelDown).toEqual({ type: 'boolean', value: true })
+    expect(doc(permitted.party.value.GameplayFlags).value.NoAssistOptions).toEqual({ type: 'boolean', value: noAssistOptions })
+
+    expect(() => editSave(original, catalog, { type: 'member', index: 0, level: 60 }, NOW)).toThrowError(new Error("This save's maximum-level challenge limits characters to level 59. Level 60 is not allowed."))
+    expect(() => editSave(original, catalog, { type: 'member', index: 0, name: 'Avery', level: 60 }, NOW)).toThrowError(new Error("This save's maximum-level challenge limits characters to level 59. Level 60 is not allowed."))
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+    expect(() => editSave(original, catalog, { type: 'overpowered' }, NOW)).toThrowError(new Error("This save's maximum-level challenge limits characters to level 59. Level 99 is not allowed."))
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+    expect(original.originalBytes).toEqual(bytes)
+  })
+
+  it('allows level 60 with assists disabled and rejects higher levels without mutating the source', () => {
+    const fixture = createSaveEditorFixture()
+    flag(fixture, 'NoAssistOptions')
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, levelCap: 60, levelCapCanBeRaised: false, assistEnabled: false })
+    const permitted = editSave(original, catalog, { type: 'member', index: 0, level: 60 }, NOW)
+    expect(inspectSave(permitted, catalog)).toMatchObject({ levelCap: 60, levelCapCanBeRaised: false, assistEnabled: false, members: [{ level: 60 }, {}, {}, {}] })
+    expect(permitted.header.assistFlags & LEVEL_CAP_ASSIST_FLAG).toBe(0)
+    expect(() => editSave(original, catalog, { type: 'member', index: 0, name: 'Avery', level: 61 }, NOW)).toThrowError(new Error('This save disables assist options. Setting level 61 above the current cap of 60 requires the level-cap assist.'))
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+    expect(() => editSave(original, catalog, { type: 'overpowered' }, NOW)).toThrowError(new Error('This save disables assist options. Setting level 99 above the current cap of 60 requires the level-cap assist.'))
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+    expect(original.originalBytes).toEqual(bytes)
+  })
+
+  it('enables the level-cap assist when an unrestricted character advances from level 60 to 61', () => {
+    const atCap = editSave(createSaveEditorFixture(), catalog, { type: 'member', index: 0, level: 60 }, NOW)
+    const before = structuredClone(atCap)
+    expect(inspectSave(atCap, catalog)).toMatchObject({ levelCap: 60, levelCapCanBeRaised: true, assistEnabled: false })
+    const raised = editSave(atCap, catalog, { type: 'member', index: 0, level: 61 }, NOW)
+    expect(inspectSave(raised, catalog)).toMatchObject({ editable: true, levelCap: 61, levelCapCanBeRaised: true, assistEnabled: true, members: [{ level: 61 }, {}, {}, {}] })
+    expect(raised.header.members[0]?.level).toBe(61)
+    expect(raised.header.assistFlags & LEVEL_CAP_ASSIST_FLAG).toBe(LEVEL_CAP_ASSIST_FLAG)
+    expect(doc(raised.party.value.GameplayFlags).value.MaxLevelUp).toEqual({ type: 'boolean', value: true })
+    expect(doc(raised.party.value.GameplayFlags).value.MaxLevelUpVal).toEqual({ type: 'int32', value: 61 })
+    expect(atCap).toEqual(before)
+  })
+
+  it('permits an unrelated name edit when the saved level already exceeds the challenge cap', () => {
+    const fixture = editSave(createSaveEditorFixture(), catalog, { type: 'member', index: 0, level: 60 }, NOW)
+    flag(fixture, 'MaxLevelDown')
+    flag(fixture, 'NoAssistOptions')
+    doc(fixture.party.value.GameplayFlags).value.MaxLevelDownVal = { type: 'int32', value: 59 }
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, levelCap: 59, levelCapCanBeRaised: false, members: [{ level: 60 }, {}, {}, {}] })
+    for (const command of [
+      { type: 'member' as const, index: 0, name: 'Avery' },
+      { type: 'member' as const, index: 0, name: 'Avery', level: 60 },
+    ]) {
+      const named = editSave(original, catalog, command, NOW)
+      expect(named.header.members[0]).toMatchObject({ name: 'Avery', level: 60 })
+      expect(named.members[0]?.value.Levels).toEqual(original.members[0]?.value.Levels)
+      expect(named.party).toEqual(original.party)
+      expect(named.header.assistFlags).toBe(original.header.assistFlags)
+    }
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
   })
 
   it('preserves growth allocation when raising levels and uses native removal order when lowering', () => {
@@ -399,7 +482,8 @@ describe('browser-local save editing', () => {
     expect(summary.editable).toBe(true)
     expect(summary.currency).toBe(SAVE_EDITOR_MAX_CURRENCY)
     expect(summary.levelCap).toBe(99)
-    expect(edited.header.assistFlags & 128).toBe(128)
+    expect(summary.levelCapCanBeRaised).toBe(false)
+    expect(edited.header.assistFlags & LEVEL_CAP_ASSIST_FLAG).toBe(LEVEL_CAP_ASSIST_FLAG)
     for (const [index, member] of summary.members.entries()) {
       expect(member).toMatchObject({ level: 99, unlockedJobs: 24, masteredJobs: 24, learnedAbilities: 253, learnedPassives: 60 })
       expect(edited.members[index]?.value.Equipment).toEqual(save.members[index]?.value.Equipment)
@@ -451,14 +535,14 @@ describe('browser-local save editing', () => {
       (save: CrystalSave) => { arr(doc(save.members[0]?.value.Passives).value.Passives).push({ type: 'int32', value: 90_000 }) },
       (save: CrystalSave) => { doc(save.members[0]?.value.Passives).value.CurrentPP = { type: 'int32', value: 8 } },
       (save: CrystalSave) => { arr(doc(save.members[0]?.value.Levels).value.Entries)[0] = { type: 'int32', value: 4 } },
-      (save: CrystalSave) => { flag(save, 'NoAssistOptions'); flag(save, 'MaxLevelUp'); doc(save.party.value.GameplayFlags).value.MaxLevelUpVal = { type: 'int32', value: 99 }; save.header.assistFlags |= 128 },
-      (save: CrystalSave) => { flag(save, 'MaxLevelUp'); doc(save.party.value.GameplayFlags).value.MaxLevelUpVal = { type: 'int32', value: 59 }; save.header.assistFlags |= 128 },
-      (save: CrystalSave) => { save.header.assistFlags |= 128 },
+      (save: CrystalSave) => { flag(save, 'NoAssistOptions'); flag(save, 'MaxLevelUp'); doc(save.party.value.GameplayFlags).value.MaxLevelUpVal = { type: 'int32', value: 99 }; save.header.assistFlags |= LEVEL_CAP_ASSIST_FLAG },
+      (save: CrystalSave) => { flag(save, 'MaxLevelUp'); doc(save.party.value.GameplayFlags).value.MaxLevelUpVal = { type: 'int32', value: 59 }; save.header.assistFlags |= LEVEL_CAP_ASSIST_FLAG },
+      (save: CrystalSave) => { save.header.assistFlags |= LEVEL_CAP_ASSIST_FLAG },
     ]
     for (const mutate of cases) {
       const save = createSaveEditorFixture()
       mutate(save)
-      expect(inspectSave(save, catalog).editable).toBe(false)
+      expect(inspectSave(save, catalog)).toMatchObject({ editable: false, levelCapCanBeRaised: false })
       expect(() => editSave(save, catalog, { type: 'currency', value: 456 }, NOW)).toThrow()
     }
   })
