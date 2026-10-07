@@ -1513,6 +1513,8 @@ select option[data-mod-state]:not([data-mod-state="enabled"]) { color: var(--tex
   .context-bar .workspace-header__identity { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
   .context-bar .workspace-header__title { flex: 1; }
   .context-bar .workspace-header h1 { font-size: var(--menu-size-compact); }
+  /* Static titles wrap beside breadcrumbs; portaled Build inputs keep their compact controls */
+  .context-bar .workspace-header__heading > h1 { width: auto; overflow-wrap: anywhere; white-space: normal; }
   .context-bar .workspace-header__title > .button { min-height: 44px; padding-inline: 6px; }
   .context-bar .workspace-header .screen-header__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; width: 100%; gap: 6px; }
   .context-bar .workspace-header .screen-header__actions > .button, .context-bar .workspace-header__primary > .button { padding-inline: 8px; font-size: .7rem; }
