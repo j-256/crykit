@@ -1,7 +1,7 @@
 import { nativeDescription } from '../catalog/native-description'
 import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
-import { nativeDefinitionLabel, nativeDisplayDescription, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
+import { nativeDefinitionLabel, nativeDisplayDescription, nativeGameplayScopeLabel, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import { effectText } from '../domain/mechanics-facts'
 import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
 import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
@@ -210,7 +210,7 @@ export function nativeStatSourceNotice(record: Definition): string | undefined {
     const fact = numericSummaryFact(line)
     return fact && native.some(candidate => sameStat(candidate, fact) && candidate.value !== fact.value)
   })
-  return differs ? `Source stat values differ; Windows ${NATIVE_GAME_DATA.source.gameVersion} values shown. Original claims are in provenance.` : undefined
+  return differs ? `Source stat values differ; ${nativeGameplayScopeLabel(NATIVE_GAME_DATA.source.platform, NATIVE_GAME_DATA.source.gameVersion)} values shown. Original claims are in provenance.` : undefined
 }
 
 export function definitionChoiceSourceLabel(option: DefinitionOption): string {

@@ -58,7 +58,8 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   let source = 'PC 1.6.9 game data'
   let configIssues: string[] = []
   const issues: string[] = []
-  if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`Native Windows PC calculations do not establish parity for ${setup.platform.value}.`)
+  // Recorded Game Setup applicability is separate from the verified Windows/macOS gameplay comparison
+  if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`The calculation rules package has no recorded Game Setup applicability for ${setup.platform.value}.`)
   if (setup?.gameVersion?.state === 'known' && !SUPPORTED_PC_CALCULATION_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
   const unboundNames = setup?.mods?.state === 'known' ? setup.mods.value.filter(name => {
     const projects = [...new Set(BUNDLED_MOD_LIBRARY.filter(mod => mod.catalogNames?.some(alias => normalizeModName(alias) === normalizeModName(name))).map(mod => mod.id))]

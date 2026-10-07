@@ -141,7 +141,7 @@ describe('build choice evidence', () => {
     const lines = selectionSummaryLines(shoes)
     expect(lines.filter(line => /Dexterity/.test(line))).toEqual(['Dexterity: +14'])
     expect(lines.filter(line => /Agility/.test(line))).toEqual(['Agility: +16'])
-    expect(nativeStatSourceNotice(shoes.record)).toContain('Source stat values differ; Windows 1.6.9 values shown')
+    expect(nativeStatSourceNotice(shoes.record)).toContain('Source stat values differ; PC 1.6.9.0 values shown')
     expect(selectionSummaryLines(beads).filter(line => /Defense|Resistance/.test(line))).toEqual(['Defense: +20', 'Resistance: +20'])
     expect(JSON.stringify(shoes.record)).toBe(original)
   })
@@ -150,6 +150,7 @@ describe('build choice evidence', () => {
     const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
     const early = bundled.find(value => value.name === "Cleric's Robe")!
     const late = bundled.find(value => value.name === 'Cleric Robe')!
+    expect(definitionChoiceSourceLabel(early)).toContain('PC 1.6.9.0 · base database')
     expect(definitionChoiceSourceLabel(early)).toContain('equipment 123 · level 36')
     expect(definitionChoiceSourceLabel(late)).toContain('equipment 547 · level 60')
     expect(selectionSummaryLines(early)).toEqual(expect.arrayContaining(['Defense: +28', 'Resistance: +115', 'Spirit: +36']))

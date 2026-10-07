@@ -118,7 +118,7 @@ test('a build draft survives a map research detour without allowing an unrelated
   await page.goto('/#/builds/library/new')
   const equipment = page.getByRole('combobox', { name: 'Main hand', exact: true })
   await equipment.fill('Iron Sword')
-  await page.getByRole('listbox', { name: 'Choose Main hand', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Main hand', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
   await expect(equipment).toHaveValue('Iron Sword')
   await page.getByRole('button', { name: 'World Map', exact: true }).filter({ visible: true }).click()
   await expectTerrain(page)

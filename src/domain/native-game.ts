@@ -10,6 +10,9 @@ export const NATIVE_SNAPSHOT_SCHEMA = 1
 const MAX_NATIVE_JSON_NODES = 2_000_000
 const MAX_NATIVE_JSON_DEPTH = 64
 const MAX_NATIVE_RECORDS = 20_000
+const VERIFIED_PC_GAME_VERSION = '1.6.9.0'
+const VERIFIED_PC_SOURCE_VERSIONS = new Set(['1.6.9', VERIFIED_PC_GAME_VERSION])
+const VERIFIED_PC_SOURCE_PLATFORMS = new Set(['Windows', 'macOS'])
 export const NATIVE_ENUM_TYPES = ['ActionConditionEval', 'ActionConditionGroup', 'ActionConditionVar', 'ElementType', 'EquipmentType', 'ItemSpecialBonus', 'SangAbilityAttribute', 'SangAbilityModTag', 'SangAbilityScope', 'SangAbilityTarget', 'SangJobLearnNodeType', 'SangMonsterCategory', 'SangSparkAreaShape', 'SangStatModTag', 'SangStatusCategory', 'SwimType'] as const
 export const NATIVE_FAMILIES = Object.freeze({ ability: 'ability', actor: 'other', biome: 'location', difficulty: 'other', equipment: 'item', gender: 'other', item: 'item', job: 'class', monster: 'monster', passive: 'passive', recipe: 'recipe', spark: 'other', status: 'status', troop: 'other' } satisfies Record<string, CatalogEntityKind>)
 export type NativeFamily = keyof typeof NATIVE_FAMILIES
@@ -71,11 +74,20 @@ export function nativeIdentity(entity: Pick<CatalogEntity, 'fields'> & Partial<P
     ? { database: value.database, databaseId: value.databaseId, mode: value.mode } : undefined
 }
 
+export function nativeGameplayScopeLabel(platform: string | undefined, version: string | undefined): string {
+  // The compared 1.6.9.0 Windows/macOS gameplay baseline shares this display scope
+  // Keep extraction identities and applicability checks separate from presentation
+  if (platform && version && VERIFIED_PC_SOURCE_PLATFORMS.has(platform) && VERIFIED_PC_SOURCE_VERSIONS.has(version)) return `PC ${VERIFIED_PC_GAME_VERSION}`
+  return `${platform ?? 'Platform unresolved'} ${version ?? '(version unresolved)'}`
+}
+
 export function nativeDefinitionLabel(entity: Pick<CatalogEntity, 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>): string | undefined {
   const identity = nativeIdentity(entity)
   if (!identity) return undefined
+  const platform = entity.fields['Game platform']
   const version = entity.fields['Game version']
-  return `Windows ${version?.state === 'known' && typeof version.value === 'string' ? version.value : '(version unresolved)'} · ${identity.mode === 'base' ? 'base database' : `${identity.mode} mode`}`
+  const scope = nativeGameplayScopeLabel(platform?.state === 'known' && typeof platform.value === 'string' ? platform.value : undefined, version?.state === 'known' && typeof version.value === 'string' ? version.value : undefined)
+  return `${scope} · ${identity.mode === 'base' ? 'base database' : `${identity.mode} mode`}`
 }
 
 export function nativeDisplayName(entity: Pick<CatalogEntity, 'name' | 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>, name = entity.name): string {
@@ -83,18 +95,20 @@ export function nativeDisplayName(entity: Pick<CatalogEntity, 'name' | 'fields'>
   return identity && identity.mode !== 'base' ? `${name} (${identity.mode} mode)` : name
 }
 
-function nativeRecordSummary(family: NativeFamily, record: NativeRecord, version: string, mode: string, modeTerm = 'override'): string {
+function nativeRecordSummary(family: NativeFamily, record: NativeRecord, version: string, mode: string, modeTerm = 'override', scope = `Windows ${version}`): string {
   const modeLabel = mode === 'base' ? 'base database' : `${mode} ${modeTerm}`
-  return family === 'monster' ? `Windows ${version} ${modeLabel}; level ${record.Level ?? 'unknown'}. Includes raw stats, rewards, loot, and action conditions.` : `Windows ${version} ${FAMILY_LABELS[family].toLowerCase()} ${modeLabel}.`
+  return family === 'monster' ? `${scope} ${modeLabel}; level ${record.Level ?? 'unknown'}. Includes raw stats, rewards, loot, and action conditions.` : `${scope} ${FAMILY_LABELS[family].toLowerCase()} ${modeLabel}.`
 }
 
 export function nativeDisplayDescription(entity: Pick<CatalogEntity, 'rawDescription' | 'fields'> & Partial<Pick<CatalogEntity, 'legacy'>>): string | undefined {
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
+  const platform = entity.fields['Game platform']
   const version = entity.fields['Game version']
   if (identity && Object.hasOwn(NATIVE_FAMILIES, identity.database) && record && version?.state === 'known' && typeof version.value === 'string') {
     const family = identity.database as NativeFamily
-    if (entity.rawDescription === nativeRecordSummary(family, record, version.value, identity.mode)) return nativeRecordSummary(family, record, version.value, identity.mode, 'mode')
+    // Rewrite only our generated summary so custom descriptions and stored provenance survive
+    if (entity.rawDescription === nativeRecordSummary(family, record, version.value, identity.mode)) return nativeRecordSummary(family, record, version.value, identity.mode, 'mode', nativeGameplayScopeLabel(platform?.state === 'known' && typeof platform.value === 'string' ? platform.value : undefined, version.value))
   }
   return entity.rawDescription
 }
@@ -111,7 +125,7 @@ export function nativeScopeUncertainty(catalog: Pick<CatalogSnapshot, 'legacy'>,
   const versionDiffers = setup.gameVersion.state === 'known' && setup.gameVersion.value !== source.gameVersion
   if (!platformDiffers && !versionDiffers) return undefined
   const context = [setup.platform.state === 'known' ? setup.platform.value : undefined, setup.gameVersion.state === 'known' ? setup.gameVersion.value : undefined].filter(Boolean).join(' ')
-  return `Equivalence between ${source.platform} ${source.gameVersion} game data and ${context} is unresolved`
+  return `Game Setup applicability has not been recorded for ${context}. Reference facts retain the pinned ${nativeGameplayScopeLabel(source.platform, source.gameVersion)} source scope.`
 }
 
 function label(key: string): string {
