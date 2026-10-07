@@ -1,11 +1,6 @@
 .mod-inspector { display: grid; gap: 16px; min-width: 0; }
 .mod-inspector p { color: var(--text-dim); }
 .mod-inspector .screen-header { margin-bottom: 0; }
-.inspector-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--line-strong); }
-.inspector-tabs [role="tab"] { min-height: 44px; padding: 10px 4px; margin-bottom: -1px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: var(--text-dim); background: transparent; font-size: .85rem; font-weight: 700; cursor: pointer; }
-.inspector-tabs [role="tab"]:hover { color: var(--text); border-bottom-color: var(--line-strong); }
-.inspector-tabs [role="tab"][aria-selected="true"] { color: var(--cyan-300); border-bottom-color: var(--cyan-300); }
-.inspector-tabs [role="tab"]:focus-visible { outline-offset: -3px; }
 .inspector-tab-panel { min-width: 0; }
 .inspector-tab-panel:not([hidden]) { display: grid; gap: 16px; }
 .inspector-empty p { margin-bottom: 0; }

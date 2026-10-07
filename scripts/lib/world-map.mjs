@@ -24,7 +24,13 @@ function range(bytes, offset, length) {
 
 export function readMapArchive(world) {
   require(world.length <= MAX_BYTES && world.length >= 24 && world.readUInt16LE(0) === 5, 'Unsupported field world header')
-  const bytes = world.subarray(2)
+  const entries = readWorldZip(world.subarray(2), name => /^map\/map_(?:world|biome\d+)\/(?:meta|region_\d+_\d+)\.dat$/.test(name) || name === 'field.dat')
+  require(entries.has('map/map_world/meta.dat'), 'Map archive is incomplete')
+  return entries
+}
+
+// Shared bounds checks apply to both the outer map archive and nested voxel region ZIPs
+export function readWorldZip(bytes, include) {
   let end = -1
   for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65_557); offset -= 1) {
     if (bytes.readUInt32LE(offset) === ZIP.end && offset + 22 + bytes.readUInt16LE(offset + 20) === bytes.length) { end = offset; break }
@@ -56,7 +62,7 @@ export function readMapArchive(world) {
     names.add(name)
     offset += 46 + nameSize + extraSize + commentSize
     require(offset <= directoryEnd, 'Map archive entry exceeds directory')
-    if (!/^map\/map_(?:world|biome\d+)\/(?:meta|region_\d+_\d+)\.dat$/.test(name)) continue
+    if (!include(name)) continue
     require(!(flags & 1) && [0, 8].includes(method) && size > 0 && size <= MAX_BYTES, 'Unsupported map archive compression or size')
     range(bytes, local, 30)
     require(bytes.readUInt32LE(local) === ZIP.local && bytes.readUInt16LE(local + 8) === method, 'Invalid map archive local header')
@@ -71,7 +77,7 @@ export function readMapArchive(world) {
     require(data.length === size, 'Map archive entry size differs')
     entries.set(name, data)
   }
-  require(offset === directoryEnd && entries.has('map/map_world/meta.dat'), 'Map archive is incomplete')
+  require(offset === directoryEnd, 'Map archive is incomplete')
   return entries
 }
 

@@ -68213,11 +68213,39 @@
       },
       "reasons": []
     },
+    "https://steamcommunity.com/app/1637730/discussions/0/2960544187644091633/": {
+      "disposition": "claim-specific",
+      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
+      "files": [
+        "docs/mod-inspector.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://steamcommunity.com/app/1637730/discussions/0/2962796621651898428/": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
         "docs/save-editor.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://steamcommunity.com/app/1637730/discussions/0/6664812048260024324/": {
+      "disposition": "claim-specific",
+      "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
+      "files": [
+        "docs/mod-inspector.md"
       ],
       "catalogs": [],
       "outcomes": {

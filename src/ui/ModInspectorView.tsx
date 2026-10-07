@@ -1,16 +1,19 @@
 import { Sources } from './Sources'
-import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { childAt, childCount, parseDocument, nodeAtPath, formatJsonPath, objectProperty, replaceJsonValue } from '../mod-inspector/document'
 import { diffDocuments } from '../mod-inspector/diff'
 import { createResolver, getEnumCatalog, INSPECTOR_REFERENCE_ID } from '../mod-inspector/reference'
 import { getInspectorStorage, summarizeInspectorDraft } from '../mod-inspector/storage'
 import { deriveInspectorFileInfo } from '../mod-inspector/file-info'
+import { newMapProject } from '../mod-inspector/map-editor'
 import type { DocumentChange, InspectorDraft, InspectorDraftSummary, InspectorRelationship, InspectorResolver, JsonNode, JsonPath, ParsedDocument } from '../mod-inspector/types'
 import { Button, Field, InlineNotice, ScreenHeader } from './components'
 import type { DraftActions, DraftChangeHandler } from './drafts'
 import type { CatalogId } from '../domain/types'
 import { readModFile } from './mod-inspector/import-file'
 import { createSearchScheduler } from './mod-inspector/search-scheduler'
+import type { ModEditorView } from './mod-workspace'
+import { ModWorkspaceNavigation } from './ModWorkspaceNavigation'
 import { isExpanded, prepareVisibleTree, revealPath, setExpansion, type ExpansionRule, type VisibleTreeRow } from './mod-inspector/tree'
 import './mod-inspector/inspector.css'
 
@@ -26,8 +29,8 @@ const SEARCH_SLICE_NODE_LIMIT = 2000
 const SEARCH_PROGRESS_INTERVAL_MS = 100
 const SEARCH_TIME_CHECK_INTERVAL = 32
 const SEARCH_DEBOUNCE_MS = 150
-const INSPECTOR_TABS = [{ id: 'document', label: 'JSON document' }, { id: 'dictionary', label: 'Enum dictionary' }] as const
-type InspectorTab = typeof INSPECTOR_TABS[number]['id']
+const MapPlacementEditor = lazy(() => import('./mod-inspector/MapPlacementEditor'))
+type InspectorTab = ModEditorView
 const pathKey = (path: JsonPath) => JSON.stringify(path)
 const message = (error: unknown) => error instanceof Error ? error.message : String(error)
 function fileLabel(row: InspectorDraftSummary) {
@@ -80,14 +83,14 @@ const EnumDictionary = memo(function EnumDictionary() {
   const catalog = useMemo(getEnumCatalog, [])
   const normalized = query.trim().toLowerCase()
   const hasMatches = catalog.some(group => group.entries.some(option => `${group.name} ${option.value} ${option.label}`.toLowerCase().includes(normalized)))
-  return <section className="inspector-panel inspector-dictionary"><h2>Exact enum names</h2><p>Shared reference for all mods. Search by name or numeric value; no file needs to be open.</p><Field label="Search enum names and values"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, value, or enum family"/></Field><div className="inspector-enum-groups">{catalog.map(group => {
+  return <section className="inspector-panel inspector-dictionary"><h2>Exact Enum Names</h2><p>Shared reference for all mods. Search by name or numeric value; no file needs to be open.</p><Field label="Search enum names and values"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, value, or enum family"/></Field><div className="inspector-enum-groups">{catalog.map(group => {
     const entries = group.entries.filter(option => `${group.name} ${option.value} ${option.label}`.toLowerCase().includes(normalized))
     if (!entries.length) return null
     return <details key={group.name} open={normalized ? true : undefined}><summary>{group.name} <small>({entries.length})</small></summary><dl>{entries.map(option => <div key={option.value}><dt><code>{option.value}</code></dt><dd>{option.label}</dd></div>)}</dl></details>
   })}</div>{!hasMatches && <p role="status">No enum names or values match this search. Try a shorter name, numeric value, or enum family.</p>}</section>
 })
 
-export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftId, embedded = false }: { readonly onDraftChange?: DraftChangeHandler; readonly onSaveToLibrary?: SaveModToLibrary; readonly initialDraftId?: string; readonly embedded?: boolean } = {}) {
+export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftId, embedded = false, view, onViewChange, navigationId }: { readonly onDraftChange?: DraftChangeHandler; readonly onSaveToLibrary?: SaveModToLibrary; readonly initialDraftId?: string; readonly embedded?: boolean; readonly view?: ModEditorView; readonly onViewChange?: (view: ModEditorView) => void; readonly navigationId?: string } = {}) {
   const [libraryResult, setLibraryResult] = useState<Awaited<ReturnType<SaveModToLibrary>>>()
   const [libraryError, setLibraryError] = useState<string>()
   const [drafts, setDrafts] = useState<readonly InspectorDraftSummary[]>([])
@@ -136,9 +139,18 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
   const [removing, setRemoving] = useState(false)
   const reviewHeading = useRef<HTMLHeadingElement>(null)
   const viewElement = useRef<HTMLDivElement>(null)
-  const [tab, setTab] = useState<InspectorTab>('document')
-  const tabsId = useId()
-  const tabList = useRef<HTMLDivElement>(null)
+  const [localTab, setLocalTab] = useState<InspectorTab>('document')
+  const tab = view ?? localTab
+  const setTab = (next: InspectorTab) => { if (onViewChange) onViewChange(next); else setLocalTab(next) }
+  const [mapOpened, setMapOpened] = useState(false)
+  // Direct menu links can open the map without clicking its tab; keep its history mounted afterward
+  useEffect(() => { if (tab === 'map') setMapOpened(true) }, [tab])
+  const [mapDirty, setMapDirty] = useState(false)
+  const mapDirtyRef = useRef(false)
+  const mapActions = useRef<DraftActions | undefined>(undefined)
+  const onMapDraftChange = useCallback<DraftChangeHandler>((dirty, actions) => { mapDirtyRef.current = dirty; mapActions.current = actions; setMapDirty(dirty) }, [])
+  const localTabsId = useId()
+  const tabsId = navigationId ?? localTabsId
   const fileInput = useRef<HTMLInputElement>(null)
   const saving = useRef(false)
   const savePromise = useRef<Promise<void> | undefined>(undefined)
@@ -230,14 +242,14 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
   }, [])
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirtyRef.current || (activeRef.current && textRef.current !== activeRef.current.draftText)) { event.preventDefault(); event.returnValue = '' }
+      if (dirtyRef.current || mapDirtyRef.current || (activeRef.current && textRef.current !== activeRef.current.draftText)) { event.preventDefault(); event.returnValue = '' }
     }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [])
   useEffect(() => {
-    onDraftChange?.(editorDirty || saveState !== 'saved', registeredActions)
-  }, [editorDirty, saveState, onDraftChange, registeredActions])
+    onDraftChange?.(editorDirty || mapDirty || saveState !== 'saved', registeredActions)
+  }, [editorDirty, mapDirty, saveState, onDraftChange, registeredActions])
   useEffect(() => () => onDraftChange?.(false), [onDraftChange])
   useEffect(() => { if (initialDraftId) void openSavedDraft(initialDraftId) }, [initialDraftId])
   async function saveToLibrary() {
@@ -251,7 +263,7 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
     finally { endOperation() }
   }
   function beginOperation(label: string, allowUnsaved = false) {
-    if (opening.current || saving.current || dirtyRef.current || (!allowUnsaved && (saveFailed.current || (activeRef.current && textRef.current !== activeRef.current.draftText)))) return false
+    if (opening.current || saving.current || dirtyRef.current || mapDirtyRef.current || (!allowUnsaved && (saveFailed.current || (activeRef.current && textRef.current !== activeRef.current.draftText)))) return false
     opening.current = true; setBusyLabel(label); setBusy(true)
     return true
   }
@@ -265,10 +277,10 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
     setQuery(''); setPath(nextPath); setEditor(node.raw); setEditorLoaded(true); setEditError(undefined); setOptionQuery(''); setOptionLimit(PAGE_SIZE)
     setExpanded(previous => revealPath(previous, nextPath))
   }
-  function open(row: InspectorDraft) {
+  function open(row: InspectorDraft, nextTab: InspectorTab = 'document') {
     setLibraryResult(undefined); setLibraryError(undefined)
     activeRef.current = row; textRef.current = row.draftText; saveFailed.current = false
-    setActive(row); setText(row.draftText); setPath([]); setEditor(''); setEditorLoaded(false); setEditorDirty(false); dirtyRef.current = false; setReview(undefined); setError(undefined); setEditError(undefined); setSaveState('saved'); setExpanded(INITIAL_EXPANSION); setTreePages(new Map()); setTreeRowLimit(TREE_ROW_PAGE_SIZE); setQuery(''); setTab('document'); setRemoveConfirmation(false)
+    setActive(row); setText(row.draftText); setPath([]); setEditor(''); setEditorLoaded(false); setEditorDirty(false); dirtyRef.current = false; setReview(undefined); setError(undefined); setEditError(undefined); setSaveState('saved'); setExpanded(INITIAL_EXPANSION); setTreePages(new Map()); setTreeRowLimit(TREE_ROW_PAGE_SIZE); setQuery(''); setTab(nextTab); setRemoveConfirmation(false); setMapDirty(false); mapDirtyRef.current = false
   }
   async function openSavedDraft(id: string) {
     if (!beginOperation('Opening saved mod JSON...')) return
@@ -286,7 +298,7 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
         return
       }
       setDrafts(previous => previous.map(item => item.id === row.id ? summarizeInspectorDraft(row) : item))
-      open(row)
+      open(row, tab === 'map' ? 'map' : 'document')
     } catch (reason) {
       if (mounted.current) setError(`Draft could not be opened: ${message(reason)}`)
     } finally {
@@ -340,6 +352,22 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
       return true
     } catch (reason) { setEditError(message(reason)); return false }
   }
+  function applyMapText(next: string, expected: string) {
+    if (opening.current || removing || reviewBusy || dirtyRef.current || textRef.current !== expected) return false
+    // Map edits share the inspector queue and revision check; they never mutate the archived original
+    textRef.current = next; setText(next); setEditorLoaded(false); setReview(undefined); setLibraryResult(undefined); setLibraryError(undefined)
+    void persist()
+    return true
+  }
+  async function createMapMod() {
+    if (!beginOperation('Creating map mod...')) return
+    try {
+      const text = newMapProject(crypto.randomUUID(), new Date().toISOString())
+      const row = await getInspectorStorage().import('map-placements.json', text, INSPECTOR_REFERENCE_ID)
+      if (mounted.current) { setDrafts(previous => [summarizeInspectorDraft(row), ...previous]); open(row, 'map'); setMapOpened(true) }
+    } catch (reason) { if (mounted.current) setError(`Map mod could not be created: ${message(reason)}`) }
+    finally { endOperation() }
+  }
   async function importFile(file: File) {
     if (!beginOperation('Importing and validating mod JSON...')) return
     const previousId = activeRef.current?.id
@@ -350,7 +378,7 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
       const row = await getInspectorStorage().import(file.name, importedText, INSPECTOR_REFERENCE_ID)
       if (!mounted.current) return
       if (activeRef.current?.id !== previousId || textRef.current !== previousText || dirtyRef.current || saving.current) { setDrafts(previous => [summarizeInspectorDraft(row), ...previous]); setError('Imported mod was saved. Finish the open edits before choosing it from saved drafts.'); return }
-      setDrafts(previous => [summarizeInspectorDraft(row), ...previous]); open(row)
+      setDrafts(previous => [summarizeInspectorDraft(row), ...previous]); open(row, tab === 'map' ? 'map' : 'document')
     } catch (reason) { if (mounted.current) setError(`Import failed: ${message(reason)}`) } finally { endOperation() }
   }
   draftActions.current = {
@@ -359,6 +387,7 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
       const previousFailure = saveFailed.current
       saveFailed.current = false
       if (dirtyRef.current && !apply()) { saveFailed.current = previousFailure; return false }
+      if (mapDirtyRef.current && !await mapActions.current?.save()) { saveFailed.current = previousFailure; return false }
       await persist()
       const saved = !saveFailed.current && textRef.current === activeRef.current?.draftText
       if (saved) onDraftChange?.(false)
@@ -368,6 +397,7 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
       if (opening.current) return false
       const row = activeRef.current
       if (!row) return true
+      await mapActions.current?.discard()
       textRef.current = row.draftText
       setText(row.draftText)
       setReview(undefined)
@@ -402,31 +432,17 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
     } catch (reason) { if (mounted.current) setError(`Draft removal failed: ${message(reason)}`) }
     finally { endOperation(); if (mounted.current) setRemoving(false) }
   }
-  function navigateTabs(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    const index = INSPECTOR_TABS.findIndex(item => item.id === tab)
-    let nextIndex: number
-    switch (event.key) {
-      case 'ArrowLeft': nextIndex = (index + INSPECTOR_TABS.length - 1) % INSPECTOR_TABS.length; break
-      case 'ArrowRight': nextIndex = (index + 1) % INSPECTOR_TABS.length; break
-      case 'Home': nextIndex = 0; break
-      case 'End': nextIndex = INSPECTOR_TABS.length - 1; break
-      default: return
-    }
-    event.preventDefault()
-    setTab(INSPECTOR_TABS[nextIndex].id)
-    tabList.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus()
-  }
-  const blockedSwitch = busy || removing || reviewBusy || editorDirty || saveState !== 'saved'
+  const blockedSwitch = busy || removing || reviewBusy || editorDirty || mapDirty || saveState !== 'saved'
+  const workspaceToolbar = <div className="inspector-toolbar"><Field label="Files opened in this tool"><select value={active?.id ?? ''} disabled={blockedSwitch} onChange={event => { if (event.target.value) void openSavedDraft(event.target.value) }}><option value="">Choose a recent file</option>{drafts.map(row => <option key={row.id} value={row.id}>{draftLabels.get(row.id)}</option>)}</select></Field><Button disabled={blockedSwitch} onClick={() => fileInput.current?.click()}>Open JSON file</Button><Button tone="secondary" disabled={blockedSwitch} onClick={() => void createMapMod()}>New map mod</Button><input ref={fileInput} type="file" accept=".json,application/json" className="inspector-file-input" aria-label="Open mod JSON file" disabled={blockedSwitch} onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value = '' }}/>{active && <span role="status" className="inspector-save-state">{mapDirty ? 'Pending placement move' : editorDirty ? 'Pending JSON edit' : saveState === 'saving' ? 'Saving draft...' : saveState === 'failed' ? 'Unsaved draft' : 'Saved in this browser'}</span>}</div>
   return <div className="mod-inspector" ref={viewElement}>
     {!embedded && <ScreenHeader eyebrow="Mod JSON tool" title="Mod Inspector" description="Read any Crystal Edit mod JSON, resolve IDs, and follow record relationships. Edit and export a copy when needed."/>}
-    <div className="inspector-tabs" role="tablist" aria-label="Inspector views" ref={tabList} onKeyDown={navigateTabs}>{INSPECTOR_TABS.map(item => <button key={item.id} type="button" role="tab" id={`${tabsId}-${item.id}-tab`} aria-controls={`${tabsId}-${item.id}-panel`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} onClick={() => setTab(item.id)}>{item.label}</button>)}</div>
+    {!embedded && <ModWorkspaceNavigation id={tabsId} view={tab} includeLibrary={false} disabled={mapDirty ? ['document', 'dictionary'] : editorDirty ? ['map'] : []} onChange={next => { if (next !== 'library') setTab(next) }}/>}
     {busy && <p role="status">{busyLabel}</p>}
     {error && <InlineNotice title={saveState === 'failed' ? 'Draft is not saved' : 'Inspector storage error'} tone="danger"><p>{error}</p>{saveState === 'failed' && <><p>Your unsaved draft remains visible. Reopen saved version discards this unsaved draft. Download a recovery copy first if you want to keep it. For a revision conflict, reopen the saved version before applying your changes again.</p><div className="inspector-actions"><Button tone="secondary" disabled={busy || removing} onClick={() => { if (opening.current) return; saveFailed.current = false; setError(undefined); void persist() }}>Retry save</Button><Button tone="secondary" onClick={() => download(active?.filename ?? 'mod.json', text)}>Download unsaved draft for recovery</Button><Button tone="secondary" disabled={busy || removing || editorDirty} onClick={() => void reopenSavedVersion()}>Reopen saved version</Button></div></>}</InlineNotice>}
     <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-document-panel`} aria-labelledby={`${tabsId}-document-tab`} tabIndex={0} hidden={tab !== 'document'}>
-    <div className="inspector-toolbar"><Field label="Files opened in this tool"><select value={active?.id ?? ''} disabled={blockedSwitch} onChange={event => { if (event.target.value) void openSavedDraft(event.target.value) }}><option value="">Choose a recent file</option>{drafts.map(row => <option key={row.id} value={row.id}>{draftLabels.get(row.id)}</option>)}</select></Field><Button disabled={blockedSwitch} onClick={() => fileInput.current?.click()}>Open JSON file</Button><input ref={fileInput} type="file" accept=".json,application/json" className="inspector-file-input" aria-label="Open mod JSON file" disabled={blockedSwitch} onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value = '' }}/>{active && <span role="status" className="inspector-save-state">{editorDirty ? 'Pending JSON edit' : saveState === 'saving' ? 'Saving draft...' : saveState === 'failed' ? 'Unsaved draft' : 'Saved in this browser'}</span>}</div>
-    <p className="inspector-local-note">Draft edits stay in this workspace. Save to CryKit adds a version to the Mod library for use in Game Setups. Download the original and working copy to keep backups of your drafts.</p>
-    {!active && <div className="inspector-panel inspector-empty"><h2>Open a mod to explore its JSON</h2><p>Choose a recent file or open a JSON file to see its records and decoded IDs.</p></div>}
+    {tab === 'document' && workspaceToolbar}
+    <p className="inspector-local-note">Draft edits stay in this workspace. Save to CryKit adds a version to the Mod Library for use in Game Setups. Download the original and working copy to keep backups of your drafts.</p>
+    {!active && <div className="inspector-panel inspector-empty"><h2>Open a Mod to Explore Its JSON</h2><p>Choose a recent file or open a JSON file to see its records and decoded IDs.</p></div>}
     {active && fileInfo && <section className="inspector-file-summary" aria-label="Current file"><div className="inspector-file-heading"><h2>{fileInfo.title ?? active.filename}</h2><span>{fileInfo.edited ? 'Edited copy' : 'Original file'}</span><Button tone="quiet" disabled={blockedSwitch} onClick={() => setRemoveConfirmation(true)}>Remove from recent files</Button></div><p className="inspector-file-facts"><span>{fileInfo.version ? `Version ${fileInfo.version}` : fileInfo.versionState === 'invalid' ? 'Version unavailable' : 'Version not specified'}</span><span>File: {active.filename}</span></p>{fileInfo.projectId && <details><summary>Project ID</summary><code>{fileInfo.projectId}</code></details>}</section>}
     {removeConfirmation && active && <InlineNotice title="Remove this browser copy?" tone="warning"><p>Remove the saved original and draft for {active.filename} from this browser. Download copies first if you want to keep them.</p><div className="inspector-actions"><Button tone="danger" disabled={blockedSwitch} onClick={() => void removeDraft()}>{removing ? 'Removing...' : 'Remove original and draft'}</Button><Button tone="secondary" disabled={removing} onClick={() => setRemoveConfirmation(false)}>Keep saved draft</Button></div></InlineNotice>}
     {parsed && resolver && active && <>
@@ -434,14 +450,20 @@ export function ModInspectorView({ onDraftChange, onSaveToLibrary, initialDraftI
       {libraryError && <InlineNotice title="Mod not saved to CryKit" tone="danger">{libraryError} Your editor draft remains available. Correct the problem or retry Save to CryKit.</InlineNotice>}
       {libraryResult && <InlineNotice title={libraryResult.unchanged ? "This mod revision is already saved" : "Mod revision saved to CryKit"}><p>{libraryResult.title}. Choose this version in a Game Setup to use it for planning.</p>{libraryResult.warnings.length > 0 && <details><summary>Import coverage</summary><ul>{libraryResult.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}
       <details className="inspector-format" key={resolver.editorVersion.state} open={resolver.editorVersion.state !== 'matched' ? true : undefined}><summary>Editor format: {resolver.editorVersion.label}</summary><p>{resolver.editorVersion.detail}</p></details>
-      <div className="inspector-workspace"><section className="inspector-panel inspector-tree-panel">{active.referenceId !== resolver.referenceId ? <Sources anchor={<h2>JSON explorer</h2>} label="Sources for inspector labels"><p className="inspector-source">{resolver.sourceLabel}</p><p>Names and links use CryKit's bundled reference data. Reference updates do not alter your JSON.</p><p>This browser copy was first opened with a different version of CryKit's reference data. This does not indicate that the mod is outdated.</p></Sources> : <h2>JSON explorer</h2>}<div className="inspector-branch-actions"><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, true, true))}>Expand branch</Button><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, false, true))}>Collapse branch</Button><small>Branch: <code>{formatJsonPath(branchPath)}</code>. Alt-click an expander to expand or collapse its entire branch.</small></div><Field label="Search keys, values, and decoded names"><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSearchLimit(PAGE_SIZE) }} placeholder="Find a field or name"/></Field>{query.trim() ? <div className="inspector-search-results"><p role="status">{searching ? `Searching document... ${scannedNodes.toLocaleString()} values inspected` : `${searchStopped ? 'Search stopped. ' : ''}${matches.length}${searchComplete ? '' : '+'} matches`}</p>{searching && <Button tone="quiet" onClick={() => searchCancellation.current?.()}>Stop search</Button>}{!searching && matches.length === 0 && searchComplete && <p>No document fields match this search.</p>}{matches.slice(0, searchLimit).map(node => <button className="inspector-search-result" type="button" key={pathKey(node.path)} onClick={() => select(node.path)}><code>{formatJsonPath(node.path)}</code><span>{resolver.annotate(node.path)?.label ?? (node.kind === 'object' || node.kind === 'array' ? node.kind : node.raw)}</span></button>)}{!searchComplete && !searching && <Button tone="quiet" onClick={() => setSearchLimit(value => value + PAGE_SIZE)}>Show more matches</Button>}</div> : <ul className="inspector-tree">{visibleTree?.rows.map(row => <JsonTreeRow key={`${row.kind}:${pathKey(row.node.path)}`} row={row} resolver={resolver} selected={pathKey(path)} onSelect={select} onExpand={(nextPath, recursive) => setExpanded(previous => setExpansion(previous, nextPath, !isExpanded(previous, nextPath), recursive))} onMore={nextPath => setTreePages(previous => { const next = new Map(previous); next.set(pathKey(nextPath), (next.get(pathKey(nextPath)) ?? PAGE_SIZE) + PAGE_SIZE); return next })}/>)}{visibleTree?.hasMore && <li><Button tone="secondary" onClick={() => setTreeRowLimit(value => value + TREE_ROW_PAGE_SIZE)}>Show more visible rows</Button></li>}</ul>}</section>
-      <section className="inspector-panel inspector-editor"><fieldset disabled={busy || removing} aria-label="Inspector editing controls" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><h2>Selected value</h2><code className="inspector-path">{formatJsonPath(path)}</code><div className="inspector-context"><span>{selected?.kind}</span>{annotation && <><strong>{annotation.label}</strong><span>{annotation.status}</span>{annotation.provenance && ['unknown', 'ambiguous'].includes(annotation.status) ? <Sources anchor={<p>{annotation.detail}</p>} label="Sources for selected value"><p>{annotation.provenance}</p></Sources> : <p>{annotation.detail}</p>}{annotation.restrictions?.map(restriction => <p key={restriction}>{restriction}</p>)}{annotation.targetPath && <Button tone="quiet" onClick={() => select(annotation.targetPath!)}>Go to referenced record</Button>}</>}</div>{!editorLoaded && <Button tone="secondary" onClick={() => select(path)}>Load selected JSON for editing</Button>}<Field label="Exact JSON value" hint="Strings require quotes. Numbers keep their original precision. Objects and arrays can include arbitrary fields and records."><textarea disabled={!editorLoaded} spellCheck={false} value={editor} onChange={event => edit(event.target.value)} rows={selected?.kind === 'object' || selected?.kind === 'array' ? 14 : 4}/></Field>{editError && <p role="alert" className="inspector-error">{editError}</p>}<div className="inspector-actions"><Button disabled={!editorDirty} onClick={apply}>Apply JSON edit</Button><Button tone="secondary" disabled={!editorDirty} onClick={() => { setEditor(selected?.raw ?? ''); setEditorDirty(false); dirtyRef.current = false; setEditError(undefined) }}>Discard pending edit</Button></div>
-      {options.length > 0 && <section className="inspector-options"><h3>Known values</h3><Field label="Search known values"><input type="search" value={optionQuery} onChange={event => { setOptionQuery(event.target.value); setOptionLimit(PAGE_SIZE) }}/></Field><div>{filteredOptions.slice(0, optionLimit).map((option, index) => <button type="button" className="inspector-option" key={`${option.value}:${index}`} onClick={() => edit(option.value)}><code>{option.value}</code><span>{option.label}{option.source !== 'enum' && <small>{option.detail} ({option.source})</small>}</span></button>)}</div>{filteredOptions.length > optionLimit && <Button tone="quiet" onClick={() => setOptionLimit(value => value + PAGE_SIZE)}>Show more values</Button>}{!filteredOptions.length && <p>No known values match. You can enter an unknown value directly.</p>}</section>}
-      {path.length >= 2 && <Button tone="secondary" disabled={relationshipBusy} onClick={() => void findRelationships()}>{relationshipBusy ? 'Finding relationships...' : 'Find relationships'}</Button>}{relationshipsLoaded && relationships.length === 0 && <p>No relationships found for this field or record.</p>}{relationships.length > 0 && <section className="inspector-relationships"><h3>Relationships and backreferences</h3>{relationships.slice(0, relationshipLimit).map((relation, index) => <div key={index}><span>{relation.direction}: {relation.label}{relation.unresolved ? ' (unresolved)' : ''}</span><Button tone="quiet" onClick={() => select(relation.direction === 'incoming' ? relation.path : relation.targetPath ?? relation.path)}>Open {formatJsonPath(relation.direction === 'incoming' ? relation.path : relation.targetPath ?? relation.path)}</Button></div>)}{relationships.length > relationshipLimit && <Button tone="quiet" onClick={() => setRelationshipLimit(value => value + PAGE_SIZE)}>Show more relationships ({relationships.length - relationshipLimit} remaining)</Button>}</section>}
+      <div className="inspector-workspace"><section className="inspector-panel inspector-tree-panel">{active.referenceId !== resolver.referenceId ? <Sources anchor={<h2>JSON Explorer</h2>} label="Sources for inspector labels"><p className="inspector-source">{resolver.sourceLabel}</p><p>Names and links use CryKit's bundled reference data. Reference updates do not alter your JSON.</p><p>This browser copy was first opened with a different version of CryKit's reference data. This does not indicate that the mod is outdated.</p></Sources> : <h2>JSON Explorer</h2>}<div className="inspector-branch-actions"><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, true, true))}>Expand branch</Button><Button tone="quiet" onClick={() => setExpanded(previous => setExpansion(previous, branchPath, false, true))}>Collapse branch</Button><small>Branch: <code>{formatJsonPath(branchPath)}</code>. Alt-click an expander to expand or collapse its entire branch.</small></div><Field label="Search keys, values, and decoded names"><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSearchLimit(PAGE_SIZE) }} placeholder="Find a field or name"/></Field>{query.trim() ? <div className="inspector-search-results"><p role="status">{searching ? `Searching document... ${scannedNodes.toLocaleString()} values inspected` : `${searchStopped ? 'Search stopped. ' : ''}${matches.length}${searchComplete ? '' : '+'} matches`}</p>{searching && <Button tone="quiet" onClick={() => searchCancellation.current?.()}>Stop search</Button>}{!searching && matches.length === 0 && searchComplete && <p>No document fields match this search.</p>}{matches.slice(0, searchLimit).map(node => <button className="inspector-search-result" type="button" key={pathKey(node.path)} onClick={() => select(node.path)}><code>{formatJsonPath(node.path)}</code><span>{resolver.annotate(node.path)?.label ?? (node.kind === 'object' || node.kind === 'array' ? node.kind : node.raw)}</span></button>)}{!searchComplete && !searching && <Button tone="quiet" onClick={() => setSearchLimit(value => value + PAGE_SIZE)}>Show more matches</Button>}</div> : <ul className="inspector-tree">{visibleTree?.rows.map(row => <JsonTreeRow key={`${row.kind}:${pathKey(row.node.path)}`} row={row} resolver={resolver} selected={pathKey(path)} onSelect={select} onExpand={(nextPath, recursive) => setExpanded(previous => setExpansion(previous, nextPath, !isExpanded(previous, nextPath), recursive))} onMore={nextPath => setTreePages(previous => { const next = new Map(previous); next.set(pathKey(nextPath), (next.get(pathKey(nextPath)) ?? PAGE_SIZE) + PAGE_SIZE); return next })}/>)}{visibleTree?.hasMore && <li><Button tone="secondary" onClick={() => setTreeRowLimit(value => value + TREE_ROW_PAGE_SIZE)}>Show more visible rows</Button></li>}</ul>}</section>
+      <section className="inspector-panel inspector-editor"><fieldset disabled={busy || removing} aria-label="Inspector editing controls" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><h2>Selected Value</h2><code className="inspector-path">{formatJsonPath(path)}</code><div className="inspector-context"><span>{selected?.kind}</span>{annotation && <><strong>{annotation.label}</strong><span>{annotation.status}</span>{annotation.provenance && ['unknown', 'ambiguous'].includes(annotation.status) ? <Sources anchor={<p>{annotation.detail}</p>} label="Sources for selected value"><p>{annotation.provenance}</p></Sources> : <p>{annotation.detail}</p>}{annotation.restrictions?.map(restriction => <p key={restriction}>{restriction}</p>)}{annotation.targetPath && <Button tone="quiet" onClick={() => select(annotation.targetPath!)}>Go to referenced record</Button>}</>}</div>{!editorLoaded && <Button tone="secondary" onClick={() => select(path)}>Load selected JSON for editing</Button>}<Field label="Exact JSON value" hint="Strings require quotes. Numbers keep their original precision. Objects and arrays can include arbitrary fields and records."><textarea disabled={!editorLoaded} spellCheck={false} value={editor} onChange={event => edit(event.target.value)} rows={selected?.kind === 'object' || selected?.kind === 'array' ? 14 : 4}/></Field>{editError && <p role="alert" className="inspector-error">{editError}</p>}<div className="inspector-actions"><Button disabled={!editorDirty} onClick={apply}>Apply JSON edit</Button><Button tone="secondary" disabled={!editorDirty} onClick={() => { setEditor(selected?.raw ?? ''); setEditorDirty(false); dirtyRef.current = false; setEditError(undefined) }}>Discard pending edit</Button></div>
+      {options.length > 0 && <section className="inspector-options"><h3>Known Values</h3><Field label="Search known values"><input type="search" value={optionQuery} onChange={event => { setOptionQuery(event.target.value); setOptionLimit(PAGE_SIZE) }}/></Field><div>{filteredOptions.slice(0, optionLimit).map((option, index) => <button type="button" className="inspector-option" key={`${option.value}:${index}`} onClick={() => edit(option.value)}><code>{option.value}</code><span>{option.label}{option.source !== 'enum' && <small>{option.detail} ({option.source})</small>}</span></button>)}</div>{filteredOptions.length > optionLimit && <Button tone="quiet" onClick={() => setOptionLimit(value => value + PAGE_SIZE)}>Show more values</Button>}{!filteredOptions.length && <p>No known values match. You can enter an unknown value directly.</p>}</section>}
+      {path.length >= 2 && <Button tone="secondary" disabled={relationshipBusy} onClick={() => void findRelationships()}>{relationshipBusy ? 'Finding relationships...' : 'Find relationships'}</Button>}{relationshipsLoaded && relationships.length === 0 && <p>No relationships found for this field or record.</p>}{relationships.length > 0 && <section className="inspector-relationships"><h3>Relationships and Backreferences</h3>{relationships.slice(0, relationshipLimit).map((relation, index) => <div key={index}><span>{relation.direction}: {relation.label}{relation.unresolved ? ' (unresolved)' : ''}</span><Button tone="quiet" onClick={() => select(relation.direction === 'incoming' ? relation.path : relation.targetPath ?? relation.path)}>Open {formatJsonPath(relation.direction === 'incoming' ? relation.path : relation.targetPath ?? relation.path)}</Button></div>)}{relationships.length > relationshipLimit && <Button tone="quiet" onClick={() => setRelationshipLimit(value => value + PAGE_SIZE)}>Show more relationships ({relationships.length - relationshipLimit} remaining)</Button>}</section>}
       </fieldset></section></div>
       {resolver.issues.length > 0 && <details className="inspector-panel"><summary>Inspected-field reference issues ({resolver.issues.length})</summary><p>Issues cover source metadata and inspected fields, rather than exhaustive validation of every field.</p><div className="inspector-issues">{resolver.issues.slice(0, issueLimit).map((issue, index) => <div key={index}><Button tone="quiet" onClick={() => select(issue.path)}>{formatJsonPath(issue.path)}</Button><span>{issue.severity}: {issue.message}</span></div>)}{resolver.issues.length > issueLimit && <Button tone="quiet" onClick={() => setIssueLimit(value => value + PAGE_SIZE)}>Show more issues ({resolver.issues.length - issueLimit} remaining)</Button>}</div></details>}
-      {review === text && <section className="inspector-panel inspector-review" aria-label="Export review"><h2 ref={reviewHeading} tabIndex={-1}>Review original to draft</h2>{original && objectProperty(original.root, 'EditorVersion')?.raw !== objectProperty(parsed.root, 'EditorVersion')?.raw && <InlineNotice title="EditorVersion changed" tone="warning"><p>EditorVersion changed from {metadataPreview(objectProperty(original.root, 'EditorVersion'))} to {metadataPreview(objectProperty(parsed.root, 'EditorVersion'))}. Changing the marker does not migrate the mod format. Review compatibility with your Crystal Edit version before export.</p></InlineNotice>}<p>{changes.length ? 'Every semantic change below compares the immutable original with this draft. Review additions, removals, moves, and changed values before downloading.' : active.originalText !== text ? 'No semantic changes. Text formatting or equivalent value representations differ from the imported original.' : 'No semantic changes. The draft matches the imported original.'}</p>{groups.map(([group, groupChanges]) => <section key={group}><h3>{group}</h3>{groupChanges.map((change, index) => <ReviewChange key={index} change={change} resolver={resolver} originalResolver={originalResolver}/>)}</section>)}{changes.length > reviewLimit && <Button tone="secondary" onClick={() => setReviewLimit(value => value + PAGE_SIZE)}>Show more changes ({changes.length - reviewLimit} remaining)</Button>}<div className="inspector-actions"><Button disabled={editorDirty} onClick={() => download(active.filename, review)}>Download mod</Button><Button tone="secondary" onClick={() => setReview(undefined)}>Close review</Button></div><p>The original remains unchanged after export.</p></section>}
+      {review === text && <section className="inspector-panel inspector-review" aria-label="Export review"><h2 ref={reviewHeading} tabIndex={-1}>Review Original to Draft</h2>{original && objectProperty(original.root, 'EditorVersion')?.raw !== objectProperty(parsed.root, 'EditorVersion')?.raw && <InlineNotice title="EditorVersion changed" tone="warning"><p>EditorVersion changed from {metadataPreview(objectProperty(original.root, 'EditorVersion'))} to {metadataPreview(objectProperty(parsed.root, 'EditorVersion'))}. Changing the marker does not migrate the mod format. Review compatibility with your Crystal Edit version before export.</p></InlineNotice>}<p>{changes.length ? 'Every semantic change below compares the immutable original with this draft. Review additions, removals, moves, and changed values before downloading.' : active.originalText !== text ? 'No semantic changes. Text formatting or equivalent value representations differ from the imported original.' : 'No semantic changes. The draft matches the imported original.'}</p>{groups.map(([group, groupChanges]) => <section key={group}><h3>{group}</h3>{groupChanges.map((change, index) => <ReviewChange key={index} change={change} resolver={resolver} originalResolver={originalResolver}/>)}</section>)}{changes.length > reviewLimit && <Button tone="secondary" onClick={() => setReviewLimit(value => value + PAGE_SIZE)}>Show more changes ({changes.length - reviewLimit} remaining)</Button>}<div className="inspector-actions"><Button disabled={editorDirty} onClick={() => download(active.filename, review)}>Download mod</Button><Button tone="secondary" onClick={() => setReview(undefined)}>Close review</Button></div><p>The original remains unchanged after export.</p></section>}
     </>}
+    </section>
+    <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-map-panel`} aria-labelledby={`${tabsId}-map-tab`} tabIndex={0} hidden={tab !== 'map'}>
+      {tab === 'map' && workspaceToolbar}
+      {!active && <div className="inspector-panel inspector-empty"><h2>Create or Open a Map Mod</h2><p>New map mod starts with an empty Crystal Edit project. Open JSON file edits a separate browser copy of an existing project.</p></div>}
+      {active && <div className="inspector-actions"><strong>{fileInfo?.title ?? active.filename}</strong><Button disabled={blockedSwitch} onClick={() => { setTab('document'); void prepareReview() }}>Review map export</Button><Button tone="secondary" onClick={() => download(`original-${active.filename}`, active.originalText)}>Download original</Button></div>}
+      {active && parsed && (mapOpened || tab === 'map') && <Suspense fallback={<p role="status">Opening map editor...</p>}><MapPlacementEditor key={active.id} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} onChange={applyMapText} onDraftChange={onMapDraftChange} onInspect={index => { select(['Entities', index]); setTab('document') }}/></Suspense>}
     </section>
     <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-dictionary-panel`} aria-labelledby={`${tabsId}-dictionary-tab`} tabIndex={0} hidden={tab !== 'dictionary'}><EnumDictionary/></section>
   </div>
