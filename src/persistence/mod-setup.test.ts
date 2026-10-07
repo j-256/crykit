@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { BUNDLED_CATALOG, CURRENT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOG, CURRENT_CATALOG, PREVIOUS_CATALOG } from '../catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { createSampleLocalData } from '../domain/sample-data'
 import { modSearchCatalog } from '../domain/mod-search'
@@ -87,6 +87,18 @@ it('preserves old profiles and catalog pins without introducing an onboarding pr
   const backup = await previewImport(await exportBackup(), 'synthetic-legacy.zip')
   expect(backup.proposed.localData.gameSetups).toEqual(previous.gameSetups)
   expect(backup.proposed.catalogs).toContainEqual(BUNDLED_CATALOG)
+})
+
+it('keeps saved catalog-v2 pins and their mod observations after new sources are bundled', async () => {
+  const previous = createSampleLocalData(PREVIOUS_CATALOG)
+  await database.localDatas.add({ id: 'local-data-record', revision: previous.revision, updatedAt: previous.updatedAt, localData: previous, lineage: { rootLocalDataId: previous.id } })
+  const loaded = await loadLocalData()
+  expect(loaded.localData).toEqual(previous)
+  expect(loaded.catalogs).toContain(PREVIOUS_CATALOG)
+  expect(loaded.catalogs).toContain(CURRENT_CATALOG)
+  expect(loaded.catalogs.find(catalog => catalog.revisionId === PREVIOUS_CATALOG.revisionId)?.entities['mod:barbarian:class:ref-1078']).toEqual(PREVIOUS_CATALOG.entities['mod:barbarian:class:ref-1078'])
+  const backup = await previewImport(await exportBackup(), 'synthetic-catalog-v2.zip')
+  expect(backup.proposed.catalogs).toContainEqual(PREVIOUS_CATALOG)
 })
 
 it('rejects search previews as setup inputs and retains source conflicts rather than overwriting them', async () => {

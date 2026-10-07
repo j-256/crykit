@@ -1,15 +1,20 @@
 import archive from './legacy-catalog-v1.json' with { type: 'json' }
-import vanillaReceipt from './vanilla-catalog-v2.json' with { type: 'json' }
-import vanillaPacked from './vanilla-catalog-v2.packed.json' with { type: 'json' }
+import previousVanillaReceipt from './vanilla-catalog-v2.json' with { type: 'json' }
+import previousVanillaPacked from './vanilla-catalog-v2.packed.json' with { type: 'json' }
+import vanillaReceipt from './vanilla-catalog-v3.json' with { type: 'json' }
+import vanillaPacked from './vanilla-catalog-v3.packed.json' with { type: 'json' }
 import { unpackJson } from './packed-json'
 import { immutableCatalogSnapshot } from '../interchange/native'
 import type { CatalogSnapshot, EntityId } from '../domain/types'
 
 const historical = unpackJson<{ readonly catalog: CatalogSnapshot; readonly sourceEntityIds: Readonly<Record<string, EntityId>> }>(archive)
 export const BUNDLED_CATALOG = immutableCatalogSnapshot(historical.catalog)
+// Keep the exact prior base snapshot so saved catalog-v2 pins and links remain resolvable
+export const PREVIOUS_CATALOG = immutableCatalogSnapshot(unpackJson<CatalogSnapshot>(previousVanillaPacked))
+if (PREVIOUS_CATALOG.checksum !== previousVanillaReceipt.checksum) throw new Error('The previous vanilla catalog does not match its checksum receipt')
 export const CURRENT_CATALOG = immutableCatalogSnapshot(unpackJson<CatalogSnapshot>(vanillaPacked))
 if (CURRENT_CATALOG.checksum !== vanillaReceipt.checksum) throw new Error('The generated vanilla catalog does not match its checksum receipt')
-export const BUNDLED_CATALOGS = [BUNDLED_CATALOG, CURRENT_CATALOG]
+export const BUNDLED_CATALOGS = [BUNDLED_CATALOG, PREVIOUS_CATALOG, CURRENT_CATALOG]
 // Preserve the historical export for persisted fixtures and catalog-v1 integrations
 export const DEFAULT_CATALOG = BUNDLED_CATALOG
 

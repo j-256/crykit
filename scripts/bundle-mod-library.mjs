@@ -5,6 +5,7 @@ import { basename, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
+import exclusions from '../src/catalog/mod-bundle-exclusions.json' with { type: 'json' }
 
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
 const MAX_SOURCE_NODES = 3_000_000
@@ -13,14 +14,17 @@ const MODEL_FAMILIES = ['Jobs', 'Abilities', 'Passives', 'Equipment', 'Items', '
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
 const DEFAULT_OUTPUT = 'src/assets/mod-sources'
 const DEFAULT_MANIFEST = 'src/catalog/bundled-mod-sources.json'
+// Publishing exclusions bind to project identity so renaming an export cannot admit it by accident
+const WITHHELD_PROJECT_IDS = new Set(exclusions.projects.map(project => project.projectId))
 const HELP = `Usage: node scripts/bundle-mod-library.mjs -i DIRECTORY [-o DIRECTORY] [-m FILE]
        node scripts/bundle-mod-library.mjs -c [-o DIRECTORY] [-m FILE]
 
-Bundle every Crystal Edit mod JSON in a directory and its subdirectories.
+Bundle Crystal Edit mod JSON in a directory and its subdirectories.
 Exact UTF-8 sources are compressed into immutable, digest-named JSON assets.
 The generated manifest contains project IDs, versions, model IDs, and source
 digests. Identical files are deduplicated; distinct revisions remain separate.
 Previously bundled revisions are retained when refreshing the directory.
+Projects in src/catalog/mod-bundle-exclusions.json are withheld by exact ID.
 Non-mod JSON and symlinks are skipped. Invalid JSON or private content fails
 before writing. No mod code is executed, no sources are changed, and no network
 or environment variables are used. Requires Node >=22.12.
@@ -95,11 +99,13 @@ export async function bundleModDirectory(input, output, manifestPath) {
   const snapshots = new Map()
   let skipped = 0
   let duplicates = 0
+  let withheld = 0
   for (const path of await sourceFiles(input)) {
     const bytes = await readFile(path)
     let source
     try { source = inspectModSource(bytes) } catch (error) { throw new Error(`${basename(path)}: ${error.message}`) }
     if (!source) { skipped++; continue }
+    if (WITHHELD_PROJECT_IDS.has(source.projectId)) { withheld++; continue }
     if (snapshots.has(source.sha256)) { duplicates++; continue }
     snapshots.set(source.sha256, { source, bytes })
   }
@@ -111,7 +117,8 @@ export async function bundleModDirectory(input, output, manifestPath) {
   // Retain older source digests so a directory refresh cannot remove revisions pinned by saved setups
   const revisions = new Map(retained.map(source => [source.sha256, source]))
   for (const { source } of snapshots.values()) revisions.set(source.sha256, source)
-  const mods = [...revisions.values()].sort((left, right) => left.projectId.localeCompare(right.projectId) || (right.timestamp ?? '').localeCompare(left.timestamp ?? '') || left.sha256.localeCompare(right.sha256))
+  // Same-timestamp exports can differ only by a recorded Workshop ID; prefer that identity for default previews and save matching
+  const mods = [...revisions.values()].sort((left, right) => left.projectId.localeCompare(right.projectId) || (right.timestamp ?? '').localeCompare(left.timestamp ?? '') || Number(Boolean(right.steamWorkshopFileId)) - Number(Boolean(left.steamWorkshopFileId)) || left.sha256.localeCompare(right.sha256))
   // Compress the original bytes, not parsed JSON; BOMs and line endings are part of the archived digest
   const generated = [...snapshots.values()].map(({ source, bytes }) => ({ path: join(output, `${source.sha256}.json`), text: jsonText({ schemaVersion: 1, encoding: 'gzip-base64', sha256: source.sha256, sourceBytes: bytes.length, data: gzipSync(bytes, { level: 9 }).toString('base64') }) }))
   for (const file of generated) {
@@ -124,7 +131,7 @@ export async function bundleModDirectory(input, output, manifestPath) {
   }
   await mkdir(resolve(manifestPath, '..'), { recursive: true })
   await writeFile(manifestPath, jsonText({ schemaVersion: 1, mods }))
-  return { mods: mods.length, skipped, duplicates }
+  return { mods: mods.length, skipped, duplicates, withheld }
 }
 
 export async function checkModLibrary(output, manifestPath) {
@@ -132,6 +139,7 @@ export async function checkModLibrary(output, manifestPath) {
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.mods) || !manifest.mods.length) throw new Error('Invalid bundled mod manifest')
   const seen = new Set()
   for (const source of manifest.mods) {
+    if (WITHHELD_PROJECT_IDS.has(source.projectId)) throw new Error('Withheld mod project is bundled')
     if (!/^[a-f0-9]{64}$/.test(source.sha256) || seen.has(source.sha256)) throw new Error('Invalid or duplicate source digest')
     seen.add(source.sha256)
     const asset = JSON.parse(await readFile(join(output, `${source.sha256}.json`), 'utf8'))

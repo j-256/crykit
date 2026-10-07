@@ -5,7 +5,7 @@ import { compileCatalogIdentities } from '../domain/catalog-identities'
 import supplementalIds from './supplemental-entity-ids.json' with { type: 'json' }
 import type { CatalogRevisionId, CatalogSnapshot } from '../domain/types'
 
-export const VANILLA_CATALOG_REVISION_ID = 'catalog-v2' as CatalogRevisionId
+export const VANILLA_CATALOG_REVISION_ID = 'catalog-v3' as CatalogRevisionId
 
 export function vanillaSourceCatalog(): CatalogSnapshot {
   // Reconcile source identities before projecting facts, then compile portable IDs only after those joins

@@ -18,10 +18,18 @@ test('base, mod, and supplemental entries use the bundled route contract directl
   }
 })
 
+test('saved catalog-v2 reference links retain their original definitions', async ({ page }) => {
+  const path = referencePath('mod:barbarian:class:ref-1078', 'crystal-project-public-starter', 'catalog-v2')
+  await page.goto(path)
+  await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page).toHaveURL(new RegExp(`${path}$`))
+})
+
 test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
   await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
-  const desert = page.locator(`a[href^="${referencePath('base:monster:316', 'crystal-project-public-starter', 'catalog-v2').slice(1)}?"]`)
-  const red = page.locator(`a[href^="${referencePath('base:monster:57', 'crystal-project-public-starter', 'catalog-v2').slice(1)}?"]`)
+  const desert = page.locator(`a[href^="${referencePath('base:monster:316', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
+  const red = page.locator(`a[href^="${referencePath('base:monster:57', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
   await expect(desert).toBeVisible()
   await expect(red).toBeVisible()
   await expect(desert).toHaveAttribute('href', /\/316\/brutish-quintar-desert\?/)
