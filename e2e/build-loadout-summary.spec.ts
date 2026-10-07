@@ -19,10 +19,17 @@ async function railControlGeometry(page: Page) {
   return page.locator('.rail .nav-link').evaluateAll(controls => controls.map(control => {
     const box = control.getBoundingClientRect()
     const icon = control.querySelector('svg')!.getBoundingClientRect()
+    // Collapsing the rail hides nested page lists above later controls
+    const hiddenSublistSpace = Array.from(document.querySelectorAll<HTMLElement>('.rail .nav-sublist')).reduce((space, sublist) => {
+      const sublistBox = sublist.getBoundingClientRect()
+      const style = getComputedStyle(sublist)
+      if (style.display === 'none' || sublistBox.bottom > box.top) return space
+      return space + sublistBox.height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom)
+    }, 0)
     return {
       isToggle: control.classList.contains('rail__toggle'),
-      isTool: control.closest('.nav-tools') !== null,
       isFooter: control.closest('.rail__footer') !== null,
+      hiddenSublistSpace,
       y: box.y,
       width: box.width,
       height: box.height,
@@ -190,10 +197,6 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   const footer = rail.locator('.rail__footer')
   const progressSublist = rail.getByRole('list', { name: 'Progress pages', exact: true })
   await expect(progressSublist).toBeVisible()
-  const progressSublistSpace = await progressSublist.evaluate(element => {
-    const style = getComputedStyle(element)
-    return element.getBoundingClientRect().height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom)
-  })
   const expanded = (await rail.boundingBox())!
   const expandedMain = (await main.boundingBox())!
   const expandedBrandHeader = (await desktopBrandHeader.boundingBox())!
@@ -230,7 +233,7 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   expect(collapsedControls).toHaveLength(expandedControls.length)
   for (const [index, control] of collapsedControls.entries()) {
     const expandedControl = expandedControls[index]
-    const shiftY = control.isTool ? -progressSublistSpace : control.isFooter ? collapsedFooter.y - expandedFooter.y : 0
+    const shiftY = control.isFooter ? collapsedFooter.y - expandedFooter.y : -expandedControl.hiddenSublistSpace
     expect(control.width).toBe(control.isToggle ? RAIL_TOGGLE_WIDTH_PX : RAIL_CONTROL_WIDTH_PX)
     expect(control.y).toBe(expandedControl.y + shiftY)
     expect(control.height).toBe(expandedControl.height)

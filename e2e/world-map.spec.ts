@@ -160,7 +160,7 @@ test('native shops, underground bosses, and named regions reveal their exact loc
 
 test('a temporary map source download failure can be retried without replacing local records', async ({ page }) => {
   let failures = 0
-  await page.route(/\/assets\/world-map-[^/]+\.(?:js|json)$/, async route => {
+  await page.route(/\/assets\/world-map-[^/]+\.json$/, async route => {
     if (failures === 0) {
       failures += 1
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) })
