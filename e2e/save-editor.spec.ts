@@ -4,6 +4,8 @@ import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 import { decodeCrystalSave, encodeCrystalSave, type CrystalSave } from '../src/interchange/crystal-save'
 import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../src/domain/save-editor.fixture'
 import { saveEditorModProjectId } from '../src/domain/save-editor-mods'
+import { SAVE_EDITOR_CATALOG } from '../src/catalog/save-editor'
+import { inspectSave } from '../src/domain/save-editor'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup } from './local-data-helpers'
@@ -40,6 +42,38 @@ function expectPreserved(original: CrystalSave, edited: CrystalSave) {
   expect(edited.header.playTime).toEqual(original.header.playTime)
   expect(edited.header.homePointName).toBe(original.header.homePointName)
 }
+
+test('loadout pickers grant missing prerequisites and highlight them before applying and exporting', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto(ROUTE)
+  const fixture = createSaveEditorFixture()
+  const learnedJobs = fixture.members[0]!.value.LearnedJobs
+  if (learnedJobs?.type !== 'array') throw new Error('Expected synthetic class progression')
+  learnedJobs.value[4] = { type: 'int32', value: 0 }
+  const original = decodeCrystalSave(await openSave(page, fixture))
+  const choose = async (field: string, name: string) => {
+    const input = page.getByRole('combobox', { name: field, exact: true })
+    await input.click()
+    await input.fill(name)
+    await page.getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  }
+  await choose('Class', 'Cleric')
+  await choose('Main hand', String(SAVE_EDITOR_CATALOG.records.equipment.get(5)!.Name))
+  await choose('Equipped passive 1', String(SAVE_EDITOR_CATALOG.records.passive.get(0)!.Name))
+  const additions = page.getByLabel('New loadout additions', { exact: true })
+  await expect(additions).toContainText('Cleric unlocked')
+  await expect(additions).toContainText('learned')
+  await expect(additions).toContainText('copy added')
+  await page.getByRole('button', { name: 'Review loadout changes', exact: true }).click()
+  const review = page.locator('.save-editor__preview')
+  await expect(review.locator('li[data-added]').first()).toContainText('New')
+  await page.getByRole('button', { name: 'Apply reviewed changes', exact: true }).click()
+  await expect(page.locator('.save-editor__review li[data-added]').first()).toContainText('Cleric unlocked')
+  const edited = decodeCrystalSave((await downloadSave(page, 'Export edited save')).bytes)
+  expect(inspectSave(edited, SAVE_EDITOR_CATALOG).members[0]).toMatchObject({ jobId: 4, subJobId: null, equipmentIds: [5, null, null, null, null, null], passiveIds: [0] })
+  expect(edited.members.slice(1)).toEqual(original.members.slice(1))
+  expectPreserved(original, edited)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
 
 for (const version of [3, 12, 27]) test(`edits legacy format ${version} and exports its original layout`, { tag: version === 3 ? MOBILE_TEST_TAG : [] }, async ({ page }) => {
   await page.goto(ROUTE)
@@ -220,7 +254,7 @@ test('loads an exact mod definition, edits the active save, and removes its mod 
   expect(modded.header.isModded).toBe(true)
   expect(modded.header.mods).toHaveLength(1)
 
-  await page.getByRole('button', { name: 'Review mod-state removal', exact: true }).click()
+  await page.getByRole('button', { name: 'Review mod data removal', exact: true }).click()
   const review = page.getByRole('region', { name: 'Review bulk changes', exact: true })
   await expect(review).toContainText('equipped mod-only passives removed')
   await expect(review).toContainText('ID redirects cleared')
@@ -238,7 +272,7 @@ test('identifies bundled disabled-mod residue without a manual import', { tag: M
   await expect(page.getByText('Bundled project identified', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Cheat Passives definition available', { exact: true })).toBeChecked()
   await expect(page.getByText(/Saved revision unavailable/)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Review mod-state removal', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Review mod data removal', exact: true })).toBeEnabled()
 })
 
 test('edits and exports offline without persisting the opened game save', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {

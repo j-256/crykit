@@ -1,11 +1,11 @@
 import { type CrystalSave, type BsonDocument } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog } from '../save-editor-mods'
 import { type NativeRecord } from '../native-game'
-import { array, number, quantity, known, object, numbers, list, int, subJob } from './values.ts'
-import { setStock } from './inventory.ts'
+import { array, number, quantity, known, object, numbers, list, int, subJob, bound, capacity } from './values.ts'
+import { setStock, atlas } from './inventory.ts'
 import { type SaveEditorRandomizerState, randomizedId } from './randomizer.ts'
-import { nativeIds } from './progression.ts'
-import { PASSIVE_POINT_BUDGET, LEARNED, type SaveEditCommand } from './model.ts'
+import { nativeIds, learn } from './progression.ts'
+import { PASSIVE_POINT_BUDGET, LEARNED, ATLAS, type SaveEditCommand } from './model.ts'
 
 const ENABLE_EQUIPMENT_TYPE = 406
 
@@ -45,15 +45,14 @@ function statModifierTags(record: NativeRecord): readonly number[] {
   return Array.isArray(record.StatMods) ? record.StatMods.flatMap(modifier => modifier && typeof modifier === 'object' && !Array.isArray(modifier) && typeof modifier.Tag === 'number' ? [modifier.Tag] : []) : []
 }
 
-export function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, command: Extract<SaveEditCommand, { type: 'loadout' }>): void {
+export function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, command: Extract<SaveEditCommand, { type: 'loadout' }>, now: Date): void {
   const equipped = array(member.value.Equipment, 'Equipment')
   if (command.equipmentIds.length !== equipped.length) throw new Error(`A loadout needs exactly ${equipped.length} equipment slots`)
   if (new Set(command.passiveIds).size !== command.passiveIds.length) throw new Error('A loadout cannot equip the same passive twice')
-  const learnedPassives = numbers(member.value.LearnedPassives, 'LearnedPassives')
   const passiveRecords = command.passiveIds.map(id => {
     const passive = known(catalog, 'passive', id)
-    if ((learnedPassives[id] ?? LEARNED.locked) !== LEARNED.learned) throw new Error(`${String(passive.Name ?? `Passive ${id}`)} has not been learned by this member`)
     if (passive.IsLearnable === false) throw new Error(`${String(passive.Name ?? `Passive ${id}`)} cannot be equipped as a learned passive`)
+    if ((numbers(member.value.LearnedPassives, 'LearnedPassives')[id] ?? LEARNED.locked) !== LEARNED.learned) learn(save, member, 'LearnedPassives', id, LEARNED.learned, now)
     return passive
   })
   const passiveCost = passiveRecords.reduce((sum, passive) => sum + Number(passive.PP), 0)
@@ -89,7 +88,13 @@ export function applyLoadout(save: CrystalSave, member: BsonDocument, catalog: S
   // Return this member's gear before counting requested copies, allowing reuse of the same item
   // These mutations are confined to editSave's candidate and roll back if any later check fails
   unequip(save, member)
-  for (const [id, count] of counts) if (quantity(save, 'equipment', id) < count) throw new Error(`Inventory needs ${count} ${String(catalog.records.equipment.get(id)?.Name ?? `equipment ${id}`)} for this loadout`)
+  // Add only the missing copies after returning this member's gear; other members keep theirs
+  // Capacity still includes the rest of the party and final validation rolls back every prerequisite
+  for (const [id, count] of counts) if (quantity(save, 'equipment', id) < count) {
+    bound(count, 0, capacity(save, catalog, 'equipment', id), `${String(catalog.records.equipment.get(id)?.Name ?? `Equipment ${id}`)} stock`)
+    setStock(save, 'equipment', id, count)
+    atlas(save, 'Equipment', id, ATLAS.acquired, now)
+  }
   for (const [id, count] of counts) setStock(save, 'equipment', id, quantity(save, 'equipment', id) - count)
   member.value.Equipment = list(command.equipmentIds.map(id => id === null ? { type: 'null' } : int(id)))
   const passives = object(member.value.Passives, 'Passives')

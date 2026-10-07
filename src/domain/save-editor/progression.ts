@@ -8,7 +8,7 @@ import { type SaveEditorRandomizerState, randomizedId } from './randomizer.ts'
 
 const LEARN_NODE = Object.freeze({ ability: 2, passive: 3 })
 
-function learn(save: CrystalSave, member: BsonDocument, field: 'LearnedJobs' | 'LearnedAbilities' | 'LearnedPassives', id: number, state: number, now: Date): void {
+export function learn(save: CrystalSave, member: BsonDocument, field: 'LearnedJobs' | 'LearnedAbilities' | 'LearnedPassives', id: number, state: number, now: Date): void {
   const values = array(member.value[field], field)
   while (values.length <= id) values.push(int(LEARNED.locked))
   if (number(values[id], field) < state) values[id] = int(state)
@@ -17,19 +17,38 @@ function learn(save: CrystalSave, member: BsonDocument, field: 'LearnedJobs' | '
 
 export function nativeIds(record: NativeRecord, field: string): number[] { const value = record[field]; return Array.isArray(value) ? value.filter((id): id is number => typeof id === 'number') : [] }
 
+export function unlockSelectedJob(save: CrystalSave, member: BsonDocument, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, id: number, now: Date): void {
+  if ((numbers(member.value.LearnedJobs, 'LearnedJobs')[id] ?? LEARNED.locked) >= LEARNED.unlocked) return
+  const job = known(catalog, 'job', id)
+  // A new class needs its default skills initialized, but selecting it must not master its tree
+  learn(save, member, 'LearnedJobs', id, LEARNED.unlocked, now)
+  learnJobSkills(save, member, job, catalog, randomizer, false, now)
+}
+
 function treeNodes(value: unknown): { type: number; id: number }[] {
   if (Array.isArray(value)) return value.flatMap(treeNodes)
   if (value && typeof value === 'object' && 'NodeType' in value && 'DataID' in value && typeof value.NodeType === 'number' && typeof value.DataID === 'number') return [{ type: value.NodeType, id: value.DataID }]
   return []
 }
 
+function learnJobSkills(save: CrystalSave, member: BsonDocument, job: NativeRecord, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, master: boolean, now: Date): void {
+  const abilityIds = new Set([...nativeIds(job, 'AbilityIDs'), ...(master ? treeNodes(job.LearnTree).filter(node => node.type === LEARN_NODE.ability).map(node => node.id) : [])].map(id => randomizedId(randomizer, 'AbilityJobs', id)))
+  for (const abilityId of abilityIds) {
+    const ability = known(catalog, 'ability', abilityId)
+    if (master || !ability.IsDefaultLocked) learn(save, member, 'LearnedAbilities', abilityId, master || ability.JP === 0 ? LEARNED.learned : LEARNED.unlocked, now)
+  }
+  for (const sourceId of nativeIds(job, 'PassiveIDs')) {
+    const passiveId = randomizedId(randomizer, 'Passives', sourceId)
+    const passive = known(catalog, 'passive', passiveId)
+    if (master || !passive.IsDefaultLocked) learn(save, member, 'LearnedPassives', passiveId, passive.IsLearnable && (master || passive.JP === 0) ? LEARNED.learned : LEARNED.unlocked, now)
+  }
+}
+
 export function learnJobs(save: CrystalSave, catalog: SaveEditorCatalog, randomizer: SaveEditorRandomizerState, master: boolean, now: Date): void {
   for (const member of save.members) {
     for (const [id, job] of catalog.records.job) {
       learn(save, member, 'LearnedJobs', id, master ? LEARNED.learned : LEARNED.unlocked, now)
-      const abilityIds = new Set([...nativeIds(job, 'AbilityIDs'), ...(master ? treeNodes(job.LearnTree).filter(node => node.type === LEARN_NODE.ability).map(node => node.id) : [])].map(id => randomizedId(randomizer, 'AbilityJobs', id)))
-      for (const abilityId of abilityIds) { const ability = known(catalog, 'ability', abilityId); if (master || !ability.IsDefaultLocked) learn(save, member, 'LearnedAbilities', abilityId, master || ability.JP === 0 ? LEARNED.learned : LEARNED.unlocked, now) }
-      for (const sourceId of nativeIds(job, 'PassiveIDs')) { const passiveId = randomizedId(randomizer, 'Passives', sourceId); const passive = known(catalog, 'passive', passiveId); if (master || !passive.IsDefaultLocked) learn(save, member, 'LearnedPassives', passiveId, passive.IsLearnable && (master || passive.JP === 0) ? LEARNED.learned : LEARNED.unlocked, now) }
+      learnJobSkills(save, member, job, catalog, randomizer, master, now)
     }
     if (master) {
       const passives = new Set([...catalog.records.passive].filter(([, passive]) => passive.IsLearnable).map(([id]) => id))
