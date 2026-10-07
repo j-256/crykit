@@ -56,6 +56,8 @@ const reviewedBinaryAssets = new Map([
 ])
 const gameAssetDirectory = 'src/assets/game-assets/'
 const gameAssetManifestPath = 'src/catalog/game-assets.json'
+const geometryDirectory = 'src/assets/world-map/geometry-'
+const geometryManifestPath = 'src/catalog/world-map.json'
 const spriteSources = [
   { directory: 'src/assets/mod-artwork-atlases/', manifestPath: 'src/catalog/mod-artwork.json', assetField: 'atlases', label: 'Mod artwork atlas manifest' },
   { directory: 'src/assets/mod-artwork/', manifestPath: 'src/catalog/mod-artwork.json', label: 'Mod artwork manifest' },
@@ -76,12 +78,22 @@ try {
     reviewedBinaryAssets.set(`${gameAssetDirectory}${asset.file}`, asset.sha256)
   }
 } catch { findings.push('Native game artwork manifest: unable to read reviewed asset hashes') }
+try {
+  const manifest = JSON.parse((options.staged ? git(['show', `:${geometryManifestPath}`]) : readFileSync(geometryManifestPath)).toString('utf8'))
+  // Only normalized geometry bytes bound to the reviewed native map manifest qualify
+  // Raw archives and unrelated binaries retain the ordinary privacy rejection
+  for (const layer of manifest.layers) for (const tile of layer.geometry ?? []) {
+    if (!new RegExp(`^geometry-${layer.id}-\\d+-\\d+\\.bin$`).test(tile.file) || !/^[a-f0-9]{64}$/.test(tile.sha256)) throw new Error('Invalid geometry manifest entry')
+    reviewedBinaryAssets.set(`src/assets/world-map/${tile.file}`, tile.sha256)
+  }
+} catch { findings.push('Native map geometry manifest: unable to read reviewed asset hashes') }
 for (const file of new Set(files)) {
   if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact`)
   if (file.startsWith('.github/workflows/') && !reviewedWorkflows.has(file)) findings.push(`${file}: unreviewed CI workflow`)
   const spriteDirectory = spriteSources.some(source => file.startsWith(source.directory))
   if (spriteDirectory && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
   if (file.startsWith(gameAssetDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native game artwork is absent from the reviewed manifest`)
+  if (file.startsWith(geometryDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native geometry is absent from the reviewed manifest`)
   if (!reviewedBinaryAssets.has(file) && !spriteDirectory && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }

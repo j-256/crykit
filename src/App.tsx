@@ -1,4 +1,5 @@
 import { buildContentForModSetup } from './domain/build-mods'
+import { changesModDraftContext } from './ui/mod-workspace'
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
 import { modRevision, type BundledLibraryMod } from './domain/mod-library'
 import { bundledModEditableSource } from './catalog/mod-library'
@@ -177,6 +178,7 @@ export default function App() {
     resolveEntityName,
     shouldBlock: (from, to) => {
       if (!formDirtyRef.current) return false
+      if (changesModDraftContext(from, to)) return true
       if (buildDraftRouteRef.current && !dirtyRef.current) return !isReferenceResearchRoute(to) && !isRouteWithin(to, buildDraftRouteRef.current)
       return !isRouteWithin(to, routeWithoutOverlays(from))
     },

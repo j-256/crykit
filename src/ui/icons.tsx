@@ -4,6 +4,16 @@ export type IconName =
   | 'archive'
   | 'arrow-left'
   | 'arrow-right'
+  | 'arrow-up'
+  | 'arrow-down'
+  | 'minus'
+  | 'move'
+  | 'paintbrush'
+  | 'eraser'
+  | 'plane'
+  | 'eye'
+  | 'undo'
+  | 'redo'
   | 'book'
   | 'box'
   | 'check'
@@ -52,6 +62,16 @@ const paths: Record<IconName, React.ReactNode> = {
   archive: <><path d="M4 7h16v13H4z"/><path d="M3 3h18v4H3z"/><path d="M9 11h6"/></>,
   'arrow-left': <><path d="m15 18-6-6 6-6"/><path d="M9 12h10"/></>,
   'arrow-right': <><path d="m9 18 6-6-6-6"/><path d="M15 12H5"/></>,
+  'arrow-up': <><path d="m6 15 6-6 6 6"/><path d="M12 9v10"/></>,
+  'arrow-down': <><path d="m6 9 6 6 6-6"/><path d="M12 15V5"/></>,
+  minus: <path d="M5 12h14"/>,
+  move: <><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></>,
+  paintbrush: <><path d="m14 3 7 7-9 9-7-7zM14 3l-2 2M21 10l-2 2M5 12l-2 5 4 4 5-2M3 21h5"/></>,
+  eraser: <><path d="m14 3 7 7-10 11H6l-4-4zM8 9l7 7M11 21h10"/></>,
+  plane: <><path d="m3 15 9-5 9 5-9 5zM7.5 12.5l9 5m-9 0 9-5"/><path d="M12 3v5m-3-2 3-3 3 3"/></>,
+  eye: <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>,
+  undo: <path d="m8 3-5 5 5 5M3 8h10a7 7 0 0 1 0 14h-2"/>,
+  redo: <path d="m16 3 5 5-5 5M21 8H11a7 7 0 0 0 0 14h2"/>,
   book: <><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></>,
   box: <><path d="m4 7 8-4 8 4-8 4z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4z"/><path d="M12 11v10"/></>,
   check: <path d="m5 12 4 4L19 6"/>,

@@ -7,6 +7,7 @@ import { Icon, type IconName } from './icons'
 import { IconButton } from './components'
 import { UniversalSearch } from './UniversalSearch'
 import { ProgressBoards } from './ProgressBoards'
+import { ModWorkspaceLinks } from './ModWorkspaceLinks'
 import { PreviewNotice } from './PreviewNotice'
 import { WorkspaceHeaderContext } from './WorkspaceHeader'
 import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay, useNavigation, type Destination } from './navigation'
@@ -125,7 +126,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
     <aside className="rail" ref={railRef} onFocusCapture={event => positionSidebarLabels(event.currentTarget)} onPointerOver={event => positionSidebarLabels(event.currentTarget)} onScrollCapture={event => positionSidebarLabels(event.currentTarget)}>
       <nav aria-label="Primary navigation" className="menu-window">
         <p className="nav-section__label">Planning</p>
-        <ul aria-label="Planning" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}</li>)}</ul>
+        <ul aria-label="Planning" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'mods' && <ModWorkspaceLinks/>}</li>)}</ul>
         <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">

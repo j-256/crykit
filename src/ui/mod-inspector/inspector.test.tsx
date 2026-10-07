@@ -78,10 +78,10 @@ describe('inspector exact edits and navigation', () => {
     const row = { ...saved, originalText: text, draftText: text, referenceId: INSPECTOR_REFERENCE_ID }
     storage.get.mockResolvedValue(row)
     await act(async () => root.render(<ModInspectorView/>))
-    expect(container.textContent).toContain('Exact enum names')
+    expect(container.textContent).toContain('Exact Enum Names')
     expect(container.querySelector('button[aria-label="Sources for enum names"]')).toBeNull()
     await open()
-    expect(container.textContent).toContain('JSON explorer')
+    expect(container.textContent).toContain('JSON Explorer')
     expect(container.querySelector('button[aria-label="Sources for inspector labels"]')).toBeNull()
     await selectField('Count')
     expect(container.querySelector('textarea')?.value).toBe('1')
@@ -152,7 +152,7 @@ describe('inspector exact edits and navigation', () => {
   })
   it('searches exact enum codes and names without matching shared provenance', async () => {
     await act(async () => root.render(<ModInspectorView/>))
-    await click('Enum dictionary')
+    await click('Enum Dictionary')
     const search = container.querySelector<HTMLInputElement>('.inspector-dictionary input[type="search"]')!
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(search, '34')
@@ -347,7 +347,7 @@ describe('inspector exact edits and navigation', () => {
     await click('Remove original and draft')
     expect(storage.remove).toHaveBeenLastCalledWith(saved.id, saved.revision)
     expect(container.querySelector('select')?.value).toBe('')
-    expect(container.textContent).toContain('Exact enum names')
+    expect(container.textContent).toContain('Exact Enum Names')
   })
   it('waits for an in-flight save and restores the persisted draft before discard navigation', async () => {
     let complete: (row: InspectorDraft) => void = () => undefined

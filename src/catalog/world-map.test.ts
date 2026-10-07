@@ -7,13 +7,54 @@ import { CryKitDatabase, setDatabaseForTests } from '../persistence/database'
 import { BUNDLED_MOD_LIBRARY } from './mod-library'
 import { CURRENT_CATALOG, DEFAULT_CATALOG } from './bundled'
 import { bundledModSearchCatalogs } from './mod-search'
-import { loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
+import { loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
+import { encodeMapGeometry } from '../domain/map-geometry'
+import { sha256 } from '../interchange/util'
 import manifestSource from './world-map.json'
 
 beforeAll(() => { vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(manifestSource)))) })
 afterAll(() => { vi.unstubAllGlobals() })
 
 describe('bundled native world map and original mod source joining', () => {
+  it('bounds simultaneous geometry downloads and drains queued requests', async () => {
+    const fixtures = await Promise.all(manifestSource.layers[0]!.geometry.slice(1, 9).map(async original => {
+      const bytes = encodeMapGeometry(new Uint8Array([0, 81, 0, 49, 31, 3]), original.bounds, 0)
+      return { bytes, metadata: { ...original, size: bytes.length, sha256: await sha256(bytes), minY: 81, maxY: 84 } }
+    }))
+    let active = 0
+    let maximum = 0
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      active++; maximum = Math.max(maximum, active)
+      await new Promise(resolve => setTimeout(resolve, 2))
+      active--
+      const fixture = fixtures.find(value => url.includes(value.metadata.file))!
+      return new Response(fixture.bytes as BodyInit)
+    }))
+    try {
+      const tiles = await Promise.all(fixtures.map(value => loadMapGeometryTile(value.metadata, 0)))
+      expect(tiles).toHaveLength(fixtures.length)
+      expect(new Set(tiles.map(tile => tile.bounds.z)).size).toBe(fixtures.length)
+      expect(maximum).toBe(4)
+      expect(active).toBe(0)
+    } finally { vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(manifestSource)))) }
+  })
+  it('checks geometry bytes before use, retries failures and shares successful immutable tiles', async () => {
+    const manifest = await loadWorldMap()
+    const original = manifestSource.layers[0]!.geometry[0]!
+    const bytes = encodeMapGeometry(new Uint8Array([0, 90, 0, 49, 31, 8]), original.bounds, 0)
+    const metadata = { ...original, size: bytes.length, sha256: await sha256(bytes), minY: 90, maxY: 98 }
+    const fetchTile = vi.fn().mockResolvedValueOnce(new Response(new Uint8Array(bytes.length))).mockResolvedValueOnce(new Response(bytes as BodyInit))
+    vi.stubGlobal('fetch', fetchTile)
+    try {
+      await expect(loadMapGeometryTile(metadata, 0)).rejects.toThrow('integrity')
+      const [a, b] = await Promise.all([loadMapGeometryTile(metadata, 0), loadMapGeometryTile(metadata, 0)])
+      expect(a).toBe(b)
+      expect(a.cells).toEqual(new Uint8Array([0, 90, 0, 49, 31, 8]))
+      expect(fetchTile).toHaveBeenCalledTimes(2)
+      await expect(loadMapGeometryTile(metadata, 1)).rejects.toThrow('layer differs')
+      expect(() => validateWorldMapSource({ ...manifest, layers: [{ ...manifest.layers[0]!, geometry: [{ ...original, file: 'geometry-1-0-0.bin' }] }] })).toThrow('does not match')
+    } finally { vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(manifestSource)))) }
+  })
   it('loads each native atlas layer and rejects a changed executable or native definition snapshot', async () => {
     const manifest = await loadWorldMap()
     expect(manifest.layers.map(layer => layer.id)).toEqual([0, 1, 4, 5, 6, 7, 8, 9])
