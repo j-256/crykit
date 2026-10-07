@@ -16,6 +16,7 @@ import './save-editor.css'
 
 const INVENTORY_PAGE_SIZE = 30
 const MAX_MOD_DEFINITION_FILES = 100
+const MAX_BUNDLED_SAVE_SOURCE_CACHE = 8
 const BULK_ACTIONS = [
   { type: 'overpowered', title: 'Overpowered preset', description: 'Raise the party to level 99, master classes and skills, and add money, travel items, and a broad equipment inventory. Keep the party\'s equipped loadouts.', button: 'Review overpowered preset' },
   { type: 'unlock-jobs', title: 'Unlock all classes', description: 'Make every class in the matched save definitions available to each party member. Keep their learned skills and equipped classes.', button: 'Review class unlocks' },
@@ -81,13 +82,32 @@ function bundledDefinitionsForSave(save: CrystalSave) {
   })
 }
 
-async function loadBundledSaveEditorSource(mod: BundledLibraryMod) {
-  const source = await bundledModEditableSource(mod)
-  const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)
-  if (preview.errors.length) throw new Error(preview.errors[0]!.message)
-  const catalog = preview.proposed.catalogs[0]
-  if (!catalog) throw new Error(`${source.filename} is not a Crystal Edit project`)
-  return createSaveEditorModSource(catalog, preview.warnings, 'bundled', mod.key)
+const bundledSaveEditorSources = new Map<string, Promise<SaveEditorModSource>>()
+
+function loadBundledSaveEditorSource(mod: BundledLibraryMod): Promise<SaveEditorModSource> {
+  const key = `${mod.key}:${mod.sourceDigest}`
+  const cached = bundledSaveEditorSources.get(key)
+  if (cached) {
+    bundledSaveEditorSources.delete(key)
+    bundledSaveEditorSources.set(key, cached)
+    return cached
+  }
+  // Bundled bytes are content-addressed; reuse parsing across saves and discard failed loads for retry
+  const loading = (async () => {
+    const source = await bundledModEditableSource(mod)
+    const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)
+    if (preview.errors.length) throw new Error(preview.errors[0]!.message)
+    const catalog = preview.proposed.catalogs[0]
+    if (!catalog) throw new Error(`${source.filename} is not a Crystal Edit project`)
+    return createSaveEditorModSource(catalog, preview.warnings, 'bundled', mod.key)
+  })().catch(reason => {
+    if (bundledSaveEditorSources.get(key) === loading) bundledSaveEditorSources.delete(key)
+    throw reason
+  })
+  bundledSaveEditorSources.set(key, loading)
+  // Bound retained decoded catalogs for long-lived editor tabs
+  if (bundledSaveEditorSources.size > MAX_BUNDLED_SAVE_SOURCE_CACHE) bundledSaveEditorSources.delete(bundledSaveEditorSources.keys().next().value!)
+  return loading
 }
 
 export function SaveEditorView({ localData: localDataProp, onDraftChange }: { readonly localData?: LocalData; readonly onDraftChange?: DraftChangeHandler } = {}) {
