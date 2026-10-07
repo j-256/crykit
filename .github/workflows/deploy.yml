@@ -75,7 +75,13 @@ jobs:
           name: application
           path: dist/
       - name: Install test browser
-        run: npx playwright install --with-deps chromium
+        run: |
+          # The Azure apt mirror can stall on hosted runners before Playwright installs Chromium
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
+          printf 'Acquire::Retries "1";\nAcquire::http::Timeout "15";\nAcquire::https::Timeout "15";\n' | sudo tee /etc/apt/apt.conf.d/99playwright-network > /dev/null
+          npx playwright install --with-deps chromium
       - name: Verify browser workflows
         run: npm run test:e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.shards }} --workers=1
       - name: Save browser timings
