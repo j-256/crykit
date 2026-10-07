@@ -1,0 +1,18 @@
+[
+  { "id": "builds", "label": "Build library and saved Build editor" },
+  { "id": "teams", "label": "Saved Team overview and Team editor" },
+  { "id": "inventory", "label": "Inventory observations and item entry" },
+  { "id": "characters", "label": "Character roster, tracked character, and snapshot entry" },
+  { "id": "progress", "label": "Class seals, unlocks, and Summons" },
+  { "id": "quintar", "label": "Quintar next step and expanded breeding instructions" },
+  { "id": "reference", "label": "Reference results and equipment details" },
+  { "id": "mods", "label": "Mod library, expanded source, and Reference membership" },
+  { "id": "map", "label": "World Map and location details" },
+  { "id": "backup", "label": "Backup tools and synthetic import preview" },
+  { "id": "history", "label": "History and revision details" },
+  { "id": "game-setup", "label": "Saved Game Setup and expanded rules" },
+  { "id": "save-editor", "label": "Loaded save, party, loadout, money, review, and file details" },
+  { "id": "mod-editor", "label": "Loaded synthetic mod, JSON edit, and export review" },
+  { "id": "screenshot-learning", "label": "Skill screenshot upload and synthetic review" },
+  { "id": "search", "label": "Universal search with nonempty results" }
+]
