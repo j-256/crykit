@@ -15,7 +15,7 @@ export function SaveFailureAlert({ error, dirty, saving, onRetry, onExport, onDi
     finally { setExporting(false) }
   }
   return <div className="external-update global-save-alert">
-    <InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger"><ErrorMessage message={error}/><p>{dirty ? 'Your draft remains open. Retry saving or download a recovery backup.' : 'Resolve the error, then retry the action.'}</p>{dirty && <small>The backup includes retained changes. Fields still in an unsubmitted form stay in that form.</small>}{exportError && <div role="alert"><ErrorMessage message={exportError}/></div>}</InlineNotice>
+    <InlineNotice title={dirty ? 'Local save failed' : 'Change not saved'} tone="danger"><ErrorMessage message={error}/><p>{dirty ? 'Your draft remains open. Retry saving or download a recovery backup.' : 'Resolve the error, then retry the action.'}</p>{dirty && <small>The backup includes pending changes from failed saves, but excludes unsubmitted form fields.</small>}{exportError && <div role="alert"><ErrorMessage message={exportError}/></div>}</InlineNotice>
     <div className="cluster">{dirty && <Button disabled={saving || exporting} icon="refresh" onClick={() => void onRetry().catch(() => undefined)} tone="secondary">{saving ? 'Retrying...' : 'Retry save'}</Button>}<Button disabled={saving || exporting} icon="download" onClick={() => void exportRecovery()} tone="secondary">{exporting ? 'Preparing backup...' : 'Export recovery backup'}</Button>{!dirty && <Button aria-label="Dismiss save alert" onClick={onDismiss} tone="quiet" type="button">Dismiss</Button>}</div>
   </div>
 }

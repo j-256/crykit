@@ -115,6 +115,8 @@ function urlHost(value: string): string | undefined {
 }
 
 export function sourceDisplay(value: string): SourceDisplay {
+  // Keep the saved filter key stable while using the same terminology as the definition editor
+  if (value === 'Personal definitions') return { label: 'Custom definitions' }
   const label = starterSourceLabel(value)
   const host = urlHost(value)
   if (label) return { label, ...(host ? { detail: host } : {}) }

@@ -113,7 +113,7 @@ describe('source-backed mod calculation inputs', () => {
     expect(JSON.stringify(legacy)).toBe(before)
     metadata.gameRules = { version: 1, battleConfig: null, difficulties: [], localization: false, unsupported: ['Genders'] }
     const unavailable = configured([legacy])
-    expect(unavailable.rules.issues.join(' ')).toContain('Reimport and explicitly select')
+    expect(unavailable.rules.issues.join(' ')).toContain("Reimport and select")
     expect(unavailable.calculate().male.HP).toBeNull()
   })
 
@@ -171,7 +171,7 @@ describe('source-backed mod calculation inputs', () => {
     const second = await importMod('second additions', { Genders: [{ ID: 8, Name: 'Second extra', ...bonuses, BoostHP: true }] })
     const context = configured([first, second])
     const historical = { ...context.setup, modComposition: { ...context.setup.modComposition!, version: 2 as const, identityMappings: undefined } }
-    expect(resolveGameRules(historical, context.catalogs).issues.join(' ')).toContain('Runtime remapping of added IDs is not modeled')
+    expect(resolveGameRules(historical, context.catalogs).issues.join(' ')).toContain("CryKit cannot combine these added IDs")
     expect(context.rules.issues).toEqual([])
     expect(context.rules.genders.filter(gender => gender.sourceKind === 'mod').map(gender => gender.name)).toEqual(['First extra', 'Second extra'])
     expect(context.calculate().neutral.HP).not.toBeNull()

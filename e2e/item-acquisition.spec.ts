@@ -46,7 +46,7 @@ test('crafting ingredients link to their own acquisition routes and missing rout
   await expect(page.getByRole('heading', { name: 'Secret Veggie', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText('Gourmet')
   await page.goto(referencePath('base:item:46'))
-  await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText('No acquisition route found')
+  await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText("No source here says how to obtain this item.")
   await page.goto(referencePath('base:item:50'))
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).not.toContainText('Additional acquisition guidance is recorded')
   await expect(page.getByText('Reward for clearing the Ancient Reservoir in Poko Poko Desert.', { exact: true })).toBeVisible()

@@ -132,9 +132,9 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await page.reload()
   const inventoryForm = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   const definitionPicker = page.getByRole('dialog', { name: 'Choose Item definition', exact: true })
-  const definitionEditor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const definitionEditor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   await expect(definitionEditor).toBeVisible()
-  await expectActiveDialog(page, 'Create personal definition')
+  await expectActiveDialog(page, 'Create custom definition')
 
   await page.keyboard.press('Escape')
   await expect(definitionEditor).not.toBeVisible()

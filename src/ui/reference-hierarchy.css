@@ -19,3 +19,4 @@
 @media (max-width: 600px) {
   .reference-technical__hint { display: block; margin: .35rem 0 0 1.5rem; }
 }
+.reference-category-selection { margin: 8px 0; color: var(--text); font-size: .75rem; overflow-wrap: anywhere; }

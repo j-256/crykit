@@ -88,7 +88,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
   }
   return <section ref={section} aria-label="Combat preview" className="combat-preview stack">
     <div className="combat-heading">
-      <div><h4>{battle ? 'Battle scenario' : 'Ability preview'}</h4><p className="field__hint">{battle ? 'Choose an ability and target. Adjust optional conditions only when they affect your result.' : 'Choose an ability to see its costs with this Build. Add a scenario for damage, healing or active statuses.'}</p></div>
+      <div><h4>{battle ? 'Battle scenario' : 'Ability preview'}</h4><p className="field__hint">{battle ? 'Choose an ability and target. Add any relevant battle conditions.' : 'Choose an ability to see its costs. Add a scenario for damage, healing, or statuses.'}</p></div>
       {onChange && <Button tone="quiet" type="button" onClick={() => update({ battle: battle ? undefined : defaultBattleCalculation() })}>{battle ? 'Use resting stats' : 'Add battle scenario'}</Button>}
     </div>
     <div className="combat-selection">
@@ -99,7 +99,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
     </div>
     {plan?.ability && <div className="combat-costs"><div className="combat-heading"><h5>Effective ability costs</h5>{noResourceCost && <span className="combat-free-cost"><Icon name="check"/>No resource cost</span>}</div>
       <dl aria-label="Effective ability costs" className="definition-list combat-cost-grid">{ABILITY_COSTS.map(cost => <div className="definition-row" data-resource={cost} data-state={preview.costs[cost] === 0 ? 'zero' : preview.costs[cost] === null ? 'unknown' : 'active'} key={cost}><dt>{COST_LABELS[cost]}</dt><dd><PreviewValue {...valueContext} value={preview.costs[cost]} reasons={preview.unavailable[`${cost} cost`]}/></dd></div>)}</dl>
-      <details className="combat-base-costs"><summary>Base ability costs</summary><p className="field__hint">Listed parameters before equipment, passive and status adjustments. Base HP cost is a percentage of maximum HP.</p><dl aria-label="Base ability costs" className="definition-list">{ABILITY_COSTS.map(cost => <div className="definition-row" key={cost}><dt>{COST_LABELS[cost]}</dt><dd>{numberText(preview.baseCosts[cost])}{cost === 'HP' ? '% of max HP' : ''}</dd></div>)}</dl></details>
+      <details className="combat-base-costs"><summary>Base ability costs</summary><p className="field__hint">Before gear, passives, and statuses. Base HP cost is a percentage of max HP.</p><dl aria-label="Base ability costs" className="definition-list">{ABILITY_COSTS.map(cost => <div className="definition-row" key={cost}><dt>{COST_LABELS[cost]}</dt><dd>{numberText(preview.baseCosts[cost])}{cost === 'HP' ? '% of max HP' : ''}</dd></div>)}</dl></details>
     </div>}
     {battle && <>
       <div className="combat-results"><div className="combat-heading"><h4>Ability outcome</h4><span className="combat-caption">Before random rolls</span></div>
@@ -115,17 +115,17 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
           <div className="definition-row"><dt>Variance amplitude</dt><dd><PreviewValue {...valueContext} value={preview.variance === null ? null : Math.abs(preview.variance)} reasons={preview.unavailable.Variance}/></dd></div>
           <div className="definition-row"><dt>Critical variance amplitude</dt><dd><PreviewValue {...valueContext} value={preview.criticalVariance === null ? null : Math.abs(preview.criticalVariance)} reasons={preview.unavailable['Critical variance']}/></dd></div>
         </dl></details></div>}
-        <p className="field__hint">Uses your Build, Game Setup and selected target. Unknown inputs only block the results that need them.</p>
+        <p className="field__hint">Uses this Build and target. Missing inputs block only the results that need them.</p>
         <details className="combat-secondary-results"><summary>Periodic and status effects</summary><div className="stack">
           <div><h5>Actor periodic effects</h5><dl className="definition-list combat-periodic-grid" aria-label="Periodic battle effects">{PERIODIC_RESOURCES.map(resource => <div className="definition-row" key={resource}><dt>{resource} per tick</dt><dd><PreviewValue {...valueContext} value={preview.periodic[resource]} reasons={preview.unavailable[`${resource} per turn`]}/></dd></div>)}</dl><p className="field__hint">Positive amounts are lost; negative amounts are recovered.</p></div>
           {preview.statuses.length > 0 && <div><h5>Ability status effects</h5><ul className="combat-status-results">{preview.statuses.map((status, index) => <li key={`${status.recipient}:${status.name}:${index}`}><strong>{status.name}</strong><span>{status.recipient === 'user' ? 'Actor' : 'Target'} · Chance: <PreviewValue {...valueContext} recipient={status.recipient} value={status.chance} reasons={preview.unavailable[`${status.name} chance (${status.recipient})`]} suffix="%"/> · Duration: <PreviewValue {...valueContext} recipient={status.recipient} value={status.duration} reasons={preview.unavailable[`${status.name} duration (${status.recipient})`]}/>{status.condition && <small>{status.condition}</small>}</span></li>)}</ul></div>}
         </div></details>
       </div>
-      <div className="combat-assumptions-heading"><h4>Optional battle conditions</h4><p className="field__hint">Saved with this plan. These assumptions do not change recorded character observations.</p></div>
+      <div className="combat-assumptions-heading"><h4>Optional battle conditions</h4><p className="field__hint">Saved with this plan; recorded character stats stay unchanged.</p></div>
       <BattleCalculationControls battle={battle} maxima={preview.maxima} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange ? battle => update({ battle }) : undefined}/>
-      {plan.statuses.length > 0 && onChange && <InlineNotice title="Retained status assumptions"><p>Older status selections are preserved separately. Add them to this scenario to calculate their effects.</p><Button tone="quiet" type="button" onClick={includeRetainedStatuses}>Use retained statuses in scenario</Button></InlineNotice>}
+      {plan.statuses.length > 0 && onChange && <InlineNotice title="Saved status assumptions"><p>Add these saved statuses to the scenario to calculate their effects.</p><Button tone="quiet" type="button" onClick={includeRetainedStatuses}>Use saved statuses in scenario</Button></InlineNotice>}
     </>}
     {preview.issues.length > 0 && <InlineNotice title="Some battle inputs need attention" tone="warning"><ul>{preview.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
-    {battle && <details className="combat-scope"><summary>Calculation scope</summary><p>Effective costs include supported equipment, passive and scenario status modifiers. HP cost is the amount paid; its base parameter is a percentage. Outcomes do not establish action legality or target selection rules.</p><ul>{preview.notes.map(note => <li key={note}>{note}</li>)}</ul></details>}
+    {battle && <details className="combat-scope"><summary>Calculation scope</summary><p>Costs include supported gear, passive, and status effects. Effective HP cost is an amount; base HP cost is a percentage. This preview does not check whether the action or target is allowed.</p><ul>{preview.notes.map(note => <li key={note}>{note}</li>)}</ul></details>}
   </section>
 }

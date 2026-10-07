@@ -50,7 +50,7 @@ export function TeamReview({ slots, localData, catalogs, saved = false }: { read
     {review.unresolved > 0 && <p className="team-review__issues"><Icon name="info"/>{review.unresolved} {review.unresolved === 1 ? 'member has' : 'members have'} unresolved checks</p>}
     {review.filled > 0 && review.valid === review.filled && <p className="team-review__clear"><Icon name="check"/>No known build issues</p>}
     {review.newer > 0 && <p className="team-review__updates">{review.newer} {review.newer === 1 ? 'slot has a newer checkpoint' : 'slots have newer checkpoints'} available. Review before updating.</p>}
-    {review.emptyEquipment.length > 0 && <details><summary>Review empty equipment slots</summary><ul>{review.emptyEquipment.map(member => <li key={member.member}>{member.member}: {member.slots.join(', ')}</li>)}</ul><p>Empty slots do not prevent saving a Team or mean its members are incompatible.</p></details>}
+    {review.emptyEquipment.length > 0 && <details><summary>Review empty equipment slots</summary><ul>{review.emptyEquipment.map(member => <li key={member.member}>{member.member}: {member.slots.join(', ')}</li>)}</ul><p>Teams can be saved with empty slots.</p></details>}
 
   </section>
 }

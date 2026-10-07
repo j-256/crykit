@@ -55,7 +55,7 @@ export function validateBuildContent(
     if (!selection) continue
     const slot = slotMap.get(slotId)
     if (!slot) {
-      add('SLOT_REFERENCE_MISSING', 'invalid', 'A selected definition uses a slot outside this Game Setup', slotId)
+      add('SLOT_REFERENCE_MISSING', 'invalid', 'A selection uses a slot missing from this Game Setup', slotId)
       continue
     }
     checkCatalogLock(selection.ref, slot.label, slotId)
@@ -65,7 +65,7 @@ export function validateBuildContent(
     } else if (slot.acceptedEntityKinds?.state === 'known' && !slot.acceptedEntityKinds.value.includes(definition.kind)) {
       add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slotId)
     } else if (!slot.acceptedEntityKinds || slot.acceptedEntityKinds.state === 'unknown' || slot.acceptedEntityKinds.state === 'conflicting') {
-      add('SLOT_ACCEPTANCE_UNKNOWN', 'undetermined', `${slot.label}: accepted definition types are unresolved`, slotId)
+      add('SLOT_ACCEPTANCE_UNKNOWN', 'undetermined', `${slot.label}: CryKit doesn't know what can go in this slot`, slotId)
     }
   }
 
@@ -88,7 +88,7 @@ export function validateBuildContent(
   if (selectedPassives > 0 && limit.state !== 'notApplicable') {
     if (limit.state !== 'known') {
       ppStatus = 'undetermined'
-      add('PP_LIMIT_UNKNOWN', 'undetermined', 'The Build PP limit is unresolved for this Game Setup')
+      add('PP_LIMIT_UNKNOWN', 'undetermined', 'The PP limit is unknown for this Game Setup')
     } else if (unresolvedCosts === 0) {
       if (knownSubtotal > limit.value) {
         ppStatus = 'invalid'

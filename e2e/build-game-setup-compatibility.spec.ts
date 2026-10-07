@@ -82,7 +82,7 @@ test('new builds use active planning rules when the library contains only sample
   await loadFixture(page)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await page.locator('.build-behavior > summary').click()
-  await expect(page.getByText('Starting with your active planning Game Setup. Review the rules before choosing equipment.', { exact: true })).toBeVisible()
+  await expect(page.getByText("Starts with your planning Game Setup. Review its rules before choosing equipment.", { exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).locator('option:checked')).toContainText(ALTERNATE_GAME_SETUP)
   await expect(page.getByRole('status', { name: 'Build PP summary', exact: true })).toContainText('0 / 20 PP')
 })

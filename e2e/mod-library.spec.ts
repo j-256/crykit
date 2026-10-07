@@ -41,7 +41,7 @@ test('mod cards separate Reference browsing from Game Setup state and secondary 
   await expect(manual.getByText('Mod JSON unavailable', { exact: true })).toBeVisible()
   await expect(manual.getByRole('button', { name: 'Add catalog entry', exact: true })).toBeEnabled()
   expect(await manual.getByRole('button', { name: 'Add catalog entry', exact: true }).evaluate(element => element.closest('details'))).toBeNull()
-  await expect(page.getByText('Add to Reference controls browsing.', { exact: false })).toBeVisible()
+  await expect(page.getByText("Add to Reference makes a mod browsable.", { exact: false })).toBeVisible()
   await card.locator('.mod-library__versions > summary').click()
   await expect(card).toContainText('Bundled JSON')
   await expect(card.getByRole('button', { name: 'Edit bundled copy', exact: true })).toBeVisible()
@@ -261,7 +261,7 @@ test('Reference retry retains the requested membership after another tab complet
   await other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true }).click()
   await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
-  await page.getByRole('button', { name: 'Load newer revision', exact: true }).click()
+  await page.getByRole('button', { name: "Load updated data", exact: true }).click()
   await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
   const loaded = await storedData(page)
   await card.getByRole('button', { name: 'Retry Reference change', exact: true }).click()
@@ -308,7 +308,7 @@ async function archiveDigests(page: Page): Promise<Readonly<Record<string, strin
 async function openDraft(page: Page, source = SOURCE) {
   await page.goto('/#/mods/editor')
   await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: 'synthetic-library.json', mimeType: 'application/json', buffer: Buffer.from(source) })
-  await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
 }
 
 test('saves editor revisions into Mods, derives rules, and preserves pinned build settings', async ({ page, baseURL }) => {
@@ -365,7 +365,7 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE.replace('"Version":"1"', '"Version":"2"').replace('"TwoHandedPAtkFlat":80', '"TwoHandedPAtkFlat":90').replace('"StrWhileUnarmedBonusFlat":60', '"StrWhileUnarmedBonusFlat":90'))
   await expect(page.getByRole('button', { name: 'Save to CryKit', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-  await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   const after = await storedData(page)
@@ -419,7 +419,7 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
   await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE)
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-  await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add
     IDBObjectStore.prototype.add = function (...args) {
@@ -472,7 +472,7 @@ test('shows the generated bundled library and opens exact full originals offline
   root.FutureSetting = { state: null }
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(JSON.stringify(root))
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-  await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   const before = await storedData(page)
   await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
@@ -493,7 +493,7 @@ test('validates project identity for updates and links exact bundled records whe
   const before = await storedData(page)
   const input = mod.getByLabel('Updated JSON for Equipment Expansion', { exact: true })
   await input.setInputFiles({ name: 'wrong-project.json', mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
-  await expect(page.getByRole('alert')).toContainText('different Crystal Edit project ID')
+  await expect(page.getByRole('alert')).toContainText("different project ID")
   expect(await storedData(page)).toEqual(before)
   const source = bundledSources.mods.find(mod => mod.title === 'Equipment Expansion')!
   const target = Object.values(CURRENT_CATALOG.entities).find(entity => entity.id === 'base:equipment:0')!
@@ -534,7 +534,7 @@ test('keeps source-less named mods and their catalog entries and supports manual
   await page.goto('/#/mods')
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
   await mod.getByRole('button', { name: 'Add catalog entry', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic observed class')
   await editor.getByRole('button', { name: 'Create definition', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic observed class', exact: true }).first()).toBeVisible()
@@ -559,7 +559,7 @@ test('keeps same-name projects distinct and binds manual additions to the chosen
   const project = cards.filter({ hasText: 'Imported JSON' })
   const manual = cards.filter({ hasText: 'Mod JSON unavailable' })
   await project.getByRole('button', { name: 'Add catalog entry', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Synthetic project observation')
   await editor.getByRole('button', { name: 'Create definition', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic project observation', exact: true }).first()).toBeVisible()

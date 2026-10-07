@@ -110,6 +110,6 @@ export function TravelUnlocksView({ localData, catalogs, saveBlocked, focusedRec
         })}</div>
       </section>
     })}
-    <p className="unlock-footnote">Unchecked items are not acquired on this checklist. Mark items from your game; inventory and character learning are tracked separately. Saved observations keep their original reference. Location links identify their sources and any unresolved claims.</p>
+    <p className="unlock-footnote">Unchecked items count as not acquired here. Inventory and character learning are tracked separately.</p>
   </ProgressPage>
 }

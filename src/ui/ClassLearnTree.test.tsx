@@ -17,7 +17,7 @@ describe('learn-tree prerequisite text', () => {
     expect(destination.textContent).toContain('Ability #8')
     expect(destination.textContent).toContain('Requires all: Ability #7. Prerequisite unknown')
     expect(container.querySelector('ol')?.getAttribute('aria-label')).toBe('Learn tree skills')
-    expect(container.textContent).toContain('All incoming prerequisites must be learned')
+    expect(container.textContent).toContain("Learn every linked prerequisite to unlock a skill.")
   })
 
   it('resolves native names in their own catalog and retains unresolved identities', () => {

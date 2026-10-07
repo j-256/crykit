@@ -32,7 +32,7 @@ function Route({ route, onOpenDefinition }: { route: AcquisitionRoute; onOpenDef
     {route.costs.length > 0 && <div><p className="acquisition-caption">Trade inputs</p><Materials items={route.costs} onOpenDefinition={onOpenDefinition}/></div>}
     {route.requirements.length > 0 && <div><p className="acquisition-caption">Required items</p><Materials items={route.requirements} onOpenDefinition={onOpenDefinition}/></div>}
     {route.conditions.length > 0 && <ul className="acquisition-conditions">{route.conditions.map(condition => <li key={condition}>{condition}</li>)}</ul>}
-    {route.kind === 'recovery' && <p className="acquisition-note">Conditional recovery stock; this may require an earlier acquisition or save state.</p>}
+    {route.kind === 'recovery' && <p className="acquisition-note">Recovery stock may depend on earlier acquisitions or your save state.</p>}
   </li>
 }
 
@@ -49,7 +49,7 @@ export function ItemAcquisition({ catalog, entity, onOpenDefinition }: { catalog
   return <section aria-label="How to obtain" className="panel item-acquisition">
     <div className="panel__header"><h3>How to obtain</h3>{identity && <label className="acquisition-mode"><span>Game mode</span><select onChange={event => navigation.navigate({ ...navigation.route, query: { ...navigation.route.query, [MODE_QUERY]: [event.target.value] } }, { replace: true })} value={mode?.value ?? ''}>{!mode && <option value="">Choose game mode</option>}{MODES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}</div>
     <div className="panel__body stack">
-      {result.routes.length === 0 && <p>No acquisition route found in the indexed sources. This does not establish that this item is unobtainable.</p>}
+      {result.routes.length === 0 && <p>No source here says how to obtain this item. It may still be obtainable.</p>}
       {GROUPS.map(group => {
         const routes = result.routes.filter(route => route.kind === group.kind)
         return routes.length > 0 && <div className="acquisition-group" key={group.kind}><h4>{group.title}</h4><ul className="acquisition-routes">{routes.map((route, index) => <Route key={`${route.evidence}:${index}`} route={route} onOpenDefinition={onOpenDefinition}/>)}</ul></div>

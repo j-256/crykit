@@ -89,7 +89,7 @@ test('saved catalog versions retain research and reject direct editing', { tag: 
   await page.goto(referencePath('base:job:0'))
   const definition = await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic personal Warrior')
   await expect(page.getByRole('button', { name: /Edit.*(definition|version)/ })).toHaveCount(0)
-  await expect(page.getByText(/Saved catalog version. This record is read-only/)).toBeVisible()
+  await expect(page.getByText('Read-only catalog version.', { exact: false })).toBeVisible()
   const research = page.getByRole('region', { name: 'Class growth and learning' })
   await research.getByText('Growth calculator', { exact: true }).click()
   await research.getByRole('button', { name: 'Use Synthetic personal Warrior for all growth levels', exact: true }).click()

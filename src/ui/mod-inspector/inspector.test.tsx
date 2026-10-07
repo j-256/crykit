@@ -103,7 +103,7 @@ describe('inspector exact edits and navigation', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull()
     await act(async () => trigger.click())
     const reference = container.querySelector('[role="dialog"][aria-label="Sources for inspector labels"]')!
-    expect(reference.textContent).toContain('different version of CryKit\'s reference data')
+    expect(reference.textContent).toContain("different CryKit reference data")
     expect(format.open).toBe(false)
     expect(format.querySelector('summary')?.textContent).toBe('Editor format: Crystal Edit format 34')
     expect([...container.querySelectorAll('[role="status"], [role="alert"]')].map(element => element.textContent)).toEqual(['Saved in this browser'])

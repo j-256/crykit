@@ -222,7 +222,7 @@ test('failed selection remains recoverable and can be retried and reopened offli
   await expect(picker.getByText('Party plan switch failed', { exact: true })).toBeVisible()
   expect(await readLocalData(page)).toEqual(original)
   await picker.getByRole('button', { name: /^Sample starter team/ }).click()
-  await expect(picker).toContainText('retry any failed save')
+  await expect(picker).toContainText("resolve failed saves")
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()

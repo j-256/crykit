@@ -103,6 +103,6 @@ describe('build picker decisions', () => {
     expect(pickerListedStat(nativeOption('Acrobat Shoes'), 'Dexterity')).toBe(14)
     expect(pickerListedStat(nativeOption("Cleric's Robe"), 'Defense')).toBeGreaterThan(0)
     const shoes = pickerSearchEntry({ ...nativeOption('Acrobat Shoes'), description: 'Supplemental Dexterity +6' }, 'Acrobat Shoes')
-    expect(pickerSearchMatch(shoes, 'dexterity +6')?.explanation).toBe('Matched original source text; see provenance for differing stat claims')
+    expect(pickerSearchMatch(shoes, 'dexterity +6')?.explanation).toBe("Matched source text; check Sources for differing stats")
   })
 })

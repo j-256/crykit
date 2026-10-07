@@ -34,7 +34,7 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
   const treeField = entity.fields[CLASS_FIELDS.tree] ?? entity.fields[CRYSTAL_EDIT_FIELDS.tree]
   const recordedSources = [...(treeField?.state === 'known' ? treeField.sources ?? [] : []), ...(bundled ? [CLASS_TREE_IDENTITY_SOURCE] : [])]
   const sources = unresolved.size > 0 || [...skills.values()].some(skill => !skill.definition) ? recordedSources : externalSources(recordedSources)
-  const help = <p className="learn-tree-help">All incoming prerequisites must be learned. Follow the arrows to the skills they unlock. Select a named skill to open its reference. LP is the learning cost; this reference does not record character learning.</p>
+  const help = <p className="learn-tree-help">Learn every linked prerequisite to unlock a skill. LP is the learning cost. Select a skill for details.</p>
   if (!graph.nodes.length) return null
   return <details className="class-learn-tree"><summary>Learn tree</summary>
     {sources.length > 0 ? <Sources anchor={help} label={`Sources for ${entity.name} learning`}><SourceReferences includeGameExports sources={sources}/></Sources> : help}

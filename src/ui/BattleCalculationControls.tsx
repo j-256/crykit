@@ -93,7 +93,7 @@ function StatusInputs({ label, rows, onChange, ...context }: DefinitionContext &
       </> : <span>{row.count === PERMANENT_STATUS_COUNT ? 'Permanent' : `${numberText(row.count)} remaining`}</span>}
     </div>)}
     {onChange && <CalculationPicker gameSetup={context.gameSetup} kinds={STATUS_KINDS} label={`Add ${label.toLowerCase()}`} value={null} excludedRefs={rows.map(row => row.ref)} onChange={add}/>}
-    {rows.length > 0 && <p className="field__hint">Duration is the remaining count. {PERMANENT_STATUS_COUNT} means permanent; blank means unknown.</p>}
+    {rows.length > 0 && <p className="field__hint">Enter the remaining duration. {PERMANENT_STATUS_COUNT} means permanent; blank means unknown.</p>}
   </div>
 }
 
@@ -155,7 +155,7 @@ function ResourceInputs({ label, value, maximum, onChange }: {
       {BATTLE_RESOURCES.some(resource => value[resource] !== null) && <small className="battle-resources__values">{BATTLE_RESOURCES.map(resource => `${resource.toUpperCase()} ${numberText(value[resource])}`).join(' · ')}</small>}
     </summary>
     <div className="stack">
-      <p className="field__hint">{onChange ? 'Optional. Enter current resources when an ability needs them; leave blank if unknown.' : 'Current resources are saved scenario assumptions.'}</p>
+      <p className="field__hint">{onChange ? 'Optional. Enter current resources when an ability needs them; leave blank if unknown.' : 'Current resources are assumptions for this scenario.'}</p>
       {onChange && <Button tone="quiet" type="button" disabled={!maximum || Object.values(maximum).every(value => value === null)} onClick={useFullResources}>Use full {label.toLowerCase()} resources</Button>}
       <div className="battle-input-grid">
         {BATTLE_RESOURCES.map(resource => <Field key={resource} label={`${label} current ${resource.toUpperCase()}`}>
@@ -238,7 +238,7 @@ export function BattleCalculationControls({ battle, maxima, onChange, ...context
             <input type="checkbox" data-battle-field="automaticStatuses" checked={battle.automaticStatuses} onChange={event => update({ automaticStatuses: event.target.checked })}/>
             <span>Include guaranteed automatic battle-start statuses</span>
           </label> : <p>Automatic battle-start statuses: {battle.automaticStatuses ? 'Included when guaranteed' : 'Excluded'}</p>}
-          <p className="field__hint">Chance-based statuses and statuses whose duration may have elapsed need an explicit active-status selection.</p>
+          <p className="field__hint">Select chance-based or possibly expired statuses only if they are active.</p>
         </div>
         <div className="battle-advanced__group stack">
           <h5>Threat and charging conditions</h5>

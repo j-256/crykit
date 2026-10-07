@@ -35,11 +35,11 @@ function SnapshotComparison({ localData, catalogs, character, page, snapshots, n
   const leftSlots = new Map(left ? snapshotSlots(localData, left).map((slot) => [slot.id, slot.label]) : [])
   const rightSlots = new Map(right ? snapshotSlots(localData, right).map((slot) => [slot.id, slot.label]) : [])
   return <div className="stack">
-    <div><h3>Compare recorded snapshots</h3><p className="settings-section__intro">Differences between observations do not explain their cause. Learning records and build revisions are separate.</p></div>
+    <div><h3>Compare recorded snapshots</h3><p className="settings-section__intro">Compare what was recorded. The differences do not explain what caused them.</p></div>
     <div className="grid-2">{selector('Snapshot A', leftId, (id) => selectPair(id, rightId))}{selector('Snapshot B', rightId, (id) => selectPair(leftId, id))}</div>
-    {(!left || !right) ? <InlineNotice title="Snapshot unavailable" tone="warning">Choose two snapshots from this character. A missing snapshot is never replaced with another record.</InlineNotice> : <>
-      {!left.gameSetupRevisionId && !right.gameSetupRevisionId && <InlineNotice title="Slot context is unrecorded">These snapshots retain slot IDs without historical labels. No labels are borrowed from the current Game Setup.</InlineNotice>}
-      {left.gameSetupRevisionId !== right.gameSetupRevisionId && <InlineNotice title="Different slot contexts" tone="warning">Selections are paired by stored slot ID. A slot's label or meaning may differ between the recorded Game Setups.</InlineNotice>}
+    {(!left || !right) ? <InlineNotice title="Snapshot unavailable" tone="warning">Choose two snapshots from this character.</InlineNotice> : <>
+      {!left.gameSetupRevisionId && !right.gameSetupRevisionId && <InlineNotice title="Slot context is unrecorded">Slot labels were not recorded. Their saved IDs are shown instead.</InlineNotice>}
+      {left.gameSetupRevisionId !== right.gameSetupRevisionId && <InlineNotice title="Equipment slots may differ" tone="warning">Each equipment slot has an internal ID that CryKit uses to match it across snapshots. These Game Setups may use the same ID for slots with different names or purposes.</InlineNotice>}
       <div className="split"><span>{changedRows.length} changed fields</span><label className="snapshot-toggle"><input checked={showAll} onChange={(event) => setShowAll(event.target.checked)} type="checkbox"/>Show unchanged fields</label></div>
       {left.id === right.id && <InlineNotice title="Same snapshot selected">Select a different snapshot to inspect changes over time.</InlineNotice>}
       <div className="snapshot-comparison">{(showAll ? rows : changedRows).map((row) => {
@@ -63,7 +63,7 @@ export function CharacterHistory({ localData, catalogs, character, page }: Histo
     const snapshot = ownRecordValue(character.snapshots, page.snapshotId)
     return <div className="stack"><div className="split"><Button onClick={history} tone="quiet">Back to snapshot history</Button><Badge tone={snapshot?.id === character.currentSnapshotId ? 'positive' : 'info'}>{snapshot?.id === character.currentSnapshotId ? 'Current snapshot' : 'Recorded snapshot'}</Badge></div>{snapshot ? <CharacterSheet catalogs={catalogs} localData={localData} snapshot={snapshot}/> : <InlineNotice title="Snapshot unavailable" tone="warning">This snapshot is not part of the selected character. Choose a recorded snapshot from History.</InlineNotice>}</div>
   }
-  return <div className="stack"><div className="split"><div><h3>Recorded snapshot history</h3><p className="settings-section__intro">Inspect observations or compare what was recorded. Proposed build revisions stay in Builds & teams.</p></div><Button disabled={snapshots.length < 2} onClick={() => {
+  return <div className="stack"><div className="split"><div><h3>Recorded snapshot history</h3><p className="settings-section__intro">View snapshots or compare them over time.</p></div><Button disabled={snapshots.length < 2} onClick={() => {
     const a = snapshots.at(-2)
     const b = snapshots.at(-1)
     if (a && b) navigate({ page: 'characters', view: 'snapshot-pair', characterId: character.id, leftSnapshotId: a.id, rightSnapshotId: b.id })
