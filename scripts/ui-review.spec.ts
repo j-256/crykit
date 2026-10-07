@@ -344,6 +344,8 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
   }
   if (screen === 'save-editor') {
     await page.goto('/#/save-editor')
+    await expect(page.getByRole('button', { name: 'Choose a save file', exact: true })).toBeVisible()
+    await shot('empty-editor', 'Save Editor introduces ordinary editing tasks before a file is opened')
     await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-party.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
     await expect(page.getByRole('heading', { name: 'synthetic-party.sav', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeEnabled()
@@ -365,6 +367,9 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await shot('draft-review', 'Reviewed character, loadout, and currency changes are listed before export')
     await page.getByRole('heading', { name: 'synthetic-party.sav', exact: true }).scrollIntoViewIfNeeded()
     await shot('file-details', 'File facts and original recovery controls are visible')
+    await page.getByRole('button', { name: 'Unlocks & presets', exact: true }).click()
+    await page.getByRole('heading', { name: 'Unlocks and presets', exact: true }).scrollIntoViewIfNeeded()
+    await shot('bulk-actions', 'Bulk changes have equal visual weight, with the broad overpowered preset after narrower actions')
     return
   }
   throw new Error(`Capture scenario not implemented: ${screen}`)
