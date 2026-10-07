@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -92,6 +92,7 @@ async function exportPayload(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })
@@ -383,6 +384,7 @@ test('a production shell reloads and exports after going offline', { tag: MOBILE
   await closeData(page)
   await context.setOffline(true)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByText('Offline keepsake', { exact: true })).toBeVisible()
   await addItem(page, 'Recorded offline')
   const { payload } = await exportPayload(page)
@@ -562,7 +564,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
       update.getByRole('button', { name: 'Apply app update', exact: true }).click(),
     ])
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
-    await expect(update).toBeVisible()
+    await update.waitFor({ state: 'visible' })
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).not.toBeVisible()
     expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(['crykit-shell-test-build-1', 'crykit-shell-test-build-2']))
     await context.setOffline(true)

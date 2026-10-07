@@ -1,6 +1,7 @@
 import { openCustomDefinition } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import gameArtwork from '../src/catalog/game-artwork.json' with { type: 'json' }
 
@@ -75,6 +76,7 @@ test('shop tables and descriptions show coins while custom editing retains coppe
 
 test('definition picker descriptions use the same coin display', async ({ page }) => {
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   const name = 'Synthetic priced item'
   await openCustomDefinition(page, name)
   await page.getByRole('button', { name: 'Edit custom definition', exact: true }).click()
@@ -83,6 +85,7 @@ test('definition picker descriptions use the same coin display', async ({ page }
   await editor.getByRole('button', { name: 'Save personal revision', exact: true }).click()
   await expect(editor).not.toBeVisible()
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   await page.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search available definitions', exact: true }).fill(name)

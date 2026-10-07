@@ -1,4 +1,4 @@
-import { addBundledModToReference } from './local-data-helpers'
+import { addBundledModToReference, waitForPlannerReady } from './local-data-helpers'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -46,6 +46,7 @@ test('equipment categories combine base and mod records using stable keys', { ta
 
 test('category families remain searchable, preserve alternatives, and expose hidden selections', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await showFilters(page, isMobile)
   await page.getByRole('button', { name: 'Definition type', exact: true }).click()
@@ -90,6 +91,7 @@ test('category families remain searchable, preserve alternatives, and expose hid
 
 test('supplemental reference audiences stay hidden by default and remain directly reachable', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1&q=AbilityItemConsumptionDown')
+  await waitForPlannerReady(page)
   await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })).toHaveCount(0)
   const hidden = page.getByRole('status').filter({ hasText: 'additional match is hidden' })
   await expect(hidden).toBeVisible()
@@ -156,6 +158,7 @@ test('class facets combine with definition types and survive details and offline
 
 test('active filters remain removable when their values are absent from the library', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/reference?v=1&kind=item&category=Synthetic&class=Synthetic&slot=Synthetic&element=Synthetic&mod=Synthetic&source=Synthetic&ppMin=1&ppMax=4&q=Synthetic&weapon=Dagger&uncertainSkills=1')
+  await waitForPlannerReady(page)
   const active = page.getByRole('group', { name: 'Active reference filters', exact: true })
   await expect(active.getByRole('button', { name: 'Remove Equipment slot: Synthetic filter', exact: true })).toBeVisible()
   if (isMobile) await expect(page.getByRole('button', { name: /^Filters/ })).toContainText('12 active')

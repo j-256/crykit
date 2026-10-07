@@ -2,6 +2,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
+import { waitForPlannerReady } from './local-data-helpers'
 
 const WARRIOR = detail('base:job:0')
 
@@ -44,6 +45,7 @@ test('native artwork stays quiet and wiki fallbacks retain attribution offline',
 
 test('reference results retain names and unmatched definitions use placeholders without inventing images', async ({ page }) => {
   await page.goto('/#/reference?v=1&kind=class')
+  await waitForPlannerReady(page)
   const card = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Aegis', exact: true }) })
   await expect(card).toHaveCount(1)
   await expect(card).toBeVisible()
