@@ -9,6 +9,7 @@ import { checkPushVerification, verificationContext, verificationRecordPath, ver
 import { coordinateVerification } from './verification-coordination.mjs'
 
 const ZERO_OID = '0'.repeat(40)
+const VERIFICATION_COMMANDS = ['check:deterministic', 'build:assets', 'test:e2e']
 const scriptPath = name => fileURLToPath(new URL(name, import.meta.url))
 
 function fixture(t) {
@@ -37,7 +38,7 @@ test('only complete successful verification creates a record for the exact tree'
   assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
   const commands = []
   const result = await verifyIntegration({ ...f.options, run: async command => { commands.push(command); assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/) } })
-  assert.deepEqual(commands, ['check', 'test:e2e'])
+  assert.deepEqual(commands, VERIFICATION_COMMANDS)
   assert.equal(result.recorded, true)
   checkPushVerification(f.input(), f.options)
   f.git(['commit', '--quiet', '--allow-empty', '-m', 'Metadata only'])
@@ -69,14 +70,14 @@ test('queue-owned verification reuses only complete evidence for the exact clean
   const valid = JSON.parse(readFileSync(path, 'utf8'))
   writeFileSync(path, JSON.stringify({ ...valid, runtime: { ...valid.runtime, node: 'different' } }))
   await verifyIntegration(options)
-  assert.equal(executed, 2)
+  assert.equal(executed, VERIFICATION_COMMANDS.length)
   writeFileSync(join(f.cwd, 'fixture.txt'), 'Unsaved source\n')
   assert.equal((await verifyIntegration(options)).recorded, false)
-  assert.equal(executed, 4)
+  assert.equal(executed, VERIFICATION_COMMANDS.length * 2)
   f.git(['add', 'fixture.txt'])
   f.git(['commit', '--quiet', '-m', 'Changed tree', '--', 'fixture.txt'])
   assert.equal((await verifyIntegration(options)).reused, undefined)
-  assert.equal(executed, 6)
+  assert.equal(executed, VERIFICATION_COMMANDS.length * 3)
 })
 
 test('coordination allows standalone clones but never falls back after a collision or invalid ownership', async t => {
@@ -105,16 +106,122 @@ test('coordination allows standalone clones but never falls back after a collisi
 
 test('failed and interrupted reruns invalidate earlier success before checks start', async t => {
   const f = fixture(t)
-  for (const failedCommand of ['check', 'test:e2e']) {
+  for (const failedCommand of VERIFICATION_COMMANDS) {
     await verifyIntegration(f.options)
     const commands = []
     await assert.rejects(verifyIntegration({ ...f.options, run: async command => {
       commands.push(command)
       if (command === failedCommand) throw new Error('Synthetic failure or interruption')
     } }), /Synthetic failure/)
-    assert.deepEqual(commands, failedCommand === 'check' ? ['check'] : ['check', 'test:e2e'])
+    assert.deepEqual(commands, failedCommand === 'test:e2e' ? VERIFICATION_COMMANDS : VERIFICATION_COMMANDS.slice(0, 2))
     assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
   }
+})
+
+test('browser verification waits for the build while deterministic checks remain independent', async t => {
+  const f = fixture(t)
+  const checks = Promise.withResolvers()
+  const build = Promise.withResolvers()
+  const browsers = Promise.withResolvers()
+  const browserStarted = Promise.withResolvers()
+  const commands = []
+  const pending = verifyIntegration({ ...f.options, run: async command => {
+    commands.push(command)
+    if (command === 'check:deterministic') await checks.promise
+    else if (command === 'build:assets') await build.promise
+    else { browserStarted.resolve(); await browsers.promise }
+  } })
+  try {
+    assert.deepEqual(commands, ['check:deterministic', 'build:assets'])
+    assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    build.resolve()
+    await browserStarted.promise
+    assert.deepEqual(commands, VERIFICATION_COMMANDS)
+    browsers.resolve()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    checks.resolve()
+    assert.equal((await pending).recorded, true)
+    checkPushVerification(f.input(), f.options)
+  } finally {
+    checks.resolve(); build.resolve(); browsers.resolve()
+    await pending
+  }
+})
+
+test('a failed verification waits for running siblings and never retains earlier publication evidence', async t => {
+  const f = fixture(t)
+  for (const failedCommand of VERIFICATION_COMMANDS) {
+    await verifyIntegration(f.options)
+    const sibling = Promise.withResolvers()
+    const commands = []
+    let settled = false
+    const pending = verifyIntegration({ ...f.options, run: async command => {
+      commands.push(command)
+      if (command === failedCommand) throw new Error(`Synthetic ${command} failure`)
+      if (command === 'check:deterministic' || (command === 'build:assets' && failedCommand === 'check:deterministic')) await sibling.promise
+    } })
+    pending.then(() => { settled = true }, () => { settled = true })
+    const rejected = assert.rejects(pending, new RegExp(`Synthetic ${failedCommand} failure`))
+    try {
+      await new Promise(resolve => setImmediate(resolve))
+      assert.equal(settled, false)
+      assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+      sibling.resolve()
+      await rejected
+      assert.deepEqual(commands, failedCommand === 'test:e2e' ? VERIFICATION_COMMANDS : VERIFICATION_COMMANDS.slice(0, 2))
+      assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    } finally {
+      sibling.resolve()
+      await rejected
+    }
+  }
+})
+
+test('the real npm commands overlap checks with the build and enforce build readiness before browsers', async t => {
+  const f = fixture(t)
+  const events = join(f.directory, 'events')
+  mkdirSync(events)
+  writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({ scripts: {
+    'check:deterministic': 'node stages.mjs checks',
+    'build:assets': 'node stages.mjs build',
+    'test:e2e': 'node stages.mjs browser',
+  } }))
+  writeFileSync(join(f.cwd, 'stages.mjs'), `
+import assert from 'node:assert/strict'
+import { existsSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { setTimeout } from 'node:timers/promises'
+const READY_TIMEOUT_MS = 5_000
+const POLL_INTERVAL_MS = 10
+const marker = name => join(process.env.CRYKIT_VERIFICATION_FIXTURE, name)
+const mark = name => writeFileSync(marker(name), 'Passed')
+async function waitFor(name) {
+  const deadline = Date.now() + READY_TIMEOUT_MS
+  while (!existsSync(marker(name))) {
+    if (Date.now() > deadline) throw new Error('Verification did not overlap: ' + name)
+    await setTimeout(POLL_INTERVAL_MS)
+  }
+}
+if (process.argv[2] === 'checks') {
+  mark('checks-started')
+  await waitFor('browser-started')
+  mark('checks-passed')
+} else if (process.argv[2] === 'build') {
+  await waitFor('checks-started')
+  mark('build-passed')
+} else {
+  assert.ok(existsSync(marker('build-passed')))
+  assert.equal(existsSync(marker('checks-passed')), false)
+  mark('browser-started')
+}
+`)
+  f.git(['add', 'package.json', 'stages.mjs'])
+  f.git(['commit', '--quiet', '-m', 'Synthetic verification stages', '--', 'package.json', 'stages.mjs'])
+  // Runtime handshakes stay outside tracked source so they cannot invalidate publication evidence
+  const result = await verifyIntegration({ cwd: f.cwd, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events }, report: () => {} })
+  assert.equal(result.recorded, true)
+  checkPushVerification(f.input(), f.options)
 })
 
 test('dirty development verification runs both suites without authorizing publication', async t => {
@@ -123,7 +230,7 @@ test('dirty development verification runs both suites without authorizing public
   const commands = []
   const result = await verifyIntegration({ ...f.options, run: async command => { commands.push(command) } })
   assert.equal(result.recorded, false)
-  assert.deepEqual(commands, ['check', 'test:e2e'])
+  assert.deepEqual(commands, VERIFICATION_COMMANDS)
   f.git(['add', 'untracked.txt'])
   f.git(['commit', '--quiet', '-m', 'New source', '--', 'untracked.txt'])
   assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
@@ -132,7 +239,7 @@ test('dirty development verification runs both suites without authorizing public
 test('source mutation and a changed committed tree during verification create no success', async t => {
   const f = fixture(t)
   await assert.rejects(verifyIntegration({ ...f.options, run: async command => {
-    if (command === 'check') {
+    if (command === 'check:deterministic') {
       writeFileSync(join(f.cwd, 'fixture.txt'), 'Source changed while checking\n')
       f.git(['add', 'fixture.txt'])
       f.git(['commit', '--quiet', '-m', 'Changed during verification', '--', 'fixture.txt'])
@@ -167,6 +274,7 @@ test('malformed, wrong runtime, incomplete, and wrong-version records are reject
     JSON.stringify({ ...valid, version: valid.version + 1 }),
     JSON.stringify({ ...valid, runtime: { ...valid.runtime, node: 'different' } }),
     JSON.stringify({ ...valid, commands: ['check'] }),
+    JSON.stringify({ ...valid, commands: ['check', 'test:e2e'] }),
     JSON.stringify({ ...valid, completedAt: 'invalid' }),
     JSON.stringify({ ...valid, tree: ZERO_OID }),
   ]) {

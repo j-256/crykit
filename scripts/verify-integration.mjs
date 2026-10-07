@@ -4,7 +4,8 @@ import { verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
 
 const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed]
-Run npm run check and the complete desktop/mobile browser suite.
+Run deterministic checks alongside the asset build and full browser suite.
+Browser tests start after the asset build; every required command must pass.
 Requires Node.js, npm, Git, npm ci, and Playwright Chromium.
 Run npx playwright install chromium to install the test browser.
 No positional arguments or test filters are accepted.
