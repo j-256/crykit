@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { decodeCrystalSave, encodeCrystalSave, type BsonDocument, type BsonValue, type CrystalSave } from '../interchange/crystal-save'
 import { createModdedSaveEditorFixture, createNeutralSaveEditorFixture, createSaveEditorFixture, createSaveEditorModSourceFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from './save-editor.fixture'
-import { editSave, inspectSave, previewSaveChanges, previewVanillaConversion, SAVE_EDITOR_MAX_CURRENCY } from './save-editor'
+import { editSave, inspectSave, previewSaveChanges, previewSaveAdditions, previewVanillaConversion, SAVE_EDITOR_MAX_CURRENCY } from './save-editor'
 import { resolveSaveEditorMods } from './save-editor-mods'
 
 const NOW = new Date('2026-01-02T03:04:05Z')
@@ -575,7 +575,9 @@ describe('browser-local save editing', () => {
     expect(arr(edited.members[0]?.value.Equipment).every(value => value.type === 'null')).toBe(true)
     expect(inspectSave(edited, catalog).inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 2, equipped: 3, capacity: 96 })
     expect(edited.members[0]?.value.Passives).toEqual(original.members[0]?.value.Passives)
-    expect(() => editSave(original, catalog, { type: 'member', index: 0, jobId: 23 }, NOW)).toThrow('Unlock this class')
+    const unlocked = editSave(original, catalog, { type: 'member', index: 0, jobId: 23 }, NOW)
+    expect(inspectSave(unlocked, catalog).members[0]?.unlockedJobIds).toContain(23)
+    expect(unlocked.members.slice(1)).toEqual(original.members.slice(1))
     expect(() => editSave(original, catalog, { type: 'member', index: 0, subJobId: 0 }, NOW)).toThrow('must differ')
   })
 
@@ -591,12 +593,12 @@ describe('browser-local save editing', () => {
     expect(original.members[0]?.value.Equipment).toEqual(createSaveEditorFixture().members[0]?.value.Equipment)
   })
 
-  it('rejects unavailable, unlearned, over-budget, and slot-incompatible loadouts without mutation', () => {
+  it('rejects over-budget, unknown, and slot-incompatible loadouts without granting prerequisites', () => {
     const original = createSaveEditorFixture()
     const before = structuredClone(original)
     expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [50, null, null, null, null, null], passiveIds: [] }, NOW)).toThrow('does not fit main hand')
-    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, null, null, null, 50, null], passiveIds: [] }, NOW)).toThrow('Inventory needs')
-    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, null, null, null, null, null], passiveIds: [0] }, NOW)).toThrow('has not been learned')
+    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 23, equipmentIds: [0, null, null, null, 50, null], passiveIds: [0, 90000] }, NOW)).toThrow()
+    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 23, equipmentIds: [0, null, null, null, 50, null], passiveIds: [0, 1, 3, 4] }, NOW)).toThrow('PP limit')
     expect(original).toEqual(before)
     const twoHanded = editSave(editSave(original, catalog, { type: 'stock', kind: 'equipment', id: 2, count: 1 }, NOW), catalog, { type: 'stock', kind: 'equipment', id: 44, count: 1 }, NOW)
     expect(() => editSave(twoHanded, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [2, 44, null, null, null, null], passiveIds: [] }, NOW)).toThrow('two-handed weapon')
@@ -604,6 +606,61 @@ describe('browser-local save editing', () => {
     const learned = structuredClone(original)
     expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, null, null, null, null, null], passiveIds: [0, 1, 3, 4] }, NOW)).toThrow('PP limit')
     expect(original).toEqual(learned)
+  })
+
+  it.each([3, 28])('grants only the missing loadout prerequisites in format %i', version => {
+    const original = createSaveEditorFixture(version)
+    const before = structuredClone(original)
+    const equipmentIds = [0, null, null, null, 50, 50]
+    const edited = editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 23, equipmentIds, passiveIds: [0] }, NOW)
+    const summary = inspectSave(edited, catalog)
+    expect(summary).toMatchObject({ editable: true, members: [{ jobId: 0, subJobId: 23, equipmentIds, passiveIds: [0], unlockedJobs: 3, masteredJobs: 0 }, {}, {}, {}] })
+    expect(summary.members[0]?.learnedPassiveIds).toContain(0)
+    expect(summary.inventory.find(row => row.kind === 'equipment' && row.id === 50)).toMatchObject({ count: 0, equipped: 2 })
+    expect(summary.inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 1, equipped: 4 })
+    expect(edited.members.slice(1)).toEqual(original.members.slice(1))
+    expect(edited.members[0]?.value.Levels).toEqual(original.members[0]?.value.Levels)
+    expect(edited.members[0]?.value.JP).toEqual(original.members[0]?.value.JP)
+    expect(edited.party.value.QuestState).toEqual(original.party.value.QuestState)
+    expect(previewSaveAdditions(original, edited, catalog)).toEqual(expect.arrayContaining([`Alex: ${String(catalog.records.job.get(23)?.Name)} unlocked`, `Alex: ${String(catalog.records.passive.get(0)?.Name)} learned`, `${String(catalog.records.equipment.get(50)?.Name)}: 2 copies added`]))
+    expect(previewSaveAdditions(original, edited, catalog).some(change => change.startsWith(`${String(catalog.records.equipment.get(0)?.Name)}:`))).toBe(false)
+    const roundTrip = decodeCrystalSave(encodeCrystalSave(edited))
+    expect(roundTrip.header.version).toBe(version)
+    expect(inspectSave(roundTrip, catalog)).toMatchObject({ editable: true, members: [{ equipmentIds, passiveIds: [0] }, {}, {}, {}] })
+    expect(original).toEqual(before)
+    expect(previewSaveAdditions(edited, editSave(edited, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 23, equipmentIds, passiveIds: [0] }, NOW), catalog)).toEqual([])
+  })
+
+  it('grants redirected mod prerequisites without using the original IDs or touching other members', () => {
+    const original = createModdedSaveEditorFixture({ equipped: false, relocated: true })
+    const source = createSaveEditorModSourceFixture()
+    const jobId = SYNTHETIC_SAVE_MOD.jobId + 3
+    const passiveId = SYNTHETIC_SAVE_MOD.passiveIds[0]! + 100
+    arr(original.members[0]?.value.LearnedJobs)[jobId] = { type: 'int32', value: 0 }
+    arr(original.members[0]?.value.LearnedPassives)[passiveId] = { type: 'int32', value: 0 }
+    const before = structuredClone(original)
+    const command = { type: 'loadout' as const, index: 0, jobId: 0, subJobId: jobId, equipmentIds: [0, null, null, null, null, null], passiveIds: [passiveId] }
+    expect(() => editSave(original, catalog, command, NOW)).toThrow()
+    const edited = editSave(original, catalog, command, NOW, [source])
+    expect(inspectSave(edited, catalog, [source]).members[0]).toMatchObject({ subJobId: jobId, passiveIds: [passiveId] })
+    expect(num(arr(edited.members[0]?.value.LearnedJobs)[jobId])).toBe(1)
+    expect(num(arr(edited.members[0]?.value.LearnedPassives)[SYNTHETIC_SAVE_MOD.passiveIds[0]!])).toBe(0)
+    expect(edited.members.slice(1)).toEqual(original.members.slice(1))
+    expect(edited.party.value.RandomizerMapping).toEqual(original.party.value.RandomizerMapping)
+    expect(edited.header.modIdMaps).toEqual(original.header.modIdMaps)
+    expect(original).toEqual(before)
+  })
+
+  it('respects the shared equipment limit when granting missing copies', () => {
+    const baseSource = createSaveEditorModSourceFixture()
+    const accessory = catalog.records.equipment.get(50)!
+    const source = { ...baseSource, records: { ...baseSource.records, equipment: new Map([...baseSource.records.equipment, [50, { ...accessory, MaxCapacity: 1 }]]) } }
+    const original = createModdedSaveEditorFixture({ equipped: false })
+    flag(original, 'KeepEquipment')
+    arr(original.members[1]?.value.Equipment)[4] = { type: 'int32', value: 50 }
+    const before = structuredClone(original)
+    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, null, null, null, 50, null], passiveIds: [0] }, NOW, [source])).toThrow('0 to 0')
+    expect(original).toEqual(before)
   })
 
   it('counts equipment on present members toward the inventory capacity', () => {

@@ -69,6 +69,10 @@
 .save-editor__preview h2:focus { outline-offset: 5px; }
 .save-editor__changes { max-height: 360px; overflow-y: auto; padding-left: 22px; margin: 14px 0; color: var(--text-dim); font-size: .82rem; line-height: 1.6; }
 .save-editor__changes li { padding: 4px 0; overflow-wrap: anywhere; }
+.save-editor__changes li[data-added] { color: var(--cyan-300); }
+.save-editor__changes li[data-added] .badge { margin-right: 8px; }
+.save-party__additions { padding: 12px 14px; border-left: 3px solid var(--cyan-300); background: color-mix(in srgb, var(--cyan-300) 5%, var(--ink-900)); }
+.save-party__additions ul { margin: 8px 0 0; padding-left: 20px; font-size: .82rem; }
 .save-editor__inventory-tools { display: grid; grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr) minmax(130px, 1fr); gap: 7px 12px; }
 .save-editor__inventory-tools > .field { grid-row: span 2; grid-template-rows: subgrid; }
 .save-editor__inventory-list { display: grid; gap: 0; margin: 16px 0; }
