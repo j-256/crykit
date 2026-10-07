@@ -50,6 +50,18 @@ npm run test:e2e -- --project=mobile
 npm run test:e2e -- e2e/build-sheet.spec.ts --project=desktop
 ```
 
+Local Vitest uses a worker budget of 25% of available CPUs. Local Playwright uses at most two workers, and mobile offline journeys use one, so cache installation of the map assets does not overwhelm the preview server. CI retains its separate runner limits. Compare worker settings on the same machine, source revision, production build, and test selection, including a run with both suites active before increasing their combined budget.
+
+Profile imports and compare a fixed browser sample while developing:
+
+```sh
+npx vitest run src/domain/build-validity.test.ts --experimental.importDurations.print
+npm run test:e2e -- e2e/workflows.spec.ts e2e/refresh-app.spec.ts --project=desktop --workers=1
+npm run test:e2e -- e2e/workflows.spec.ts e2e/refresh-app.spec.ts --project=desktop --workers=2
+```
+
+Rule-only tests use synthetic definitions and the lightweight references in `src/domain/catalog.test-helpers.ts`; they do not load bundled catalogs just to obtain IDs. Shared test helpers import their owning domain modules directly. Keep real catalog fixtures when an assertion verifies game data, exact source identities, immutable revision pins, or persistence compatibility. Source-label rendering imports URL metadata from `src/catalog/source-urls.ts` without constructing the authoring catalog; `data.ts` re-exports that metadata, and the catalog updater includes it in the same checksum input.
+
 Use `npm run test:e2e:all-devices` to run every scenario on both devices. Its dedicated Playwright configuration removes the mobile tag filter, making the exhaustive matrix available for a broad UI change or a device-specific investigation. Mobile emulation does not establish physical-device installation or verify a phone's native file picker.
 
 Tag a test for mobile when its assertions depend on viewport geometry, touch behavior, mobile navigation or disclosures, or when it supplies a representative mobile journey for a user-facing surface. A generic overflow assertion alone does not require repeating a detailed behavior matrix on mobile. Keep real browser coverage for reload persistence, transactional import and backup recovery, stale-tab conflicts, quota failures, queued clicks, and service-worker updates. Test catalog facts and pure calculation or validation combinations in unit tests, and component state transitions in DOM tests, adding browser scenarios when the integration itself introduces risk.

@@ -1,55 +1,9 @@
 import type { CatalogEntityKind } from '../domain/types'
+import { STARTER_SOURCE_URLS, type StarterSourceKey } from './source-urls'
 import wikiData from './wiki-data.json' with { type: 'json' }
 import switchData from './switch-data.json' with { type: 'json' }
 
-export const STARTER_SOURCE_URLS = {
-  "apworld-classes": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/jobs.py",
-  "apworld-items": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/items.py",
-  "apworld-monster-magic": "https://github.com/Emerassi/CrystalProjectAPWorld/blob/main/worlds/crystal_project/constants/scholar_abilities.py",
-  "equipment-expansion-sheet": "https://docs.google.com/spreadsheets/d/1s3kWj2DONAln5hRx7p4JyEfr71wkLIM-KC3LTA3gNks/edit#gid=0",
-  "nintendo-mod-pack-2": "https://www.nintendo.com/en-gb/DLC/Mod-Pack-2-New-Challenges-2646897.html",
-  "nintendo-mod-pack-1": "https://www.nintendo.com/us/store/products/mod-pack-1-quality-fun-70050000048696-switch/",
-  "wiki-aegis": "https://crystal-project.fandom.com/wiki/Aegis",
-  "wiki-assassin": "https://crystal-project.fandom.com/wiki/Assassin",
-  "wiki-battle-skill": "https://crystal-project.fandom.com/wiki/Battle_Skill",
-  "wiki-beastmaster": "https://crystal-project.fandom.com/wiki/Beastmaster",
-  "wiki-beatsmith": "https://crystal-project.fandom.com/wiki/Beatsmith",
-  "wiki-black-magic": "https://crystal-project.fandom.com/wiki/Black_Magic",
-  "wiki-chemist": "https://crystal-project.fandom.com/wiki/Chemist",
-  "wiki-chivalry": "https://crystal-project.fandom.com/wiki/Chivalry",
-  "wiki-cleric": "https://crystal-project.fandom.com/wiki/Cleric",
-  "wiki-dervish": "https://crystal-project.fandom.com/wiki/Dervish",
-  "wiki-execute": "https://crystal-project.fandom.com/wiki/Execute",
-  "wiki-fencer": "https://crystal-project.fandom.com/wiki/Fencer",
-  "wiki-hex-magic": "https://crystal-project.fandom.com/wiki/Hex_Magic",
-  "wiki-hunter": "https://crystal-project.fandom.com/wiki/Hunter",
-  "wiki-martial-arts": "https://crystal-project.fandom.com/wiki/Martial_Arts",
-  "wiki-mimic": "https://crystal-project.fandom.com/wiki/Mimic",
-  "wiki-mixed-magic": "https://crystal-project.fandom.com/wiki/Mixed_Magic",
-  "wiki-monk": "https://crystal-project.fandom.com/wiki/Monk",
-  "wiki-ninja": "https://crystal-project.fandom.com/wiki/Ninja",
-  "wiki-nomad": "https://crystal-project.fandom.com/wiki/Nomad",
-  "wiki-prayer-magic": "https://crystal-project.fandom.com/wiki/Prayer_Magic",
-  "wiki-reaper": "https://crystal-project.fandom.com/wiki/Reaper",
-  "wiki-rogue": "https://crystal-project.fandom.com/wiki/Rogue",
-  "wiki-samurai": "https://crystal-project.fandom.com/wiki/Samurai",
-  "wiki-scholar": "https://crystal-project.fandom.com/wiki/Scholar",
-  "wiki-shaman": "https://crystal-project.fandom.com/wiki/Shaman",
-  "wiki-summoner": "https://crystal-project.fandom.com/wiki/Summoner",
-  "wiki-swordplay": "https://crystal-project.fandom.com/wiki/Swordplay",
-  "wiki-time-magic": "https://crystal-project.fandom.com/wiki/Time_Magic",
-  "wiki-trickery": "https://crystal-project.fandom.com/wiki/Trickery",
-  "wiki-valkyrie": "https://crystal-project.fandom.com/wiki/Valkyrie",
-  "wiki-warlock": "https://crystal-project.fandom.com/wiki/Warlock",
-  "wiki-warrior": "https://crystal-project.fandom.com/wiki/Warrior",
-  "wiki-waterbend": "https://crystal-project.fandom.com/wiki/Waterbend",
-  "wiki-weaver": "https://crystal-project.fandom.com/wiki/Weaver",
-  "wiki-white-magic": "https://crystal-project.fandom.com/wiki/White_Magic",
-  "wiki-wild-arts": "https://crystal-project.fandom.com/wiki/Wild_Arts",
-  "wiki-wizard": "https://crystal-project.fandom.com/wiki/Wizard",
-} as const
-
-export type StarterSourceKey = keyof typeof STARTER_SOURCE_URLS
+export { STARTER_SOURCE_URLS, type StarterSourceKey } from './source-urls'
 export type StarterNameRecord = readonly [id: string, kind: CatalogEntityKind, name: string, source: StarterSourceKey]
 
 export const STARTER_NAME_RECORDS = [

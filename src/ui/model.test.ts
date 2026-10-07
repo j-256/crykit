@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { TEST_CATALOG_ID, TEST_CATALOG_REVISION_ID } from '../domain/catalog.test-helpers'
 import { previewImport } from '../interchange/import'
 import type { CatalogSnapshot, GameSetupRevision } from '../domain/types'
 import { gameSetupModSummary, ownRecordValue } from './model'
@@ -16,7 +16,7 @@ describe('ownRecordValue', () => {
 })
 
 describe('Game Setup mod names', () => {
-  const setup = (catalog: CatalogSnapshot, enabled = true): Pick<GameSetupRevision, 'mods' | 'modComposition'> => ({ mods: { state: 'known', value: [] }, modComposition: { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled }], links: [] } })
+  const setup = (catalog: CatalogSnapshot, enabled = true): Pick<GameSetupRevision, 'mods' | 'modComposition'> => ({ mods: { state: 'known', value: [] }, modComposition: { baseline: { catalogId: TEST_CATALOG_ID, catalogRevisionId: TEST_CATALOG_REVISION_ID }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled }], links: [] } })
   const imported = async (Title: string) => (await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-display', Title, EditorVersion: 34, Jobs: [] })), 'synthetic-display.json')).proposed.catalogs[0]!
 
   it('uses the enabled exact revision instead of another available revision title', async () => {
