@@ -8,6 +8,9 @@ export function selectedPlaythrough(localData: LocalData): Playthrough {
 }
 
 export async function createBlankPlaythrough(page: Page): Promise<void> {
+  // The first-run mod chooser opens only on the landing route and can cover Data & settings
+  const hash = new URL(page.url()).hash
+  if (!hash || hash === '#/' || await page.getByRole('dialog', { name: 'Choose your mods', exact: true }).isVisible()) await skipInitialModSetup(page)
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
