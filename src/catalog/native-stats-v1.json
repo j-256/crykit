@@ -16,7 +16,7 @@
   },
   "crosswalkDigest": "dfa441a364838043f13764c1494dfb5528e2cfd91e7f8bde2986fb06b578c648",
   "wikiDigest": "c487a1eb3458b93c03f6ef64272bf312d777c6e2ee5b8a28c674d051c4c211a6",
-  "starterDigest": "2c75664987a26ae591663f6287f4d7c3b4cf918231b2244c3fd8bcdf7b3c7b30",
+  "starterDigest": "07d42454f103b6e08accebeba65cc873291c967b3062bf39a09e0b7fc7f0a592",
   "catalogId": "crystal-project-public-starter",
   "battleConfig": {
     "TwoHandedPAtkFlat": 50,
@@ -54118,5 +54118,5 @@
       "evidence": "Explicit Assassin wiki membership; native job 19 PassiveIDs; normalized passive label and exact innate flag; starter catalog merges this wiki kind and normalized label"
     }
   },
-  "checksum": "02ca0d5bb9d1e7b26f836bddd1ab468f1c1a8b248f982fa41110321dc04c89e3"
+  "checksum": "f1b359ce187808e7ce9edb6e2c29c0fa26fff66a146cd20a571e97422a3cece3"
 }
