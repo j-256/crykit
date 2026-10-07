@@ -61,7 +61,6 @@
 .save-editor__bulk > article { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 16px; }
 .save-editor__bulk h3 { font-size: 1rem; margin: 0; }
 .save-editor__bulk p { font-size: .8rem; line-height: 1.6; margin: 8px 0 14px; }
-.save-editor__bulk > .save-editor__power { border-color: var(--cyan-300); background: color-mix(in srgb, var(--cyan-300) 4%, var(--ink-900)); }
 .save-editor__preview { border-color: var(--cyan-300); scroll-margin-top: 20px; }
 .save-editor__preview h2:focus { outline-offset: 5px; }
 .save-editor__changes { max-height: 360px; overflow-y: auto; padding-left: 22px; margin: 14px 0; color: var(--text-dim); font-size: .82rem; line-height: 1.6; }
