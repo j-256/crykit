@@ -45,12 +45,24 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(page.locator('.enemy-vitals')).toContainText('54')
 })
 
-test('enemy loot supports modifier-click in a new tab and ordinary in-app navigation', async ({ page, context }) => {
+test('enemy loot preserves modified clicks, opens a new tab, and navigates in app', async ({ page, context }) => {
   await page.goto(referencePath('base:monster:179'))
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
   await expect(cookie).toHaveAttribute('href', referencePath('base:item:205').slice(1))
-  const opened = context.waitForEvent('page')
+  // Observe after React's delegated handler so a cancelled native click fails the test
+  await cookie.evaluate(link => {
+    const recordClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Node) || !link.contains(event.target)) return
+      link.dataset.modifiedClick = `${event.ctrlKey || event.metaKey}:${event.defaultPrevented}`
+      document.removeEventListener('click', recordClick)
+    }
+    document.addEventListener('click', recordClick)
+  })
   await cookie.click({ modifiers: ['ControlOrMeta'] })
+  await expect(cookie).toHaveAttribute('data-modified-click', 'true:false')
+  await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
+  const opened = context.waitForEvent('page')
+  await cookie.click({ button: 'middle' })
   const tab = await opened
   await tab.waitForLoadState('load')
   await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible()
