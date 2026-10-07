@@ -5,7 +5,8 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 
 const RECORD_VERSION = 1
-const VERIFICATION_COMMANDS = Object.freeze(['check', 'test:e2e'])
+const VERIFICATION_STEPS = Object.freeze({ checks: 'check:deterministic', build: 'build:assets', browser: 'test:e2e' })
+const VERIFICATION_COMMANDS = Object.freeze(Object.values(VERIFICATION_STEPS))
 const OBJECT_ID_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const runtime = Object.freeze({ node: process.version, platform: process.platform, arch: process.arch })
@@ -69,6 +70,23 @@ async function runNpm(command, { cwd, env }) {
   })
 }
 
+async function runVerificationCommands(run, options) {
+  let checksFailed = false
+  const checks = (async () => {
+    try { await run(VERIFICATION_STEPS.checks, options) }
+    catch (error) { checksFailed = true; throw error }
+  })()
+  const browsers = (async () => {
+    // Deterministic checks own typechecking so concurrent builds cannot race on incremental compiler output
+    await run(VERIFICATION_STEPS.build, options)
+    if (!checksFailed) await run(VERIFICATION_STEPS.browser, options)
+  })()
+  // Retain coordinator ownership until every running command settles, including after a sibling fails
+  const results = await Promise.allSettled([checks, browsers])
+  const failed = results.find(result => result.status === 'rejected')
+  if (failed) throw failed.reason
+}
+
 export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, ifNeeded = false, report = message => process.stderr.write(message + '\n') } = {}) {
   const before = verificationContext(cwd, env)
   const path = verificationRecordPath(before)
@@ -80,7 +98,7 @@ export async function verifyIntegration({ cwd = process.cwd(), env = process.env
   const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS }
   // Invalidate prior success before running so failures and interruptions cannot retain it
   if (before.clean) writeRecord(path, record)
-  for (const command of VERIFICATION_COMMANDS) await run(command, { cwd: before.root, env })
+  await runVerificationCommands(run, { cwd: before.root, env })
   const after = verificationContext(before.root, env)
   if (!before.clean) {
     report('[verify] Checks passed without a publication record: commit all changes, synchronize, then run npm run verify again')

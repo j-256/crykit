@@ -39,7 +39,9 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`npm run verify` runs both groups without command-line test filters and records publication evidence for a clean, committed tree. Browser tests use the production build. The desktop project runs every scenario; the mobile project selects tests tagged with `MOBILE_TEST_TAG` from `e2e/test-tags.ts`. Mobile coverage exercises responsive layouts, touch controls, queued tile boards, and representative editing, import, sharing, and offline journeys. Detailed data, validation, calculation, persistence, and recovery combinations run on desktop alongside their unit and component coverage.
+`npm run verify` runs both groups without command-line test filters and records publication evidence for a clean, committed tree. It runs `npm run check:deterministic` alongside `npm run build:assets`, then starts the browser suite as soon as the build succeeds while deterministic checks continue. `check:deterministic` includes typechecking, tests, source audits, and privacy checks; `build:assets` produces the Vite assets without repeating typechecking against the same incremental compiler output. `npm run check` retains the complete deterministic-checks-and-build sequence, and `npm run build` retains typechecking before its asset build.
+
+Browser tests use the production build. The desktop project runs every scenario; the mobile project selects tests tagged with `MOBILE_TEST_TAG` from `e2e/test-tags.ts`. Mobile coverage exercises responsive layouts, touch controls, queued tile boards, and representative editing, import, sharing, and offline journeys. Detailed data, validation, calculation, persistence, and recovery combinations run on desktop alongside their unit and component coverage.
 
 Run one project or a focused spec while developing:
 
@@ -86,7 +88,7 @@ Before publication, commit the finished changes, synchronize with the integratio
 npm run verify
 ```
 
-The command executes deterministic checks followed by the complete configured browser suite: every desktop scenario and the selected mobile scenarios. It records success only when the source starts committed and clean and remains on the same Git tree throughout verification. A dirty checkout can be tested, but it produces no publication evidence. A failed or interrupted rerun invalidates prior evidence before checks begin. `npm run check` and focused Playwright runs do not create this record.
+The command overlaps deterministic checks with the asset build and complete configured browser suite: every desktop scenario and the selected mobile scenarios. Each local suite retains its normal worker limit while they overlap; CI distributes the same scenarios across separate runners. It records success only after every required command passes and the source starts committed and clean and remains on the same Git tree throughout verification. A dirty checkout can be tested, but it produces no publication evidence. A failed or interrupted rerun invalidates prior evidence before checks begin. Browser tests cannot start after a failed build and are skipped when deterministic checks have already failed. The verifier waits for running commands to finish before returning a failure so the coordinator cannot release its slot while a sibling is still running. `npm run check` and focused Playwright runs do not create this record.
 
 The pre-push hook checks the actual object IDs supplied by Git, including explicit task-branch pushes from another linked worktree. Every published tree requires a successful record for the repository and the same Node version, platform, and architecture. Any changed tree, including files added by synchronization, requires another complete run. Commit metadata changes that preserve the tested tree reuse its evidence. Deleting a ref does not require a record. The hook reports the missing tree and the command to run; it never starts browser tests or silently publishes changes.
 
