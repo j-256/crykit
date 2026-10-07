@@ -3,6 +3,7 @@ import { entityDefinitionKey, logicalEntityKey, validateBuildContent } from '../
 import { definitionModAvailability, modAvailabilityLabel } from '../catalog/mods'
 import { equipmentFacts, equipmentRole, isWeapon, passivePointCost } from '../domain/mechanics-facts'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
+import { moneyTextLabel } from '../domain/money'
 import type { BuildPpValidity } from '../domain/build-validity'
 import type { BuildRevisionContent, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision, SlotDefinition } from '../domain/types'
 import { buildDefinitionOptions, findDefinitionOption } from './definitions'
@@ -38,13 +39,12 @@ function SummarySelection({ label, value, localData, catalogs, gameSetup, empty,
   const name = value ? displayName ?? entityName(localData, catalogs, value) : occupiedBy ? `Occupied by ${occupiedBy}` : empty
   const definition = value ? resolveEntity(localData, catalogs, value) : undefined
   const subCommand = label === 'Sub-command'
-  const facts = definition ? summaryFactLines(definition).filter(line => !subCommand || !/^(weapons?|armors?):/i.test(line)).slice(0, 5) : []
-  const permissionNote = subCommand && definition?.kind === 'class' ? 'Class equipment permissions are not granted by the sub-command.' : undefined
+  const facts = definition && !subCommand ? summaryFactLines(definition).slice(0, 5) : []
   const equipment = definition && (role === 'mainHand' || role === 'offHand') ? equipmentFacts(definition) : undefined
   const handUse = equipment?.type && isWeapon(equipment.type) ? equipment.twoHanded === false ? 'One-handed' : equipment.twoHanded === true ? 'Two-handed' : 'Hand use unknown' : undefined
   const availability = value ? modAvailabilityLabel(definitionModAvailability(localData, value, gameSetup, catalogs)) : undefined
   const occupancy = occupiedBy ? `Unavailable while ${occupiedBy} occupies both hands` : undefined
-  const tooltip = [`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(permissionNote ? [permissionNote] : []), ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n')
+  const tooltip = moneyTextLabel([`${label}: ${name}`, ...(handUse ? [handUse] : []), ...facts, ...(occupancy ? [occupancy] : []), ...(availability ? [availability] : [])].join('\n'))
   const content = <>
     {value ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={value}/> : occupiedValue ? <DefinitionArtwork catalogs={catalogs} localData={localData} value={occupiedValue}/> : emptyIcon ? <Icon className="build-card__selection-empty-icon" data-empty-slot-icon={emptyIcon} name={emptyIcon}/> : <span aria-hidden="true" className="build-card__selection-placeholder">?</span>}
     {compact ? <span className="sr-only">{name}</span> : <span><small className={hideLabel ? 'sr-only' : undefined}>{label}</small><span className="definition-badge-heading"><span className="build-card__selection-name">{name}</span>{showModLabels && <DefinitionModLabel localData={localData} gameSetup={gameSetup} value={value}/>}</span></span>}
@@ -113,8 +113,8 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
         return <span className="build-card__passive" key={`${entityDefinitionKey(selection.ref)}:${index}`} role="listitem"><SummarySelection catalogs={catalogs} empty="Unavailable" hideLabel label={`Equipped passive ${index + 1}`} localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={selection.ref}/><small>{cost?.state === 'known' ? `${cost.value} PP` : '? PP'}</small></span>
       })}</span> : <small className="sr-only">No passives selected</small>}
     </span>
-    <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'Inspect the selected equipment definition.'} onClose={() => setInspectedSlotId(undefined)} footer={onEquipmentEdit && inspectedSlot && <Button onClick={() => { const slotId = inspectedSlot.id; setInspectedSlotId(undefined); onEquipmentEdit(slotId) }} type="button">Edit this slot</Button>}>
-      {inspectedOption ? <BuildSelectionDetails option={inspectedOption}/> : <p>{inspectedSelection ? 'This saved selection cannot be resolved from its pinned definition.' : 'Nothing is equipped in this slot.'}</p>}
+    <Sheet open={Boolean(inspectedSlot)} title={`${inspectedSlot?.label ?? 'Equipment'}: ${inspectedOption?.name ?? inspectedSelection?.observedName ?? 'Empty'}`} description={inspectedOccupied ? `Occupied by ${inspectedOccupied.name}; this weapon uses both hands.` : 'View equipment details.'} onClose={() => setInspectedSlotId(undefined)} footer={onEquipmentEdit && inspectedSlot && <Button onClick={() => { const slotId = inspectedSlot.id; setInspectedSlotId(undefined); onEquipmentEdit(slotId) }} type="button">Edit this slot</Button>}>
+      {inspectedOption ? <BuildSelectionDetails option={inspectedOption}/> : <p>{inspectedSelection ? 'The saved equipment definition is unavailable.' : 'Nothing is equipped in this slot.'}</p>}
     </Sheet>
   </span>
 }

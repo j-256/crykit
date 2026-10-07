@@ -17,7 +17,7 @@ export function BuildCharacterComparison({ localData, catalogs, revision, charac
   ]
   return <section aria-label={`Compare ${character.name} with build`} className="stack">
     <p>{character.name}: recorded loadout compared with {localData.builds[revision.buildId]?.title ?? 'Build'} r{revision.revision}.</p>
-    {snapshot && !sameBuildBehavior(recordedSetup, setup) && <p className="field__hint">The recorded and planned Game Setup differ. Slots are compared by their saved identities.</p>}
+    {snapshot && !sameBuildBehavior(recordedSetup, setup) && <p className="field__hint">These Game Setups differ. Equipment is compared by slot ID.</p>}
     <div className="structured-value__table"><table><thead><tr><th>Selection</th><th>Recorded now</th><th>Proposed build</th></tr></thead><tbody>{rows.map((row, index) => <tr key={index}><th scope="row">{row.label}</th><td>{row.before}</td><td>{row.after}</td></tr>)}</tbody></table></div>
   </section>
 }

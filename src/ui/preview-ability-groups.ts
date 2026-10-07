@@ -18,7 +18,7 @@ export interface PreviewAbilityGroup {
   readonly refs: readonly EntityRef[]
 }
 
-function nativeTarget(catalog: CatalogSnapshot, family: 'ability' | 'job', id: number, mode = 'base'): CatalogEntity | undefined {
+export function nativeTarget(catalog: CatalogSnapshot, family: 'ability' | 'job', id: number, mode = 'base'): CatalogEntity | undefined {
   const metadata = jsonRecord(catalog.legacy) ? catalog.legacy : undefined
   const modeBindings = jsonRecord(metadata?.nativeModeIdentityBindings) ? metadata.nativeModeIdentityBindings : {}
   const binding = Object.entries(modeBindings).find(([key]) => key.toLowerCase() === `${mode}:${family}:${id}`.toLowerCase())?.[1]

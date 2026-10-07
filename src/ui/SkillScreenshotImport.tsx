@@ -139,19 +139,19 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'The screenshot import could not be saved') }
     finally { setBusy(false) }
   }
-  return <Sheet description="Read local Learn-menu screenshots, review the character and class, then save observations." onClose={finish} onRequestClose={requestClose} open title="Import skill screenshots" width="wide">
+  return <Sheet description="Import Learn-menu screenshots, review the results, then save learning records." onClose={finish} onRequestClose={requestClose} open title="Import skill screenshots" width="wide">
     <div className="stack">
       <ol aria-label="Screenshot import steps" className="screenshot-import__steps">{SCREENSHOT_STEPS.map((label, index) => <li aria-current={currentStep === index ? 'step' : undefined} key={label}><span aria-hidden="true">{index < currentStep ? <Icon name="check"/> : index + 1}</span>{label}</li>)}</ol>
       {/* Map selection changes how squares are interpreted, so show its scope before parsing files */}
       <section aria-label="Screenshot mapping setup" className="stack screenshot-import__configuration">
-        {drafts.length === 0 ? <Field hint="Use confirmed class maps for your game's configuration. Saved Playthrough mappings are preserved." label="Class maps"><select aria-label="Class maps" disabled={busy} onChange={event => setMapSetId(event.target.value)} value={mapSetId}><option value="">Saved playthrough maps only</option>{CONFIRMED_SKILL_MAP_SETS.map(set => <option key={set.id} value={set.id}>{set.label}</option>)}</select></Field> : <p><strong>Class maps:</strong> {mapSet?.label ?? 'Saved playthrough maps only'}</p>}
+        {drafts.length === 0 ? <Field hint="Use class layouts confirmed for your game. Your saved layouts are kept." label="Class maps"><select aria-label="Class maps" disabled={busy} onChange={event => setMapSetId(event.target.value)} value={mapSetId}><option value="">Saved playthrough maps only</option>{CONFIRMED_SKILL_MAP_SETS.map(set => <option key={set.id} value={set.id}>{set.label}</option>)}</select></Field> : <p><strong>Class maps:</strong> {mapSet?.label ?? 'Saved playthrough maps only'}</p>}
         {mapSet && <div><p>{mapSet.platform}. Game version: {mapSet.gameVersion ?? 'unreported'}.</p><p><strong>Enabled:</strong> {mapSet.enabledMods.join(', ')}</p><p><strong>Disabled:</strong> {mapSet.disabledMods.join(', ')}</p></div>}
       </section>
       {drafts.length === 0 && <Field hint="Full 16:9 PNG or JPEG captures. Duplicates are skipped; source files are unchanged." label="Skill screenshots"><input aria-label="Skill screenshots" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled={busy || drafts.length > 0} multiple onChange={event => { const files = [...(event.target.files ?? [])]; if (files.length) void selectFiles(files); event.target.value = '' }} type="file"/></Field>}
       <ul aria-label="Skill square colors" className="screenshot-import__legend"><li><span className="screenshot-import__swatch" data-state="learned"/>Learned</li><li><span className="screenshot-import__swatch" data-state="available"/>Available, not learned</li><li><span className="screenshot-import__swatch" data-state="locked"/>Locked</li></ul>
       {drafts.length === 0 && <p className="field__hint">Screenshots stay on this device. Nothing is uploaded.</p>}
       {busy && <p role="status">{progress || 'Saving reviewed observations...'}</p>}
-      {error && <InlineNotice title="Screenshot import not saved" tone="danger">{error} The review is retained. If storage failed, close this review and use Retry save or export a recovery backup.</InlineNotice>}
+      {error && <InlineNotice title="Screenshot import not saved" tone="danger">{error} Your review is kept. After a storage failure, close it and use Retry save or export a recovery backup.</InlineNotice>}
       {stale && <InlineNotice title="Playthrough changed" tone="warning">Close and reopen this review before importing into the updated playthrough.</InlineNotice>}
       {drafts.length > 0 && <>
         <p role="status">{included.length} included · {drafts.filter(draft => draft.preview.duplicateOf).length} duplicates skipped · {drafts.filter(draft => draft.preview.error).length} unreadable</p>
@@ -173,7 +173,7 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
                 <details><summary>Show full screenshot</summary><img alt="Full screenshot with character header and selected class" className="skill-full-image" src={active.preview.imageUrl}/></details>
               </div>
               <div className="stack">
-                {activeMap ? <InlineNotice title={`${activeClass} ${activeMap.mappings.length === activeMap.squares.length ? 'names filled' : 'known names filled'}`}>{mapSet?.label}. The bundled names were checked in game.{activeMap.mappings.length < activeMap.squares.length && <> Assign any remaining unconfirmed positions when their names are established.</>} Review the assigned names against your screenshot before saving.</InlineNotice> : <InlineNotice title="Review square names">Assign any missing names to their positions. This playthrough reuses reviewed mappings for the same class, Game Setup, and grid. Unmapped squares stay unresolved.</InlineNotice>}
+                {activeMap ? <InlineNotice title={`${activeClass} ${activeMap.mappings.length === activeMap.squares.length ? 'names filled' : 'known names filled'}`}>{mapSet?.label}. The bundled names were checked in game.{activeMap.mappings.length < activeMap.squares.length && <> Fill in the remaining names when you confirm them.</>} Review the assigned names against your screenshot before saving.</InlineNotice> : <InlineNotice title="Review square names">Fill in names you can confirm. This Playthrough reuses them for the same class, Game Setup, and grid. Unnamed squares stay unknown.</InlineNotice>}
                 {square && <>
                   <h3>Row {square.row + 1}, column {square.column + 1}</h3>
                   <Field label="Square state"><select aria-label="Square state" onChange={event => update({ preview: { ...active.preview, squares: active.preview.squares.map(entry => squareKey(entry) === squareKey(square) ? { ...entry, state: event.target.value as SkillSquareState } : entry) }, reviewed: false })} value={square.state}>{Object.entries(SQUARE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
@@ -193,7 +193,7 @@ export function SkillScreenshotImport({ localData, catalogs, onImport }: { reado
       </>}
       {/* Keep the blocked-close explanation with the review choices rather than above a long screenshot */}
       <div aria-label="Screenshot navigation warning" className="stack" ref={noticeRef} role="region" tabIndex={-1}>{closeWarning && <InlineNotice title="Unsaved screenshot review" tone="warning">Finish the review or use Cancel and discard to close it.</InlineNotice>}<div className="form-actions"><Button disabled={busy && !progress} onClick={finish} tone="quiet">{error ? 'Close review' : drafts.length || busy ? 'Cancel and discard' : 'Cancel'}</Button><Button disabled={busy || !ready || stale} icon="check" onClick={() => void save()}>Save reviewed screenshots</Button></div></div>
-      <p className="field__hint">Saving preserves unresolved squares and existing learning conflicts. It does not set mastery or paid LP. One Undo removes the batch.</p>
+      <p className="field__hint">Saving keeps unknown squares and conflicting learning records. Mastery and paid LP stay unchanged. Undo removes the whole batch.</p>
     </div>
   </Sheet>
 }

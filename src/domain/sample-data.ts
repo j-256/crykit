@@ -8,6 +8,7 @@ import { createScenario } from './scenarios'
 import { saveTeam } from './teams'
 import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, LocalData, SourceRef, Timestamp } from './types'
 
+const SAMPLE_CHECKPOINT_NAME = 'Starter loadout'
 const SAMPLE_NOTE = 'Sample data for exploring the planner. Replace it with your own observations.'
 const SAMPLE_SOURCE: SourceRef = { sourceId: 'sample-starter-team', locator: 'Built-in sample playthrough', applicability: SAMPLE_NOTE }
 const SAMPLE_LEVEL = 1
@@ -78,7 +79,7 @@ export function createSampleLocalData(catalog: CatalogSnapshot, timestamp?: Time
       tags: ['sample'], now,
     })
     localData = saveBuildRevision(localData, {
-      buildId, id: revisionId, gameSetupRevisionId, catalogLock, note: SAMPLE_NOTE, now,
+      buildId, id: revisionId, gameSetupRevisionId, catalogLock, note: SAMPLE_CHECKPOINT_NAME, now,
       content: {
         primaryClass, secondaryClass: null,
         equipment: Object.fromEntries(Object.entries(equipment).map(([slotId, ref]) => [slotId, ref ? { ref } : null])),

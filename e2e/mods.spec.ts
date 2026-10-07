@@ -76,8 +76,8 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   }
   await expect(help).toHaveAttribute('open', '')
   await expect(help).toContainText('This entry comes from the Equipment Expansion mod.')
-  await expect(help).toContainText('This snapshot does not record whether that mod was enabled in your game.')
-  await expect(help).toContainText('This label does not check whether a selection fits its slot.')
+  await expect(help).toContainText("This snapshot does not record whether the mod was enabled.")
+  await expect(help).toContainText("This label does not check slot compatibility.")
   await expect(help).toContainText('then capture a new character snapshot')
   expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

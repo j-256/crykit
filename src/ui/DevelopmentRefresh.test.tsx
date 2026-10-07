@@ -30,7 +30,7 @@ describe('development refresh', () => {
     expect(container.textContent).toContain('Port 5187')
     const button = container.querySelector('button')!
     expect(button.getAttribute('aria-label')).toBe('Reload development app')
-    expect(button.title).toContain('Reload the full development page')
+    expect(button.title).toContain("Reload to load the latest app files.")
     expect(button.disabled).toBe(false)
     await act(async () => button.click())
     expect(onRefresh).toHaveBeenCalledTimes(1)
@@ -41,7 +41,7 @@ describe('development refresh', () => {
     await act(async () => root.render(<DevelopmentRefresh blocked onRefresh={onRefresh}/>))
     const button = container.querySelector('button')!
     expect(button.disabled).toBe(true)
-    expect(button.title).toContain('Save or discard changes')
+    expect(button.title).toContain("Save or discard edits")
     expect(button.title).toContain('resolve failed saves')
     await act(async () => button.click())
     expect(onRefresh).not.toHaveBeenCalled()

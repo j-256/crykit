@@ -75,7 +75,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const sharedSnapshot = page.page === 'share'
   const newPlan = unsavedObject || (page.page === 'builds' && page.view === 'build-new') || (page.page === 'teams' && page.view === 'new')
   const saveLabel = sharedSnapshot ? 'Read-only snapshot' : saveState === 'saved' ? newPlan ? 'Not yet saved' : 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
-  const saveExplanation = sharedSnapshot ? 'This shared snapshot has not been saved to this browser. Choose Save a copy to keep it.' : newPlan && saveState === 'saved' ? 'This new plan has not been saved to this browser.' : saveLabel
+  const saveExplanation = sharedSnapshot ? 'Choose Save a copy to keep this snapshot in your browser.' : newPlan && saveState === 'saved' ? 'Save this plan to keep it in your browser.' : saveLabel
   const statusState = sharedSnapshot || (newPlan && saveState === 'saved') ? 'unsaved' : saveState
   const navigate = (next: Destination) => {
     navigation.navigate(routeForDestination(next))
@@ -139,7 +139,7 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
         <button aria-current={navigation.route.page.page === 'settings' ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
-        <div className="local-note"><strong>Your builds, your records</strong>Saved in this browser. Export a backup to keep a separate copy.</div>
+        <div className="local-note"><strong>Saved in this browser</strong>Export a backup to keep a separate copy.</div>
         <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={toggleSidebar} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>

@@ -515,7 +515,7 @@ function validateInventory(
         code: 'STOCK_UPPER_BOUND_UNKNOWN',
         dimension: 'inventory',
         status: 'undetermined',
-        message: 'Confirmed stock lower bound does not cover demand, but more copies may exist',
+        message: 'The recorded minimum is not enough, but you may own more copies',
         ref,
         inputs: { demand, confirmedAvailable: available.lower },
         suggestion: 'Confirm the current count',
@@ -529,11 +529,11 @@ function validateInventory(
       dimension: 'inventory',
       status: 'invalid',
       message: protectedConflict
-        ? 'Protected copies would be required by this scenario'
-        : 'Confirmed stock cannot cover simultaneous assignments',
+        ? 'This party plan needs protected copies'
+        : 'Not enough available copies for all party members',
       ref,
       inputs: { demand, available: available.upper },
-      suggestion: protectedConflict ? 'Allow protected copies explicitly or choose another item' : 'Change an assignment or correct stock',
+      suggestion: protectedConflict ? 'Allow protected copies or choose another item' : 'Change an assignment or correct stock',
     })
   }
 }
@@ -914,7 +914,7 @@ function validatePermissions(
                 ? 'A required selection is not independently valid'
                 : unresolved
                   ? 'A required selection has unresolved legality'
-                  : 'Selected definitions depend on each other without an independent base',
+                  : 'These selections require each other; none works on its own',
             characterId,
             buildRevisionId: entry.buildRevision.id,
             slotId: entry.slotId,
@@ -956,10 +956,10 @@ function validatePermissions(
           message: definitelyMissing && !classBase.unresolved
             ? 'No selected definition grants a required permission'
             : candidateInvalid
-              ? 'A required permission is granted only by an invalid selection'
+              ? 'Only an incompatible selection grants the required permission'
               : unresolved
-                ? 'A required permission may depend on an unresolved grant'
-                : 'A permission dependency cannot be established without a circular grant',
+                ? 'A required permission may come from an unknown effect'
+                : 'The required permission depends on a circular chain of effects',
           characterId,
           buildRevisionId: entry.buildRevision.id,
           slotId: entry.slotId,
@@ -1013,7 +1013,7 @@ function validateCatalogLocks(
         code: 'CATALOG_APPLICABILITY_UNKNOWN',
         dimension: 'gameSetupCertainty',
         status: 'undetermined',
-        message: 'Applicability is unresolved for a pinned catalog snapshot',
+        message: 'Game compatibility is unverified for this catalog version',
         inputs: { catalogId, revisionId },
       })
     } else {
@@ -1053,7 +1053,7 @@ function validateGameSetupCertainty(gameSetup: GameSetupRevision, accumulator: A
         code: 'SUGGESTED_SLOT_DEFINITION',
         dimension: 'gameSetupCertainty',
         status: 'undetermined',
-        message: 'A suggested slot definition is not verified game behavior',
+        message: 'These suggested equipment slots have not been verified for this game',
         slotId: slot.id,
       })
     }

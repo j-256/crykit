@@ -18,6 +18,57 @@ async function openPreview(page: Page) {
   }
 }
 
+test('class inspection lists command abilities with costs and accessible effect previews', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await skipInitialModSetup(page)
+  await createBlankPlaythrough(page)
+  await page.goto('/#/builds/library/new')
+  await chooseNative(page, 'Class', 'Warrior')
+  const growth = page.getByRole('region', { name: 'Warrior growth', exact: true })
+  const ratings = await growth.locator('.rating-stars').evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')))
+  await chooseNative(page, 'Sub-command', 'Cleric', 'White Magic (Cleric)')
+  const subCommandField = page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Sub-command', exact: true }) })
+  if (isMobile) await subCommandField.locator('details > summary').click()
+  const inspector = isMobile ? subCommandField.locator('details') : page.getByRole('complementary', { name: 'Selection details', exact: true })
+  const abilities = inspector.getByRole('list', { name: 'White Magic ability list', exact: true })
+  await expect(abilities).toBeVisible()
+  const cure = abilities.getByRole('button', { name: 'Cure details', exact: true })
+  await expect(cure).toContainText('6 MP, 10 CT')
+  await expect(cure.locator('img')).toBeVisible()
+  await cure.focus()
+  const popup = page.getByRole('tooltip')
+  await expect(popup).toBeVisible()
+  await expect(popup).toContainText('Recovery: 50 + 1.5 Spi')
+  await expect(popup).toContainText('Can use out of combat.')
+  await expect(cure).toBeFocused()
+  await cure.press('Escape')
+  await expect(popup).not.toBeVisible()
+  const spotlight = abilities.getByRole('button', { name: 'Spotlight details', exact: true })
+  if (isMobile) await spotlight.tap()
+  else await spotlight.hover()
+  await expect(popup).toBeVisible()
+  await expect(popup).toContainText('Inflict: Spotlight for 2 turns.')
+  await expect(popup).toContainText('Take 35% more Fire damage.')
+  if (!isMobile) { await popup.hover(); await expect(popup).toBeVisible() }
+  const bounds = await popup.boundingBox()
+  const viewport = page.viewportSize()!
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width)
+  expect(bounds!.y).toBeGreaterThanOrEqual(0)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height)
+  await page.keyboard.press('Escape')
+  await expect(popup).not.toBeVisible()
+  await chooseNative(page, 'Sub-command', 'Wizard', 'Black Magic (Wizard)')
+  await expect(inspector.getByRole('list', { name: 'Black Magic ability list', exact: true })).toBeVisible()
+  await expect(inspector.getByRole('list', { name: 'White Magic ability list', exact: true })).toHaveCount(0)
+  await expect(growth).toBeVisible()
+  expect(await growth.locator('.rating-stars').evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')))).toEqual(ratings)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(errors).toEqual([])
+})
+
 test('preview abilities prioritize primary class and subclass while retaining broader choices', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))

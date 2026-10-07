@@ -81,8 +81,8 @@ export function CombatAbilitySummary({ abilityRef, localData, catalogs, gameSetu
     {record ? <div className="combat-ability-summary__behavior">
       {basePower !== undefined && basePower !== 0 && <p><strong>Base power: {basePower.toLocaleString()}{attribute && ['HP', 'MP', 'AP'].includes(attribute) ? ` ${attribute}` : ''}</strong><span>Before scaling and battle modifiers.</span></p>}
       {effects.length > 0 && <div><span className="combat-ability-summary__label">Base effects</span><ul>{effects.map(line => <li key={line}>{line}</li>)}</ul></div>}
-      {!effects.length && additionalEffects && <p className="combat-ability-summary__unknown">Additional effects are recorded; a supported description is unavailable. Calculated effects appear in the battle results.</p>}
-      {unknownEffects && <p className="combat-ability-summary__unknown">Additional effect details are unknown in this source.</p>}
-    </div> : <p className="combat-ability-summary__unknown">{issues.join(' ') || 'Supported ability details are unavailable for this selection.'}</p>}
+      {!effects.length && additionalEffects && <p className="combat-ability-summary__unknown">This ability has additional effects. Check the battle results; no description is available.</p>}
+      {unknownEffects && <p className="combat-ability-summary__unknown">This source does not describe the additional effects.</p>}
+    </div> : <p className="combat-ability-summary__unknown">{issues.join(' ') || 'Ability details are unavailable.'}</p>}
   </section>
 }

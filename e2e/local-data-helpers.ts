@@ -32,7 +32,7 @@ export async function addBundledModToReference(page: Page, title: string): Promi
 }
 
 export async function replacePlannerData(panel: Locator): Promise<void> {
-  await panel.getByRole('checkbox', { name: /Replace all local planner data after validation/ }).check()
+  await panel.getByRole('checkbox', { name: /Replace all planner data/ }).check()
   await panel.getByRole('button', { name: 'Replace planner data', exact: true }).click()
 }
 

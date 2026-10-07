@@ -6,15 +6,15 @@ export function CreditsSection() {
   return <div className="stack">
     <section className="settings-section">
       <h3>Crystal Kit</h3>
-      <p>An unofficial fan planner for Crystal Project. This project is independent of the game's creators and is not endorsed by them.</p>
+      <p>An unofficial Crystal Project planner, independent of and not endorsed by the game's creators.</p>
       <p>The original application code is available under <a href={applicationLicenseUrl} rel="noreferrer" target="_blank">AGPL-3.0-only</a>. <a href={SOURCE_URL} rel="noreferrer" target="_blank">Browse the source</a> or <a href={`${SOURCE_URL}/issues`} rel="noreferrer" target="_blank">report a problem</a>. Please leave personal backups, imports, and playthrough records out of public reports.</p>
     </section>
     <section className="settings-section">
       <h3>Game artwork and community reference</h3>
-      <p><a href="https://store.steampowered.com/app/1637730/Crystal_Project/" rel="noreferrer" target="_blank">Crystal Project</a> is by Andrew Willman. The game and its artwork belong to their respective creators and rights holders. Crystal Kit did not create the game sprites, crystal artwork, or wiki images. These assets are credited separately and are not licensed under the application's AGPL license.</p>
+      <p><a href="https://store.steampowered.com/app/1637730/Crystal_Project/" rel="noreferrer" target="_blank">Crystal Project</a> is by Andrew Willman. The game and its artwork belong to their respective creators and rights holders. Game sprites, crystal artwork, and wiki images are credited separately and are not covered by the app's AGPL license.</p>
       <p>Thanks to the <a href="https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki" rel="noreferrer" target="_blank">Crystal Project Wiki contributors</a> for the community reference and file documentation. Wiki-derived text retains its <a href="https://www.fandom.com/licensing" rel="noreferrer" target="_blank">CC-BY-SA terms</a>. Artwork has separate rights; the wiki's Fairuse labels describe its use of copyrighted material, not an open license.</p>
-      <p>Currency and class mastery seal icons use exact sprites extracted from the fingerprinted Windows game files. Their texture regions and source bindings remain in the native artwork manifest, and they retain the game's artwork rights.</p>
-      <p>Moonlight Project - Classes 2.2 is by Xenon. Its bundled definitions retain project metadata and source provenance. Mod content keeps its separate rights.</p>
+      <p>Currency and mastery-seal icons come from the Windows game files and retain the game's artwork rights. The native artwork manifest records their source.</p>
+      <p>Moonlight Project - Classes 2.2 is by Xenon. Its bundled definitions include source metadata. Mod content retains its separate rights.</p>
       <p>Reference details link to each entry's source revisions and artwork file pages. <a href={`${SOURCE_URL}/blob/main/docs/catalog-sources.md`} rel="noreferrer" target="_blank">Catalog sources and artwork credits</a> also document the Archipelago identity tables, mod references, Crystal Edit class exports, and modding guide, along with their known gaps.</p>
     </section>
     <section className="settings-section">
@@ -24,8 +24,8 @@ export function CreditsSection() {
     </section>
     <section className="settings-section">
       <h3>Your data stays in this browser</h3>
-      <p>There is no account, telemetry, or cloud sync. Imports and screenshot recognition run locally. The hosting provider receives ordinary requests for app files, but personal records and imported files are not uploaded. Source links open external sites only when you follow them.</p>
-      <p>Export a planner backup and download Mod Inspector originals and drafts separately before clearing browser storage or moving to another device or address. Browser storage can be cleared or evicted; offline caching is not a backup. A first visit contains labeled synthetic sample records.</p>
+      <p>No accounts, telemetry, or cloud sync. Imports and screenshot recognition run in your browser. The host receives requests for app files; your records and imports are never uploaded. Source links open external sites when clicked.</p>
+      <p>Before clearing browser storage or changing devices or site addresses, export a planner backup and download Mod Inspector files separately. Browser data can be cleared or evicted; offline caching is not a backup. New browsers start with labeled sample records.</p>
     </section>
   </div>
 }

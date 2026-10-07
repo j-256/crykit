@@ -24,4 +24,5 @@
 }
 
 .calculated-stats > details > summary { cursor: pointer; font-weight: 650 }
-.calculated-stats .calculation-coverage .button { margin-top: .5rem }
+.calculated-stats .calculation-coverage p { margin: .5rem 0 0 }
+.calculated-stats .calculation-coverage .button { margin-top: .25rem }

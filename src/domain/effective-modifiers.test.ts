@@ -192,7 +192,7 @@ describe('explicit battle stat snapshots', () => {
   it('does not reinterpret legacy status selections, and empty automatic status modifiers do not hide stats', () => {
     const original = content()
     const legacy = { ...original, calculation: { ...original.calculation!, statuses: [ref(status.id)] } }
-    expect(calculatePCStats(legacy, SUGGESTED_BUILD_SLOTS, resolver(status)).issues.join(' ')).toContain('explicit adoption')
+    expect(calculatePCStats(legacy, SUGGESTED_BUILD_SLOTS, resolver(status)).issues.join(' ')).toContain('Add the saved statuses to a battle scenario')
     const emptyStatus = entity(status.id, 'status', { ID: statusId, StatMods: [] })
     const build = { ...content(), passives: [{ ref: ref('synthetic-auto') }] }
     expect(calculatePCStats(build, SUGGESTED_BUILD_SLOTS, resolver(auto(), emptyStatus)).neutral.HP).toBeGreaterThan(0)

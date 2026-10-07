@@ -65,7 +65,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
     const projects = [...new Set(BUNDLED_MOD_LIBRARY.filter(mod => mod.catalogNames?.some(alias => normalizeModName(alias) === normalizeModName(name))).map(mod => mod.id))]
     return projects.length !== 1 || !setup.modComposition?.layers.some(layer => layer.enabled && layer.catalogId === projects[0])
   }) : []
-  if (unboundNames.length) issues.push(`Select source versions for enabled mods: ${unboundNames.join(', ')}. Named choices alone do not establish their calculation settings.`)
+  if (unboundNames.length) issues.push(`Select source versions for enabled mods: ${unboundNames.join(', ')}. Mod names alone cannot provide calculation settings.`)
   const difficultyIssues: string[] = [...issues]
   const difficulties = new Map<number, DifficultyDefinition>()
   const applyDifficulties = (records: JsonValue | undefined, title: string, sourceKind: DifficultyDefinition['sourceKind']) => {
@@ -112,11 +112,11 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
       const family = modelKey.split(':')[1]!
       if (!Object.hasOwn(CALCULATION_FAMILIES, family) || BASE_CALCULATION_MODELS.has(modelKey)) continue
       const previous = addedModels.get(modelKey)
-      if (previous && previous.project !== catalog!.id) issues.push(`${modelKey}: added identity occurs in both ${previous.title} and ${title}. Runtime remapping of added IDs is not modeled; combined calculations are unresolved.`)
+      if (previous && previous.project !== catalog!.id) issues.push(`${modelKey}: added identity occurs in both ${previous.title} and ${title}. CryKit cannot combine these added IDs; combined totals are unavailable.`)
       addedModels.set(modelKey, { project: catalog!.id, title })
     }
     applyDifficulties(Array.isArray(metadata.difficulties) ? metadata.difficulties.map(record => jsonRecord(record) ? remapModRecord(record, 'Difficulties', catalog!.id, mappings) : record) : metadata.difficulties, title, 'mod')
-    if (Array.isArray(metadata.unsupported) && metadata.unsupported.length) issues.push(`${title}: ${metadata.unsupported.join(', ')} changes are retained but not modeled in this imported revision. Reimport and explicitly select the new revision to use supported settings.`)
+    if (Array.isArray(metadata.unsupported) && metadata.unsupported.length) issues.push(`${title}: ${metadata.unsupported.join(', ')} changes are retained but not modeled in this imported revision. Reimport and select the new version to use supported settings.`)
     if (metadata.version === IMPORTED_RULES_VERSION) {
       if (!Array.isArray(metadata.genders)) issues.push(`${title}: gender definitions are not a supported list.`)
       else {
@@ -145,7 +145,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   const changes = configIssues.length ? [] : Object.entries(battleConfig).flatMap(([field, value]) => value === baseline[field] ? [] : [{ field, value, baseline: baseline[field]!, source, calculated: SHEET_CONSTANTS.has(field) }])
   const selection = setup?.difficulty?.selection
   const difficulty = selection?.state === 'known' ? difficulties.get(selection.value) : undefined
-  if (!difficulty) difficultyIssues.push(selection?.state === 'known' ? 'The selected difficulty is missing from these game and mod definitions.' : 'Difficulty is unknown or custom; difficulty-dependent estimates are unresolved.')
+  if (!difficulty) difficultyIssues.push(selection?.state === 'known' ? 'The selected difficulty is missing from these game and mod definitions.' : 'Difficulty is unknown or custom. Results that depend on it are unavailable.')
   return { mode, battleConfig, changes, issues: [...issues, ...configIssues], difficulties: [...difficulties.values()].sort((left, right) => left.order - right.order || left.id - right.id), difficulty, difficultyIssues: [...difficultyIssues, ...difficulty?.issues ?? []], genders: [...genders.values()].sort((left, right) => left.id - right.id) }
 }
 

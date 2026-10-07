@@ -109,10 +109,10 @@ export function compareActiveStatusImpact(content: BuildRevisionContent, slots: 
   const without = calculateBuildCombatPreview(withoutContent, slots, sourceResolve, rules, unknownInputs, unknownSecondaryClass)
   const automaticStatus = automaticStatusAfterRemoval(withoutContent, slots, resolve, selected.recipient, identity.id, rules, unknownInputs, unknownSecondaryClass)
   const notes: string[] = []
-  if (battle[field].length - remaining.length > 1) notes.push('References to this same effective status were removed together.')
-  if (battle.target === 'self') notes.push('Self-targeting shares actor statuses, so removing this status changes both sides of the calculation.')
+  if (battle[field].length - remaining.length > 1) notes.push('All selections of this status were removed together.')
+  if (battle.target === 'self') notes.push('When targeting yourself, removing a status changes both sides of the calculation.')
   if (automaticStatus === 'retained') notes.push(`${selected.name} is still applied automatically after its explicit selection is removed.`)
-  else if (automaticStatus === 'uncertain') notes.push(`${selected.name} may be applied automatically after its explicit selection is removed; its absence is not established.`)
-  else if (automaticStatus === 'unknown') notes.push('Automatic reapplication could not be determined, so removing this selection does not establish that the status is absent.')
+  else if (automaticStatus === 'uncertain') notes.push(`${selected.name} may still be applied automatically after removing this selection.`)
+  else if (automaticStatus === 'unknown') notes.push('Automatic reapplication is unknown. Removing this selection may leave the status active.')
   return { current: values(current), without: values(without), automaticStatus, notes }
 }

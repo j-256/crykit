@@ -5,11 +5,11 @@ import { CATEGORY_GROUPS, type CategoryGroup } from './reference-facets'
 import { referenceCategoryLabel, referenceCategorySearchText } from './reference-categories'
 import type { FacetOption } from './search'
 
-export function ReferenceFacetSection({ title, active = 0, summary = 'Any', children }: PropsWithChildren<{ title: string; active?: number; summary?: string }>) {
+export function ReferenceFacetSection({ title, active = 0, summary = 'Any', selection, children }: PropsWithChildren<{ title: string; active?: number; summary?: string; selection?: readonly string[] }>) {
   const [open, setOpen] = useState(active > 0)
   const id = useId()
   return <section className="facet-group reference-facet-section">
-    <h3><button aria-controls={id} aria-expanded={open} aria-label={title} className="reference-facet-section__toggle" onClick={() => setOpen(value => !value)} type="button"><span>{title}<small>{active ? `${active} selected` : summary}</small></span><Icon name="chevron-down"/></button></h3>
+    <h3><button aria-controls={id} aria-expanded={open} aria-label={title} className="reference-facet-section__toggle" onClick={() => setOpen(value => !value)} type="button"><span>{title}<small>{selection?.length ? selection.join(' or ') : active ? `${active} selected` : summary}</small></span><Icon name="chevron-down"/></button></h3>
     <div className="reference-facet-section__body" hidden={!open} id={id}>{open ? children : null}</div>
   </section>
 }
@@ -24,6 +24,7 @@ export function ReferenceCategoryFilters({ options, groups, selected, onClear, o
   const total = normalized ? matching.length : matching.filter(option => groups.get(option.value) === expanded).length
   return <div className="reference-category-filters">
     <div className="search-field"><Icon name="search"/><input aria-label="Search reference categories" onChange={event => setQuery(event.target.value)} placeholder="Find any category" type="search" value={query}/></div>
+    {selected.length > 0 && <p className="reference-category-selection">{selected.map(referenceCategoryLabel).join(' or ')}</p>}
     <div aria-label="Reference category filters" className="reference-category-groups" role="group">
       <button aria-pressed={selected.length === 0} className="filter-chip" onClick={onClear} type="button">All categories</button>
       {CATEGORY_GROUPS.map((group, index) => {

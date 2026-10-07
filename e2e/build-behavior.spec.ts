@@ -167,7 +167,7 @@ test('validity review focuses retained equipment after copying a different slot 
   await page.locator('.build-behavior > summary').click()
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Synthetic reduced-layout preset · r1' })
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  const issue = page.getByRole('region', { name: 'Build validity', exact: true }).getByRole('listitem').filter({ hasText: 'A selected definition uses a slot outside this Game Setup' })
+  const issue = page.getByRole('region', { name: 'Build validity', exact: true }).getByRole('listitem').filter({ hasText: "A selection uses a slot missing from this Game Setup" })
   await issue.getByRole('button', { name: 'Review selection', exact: true }).click()
   const retained = page.locator(`[data-field-key="slot:${removedSlot.id}"]`)
   await expect(retained).toBeFocused()

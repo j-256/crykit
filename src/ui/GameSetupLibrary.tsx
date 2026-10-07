@@ -8,8 +8,8 @@ export function GameSetupLibrary({ localData }: { localData: LocalData }) {
   const navigation = useNavigation()
   const edit = (id: string) => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { gameSetup: [id] } })
   return <div className="stack game-setup-library">
-    <header className="game-setup-library__header"><div className="game-setup-library__heading"><h2>Saved Game Setups</h2><p className="settings-section__intro">Reusable rules for buildcrafting: base game version, difficulty, and mods.</p></div><Button icon="plus" onClick={() => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { new: ['true'] } })}>New Game Setup</Button></header>
-    <p className="field__hint">Choose a setup when starting a build. Each saved checkpoint keeps its own rules. Apply a setup to your actual game under Playthrough.</p>
+    <header className="game-setup-library__header"><div className="game-setup-library__heading"><h2>Saved Game Setups</h2><p className="settings-section__intro">Save game version, difficulty, and mod choices to reuse in Builds.</p></div><Button icon="plus" onClick={() => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: { new: ['true'] } })}>New Game Setup</Button></header>
+    <p className="field__hint">Choose a setup when starting a Build. Checkpoints keep their saved rules. Set the rules for your tracked save under Playthrough.</p>
     {latestGameSetups(localData).map(setup => {
       const revisions = Object.values(localData.gameSetups).filter(value => value.gameSetupId === setup.gameSetupId).sort((left, right) => right.revision - left.revision)
       const revisionIds = new Set(revisions.map(value => value.id))

@@ -24,6 +24,6 @@ export function TeamCheckpointComparison({ current, next, localData, catalogs }:
       const label = slotId ? localData.gameSetups[current.gameSetupRevisionId]?.slots.find(slot => slot.id === slotId)?.label ?? difference.label : difference.label
       return <div key={difference.path}><dt>{label}</dt><dd><span>Selected: {format(difference.left)}</span><span>Newer: {format(difference.right)}</span></dd></div>
     })}</dl> : <p>The loadout and calculation inputs are unchanged.</p>}
-    {current.note !== next.note && <p>Checkpoint note: {current.note || 'None'} → {next.note || 'None'}</p>}
+    {current.note !== next.note && <p>Checkpoint name: {current.note || 'None'} → {next.note || 'None'}</p>}
   </div>
 }

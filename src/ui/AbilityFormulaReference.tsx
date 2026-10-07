@@ -40,7 +40,7 @@ export function AbilityFormulaReference({ ability, abilityName, definition, nume
         </dl>
       </div>
     </div>
-    <p className="ability-formula__scope">Uses Build stats before contextual power, resource-based effects, target defense, critical hits, and variance. Negative power represents healing.</p>
+    <p className="ability-formula__scope">Uses Build stats before battle conditions, resource effects, defense, crits, and variance. Negative power means healing.</p>
     {ability.notes.length > 0 && <ul className="ability-formula__notes">{ability.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}
     <details className="ability-formula__inputs">
       <summary>Source formula inputs</summary>
@@ -71,7 +71,7 @@ export function AbilityFormulaReference({ ability, abilityName, definition, nume
       <div className="ability-formula__method">
         <p>Base and scaling terms each add attack multiplied by their attack rate, divided by 100.</p>
         <p>Each attribute contributes its stat multiplied by its rate, divided by 100, then multiplied by the scaling term and divided by 100. Each division in this coefficient stage truncates toward zero.</p>
-        <p>Contextual bonus power is zero in this reference. Learning costs do not establish that the Build can learn or use the ability.</p>
+        <p>Battle conditions add no power in this preview. It does not check whether a character can learn or use the ability.</p>
       </div>
     </details>
   </section>

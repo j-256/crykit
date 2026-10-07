@@ -43,7 +43,7 @@ export function pickerSearchMatch(entry: PickerSearchEntry, query: string): { re
   if (alias) return { rank: SEARCH_MATCH_RANK.alias, explanation: `Matched alias: ${alias.slice(0, SEARCH_EXCERPT_LIMIT)}` }
   if (!matches([...entry.names, ...entry.aliases, ...entry.details].join(' ')) && entry.referenceText) return {
     rank: SEARCH_MATCH_RANK.reference,
-    explanation: entry.conflictingReferenceStats ? 'Matched original source text; see provenance for differing stat claims' : `Matched reference text: ${entry.referenceText.slice(0, SEARCH_EXCERPT_LIMIT)}`,
+    explanation: entry.conflictingReferenceStats ? 'Matched source text; check Sources for differing stats' : `Matched reference text: ${entry.referenceText.slice(0, SEARCH_EXCERPT_LIMIT)}`,
   }
   const detail = entry.details.find(matches) ?? entry.details.find(line => tokens.some(token => line.toLocaleLowerCase().includes(token)))
   return { rank: SEARCH_MATCH_RANK.details, explanation: detail ? `Matched details: ${detail.slice(0, SEARCH_EXCERPT_LIMIT)}` : 'Matched across name and aliases' }

@@ -34,7 +34,7 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
   const options = useMemo(() => buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: setup.id }, catalogs), [localData, catalogs, setup.id])
   const [view, setView] = useState<LoadoutView>('loadout')
   const [inspection, setInspection] = useState<{ option?: DefinitionOption; showClassPermissions: boolean }>()
-  const field = (label: string, ref: EntityRef | null | undefined, empty = 'Empty') => <ReadOnlyDefinitionField catalogs={catalogs} empty={empty} label={label} localData={localData} onInspect={option => setInspection({ option, showClassPermissions: label !== 'Sub-command' })} option={findDefinitionOption(options, ref)}/>
+  const field = (label: string, ref: EntityRef | null | undefined, empty = 'Empty') => <ReadOnlyDefinitionField catalogs={catalogs} empty={empty} gameSetup={setup} label={label} localData={localData} onInspect={option => setInspection({ option, showClassPermissions: label !== 'Sub-command' })} option={findDefinitionOption(options, ref)}/>
   const equipmentField = (id: string, label: string) => {
     const selection = content.equipment[id]
     const offHand = slots.find(slot => slot.id === id && equipmentRole(slot) === 'offHand')
@@ -51,8 +51,8 @@ function SharedBuild({ revision, preview }: { readonly revision: BuildRevision; 
     <details><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
     <BuildValidity hasPrimaryClass={Boolean(content.primaryClass)} report={report}/>
     <LoadoutSheet gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
-      classFields={<>{field('Class', content.primaryClass, 'No class selected')}{field('Sub-command', content.secondaryClass, 'No sub-command')}</>}
-      equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">Selections outside the pinned slot layout retain their stored slot IDs.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
+      primaryClassField={field('Class', content.primaryClass, 'No class selected')} subCommandField={field('Sub-command', content.secondaryClass, 'No sub-command')}
+      equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">These selections use slots outside this Game Setup.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
       passiveFields={content.passives.length ? content.passives.map((selection, index) => <div key={index}>{field(`Equipped passive ${index + 1}`, selection.ref, selection.observedName)}</div>) : <p>No passives equipped.</p>}
       notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation} genders={rules.genders}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
@@ -96,8 +96,8 @@ export function SharedView({ encoded, catalogs, onSave }: { readonly encoded: st
   const slots = payload.kind === 'team' ? payload.slots! : [Object.values(payload.records.buildRevisions)[0]!.id]
   return <div className="stack shared-preview">
     <ScreenHeader description="A read-only snapshot from a share link. Save a copy to edit it in this browser." eyebrow={payload.kind === 'team' ? 'Shared team' : 'Shared build'} title={payload.title} actions={<Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button>}/>
-    <p>Build rules use the pinned Game Setup. Character readiness and available stock need your own Playthrough records.</p>
-    {saveError && <InlineNotice title="Copy not saved" tone="danger">{saveError} Your existing records were preserved.</InlineNotice>}
+    <p>Readiness and stock checks need your own Playthrough records.</p>
+    {saveError && <InlineNotice title="Copy not saved" tone="danger">{saveError} Your saved records are unchanged.</InlineNotice>}
     <div className={payload.kind === 'team' ? 'share-team-grid' : 'share-build-grid'}>{slots.map((id, index) => {
       const revision = id ? payload.records.buildRevisions[id] : undefined
       const build = revision ? payload.records.builds[revision.buildId] : undefined
