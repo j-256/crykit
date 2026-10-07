@@ -5,6 +5,9 @@ import { saveEditorMode, partyModDocument, partyModList, partyModMaps, sameModLi
 import { flag, number, object, bound, flags, levelCap, numbers, growthHistory, known, growthJob, subJob, string, array, stock, stockId, stockCount, capacity } from './values.ts'
 import { SAVE_EDITOR_MAX_CURRENCY, DEFAULT_LEVEL_CAP, SAVE_EDITOR_MAX_LEVEL, LEGACY_HEADER, LEVEL_ASSIST_FLAG, LEARNED, PASSIVE_POINT_BUDGET, MAX_JP } from './model.ts'
 
+const MAX_JP_JOB_ID = 0x7fff_ffff
+const UNRESOLVED_JP_JOB_ID = -1
+
 interface ValidatedSaveEditor { readonly catalog: SaveEditorCatalog; readonly randomizer: SaveEditorRandomizerState }
 
 export function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): ValidatedSaveEditor {
@@ -43,6 +46,8 @@ export function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, mo
     if (growth.some(value => value < 0) || growth.reduce((sum, value) => sum + value, 0) !== level) throw new Error('Growth levels do not match character level')
     growth.forEach((value, id) => { if (value > 0) known(catalog, 'job', id) })
     if (history.length < growth.length || history.some((value, id) => value < (growth[id] ?? 0))) throw new Error('Growth history is inconsistent')
+    // History can exceed current growth after deleveling, but nonzero slots still require the exact class definition
+    history.forEach((value, id) => { if (value > 0) known(catalog, 'job', id) })
     known(catalog, 'job', number(v.Job, 'Job'))
     known(catalog, 'job', growthJob(member, save))
     const secondary = subJob(member, save)
@@ -57,16 +62,28 @@ export function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, mo
     const passiveCost = passiveIds.reduce((sum, id) => sum + Number(known(catalog, 'passive', id).PP), 0)
     if (!Number.isSafeInteger(passiveCost) || passiveCost > PASSIVE_POINT_BUDGET || number(passives.value.CurrentPP, 'Available PP') !== PASSIVE_POINT_BUDGET - passiveCost) throw new Error('Equipped passive point accounting is inconsistent')
     const jp = object(v.JP, 'JP')
-    for (const entry of array(jp.value.Entries, 'JP entries')) { const item = object(entry, 'JP entry'); known(catalog, 'job', number(item.value.Job, 'JP class')); bound(number(item.value.Current, 'Current JP'), 0, MAX_JP, 'Current JP'); bound(number(item.value.Total, 'Total JP'), 0, MAX_JP, 'Total JP') }
+    for (const entry of array(jp.value.Entries, 'JP entries')) {
+      const item = object(entry, 'JP entry')
+      const jobId = item.value.Job?.type === 'null' ? UNRESOLVED_JP_JOB_ID : number(item.value.Job, 'JP class')
+      const current = number(item.value.Current, 'Current JP')
+      const total = number(item.value.Total, 'Total JP')
+      bound(jobId, UNRESOLVED_JP_JOB_ID, MAX_JP_JOB_ID, 'JP class')
+      bound(current, 0, MAX_JP, 'Current JP')
+      bound(total, 0, MAX_JP, 'Total JP')
+      // The game retains empty JP slots after mods are removed; preserve them without activating unknown classes
+      // Its job converter also accepts null references and writes -1 for unresolved jobs
+      // Nonzero balances still require the exact definition so editing cannot reinterpret meaningful mod state
+      if (current > 0 || total > 0) known(catalog, 'job', jobId)
+    }
   }
   for (const kind of ['item', 'equipment'] as const) {
     const seen = new Set<number>()
     for (const entry of stock(save, kind)) {
       const id = stockId(entry, kind)
-      known(catalog, kind, id)
+      const record = known(catalog, kind, id)
       if (seen.has(id)) throw new Error(`Duplicate ${kind} stock ID ${id}`)
       seen.add(id)
-      bound(stockCount(entry), 0, capacity(save, catalog, kind, id), `${kind} ${id} quantity`)
+      bound(stockCount(entry), 0, capacity(save, catalog, kind, id), `${String(record.Name ?? `${kind} ${id}`)} stock`)
     }
   }
   return { catalog, randomizer }

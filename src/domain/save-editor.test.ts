@@ -1,18 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { decodeCrystalSave, encodeCrystalSave, type BsonDocument, type BsonValue, type CrystalSave } from '../interchange/crystal-save'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModSourceFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from './save-editor.fixture'
+import { createModdedSaveEditorFixture, createNeutralSaveEditorFixture, createSaveEditorFixture, createSaveEditorModSourceFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from './save-editor.fixture'
 import { editSave, inspectSave, previewSaveChanges, previewVanillaConversion, SAVE_EDITOR_MAX_CURRENCY } from './save-editor'
 import { resolveSaveEditorMods } from './save-editor-mods'
 
 const NOW = new Date('2026-01-02T03:04:05Z')
 const catalog = SAVE_EDITOR_CATALOG
 const LEVEL_CAP_ASSIST_FLAG = 128
+const UNMATCHED_JOB_ID = 24
+const NATIVE_PASSIVE_COUNT = 88
+const RESIDUAL_JOB_COUNT = 25
+const RESIDUAL_PASSIVE_COUNT = 112
+const UNMATCHED_PASSIVE_ID = RESIDUAL_PASSIVE_COUNT - 1
+const UNMATCHED_ABILITY_ID = 508
+const UNMATCHED_EQUIPMENT_ID = 90_000
+const UNRESOLVED_JP_JOB_ID = -1
+const NEUTRAL_JP_IDENTITIES = [
+  ['unmatched job', { type: 'int32', value: UNMATCHED_JOB_ID }],
+  ['removed job sentinel', { type: 'int32', value: UNRESOLVED_JP_JOB_ID }],
+  ['null job reference', { type: 'null' }],
+] satisfies readonly (readonly [string, BsonValue])[]
+const MAX_JP = 10_000
+const POTION_ID = 0
+const POTION_POUCH_ID = 134
+const ETHER_POUCH_ID = 136
+const TONIC_POUCH_ID = 133
+const SPAWNING_MEADOWS_MAP_ID = 73
+const CONTRACT_SWORD_ID = 71
 function doc(value: BsonValue | undefined): BsonDocument { if (value?.type !== 'document') throw new Error('Expected document'); return value }
 function arr(value: BsonValue | undefined): BsonValue[] { if (value?.type !== 'array') throw new Error('Expected array'); return value.value }
 function num(value: BsonValue | undefined): number { if (value?.type !== 'int32') throw new Error('Expected integer'); return value.value }
 function flag(save: CrystalSave, key: string): void { doc(save.party.value.GameplayFlags).value[key] = { type: 'boolean', value: true } }
 function swap(length: number, left: number, right: number): number[] { const values = Array.from({ length }, (_, id) => id); [values[left], values[right]] = [values[right]!, values[left]!]; return values }
+
+function neutralJobResidueFixture(job: BsonValue = { type: 'int32', value: UNMATCHED_JOB_ID }): CrystalSave {
+  if (job.type === 'null') return createNeutralSaveEditorFixture(null)
+  if (job.type === 'int32') return createNeutralSaveEditorFixture(job.value)
+  throw new Error('Synthetic orphan JP identity must be an integer or null')
+}
+
+function residueJp(save: CrystalSave): BsonDocument {
+  return doc(arr(doc(save.members[0]!.value.JP).value.Entries).at(-1))
+}
 
 describe('browser-local save editing', () => {
   it.each(Array.from({ length: 29 }, (_, version) => version))('edits format %i without upgrading it or losing unknown records', version => {
@@ -63,6 +93,148 @@ describe('browser-local save editing', () => {
     expect(summary.inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 1, equipped: 4, capacity: 95 })
     expect(encodeCrystalSave(save)).toEqual(bytes)
     expect(save.party.value.SyntheticInt64).toEqual({ type: 'int64', value: 9_007_199_254_740_993n })
+  })
+
+  it.each(NEUTRAL_JP_IDENTITIES)('retains neutral %s residues through ordinary edits and encoded round-trips', (_label, job) => {
+    expect(catalog.records.job.has(UNMATCHED_JOB_ID)).toBe(false)
+    const bytes = encodeCrystalSave(neutralJobResidueFixture(job))
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(original.header).toMatchObject({ isModded: false, mods: [], modIdMaps: [] })
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, issues: [], randomized: false })
+    expect(residueJp(original).value.Job).toEqual(job)
+    const mapping = doc(original.party.value.RandomizerMapping)
+    expect(arr(mapping.value.Jobs).map(num)).toEqual(Array.from({ length: RESIDUAL_JOB_COUNT }, (_, id) => id))
+    expect(arr(mapping.value.Passives).map(num)).toEqual(Array.from({ length: RESIDUAL_PASSIVE_COUNT }, (_, id) => id))
+    expect(arr(doc(doc(original.party.value.Atlas).value.Jobs).value.Entries)).toHaveLength(RESIDUAL_JOB_COUNT)
+    expect(arr(doc(doc(original.party.value.Atlas).value.Passives).value.Entries)).toHaveLength(RESIDUAL_PASSIVE_COUNT)
+    for (const member of original.members) {
+      for (const field of ['Entries', 'Hist']) {
+        const values = arr(doc(member.value.Levels).value[field])
+        expect(values).toHaveLength(RESIDUAL_JOB_COUNT)
+        expect(values.slice(UNMATCHED_JOB_ID).map(num)).toEqual([0])
+      }
+      expect(arr(member.value.LearnedJobs)).toHaveLength(RESIDUAL_JOB_COUNT)
+      expect(arr(member.value.LearnedJobs).slice(UNMATCHED_JOB_ID).map(num)).toEqual([0])
+      expect(arr(member.value.LearnedPassives)).toHaveLength(RESIDUAL_PASSIVE_COUNT)
+      expect(arr(member.value.LearnedPassives).slice(NATIVE_PASSIVE_COUNT).map(num)).toEqual(Array<number>(RESIDUAL_PASSIVE_COUNT - NATIVE_PASSIVE_COUNT).fill(0))
+      const entries = arr(doc(member.value.JP).value.Entries)
+      expect(entries).toHaveLength(RESIDUAL_JOB_COUNT)
+      const orphan = doc(entries.at(-1))
+      expect(Object.hasOwn(orphan.value, 'Job')).toBe(true)
+      expect(orphan.value.Job).toEqual(job)
+    }
+    const money = editSave(original, catalog, { type: 'currency', value: 456 }, NOW)
+    expect(money.members).toEqual(original.members)
+    const edited = editSave(money, catalog, { type: 'member', index: 0, name: 'Avery', level: 10 }, NOW)
+    expect(inspectSave(edited, catalog)).toMatchObject({ editable: true, issues: [], currency: 456, members: [{ name: 'Avery', level: 10 }, {}, {}, {}] })
+    const editedBytes = encodeCrystalSave(edited)
+    const roundTrip = decodeCrystalSave(editedBytes)
+    expect(inspectSave(roundTrip, catalog)).toMatchObject({ editable: true, issues: [] })
+    expect(residueJp(roundTrip).value.Job).toEqual(job)
+    for (const candidate of [money, edited, roundTrip]) {
+      expect(candidate.party.value.RandomizerMapping).toEqual(original.party.value.RandomizerMapping)
+      expect(candidate.party.value.Atlas).toEqual(original.party.value.Atlas)
+      for (const [index, member] of candidate.members.entries()) {
+        const source = original.members[index]!
+        expect(member.value.JP).toEqual(source.value.JP)
+        for (const field of ['LearnedJobs', 'LearnedAbilities', 'LearnedPassives']) expect(member.value[field]).toEqual(source.value[field])
+        for (const field of ['Entries', 'Hist']) expect(arr(doc(member.value.Levels).value[field]).slice(UNMATCHED_JOB_ID)).toEqual(arr(doc(source.value.Levels).value[field]).slice(UNMATCHED_JOB_ID))
+        expect(Object.hasOwn(doc(arr(doc(member.value.JP).value.Entries).at(-1)).value, 'Job')).toBe(true)
+      }
+    }
+    expect(encodeCrystalSave(roundTrip)).toEqual(editedBytes)
+    expect(edited.originalBytes).toEqual(bytes)
+    expect(original).toEqual(before)
+    expect(original.originalBytes).toEqual(bytes)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+  })
+
+  it('preserves known historical growth above the current allocation through ordinary edits', () => {
+    const fixture = neutralJobResidueFixture()
+    const history = arr(doc(fixture.members[0]!.value.Levels).value.Hist)
+    history[0] = { type: 'int32', value: 7 }
+    history[4] = { type: 'int32', value: 3 }
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, issues: [] })
+    const money = editSave(original, catalog, { type: 'currency', value: 456 }, NOW)
+    const named = editSave(money, catalog, { type: 'member', index: 0, name: 'Avery' }, NOW)
+    const editedBytes = encodeCrystalSave(named)
+    const roundTrip = decodeCrystalSave(editedBytes)
+    expect(inspectSave(roundTrip, catalog)).toMatchObject({ editable: true, currency: 456, members: [{ name: 'Avery', level: 5 }, {}, {}, {}] })
+    for (const [index, member] of roundTrip.members.entries()) expect(member.value.Levels).toEqual(original.members[index]!.value.Levels)
+    expect(encodeCrystalSave(roundTrip)).toEqual(editedBytes)
+    expect(named.originalBytes).toEqual(bytes)
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+  })
+
+  it.each([
+    ['historical growth', `Unknown job ID ${UNMATCHED_JOB_ID}`, (save: CrystalSave) => { arr(doc(save.members[0]!.value.Levels).value.Hist)[UNMATCHED_JOB_ID] = { type: 'int32', value: 1 } }],
+    ['current growth', `Unknown job ID ${UNMATCHED_JOB_ID}`, (save: CrystalSave) => {
+      const levels = doc(save.members[0]!.value.Levels)
+      arr(levels.value.Entries)[0] = { type: 'int32', value: 4 }
+      arr(levels.value.Entries)[UNMATCHED_JOB_ID] = { type: 'int32', value: 1 }
+      arr(levels.value.Hist)[UNMATCHED_JOB_ID] = { type: 'int32', value: 1 }
+    }],
+    ['class learning', `Unknown job ID ${UNMATCHED_JOB_ID}`, (save: CrystalSave) => { arr(save.members[0]!.value.LearnedJobs)[UNMATCHED_JOB_ID] = { type: 'int32', value: 1 } }],
+    ['ability learning', `Unknown ability ID ${UNMATCHED_ABILITY_ID}`, (save: CrystalSave) => { arr(save.members[0]!.value.LearnedAbilities).push({ type: 'int32', value: 1 }) }],
+    ['first residual passive learning', `Unknown passive ID ${NATIVE_PASSIVE_COUNT}`, (save: CrystalSave) => { arr(save.members[0]!.value.LearnedPassives)[NATIVE_PASSIVE_COUNT] = { type: 'int32', value: 2 } }],
+    ['last residual passive learning', `Unknown passive ID ${UNMATCHED_PASSIVE_ID}`, (save: CrystalSave) => { arr(save.members[0]!.value.LearnedPassives)[UNMATCHED_PASSIVE_ID] = { type: 'int32', value: 2 } }],
+    ['equipped passive', `Unknown passive ID ${UNMATCHED_PASSIVE_ID}`, (save: CrystalSave) => { arr(doc(save.members[0]!.value.Passives).value.Passives).push({ type: 'int32', value: UNMATCHED_PASSIVE_ID }) }],
+    ['equipped equipment', `Unknown equipment ID ${UNMATCHED_EQUIPMENT_ID}`, (save: CrystalSave) => { arr(save.members[0]!.value.Equipment)[0] = { type: 'int32', value: UNMATCHED_EQUIPMENT_ID } }],
+  ] satisfies readonly (readonly [string, string, (save: CrystalSave) => void])[])('rejects meaningful unknown %s without changing source state or bytes', (_label, diagnostic, mutate) => {
+    const fixture = neutralJobResidueFixture()
+    mutate(fixture)
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: false, issues: [expect.stringContaining(diagnostic)] })
+    expect(() => editSave(original, catalog, { type: 'member', index: 0, name: 'Avery', level: 10 }, NOW)).toThrow(diagnostic)
+    expect(original).toEqual(before)
+    expect(original.originalBytes).toEqual(bytes)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+  })
+
+  it.each(NEUTRAL_JP_IDENTITIES.flatMap(([label, job]) => [['Current', label, job], ['Total', label, job]] as const))('keeps positive %s JP for %s read-only', (field, _label, job) => {
+    const save = neutralJobResidueFixture(job)
+    residueJp(save).value[field] = { type: 'int32', value: 1 }
+    const before = structuredClone(save)
+    const bytes = encodeCrystalSave(save)
+    const diagnosticId = job.type === 'int32' ? job.value : UNRESOLVED_JP_JOB_ID
+    expect(inspectSave(save, catalog)).toMatchObject({ editable: false, issues: [expect.stringContaining(`Unknown job ID ${diagnosticId}`)] })
+    expect(() => editSave(save, catalog, { type: 'currency', value: 456 }, NOW)).toThrow(`Unknown job ID ${diagnosticId}`)
+    expect(save).toEqual(before)
+    expect(encodeCrystalSave(save)).toEqual(bytes)
+  })
+
+  it.each([
+    ['Current', { type: 'int32', value: -1 }],
+    ['Current', { type: 'int32', value: MAX_JP + 1 }],
+    ['Current', { type: 'double', value: 0.5 }],
+    ['Current', { type: 'string', value: '0' }],
+    ['Current', undefined],
+    ['Total', { type: 'int32', value: -1 }],
+    ['Total', { type: 'int32', value: MAX_JP + 1 }],
+    ['Total', { type: 'double', value: 0.5 }],
+    ['Total', { type: 'string', value: '0' }],
+    ['Total', undefined],
+    ['Job', { type: 'int32', value: -2 }],
+    ['Job', { type: 'double', value: 2_147_483_648 }],
+    ['Job', { type: 'double', value: 0.5 }],
+    ['Job', { type: 'string', value: '24' }],
+    ['Job', undefined],
+  ] satisfies readonly (readonly [string, BsonValue | undefined])[])('rejects malformed neutral-residue %s value %j', (field, value) => {
+    const save = neutralJobResidueFixture()
+    const jp = residueJp(save)
+    if (value === undefined) delete jp.value[field]
+    else jp.value[field] = value
+    const before = structuredClone(save)
+    expect(inspectSave(save, catalog).editable).toBe(false)
+    expect(() => editSave(save, catalog, { type: 'member', index: 0, name: 'Avery' }, NOW)).toThrow()
+    expect(save).toEqual(before)
   })
 
   it.each([[1, 'Vanilla'], [2, 'Chaos']] as const)('edits nonrandomized %s mode saves with their native patch definitions', (patchMode, name) => {
@@ -223,7 +395,7 @@ describe('browser-local save editing', () => {
       arr(member.value.LearnedJobs).slice(24).forEach(value => { if (value.type === 'int32') value.value = 0 })
       arr(member.value.LearnedPassives).slice(88).forEach(value => { if (value.type === 'int32') value.value = 0 })
     }
-    expect(inspectSave(residual, catalog).editable).toBe(false)
+    expect(inspectSave(residual, catalog)).toMatchObject({ editable: true, issues: [] })
     const preview = previewVanillaConversion(residual, catalog)
     expect(preview).toMatchObject({ relevant: true, convertible: true, blockers: [] })
     expect(preview.draft!.header.isModded).toBe(false)
@@ -282,6 +454,116 @@ describe('browser-local save editing', () => {
     const stocked = editSave(pouch, catalog, { type: 'stock', kind: 'item', id: 0, count: 12 }, NOW)
     expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: 134, count: 0 }, NOW)).toThrow('0 to 10')
     expect(inspectSave(stocked, catalog).editable).toBe(true)
+  })
+
+  it('adds quantities from every matching pouch while ignoring pouches for other items', () => {
+    const source = createSaveEditorModSourceFixture()
+    const items = new Map(source.records.item)
+    items.set(ETHER_POUCH_ID, { ...catalog.records.item.get(ETHER_POUCH_ID)!, IncreaseMaxCapacityForItemID: POTION_ID, IncreaseMaxCapacityBy: 3 })
+    const sources = [{ ...source, records: { ...source.records, item: items } }]
+    let save = createModdedSaveEditorFixture()
+    save = editSave(save, catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 2 }, NOW, sources)
+    save = editSave(save, catalog, { type: 'stock', kind: 'item', id: ETHER_POUCH_ID, count: 3 }, NOW, sources)
+    save = editSave(save, catalog, { type: 'stock', kind: 'item', id: TONIC_POUCH_ID, count: 4 }, NOW, sources)
+    expect(inspectSave(save, catalog, sources).inventory.find(row => row.kind === 'item' && row.id === POTION_ID)).toMatchObject({ capacity: 23 })
+    const stocked = editSave(save, catalog, { type: 'stock', kind: 'item', id: POTION_ID, count: 23 }, NOW, sources)
+    const before = structuredClone(stocked)
+    const bytes = encodeCrystalSave(stocked)
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_ID, count: 24 }, NOW, sources)).toThrow('0 to 23')
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: ETHER_POUCH_ID, count: 2 }, NOW, sources)).toThrow('0 to 20')
+    expect(stocked).toEqual(before)
+    expect(encodeCrystalSave(stocked)).toEqual(bytes)
+    const expanded = editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 3 }, NOW, sources)
+    expect(inspectSave(expanded, catalog, sources).inventory.find(row => row.kind === 'item' && row.id === POTION_ID)).toMatchObject({ count: 23, capacity: 25 })
+  })
+
+  it('clamps positive-base pouch capacity at 99 and validates reductions atomically', () => {
+    const pouches = editSave(createSaveEditorFixture(), catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 45 }, NOW)
+    expect(inspectSave(pouches, catalog).inventory.find(row => row.kind === 'item' && row.id === POTION_ID)).toMatchObject({ capacity: 99 })
+    const stocked = editSave(pouches, catalog, { type: 'stock', kind: 'item', id: POTION_ID, count: 99 }, NOW)
+    const before = structuredClone(stocked)
+    const bytes = encodeCrystalSave(stocked)
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_ID, count: 100 }, NOW)).toThrow('0 to 99')
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 44 }, NOW)).toThrow('0 to 98')
+    expect(stocked).toEqual(before)
+    expect(encodeCrystalSave(stocked)).toEqual(bytes)
+    const reduced = editSave(editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_ID, count: 98 }, NOW), catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 44 }, NOW)
+    expect(inspectSave(reduced, catalog).inventory.find(row => row.kind === 'item' && row.id === POTION_ID)).toMatchObject({ count: 98, capacity: 98 })
+  })
+
+  it('uses zero-base capacity defaults for maps and other items before considering pouch bonuses', () => {
+    expect(catalog.records.item.get(POTION_POUCH_ID)).toMatchObject({ MaxCapacity: 0, MapForBiomeID: null })
+    expect(catalog.records.item.get(SPAWNING_MEADOWS_MAP_ID)).toMatchObject({ MaxCapacity: 0, MapForBiomeID: 1 })
+    const source = createSaveEditorModSourceFixture()
+    const items = new Map(source.records.item)
+    items.set(ETHER_POUCH_ID, { ...catalog.records.item.get(ETHER_POUCH_ID)!, IncreaseMaxCapacityForItemID: SPAWNING_MEADOWS_MAP_ID, IncreaseMaxCapacityBy: 5 })
+    items.set(TONIC_POUCH_ID, { ...catalog.records.item.get(TONIC_POUCH_ID)!, IncreaseMaxCapacityForItemID: POTION_POUCH_ID, IncreaseMaxCapacityBy: 7 })
+    const sources = [{ ...source, records: { ...source.records, item: items } }]
+    let save = createModdedSaveEditorFixture()
+    save = editSave(save, catalog, { type: 'stock', kind: 'item', id: ETHER_POUCH_ID, count: 3 }, NOW, sources)
+    save = editSave(save, catalog, { type: 'stock', kind: 'item', id: TONIC_POUCH_ID, count: 4 }, NOW, sources)
+    const summary = inspectSave(save, catalog, sources)
+    expect(summary.inventory.find(row => row.kind === 'item' && row.id === SPAWNING_MEADOWS_MAP_ID)).toMatchObject({ capacity: 1 })
+    expect(summary.inventory.find(row => row.kind === 'item' && row.id === POTION_POUCH_ID)).toMatchObject({ capacity: 99 })
+    const stocked = editSave(editSave(save, catalog, { type: 'stock', kind: 'item', id: SPAWNING_MEADOWS_MAP_ID, count: 1 }, NOW, sources), catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 99 }, NOW, sources)
+    const before = structuredClone(stocked)
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: SPAWNING_MEADOWS_MAP_ID, count: 2 }, NOW, sources)).toThrow('0 to 1')
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: POTION_POUCH_ID, count: 100 }, NOW, sources)).toThrow('0 to 99')
+    expect(stocked).toEqual(before)
+  })
+
+  it('uses redirected mod item and pouch identities when computing capacity', () => {
+    const TARGET_SOURCE_ID = 500
+    const POUCH_SOURCE_ID = 501
+    const TARGET_SAVED_ID = 700
+    const POUCH_SAVED_ID = 701
+    const source = createSaveEditorModSourceFixture()
+    const items = new Map(source.records.item)
+    items.set(TARGET_SOURCE_ID, { ...catalog.records.item.get(POTION_ID)!, ID: TARGET_SOURCE_ID, Name: 'Synthetic redirected draught', MaxCapacity: 3 })
+    items.set(POUCH_SOURCE_ID, { ...catalog.records.item.get(POTION_POUCH_ID)!, ID: POUCH_SOURCE_ID, Name: 'Synthetic redirected pouch', IncreaseMaxCapacityForItemID: TARGET_SOURCE_ID, IncreaseMaxCapacityBy: 4 })
+    const sources = [{ ...source, records: { ...source.records, item: items } }]
+    const save = createModdedSaveEditorFixture()
+    const pairs = [{ originalId: TARGET_SOURCE_ID, newId: TARGET_SAVED_ID }, { originalId: POUCH_SOURCE_ID, newId: POUCH_SAVED_ID }]
+    save.header.modIdMaps[0]!.groups.items = pairs
+    const redirect = doc(arr(doc(save.party.value.Mods).value.Redirects)[0])
+    const itemRedirect = doc(redirect.value.Items)
+    itemRedirect.value.Count = { type: 'int32', value: pairs.length }
+    itemRedirect.value.IDs = { type: 'array', value: pairs.map(pair => ({ type: 'document', value: { O: { type: 'int32', value: pair.originalId }, N: { type: 'int32', value: pair.newId } } })) }
+    const resolution = resolveSaveEditorMods(save, catalog, sources)
+    expect(resolution.issues).toEqual([])
+    expect(resolution.catalog.records.item.get(POUCH_SAVED_ID)?.IncreaseMaxCapacityForItemID).toBe(TARGET_SAVED_ID)
+    expect(items.get(POUCH_SOURCE_ID)?.IncreaseMaxCapacityForItemID).toBe(TARGET_SOURCE_ID)
+    const pouches = editSave(save, catalog, { type: 'stock', kind: 'item', id: POUCH_SAVED_ID, count: 2 }, NOW, sources)
+    expect(inspectSave(pouches, catalog, sources).inventory.find(row => row.kind === 'item' && row.id === TARGET_SAVED_ID)).toMatchObject({ capacity: 11 })
+    const stocked = editSave(pouches, catalog, { type: 'stock', kind: 'item', id: TARGET_SAVED_ID, count: 11 }, NOW, sources)
+    const before = structuredClone(stocked)
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'item', id: TARGET_SAVED_ID, count: 12 }, NOW, sources)).toThrow('0 to 11')
+    expect(stocked).toEqual(before)
+    const roundTrip = decodeCrystalSave(encodeCrystalSave(stocked))
+    expect(inspectSave(roundTrip, catalog, sources)).toMatchObject({ editable: true, issues: [] })
+    expect(roundTrip.header.modIdMaps).toEqual(save.header.modIdMaps)
+  })
+
+  it('ignores Keep Equipment uniqueness caps for randomized gear while counting equipped copies', () => {
+    const save = createSaveEditorFixture()
+    flag(save, 'KeepEquipment')
+    doc(save.party.value.GameplayFlags).value.LimitlessEquipment = { type: 'boolean', value: false }
+    arr(save.members[0]!.value.Equipment)[0] = { type: 'int32', value: CONTRACT_SWORD_ID }
+    expect(catalog.records.equipment.get(CONTRACT_SWORD_ID)).toMatchObject({ Name: 'Contract', MaxCapacity: 1 })
+    expect(inspectSave(save, catalog).inventory.find(row => row.kind === 'equipment' && row.id === CONTRACT_SWORD_ID)).toMatchObject({ capacity: 0, equipped: 1 })
+    setSaveEditorFixtureRandomizer(save, { flags: { Equipment: true }, mappings: { Equipment: swap(591, 0, CONTRACT_SWORD_ID) } })
+    expect(inspectSave(save, catalog)).toMatchObject({ editable: true, issues: [], randomized: true })
+    expect(inspectSave(save, catalog).inventory.find(row => row.kind === 'equipment' && row.id === CONTRACT_SWORD_ID)).toMatchObject({ capacity: 98, equipped: 1 })
+    const stocked = editSave(save, catalog, { type: 'stock', kind: 'equipment', id: CONTRACT_SWORD_ID, count: 98 }, NOW)
+    const before = structuredClone(stocked)
+    const bytes = encodeCrystalSave(stocked)
+    expect(() => editSave(stocked, catalog, { type: 'stock', kind: 'equipment', id: CONTRACT_SWORD_ID, count: 99 }, NOW)).toThrow('0 to 98')
+    expect(stocked).toEqual(before)
+    expect(encodeCrystalSave(stocked)).toEqual(bytes)
+    const roundTrip = decodeCrystalSave(bytes)
+    expect(inspectSave(roundTrip, catalog)).toMatchObject({ editable: true, randomized: true })
+    expect(doc(roundTrip.party.value.RandomizerMapping).value).toEqual(doc(save.party.value.RandomizerMapping).value)
+    expect(encodeCrystalSave(roundTrip)).toEqual(bytes)
   })
 
   it('returns gear to inventory when changing class and preserves passive loadouts', () => {

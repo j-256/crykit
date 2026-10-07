@@ -160,3 +160,24 @@ export function createModdedSaveEditorFixture(options: { readonly active?: boole
   })
   return save
 }
+
+export function createNeutralSaveEditorFixture(orphanJob: number | null = SYNTHETIC_SAVE_MOD.jobId): CrystalSave {
+  const save = createModdedSaveEditorFixture({ unflagged: true })
+  // Preserve expanded containers and identity tables while removing meaningful mod-only state
+  for (const member of save.members) {
+    const jobs = member.value.LearnedJobs
+    const passives = member.value.LearnedPassives
+    if (jobs?.type !== 'array' || passives?.type !== 'array') throw new Error('Synthetic save needs learning arrays')
+    jobs.value[SYNTHETIC_SAVE_MOD.jobId] = bson(0)
+    for (const id of SYNTHETIC_SAVE_MOD.passiveIds) passives.value[id] = bson(0)
+    const jp = member.value.JP
+    const entries = jp?.type === 'document' ? jp.value.Entries : undefined
+    const orphan = entries?.type === 'array' ? entries.value.at(-1) : undefined
+    if (orphan?.type !== 'document') throw new Error('Synthetic save needs an orphan JP entry')
+    orphan.value.Job = bson(orphanJob)
+  }
+  const atlas = (save.party.value.Atlas as BsonDocument).value
+  atlas.Jobs = bson({ Entries: atlasEntries(SYNTHETIC_SAVE_MOD.jobId + 1, []) })
+  atlas.Passives = bson({ Entries: atlasEntries(Math.max(...SYNTHETIC_SAVE_MOD.passiveIds) + 1, []) })
+  return save
+}

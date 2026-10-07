@@ -62,9 +62,20 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
     if (command.type === 'loadout') applyLoadout(save, member, catalog, randomizer, command)
   }
   if (command.type === 'stock') {
-    known(catalog, command.kind, command.id)
-    bound(command.count, 0, capacity(save, catalog, command.kind, command.id), 'Quantity')
+    const record = known(catalog, command.kind, command.id)
+    bound(command.count, 0, capacity(save, catalog, command.kind, command.id), `${String(record.Name ?? `${command.kind} ${command.id}`)} stock`)
     setStock(save, command.kind, command.id, command.count)
+    if (command.kind === 'item' && typeof record.IncreaseMaxCapacityForItemID === 'number') {
+      const targetId = record.IncreaseMaxCapacityForItemID
+      const target = catalog.records.item.get(targetId)
+      if (target) {
+        const limit = capacity(save, catalog, 'item', targetId)
+        const targetName = String(target.Name ?? `Item ${targetId}`)
+        const pouchName = String(record.Name ?? 'this pouch')
+        // Reject the candidate instead of silently discarding consumables when pouch capacity decreases
+        if (quantity(save, 'item', targetId) > limit) throw new Error(`${targetName} stock must be a whole number from 0 to ${limit} after changing ${pouchName}. Reduce ${targetName} stock first.`)
+      }
+    }
     if (command.count > 0) atlas(save, command.kind === 'item' ? 'Items' : 'Equipment', command.id, ATLAS.acquired, now)
     updateTreasureFinder(save, catalog)
   }

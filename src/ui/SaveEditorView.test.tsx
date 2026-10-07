@@ -8,7 +8,7 @@ import * as crystalEdit from '../interchange/crystal-edit'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../domain/save-editor.fixture'
+import { createModdedSaveEditorFixture, createNeutralSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from '../domain/save-editor.fixture'
 import { saveEditorModProjectId } from '../domain/save-editor-mods'
 import { createSampleLocalData } from '../domain/sample-data'
 import { CRYSTAL_SAVE_LIMITS, decodeCrystalSave, encodeCrystalSave } from '../interchange/crystal-save'
@@ -535,6 +535,75 @@ describe('save editor session', () => {
     expect(container.querySelector('[role="alert"]')).toBeNull()
     expect(container.querySelector('.save-editor__review')?.textContent).toContain(row.name)
     expect(button('Export edited save').disabled).toBe(false)
+  })
+
+  it.each([SYNTHETIC_SAVE_MOD.jobId, null] as const)('edits and exports neutral JP Job %j without removing residue or changing the original', async job => {
+    const fixture = createNeutralSaveEditorFixture(job)
+    const bytes = encodeCrystalSave(fixture)
+    const originalBytes = bytes.slice()
+    const original = decodeCrystalSave(originalBytes)
+    await open(bytes)
+    expect(container.textContent).not.toContain('Read-only save')
+    expect(container.textContent).toContain('Optional cleanup')
+    expect(container.textContent).toContain('You can edit this save without cleanup.')
+    expect(input('Copper').disabled).toBe(false)
+    expect(button('Export edited save').disabled).toBe(false)
+    await type('Copper', '444')
+    await act(async () => button('Apply currency').click())
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(edited.header).toMatchObject({ currencyAmount: 444, isModded: false, mods: [], modIdMaps: [] })
+    expect(edited.members).toEqual(original.members)
+    for (const field of ['Mods', 'RandomizerFlags', 'RandomizerMapping', 'Atlas']) expect(edited.party.value[field]).toEqual(original.party.value[field])
+    expect(inspectSave(edited, SAVE_EDITOR_CATALOG).editable).toBe(true)
+    await act(async () => button('Download original').click())
+    expect(vi.mocked(downloadBytes).mock.calls[1]).toEqual([originalBytes, 'original-synthetic.sav'])
+    expect(bytes).toEqual(originalBytes)
+  })
+
+  it('applies pouch capacity before accepting consumables and preserves the draft after rejected stock edits', async () => {
+    const bytes = await open()
+    await type('Search inventory', 'Potion')
+    const potionRow = () => input('Potion stock').closest('form')!
+    expect(potionRow().textContent).toContain('stock limit 10')
+    await type('Potion Pouch stock', '2')
+    expect(potionRow().textContent).toContain('stock limit 10')
+    expect(button('Export edited save').disabled).toBe(true)
+    await act(async () => button('Apply Potion Pouch stock').click())
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(potionRow().textContent).toContain('stock limit 14')
+    await type('Potion stock', '14')
+    await act(async () => button('Apply Potion stock').click())
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(button('Export edited save').disabled).toBe(false)
+    await type('Potion stock', '15')
+    await act(async () => button('Apply Potion stock').click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Potion stock')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('0 to 14')
+    expect(input('Potion stock').value).toBe('15')
+    expect(button('Export edited save').disabled).toBe(true)
+    await act(async () => button('Discard pending input').click())
+    expect(input('Potion stock').value).toBe('14')
+    await type('Potion Pouch stock', '0')
+    await act(async () => button('Apply Potion Pouch stock').click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Potion stock')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('0 to 10')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Reduce Potion stock first.')
+    expect(input('Potion Pouch stock').value).toBe('0')
+    expect(input('Potion stock').value).toBe('14')
+    expect(potionRow().textContent).toContain('stock limit 14')
+    expect(button('Export edited save').disabled).toBe(true)
+    await act(async () => button('Discard pending input').click())
+    expect(input('Potion Pouch stock').value).toBe('2')
+    expect(button('Export edited save').disabled).toBe(false)
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    const inventory = inspectSave(edited, SAVE_EDITOR_CATALOG).inventory
+    expect(inventory.find(row => row.kind === 'item' && row.id === 0)).toMatchObject({ count: 14, capacity: 14 })
+    expect(inventory.find(row => row.kind === 'item' && row.id === 134)).toMatchObject({ count: 2 })
+    await act(async () => button('Download original').click())
+    expect(vi.mocked(downloadBytes).mock.calls[1]).toEqual([bytes, 'original-synthetic.sav'])
   })
 
   it('edits a name without changing an absent subclass and clears navigation guard synchronously on discard', async () => {

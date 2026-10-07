@@ -96,10 +96,14 @@ export function capacity(save: CrystalSave, catalog: SaveEditorCatalog, kind: Sa
   const base = typeof record.MaxCapacity === 'number' ? record.MaxCapacity : 0
   if (kind === 'equipment') {
     // Stock is unequipped inventory, but the game's finite capacity includes present members' gear
-    const limit = flag(flags(save).value.KeepEquipment) && !flag(flags(save).value.LimitlessEquipment) && base > 0 ? base : MAX_STOCK
+    const randomizedEquipment = flag(object(save.party.value.RandomizerFlags ?? document({}), 'RandomizerFlags').value.Equipment)
+    const limit = flag(flags(save).value.KeepEquipment) && !flag(flags(save).value.LimitlessEquipment) && !randomizedEquipment && base > 0 ? base : MAX_STOCK
     return Math.max(0, limit - equippedCount(save, id))
   }
+  // Party.GetMaxCapacity returns the zero-capacity fallback before considering pouches
   if (base === 0) return record.MapForBiomeID !== null && record.MapForBiomeID !== undefined ? 1 : MAX_STOCK
+  // Pouches are actual held item IDs, already resolved through any saved mod redirects
+  // Count every matching pouch before applying the game's shared stock ceiling
   return Math.min(MAX_STOCK, stock(save, 'item').reduce((sum, entry) => {
     const pouch = catalog.records.item.get(stockId(entry, 'item'))
     return sum + (pouch?.IncreaseMaxCapacityForItemID === id && typeof pouch.IncreaseMaxCapacityBy === 'number' ? pouch.IncreaseMaxCapacityBy * stockCount(entry) : 0)
