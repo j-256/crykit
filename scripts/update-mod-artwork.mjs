@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile, readdir, mkdir, writeFile, lstat } from 'node:fs/promises'
+import { readFile, readdir, mkdir, writeFile, lstat, unlink } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
@@ -179,6 +179,15 @@ async function gameTextures(directory) {
   return { textures, packs }
 }
 
+async function pruneGenerated(directory, expected) {
+  for (const name of await readdir(directory)) {
+    if (expected.has(name)) continue
+    // Only remove content-addressed outputs owned by this generator
+    assert(/^[a-f0-9]{64}\.png$/.test(name), 'Unexpected mod artwork output file')
+    await unlink(join(directory, name))
+  }
+}
+
 async function update(directory, content, sharp) {
   const sources = await librarySources()
   const disk = await diskSources(directory)
@@ -209,6 +218,8 @@ async function update(directory, content, sharp) {
   for (const [name, bytes] of packed.files) await writeFile(join(ATLAS_DIRECTORY, name), bytes)
   await mkdir(ASSET_DIRECTORY, { recursive: true })
   for (const [name, bytes] of files) await writeFile(join(ASSET_DIRECTORY, name), bytes)
+  await pruneGenerated(ATLAS_DIRECTORY, new Set(packed.files.keys()))
+  await pruneGenerated(ASSET_DIRECTORY, new Set(files.keys()))
   await writeFile(MANIFEST, serialize(manifest))
   await writeFile(RUNTIME_MANIFEST, serialize(runtimeManifest(manifest)))
   return validate(sharp)
