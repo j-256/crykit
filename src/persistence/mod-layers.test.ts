@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { coalesceDefinitionOverrides, updateGameSetupRevision } from '../domain/local-data'
 import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
+import { createSampleLocalData } from '../domain/sample-data'
 import { modCatalogForPin } from '../domain/mod-layers'
 import type { EntityId } from '../domain/types'
 import { validateNativeLocalDataGraph } from '../interchange/native'
@@ -16,6 +17,9 @@ afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); aw
 
 async function importedData() {
   const mods = await syntheticModLayers()
+  // Keep layer behavior independent of the much larger bundled starter Build seed
+  const source = createSampleLocalData(DEFAULT_CATALOG)
+  await database.localDatas.add({ id: 'local-data-record', revision: source.revision, updatedAt: source.updatedAt, localData: source, lineage: { rootLocalDataId: source.id } })
   const initial = await loadLocalData()
   await commitImport(mods.first, { mode: 'add-reference', targetLocalDataId: initial.localData.id, expectedRevision: initial.revision })
   const afterFirst = await loadLocalData()
