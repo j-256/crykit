@@ -149,12 +149,14 @@ test('a failed confirmation retains the field and supports an explicit retry', a
   expect((await storedData(page)).playthroughs).toEqual(before.playthroughs)
 })
 
-test('equipment without a source file asks once and preserves unknown calculation effects', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('bundled equipment confirms its exact source once and calculates stats', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   await choose(page, 'Off hand', 'Doge Shield', 'Doge Shield')
   const dialog = page.getByRole('dialog', { name: 'Enable Doge Shield?', exact: true })
-  await expect(dialog).toContainText('Source data is unavailable')
+  await expect(dialog).toContainText('Version 1.0')
+  await dialog.getByText('Version details', { exact: true }).click()
+  await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true }).locator('option:checked')).toHaveText('1.0 · bundled · format 20')
   const field = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await expect(field).toHaveValue('')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -164,7 +166,9 @@ test('equipment without a source file asks once and preserves unknown calculatio
   await expect(field).toHaveValue('Doge Shield')
   await choose(page, 'Off hand', 'Doge Shield', 'Doge Shield')
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Class stats', exact: true })).toContainText('unavailable')
+  const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
+  await expect(totals).toBeVisible()
+  await expect(totals).not.toContainText('Unknown')
 })
 
 test('growth choices confirm their source and subsequent selections from it need no prompt', async ({ page }) => {
