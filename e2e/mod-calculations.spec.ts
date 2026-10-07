@@ -45,7 +45,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await page.getByLabel('Build title', { exact: true }).fill('Synthetic mod calculation')
   const primary = page.getByRole('combobox', { name: 'Class', exact: true })
   await primary.fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   const hp = totals.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Max HP', exact: true }) }).getByRole('cell').first()
   const gender = page.getByRole('combobox', { name: 'Calculation gender', exact: true })

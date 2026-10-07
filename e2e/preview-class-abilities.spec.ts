@@ -7,7 +7,7 @@ async function chooseNative(page: Page, label: string, query: string, displayNam
   await input.fill(query)
   await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option')
     .filter({ has: page.getByText(displayName, { exact: true }) })
-    .filter({ hasText: 'Windows 1.6.9' }).click()
+    .filter({ hasText: 'PC 1.6.9.0' }).click()
   await expect(input).toHaveValue(displayName)
 }
 
@@ -49,7 +49,7 @@ test('preview abilities prioritize primary class and subclass while retaining br
 
   await preview.fill('Cure')
   const other = picker.getByRole('group', { name: 'Other abilities', exact: true })
-  await other.getByRole('option').filter({ has: page.getByText('Cure', { exact: true }) }).filter({ hasText: 'Windows 1.6.9' }).click()
+  await other.getByRole('option').filter({ has: page.getByText('Cure', { exact: true }) }).filter({ hasText: 'PC 1.6.9.0' }).click()
   await expect(preview).toHaveValue('Cure')
   await expect(page.getByLabel('Selected ability', { exact: true }).getByRole('heading', { name: 'Cure', exact: true })).toBeVisible()
   await preview.click()
@@ -72,7 +72,7 @@ test('preview abilities prioritize primary class and subclass while retaining br
   await preview.click()
   await expect(picker.locator('.build-picker-group-heading')).toHaveText(['Class: Warrior', 'Subclass: Cleric', 'Other abilities'])
   const selectedCure = picker.getByRole('group', { name: 'Subclass: Cleric', exact: true }).getByRole('option')
-    .filter({ has: page.getByText('Cure', { exact: true }) }).filter({ hasText: 'Windows 1.6.9' })
+    .filter({ has: page.getByText('Cure', { exact: true }) }).filter({ hasText: 'PC 1.6.9.0' })
   await expect(selectedCure).toHaveAttribute('aria-selected', 'true')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   expect(errors).toEqual([])

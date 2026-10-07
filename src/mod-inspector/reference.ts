@@ -9,7 +9,8 @@ type Parameter = { kind: 'enum' | 'reference' | 'scalar'; target?: string; allow
 type Schema = { baselines: Record<string, { scope: string; source: { sha256: string }; records: readonly { ID: number; Name?: string }[] }>; references: Record<string, Record<string, { target: string; evidence: readonly string[] }>>; specialIdentifiers: Record<string, string>; variants: Record<string, { field: string; discriminator: string; models: Record<string, string> }>; enums: Record<string, Record<string, string>>; models: Record<string, Record<string, string>>; parameters: Record<string, { effects: Record<string, Record<string, Parameter>>; unused: readonly string[] }> }
 const SCHEMA = schemaData as Schema
 const ENUMS: Record<string, Record<string, string>> = Object.fromEntries([...new Set([...Object.keys(SCHEMA.enums), ...Object.keys(NATIVE_GAME_DATA.enums)])].map(name => [name, { ...SCHEMA.enums[name], ...NATIVE_GAME_DATA.enums[name] }]))
-const SOURCE = 'Windows 1.6.9; Crystal Edit schema 34; other versions/platforms unverified'
+// Gameplay scope follows the compared PC builds; stored reference identity retains Windows extraction provenance
+const SOURCE = 'PC 1.6.9.0; Crystal Edit schema 34; Switch, Linux and other versions unverified'
 export const INSPECTOR_SOURCE_LABEL = SOURCE
 // Schema digest hashes compact JSON with recursively sorted keys, preserving array order
 export const INSPECTOR_REFERENCE_ID = `windows-1.6.9:${NATIVE_GAME_DATA.contentDigest}:editor34:${schemaData.source.editorExecutableSha256}:schema:${schemaData.contentDigest}:entities:${entityData.contentDigest}`
@@ -129,17 +130,17 @@ function identifierPreview(node: JsonNode | undefined): string {
   if (node.kind === 'object' || node.kind === 'array') return node.kind
   return node.raw.length > IDENTIFIER_PREVIEW_LIMIT ? `${node.raw.slice(0, IDENTIFIER_PREVIEW_LIMIT)}... (${node.kind})` : node.raw
 }
-const VERSION_EDIT_DETAIL = 'The JSON editor keeps the imported original unchanged. Planning interprets supported legacy fields using Windows PC 1.6.9 loader conversions. Changing this integer does not convert data and can suppress version migrations.'
+const VERSION_EDIT_DETAIL = 'The JSON editor keeps the imported original unchanged. Planning interprets supported legacy fields using PC 1.6.9.0 loader conversions. Changing this integer does not convert data and can suppress version migrations.'
 function editorVersionInfo(document: ParsedDocument): EditorVersionInfo {
   const node = objectProperty(document.root, 'EditorVersion')
   const value = code(node)
   const common = { referenceVersion: EDITOR_REFERENCE_VERSION, value: node?.raw }
-  if (!node) return { ...common, state: 'missing', label: 'EditorVersion missing', detail: `Crystal Edit and the pinned Windows loader default a missing marker to 0 and use legacy conversions. ${VERSION_EDIT_DETAIL}` }
+  if (!node) return { ...common, state: 'missing', label: 'EditorVersion missing', detail: `Crystal Edit and the PC 1.6.9.0 loader default a missing marker to 0 and use legacy conversions. ${VERSION_EDIT_DETAIL}` }
   if (value === undefined || BigInt(value) < 0n || BigInt(value) > CSHARP_INT_MAX) return { ...common, state: 'invalid', label: 'Invalid EditorVersion', detail: `Expected a nonnegative C# int format marker. ${VERSION_EDIT_DETAIL}` }
   const version = BigInt(value)
-  if (version > BigInt(EDITOR_REFERENCE_VERSION)) return { ...common, state: 'newer', label: `Newer editor format ${value}`, detail: `The pinned Windows 1.6.9 loader flags editor markers above ${EDITOR_REFERENCE_VERSION} as incompatible. Other game versions are unverified. ${VERSION_EDIT_DETAIL}` }
-  if (version < BigInt(EDITOR_REFERENCE_VERSION)) return { ...common, state: 'older', label: `Older editor format ${value}`, detail: `The pinned Crystal Edit converts older data on open and writes format ${EDITOR_REFERENCE_VERSION} on save; the pinned Windows loader also applies version-dependent conversions. ${VERSION_EDIT_DETAIL}` }
-  return { ...common, state: 'matched', label: `Crystal Edit format ${value}`, detail: `Matches the reference editor schema, not a guarantee of full mod compatibility. The game release is separately Windows 1.6.9. ${VERSION_EDIT_DETAIL}` }
+  if (version > BigInt(EDITOR_REFERENCE_VERSION)) return { ...common, state: 'newer', label: `Newer editor format ${value}`, detail: `The PC 1.6.9.0 loader flags editor markers above ${EDITOR_REFERENCE_VERSION} as incompatible. Other game versions are unverified. ${VERSION_EDIT_DETAIL}` }
+  if (version < BigInt(EDITOR_REFERENCE_VERSION)) return { ...common, state: 'older', label: `Older editor format ${value}`, detail: `The pinned Crystal Edit converts older data on open and writes format ${EDITOR_REFERENCE_VERSION} on save; the PC 1.6.9.0 loader also applies version-dependent conversions. ${VERSION_EDIT_DETAIL}` }
+  return { ...common, state: 'matched', label: `Crystal Edit format ${value}`, detail: `Matches the reference editor schema, not a guarantee of full mod compatibility. The game release is separately PC 1.6.9.0. ${VERSION_EDIT_DETAIL}` }
 }
 
 export function createResolver(document: ParsedDocument): InspectorResolver {
@@ -192,9 +193,10 @@ export function createResolver(document: ParsedDocument): InspectorResolver {
   }
   const editorVersion = editorVersionInfo(document)
   if (editorVersion.state !== 'matched') addIssue({ path: ['EditorVersion'], severity: 'warning', message: `${editorVersion.label}: ${editorVersion.detail}` })
+  // Marker warnings compare immutable extraction metadata, independently of the shared gameplay display scope
   for (const key of ['GameVersion', 'Platform']) {
     const node = objectProperty(document.root, key)
-    if (node && node.value !== (key === 'Platform' ? 'Windows' : '1.6.9')) addIssue({ path: [key], severity: 'warning', message: `${key} differs from the pinned Windows 1.6.9 lookup scope` })
+    if (node && node.value !== (key === 'Platform' ? 'Windows' : '1.6.9')) addIssue({ path: [key], severity: 'warning', message: `${key} differs from the stored lookup metadata (${key === 'Platform' ? 'Windows extraction provenance' : 'game version 1.6.9'})` })
   }
   const annotateNode = (node: JsonNode, ctx: Context): FieldAnnotation | undefined => {
     const path = node.path

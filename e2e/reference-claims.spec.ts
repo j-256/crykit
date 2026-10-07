@@ -45,7 +45,7 @@ test('conflicting fields retain every claim and its exact source evidence', { ta
     await page.keyboard.press('Escape')
     await expect(sources).toHaveCount(0)
   }
-  await expect(page.getByText('Windows 1.6.9 · base database', { exact: true })).toBeVisible()
+  await expect(page.getByText('PC 1.6.9.0 · base database', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
   await expect(page.getByRole('button', { name: /Review source differences|Create personal version/ })).toHaveCount(0)
