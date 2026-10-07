@@ -5,7 +5,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 
 async function chooseNative(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).filter({ hasText: 'Windows 1.6.9' }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).filter({ hasText: 'PC 1.6.9.0' }).click()
 }
 
 async function openCombat(page: Page) {
@@ -235,7 +235,7 @@ test('battle assumptions survive editing, sharing, saved copies and offline relo
   const poisonTick = periodic.locator('.definition-row').filter({ hasText: 'HP per tick' }).locator('strong')
   await expect(poisonTick).toHaveText(/^[1-9][\d,]*$/)
   await page.getByRole('combobox', { name: 'Add actor statuses', exact: true }).fill('Poison')
-  await expect(page.getByRole('listbox', { name: 'Choose Add actor statuses', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Poison$/ }) })).toHaveCount(0)
+  await expect(page.getByRole('listbox', { name: 'Choose Add actor statuses', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Poison$/ }) })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeEnabled()

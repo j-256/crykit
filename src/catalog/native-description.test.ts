@@ -36,9 +36,12 @@ describe('source-bound native descriptions', () => {
     expect(nativeDescriptionSourceMatches({ ...NATIVE_GAME_DATA, contentDigest: 'unreviewed' })).toBe(false)
   })
 
-  it('retains original descriptions when native rendering has no supported lines', () => {
+  it('projects generated PC scope while retaining original text when native rendering has no supported lines', () => {
     const recipe = DEFAULT_CATALOG.entities['base:recipe:34']!
+    const before = JSON.stringify(recipe)
     expect(nativeDescription(recipe)).toMatchObject({ complete: false, lines: [] })
-    expect(referenceDescription(recipe)).toBe(recipe.rawDescription)
+    expect(referenceDescription(recipe)).toBe('PC 1.6.9.0 recipes base database.')
+    expect(recipe.rawDescription).toBe('Windows 1.6.9 recipes base database.')
+    expect(JSON.stringify(recipe)).toBe(before)
   })
 })

@@ -103,7 +103,7 @@ export function worldMapModLayer(identity: WorldMapModIdentity, root: unknown): 
       }
     }
   }
-  if (root.HasCustomContent === true || jsonRecord(root.Tree) && Object.keys(root.Tree).length || Array.isArray(root.Folders) && root.Folders.length) warnings.push('Custom terrain and content assets are not rendered; markers use the bundled Windows 1.6.9 terrain.')
+  if (root.HasCustomContent === true || jsonRecord(root.Tree) && Object.keys(root.Tree).length || Array.isArray(root.Folders) && root.Folders.length) warnings.push('Custom terrain and content assets are not rendered; markers use the bundled PC 1.6.9.0 terrain.')
   return { ...identity, entities, definitions, warnings: [...new Set(warnings)] }
 }
 

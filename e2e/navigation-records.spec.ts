@@ -202,6 +202,7 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   const sourceId = `source:${source.sourceDigest}`
   await sourceSearch.fill(sourceId)
   await expect(sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) })).toBeVisible()
+  // This facet searches extraction provenance rather than projected gameplay labels
   await sourceSearch.fill('Windows 1.6.9')
   await expect(nativeSource).toBeVisible()
 })

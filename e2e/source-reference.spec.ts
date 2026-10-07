@@ -57,7 +57,7 @@ test('pickers only offer editing for standalone custom definitions', { tag: MOBI
     await form.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
     await picker.getByRole('searchbox', { name: 'Search available definitions', exact: true }).fill(name)
     const choices = picker.locator('[data-definition-result]').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) })
-    await (name === 'Artisan Rapier' ? choices.filter({ hasText: 'Windows 1.6.9' }) : choices).click()
+    await (name === 'Artisan Rapier' ? choices.filter({ hasText: 'PC 1.6.9.0' }) : choices).click()
     await form.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
     const edit = picker.getByRole('button', { name: 'Edit selected definition', exact: true })
     if (name === 'Synthetic custom sword') {

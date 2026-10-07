@@ -68,7 +68,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const picker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await openBuildPickerFilters(page)
   await picker.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
-  await picker.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
+  await picker.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const saved = await exportLocalData(page)
@@ -195,7 +195,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await expect(team.getByRole('button', { name: 'Import reference data', exact: true })).toHaveCount(0)
 })
 
-test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
+test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await openCurrentGameSetup(panel)
@@ -234,7 +234,7 @@ test('Windows game data remains scoped when a team uses Switch 1.6.6', async ({ 
   const switchTeam = await createTeam('Synthetic Switch context')
   const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })
   await scope.locator('summary').click()
-  await expect(scope).toContainText('Equivalence between Windows 1.6.9 game data and Nintendo Switch 1.6.6 is unresolved')
+  await expect(scope).toContainText('Game Setup applicability has not been recorded for Nintendo Switch 1.6.6. Reference facts retain the pinned PC 1.6.9.0 source scope.')
   await scope.getByRole('button', { name: 'Review setup', exact: true }).click()
   await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
   await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()

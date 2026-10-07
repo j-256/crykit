@@ -68,7 +68,7 @@ test.describe('failed package downloads', () => {
       .getByRole('listbox', { name: 'Choose Class', exact: true })
       .getByRole('option')
       .filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) })
-      .filter({ hasText: 'Windows 1.6.9' })
+      .filter({ hasText: 'PC 1.6.9.0' })
       .click()
     const packageUrl = '**/assets/calculation-package-*.js'
     await page.route(packageUrl, (route) => route.abort())

@@ -162,7 +162,7 @@ test('open build drafts block every context change without losing edited selecti
   const saved = await readLocalData(page)
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.getByText('Warrior', { exact: true }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.getByText('Warrior', { exact: true }) }).click()
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)

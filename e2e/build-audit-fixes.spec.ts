@@ -4,7 +4,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 async function choose(page: Page, label: string, name: string) {
   const input = page.getByRole('combobox', { name: label, exact: true }).filter({ visible: true })
   await input.fill(name)
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
 }
 
 test('starts fresh with explicit rules and draft feedback while retaining sample Builds', { tag: MOBILE_TEST_TAG }, async ({ page }) => {

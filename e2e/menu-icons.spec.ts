@@ -49,7 +49,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await choice.click()
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  const warrior = page.getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.getByText('Warrior', { exact: true }) })
+  const warrior = page.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.getByText('Warrior', { exact: true }) })
   await loadedIcons(warrior, 9)
   await warrior.click()
   const selectedDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Class', exact: true }) }).locator('.build-field__evidence > details > summary') : page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Warrior', exact: true })

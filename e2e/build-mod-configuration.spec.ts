@@ -17,7 +17,7 @@ async function storedData(page: Page): Promise<LocalData> {
   }))
 }
 
-async function choose(page: Page, label: string, name: string, source = 'Windows 1.6.9') {
+async function choose(page: Page, label: string, name: string, source = 'PC 1.6.9.0') {
   await page.getByRole('combobox', { name: label, exact: true }).click()
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })

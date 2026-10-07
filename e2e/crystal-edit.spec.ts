@@ -70,7 +70,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   await research.getByRole('button', { name: 'Choose Growth class 2', exact: true }).click()
   const picker = page.getByRole('dialog', { name: 'Choose Growth class 2', exact: true })
   await picker.getByLabel('Search available definitions', { exact: true }).fill('Wizard')
-  await picker.getByRole('button').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await picker.getByRole('button').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
   await expect(research.getByRole('button', { name: 'Choose Growth class 2', exact: true })).toContainText('Wizard')
   await research.getByLabel('Growth levels 2', { exact: true }).fill('10')
   await expect(hp).toContainText('659')

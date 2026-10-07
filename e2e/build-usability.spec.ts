@@ -15,7 +15,7 @@ async function choose(page: Page, label: string, name: string, options: { includ
     await openBuildPickerFilters(page)
     await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   }
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue(name)
 }
 
@@ -84,7 +84,7 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
   const hats = page.getByRole('listbox')
   await expect(hats).toContainText("Viking's Hat")
   await expect(hats.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Viking's Hat$/ }) })).toHaveCount(1)
-  await expect(hats).toContainText('Windows 1.6.9')
+  await expect(hats).toContainText('PC 1.6.9.0')
   await expect(hats).not.toContainText('Name only')
   await page.getByRole('combobox', { name: 'Head', exact: true }).press('Escape')
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
@@ -106,7 +106,7 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
   await choose(page, 'Equipped passive 1', 'Attack Focus')
   const secondPassive = page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })
   await secondPassive.fill('Attack Focus')
-  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Attack Focus$/ }) })).toHaveCount(0)
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Attack Focus$/ }) })).toHaveCount(0)
   await secondPassive.press('Escape')
   await choose(page, 'Equipped passive 2', 'Backstabber')
   await choose(page, 'Equipped passive 3', 'Duel Ready')
@@ -129,9 +129,9 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await innateToggle.check()
   const passive = page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })
   await passive.fill('Toughness')
-  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' })).toHaveCount(0)
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' })).toHaveCount(0)
   await passive.fill('Squall')
-  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'Windows 1.6.9' })).toHaveCount(0)
+  await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' })).toHaveCount(0)
   await passive.fill('Two-Handed')
   let innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Learnable Innate Skills' }).filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
   await expect(innateResult).toContainText('Innate')

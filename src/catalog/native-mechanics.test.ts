@@ -23,7 +23,7 @@ describe('native mechanic reference replacements', () => {
       const original = entry(receipt.sourceId)
       const projected = nativeMechanic(original)
       expect(projected, receipt.sourceId).toBeDefined()
-      expect(projected?.scope).toBe('Windows 1.6.9')
+      expect(projected?.scope).toBe('PC 1.6.9.0')
       expect(projected?.originalDescription).toBe(original.rawDescription)
       for (const field of projected!.replacedFields) expect(projected?.originalFields[field]).toBe(original.fields[field])
     }
@@ -50,8 +50,11 @@ describe('native mechanic reference replacements', () => {
   })
 
   it('leads the formula article with verified native packages and keeps old unresolved claims in provenance', () => {
+    const before = JSON.stringify(facts)
     const projected = nativeMechanic(entry(FORMULA_REFERENCE))!
-    expect(projected.description).toContain('verified Windows PC 1.6.9 calculation package')
+    expect(projected.description).toContain('verified PC 1.6.9.0 calculation package')
+    expect(projected.originalDescription).toContain('verified Windows PC rules')
+    expect(JSON.stringify(facts)).toBe(before)
     expect(projected.replacedFields).toContain('Unresolved damage details')
     expect(projected.originalFields['Unresolved damage details']).toBeDefined()
     expect(projected.calculationLinks?.map(link => link.href)).toEqual(['https://github.com/j-256/crykit/blob/main/docs/calculation-reference.md', 'https://github.com/j-256/crykit/blob/main/docs/calculations.md'])

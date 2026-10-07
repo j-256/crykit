@@ -232,7 +232,7 @@ describe('versioned Mod Inspector lookups', () => {
     expect(lookup.annotate(['Passives', 0, 'StatMods', 1, 'Value1'])?.restrictions?.[0]).toContain('runtime acceptance is unverified')
     expect(lookup.issues.map(issue => issue.message).join(' ')).not.toContain('Base entity records are not bundled')
     expect(lookup.issues.some(issue => issue.path[0] === 'EditorVersion')).toBe(true)
-    expect(lookup.sourceLabel).toContain('Windows 1.6.9')
+    expect(lookup.sourceLabel).toContain('PC 1.6.9.0')
     expect(lookup.referenceId).toContain(NATIVE_GAME_DATA.contentDigest)
   })
 })

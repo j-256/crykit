@@ -95,7 +95,7 @@ test('header revision saves retain failures for retry and preserve the earlier c
   const save = page.locator('.context-bar').getByRole('button', { name: 'Save new revision', exact: true })
   expect(await save.evaluate(button => (button as HTMLButtonElement).form?.classList.contains('build-sheet'))).toBe(true)
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Wizard')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
@@ -283,7 +283,7 @@ test('reference research shows its own header while preserving the Build and met
   await page.getByRole('button', { name: SAMPLE_BUILD, exact: true }).click()
   const buildUrl = page.url()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Wizard')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
   await openBuildActions(page)
   await page.getByRole('button', { name: 'Rename', exact: true }).click()
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Synthetic research draft')

@@ -13,7 +13,7 @@ async function choose(page: Page, label: string, name: string, options: { includ
     await openBuildPickerFilters(page)
     await page.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
   }
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'Windows 1.6.9' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   if (label !== 'Add planned status') await expect(field).toHaveValue(name)
 }
 

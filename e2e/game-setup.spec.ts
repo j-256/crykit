@@ -106,7 +106,7 @@ test('exact versions and difficulty preserve other Playthroughs and historical p
   await panel.getByRole('button', { name: 'Sources for Hard difficulty', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Sources for Hard difficulty', exact: true })).toContainText('PC 1.6.9 game data')
   await page.keyboard.press('Escape')
-  await expect(panel.getByText('Native Windows PC calculations do not establish parity for Linux.', { exact: true })).toBeVisible()
+  await expect(panel.getByText('The calculation rules package has no recorded Game Setup applicability for Linux.', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Enter exact version', exact: true }).click()
   await panel.getByLabel('Exact game version', { exact: true }).fill('synthetic-2.0')
   await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('2')
