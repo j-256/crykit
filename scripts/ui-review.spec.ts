@@ -8,8 +8,8 @@ import { currentReferencePath } from '../e2e/reference-helpers'
 import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
 import { QUINTAR_STEP } from '../src/catalog/quintar-breeding'
 import type { LocalData } from '../src/domain/types'
-import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
-import { encodeCrystalSave } from '../src/interchange/crystal-save'
+import { createNeutralSaveEditorFixture, createSaveEditorFixture, SYNTHETIC_SAVE_MOD } from '../src/domain/save-editor.fixture'
+import { decodeCrystalSave, encodeCrystalSave } from '../src/interchange/crystal-save'
 import { formatAppRoute, type PageRoute } from '../src/ui/navigation'
 
 const SCREENS = JSON.parse(readFileSync(new URL('./ui-review-screens.json', import.meta.url), 'utf8')) as { readonly id: string; readonly label: string }[]
@@ -424,6 +424,62 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
       expect(Math.abs(stockBox!.y - stockApplyBox!.y), 'Inventory Apply shares the Stock input row').toBeLessThanOrEqual(1)
     }
     await shot('inventory-fields', 'Inventory filters and stock actions retain aligned controls with readable labels')
+    for (const { state, job } of [{ state: 'neutral-residue', job: SYNTHETIC_SAVE_MOD.jobId }, { state: 'neutral-null-residue', job: null }]) {
+      const neutralBytes = Buffer.from(encodeCrystalSave(createNeutralSaveEditorFixture(job)))
+      const filename = `synthetic-${state}.sav`
+      if (state === 'neutral-residue') page.once('dialog', dialog => dialog.accept())
+      await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: filename, mimeType: 'application/octet-stream', buffer: neutralBytes })
+      await expect(page.getByRole('heading', { name: filename, exact: true })).toBeVisible()
+      await expect(page.getByText('Read-only save', { exact: true })).not.toBeVisible()
+      await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeEnabled()
+      const neutralDownload = page.waitForEvent('download')
+      await page.getByRole('button', { name: 'Export edited save', exact: true }).click()
+      const neutralExportPath = await (await neutralDownload).path()
+      if (!neutralExportPath) throw new Error('Synthetic neutral-residue export was unavailable')
+      expect(await readFile(neutralExportPath)).toEqual(neutralBytes)
+      await page.getByRole('heading', { name: filename, exact: true }).scrollIntoViewIfNeeded()
+      await shot(state, `Unmodded synthetic save exports all neutral tails and identity mappings byte-for-byte with orphan JP Job ${job === null ? 'BSON null' : job}`)
+    }
+    await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-pouch-capacity.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
+    await expect(page.getByRole('heading', { name: 'synthetic-pouch-capacity.sav', exact: true })).toBeVisible()
+    await page.getByRole('navigation', { name: 'Save Editor sections', exact: true }).getByRole('button', { name: 'Inventory', exact: true }).click()
+    await page.getByLabel('Search inventory', { exact: true }).fill('Potion')
+    const potionRow = page.locator('.save-editor__inventory-row').filter({ has: page.getByLabel('Potion stock', { exact: true }) })
+    await expect(potionRow).toContainText('stock limit 10')
+    await page.getByLabel('Potion Pouch stock', { exact: true }).fill('2')
+    await expect(potionRow).toContainText('stock limit 10')
+    await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeDisabled()
+    await potionRow.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+    await shot('pouch-pending', 'Two pending Potion Pouches leave the applied Potion stock limit at ten until Apply')
+    await page.getByRole('button', { name: 'Apply Potion Pouch stock', exact: true }).click()
+    await expect(potionRow).toContainText('stock limit 14')
+    await page.getByLabel('Potion stock', { exact: true }).fill('14')
+    await page.getByRole('button', { name: 'Apply Potion stock', exact: true }).click()
+    await expect(page.getByLabel('Save Editor error', { exact: true })).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeEnabled()
+    await potionRow.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+    await shot('pouch-applied-limit', 'Applied Potion Pouches raise the stock limit to fourteen and allow fourteen carried Potions')
+    await page.getByLabel('Potion stock', { exact: true }).fill('15')
+    await page.getByRole('button', { name: 'Apply Potion stock', exact: true }).click()
+    const stockError = page.getByLabel('Save Editor error', { exact: true })
+    await expect(stockError).toContainText('Potion stock')
+    await expect(stockError).toContainText('0 to 14')
+    await expect(page.getByLabel('Potion stock', { exact: true })).toHaveValue('15')
+    await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: 'Discard pending input', exact: true }).click()
+    await expect(page.getByLabel('Potion stock', { exact: true })).toHaveValue('14')
+    await page.getByLabel('Potion Pouch stock', { exact: true }).fill('0')
+    await page.getByRole('button', { name: 'Apply Potion Pouch stock', exact: true }).click()
+    await expect(stockError).toContainText('Potion stock')
+    await expect(stockError).toContainText('0 to 10')
+    await expect(stockError).toContainText('Reduce Potion stock first.')
+    await expect(stockError).toBeInViewport()
+    await expect(stockError).toBeFocused()
+    await expect(page.getByLabel('Potion Pouch stock', { exact: true })).toHaveValue('0')
+    await expect(page.getByLabel('Potion stock', { exact: true })).toHaveValue('14')
+    await expect(potionRow).toContainText('stock limit 14')
+    await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeDisabled()
+    await shot('pouch-reduction-rejected', 'Removing Potion Pouches rejects the lower ten-Potion limit without changing stock and retains pending input')
     return
   }
   throw new Error(`Capture scenario not implemented: ${screen}`)
