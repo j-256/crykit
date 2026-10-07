@@ -5,13 +5,13 @@ import { entityDefinitionKey } from '../domain/core'
 import { buildEquipmentPermissions } from '../domain/build-mechanics'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { definitionLineageRootRef } from '../domain/definitions'
-import { editSave, type SaveEditCommand, type SaveEditorSummary } from '../domain/save-editor'
+import { editSave, previewSaveAdditions, type SaveEditCommand, type SaveEditorSummary } from '../domain/save-editor'
 import { saveEditorDefinitionId, saveEditorDefinitionScope, type SaveEditorDefinitionScope, type SaveEditorModSource } from '../domain/save-editor-mods'
 import type { BuildRevisionContent, EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import type { CrystalSave } from '../interchange/crystal-save'
 import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinitionField'
 import { LoadoutSheet } from './LoadoutSheet'
-import { Button, Field, InlineNotice } from './components'
+import { Badge, Button, Field, InlineNotice } from './components'
 import { ScopedDefinitionProvider, useDefinitionLibrary, type DefinitionOption } from './definitions'
 import { saveEditorLevelHint } from './save-editor-levels'
 
@@ -98,8 +98,13 @@ function SaveLoadoutEditor({ save, summary, memberIndex, modSources, scope, loca
   const openPicker = (fieldKey: string) => setPicker({ fieldKey, query: '', resultLimit: BUILD_DEFINITION_PAGE_SIZE })
   const field = (fieldKey: string, label: string, kinds: readonly ('class' | 'item' | 'passive' | 'innate')[], value: EntityRef | null, onChange: (ref: EntityRef | null) => void, equipmentIndex?: number, passiveIndex?: number) => <BuildDefinitionField
     allowEmpty={fieldKey !== 'primary-class'} allowedKinds={kinds} buildContent={draft} equipmentPermissions={equipmentIndex === undefined ? undefined : equipmentPermissions} equipmentSlot={equipmentIndex === undefined ? undefined : SUGGESTED_BUILD_SLOTS[equipmentIndex]} equipmentSlots={SUGGESTED_BUILD_SLOTS} gameSetup={gameSetup} includeInnates label={label}
-    onChange={ref => { onChange(ref); setIssue(undefined) }} onClose={() => setPicker(undefined)} onDismiss={() => setPicker(undefined)} onInspect={option => { setSelected(option); setInspectClassPermissions(fieldKey !== 'secondary-class') }} onOpen={() => openPicker(fieldKey)} onQueryChange={query => setPicker(current => current?.fieldKey === fieldKey ? { ...current, query } : current)} onResultLimitChange={resultLimit => setPicker(current => current?.fieldKey === fieldKey ? { ...current, resultLimit } : current)} open={picker?.fieldKey === fieldKey} passiveIndex={passiveIndex} query={picker?.fieldKey === fieldKey ? picker.query : ''} resultLimit={picker?.fieldKey === fieldKey ? picker.resultLimit : BUILD_DEFINITION_PAGE_SIZE} value={value}/>
-  const command = loadoutCommand(localData, scope, memberIndex, draft)
+    onChange={ref => { onChange(ref); setBuildRevisionId(''); setIssue(undefined) }} onClose={() => setPicker(undefined)} onDismiss={() => setPicker(undefined)} onInspect={option => { setSelected(option); setInspectClassPermissions(fieldKey !== 'secondary-class') }} onOpen={() => openPicker(fieldKey)} onQueryChange={query => setPicker(current => current?.fieldKey === fieldKey ? { ...current, query } : current)} onResultLimitChange={resultLimit => setPicker(current => current?.fieldKey === fieldKey ? { ...current, resultLimit } : current)} open={picker?.fieldKey === fieldKey} passiveIndex={passiveIndex} query={picker?.fieldKey === fieldKey ? picker.query : ''} resultLimit={picker?.fieldKey === fieldKey ? picker.resultLimit : BUILD_DEFINITION_PAGE_SIZE} value={value}/>
+  const command = useMemo(() => loadoutCommand(localData, scope, memberIndex, draft), [localData, scope, memberIndex, draft])
+  const additions = useMemo(() => {
+    const candidateCommand = chosenBuild?.command ?? command
+    if (!candidateCommand || !dirty && !chosenBuild) return []
+    try { return previewSaveAdditions(save, editSave(save, SAVE_EDITOR_CATALOG, candidateCommand, new Date(0), modSources), SAVE_EDITOR_CATALOG, modSources) } catch { return [] }
+  }, [chosenBuild, command, dirty, modSources, save])
   const reviewDraft = (trigger: HTMLButtonElement) => {
     if (!command) { setIssue('Every selection needs a matching ID in this save before review.'); return }
     try {
@@ -107,7 +112,7 @@ function SaveLoadoutEditor({ save, summary, memberIndex, modSources, scope, loca
       onReview(`${member.name}'s loadout`, command, trigger)
     } catch (reason) { setIssue(reason instanceof Error ? reason.message : String(reason)) }
   }
-  const primaryClassField = field('primary-class', 'Class', ['class'], draft.primaryClass, ref => setDraft(current => ({ ...current, primaryClass: ref })))
+  const primaryClassField = field('primary-class', 'Class', ['class'], draft.primaryClass, ref => setDraft(current => ({ ...current, primaryClass: ref, secondaryClass: ref && current.secondaryClass && entityDefinitionKey(ref) === entityDefinitionKey(current.secondaryClass) ? null : current.secondaryClass })))
   const subCommandField = field('secondary-class', 'Sub-command', ['class'], draft.secondaryClass, ref => setDraft(current => ({ ...current, secondaryClass: ref })))
   const equipmentFields = SUGGESTED_BUILD_SLOTS.map((slot, index) => <div key={slot.id}>{field(`equipment:${slot.id}`, slot.label, ['item'], draft.equipment[slot.id]?.ref ?? null, ref => setDraft(current => ({ ...current, equipment: { ...current.equipment, [slot.id]: ref ? { ref } : null } })), index)}</div>)
   const passiveFields = [...draft.passives, undefined].map((selection, index) => <div key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(`passive:${index}`, `Equipped passive ${index + 1}`, ['passive', 'innate'], selection?.ref ?? null, ref => setDraft(current => {
@@ -117,7 +122,8 @@ function SaveLoadoutEditor({ save, summary, memberIndex, modSources, scope, loca
     return { ...current, passives }
   }), undefined, index)}</div>)
   return <div className="save-party__editor">
-    <div className="save-party__build-import"><Field label="Load a compatible Build" hint={compatibleBuilds.length ? "Builds must match this save's definitions and the member's unlocks, PP, slots, and available equipment." : 'No saved Builds are fully compatible with this member and save.'}><select disabled={locked || !compatibleBuilds.length} onChange={event => setBuildRevisionId(event.target.value)} value={buildRevisionId}><option value="">Choose a Build</option>{compatibleBuilds.map(build => <option key={build.id} value={build.id}>{build.title}</option>)}</select></Field><Button disabled={locked || !chosenBuild} onClick={event => chosenBuild && onReview(`Load ${chosenBuild.title} for ${member.name}`, chosenBuild.command, event.currentTarget)} tone="secondary">Review Build</Button></div>
+    <div className="save-party__build-import"><Field label="Load a compatible Build" hint={compatibleBuilds.length ? 'Adds any missing class unlocks, passives, and gear. Game and mod definitions must match this save.' : 'No saved Builds match this save\'s game and mod definitions and loadout rules.'}><select disabled={locked || !compatibleBuilds.length} onChange={event => { setBuildRevisionId(event.target.value); setIssue(undefined) }} value={buildRevisionId}><option value="">Choose a Build</option>{compatibleBuilds.map(build => <option key={build.id} value={build.id}>{build.title}</option>)}</select></Field><Button disabled={locked || !chosenBuild} onClick={event => chosenBuild && onReview(`Load ${chosenBuild.title} for ${member.name}`, chosenBuild.command, event.currentTarget)} tone="secondary">Review Build</Button></div>
+    {additions.length > 0 && <div aria-label="New loadout additions" className="save-party__additions"><Badge tone="info">New</Badge><ul>{additions.map(addition => <li key={addition}>{addition}</li>)}</ul></div>}
     {issue && <InlineNotice title="Loadout needs attention" tone="warning">{issue}</InlineNotice>}
     <LoadoutSheet catalogs={scope.catalogs} primaryClassField={primaryClassField} subCommandField={subCommandField} content={draft} equipmentFields={equipmentFields} localData={localData} onViewChange={() => undefined} passiveFields={passiveFields} selection={selected} showChecks={false} showClassPermissions={inspectClassPermissions} showStats={false} slots={SUGGESTED_BUILD_SLOTS} view="loadout" viewLabel="Save loadout view"/>
     <div className="save-party__loadout-actions"><Button disabled={locked || !dirty || !command} onClick={event => reviewDraft(event.currentTarget)}>Review loadout changes</Button><Button disabled={locked || !dirty} onClick={() => { setDraft(initial); setIssue(undefined) }} tone="quiet">Discard loadout changes</Button><small>Reviewing does not change the draft until you confirm it.</small></div>
@@ -141,13 +147,11 @@ export function SavePartyEditor({ save, summary, modSources, localData, locked, 
   const [loadoutDirty, setLoadoutDirty] = useState(false)
   const member = summary.members[memberIndex] ?? summary.members[0]!
   const scope = useMemo(() => saveEditorDefinitionScope(save, DEFAULT_CATALOG, modSources, summary.mode), [modSources, save, summary.mode])
-  const availableEquipment = useMemo(() => new Set(summary.inventory.filter(row => row.kind === 'equipment' && (row.count > 0 || member.equipmentIds.includes(row.id))).map(row => row.id)), [member.equipmentIds, summary.inventory])
-  const unlockedJobs = useMemo(() => new Set(member.unlockedJobIds), [member.unlockedJobIds])
-  const learnedPassives = useMemo(() => new Set(member.learnedPassiveIds), [member.learnedPassiveIds])
   const filterOption = useCallback((option: DefinitionOption) => {
     const binding = scope.bindings.get(option.key)
-    return !binding || binding.family === 'job' ? Boolean(binding && unlockedJobs.has(binding.id)) : binding.family === 'passive' ? learnedPassives.has(binding.id) : binding.family === 'equipment' ? availableEquipment.has(binding.id) : false
-  }, [availableEquipment, learnedPassives, scope.bindings, unlockedJobs])
+    // This scope contains exact save definitions; progression and stock are editable prerequisites
+    return binding?.family === 'job' || binding?.family === 'passive' || binding?.family === 'equipment'
+  }, [scope.bindings])
   const chooseMember = (index: number) => {
     if (loadoutDirty && !window.confirm('Discard the unreviewed loadout changes and switch party members?')) return
     setLoadoutDirty(false)
@@ -157,7 +161,7 @@ export function SavePartyEditor({ save, summary, modSources, localData, locked, 
   const prefix = `member.${member.index}.`
   const keys = ['name', 'level'].map(key => `${prefix}${key}`)
   const memberPending = keys.some(key => pending[key] !== undefined)
-  return <section className="save-editor__panel save-party" aria-label="Party editor"><div className="save-party__heading"><div><h2>Party & loadouts</h2><p>Choose classes, equipment, and passives available to this member. Choices use the game's definitions and matching mods from this save.</p></div><span>{memberIndex + 1} of {summary.members.length}</span></div>
+  return <section className="save-editor__panel save-party" aria-label="Party editor"><div className="save-party__heading"><div><h2>Party & loadouts</h2><p>Choose classes, equipment, and passives for this member. Missing unlocks and gear are added with the loadout.</p></div><span>{memberIndex + 1} of {summary.members.length}</span></div>
     <div className="save-party__tabs" role="tablist" aria-label="Party members">{summary.members.map(candidate => <button aria-selected={candidate.index === memberIndex} className="save-party__tab" key={candidate.index} onClick={() => chooseMember(candidate.index)} role="tab" type="button"><strong>{candidate.name}</strong><small>Lv {candidate.level}</small></button>)}</div>
     <form className="save-party__identity" onSubmit={event => {
       event.preventDefault()

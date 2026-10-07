@@ -1,9 +1,9 @@
 import { type CrystalSave } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog, type SaveEditorModSource } from '../save-editor-mods'
-import { type SaveEditCommand, SAVE_EDITOR_MAX_CURRENCY, LEARNED, ATLAS, SAVE_EDITOR_MAX_LEVEL } from './model.ts'
+import { type SaveEditCommand, SAVE_EDITOR_MAX_CURRENCY, ATLAS, SAVE_EDITOR_MAX_LEVEL } from './model.ts'
 import { validate } from './validation.ts'
-import { bound, object, int, text, number, subJob, flag, flags, known, numbers, capacity, quantity, equippedCount } from './values.ts'
-import { setLevel, learnJobs } from './progression.ts'
+import { bound, object, int, text, number, subJob, flag, flags, known, capacity, quantity, equippedCount } from './values.ts'
+import { setLevel, learnJobs, unlockSelectedJob } from './progression.ts'
 import { unequip, normalizeClassLoadout, applyLoadout } from './loadout.ts'
 import { setStock, atlas, updateTreasureFinder } from './inventory.ts'
 import { saveEditorChoices } from './inspection.ts'
@@ -38,13 +38,16 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
     if (command.type === 'member' && command.level !== undefined && command.level !== number(object(member.value.Levels, 'Levels').value.Level, 'Level')) setLevel(save, catalog, command.index, command.level, now)
     for (const [field, id] of [['Job', command.jobId], ['SubJob', command.subJobId]] as const) if (id !== undefined) {
       const previous = field === 'SubJob' ? subJob(member, save) : number(member.value.Job, 'Job')
-      if (id === previous) continue
+      if (id === previous) {
+        if (command.type === 'loadout' && id !== null) unlockSelectedJob(save, member, catalog, randomizer, id, now)
+        continue
+      }
       if (field === 'Job' && flag(flags(save).value.NoJobChange) || field === 'SubJob' && flag(flags(save).value.NoSubJob)) throw new Error('This challenge prevents that class change')
       if (id !== null) {
         const job = known(catalog, 'job', id)
         if (field === 'Job' ? job.IsUnselectableJob : job.IsUnselectableSubJob) throw new Error('That class cannot be selected in this slot')
-        if ((numbers(member.value.LearnedJobs, 'LearnedJobs')[id] ?? 0) < LEARNED.unlocked) throw new Error('Unlock this class before selecting it')
         if (field === 'SubJob' && id === number(member.value.Job, 'Job')) throw new Error('Subclass must differ from the main class')
+        unlockSelectedJob(save, member, catalog, randomizer, id, now)
       }
       if (field === 'Job' && id !== number(member.value.Job, 'Job')) {
         mainChanged = true
@@ -59,7 +62,7 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
       if (command.type === 'member') unequip(save, member)
       normalizeClassLoadout(member, save, catalog, randomizer, mainChanged)
     }
-    if (command.type === 'loadout') applyLoadout(save, member, catalog, randomizer, command)
+    if (command.type === 'loadout') applyLoadout(save, member, catalog, randomizer, command, now)
   }
   if (command.type === 'stock') {
     const record = known(catalog, command.kind, command.id)

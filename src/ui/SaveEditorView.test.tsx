@@ -163,6 +163,43 @@ describe('save editor session', () => {
     expect(inspectSave(edited, SAVE_EDITOR_CATALOG).inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 2, equipped: 3 })
   })
 
+  it('offers a saved Build with missing prerequisites and highlights additions through review and export', async () => {
+    let localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
+    const build = Object.values(localData.builds).find(candidate => candidate.title.startsWith('Mira:'))!
+    const revision = localData.buildRevisions[build.latestRevisionId!]!
+    const ref = (id: string) => ({ kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: DEFAULT_CATALOG.entities[id]!.id })
+    localData = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: {
+      ...revision.content,
+      equipment: { ...revision.content.equipment, 'plan-accessory-1': { ref: ref('base:equipment:50') } },
+      passives: [{ ref: ref('base:passive:0') }],
+    } } } }
+    const original = createSaveEditorFixture()
+    if (original.members[0]!.value.LearnedJobs?.type !== 'array') throw new Error('Expected synthetic class progression')
+    original.members[0]!.value.LearnedJobs.value[4] = { type: 'int32', value: 0 }
+    await act(async () => root.render(<DefinitionProvider catalogs={[DEFAULT_CATALOG]} localData={localData} onSaveDefinition={async () => { throw new Error('Not used') }}><SaveEditorView localData={localData} onDraftChange={onDraftChange}/></DefinitionProvider>))
+    await choose(file(encodeCrystalSave(original)))
+    const select = container.querySelector<HTMLSelectElement>('.save-party__build-import select')!
+    expect([...select.options].map(option => option.value)).toContain(revision.id)
+    await act(async () => { select.value = revision.id; select.dispatchEvent(new Event('change', { bubbles: true })) })
+    const additions = container.querySelector('[aria-label="New loadout additions"]')!
+    expect(additions.textContent).toContain('Cleric unlocked')
+    expect(additions.textContent).toContain('learned')
+    expect(additions.textContent).toContain('copy added')
+    await act(async () => button('Review Build').click())
+    expect(container.querySelectorAll('.save-editor__preview li[data-added]').length).toBeGreaterThan(0)
+    expect(container.querySelector('.save-editor__preview li[data-added] .badge')?.textContent).toBe('New')
+    await act(async () => button('Cancel review').click())
+    expect(container.querySelector('.save-editor__review')).toBeNull()
+    await act(async () => button('Review Build').click())
+    await act(async () => button('Apply reviewed changes').click())
+    expect(container.querySelector('.save-editor__review li[data-added]')?.textContent).toContain('Cleric unlocked')
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+    expect(inspectSave(edited, SAVE_EDITOR_CATALOG).members[0]).toMatchObject({ jobId: 4, passiveIds: [0], equipmentIds: [5, null, null, 19, 50, null] })
+    expect(edited.members.slice(1)).toEqual(decodeCrystalSave(encodeCrystalSave(original)).members.slice(1))
+    expect(original.members[0]!.value.LearnedJobs.value[4]).toEqual({ type: 'int32', value: 0 })
+  })
+
   it.each([0, 3, 12, 20, 27])('opens and exports legacy format %i without inventing a saved date', async version => {
     const fixture = createSaveEditorFixture(version)
     fixture.header.invertedVersion = version === 3
@@ -465,7 +502,7 @@ describe('save editor session', () => {
       expect(input('Cheat Passives definition available').checked).toBe(true)
       expect(container.textContent).toContain('Saved revision unavailable')
       expect(input('Copper').disabled).toBe(true)
-      await act(async () => button('Review mod-state removal').click())
+      await act(async () => button('Review mod data removal').click())
       const review = container.querySelector('[aria-label="Review bulk changes"]')!
       expect(review.textContent).toContain('ID redirects cleared')
       expect(review.textContent).toContain('equipped mod-only passives removed')

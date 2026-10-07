@@ -1,14 +1,38 @@
 import { type CrystalSave, type BsonValue } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog, type SaveEditorModSource, resolveSaveEditorMods } from '../save-editor-mods'
+import { type SaveEditorSummary } from './model.ts'
 import { inspectSave } from './inspection.ts'
 import { object } from './values.ts'
+
+function loadoutAdditions(previous: SaveEditorSummary, next: SaveEditorSummary, catalog: SaveEditorCatalog): string[] {
+  const result: string[] = []
+  for (const member of next.members) {
+    const old = previous.members[member.index]
+    if (!old) continue
+    for (const id of member.unlockedJobIds) if (!old.unlockedJobIds.includes(id)) result.push(`${member.name}: ${String(catalog.records.job.get(id)?.Name ?? `Class ${id}`)} unlocked`)
+    for (const id of member.learnedPassiveIds) if (!old.learnedPassiveIds.includes(id)) result.push(`${member.name}: ${String(catalog.records.passive.get(id)?.Name ?? `Passive ${id}`)} learned`)
+  }
+  // Moving gear is not an addition; include inactive members even though stock capacity excludes them
+  const equipped = (summary: SaveEditorSummary, id: number) => summary.members.reduce((count, member) => count + member.equipmentIds.filter(equipmentId => equipmentId === id).length, 0)
+  const oldEquipment = new Map(previous.inventory.filter(row => row.kind === 'equipment').map(row => [row.id, row.count + equipped(previous, row.id)]))
+  for (const row of next.inventory) if (row.kind === 'equipment') {
+    const added = row.count + equipped(next, row.id) - (oldEquipment.get(row.id) ?? 0)
+    if (added > 0) result.push(`${row.name}: ${added} ${added === 1 ? 'copy' : 'copies'} added`)
+  }
+  return result
+}
+
+export function previewSaveAdditions(before: CrystalSave, after: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): string[] {
+  const catalog = resolveSaveEditorMods(after, nativeCatalog, modSources).catalog
+  return loadoutAdditions(inspectSave(before, nativeCatalog, modSources), inspectSave(after, nativeCatalog, modSources), catalog)
+}
 
 export function previewSaveChanges(before: CrystalSave, after: CrystalSave, nativeCatalog: SaveEditorCatalog, modSources: readonly SaveEditorModSource[] = []): string[] {
   const previousCatalog = resolveSaveEditorMods(before, nativeCatalog, modSources).catalog
   const nextCatalog = resolveSaveEditorMods(after, nativeCatalog, modSources).catalog
   const previous = inspectSave(before, nativeCatalog, modSources)
   const next = inspectSave(after, nativeCatalog, modSources)
-  const result: string[] = []
+  const result: string[] = loadoutAdditions(previous, next, nextCatalog)
   if (previous.currency !== next.currency) result.push(`Money: ${previous.currency.toLocaleString('en-US')} → ${next.currency.toLocaleString('en-US')} copper`)
   if (previous.levelCap !== next.levelCap) result.push(`Level cap: ${previous.levelCap} → ${next.levelCap}${next.assistEnabled ? ' (level-cap assist enabled)' : ''}`)
   for (const member of next.members) {
