@@ -1,6 +1,6 @@
 import { type SaveEditorCatalog, type SaveEditorModSource, resolveSaveEditorMods } from '../save-editor-mods'
 import { type CrystalSave } from '../../interchange/crystal-save.ts'
-import { type SaveEditorChoice, type Family, type SaveEditorSummary, DEFAULT_LEVEL_CAP, LEARNED } from './model.ts'
+import { type SaveEditorChoice, type Family, type SaveEditorSummary, DEFAULT_LEVEL_CAP, LEARNED, SAVE_EDITOR_MAX_LEVEL } from './model.ts'
 import { randomizerStateHint } from './randomizer.ts'
 import { validate } from './validation.ts'
 import { levelCap, flag, flags, numbers, string, number, object, subJob, growthJob, array, stock, stockId, quantity, capacity, equippedCount } from './values.ts'
@@ -16,11 +16,13 @@ export function inspectSave(save: CrystalSave, nativeCatalog: SaveEditorCatalog,
   const resolution = resolveSaveEditorMods(save, nativeCatalog, modSources)
   const catalog = resolution.catalog
   // Read-only saves still expose recoverable details; inspection never grants editability by inference
-  const summary: SaveEditorSummary = { editable: false, issues: [], mode: catalog.mode, randomized: randomizerStateHint(save), currency: save.header.currencyAmount, members: [], inventory: [], levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false }
+  const summary: SaveEditorSummary = { editable: false, issues: [], mode: catalog.mode, randomized: randomizerStateHint(save), currency: save.header.currencyAmount, members: [], inventory: [], levelCap: DEFAULT_LEVEL_CAP, assistEnabled: false, levelCapCanBeRaised: false }
   try { const validated = validate(save, nativeCatalog, modSources); summary.editable = true; summary.randomized = validated.randomizer.enabled } catch (error) { summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data') }
   try {
+    const gameplay = flags(save).value
     summary.levelCap = levelCap(save)
-    summary.assistEnabled = flag(flags(save).value.MaxLevelUp)
+    summary.assistEnabled = flag(gameplay.MaxLevelUp)
+    summary.levelCapCanBeRaised = summary.levelCap < SAVE_EDITOR_MAX_LEVEL && !flag(gameplay.MaxLevelDown) && !flag(gameplay.NoAssistOptions)
     summary.members = save.members.map((member, index) => {
       const jobs = numbers(member.value.LearnedJobs, 'LearnedJobs')
       const passives = numbers(member.value.LearnedPassives, 'LearnedPassives')
@@ -33,5 +35,6 @@ export function inspectSave(save: CrystalSave, nativeCatalog: SaveEditorCatalog,
       return [...entries.values()].map(choice => ({ ...choice, kind, count: quantity(save, kind, choice.id), capacity: catalog.records[kind].has(choice.id) ? capacity(save, catalog, kind, choice.id) : 0, equipped: kind === 'equipment' ? equippedCount(save, choice.id) : 0 }))
     })
   } catch (error) { if (!summary.issues.length) summary.issues.push(error instanceof Error ? error.message : 'Unsupported save data'); summary.editable = false }
+  summary.levelCapCanBeRaised &&= summary.editable
   return summary
 }

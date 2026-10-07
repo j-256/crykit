@@ -31,7 +31,7 @@ export interface SaveEditorMemberSummary { index: number; name: string; level: n
 
 export interface SaveEditorInventoryRow extends SaveEditorChoice { kind: SaveInventoryKind; count: number; capacity: number; equipped: number }
 
-export interface SaveEditorSummary { editable: boolean; issues: string[]; mode: SaveEditorMode; randomized: boolean; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; levelCap: number; assistEnabled: boolean }
+export interface SaveEditorSummary { editable: boolean; issues: string[]; mode: SaveEditorMode; randomized: boolean; currency: number; members: SaveEditorMemberSummary[]; inventory: SaveEditorInventoryRow[]; levelCap: number; assistEnabled: boolean; levelCapCanBeRaised: boolean }
 
 export interface SaveVanillaConversionPreview { relevant: boolean; convertible: boolean; changes: readonly string[]; blockers: readonly string[]; draft?: CrystalSave }
 

@@ -63,8 +63,11 @@ export function setLevel(save: CrystalSave, catalog: SaveEditorCatalog, index: n
   const member = save.members[index]!
   const gameplay = flags(save)
   const values = gameplay.value
-  if (level > levelCap(save)) {
-    if (flag(values.NoAssistOptions) || flag(values.MaxLevelDown)) throw new Error('This challenge prevents raising the level cap')
+  const cap = levelCap(save)
+  if (level > cap) {
+    // The explicit challenge limit takes precedence when the save also disables assists
+    if (flag(values.MaxLevelDown)) throw new Error(`This save's maximum-level challenge limits characters to level ${cap}. Level ${level} is not allowed.`)
+    if (flag(values.NoAssistOptions)) throw new Error(`This save disables assist options. Setting level ${level} above the current cap of ${cap} requires the level-cap assist.`)
     save.party.value.GameplayFlags ??= gameplay
     values.MaxLevelUp = { type: 'boolean', value: true }
     values.MaxLevelUpVal = int(level)

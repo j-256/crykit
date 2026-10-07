@@ -346,6 +346,27 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await page.goto('/#/save-editor')
     await expect(page.getByRole('button', { name: 'Choose a save file', exact: true })).toBeVisible()
     await shot('empty-editor', 'Save Editor introduces ordinary editing tasks before a file is opened')
+    const challenge = createSaveEditorFixture()
+    const challengeFlags = challenge.party.value.GameplayFlags
+    if (challengeFlags?.type !== 'document') throw new Error('Synthetic save needs gameplay flags')
+    challengeFlags.value.MaxLevelDown = { type: 'boolean', value: true }
+    challengeFlags.value.MaxLevelDownVal = { type: 'int32', value: 59 }
+    challengeFlags.value.NoAssistOptions = { type: 'boolean', value: true }
+    await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-level-challenge.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(challenge)) })
+    await expect(page.getByRole('heading', { name: 'synthetic-level-challenge.sav', exact: true })).toBeVisible()
+    await page.getByLabel('Member 1 level', { exact: true }).fill('60')
+    await page.getByRole('button', { name: 'Apply name & level', exact: true }).click()
+    const challengeError = page.getByText("This save's maximum-level challenge limits characters to level 59. Level 60 is not allowed.", { exact: true })
+    await expect(challengeError).toBeVisible()
+    await expect(challengeError).toBeInViewport()
+    await expect(page.getByLabel('Save Editor error', { exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Apply name & level', exact: true }).click()
+    await expect(challengeError).toBeInViewport()
+    await expect(page.getByLabel('Save Editor error', { exact: true })).toBeFocused()
+    await expect(page.getByLabel('Member 1 level', { exact: true })).toHaveValue('60')
+    await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeDisabled()
+    await shot('challenge-level-limit', 'A synthetic level-59 challenge rejects level 60 with the exact reason and retains pending input')
+    await page.getByRole('button', { name: 'Discard pending input', exact: true }).click()
     await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-party.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
     await expect(page.getByRole('heading', { name: 'synthetic-party.sav', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeEnabled()
