@@ -29,6 +29,30 @@ Open the localhost address printed by Vite. Keep using the same origin when ente
 
 Prepare and confirm offline readiness through **Data & settings > Offline & storage**. The service worker pipelines bounded download batches so slow files do not hold up other batches. Readiness checks inspect cached request URLs and require every application file. Failed refreshes stop new downloads and wait for active writes before removing the staged cache, preserving the usable installation. Generated-worker tests cover download progress, the concurrency limit, missing-file repair, and refresh rollback. See [offline use](user-guide.md#use-the-app-offline) for the user workflow.
 
+## Capture UI reviews
+
+After each major interface change, capture representative desktop and mobile states for visual review:
+
+```sh
+npx playwright install chromium
+npm run screenshots -- --label before-layout-change
+npm run screenshots -- --label after-layout-change
+```
+
+The command starts and stops an isolated local Vite server, uses fresh Chromium profiles with synthetic sample records, and blocks requests outside that server. It opens saved Builds and Teams, tracking screens, Reference, Mods, tools, and expanded editor states. It never uses your normal browser profile or accepts personal imports. Screenshots complement focused behavior tests and publication verification.
+
+Every run creates a new UTC timestamped directory beneath `${XDG_DATA_HOME:-$HOME/.local/share}/crykit/ui-reviews/` and prints its absolute path. The directory contains labeled PNGs, `manifest.json`, and `index.html`; open the HTML index or inspect the PNGs directly. The manifest records the source branch, commit, tree, dirty status, and whether source changed during capture. First-viewport images show the rendered state at its native viewport size. Full-content images include long page content; scrollable mobile screens and modal bodies are stitched from actual rendered pixels without changing their responsive CSS. Partial runs keep completed screenshots and report failed states in the index and manifest.
+
+Use an existing localhost review server, a persistent output root, or a focused subset when the change affects particular workflows:
+
+```sh
+npm run screenshots -- --url http://127.0.0.1:5173/ --output /path/to/ui-reviews --label save-editor-before --screens save-editor
+npm run screenshots -- --label mods-after --screens mods,mod-editor --devices desktop,mobile
+npm run screenshots -- --help
+```
+
+`--output` selects a root, and each run still creates a fresh timestamped subdirectory so earlier reviews stay intact. Keep generated output outside the repository and disposable worktrees. The capture config is separate from the behavior test suite; ordinary browser tests do not generate review galleries. Help lists supported screens, dependencies, arguments, and exit statuses.
+
 ## Verification
 
 Checks run on the local machine:
