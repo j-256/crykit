@@ -30,7 +30,7 @@ export interface WorldMarker {
 }
 export interface WorldMapBounds { readonly x: number; readonly z: number; readonly width: number; readonly height: number }
 export interface WorldMapRegion { readonly id: number; readonly name: string; readonly layer: number; readonly x: number; readonly z: number; readonly sourceId?: string; readonly sourceName?: string; readonly sourceRevisionId?: string; readonly change?: WorldMarker['change'] }
-export interface WorldMapLayer { readonly id: number; readonly label: string; readonly image: string }
+export interface WorldMapLayer { readonly id: number; readonly label: string; readonly image: string; readonly surface?: { readonly file: string; readonly size: number; readonly sha256: string }; readonly geometry?: readonly import('./map-geometry').MapGeometryMetadata[] }
 export interface WorldMapDefinition extends WorldMapTarget { readonly record?: Readonly<Record<string, JsonValue>> }
 export interface WorldMapManifest {
   readonly schemaVersion: 1

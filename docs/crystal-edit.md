@@ -1,6 +1,6 @@
 # Crystal Edit data and native growth
 
-For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod exports, open **Mods > Editor workspace**. See the [Mods guide](mod-inspector.md). Choose **Save to CryKit** to add an applied editor draft as a saved mod revision for planning. Workspace drafts have separate downloads, while revisions saved to the Mod library are included in planner backups.
+For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod exports, open **Mods > JSON Editor**. See the [Mods guide](mod-inspector.md). Choose **Save to CryKit** to add an applied editor draft as a saved mod revision for planning. Workspace drafts have separate downloads, while revisions saved to the Mod Library are included in planner backups.
 
 The application ships class facts from the installed game's native database baseline. Numeric ratings, equipment categories, class selection flags, command and crystal labels, ability and passive membership, learn-tree coordinates, and prerequisite connectors come from those game records. Native ability and passive definitions resolve their related entries. See [native game data and extraction](catalog-sources.md#native-gameplay-facts-are-the-base) for version coverage and regeneration. Updating the baseline requires a new immutable catalog revision.
 

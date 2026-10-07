@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 import { zipSync } from 'fflate'
 import { contentDigest } from './update-entity-reference.mjs'
 import { validateWorldMap } from './update-world-map.mjs'
 import { readMapArchive, readMapHeader, readTerrainMaps, composeTerrain, renderTerrain, mapRegions, projectMapMarkers } from './lib/world-map.mjs'
+import { readVoxelChunks, exposedVoxelTiles } from './lib/map-geometry.mjs'
+import { MAP_FACE } from '../src/domain/map-geometry.ts'
 
 function metadata(id, x = 0, z = 0, width = 2, height = 2) {
   const data = Buffer.alloc(37)
@@ -15,6 +21,62 @@ function metadata(id, x = 0, z = 0, width = 2, height = 2) {
 }
 function archive(entries) { return Buffer.concat([Buffer.from([5, 0]), zipSync(entries)]) }
 const fields = { 'map/map_world/meta.dat': metadata(-1), 'map/map_world/region_0_0.dat': Buffer.from([2, 1, 7, 0, 2, 8, 1, 3, 9, 2, 4, 10, 3]) }
+
+test('native voxel decoding preserves vertical gaps and culls faces across chunk boundaries', () => {
+  const chunk = placements => {
+    const bytes = Buffer.alloc(16397)
+    bytes[0] = 8; bytes.fill(1, 5, 13)
+    for (const [x, y, z, type] of placements) bytes[13 + ((x * 16 + y) * 16 + z) * 4] = type
+    return bytes
+  }
+  const a = zipSync({ 'y0.dat': chunk([[7, 3, 7, 9], [7, 7, 7, 49], [7, 8, 7, 49], [7, 9, 7, 50], [15, 5, 8, 9]]) })
+  const b = zipSync({ 'y0.dat': chunk([[0, 5, 8, 9]]) })
+  const header = Buffer.alloc(8 + 4 + 32 + 8)
+  header.writeInt32LE(2, 8)
+  ;[[0, 0, 0, a.length], [1, 0, a.length, b.length]].flat().forEach((value, i) => header.writeInt32LE(value, 12 + i * 4))
+  header.writeInt32LE(a.length + b.length, 48)
+  const lookup = Buffer.concat([header, a, b])
+  const chunks = readVoxelChunks(lookup)
+  const voxels = []
+  for (const ID of [9, 49, 50]) voxels[ID] = { ID, Visible: true, OccludesGeometry: true }
+  const tiles = exposedVoxelTiles(chunks, new Map([[1, { ID: 1, MapLayer: 0 }]]), voxels, { x: 0, z: 0, width: 32, height: 16 })
+  assert.equal(tiles.length, 1)
+  const runs = []
+  for (let i = 0; i < tiles[0].cells.length; i += 6) runs.push([...tiles[0].cells.subarray(i, i + 6)])
+  assert.deepEqual(runs.find(run => run[3] === 49), [7, 7, 7, 49, MAP_FACE.all & ~MAP_FACE.top, 2])
+  assert.ok(!runs.some(run => run[0] === 7 && run[1] > 3 && run[1] < 7))
+  assert.equal(runs.find(run => run[0] === 15)[4] & MAP_FACE.xPos, 0)
+  assert.equal(runs.find(run => run[0] === 16)[4] & MAP_FACE.xNeg, 0)
+  assert.throws(() => readVoxelChunks(lookup.subarray(0, -1)), /payload/)
+  assert.throws(() => readVoxelChunks(Buffer.alloc(3)), /Truncated/)
+  const unknown = exposedVoxelTiles(chunks, new Map(), voxels, { x: 0, z: 0, width: 32, height: 16 })
+  assert.deepEqual(unknown, [])
+})
+
+test('privacy review accepts only pinned geometry bytes and checks staged content independently', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'synthetic-geometry-review-'))
+  const run = args => spawnSync(process.execPath, [new URL('./privacy-check.mjs', import.meta.url).pathname, ...args], { cwd, encoding: 'utf8' })
+  const git = args => { const result = spawnSync('git', args, { cwd, encoding: 'utf8' }); assert.equal(result.status, 0, result.stderr) }
+  try {
+    git(['init', '--quiet'])
+    mkdirSync(join(cwd, 'src/catalog'), { recursive: true }); mkdirSync(join(cwd, 'src/assets/world-map'), { recursive: true })
+    const bytes = Buffer.from([1, 0, 2])
+    const file = 'src/assets/world-map/geometry-0-0-0.bin'
+    writeFileSync(join(cwd, file), bytes)
+    const manifests = ['game-assets', 'mod-artwork', 'wiki-sprites', 'mod-sprites']
+    for (const name of manifests) writeFileSync(join(cwd, `src/catalog/${name}.json`), JSON.stringify({ assets: {}, atlases: {} }))
+    writeFileSync(join(cwd, 'src/catalog/world-map.json'), JSON.stringify({ layers: [{ id: 0, geometry: [{ file: 'geometry-0-0-0.bin', sha256: createHash('sha256').update(bytes).digest('hex') }] }] }))
+    git(['add', file, 'src/catalog/world-map.json', ...manifests.map(name => `src/catalog/${name}.json`)])
+    assert.equal(run([]).status, 0)
+    writeFileSync(join(cwd, file), Buffer.from([1, 0, 3]))
+    assert.equal(run(['--staged']).status, 0)
+    assert.match(run([]).stderr, /asset changed/)
+    git(['add', file])
+    assert.match(run(['--staged']).stderr, /asset changed/)
+    writeFileSync(join(cwd, 'src/assets/world-map/geometry-0-0-1.bin'), bytes)
+    assert.match(run([]).stderr, /absent from the reviewed manifest/)
+  } finally { rmSync(cwd, { recursive: true, force: true }) }
+})
 
 test('native map parser retains column-major region cells and rejects malformed bounds', () => {
   const maps = readTerrainMaps(readMapArchive(archive(fields)))
@@ -120,6 +182,12 @@ test('committed maps enforce source pins, chest coverage, coordinates, target id
     value => { value.source.gameExecutableSha256 = '0'.repeat(64) },
     value => { value.source.voxel.sha256 = '0'.repeat(64) },
     value => { value.source.evidence = ['/private/source'] },
+    value => { value.source.rendering.surfaceHeight = 'Unknown' },
+    value => { value.layers[0].surface.file = '../private.json' },
+    value => { value.layers[0].surface.sha256 = 'invalid' },
+    value => { value.layers[0].geometry[0].file = '../private.gz' },
+    value => { value.layers[0].geometry[0].minY = -1 },
+    value => { value.layers[0].geometry[0].bounds.width = 33 },
     value => { value.layers[0].image = '../private.png' },
     value => { value.markers[0].x += 1 },
     value => { value.markers[0].layer = 999 },
