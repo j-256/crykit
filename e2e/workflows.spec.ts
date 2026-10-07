@@ -513,7 +513,11 @@ test('subpath installation stages updates without reloading an open draft', asyn
     const update = await openData(page)
     await update.getByRole('button', { name: 'Offline & storage', exact: true }).click()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).toBeVisible()
-    await update.getByRole('button', { name: 'Apply app update', exact: true }).click()
+    // Activation reloads the page before the settings dialog is restored
+    await Promise.all([
+      page.waitForEvent('load'),
+      update.getByRole('button', { name: 'Apply app update', exact: true }).click(),
+    ])
     await expect(page).toHaveURL(/\/journal\/#\/settings\/storage$/)
     await expect(update).toBeVisible()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).not.toBeVisible()
