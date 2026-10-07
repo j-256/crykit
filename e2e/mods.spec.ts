@@ -13,6 +13,7 @@ import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
+const BUNDLED_DOGE_SHIELD_SOURCE_ID = 'crystal-edit:e08882e8-77c5-4a64-9e5e-fe6efaa8dc5c'
 const SHIELD: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:ref-1084') }
 const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:617') }
 
@@ -156,7 +157,12 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await picker.getByRole('button', { name: /^Unknown/ }).click()
   await form.getByRole('button', { name: 'Choose Hand', exact: true }).click()
   await picker.getByRole('searchbox').fill('Doge Shield')
-  const disabledShield = picker.locator('[data-definition-result="true"]').filter({ hasText: 'Doge Shield' })
+  const shieldResults = picker.locator('[data-definition-result="true"]').filter({ hasText: 'Doge Shield' })
+  await expect(shieldResults).toHaveCount(2)
+  const bundledShield = shieldResults.filter({ hasText: BUNDLED_DOGE_SHIELD_SOURCE_ID })
+  await expect(bundledShield).toHaveCount(1)
+  await expect(bundledShield).toContainText('Outside the current Game Setup catalog pin')
+  const disabledShield = shieldResults.filter({ hasText: `${DEFAULT_CATALOG.id} · revision ${DEFAULT_CATALOG.revisionId}` })
   await expect(disabledShield).toHaveCount(1)
   await expect(disabledShield).toHaveAttribute('data-mod-state', 'disabled')
   await expect(disabledShield).toBeEnabled()
