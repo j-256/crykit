@@ -8,8 +8,8 @@ import { parseArgs } from 'node:util'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const INDEX = 'src/catalog/bundled-mod-index.json'
-const VANILLA_RECEIPT = 'src/catalog/vanilla-catalog-v2.json'
-const VANILLA_PACKED = 'src/catalog/vanilla-catalog-v2.packed.json'
+const VANILLA_RECEIPT = 'src/catalog/vanilla-catalog-v3.json'
+const VANILLA_PACKED = 'src/catalog/vanilla-catalog-v3.packed.json'
 const GENERATED_AT = '1970-01-01T00:00:00.000Z'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
 const GZIP_OS_OFFSET = 9

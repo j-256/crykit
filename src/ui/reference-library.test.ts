@@ -1,6 +1,6 @@
 import { modSearchCatalog } from '../domain/mod-search'
 import { expect, it } from 'vitest'
-import { CURRENT_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG, PREVIOUS_CATALOG } from '../catalog/bundled'
 import { updateGameSetupRevision } from '../domain/local-data'
 import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
 import { MOD_CATALOG_SCHEMA } from '../domain/mod-layers'
@@ -11,8 +11,8 @@ import { standingReferenceOptions } from './reference-library'
 import { buildModLibraryCards } from './mod-library-data'
 import { setModInReference } from '../domain/reference-library'
 
-it('shows only the pinned original base revision while keeping both immutable catalogs available', () => {
-  const catalogs = [DEFAULT_CATALOG, CURRENT_CATALOG]
+it('shows only the pinned original base revision while keeping historical catalogs available', () => {
+  const catalogs = [DEFAULT_CATALOG, PREVIOUS_CATALOG, CURRENT_CATALOG]
   const original = createTestLocalData()
   const options = buildDefinitionOptions(original, catalogs)
   for (const catalog of catalogs) {
@@ -21,7 +21,7 @@ it('shows only the pinned original base revision while keeping both immutable ca
     const warrior = selected.filter(option => option.name === 'Warrior')
     expect(warrior).toHaveLength(1)
     expect(warrior[0]!.ref).toMatchObject({ catalogRevisionId: catalog.revisionId })
-    expect(selected.filter(option => option.name === 'Doge Shield')).toHaveLength(1)
+    expect(selected.filter(option => option.name === 'Doge Shield')).toHaveLength(catalog === CURRENT_CATALOG ? 0 : 1)
     expect(data.gameSetups[TEST_GAME_SETUP_REVISION_ID]).toBe(original.gameSetups[TEST_GAME_SETUP_REVISION_ID])
   }
 })

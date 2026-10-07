@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { BUNDLED_CATALOG, CURRENT_CATALOG } from './bundled'
+import { BUNDLED_CATALOG, CURRENT_CATALOG, PREVIOUS_CATALOG } from './bundled'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 import { nativeDescription } from './native-description'
@@ -22,7 +22,9 @@ it('pins an independently assembled native base without source-backed mods or da
     expect(Object.keys(entity.fields).some(key => key.startsWith('Learnable Innate Skill'))).toBe(false)
     if (nativeIdentity(entity)?.database === 'passive' && typeof nativeSourceRecord(entity)?.PP === 'number') expect(entity.ppCost).toMatchObject({ state: 'known', value: nativeSourceRecord(entity)!.PP })
   }
-  expect(Object.values(CURRENT_CATALOG.entities).some(entity => entity.name === 'Doge Shield')).toBe(true)
+  expect(CURRENT_CATALOG.entities['mod:barbarian:class:ref-1078']).toBeUndefined()
+  expect(PREVIOUS_CATALOG.entities['mod:barbarian:class:ref-1078']).toBeDefined()
+  expect(PREVIOUS_CATALOG.entities['mod:doge-shield:item:ref-1084']).toBeDefined()
   expect(CURRENT_CATALOG.entities['mod:equipment-expansion:equipment:592']).toBeUndefined()
   expect(BUNDLED_CATALOG.entities['mod:equipment-expansion:equipment:592']).toBeDefined()
 })
