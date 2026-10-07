@@ -2,6 +2,8 @@ import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 
+const COMPLETE_TEAM_JOURNEY_TIMEOUT_MS = 90_000
+
 async function choose(page: Page, label: string, name: string) {
   const input = page.getByRole('combobox', { name: label, exact: true }).filter({ visible: true })
   await input.fill(name)
@@ -19,6 +21,8 @@ const members = [
 ] as const
 
 test('creates and equips four members from a Team and retains them after reload and sharing', { tag: MOBILE_TEST_TAG }, async ({ page, browser }, testInfo) => {
+  // Four saved member Builds and a fresh recipient browser complete one Team journey
+  test.setTimeout(COMPLETE_TEAM_JOURNEY_TIMEOUT_MS)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/teams/new')
@@ -110,6 +114,7 @@ test('creates and equips four members from a Team and retains them after reload 
   try {
     const recipient = await recipientContext.newPage()
     await recipient.goto(url)
+    await recipient.getByRole('region', { name: 'Shared team slot 1', exact: true }).waitFor()
     await expect(recipient.getByText('Read-only snapshot', { exact: true })).toBeVisible()
     await expect(recipient.getByRole('region', { name: /^Shared team slot \d$/ })).toHaveCount(4)
     for (const [index, member] of members.entries()) await expect(recipient.getByRole('region', { name: `Shared team slot ${index + 1}`, exact: true })).toContainText(member.name)

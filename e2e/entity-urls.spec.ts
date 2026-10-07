@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { referencePath } from './reference-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 
 const DESERT_PATH = referencePath('base:monster:316')
 const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
@@ -28,6 +29,7 @@ test('saved catalog-v2 reference links retain their original definitions', async
 
 test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
   await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
+  await waitForPlannerReady(page)
   const desert = page.locator(`a[href^="${referencePath('base:monster:316', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
   const red = page.locator(`a[href^="${referencePath('base:monster:57', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
   await expect(desert).toBeVisible()
@@ -37,9 +39,11 @@ test('native monster links carry reviewed variant names and survive new tabs and
   await expect(desert).toHaveAttribute('href', /q=Brutish\+Quintar/)
   const other = await context.newPage()
   await other.goto(DESERT_PATH)
+  await waitForPlannerReady(other)
   await expect(other.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
   await expect(other.locator('.enemy-hero')).toContainText('4900')
   await other.reload()
+  await waitForPlannerReady(other)
   await expect(other).toHaveURL(new RegExp(`${DESERT_PATH}$`))
   await expect(other.getByRole('heading', { name: 'Brutish Quintar', exact: true })).toBeVisible()
   await desert.click()
@@ -49,6 +53,7 @@ test('native monster links carry reviewed variant names and survive new tabs and
 
 test('a wrong slug resolves by ID and normalizes without an extra history entry', async ({ page }) => {
   await page.goto('/#/reference')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   const initialLength = await page.evaluate(() => history.length)
   await page.evaluate(path => { location.hash = path.slice(1) }, DESERT_PATH.replace('brutish-quintar-desert', 'brutish-quintar-red'))

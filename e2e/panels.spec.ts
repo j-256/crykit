@@ -1,6 +1,6 @@
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createBlankPlaythrough } from './local-data-helpers'
+import { createBlankPlaythrough, waitForPlannerReady } from './local-data-helpers'
 
 const BACKDROP_VIEWPORT = { width: 1280, height: 900 }
 
@@ -72,6 +72,7 @@ test('definition search is ready for typing on opening, reopening, and direct li
 test('backdrop dismissal closes only the top layer and respects unsaved definition guards', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.setViewportSize(BACKDROP_VIEWPORT)
   await page.goto('/#/inventory/new/pick/item-definition/definitions/new?q=Synthetic')
+  await waitForPlannerReady(page)
   const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   const picker = page.getByRole('dialog', { name: 'Choose Item definition', exact: true })
   const observation = page.getByRole('dialog', { name: 'Add inventory item', exact: true })

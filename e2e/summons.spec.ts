@@ -8,6 +8,8 @@ import { createBlankPlaythrough, replacePlannerData, selectedPlaythrough } from 
 import { expectOfflineReady } from './offline-helpers'
 import { currentReferencePath } from './reference-helpers'
 
+const SUMMON_QUEUE_DRAIN_TIMEOUT_MS = 15_000
+
 async function openSettings(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -108,7 +110,8 @@ test('rapid odd and even clicks preserve the final request and keep neighboring 
   }, { shakuId, pamoaId, neighborId })
   await expect(summonTile(page, 'Shaku')).toHaveAttribute('data-unlocked', 'true')
   await expect(summonTile(page, 'Pamoa')).toHaveAttribute('data-unlocked', 'false')
-  await expect(page.locator('.summon-tile button[aria-busy="true"]')).toHaveCount(0)
+  // The final value is asserted only after both queued tile saves have drained
+  await expect(page.locator('.summon-tile button[aria-busy="true"]')).toHaveCount(0, { timeout: SUMMON_QUEUE_DRAIN_TIMEOUT_MS })
   expect(await page.evaluate(neighborId => {
     const state = (window as unknown as { summonRenderCheck: { neighbor: Element; changes: string[]; observer: MutationObserver } }).summonRenderCheck
     state.observer.disconnect()

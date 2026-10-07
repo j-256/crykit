@@ -1,6 +1,30 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { LocalData, Playthrough } from '../src/domain'
 
+export async function waitForPlannerReady(page: Page): Promise<void> {
+  // First-run seed validation can outlast the browser load event; wait for the app shell before route assertions
+  await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).waitFor()
+}
+
+export async function readLocalData(page: Page): Promise<LocalData> {
+  return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
+    const request = indexedDB.open('crykit')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction('localDatas', 'readonly')
+      transaction.oncomplete = () => database.close()
+      transaction.onerror = () => { database.close(); reject(transaction.error) }
+      const records = transaction.objectStore('localDatas').getAll()
+      records.onsuccess = () => {
+        const record = (records.result as { localData: LocalData }[])[0]
+        if (record) resolve(record.localData)
+        else reject(new Error('Synthetic planner data not found'))
+      }
+    }
+  }))
+}
+
 export function selectedPlaythrough(localData: LocalData): Playthrough {
   const playthrough = localData.selectedPlaythroughId ? localData.playthroughs[localData.selectedPlaythroughId] : undefined
   if (!playthrough) throw new Error('The fixture has no selected Playthrough')

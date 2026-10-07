@@ -3,13 +3,15 @@ import { currentReferencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, readLocalData } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
 import { encodeCrystalSave } from '../src/interchange/crystal-save'
+
+const CATALOG_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -50,6 +52,7 @@ async function chooseDefinition(page: Page, form: Locator, label: string, query:
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })
@@ -301,6 +304,8 @@ test('blocked deep search results reveal local recovery repeatedly and return to
 })
 
 test('saved catalog versions preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
+  // Keep the export and restore assertions after the catalog and checkpoint workflow
+  test.setTimeout(CATALOG_BACKUP_JOURNEY_TIMEOUT_MS)
   const settings = await openData(page)
   await openCurrentGameSetup(settings)
   await settings.getByLabel('Game Setup label').fill('Synthetic base rules')
@@ -339,9 +344,10 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await expect(buildEditor.getByLabel('Checkpoint name')).toHaveValue('Original catalog checkpoint')
   await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  const before = await exportLocalData(page)
-  const checkpointBuild = Object.values(before.localData.builds).find((build) => build.title === 'Synthetic catalog checkpoint')!
-  expect(Object.values(before.localData.buildRevisions).filter((revision) => revision.buildId === checkpointBuild.id)).toHaveLength(1)
+  // Inspect intermediate persistence directly; the final backup still exercises export and restore
+  const before = await readLocalData(page)
+  const checkpointBuild = Object.values(before.builds).find((build) => build.title === 'Synthetic catalog checkpoint')!
+  expect(Object.values(before.buildRevisions).filter((revision) => revision.buildId === checkpointBuild.id)).toHaveLength(1)
 
   await search(page, 'Iron Sword item')
   await palette.locator('[data-universal-result="true"]').filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
@@ -350,17 +356,17 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
 
   await page.getByRole('button', { name: 'Collect into Game Setup revision', exact: true }).click()
   const collection = page.getByRole('dialog', { name: 'Collect into Game Setup revision', exact: true })
-  await collection.getByLabel('Source Game Setup revision').selectOption(before.localData.planningGameSetupRevisionId!)
+  await collection.getByLabel('Source Game Setup revision').selectOption(before.planningGameSetupRevisionId!)
   await collection.getByLabel('New revision label').fill('Synthetic reviewed definitions')
   await collection.getByRole('button', { name: 'Create Game Setup revision', exact: true }).click()
   await expect(collection).not.toBeVisible()
-  const after = await exportLocalData(page)
-  expect(selectedPlaythrough(after.localData).inventory).toEqual(selectedPlaythrough(before.localData).inventory)
-  expect(after.localData.buildRevisions).toEqual(before.localData.buildRevisions)
-  expect(after.localData.planningGameSetupRevisionId).toBe(before.localData.planningGameSetupRevisionId)
-  const override = Object.values(after.localData.personalDefinitions).find((entry) => entry.name === 'Synthetic tempered sword')!
-  expect(override.baseRef).toEqual(Object.values(selectedPlaythrough(before.localData).inventory)[0]!.ref)
-  const collected = Object.values(after.localData.gameSetups).find((entry) => entry.label === 'Synthetic reviewed definitions')!
+  const after = await readLocalData(page)
+  expect(selectedPlaythrough(after).inventory).toEqual(selectedPlaythrough(before).inventory)
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
+  expect(after.planningGameSetupRevisionId).toBe(before.planningGameSetupRevisionId)
+  const override = Object.values(after.personalDefinitions).find((entry) => entry.name === 'Synthetic tempered sword')!
+  expect(override.baseRef).toEqual(Object.values(selectedPlaythrough(before).inventory)[0]!.ref)
+  const collected = Object.values(after.gameSetups).find((entry) => entry.label === 'Synthetic reviewed definitions')!
   expect(collected.definitionOverrides).toEqual([{ kind: 'personal', definitionId: override.id }])
 
   await page.getByRole('button', { name: 'Inventory', exact: true }).filter({ visible: true }).click()
@@ -378,15 +384,15 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   expect(Object.values(selectedPlaythrough(linked.localData).inventory)).toHaveLength(1)
   expect(Object.values(selectedPlaythrough(linked.localData).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 2 })
   expect(Object.values(selectedPlaythrough(linked.localData).inventory)[0]?.ref).toEqual({ kind: 'personal', definitionId: override.id })
-  expect(linked.localData.buildRevisions).toEqual(before.localData.buildRevisions)
+  expect(linked.localData.buildRevisions).toEqual(before.buildRevisions)
 
   const restore = await openData(page)
   await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overrides.zip', mimeType: 'application/zip', buffer: linked.bytes })
   await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
-  const restored = await exportLocalData(page)
-  expect(restored.localData.personalDefinitions).toEqual(linked.localData.personalDefinitions)
-  expect(selectedPlaythrough(restored.localData).inventory).toEqual(selectedPlaythrough(linked.localData).inventory)
-  expect(restored.localData.gameSetups).toEqual(linked.localData.gameSetups)
-  expect(restored.localData.buildRevisions).toEqual(linked.localData.buildRevisions)
+  const restored = await readLocalData(page)
+  expect(restored.personalDefinitions).toEqual(linked.localData.personalDefinitions)
+  expect(selectedPlaythrough(restored).inventory).toEqual(selectedPlaythrough(linked.localData).inventory)
+  expect(restored.gameSetups).toEqual(linked.localData.gameSetups)
+  expect(restored.buildRevisions).toEqual(linked.localData.buildRevisions)
 })

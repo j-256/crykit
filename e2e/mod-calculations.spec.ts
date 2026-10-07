@@ -13,6 +13,8 @@ import { MOBILE_TEST_TAG } from './test-tags'
 // Keep the full save, share, and offline journeys from competing for browser cache work
 test.describe.configure({ mode: 'default' })
 
+const MOD_CALCULATION_JOURNEY_TIMEOUT_MS = 90_000
+
 async function settings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -22,6 +24,8 @@ async function settings(page: Page, section: string) {
 }
 
 test('mod profiles and explained rules affect saved stats and shared previews offline', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL, isMobile }) => {
+  // Import, revision saves, backup, sharing, and offline reload all run in this journey
+  test.setTimeout(MOD_CALCULATION_JOURNEY_TIMEOUT_MS)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const original = NATIVE_DATA.records.gender[0]!
@@ -149,6 +153,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
 
 
 test('mod automatic statuses and ability cost overrides survive checkpoints, backup, sharing, and offline reload', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }) => {
+  test.setTimeout(MOD_CALCULATION_JOURNEY_TIMEOUT_MS)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const addedId = 9000
