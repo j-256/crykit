@@ -43,6 +43,7 @@ test('first-load selection keeps hidden choices, saves exact source priority and
   await chooser.getByRole('button', { name: 'Move Moonlight Project - Classes earlier', exact: true }).click()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await chooser.getByRole('button', { name: 'Use selected mods', exact: true }).click()
+  await chooser.getByRole('button', { name: 'Saving choices...', exact: true }).waitFor({ state: 'hidden' })
   await expect(chooser).not.toBeVisible()
   const selected = await stored(page)
   const setup = selected.data.gameSetups[selected.data.planningGameSetupRevisionId!]!

@@ -10,6 +10,8 @@ import { coalesceDefinitionOverrides, setPlaythroughGameSetup } from '../src/dom
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { EntityId, LocalData } from '../src/domain/types'
 
+const MOD_LAYER_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
+
 async function openSettings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -31,6 +33,8 @@ async function exportData(page: Page) {
 }
 
 test('ordered mod layers supply effective definitions while saved builds retain their pinned setup offline', async ({ page, context }, testInfo) => {
+  // Multiple source imports, a pinned Build, backup, and offline verification share this journey
+  test.setTimeout(MOD_LAYER_BACKUP_JOURNEY_TIMEOUT_MS)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const mods = await syntheticModLayers()

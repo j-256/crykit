@@ -1,6 +1,7 @@
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 async function loadedIcons(container: Locator, count: number) {
@@ -25,6 +26,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   const external: string[] = []
   page.on('request', request => { if (!['127.0.0.1', 'localhost'].includes(new URL(request.url()).hostname)) external.push(request.url()) })
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   const sword = page.locator('.list-row').filter({ has: page.getByText('Short Sword', { exact: true }) })
   await loadedIcons(sword, 1)
   const details = await characterDetails(page)
@@ -48,6 +50,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await loadedIcons(choice, 1)
   await choice.click()
   await page.goto('/#/builds/library/new')
+  await waitForPlannerReady(page)
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
   const warrior = page.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.getByText('Warrior', { exact: true }) })
   await loadedIcons(warrior, 9)
@@ -72,6 +75,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await context.setOffline(true)
   await page.goto(referencePath('base:job:0'))
   await page.reload()
+  await waitForPlannerReady(page)
   await loadedIcons(page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' }), 4)
   expect(external).toEqual([])
 })
@@ -81,6 +85,7 @@ test('failed menu icons retain readable equipment labels', async ({ browser, bas
   const page = await context.newPage()
   await page.route(/\.(?:gif|png|webp)(?:\?|$)/, route => route.abort())
   await page.goto(`${baseURL}${referencePath('base:job:0')}`)
+  await waitForPlannerReady(page)
   const weapons = page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' })
   await expect(weapons).toBeVisible()
   await expect(weapons.locator('img')).toHaveCount(0)

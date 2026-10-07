@@ -11,20 +11,30 @@ import { createPersonalDefinition } from '../src/domain'
 import { bundledModIdentity } from '../src/domain/bundled-mods'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
-import { openBuildGameSetup, openGameSetupSection } from './local-data-helpers'
+import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
 import { currentReferencePath, referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
-async function includeObservedDoge(page: Page) {
-  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+const MOD_LIBRARY_JOURNEY_TIMEOUT_MS = 90_000
+
+async function includeObservedMod(page: Page, name: string) {
+  const card = page.getByRole('region', { name, exact: true })
   await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
 }
 
-function currentDogeShieldHeading(page: Page) {
-  const href = currentReferencePath('mod:doge-shield:item:ref-1084').slice(1)
-  return page.locator(`a.reference-card[href^=${JSON.stringify(href)}]`).getByRole('heading', { name: 'Doge Shield', exact: true })
+const includeObservedDoge = (page: Page) => includeObservedMod(page, 'Doge Shield')
+const includeObservedBloodmage = (page: Page) => includeObservedMod(page, 'Bloodmage')
+
+function catalogHeading(page: Page, path: string, name: string) {
+  const href = path.slice(1)
+  return page.locator(`a.reference-card[href^=${JSON.stringify(href)}]`).getByRole('heading', { name, exact: true })
+}
+
+function currentBloodmageHeading(page: Page) {
+  const path = currentReferencePath('mod:bloodmage:class:ref-1083')
+  return catalogHeading(page, path, 'Bloodmage')
 }
 
 const MOD_ID = 'synthetic-editor-library'
@@ -450,6 +460,7 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
 
 test('shows the generated bundled library and opens exact full originals offline with Workshop links', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto('/#/mods')
+  await waitForPlannerReady(page)
   await expect.poll(() => page.locator('.mod-library > .mod-library__card').count()).toBeGreaterThanOrEqual(new Set(bundledSources.mods.map(mod => mod.projectId)).size)
   await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toHaveCount(1)
   const barbarian = page.getByRole('region', { name: 'Barbarian', exact: true })
@@ -536,7 +547,7 @@ test('keeps source-less named mods and their catalog entries and supports manual
   const mod = page.getByRole('region', { name: 'Bloodmage', exact: true })
   await expect(mod).toContainText('Mod JSON unavailable')
   await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Bloodmage', exact: true })).toBeVisible()
+  await expect(currentBloodmageHeading(page)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Remove Mod: Bloodmage filter', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Adventurer', exact: true })).toHaveCount(0)
   await page.goto(`${referencePath('base:job:0')}?library-mod=name%3Abloodmage`)
@@ -557,7 +568,7 @@ test('keeps source-less named mods and their catalog entries and supports manual
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
   await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic observed class', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Bloodmage', exact: true })).toBeVisible()
+  await expect(currentBloodmageHeading(page)).toBeVisible()
 })
 
 test('keeps same-name projects distinct and binds manual additions to the chosen card', async ({ page }) => {
@@ -587,7 +598,7 @@ test('keeps same-name projects distinct and binds manual additions to the chosen
   await page.goto('/#/mods')
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
   await manual.getByRole('button', { name: 'View catalog entries', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Bloodmage', exact: true })).toBeVisible()
+  await expect(currentBloodmageHeading(page)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic foreign equipment', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Synthetic project observation', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Remove Mod: Bloodmage filter', exact: true }).click()
@@ -596,6 +607,9 @@ test('keeps same-name projects distinct and binds manual additions to the chosen
 
 test('keeps an unavailable mod scope empty until the filter is cleared', async ({ page }) => {
   await page.goto('/#/reference?library-mod=crystal-edit:synthetic-missing')
+  await waitForPlannerReady(page)
+  // The unknown mod scope resolves before its removable filter appears
+  await page.getByRole('status').filter({ hasText: 'Opening mod catalog...' }).waitFor({ state: 'hidden' })
   await expect(page.getByRole('button', { name: 'Remove Mod: Unavailable mod filter', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Clear all filters', exact: true }).click()
@@ -603,14 +617,16 @@ test('keeps an unavailable mod scope empty until the filter is cleared', async (
 })
 
 test('browses one temporary catalog without saving it, then explicitly adds it to Reference', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  // Preserve full rollback and source-byte checks across temporary and saved library states
+  test.setTimeout(MOD_LIBRARY_JOURNEY_TIMEOUT_MS)
   const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
   const count = Object.values(source.models).reduce((sum, ids) => sum + ids.length, 0)
   await page.goto('/#/mods')
-  await includeObservedDoge(page)
+  await includeObservedBloodmage(page)
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
-  await referenceSearch.fill('Doge Shield')
-  await expect(currentDogeShieldHeading(page)).toBeVisible()
+  await referenceSearch.fill('Bloodmage')
+  await expect(currentBloodmageHeading(page)).toBeVisible()
   await referenceSearch.fill('Raging Crash')
   await expect(page.getByRole('heading', { name: 'Raging Crash', exact: true })).toHaveCount(0)
   const standingRoute = await page.evaluate(() => sessionStorage.getItem('crykit:reference-route:v1'))
@@ -725,6 +741,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
 })
 
 test('toggles bundled and source-less catalogs while retaining game enablement, sources, and saved selections', async ({ page }) => {
+  test.setTimeout(MOD_LIBRARY_JOURNEY_TIMEOUT_MS)
   await page.goto('/#/mods')
   await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toBeVisible()
   for (const name of ['Equipment Expansion', 'Bloodmage']) {
@@ -736,7 +753,7 @@ test('toggles bundled and source-less catalogs while retaining game enablement, 
   const archive = await archiveDigests(page)
   for (const [name, entry] of [['Equipment Expansion', 'Ace of Diamonds'], ['Bloodmage', 'Bloodmage']]) {
     const mod = page.getByRole('region', { name, exact: true })
-    const heading = entry === 'Doge Shield' ? currentDogeShieldHeading(page) : page.getByRole('heading', { name: entry, exact: true })
+    const heading = entry === 'Bloodmage' ? currentBloodmageHeading(page) : page.getByRole('heading', { name: entry, exact: true })
     await expect(mod.getByText(`Mod: ${name}`, { exact: true })).toHaveCount(0)
     await expect(mod.getByText('Enabled status not recorded', { exact: true })).toBeVisible()
     await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
@@ -772,7 +789,7 @@ test('keeps failed temporary catalog loads separate from the standing library', 
   const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
   await page.goto('/#/mods')
   await expect(page.getByRole('region', { name: source.title, exact: true })).toBeVisible()
-  await includeObservedDoge(page)
+  await includeObservedBloodmage(page)
   const before = await archiveDigests(page)
   await page.route(`**/*${source.sha256}*`, route => route.abort())
   await page.getByRole('region', { name: source.title, exact: true }).getByRole('button', { name: 'View catalog entries', exact: true }).click()
@@ -780,6 +797,6 @@ test('keeps failed temporary catalog loads separate from the standing library', 
   expect(await archiveDigests(page)).toEqual(before)
   await page.getByRole('button', { name: 'Return to Reference', exact: true }).click()
   await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toBeVisible()
-  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Doge Shield')
-  await expect(currentDogeShieldHeading(page)).toBeVisible()
+  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Bloodmage')
+  await expect(currentBloodmageHeading(page)).toBeVisible()
 })

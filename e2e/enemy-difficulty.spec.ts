@@ -3,6 +3,7 @@ import { openSavedCatalogVersion } from './definition-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 import { referencePath, referenceUrlPattern } from './reference-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 
 const DESERT_QUINTAR = referencePath('base:monster:316')
 const BOSS = referencePath('base:monster:201')
@@ -139,6 +140,7 @@ test('saved personal versions scale their recorded inputs without changing the s
 
 test('an unknown difficulty stays unselected until a known definition is chosen', async ({ page }) => {
   await page.goto(`${DESERT_QUINTAR}?difficulty=999`)
+  await waitForPlannerReady(page)
   const difficulty = page.getByRole('combobox', { name: 'Difficulty', exact: true })
   await expect(difficulty).toHaveValue('')
   await expect(page.getByRole('region', { name: 'Combat inputs', exact: true })).toContainText('Raw database values')

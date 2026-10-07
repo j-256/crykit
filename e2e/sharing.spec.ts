@@ -257,6 +257,8 @@ test('opens four portable team slots in a fresh browser and saves them as an ind
   const recipient = await recipientContext.newPage()
   try {
     await recipient.goto(url)
+    // Share decoding can finish after navigation; wait for the recipient view before checking its contents
+    await recipient.getByRole('heading', { name: sourceTeam.label, exact: true }).waitFor()
     await expect(recipient.getByRole('heading', { name: sourceTeam.label, exact: true })).toBeVisible()
     const before = await storedData(recipient)
     const members = Object.values(selectedPlaythrough(before).characters)

@@ -1,6 +1,6 @@
 import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { selectedPlaythrough, createBlankPlaythrough, addBundledModToReference } from './local-data-helpers'
+import { selectedPlaythrough, createBlankPlaythrough, addBundledModToReference, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -63,6 +63,7 @@ async function addProgressRecord(page: Page, name: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })

@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function navigate(page: Page, destination: string) {
@@ -39,6 +39,7 @@ async function addCharacter(page: Page, name: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/inventory')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })

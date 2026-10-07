@@ -2,6 +2,7 @@ import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { currentReferencePath, referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 import { expect, test } from '@playwright/test'
 
 const SLIME_PATH = referencePath('base:monster:2')
@@ -24,6 +25,7 @@ test('enemy rewards use coins, technical details use integers, and source prices
 
 test('same-name enemies remain distinct while mode variants are opt-in in global search', async ({ page }) => {
   await page.goto('/#/reference/search?q=woke%20qui')
+  await waitForPlannerReady(page)
   const search = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   const enemies = search.getByRole('link').filter({ has: page.locator('strong', { hasText: /^Woke Quintar(?: \((?:Chaos|Vanilla) mode\))?$/ }) })
   await expect(enemies).toHaveCount(2)
@@ -68,8 +70,8 @@ test('enemy loot preserves modified clicks, opens a new tab, and navigates in ap
   const opened = context.waitForEvent('page')
   await cookie.click({ button: 'middle' })
   const tab = await opened
-  await expect(tab).toHaveURL(new RegExp(`${cookiePath}$`), { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
-  // A new tab can finish navigation before its catalog detail renders
+  await tab.waitForURL(new URL(cookiePath, page.url()).href, { waitUntil: 'load' })
+  await waitForPlannerReady(tab)
   await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible({ timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
   await tab.close()
