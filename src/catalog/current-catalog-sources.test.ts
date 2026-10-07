@@ -33,9 +33,10 @@ it('builds native records and reviewed relationships with historical inputs unav
 it('retains attributed supplemental facts while source-backed mods stay in their own sources', () => {
   const catalog = vanillaCatalog(SYNTHETIC_CHECKSUM)
   const definitions = Object.values(catalog.entities)
-  const doge = definitions.find(entity => entity.name === 'Doge Shield')!
-  expect(doge.fields.Location).toMatchObject({ state: 'unknown' })
-  expect(doge.sources).toContainEqual(expect.objectContaining({ sourceId: STARTER_SOURCE_URLS['nintendo-mod-pack-2'] }))
+  expect(definitions.some(entity => entity.name === 'Doge Shield')).toBe(false)
+  const pack = definitions.find(entity => entity.name === 'Mod Pack 2: New Challenges')!
+  expect(pack.sources).toContainEqual(expect.objectContaining({ sourceId: STARTER_SOURCE_URLS['nintendo-mod-pack-2'] }))
+  expect(pack.fields.Contents).toMatchObject({ state: 'known', value: expect.arrayContaining(['Doge Shield']) })
   const mounts = definitions.find(entity => entity.name === 'Mounts')!
   expect(mounts.sources).toContainEqual(expect.objectContaining({ sourceId: 'https://crystal-project.fandom.com/wiki/Mounts?oldid=5937' }))
   const mechanic = catalog.entities['base:mechanic:ability:ref-385']!

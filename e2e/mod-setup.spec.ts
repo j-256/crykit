@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup } from './local-data-helpers'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import type { LocalData } from '../src/domain/types'
 
 async function stored(page: Page) {
@@ -44,7 +45,7 @@ test('first-load selection keeps hidden choices, saves exact source priority and
   await expect(chooser).not.toBeVisible()
   const selected = await stored(page)
   const setup = selected.data.gameSetups[selected.data.planningGameSetupRevisionId!]!
-  expect(setup.modComposition?.baseline.catalogRevisionId).toBe('catalog-v2')
+  expect(setup.modComposition?.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
   expect(setup.modComposition?.layers.map(layer => layer.catalogId)).toEqual(['crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176', 'crystal-edit:3c1f2e0b-a46d-4feb-904d-7ceb49f8a578'])
   expect(setup.modComposition?.layers.every(layer => layer.enabled && selected.catalogs.some(catalog => catalog.id === layer.catalogId && catalog.revisionId === layer.catalogRevisionId))).toBe(true)
   expect(selected.sources.every(size => size > 0)).toBe(true)

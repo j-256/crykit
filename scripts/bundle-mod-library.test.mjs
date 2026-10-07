@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { bundleModDirectory, checkModLibrary, inspectModSource } from './bundle-mod-library.mjs'
+import exclusions from '../src/catalog/mod-bundle-exclusions.json' with { type: 'json' }
 
 const project = (version = '1') => ({ ID: 'synthetic-project', Title: 'Synthetic mod', Version: version, EditorVersion: 34, FutureSetting: { enabled: false, quantity: null }, Passives: [{ ID: 900, Name: 'Synthetic passive', PP: 0 }], Entities: [{ ID: 1, Name: 'Synthetic actor', Message: '@' + ['C', 'Astley.Name'].join('@') + ' @V.Sep @I20.Name' }] })
 
@@ -22,7 +23,7 @@ test('scans nested directories, deduplicates exact bytes, retains revisions, and
     await writeFile(join(input, 'nested', 'two.json'), JSON.stringify(project('2')))
     await writeFile(join(input, 'other.json'), '{"schemaVersion":1}')
     await writeFile(join(input, 'readme.txt'), 'Unrelated text')
-    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 2, duplicates: 1, skipped: 1 })
+    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 2, duplicates: 1, skipped: 1, withheld: 0 })
     const generated = JSON.parse(await readFile(manifest, 'utf8'))
     const first = generated.mods.find(source => source.version === '1')
     const asset = JSON.parse(await readFile(join(output, `${first.sha256}.json`), 'utf8'))
@@ -35,11 +36,51 @@ test('scans nested directories, deduplicates exact bytes, retains revisions, and
     assert.deepEqual(await checkModLibrary(output, manifest), { mods: 2 })
     await mkdir(input)
     await writeFile(join(input, 'new-revision.json'), JSON.stringify(project('3')))
-    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 3, skipped: 0, duplicates: 0 })
+    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 3, skipped: 0, duplicates: 0, withheld: 0 })
     assert.deepEqual(await checkModLibrary(output, manifest), { mods: 3 })
     asset.data = Buffer.from('{}').toString('base64')
     await writeFile(join(output, `${first.sha256}.json`), JSON.stringify(asset))
     await assert.rejects(checkModLibrary(output, manifest))
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+test('withholds an exact project identity across filenames and revisions', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'crykit-mod-library-withheld-'))
+  const input = join(directory, 'input')
+  const output = join(directory, 'assets')
+  const manifest = join(directory, 'manifest.json')
+  const withheldId = exclusions.projects[0].projectId
+  try {
+    await mkdir(input)
+    await writeFile(join(input, 'renamed.json'), JSON.stringify({ ...project(), ID: withheldId, Title: 'Renamed project' }))
+    await writeFile(join(input, 'new-revision.json'), JSON.stringify({ ...project('2'), ID: withheldId }))
+    await writeFile(join(input, 'included.json'), JSON.stringify(project()))
+    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 1, skipped: 0, duplicates: 0, withheld: 2 })
+    const generated = JSON.parse(await readFile(manifest, 'utf8'))
+    assert.equal(generated.mods[0].projectId, 'synthetic-project')
+    generated.mods[0].projectId = withheldId
+    await writeFile(manifest, JSON.stringify(generated))
+    await assert.rejects(checkModLibrary(output, manifest), /Withheld mod project is bundled/)
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+test('prefers a Workshop-identified export when the same project timestamp is retained', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'crykit-mod-workshop-revision-'))
+  const input = join(directory, 'input')
+  const output = join(directory, 'assets')
+  const manifest = join(directory, 'manifest.json')
+  try {
+    await mkdir(input)
+    const original = { ...project(), Timestamp: '2025-01-01T00:00:00Z', SteamWorkshopFileID: 0 }
+    await writeFile(join(input, 'project.json'), JSON.stringify(original))
+    await bundleModDirectory(input, output, manifest)
+    await writeFile(join(input, 'project.json'), JSON.stringify({ ...original, SteamWorkshopFileID: 123456 }))
+    await bundleModDirectory(input, output, manifest)
+    const { mods } = JSON.parse(await readFile(manifest, 'utf8'))
+    assert.equal(mods.length, 2)
+    assert.equal(mods[0].steamWorkshopFileId, '123456')
+    assert.equal(mods[1].steamWorkshopFileId, undefined)
+    assert.deepEqual(await checkModLibrary(output, manifest), { mods: 2 })
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
