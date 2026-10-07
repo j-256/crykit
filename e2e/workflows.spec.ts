@@ -29,6 +29,36 @@ async function closeData(page: Page) {
   await page.getByRole('dialog', { name: 'Data & settings', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
+async function stageServiceWorkerUpdate(page: Page) {
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration()
+    if (!registration) throw new Error('The offline installation is unavailable')
+    // update() confirms script retrieval before the new worker finishes caching its files
+    let onUpdateFound: (() => void) | undefined
+    const updateFound = new Promise<ServiceWorker>(resolve => {
+      onUpdateFound = () => { if (registration.installing) resolve(registration.installing) }
+      registration.addEventListener('updatefound', onUpdateFound)
+    })
+    try {
+      await registration.update()
+      const worker = registration.waiting ?? registration.installing ?? await updateFound
+      if (worker.state !== 'installed') await new Promise<void>((resolve, reject) => {
+        const onStateChange = () => {
+          if (worker.state !== 'installed' && worker.state !== 'redundant') return
+          worker.removeEventListener('statechange', onStateChange)
+          if (worker.state === 'redundant') reject(new Error('The offline update failed during installation'))
+          else resolve()
+        }
+        worker.addEventListener('statechange', onStateChange)
+        onStateChange()
+      })
+    } finally {
+      if (onUpdateFound) registration.removeEventListener('updatefound', onUpdateFound)
+    }
+  })
+  await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting))).toBe(true)
+}
+
 async function addItem(page: Page, name: string, count?: number) {
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Add inventory item' })
@@ -477,7 +507,15 @@ test('subpath installation stages updates without reloading an open draft', asyn
         return
       }
       let bytes = await readFile(join(process.cwd(), 'dist', relative))
-      if (relative === 'sw.js') bytes = Buffer.from(bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-test-build-${generation}';`))
+      if (relative === 'sw.js') {
+        const source = bytes.toString()
+        const fileList = source.match(/^const FILES = (.*);$/m)
+        if (!fileList) throw new Error('The offline asset list is unavailable')
+        const files = JSON.parse(fileList[1]) as string[]
+        // This journey checks update staging; full asset caching has separate offline coverage
+        const shellFiles = files.filter(file => file === 'index.html' || file === 'icon.svg' || file === 'manifest.webmanifest' || file.endsWith('.js') || file.endsWith('.css'))
+        bytes = Buffer.from(source.replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-test-build-${generation}';`).replace(/^const FILES = .*;$/m, `const FILES = ${JSON.stringify(shellFiles)};`))
+      }
       response.writeHead(200, { 'Content-Type': mimeTypes[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-store', Vary: 'Origin' })
       response.end(bytes)
     } catch {
@@ -506,8 +544,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await entry.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
     await entry.getByLabel('Item name').fill('Keep this unsaved form')
     generation = 2
-    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update() })
-    await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting))).toBe(true)
+    await stageServiceWorkerUpdate(page)
     await expect(entry.getByLabel('Item name')).toHaveValue('Keep this unsaved form')
     await entry.getByRole('button', { name: 'Cancel', exact: true }).click()
     const update = await openData(page)
@@ -532,8 +569,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await expect(page.getByText('Portable origin observation', { exact: true })).toBeVisible()
     await context.setOffline(false)
     generation = 3
-    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update() })
-    await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting))).toBe(true)
+    await stageServiceWorkerUpdate(page)
     const thirdUpdate = await openData(page)
     await thirdUpdate.getByRole('button', { name: 'Offline & storage', exact: true }).click()
     await Promise.all([
