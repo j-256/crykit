@@ -17,6 +17,7 @@ const PROJECT_DIR = dirname(SCRIPT_DIR)
 const CACHE_PATH = join(PROJECT_DIR, '.wiki-cache', 'pages.json')
 const OUTPUT_PATH = join(PROJECT_DIR, 'src', 'catalog', 'wiki-data.json')
 const STARTER_DATA_PATH = join(PROJECT_DIR, 'src', 'catalog', 'data.ts')
+const STARTER_SOURCE_URLS_PATH = join(PROJECT_DIR, 'src', 'catalog', 'source-urls.ts')
 const SWITCH_DATA_PATH = join(PROJECT_DIR, 'src', 'catalog', 'switch-data.json')
 
 const ITEM_CATEGORY_ROOTS = new Set([
@@ -1063,7 +1064,9 @@ function buildCatalog(source) {
 
 async function updateStarterDigest(wikiContentDigest) {
   const source = await readFile(STARTER_DATA_PATH, 'utf8')
-  const sourceBlock = /export const STARTER_SOURCE_URLS = \{([\s\S]*?)\n\} as const/.exec(source)?.[1]
+  // URL metadata loads independently at runtime but remains part of the same authored checksum input
+  const sourceUrls = await readFile(STARTER_SOURCE_URLS_PATH, 'utf8')
+  const sourceBlock = /export const STARTER_SOURCE_URLS = \{([\s\S]*?)\n\} as const/.exec(sourceUrls)?.[1]
   if (!sourceBlock) throw new Error('The starter source map could not be parsed')
   const sources = Object.fromEntries([...sourceBlock.matchAll(/^  "([^"]+)": "([^"]+)",$/gm)].map((match) => [match[1], match[2]]))
   const records = [...source.matchAll(/^  \["([^"]+)", "([^"]+)", "([^"]+)", "([^"]+)"\],$/gm)].map((match) => match.slice(1))

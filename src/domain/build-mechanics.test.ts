@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { testCatalogRef as ref } from './catalog.test-helpers'
 import { analyzeBuildEquipment, innateEffects, assessEquipmentPermission, buildEquipmentPermissions } from './build-mechanics'
 import { calculateBuildStats } from './build-stats'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, STAT_KEYS } from './crystal-edit'
 import { definitionWithMechanics, equipmentFacts, equipmentRole, passivePointCost } from './mechanics-facts'
-import { asId, upsertCharacterClassProgress, validateScenario } from './index'
+import { asId } from './core'
+import { upsertCharacterClassProgress } from './characters'
+import { validateScenario } from './validation'
 import { addTestBuild, addTestCharacter, addTestDefinition, addTestScenario, createTestLocalData, HAND_SLOT, known as knowledge, personalRef, SECOND_HAND_SLOT, TEST_GAME_SETUP_REVISION_ID } from './test-helpers'
-import type { BuildRevisionContent, BuildRevisionId, CatalogEntity, CatalogRef, CharacterId, EntityId, EntityRef, JsonValue, ScenarioId } from './types'
+import type { BuildRevisionContent, BuildRevisionId, CatalogEntity, CharacterId, EntityId, EntityRef, JsonValue, ScenarioId } from './types'
 
 const known = (value: JsonValue) => ({ state: 'known' as const, value })
-const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
 const job: CatalogEntity = { id: 'job' as EntityId, kind: 'class', name: 'Synthetic caster', aliases: [], fields: { [CRYSTAL_EDIT_FIELDS.equipment]: known(['Staff', 'Light Body', 'Accessory']), [CRYSTAL_EDIT_FIELDS.ratings]: known(Object.fromEntries(STAT_KEYS.map(stat => [stat, 60]))), 'Innate passive(s)': known('Synthetic bonus: Max MP +20%') }, sources: [] }
 const sword: CatalogEntity = { id: 'sword' as EntityId, kind: 'item', name: 'Synthetic sword', aliases: [], fields: { Category: known(['Swords']), Hands: known(1), Attack: known(30), 'Other effects': known('-') }, sources: [] }
 const greatsword: CatalogEntity = { ...sword, id: 'greatsword' as EntityId, name: 'Synthetic greatsword', fields: { ...sword.fields, Hands: known(2) } }

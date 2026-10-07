@@ -773,7 +773,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -1945,7 +1945,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -2597,7 +2597,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -2685,7 +2685,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -2799,7 +2799,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -3125,7 +3125,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -5150,7 +5150,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -5282,7 +5282,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -5542,7 +5542,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -7925,7 +7925,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -9852,7 +9852,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -10130,7 +10130,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -25381,7 +25381,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -25691,7 +25691,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -28597,7 +28597,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -29578,7 +29578,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -29790,7 +29790,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -29832,7 +29832,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -30504,7 +30504,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -30616,7 +30616,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -32351,7 +32351,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -33500,7 +33500,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -34336,7 +34336,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -34975,7 +34975,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -35518,7 +35518,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -36245,7 +36245,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -39212,7 +39212,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -39389,7 +39389,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -40703,7 +40703,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -41211,7 +41211,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -41680,7 +41680,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42268,7 +42268,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42359,7 +42359,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42580,7 +42580,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42701,7 +42701,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42833,7 +42833,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -42851,7 +42851,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -43196,7 +43196,7 @@
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -43907,7 +43907,7 @@
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
         "docs/catalog-sources.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1"
@@ -55283,7 +55283,7 @@
       "reason": "Reviewed IDs and format facts can corroborate fields; upstream attribution and format documentation remain",
       "files": [
         "docs/catalog-sources.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -55304,7 +55304,7 @@
       "reason": "Reviewed IDs and format facts can corroborate fields; upstream attribution and format documentation remain",
       "files": [
         "docs/catalog-sources.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -55323,7 +55323,7 @@
       "reason": "Reviewed IDs and format facts can corroborate fields; upstream attribution and format documentation remain",
       "files": [
         "docs/catalog-sources.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -68428,7 +68428,7 @@
       "reason": "Windows code cannot establish Nintendo packaging, publisher terms, or Switch version parity",
       "files": [
         "docs/catalog-sources.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",
@@ -68452,7 +68452,7 @@
       "files": [
         "docs/catalog-sources.md",
         "docs/mods.md",
-        "src/catalog/data.ts"
+        "src/catalog/source-urls.ts"
       ],
       "catalogs": [
         "crystal-project-public-starter@catalog-v1",

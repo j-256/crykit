@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { TEST_CATALOG_ID, TEST_CATALOG_REVISION_ID, testCatalogRef as ref } from './catalog.test-helpers'
 import { validateBuildContent } from './build-validity'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
-import type { BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef, JsonValue, GameSetupRevision } from './types'
+import type { BuildRevisionContent, CatalogEntity, EntityId, EntityRef, JsonValue, GameSetupRevision } from './types'
 
 const known = <Value extends JsonValue>(value: Value) => ({ state: 'known' as const, value })
-const ref = (id: string): CatalogRef => ({ kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as EntityId })
 const passive = (id: string, cost?: number): CatalogEntity => ({
   id: id as EntityId,
   kind: 'passive',
@@ -20,7 +19,7 @@ const passive = (id: string, cost?: number): CatalogEntity => ({
 const unavailable = { ...passive('unavailable'), kind: 'innate' as const, ppCost: { state: 'notApplicable' as const, reason: 'Not made learnable by this Game Setup' } }
 const definitions = [passive('four', 4), passive('six', 6), passive('seven', 7), passive('unknown'), unavailable]
 const resolve = (reference: EntityRef) => reference.kind === 'catalog' ? definitions.find(definition => definition.id === reference.entityId) : undefined
-const gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, ppLimit: known(10), ppCostsNonNegative: known(true) }
+const gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> = { catalogLock: { [TEST_CATALOG_ID]: TEST_CATALOG_REVISION_ID }, ppLimit: known(10), ppCostsNonNegative: known(true) }
 const content = (...ids: string[]): BuildRevisionContent => ({ primaryClass: null, secondaryClass: null, equipment: {}, passives: ids.map(id => ({ ref: ref(id) })), contextAssumptions: [] })
 
 describe('character-independent build validity', () => {

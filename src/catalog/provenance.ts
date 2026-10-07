@@ -1,5 +1,5 @@
 import type { CatalogEntity } from '../domain/types'
-import { STARTER_SOURCE_URLS } from './data'
+import { STARTER_SOURCE_URLS } from './source-urls'
 import { SWITCH_CLASS_SOURCE, SWITCH_PASSIVE_PP_SOURCE } from './switch'
 
 const FIXED_SOURCE_LABELS: Readonly<Record<string, string>> = Object.freeze({

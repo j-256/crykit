@@ -7,6 +7,7 @@ import { previewPlugin } from './scripts/preview-plugin.ts'
 
 const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
+// Browsers share the local verification workload, so increasing this budget also consumes their headroom
 const LOCAL_TEST_WORKERS = '25%'
 const DOM_TEST_FILES = [
   'src/interchange/xlsx.test.ts',

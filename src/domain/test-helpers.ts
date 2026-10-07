@@ -1,17 +1,8 @@
-import {
-  addGameSetupRevision,
-  asId,
-  asTimestamp,
-  captureCharacter,
-  createBlankLocalData,
-  createBuild,
-  createCharacter,
-  createPersonalDefinition,
-  createPlaythrough,
-  createScenario,
-  saveBuildRevision,
-  TEAM_SIZE,
-} from './index'
+import { asId, asTimestamp } from './core'
+import { createBuild, saveBuildRevision } from './builds'
+import { captureCharacter, createCharacter } from './characters'
+import { addGameSetupRevision, createBlankLocalData, createPersonalDefinition, createPlaythrough } from './local-data'
+import { createScenario, TEAM_SIZE } from './scenarios'
 import type {
   BuildId,
   BuildRevisionId,

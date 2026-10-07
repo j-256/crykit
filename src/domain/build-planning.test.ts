@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { STARTER_CATALOG } from '../catalog'
+import { TEST_CATALOG_ID, TEST_CATALOG_REVISION_ID, testCatalogRef } from './catalog.test-helpers'
 import { createBuildPlan, ensureBuildPlanningGameSetup, SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { createBlankLocalData, updateGameSetupRevision } from './local-data'
 import { createTestLocalData } from './test-helpers'
 import { difficultyHitChance, resolveGameRules } from './game-rules'
-import type { BuildRevisionContent, CatalogRef } from './types'
+import type { BuildRevisionContent } from './types'
 
-const catalogLock = { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }
-const item = Object.values(STARTER_CATALOG.entities).find((entity) => entity.name === 'Muramasa')!
-const ref: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: item.id }
+const catalogLock = { [TEST_CATALOG_ID]: TEST_CATALOG_REVISION_ID }
+const ref = testCatalogRef('synthetic-equipment')
 const content: BuildRevisionContent = { primaryClass: null, secondaryClass: null, equipment: { [SUGGESTED_BUILD_SLOTS[0]!.id]: { ref } }, passives: [], contextAssumptions: [] }
 
 describe('build planning without observations', () => {
