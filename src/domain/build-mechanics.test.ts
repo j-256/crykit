@@ -122,7 +122,7 @@ describe('equipment planning from source facts', () => {
 describe('native numeric input boundaries', () => {
   it('keeps community descriptions and ratings available as facts without treating them as native numeric inputs', () => {
     const result = calculateBuildStats(base, SUGGESTED_BUILD_SLOTS, resolve)
-    expect(result.issues).toContain('Primary class has no verified numeric record.')
+    expect(result.issues).toContain("No verified numeric data for the primary class.")
     expect(Object.values(result.stats).every(stat => stat.value === null)).toBe(true)
     expect(passivePointCost({ ...passive, fields: { 'Crystal Edit source record': known({ PP: 0 }) } })).toMatchObject({ state: 'known', value: 0 })
   })

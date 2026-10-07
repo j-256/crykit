@@ -46,11 +46,11 @@ export function StorageSection({ localData, dirty, saving, saveError, onExport, 
   }
 
   return <div className="stack">
-    {saveError && <InlineNotice title="Local save failed" tone="danger"><ErrorMessage message={saveError}/> The retained transaction is included in a recovery backup. Fields still only in an unsubmitted form are not included.</InlineNotice>}
-    {dirty && <InlineNotice title="Unsaved changes" tone="warning">Save or submit open form fields before exporting. Backups include retained failed-save transactions, but not fields that still exist only in a form.</InlineNotice>}
+    {saveError && <InlineNotice title="Local save failed" tone="danger"><ErrorMessage message={saveError}/> A recovery backup includes pending changes from failed saves, but excludes unsubmitted form fields.</InlineNotice>}
+    {dirty && <InlineNotice title="Unsaved changes" tone="warning">Save any open forms before exporting. Backups include pending changes from failed saves, but exclude unsubmitted fields.</InlineNotice>}
     {storageError && <div aria-label="Storage navigation warning" ref={noticeRef} role="region" tabIndex={-1}><InlineNotice title={storageError === APP_REFRESH_PENDING_MESSAGE ? 'App refresh is still in progress' : 'Storage operation failed'} tone={storageError === APP_REFRESH_PENDING_MESSAGE ? 'warning' : 'danger'}>{storageError}</InlineNotice></div>}
     <section className="settings-section">
-      <div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Export planner data for recovery or transfer. Download Mod Inspector originals and drafts, and edited game saves, separately.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>
+      <div className="split"><div><h3>Portable backup</h3><p className="settings-section__intro">Back up your planner data. Download Mod Inspector files and edited game saves separately.</p></div><Button disabled={busy} icon="download" onClick={() => void exportNow()}>Export backup</Button></div>
       {exportError && <InlineNotice title="Export failed" tone="danger">{exportError}</InlineNotice>}
     </section>
     <section className="settings-section">
@@ -62,7 +62,7 @@ export function StorageSection({ localData, dirty, saving, saveError, onExport, 
       {(dirty || saving || saveError) && <p className="settings-section__intro">Save or discard changes and resolve any failed save before refreshing.</p>}
     </section>
     <section className="settings-section">
-      <div className="split"><div><h3>Help keep data on this device</h3><p className="settings-section__intro">Ask your browser to keep CryKit's saved data when storage is low. Keep a separate backup; clearing site data still removes your records.</p></div>{persisted !== undefined && <Badge icon={persisted ? 'shield' : 'info'} tone={persisted ? 'positive' : 'neutral'}>{persisted ? 'Storage protection granted' : 'Browser did not grant protection'}</Badge>}</div>
+      <div className="split"><div><h3>Help keep data on this device</h3><p className="settings-section__intro">Ask your browser to protect saved data when storage is low. Keep a backup too; clearing site data still removes your records.</p></div>{persisted !== undefined && <Badge icon={persisted ? 'shield' : 'info'} tone={persisted ? 'positive' : 'neutral'}>{persisted ? 'Storage protection granted' : 'Browser did not grant protection'}</Badge>}</div>
       <Button disabled={busy} icon="shield" onClick={() => void runStorageOperation('persist', async () => setPersisted(await requestPersistentStorage()))} tone="secondary">Ask browser to keep data</Button>
     </section>
   </div>

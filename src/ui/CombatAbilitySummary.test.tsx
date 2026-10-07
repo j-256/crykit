@@ -41,7 +41,7 @@ describe('combat ability summary', () => {
     expect(markup).toContain('<dt>Base scope</dt><dd>Multiple targets</dd>')
     expect(markup).toContain('<dt>Ability element</dt><dd>Ice</dd>')
     expect(markup).toContain('Base power: 250 HP')
-    expect(markup).toContain('Additional effects are recorded; a supported description is unavailable.')
+    expect(markup).toContain("This ability has additional effects. Check the battle results; no description is available.")
     expect(markup).not.toContain('1,000')
     expect(markup).not.toContain('Never misses')
   })
@@ -58,7 +58,7 @@ describe('combat ability summary', () => {
     const markup = render(cutsRef, [withAbility({ ...cuts, fields })])
     expect(markup).toContain('<dt>Type</dt><dd>Unknown</dd>')
     expect(markup).toContain('<dt>Ability element</dt><dd>Unknown</dd>')
-    expect(markup).toContain('Supported ability details are unavailable')
+    expect(markup).toContain("Ability details are unavailable")
     expect(markup).not.toContain('1,000')
   })
 

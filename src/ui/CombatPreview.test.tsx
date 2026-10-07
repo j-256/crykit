@@ -31,7 +31,7 @@ it('imports duplicate historical status assumptions once while preserving active
   const onChange = vi.fn<(value: BuildCalculationPlan | undefined) => void>()
   const content = { primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: plan }
   await act(async () => root.render(<CombatPreview content={content} localData={localData} catalogs={[DEFAULT_CATALOG]} slots={[]} onChange={onChange}/>))
-  const button = [...container.querySelectorAll('button')].find(button => button.textContent === 'Use retained statuses in scenario')!
+  const button = [...container.querySelectorAll('button')].find(button => button.textContent === 'Use saved statuses in scenario')!
   await act(async () => button.click())
   const changed = onChange.mock.calls[0]![0]!
   expect(changed.battle!.statuses).toEqual([{ ref: first, count: 3 }, { ref: second, count: null }])

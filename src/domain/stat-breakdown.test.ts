@@ -79,7 +79,7 @@ describe('stat contributions and gender selection', () => {
     const unsupported = { ...modelLess, calculation: { ...modelLess.calculation, bonuses: ['MP' as const] } }
     const estimate = calculateBuildStats(unsupported, SUGGESTED_BUILD_SLOTS, resolve)
     expect(estimate.stats.MP.value).toBeNull()
-    expect(estimate.issues).toContain('Per-stat bonus assumptions are outside the native gender comparisons.')
+    expect(estimate.issues).toContain("Custom stat bonuses are not supported by gender comparisons.")
     expect(modelLess).toEqual(before)
     expect(() => validateCalculationPlan({ ...modelLess.calculation, gender: 'invalid' as BuildCalculationPlan['gender'] }, () => undefined)).toThrow('Unsupported calculation gender')
   })

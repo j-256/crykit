@@ -39,7 +39,7 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await page.getByRole('button', { name: 'Loadout', exact: true }).click()
   await choose(page, 'Equipped passive 1', 'Equip Sword')
   await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
-  await expect(mechanics.getByText('No conflict found in the supported equipment checks.')).toBeVisible()
+  await expect(mechanics.getByText("No known equipment conflicts.")).toBeVisible()
   await page.getByRole('button', { name: 'Loadout', exact: true }).click()
   await page.getByLabel('Calculation level', { exact: true }).fill('20')
   await page.getByText(/^Level-up growth/).click()

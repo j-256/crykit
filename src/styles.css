@@ -504,6 +504,22 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-sheet__group, .loadout-stats { scroll-margin-top: calc(var(--desktop-header-height) + 16px); }
 .build-sheet__group { display: grid; gap: 6px; }
 .build-sheet__group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--cyan-500); color: var(--text-dim); font-size: .85rem; }
+.primary-class-growth { min-width: 0; padding-block: 8px 16px; }
+.primary-class-growth h4 { margin: 0 0 8px; color: var(--text); font-size: .85rem; }
+.primary-class-growth .sources-attached, .primary-class-growth .sources-anchor { width: 100%; }
+.command-abilities { min-width: 0; }
+.command-abilities__heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0 8px; }
+.command-abilities h4 { margin: 0; font-size: .85rem; }
+.command-abilities__heading > small { flex-shrink: 0; color: var(--text-dim); font-size: .7rem; }
+.command-abilities ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ability-preview { display: block; }
+.ability-preview__trigger { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; color: var(--text); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; text-align: left; }
+.ability-preview__trigger:hover, .ability-preview__trigger:focus-visible, .ability-preview__trigger[aria-expanded="true"] { border-color: var(--line-strong); background: var(--selection); }
+.ability-preview__trigger > span:nth-child(2) { overflow-wrap: anywhere; font-size: .8rem; }
+.ability-preview__trigger > small { max-width: 120px; color: var(--cyan-300); font-size: .72rem; text-align: right; }
+.ability-preview__popup { position: fixed; inset: auto; margin: 0; padding: 12px 14px; overflow-y: auto; overscroll-behavior: contain; color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--ink-900); box-shadow: var(--shadow); font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+.ability-preview__popup > strong { display: block; margin-bottom: 8px; color: var(--cyan-300); }
+.ability-preview__popup > p { margin: 6px 0 0; }
 .build-sheet__equipment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
 .build-sheet__equipment .build-field { grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .build-sheet__equipment .build-field__evidence { grid-column: 1; }

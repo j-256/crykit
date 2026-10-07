@@ -13,10 +13,10 @@ import { battleCalculationSummary } from './battle-calculation-summary'
 
 const GAME_SETUP_SETTINGS_ROUTE: AppRoute = { page: { page: 'settings', section: 'playthrough' }, overlays: [], query: {} }
 const RECORDED_MOD_EXPLANATIONS: Readonly<Record<DefinitionModAvailability['state'], string>> = {
-  unknown: 'This snapshot does not record whether that mod was enabled in your game.',
-  conflicting: 'This snapshot contains conflicting records about whether that mod was enabled in your game.',
-  enabled: 'This snapshot records that mod as enabled in your game.',
-  disabled: 'This snapshot records that mod as disabled in your game. Your recorded selection is still kept.',
+  unknown: 'This snapshot does not record whether the mod was enabled.',
+  conflicting: 'This snapshot has conflicting records about whether the mod was enabled.',
+  enabled: 'The mod was recorded as enabled.',
+  disabled: 'The mod was recorded as disabled. This selection is kept as recorded.',
 }
 
 interface RecordedContext {
@@ -34,8 +34,8 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
   if (!availability.requiredMod) return null
   return <details className={`recorded-sources recorded-mod ${className}`}>
     <summary><ModBadge name={availability.requiredMod} state={availability.state}/></summary>
-    <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check whether a selection fits its slot.</p>
-    <p>Choose updated rules in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Playthrough game settings</a>, then capture a new character snapshot. Create or edit rules under Saved setups. Existing snapshots keep their recorded mod settings.</p>
+    <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check slot compatibility.</p>
+    <p>Choose updated rules in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Playthrough game settings</a>, then capture a new character snapshot. Edit rules under Saved setups. Earlier snapshots keep their mod settings.</p>
   </details>
 }
 
@@ -46,7 +46,7 @@ function DefinitionLink({ localData, catalogs, gameSetup, value, showIdentity }:
   const entity = resolveEntity(localData, catalogs, value)
   const showSources = showIdentity && (value.kind === 'personal' || !entity || externalSources(entity.sources).length > 0)
   const link = <a href={navigation.href(route)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(route) } }}>{entityName(localData, catalogs, value)}</a>
-  return <div className="recorded-definition">{showSources ? <Sources anchor={link} label={`Sources for ${entityName(localData, catalogs, value)}`}><small>{value.kind === 'personal' ? `Personal definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></Sources> : link}<RecordedModStatus availability={availability}/></div>
+  return <div className="recorded-definition">{showSources ? <Sources anchor={link} label={`Sources for ${entityName(localData, catalogs, value)}`}><small>{value.kind === 'personal' ? `Custom definition: ${value.definitionId}` : `Catalog: ${value.catalogId} · revision: ${value.catalogRevisionId} · entry: ${value.entityId}`}</small></Sources> : link}<RecordedModStatus availability={availability}/></div>
 }
 
 function RecordedKnowledge<T>({ value, format }: { readonly value: Knowledge<T>; readonly format: (value: T) => ReactNode }) {
@@ -87,13 +87,13 @@ export function CharacterSheet({ localData, catalogs, snapshot, onEditSlot }: Re
     <dl className="recorded-summary">{summary.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd><SnapshotValueView {...context} value={value}/></dd></div>)}</dl>
     <details className="recorded-sources"><summary>Recorded mods</summary><p>{gameSetup ? `${gameSetup.label} · revision ${gameSetup.revision}` : 'Game Setup context unrecorded'}</p><dl className="definition-list"><div className="definition-row"><dt>Enabled mods</dt><dd><RecordedKnowledge value={gameSetup?.mods ?? { state: 'unknown' }} format={names => names.join(', ') || 'None'}/></dd></div><div className="definition-row"><dt>Disabled mods</dt><dd><RecordedKnowledge value={gameSetup?.disabledMods ?? { state: 'unknown' }} format={names => names.join(', ') || 'None'}/></dd></div></dl></details>
     <div className="recorded-sheet__columns">
-      <section aria-label="Displayed final stats"><h3>Displayed final stats</h3><p className="settings-section__intro">Saved in-game totals</p>{Object.keys(snapshot.displayedStats).length ? <dl className="recorded-stats">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView {...context} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl> : <p className="recorded-empty">No displayed stats recorded. Unlisted values remain unrecorded.</p>}</section>
+      <section aria-label="Displayed final stats"><h3>Displayed final stats</h3><p className="settings-section__intro">Saved in-game totals</p>{Object.keys(snapshot.displayedStats).length ? <dl className="recorded-stats">{Object.entries(snapshot.displayedStats).map(([key, stat]) => <div key={key}><dt>{key}</dt><dd><SnapshotValueView {...context} value={{ kind: 'number', ...stat }}/></dd></div>)}</dl> : <p className="recorded-empty">No in-game stats recorded.</p>}</section>
       <section aria-label="Equipment and equipped passives"><h3>Equipment & passives</h3><p className="settings-section__intro">{gameSetup ? `${gameSetup.label} · revision ${gameSetup.revision}` : 'Slot context was not recorded'}</p>
-        {!gameSetup && <p className="recorded-context-warning">Stored slot IDs are shown without labels from another Game Setup.</p>}
+        {!gameSetup && <p className="recorded-context-warning">Slot labels were not recorded. Saved IDs are shown instead.</p>}
         {slots.length ? <div className="recorded-slots">{slots.map((slot) => <div className="recorded-slot" key={slot.id}><div><span className="slot__label">{slot.label}{slot.kind === 'unmapped' && gameSetup && <small>Outside recorded slot context</small>}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: slot.selection }}/></div></div>{onEditSlot && gameSetup?.id === localData.planningGameSetupRevisionId && slot.kind !== 'unmapped' && <IconButton icon="edit" label={`Edit ${slot.label}`} onClick={() => onEditSlot(slot.id)}/>}</div>)}</div> : <p className="recorded-empty">No equipment selections recorded.</p>}
         <div className="recorded-slots">{snapshot.passives.state === 'known' ? snapshot.passives.value.length ? snapshot.passives.value.map((ref, index) => <div className="recorded-slot" key={`${entityName(localData, catalogs, ref)}:${index}`}><div><span className="slot__label">Equipped passive {index + 1}</span><div className="slot__value"><SnapshotValueView {...context} value={{ kind: 'selection', value: ref }}/></div></div></div>) : <p className="recorded-empty">No passives equipped.</p> : <p className="recorded-empty">Equipped passive list is {snapshot.passives.state === 'notApplicable' ? 'not applicable' : snapshot.passives.state}.</p>}</div>
       </section>
     </div>
-    {onEditSlot && snapshot.gameSetupRevisionId !== localData.planningGameSetupRevisionId && <InlineNotice title="Slot context has changed">Capture a new snapshot to record selections under the current Game Setup. The earlier selections remain in this snapshot.</InlineNotice>}
+    {onEditSlot && snapshot.gameSetupRevisionId !== localData.planningGameSetupRevisionId && <InlineNotice title="Slot context has changed">Capture a new snapshot to use the current Game Setup. This snapshot keeps its original equipment.</InlineNotice>}
   </div>
 }

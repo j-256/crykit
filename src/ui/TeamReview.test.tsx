@@ -14,7 +14,7 @@ describe('Team review', () => {
     expect(markup).toContain('Saved draft Team')
     expect(markup).toContain('1/4 slots filled')
     expect(markup).toContain('member still needs')
-    expect(markup).toContain('Empty slots do not prevent saving a Team')
+    expect(markup).toContain("Teams can be saved with empty slots.")
   })
 
   it('counts both hands occupied by a two-handed weapon while retaining unresolved checks', () => {

@@ -124,7 +124,7 @@ describe('effective build combat previews', () => {
     const selected = content(battle({ targetStatuses: [{ ref: status, count: 3 }] }))
     const result = calculateBuildCombatPreview(selected, SUGGESTED_BUILD_SLOTS, withAutomatic, rules)
     expect(result.maxima.target?.hp).toBe(600)
-    expect(result.issues).not.toContain('Automatic status application changes other statuses; select the resulting active statuses explicitly to resolve their effects.')
+    expect(result.issues).not.toContain("Automatic statuses change other statuses. Select the statuses that are active afterward.")
   })
 
   it('does not silently ignore unavailable statuses, unknown targets, or overflowing resource modifiers', () => {

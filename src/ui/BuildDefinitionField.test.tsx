@@ -86,7 +86,7 @@ describe('Build picker interaction', () => {
     expect(container.querySelector('.build-picker-group-heading')?.textContent).toBe('Other abilities')
     await render({ priorityGroups, query: 'No matching ability' })
     expect(container.querySelector('[role="group"]')).toBeNull()
-    expect(container.textContent).toContain('No matching definitions')
+    expect(container.textContent).toContain("No matches. Try another name, stat, or effect, or change Search filters.")
     await render()
     expect(container.querySelector('[role="group"]')).toBeNull()
     expect(results()[0]!.textContent).toContain(first.name)
@@ -177,7 +177,7 @@ describe('Build picker interaction', () => {
     expect(container.querySelector('.build-picker-filters > summary')?.textContent).toContain('1 active')
     await render({ value: unavailable.ref })
     expect(results().some(result => result.textContent?.includes(unavailable.name))).toBe(true)
-    expect(container.textContent).toContain('This existing selection is retained')
+    expect(container.textContent).toContain("Your selection is kept.")
     expect(props.onChange).not.toHaveBeenCalled()
   })
 
@@ -193,7 +193,7 @@ describe('Build picker interaction', () => {
     const buildContent = { primaryClass: null, secondaryClass: null, equipment: {}, passives: [{ ref: first.ref }], contextAssumptions: [] }
     const props = await render({ passiveIndex: 1, buildContent, query: first.name })
     expect(results()).toHaveLength(0)
-    expect(container.textContent).toContain('That passive is already selected in another slot')
+    expect(container.textContent).toContain("That passive is already equipped. Clear its other slot or choose another.")
     expect(props.onChange).not.toHaveBeenCalled()
 
     await render({ passiveIndex: 0, buildContent, query: first.name, value: first.ref })

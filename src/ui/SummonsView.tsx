@@ -85,12 +85,12 @@ export function SummonsView({ localData, catalogs, onToggle, focusedRecordId }: 
   const unlockedCount = displayed.filter(entry => entry.unlocked).length
   const uncertainCount = displayed.filter(entry => entry.uncertain).length
   const failedEntry = displayed.find(entry => entry.summon.id === failure?.id)
-  return <ProgressPage count={unlockedCount} notices={failure && <InlineNotice title="Summon not saved" tone="danger">{failure.message} After queued clicks finish, the tile shows its saved state. <Button disabled={queuedUpdates.has(failure.id)} onClick={() => toggle(failure.id, failedEntry?.unlocked ?? false)} tone="secondary">Retry summon</Button></InlineNotice>} summaryNote={uncertainCount ? `${uncertainCount} imported observations need confirmation` : undefined} total={SUMMONS.length} variant="summons">
+  return <ProgressPage count={unlockedCount} notices={failure && <InlineNotice title="Summon not saved" tone="danger">{failure.message} Once saving finishes, the tile shows its saved state. <Button disabled={queuedUpdates.has(failure.id)} onClick={() => toggle(failure.id, failedEntry?.unlocked ?? false)} tone="secondary">Retry summon</Button></InlineNotice>} summaryNote={uncertainCount ? `${uncertainCount} imported observations need confirmation` : undefined} total={SUMMONS.length} variant="summons">
     {entries.length !== SUMMONS.length && <InlineNotice title="Summon references unavailable" tone="warning">Restore the bundled catalog to record every summon.</InlineNotice>}
     <section aria-label="Summoner skill tree" className="summons-board">
       <div className="summons-board__heading"><h2>Summons</h2><p>Click a gray tile to mark it unlocked. Click a gold tile to undo. Pinga stays unlocked.</p></div>
       <ol aria-label="Summons" className="summons-tree">{displayed.map(entry => <SummonTile artwork={entry.artwork} deityRef={entry.deityRef} focused={focusedRecordId !== undefined && entry.record?.id === focusedRecordId} key={entry.summon.id} onToggle={toggle} pending={queuedUpdates.has(entry.summon.id)} skillRef={entry.subject} summon={entry.summon} uncertain={entry.uncertain} unlocked={entry.unlocked}/>)}</ol>
     </section>
-    <p className="summons-footnote">Pinga is the starting summon and is always unlocked. For the others, defeat the deity with a Summoner in your party to unlock its skill. Mark availability for this Playthrough; the other tiles start gray until you mark them. Character learning is recorded separately.</p>
+    <p className="summons-footnote">Pinga is always unlocked. Unlock the others by defeating each deity with a Summoner in your party. Character learning is tracked separately.</p>
   </ProgressPage>
 }

@@ -60,6 +60,6 @@ export function CombatStatusImpact({ choices, selected, impact, onSelect }: {
     {choices.length > 1 ? <Field label="Compare active status"><select value={selected.key} onChange={event => onSelect(event.target.value)}>{choices.map(choice => <option value={choice.key} key={choice.key}>{choice.name} ({choice.recipient === 'user' ? 'your character' : 'target'})</option>)}</select></Field> : <strong className="combat-impact__name">{selected.name}</strong>}
     {changed.length > 0 ? <dl className="combat-impact__metrics">{changed.map(metric => <ImpactRow metric={metric} name={selected.name} automatic={impact.automaticStatus !== 'none'} key={metric.key}/>)}</dl> : <p className="field__hint">{unknown ? 'No known change to this ability\'s damage, chances, or costs. Some outcomes are unresolved.' : 'No change to this ability\'s damage, chances, or costs.'}</p>}
     {impact.notes.map(note => <p className="field__hint" key={note}>{note}</p>)}
-    <p className="field__hint">Same Build, target and other conditions. Each comparison removes one selected status; differences are not additive.</p>
+    <p className="field__hint">Removes one status at a time, keeping other conditions the same. The differences do not add together.</p>
   </section>
 }

@@ -75,7 +75,7 @@ test('character learning and nested definition routes restore exact UI state', {
   await expect(page).toHaveURL(/\/snapshots\/new\/pick\/primary-class/)
   await picker.getByRole('searchbox', { name: 'Search available definitions', exact: true }).fill('Synthetic route class')
   await picker.getByRole('button', { name: 'Create "Synthetic route class"', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   await expect(page).toHaveURL(/\/pick\/primary-class\/definitions\/new/)
 
   await page.goBack()

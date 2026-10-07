@@ -72,11 +72,11 @@ test('definition search is ready for typing on opening, reopening, and direct li
 test('backdrop dismissal closes only the top layer and respects unsaved definition guards', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.setViewportSize(BACKDROP_VIEWPORT)
   await page.goto('/#/inventory/new/pick/item-definition/definitions/new?q=Synthetic')
-  const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   const picker = page.getByRole('dialog', { name: 'Choose Item definition', exact: true })
   const observation = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
   await expect(editor).toBeVisible()
-  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('dialog')?.querySelector('h2')?.textContent)).toBe('Create personal definition')
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('dialog')?.querySelector('h2')?.textContent)).toBe('Create custom definition')
   await editor.getByRole('textbox', { name: 'Definition name', exact: true }).fill('Retain this synthetic definition')
   await clickOutside(page, editor, isMobile)
   await expect(editor.getByText('Definition draft still open', { exact: true })).toBeVisible()

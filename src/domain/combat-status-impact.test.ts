@@ -86,7 +86,7 @@ describe('active status impact comparisons', () => {
     const result = compare(selected, source)
     expect(result.current.damage).toBe(1278)
     expect(result.without.damage).toBe(947)
-    expect(result.notes).toContain('References to this same effective status were removed together.')
+    expect(result.notes).toContain("All selections of this status were removed together.")
   })
 
   it('uses one actor choice for self-targeting and changes both sides of the shared battler', () => {

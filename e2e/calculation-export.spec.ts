@@ -80,7 +80,7 @@ test.describe('failed package downloads', () => {
     await expect(page.getByRole('alert')).toContainText(/fetch|load|import/i)
     await expect(
       page.getByText(
-        'Save any pending edits, restore your connection, and reload the page before trying again. Offline preparation includes the calculation package.',
+        "Save your edits, reconnect, and reload before retrying. Preparing offline use also downloads the calculation package.",
       ),
     ).toBeVisible()
     await expect(button).toBeEnabled()

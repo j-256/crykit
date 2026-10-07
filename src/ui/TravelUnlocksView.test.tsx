@@ -68,7 +68,7 @@ describe('travel acquisition certainty and identity', () => {
     expect(onSetAcquired).toHaveBeenCalledWith(SUBJECT, 'Treasure Finder', false)
   })
 
-  it('links to a preferred personal definition while retaining the existing acquisition subject', async () => {
+  it('links to a preferred custom definition while retaining the existing acquisition subject', async () => {
     let localData = setAcquisitionProgress(createTestLocalData(), { subject: SUBJECT, displayName: 'Treasure Finder', acquired: true })
     const override = savedCatalogVersion(localData, BUNDLED_CATALOGS, { sourceRef: SUBJECT, name: 'Personal chest finder' })
     localData = override.localData

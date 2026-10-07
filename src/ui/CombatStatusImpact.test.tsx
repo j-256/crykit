@@ -29,7 +29,7 @@ describe('combat status impact', () => {
     expect(metric(markup, 'criticalDamage')).toContain('>+500</span>')
     expect(markup).not.toContain('data-metric="hitChance"')
     expect(markup).not.toContain('data-metric="AP"')
-    expect(markup).toContain('differences are not additive')
+    expect(markup).toContain("The differences do not add together.")
   })
 
   it('labels healing as positive magnitudes and shows the change in healing amount', () => {

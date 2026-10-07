@@ -40,24 +40,23 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
   const numberInput = (value: string) => value.trim() ? Number(value) : null
   const hasSelections = Object.values(content.equipment).some(Boolean) || content.passives.length > 0
   return <section aria-label="Build mechanics" className="build-mechanics stack">
-    <div><h3>Equipment checks</h3><details className="equipment-check-coverage"><summary>What these checks cover</summary><p>Primary-class permissions, equipment roles, shared copies, and known unique-item restrictions. Sub-commands grant equipment permissions only when an explicit effect says so.</p></details>
-      {equipment.length ? <ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}</li>)}</ul> : <p role="status">{hasSelections ? 'No conflict found in the supported equipment checks.' : 'Add equipment to check this build.'}</p>}
+    <div><h3>Equipment checks</h3><details className="equipment-check-coverage"><summary>What these checks cover</summary><p>Checks class permissions, equipment slots, shared copies, and unique items. Sub-commands grant permissions only through an explicit effect.</p></details>
+      {equipment.length ? <ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}</li>)}</ul> : <p role="status">{hasSelections ? 'No known equipment conflicts.' : 'Add equipment to check this build.'}</p>}
     </div>
-    <p>Native calculated stats and growth are on the Loadout tab.</p>
     <details><summary>Ability and hit-chance preview</summary><div className="stack">
       <CombatPreview content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
       <details className="combat-reference"><summary>Formula reference</summary><div className="stack">
         {abilityScope.issues.size > 0 && <InlineNotice title="Ability preview unresolved">{[...abilityScope.issues].join(' ')}</InlineNotice>}
-        {ability ? <AbilityFormulaReference ability={ability} abilityName={abilityDefinition?.name ?? 'Selected ability'} definition={abilityDefinition} numericRecord={abilityRecord}/> : <p className="field__hint">Choose an ability above to inspect its coefficient stage and learning requirements.</p>}
+        {ability ? <AbilityFormulaReference ability={ability} abilityName={abilityDefinition?.name ?? 'Selected ability'} definition={abilityDefinition} numericRecord={abilityRecord}/> : <p className="field__hint">Choose an ability to see its base power and learning costs.</p>}
       </div></details>
       <details className="hit-chance-calculator"><summary>Base hit-chance calculator</summary><div className="stack">
-        <p className="field__hint">Try a target evasion value against this Build's accuracy. This separate estimate does not change the battle target above.</p>
+        <p className="field__hint">Compare this Build's accuracy with an evasion value. This does not change the battle target.</p>
         <div className="hit-chance-calculator__flow">
           <div className="hit-chance-calculator__accuracy"><span>Build accuracy</span><strong>{formatStatRange(accuracy)}</strong></div>
           <Field label="Target evasion">{onChange ? <input aria-label="Target evasion" min="0" onChange={event => update({ targetEvasion: numberInput(event.target.value) })} type="number" value={plan?.targetEvasion ?? ''}/> : <strong>{plan?.targetEvasion ?? 'Unknown'}</strong>}</Field>
           <div className="hit-chance-calculator__result" aria-label="Base physical hit chance"><span><Icon name="compass"/>Base physical hit chance: </span><strong>{hitChance === null ? 'Unknown' : `${hitChance}%`}</strong></div>
         </div>
-        <p className="field__hint">Zero evasion yields 100%. This curve excludes ability accuracy, hit modifiers, guaranteed overrides, difficulty, Luck and miss protection. The target-specific result is in the battle preview.</p>
+        <p className="field__hint">Zero evasion gives 100%. This estimate excludes ability accuracy, hit modifiers, guaranteed hits or misses, difficulty, Luck, and miss protection. Use the battle preview for a specific target.</p>
       </div></details>
     </div></details>
   </section>

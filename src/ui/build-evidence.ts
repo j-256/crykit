@@ -210,7 +210,7 @@ export function nativeStatSourceNotice(record: Definition): string | undefined {
     const fact = numericSummaryFact(line)
     return fact && native.some(candidate => sameStat(candidate, fact) && candidate.value !== fact.value)
   })
-  return differs ? `Source stat values differ; ${nativeGameplayScopeLabel(NATIVE_GAME_DATA.source.platform, NATIVE_GAME_DATA.source.gameVersion)} values shown. Original claims are in provenance.` : undefined
+  return differs ? `Source stat values differ; ${nativeGameplayScopeLabel(NATIVE_GAME_DATA.source.platform, NATIVE_GAME_DATA.source.gameVersion)} values shown. Original values are in Sources.` : undefined
 }
 
 export function definitionChoiceSourceLabel(option: DefinitionOption): string {

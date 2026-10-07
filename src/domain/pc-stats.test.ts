@@ -144,7 +144,7 @@ describe('native sheet calculations', () => {
     expect(calculatePCStats(content(), SUGGESTED_BUILD_SLOTS, resolve, [], true).issues).toEqual([])
     const mimic = calculatePCStats(content(ref('base:job:22')), SUGGESTED_BUILD_SLOTS, resolve, [], true)
     expect(mimic.neutral.HP).toBeNull()
-    expect(mimic.issues).toContain('Secondary class is unknown and its innates affect this loadout.')
+    expect(mimic.issues).toContain("Record the secondary class to calculate its innate effects.")
   })
   it('keeps automatic battle-start effects separate from resting totals', () => {
     const knife = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === 'Ambush Knife')!

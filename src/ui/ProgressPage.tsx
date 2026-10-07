@@ -20,7 +20,7 @@ const VARIANTS: Readonly<Record<ProgressVariant, {
   seals: {
     title: 'Progress',
     eyebrow: 'Class mastery seals',
-    description: 'Track each vanilla class from crystal unlock through mastery-seal collection for this playthrough.',
+    description: 'Mark class unlocks, mastery, and collected seals.',
     icon: <img alt="" decoding="async" src={classSealUrl}/>,
     summaryLabel: 'Class mastery seal totals',
     countLabel: 'Seals acquired',
@@ -28,7 +28,7 @@ const VARIANTS: Readonly<Record<ProgressVariant, {
   unlocks: {
     title: 'Progress',
     eyebrow: 'Travel & unlocks',
-    description: 'Track acquired mount instruments, reusable shrine stones, and capability items for this Playthrough.',
+    description: 'Mark the mount instruments, shrine stones, and exploration tools you have acquired.',
     icon: <Icon name="compass"/>,
     summaryLabel: 'Travel and unlock totals',
     countLabel: 'Items acquired',
@@ -36,7 +36,7 @@ const VARIANTS: Readonly<Record<ProgressVariant, {
   summons: {
     title: 'Progress',
     eyebrow: 'Summons',
-    description: 'Track Summoner skill unlocks for this Playthrough in the shape of the in-game skill tree.',
+    description: 'Mark the Summoner skills you have unlocked.',
     icon: <Icon name="spark"/>,
     summaryLabel: 'Summon unlock totals',
     countLabel: 'Summons unlocked',
@@ -44,7 +44,7 @@ const VARIANTS: Readonly<Record<ProgressVariant, {
   quintar: {
     title: 'Quintar breeding',
     eyebrow: 'Golden Quintar guide',
-    description: 'A step-by-step route from wild eggs to your Golden Quintar. Click each tile when you finish it in the game.',
+    description: 'Breed a Golden Quintar. Mark each step after finishing it in game.',
     icon: <Icon name="ring"/>,
     summaryLabel: 'Quintar breeding progress',
     countLabel: 'Steps complete',

@@ -28,7 +28,7 @@ export function NativeClassSourceDetails({ catalog, entity, onOpenDefinition }: 
   if (identity?.database !== 'job' || !record) return null
   return <div className="stack">
     <small>Native {identity.database} #{identity.databaseId}</small>
-    {identity.mode !== 'base' && <p>This record is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
+    {identity.mode !== 'base' && <p>Values for this game mode. Viewing them does not enable the mode or a mod.</p>}
     <NativeRelatedDefinitions catalog={catalog} relationships={nativeRelationships(catalog, entity)} onOpenDefinition={onOpenDefinition}/>
     <details><summary>Complete native source record</summary><pre className="native-source-record">{JSON.stringify(record, null, 2)}</pre></details>
   </div>
@@ -43,14 +43,14 @@ export function NativeDefinitionDetails({ catalog, entity, enemyMode, onOpenDefi
   const enums = nativeRecord(legacy.nativeEnums) ? legacy.nativeEnums : {}
   const related = <NativeRelatedDefinitions catalog={catalog} relationships={relationships} onOpenDefinition={onOpenDefinition}/>
   if (identity.database === 'monster') return <section aria-label="Game details" className="enemy-details">
-    {identity.mode !== 'base' && <p className="enemy-scope-note">This is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
+    {identity.mode !== 'base' && <p className="enemy-scope-note">Values for this game mode. Viewing them does not enable the mode or a mod.</p>}
     <NativeEnemyBehavior catalog={catalog} entity={entity} nativeMode={enemyMode} onOpenDefinition={onOpenDefinition} describeConditions={value => describeCodes(value, enums)}/>
-    <details className="enemy-technical"><summary>Technical details <span>Engine fields and related definitions</span></summary><div className="stack">{entity.aliases.length > 0 && <p>Aliases: {entity.aliases.join(', ')}</p>}<p>Stats are raw database inputs. Difficulty, automatic stat generation, modes, and mods can change effective battle values. Test records and repeated enemy names retain distinct IDs.</p>{technicalDetails}{related}</div></details>
+    <details className="enemy-technical"><summary>Technical details <span>Engine fields and related definitions</span></summary><div className="stack">{entity.aliases.length > 0 && <p>Aliases: {entity.aliases.join(', ')}</p>}{technicalDetails}{related}</div></details>
   </section>
   const details = Object.entries(DETAILS).filter(([key]) => Object.hasOwn(record, key))
   if (details.length === 0 && relationships.length === 0 && identity.mode === 'base') return null
   return <section aria-label="Game details" className="panel"><div className="panel__header"><h3>Game details</h3></div><div className="panel__body stack">
-    {identity.mode !== 'base' && <p>This record is a mode override. It does not establish that this mode or any optional mod is enabled in your Game Setup.</p>}
+    {identity.mode !== 'base' && <p>Values for this game mode. Viewing them does not enable the mode or a mod.</p>}
     {details.map(([key, title]) => <details key={key}><summary>{title}</summary>{(key === 'ItemDrops' || key === 'ItemSteals') && Array.isArray(record[key]) && record[key].length > 0 ? <div className="structured-value__table native-loot-table"><table><thead><tr><th>Item</th><th>Availability (%)</th>{key === 'ItemSteals' && <th>Success (%)</th>}</tr></thead><tbody>{record[key].filter(nativeRecord).map((loot, index) => {
       const link = relationships.find(link => link.label.startsWith(`/${key}/${index}/`))
       return <tr key={index}><td>{link?.targetId ? <DefinitionLink definitionRef={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: link.targetId as CatalogEntity['id'] }} onOpenDefinition={onOpenDefinition}>{link.name}</DefinitionLink> : <span>Unresolved loot</span>}</td><td><KnowledgeValue value={typeof loot.LootChance === 'number' ? { state: 'known', value: loot.LootChance } : { state: 'unknown' }}/></td>{key === 'ItemSteals' && <td><KnowledgeValue value={typeof loot.StealChance === 'number' ? { state: 'known', value: loot.StealChance } : { state: 'unknown' }}/></td>}</tr>

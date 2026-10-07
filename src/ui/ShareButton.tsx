@@ -25,9 +25,9 @@ export function ShareButton({ localData, target, disabled = false }: { readonly 
     <Button disabled={disabled} onClick={() => { setCopyState('idle'); setOpen(true) }} tone="secondary" type="button">{target.kind === 'team' ? 'Share team' : 'Share build'}</Button>
     <Sheet description="Anyone with this link can view the saved snapshot. Further edits need a new link." footer={<><Button onClick={() => setOpen(false)} tone="quiet">Close</Button><Button disabled={!result?.url} onClick={() => void copy()}>{copyState === 'copied' ? 'Copied' : 'Copy link'}</Button></>} onClose={() => setOpen(false)} open={open} title={target.kind === 'team' ? 'Share team' : 'Share build'}>
       <div className="stack">
-        <p>The link includes the pinned loadout, calculation inputs, Game Setup, and required personal definitions. Teams use four ordered slots. Character records, inventory, learning, and history stay in this browser.</p>
+        <p>Includes the saved loadout, calculation inputs, Game Setup, and custom definitions. Teams keep their slot order. Character records, inventory, learning, and history are not shared.</p>
         <label className="check-row"><input checked={includeNotes} onChange={event => { setIncludeNotes(event.target.checked); setCopyState('idle') }} type="checkbox"/>Include written notes</label>
-        <p className="field__hint">Game rules and calculation inputs are always included. This adds rotation notes, written assumptions, and checkpoint names.</p>
+        <p className="field__hint">Adds rotation notes, written assumptions, and checkpoint names. Rules and calculation inputs are always included.</p>
         {result?.error && <InlineNotice title="Link unavailable" tone="danger">{result.error}</InlineNotice>}
         {result?.url && <>
           <Field label="Share URL"><input onFocus={event => event.currentTarget.select()} readOnly ref={inputRef} value={result.url}/></Field>

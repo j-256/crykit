@@ -170,7 +170,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await expect(defaults.locator('summary')).toHaveText('Standard equipment slots in use · 6 slots')
   await expect(coverage).toHaveCount(0)
   await expect(team.getByText('Game Setup settings need evidence', { exact: true })).toHaveCount(0)
-  await expect(team.getByText(/not verified game behavior/)).toHaveCount(0)
+  await expect(team.getByText(/have not been verified for this game/)).toHaveCount(0)
 
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()

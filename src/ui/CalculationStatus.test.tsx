@@ -7,7 +7,7 @@ describe('calculation recovery guidance', () => {
     const markup = renderToStaticMarkup(<CalculationStatus issues={['Ambush status presence is uncertain.']} partial onReviewGameSetup={() => undefined}/>)
     expect(markup).toContain('Totals unavailable')
     expect(markup).toContain('Ambush status presence is uncertain.')
-    expect(markup).toContain('Available components are shown below')
+    expect(markup).toContain("Known values are shown below.")
     expect(markup).toContain('Review Game Setup')
     expect(markup).not.toContain('Battle-state inputs are not available')
   })

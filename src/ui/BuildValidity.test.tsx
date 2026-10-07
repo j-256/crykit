@@ -27,6 +27,5 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Build needs changes')
     expect(markup).toContain('This class cannot equip the selected armor')
     expect(markup).toContain('Review Body')
-    expect(markup).toContain('Equipment and passive-point checks')
   })
 })

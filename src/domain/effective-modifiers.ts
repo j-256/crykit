@@ -319,7 +319,7 @@ export function applyAutomaticStatuses(result: EffectiveModifiers, level: number
     const unknownImmunity = (value: EffectiveModifiers) => value.unknownFields.has('*') || value.unknownFields.has('StatusImmunity') || value.unknownFields.has('ImmuneToStatusCategory') || typeof status.record!.Category !== 'number' && value.statusImmunityCategories.length > 0
     const uncertainImmunity = unknownImmunity(activeModifiers) || unknownImmunity(possible) || possible.statusImmunities.includes(status.id) || typeof status.record.Category === 'number' && possible.statusImmunityCategories.includes(status.record.Category)
     const uncertainHistory = status.record.ReApplyResistance !== false && history.some(id => id === undefined || id === status.id)
-    if (uncertainImmunity || uncertainHistory || status.chance < PERCENT || turn !== 0 && (status.count !== PERMANENT_STATUS_COUNT || status.countUncertain) || options.currentHP == null && status.record.PersistsThroughDeath !== true || options.currentHP === 0 && status.record.PersistsThroughDeath === undefined) { status.uncertain = true; uncertain.push(source); if (status.record.StatMods.length) uncertainIssues.set(status.id, `${label}: select this status explicitly if its battle-start application succeeded and it remains active.`) }
+    if (uncertainImmunity || uncertainHistory || status.chance < PERCENT || turn !== 0 && (status.count !== PERMANENT_STATUS_COUNT || status.countUncertain) || options.currentHP == null && status.record.PersistsThroughDeath !== true || options.currentHP === 0 && status.record.PersistsThroughDeath === undefined) { status.uncertain = true; uncertain.push(source); if (status.record.StatMods.length) uncertainIssues.set(status.id, `${label}: select this status if it was applied at battle start and is still active.`) }
     else {
       const prior = autos.filter(value => value.id === status.id && value.uncertain)
       status.countUncertain ||= prior.length > 0 && (status.count !== PERMANENT_STATUS_COUNT || status.record.ReApplyResistance !== false && prior.some(value => value.count !== PERMANENT_STATUS_COUNT))
@@ -350,7 +350,7 @@ export function applyAutomaticStatuses(result: EffectiveModifiers, level: number
         uncertain.push({ record: linked.record ?? {}, ref: linked.ref, label: `Status #${id} applied by an automatic status`, group: 'status' })
         if (!autos.some(value => value.id === id)) autos.push({ id, chance: PERCENT, count: nativeInteger(mod.Value2) ? mod.Value2 : 0, ...linked, uncertain: true })
       }
-      issues.push('Automatic status application changes other statuses; select the resulting active statuses explicitly to resolve their effects.')
+      issues.push('Automatic statuses change other statuses. Select the statuses that are active afterward.')
     }
   }
   const confirmed = aggregateStatModifiers(records, level, turn)
@@ -360,7 +360,7 @@ export function applyAutomaticStatuses(result: EffectiveModifiers, level: number
       if (nativeInteger(source.record.ID)) removedByEvents.add(source.record.ID)
       const automatic = autos.find(value => value.id === source.record.ID)
       if (automatic) { automatic.uncertain = true; automatic.applied = false }
-      issues.push('The automatic status set exceeds its active-status limit; select the resulting active statuses explicitly.')
+      issues.push('Too many automatic statuses to calculate. Select the statuses that are active afterward.')
     }
   }
   const effective = aggregateStatModifiers(records, level, turn)

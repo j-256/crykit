@@ -37,7 +37,7 @@ export function PlaythroughSettings({ localData, disabled, onSelect, onCreate, o
       {current ? <GameSetupSummary setup={current}/> : <InlineNotice title="No Game Setup selected">Choose a saved setup to record the rules this game uses.</InlineNotice>}
       <Field label="Game Setup to apply"><select disabled={disabled} onChange={event => setApplySetup(event.target.value)} value={selectedSetupId}><option value="">Choose a saved revision</option>{Object.values(localData.gameSetups).sort((left, right) => left.label.localeCompare(right.label) || right.revision - left.revision).map(setup => <option key={setup.id} value={setup.id}>{setup.label} · revision {setup.revision}</option>)}</select></Field>
       {selectedSetup && selectedSetup.id !== current?.id && <div className="stack playthrough-game-preview"><p className="field__hint">Will use after applying:</p><GameSetupSummary setup={selectedSetup}/></div>}
-      <p className="field__hint">Apply updates this Playthrough's tracking context. Builds, Teams, and earlier character snapshots keep their recorded rules.</p>
+      <p className="field__hint">Apply changes the rules used for tracking this Playthrough. Builds, Teams, and earlier snapshots keep their rules.</p>
       <div className="cluster"><Button disabled={disabled || !selectedSetup || selectedSetup.id === current?.id} icon="check" onClick={() => void run(async () => { await onApply(selectedSetupId as GameSetupRevisionId); setApplySetup(undefined) })}>Apply to {playthrough.label}</Button><Button disabled={disabled} icon="settings" onClick={manageSetups} tone="quiet">Manage saved setups</Button></div>
     </section>
   </div>

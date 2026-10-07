@@ -88,7 +88,7 @@ test('backup help remains reachable in the dialog keyboard cycle', { tag: MOBILE
   const help = panel.getByText("What's included in a backup?", { exact: true })
   await expect(help).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(panel.getByText('Mod Inspector originals and drafts, and game saves opened in Save Editor, have separate downloads.', { exact: false })).toBeVisible()
+  await expect(panel.getByText("Download Mod Inspector files and edited game saves separately.", { exact: false })).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(panel.getByRole('button', { name: 'Close dialog', exact: true })).toBeFocused()
   await page.keyboard.press('Shift+Tab')

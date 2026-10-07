@@ -10,7 +10,7 @@ export function ModSelections({ value, onChange, sourceNames = [] }: { readonly 
   const [error, setError] = useState<string>()
   const custom = recordedModNames(value).filter(name => !KNOWN_NAMES.has(normalizeModName(name)))
   const choice = (name: string) => {
-    if (sourceNames.some(source => normalizeModName(source) === normalizeModName(name))) return <p className="field__hint" key={normalizeModName(name)}>{name}: use its source-version card above to change its setting.</p>
+    if (sourceNames.some(source => normalizeModName(source) === normalizeModName(name))) return <p className="field__hint" key={normalizeModName(name)}>{name}: change its setting on the source-version card above.</p>
     const state = modState(value, name)
     return <label className="game-setup-mod-choice" key={normalizeModName(name)}><span>{name}</span><select aria-label={name} data-mod-state={state} onChange={event => onChange(updateModSelections(value, [{ name, state: event.target.value as ModSelection['state'] }]))} value={state}><option value="unknown">Unknown</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option>{state === 'conflicting' && <option disabled value="conflicting">Conflicting</option>}</select></label>
   }
@@ -36,7 +36,7 @@ export function ModSelections({ value, onChange, sourceNames = [] }: { readonly 
       return <details className="game-setup-mod-pack" key={pack.id}><summary><span><strong>{pack.name}</strong><small>{enabled} of {pack.mods.length} enabled · {unresolved} need review</small></span>{unresolved > 0 && <Badge tone="warning">Review</Badge>}</summary><div className="game-setup-mod-pack__body">{pack.mods.map(choice)}</div></details>
     })}</div>
     {custom.length > 0 && <section aria-label="Custom mod choices" className="stack"><h4>Custom mods</h4><div className="game-setup-mod-pack__body">{custom.map(choice)}</div></section>}
-    <div className="cluster mod-choice-add"><Field hint="Add one name to create an individual mod choice." label="Custom mod name"><input aria-label="Custom mod name" onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); add() } }} placeholder="Name a custom mod" value={name}/></Field><Button disabled={!name.trim()} onClick={add} tone="secondary" type="button">Add mod</Button></div>
+    <div className="cluster mod-choice-add"><Field label="Custom mod name"><input aria-label="Custom mod name" onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); add() } }} placeholder="Name a custom mod" value={name}/></Field><Button disabled={!name.trim()} onClick={add} tone="secondary" type="button">Add mod</Button></div>
     {error && <InlineNotice title="Mod not added" tone="danger">{error}</InlineNotice>}
   </div>
 }

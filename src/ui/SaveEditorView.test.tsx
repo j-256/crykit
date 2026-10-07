@@ -17,7 +17,7 @@ import { downloadBytes } from './model'
 import { SaveEditorView } from './SaveEditorView'
 import { DefinitionProvider } from './definitions'
 
-vi.mock('./model', () => ({ downloadBytes: vi.fn() }))
+vi.mock('./model', async importOriginal => ({ ...await importOriginal<typeof import('./model')>(), downloadBytes: vi.fn() }))
 
 let container: HTMLDivElement
 let root: Root
@@ -447,31 +447,39 @@ describe('save editor session', () => {
     expect(edited.header.mods).toHaveLength(1)
   })
 
-  it('loads an exact bundled active mod definition without a manual import', async () => {
+  it('loads a bundled active mod and reuses its source without claiming a disabled mod revision', async () => {
+    // Open both saves in one test so cache reuse does not depend on test order
     await openBundledSave(encodeCrystalSave(createModdedSaveEditorFixture({ mod: CHEAT_PASSIVES_FIXTURE })))
     expect(container.textContent).toContain('Bundled definition matched')
     expect(input('Cheat Passives definition available').checked).toBe(true)
     expect(container.textContent).toContain('Cheat Passives 2.0 (bundled)')
     expect(input('Copper').disabled).toBe(false)
-  })
 
-  it('identifies a bundled disabled mod while disclosing that its saved revision is unavailable', async () => {
-    await openBundledSave(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE })))
-    expect(container.textContent).toContain('Bundled project identified')
-    expect(input('Cheat Passives definition available').checked).toBe(true)
-    expect(container.textContent).toContain('Saved revision unavailable')
-    expect(input('Copper').disabled).toBe(true)
-    await act(async () => button('Review mod-state removal').click())
-    const review = container.querySelector('[aria-label="Review bulk changes"]')!
-    expect(review.textContent).toContain('ID redirects cleared')
-    expect(review.textContent).toContain('equipped mod-only passives removed')
-    await act(async () => button('Apply reviewed changes').click())
-    expect(input('Copper').disabled).toBe(false)
-    await act(async () => button('Export edited save').click())
-    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
-    expect(edited.header.isModded).toBe(false)
-    expect(edited.header.mods).toEqual([])
-    expect(edited.header.modIdMaps).toEqual([])
+    const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModEditableSource')
+    const previewSpy = vi.spyOn(crystalEdit, 'previewCrystalEdit')
+    try {
+      await choose(file(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE }))))
+      await waitForText('Bundled project identified')
+      expect(sourceSpy).not.toHaveBeenCalled()
+      expect(previewSpy).not.toHaveBeenCalled()
+      expect(input('Cheat Passives definition available').checked).toBe(true)
+      expect(container.textContent).toContain('Saved revision unavailable')
+      expect(input('Copper').disabled).toBe(true)
+      await act(async () => button('Review mod-state removal').click())
+      const review = container.querySelector('[aria-label="Review bulk changes"]')!
+      expect(review.textContent).toContain('ID redirects cleared')
+      expect(review.textContent).toContain('equipped mod-only passives removed')
+      await act(async () => button('Apply reviewed changes').click())
+      expect(input('Copper').disabled).toBe(false)
+      await act(async () => button('Export edited save').click())
+      const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
+      expect(edited.header.isModded).toBe(false)
+      expect(edited.header.mods).toEqual([])
+      expect(edited.header.modIdMaps).toEqual([])
+    } finally {
+      previewSpy.mockRestore()
+      sourceSpy.mockRestore()
+    }
   })
 
   it('keeps an unsupported document shape readable without crashing the change review', async () => {
@@ -545,7 +553,7 @@ describe('save editor session', () => {
     await open(bytes)
     expect(container.textContent).not.toContain('Read-only save')
     expect(container.textContent).toContain('Optional cleanup')
-    expect(container.textContent).toContain('You can edit this save without cleanup.')
+    expect(container.textContent).toContain("Cleanup is optional.")
     expect(input('Copper').disabled).toBe(false)
     expect(button('Export edited save').disabled).toBe(false)
     await type('Copper', '444')

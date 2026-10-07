@@ -6,13 +6,11 @@ import { STAT_KEYS } from '../domain/crystal-edit'
 import { STAT_LABELS } from '../domain/build-stats'
 import { calculationGenderLabel } from '../domain/calculation-genders'
 import { calculateStatBreakdownResult, STAT_BREAKDOWN_COLUMNS } from '../domain/stat-breakdown'
-import { classRatingField } from '../domain/stat-ratings'
 import type { BuildRevisionContent, CatalogSnapshot, GameSetupRevision, LocalData, SlotDefinition } from '../domain/types'
 import { formatStatRange } from './BuildMechanics'
 import { DefinitionArtwork } from './GameIcon'
 import { resolveEntity, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
-import { KnowledgeValue } from './KnowledgeValue'
 import { CalculationStatus } from './CalculationStatus'
 import { useBuildModSelection } from './BuildModSelectionGate'
 
@@ -28,14 +26,12 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
   const columns = STAT_BREAKDOWN_COLUMNS.filter(column => STAT_KEYS.some(stat => breakdown[stat][column] !== null))
   const hasTotals = STAT_KEYS.some(stat => breakdown[stat].total !== null)
   const primary = content.primaryClass ? resolveEntity(localData, catalogs, content.primaryClass) : undefined
-  if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Primary class is unknown. Numeric stats need a recorded class.' : 'No primary class selected. Numeric stats need a primary class.'}</p></section>
+  if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Record the primary class to calculate stats.' : 'Choose a primary class to calculate stats.'}</p></section>
   const plan = content.calculation
-  const [ratingField, ratings] = classRatingField(primary)
   const genderLabel = calculationGenderLabel(plan, rules.genders)
   return <section aria-label="Class stats" className="build-stat-overview">
     <header><div className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={content.primaryClass}/><h3>{primary.name} stats</h3></div><span className="field__hint">{plan?.battle ? 'Battle scenario stats' : 'Resting stat preview'}</span></header>
     <div className="build-stat-overview__sections">
-      <section aria-label="Class growth ratings"><h4>Class growth ratings</h4><KnowledgeValue field={ratingField} value={ratings}/><p className="field__hint">Fixed class ratings for base-stat scaling and growth.</p></section>
       <section aria-label="Stats at selected level">
         <h4>Level {plan?.level ?? 'unknown'} stats</h4>
         <p className="field__hint">Gender: {genderLabel}</p>
@@ -47,8 +43,8 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
             const displayed = value && column !== 'base' && column !== 'total' && value.low >= 0 && value.high > 0 ? `+${text}` : text
             return <td className={`stat-breakdown__${column}`} key={column}>{column === 'total' ? <strong>{displayed}</strong> : displayed}</td>
           })}</tr>)}</tbody></table></div>
-          <p className="field__hint">Base: level 1 in the primary class, before equipment and gender. Level: the selected level and growth history. Equipment: the loadout's net effect, including passives{plan?.battle ? ', active scenario statuses, and elapsed-turn effects' : ''}. Gender: its effect after modifiers and rounding. {hasTotals ? 'Native integer stages and caps apply. Columns add up to Total.' : 'Unavailable columns are omitted until their inputs can be resolved.'}</p></>}
-        </> : <p className="field__hint">No calculation inputs saved. Base and equipped totals remain unknown.</p>}
+          <p className="field__hint">Base: level 1, before gear and gender bonuses. Level: growth from leveling up. Equipment: gear and passives{plan?.battle ? ', active statuses, and turn effects' : ''}. Gender: the bonus after modifiers and rounding. {hasTotals ? 'Columns add up to Total.' : 'Missing inputs hide the affected columns.'}</p></>}
+        </> : <p className="field__hint">Set calculation inputs to see stats.</p>}
       </section>
     </div>
   </section>

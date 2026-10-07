@@ -241,7 +241,7 @@ test('nested definition creation preserves the observation and universal search 
   await form.getByRole('button', { name: 'Choose Item definition', exact: true }).click()
   await expect(picker.getByRole('searchbox', { name: 'Search available definitions', exact: true })).toHaveValue('Synthetic glass lantern')
   await picker.getByRole('button', { name: 'Create "Synthetic glass lantern"', exact: true }).click()
-  const editor = page.getByRole('dialog', { name: 'Create personal definition', exact: true })
+  const editor = page.getByRole('dialog', { name: 'Create custom definition', exact: true })
   await expect(editor.getByRole('textbox', { name: 'Definition name', exact: true })).toHaveValue('Synthetic glass lantern')
   await editor.getByLabel('Aliases').fill('Synthetic beacon')
   await editor.getByRole('button', { name: 'Create definition', exact: true }).click()

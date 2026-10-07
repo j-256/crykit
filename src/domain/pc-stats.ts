@@ -50,7 +50,7 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
   const empty = unknownStats()
   if (gameRules?.issues.length) return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, issues: [...issues, ...modScope.issues], effects: [] }
   if (!plan || plan.model !== undefined && plan.model !== PC_MODEL || !primary || plan.level === null || !Number.isInteger(plan.level) || plan.level < 1 || plan.level > PC_RULES.limits.levelCap) {
-    if (!primary && !modScope.issues.size) issues.push('Primary class has no verified numeric record.')
+    if (!primary && !modScope.issues.size) issues.push('No verified numeric data for the primary class.')
     else if (primary) issues.push('Choose a supported native calculation level.')
     return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, issues: [...issues, ...modScope.issues], effects: [] }
   }
@@ -70,11 +70,11 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
     }
   }
   if (allocated !== level) { growthKnown = false; issues.push(`Growth allocates ${allocated} of ${level} levels. Allocate exactly the calculation level.`) }
-  if (!growthKnown) issues.push('Growth is incomplete or a selected class lacks verified ratings.')
+  if (!growthKnown) issues.push('Complete the growth allocation and check that each class has verified ratings.')
   const gear = slots.map(slot => {
     const selection = content.equipment[slot.id]
     const record = selection ? nativeStatRecord(selection.ref, 'equipment', resolve, mode) : undefined
-    if (selection && (!record || !Array.isArray(record.StatMods))) issues.push(`${slot.label}: numeric equipment effects are unknown.`)
+    if (selection && (!record || !Array.isArray(record.StatMods))) issues.push(`${slot.label}: equipment stat effects are unknown.`)
     if (selection && !equipmentRole(slot)) issues.push(`${slot.label}: its game equipment role is unknown.`)
     return { slot, selection, record }
   })
@@ -91,9 +91,9 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
   const unarmed = !main?.selection && !off?.selection
   const battle = plan.battle
   const modifiers = collectEffectiveModifiers(content, slots, sourceResolve, { mode, turnCount: battle ? battle.turnCount : 0, statuses: battle?.statuses.map(status => status.ref), includeAutomaticStatuses: battle?.automaticStatuses, previouslyAppliedStatuses: battle?.userPreviouslyAppliedStatuses, currentHP: battle?.user.hp })
-  if (modifiers.tags.has('SubJobInnatePassives') && !content.secondaryClass && unknownSecondaryClass) issues.push('Secondary class is unknown and its innates affect this loadout.')
-  if (!battle && plan.statuses.length) issues.push('Saved legacy status assumptions require explicit adoption into a battle snapshot.')
-  if (plan.bonuses.length) issues.push('Per-stat bonus assumptions are outside the native gender comparisons.')
+  if (modifiers.tags.has('SubJobInnatePassives') && !content.secondaryClass && unknownSecondaryClass) issues.push('Record the secondary class to calculate its innate effects.')
+  if (!battle && plan.statuses.length) issues.push('Add the saved statuses to a battle scenario to calculate their effects.')
+  if (plan.bonuses.length) issues.push('Custom stat bonuses are not supported by gender comparisons.')
   const fatal = issues.length > 0 || modifiers.unknownFields.has('*') || modScope.issues.size > 0
   issues.push(...modifiers.issues)
   for (const record of modifiers.records) for (const mod of Array.isArray(record.record.StatMods) ? record.record.StatMods : []) {

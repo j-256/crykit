@@ -16,7 +16,7 @@ describe('quiet game export presentation', () => {
     const facts = renderToStaticMarkup(<DefinitionFactsPanel facts={[['Growth ratings', { state: 'known', value: { HP: 80 }, sources: [native] }]]}/>)
     expect(facts).toContain('Growth ratings')
     expect(facts).toContain('80')
-    expect(facts).not.toMatch(/fingerprint|Sources|Source trail|No recorded sources/)
+    expect(facts).not.toMatch(/fingerprint|Sources|Source trail|No source recorded/)
     const sources = renderToStaticMarkup(<DefinitionSourcesPanel anchor={<p>Visible native fact</p>} sources={[native]}><p>Technical provenance</p></DefinitionSourcesPanel>)
     expect(sources).toBe('<p>Visible native fact</p>')
   })
@@ -116,7 +116,7 @@ describe('quiet game export presentation', () => {
       const content = renderToStaticMarkup(panel.props.children)
       expect(content).toContain('External artwork credit')
       expect(content).toContain('href="https://example.test/artwork"')
-      expect(content).not.toMatch(/No recorded sources|Database\/job\.dat|fingerprint/)
+      expect(content).not.toMatch(/No source recorded|Database\/job\.dat|fingerprint/)
     }
   })
 })
