@@ -22,6 +22,8 @@ vi.mock('./model', () => ({ downloadBytes: vi.fn() }))
 let container: HTMLDivElement
 let root: Root
 let onDraftChange: ReturnType<typeof vi.fn<(dirty: boolean, actions?: DraftActions) => void>>
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+const scrollIntoView = vi.fn()
 const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY.find(mod => mod.title === 'Cheat Passives')!
 const CHEAT_PASSIVES_FIXTURE = {
   id: saveEditorModProjectId(CHEAT_PASSIVES.id),
@@ -38,6 +40,8 @@ beforeEach(() => {
   document.body.append(container)
   root = createRoot(container)
   onDraftChange = vi.fn<(dirty: boolean, actions?: DraftActions) => void>()
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
+  scrollIntoView.mockClear()
   vi.stubGlobal('confirm', vi.fn(() => true))
   vi.mocked(downloadBytes).mockClear()
 })
@@ -47,6 +51,8 @@ afterEach(async () => {
   container.remove()
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  if (originalScrollIntoView) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView)
+  else delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView
 })
 
 function button(label: string) {
@@ -243,6 +249,76 @@ describe('save editor session', () => {
     await act(async () => button('Discard pending input').click())
     expect(input('Copper').value).toBe('123')
     expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
+  })
+
+  it.each([{ path: 'fallback party editor', shared: false }, { path: 'shared party editor', shared: true }])('reveals repeated challenge errors and preserves pending fields through $path', async ({ shared }) => {
+    const fixture = createSaveEditorFixture()
+    const flags = fixture.party.value.GameplayFlags
+    if (flags?.type !== 'document') throw new Error('Expected synthetic gameplay flags')
+    flags.value.MaxLevelDown = { type: 'boolean', value: true }
+    flags.value.MaxLevelDownVal = { type: 'int32', value: 59 }
+    flags.value.NoAssistOptions = { type: 'boolean', value: true }
+    const bytes = encodeCrystalSave(fixture)
+    const originalFlags = decodeCrystalSave(bytes).party.value.GameplayFlags
+    if (shared) {
+      const localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
+      await act(async () => root.render(<DefinitionProvider catalogs={[DEFAULT_CATALOG]} localData={localData} onSaveDefinition={async () => { throw new Error('Not used') }}><SaveEditorView localData={localData} onDraftChange={onDraftChange}/></DefinitionProvider>))
+      await choose(file(bytes))
+    } else await open(bytes)
+
+    expect(container.textContent).not.toContain('Read-only save')
+    expect(input('Member 1 level').closest('label')?.querySelector('.field__hint')?.textContent).toBe('1 to 59')
+    const applyLabel = shared ? 'Apply name & level' : 'Apply member 1'
+    await type('Member 1 name', 'Synthetic challenge hero')
+    await type('Member 1 level', '60')
+    const levelInput = input('Member 1 level')
+    levelInput.focus()
+    expect(document.activeElement).toBe(levelInput)
+    await act(async () => button(applyLabel).click())
+    const alert = container.querySelector('[role="alert"]')!
+    const notice = alert.closest<HTMLElement>('[tabindex="-1"]')!
+    expect(alert.textContent).toContain("This save's maximum-level challenge limits characters to level 59. Level 60 is not allowed.")
+    expect(notice).not.toBeNull()
+    expect(document.activeElement).toBe(notice)
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView).toHaveBeenNthCalledWith(1, { block: 'center', inline: 'nearest', behavior: 'instant' })
+    expect(scrollIntoView.mock.contexts[0]).toBe(notice)
+    expect(input('Member 1 name').value).toBe('Synthetic challenge hero')
+    expect(input('Member 1 level').value).toBe('60')
+    expect(button('Export edited save').disabled).toBe(true)
+    // A rejected compound edit must leave both fields pending and the working save untouched
+    expect(container.querySelector('.save-editor__review')).toBeNull()
+    expect(container.textContent).toContain('The draft matches the original save.')
+
+    // Retrying an unchanged error must reveal it again after focus returns to the pending field
+    levelInput.focus()
+    expect(document.activeElement).toBe(levelInput)
+    await act(async () => button(applyLabel).click())
+    expect(document.activeElement).toBe(notice)
+    expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    expect(scrollIntoView).toHaveBeenNthCalledWith(2, { block: 'center', inline: 'nearest', behavior: 'instant' })
+    expect(scrollIntoView.mock.contexts[1]).toBe(notice)
+    expect(notice.textContent).toContain("This save's maximum-level challenge limits characters to level 59. Level 60 is not allowed.")
+    expect(input('Member 1 name').value).toBe('Synthetic challenge hero')
+    expect(input('Member 1 level').value).toBe('60')
+    expect(input('Member 1 level')).toBe(levelInput)
+    expect(button('Export edited save').disabled).toBe(true)
+    await act(async () => button('Download original').click())
+    expect(vi.mocked(downloadBytes).mock.calls[0]).toEqual([bytes, 'original-synthetic.sav'])
+
+    await type('Member 1 level', '59')
+    await act(async () => button(applyLabel).click())
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(input('Member 1 name').value).toBe('Synthetic challenge hero')
+    expect(input('Member 1 level').value).toBe('59')
+    expect(button('Export edited save').disabled).toBe(false)
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[1]![0] as Uint8Array)
+    const summary = inspectSave(edited, SAVE_EDITOR_CATALOG)
+    expect(summary).toMatchObject({ editable: true, levelCap: 59 })
+    expect(summary.members[0]).toMatchObject({ name: 'Synthetic challenge hero', level: 59 })
+    expect(edited.party.value.GameplayFlags).toEqual(originalFlags)
+    expect(edited.header).toMatchObject({ challengeFlags: fixture.header.challengeFlags, assistFlags: fixture.header.assistFlags })
   })
 
   it('keeps a draft and pending form after a malformed or oversized replacement', async () => {

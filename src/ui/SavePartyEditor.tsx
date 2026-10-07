@@ -13,6 +13,7 @@ import { BuildDefinitionField, BUILD_DEFINITION_PAGE_SIZE } from './BuildDefinit
 import { LoadoutSheet } from './LoadoutSheet'
 import { Button, Field, InlineNotice } from './components'
 import { ScopedDefinitionProvider, useDefinitionLibrary, type DefinitionOption } from './definitions'
+import { saveEditorLevelHint } from './save-editor-levels'
 
 interface PickerState { readonly fieldKey: string; readonly query: string; readonly resultLimit: number }
 function buildContent(member: SaveEditorSummary['members'][number], scope: SaveEditorDefinitionScope): BuildRevisionContent {
@@ -163,9 +164,9 @@ export function SavePartyEditor({ save, summary, modSources, localData, locked, 
       event.preventDefault()
       const levelValue = pending[`${prefix}level`]
       const level = levelValue === undefined ? undefined : Number(levelValue)
-      if (levelValue !== undefined && (!/^\d+$/.test(levelValue.trim()) || !Number.isSafeInteger(level))) { onError('Level must be a whole number of zero or more.'); return }
+      if (levelValue !== undefined && (!/^\d+$/.test(levelValue.trim()) || !Number.isSafeInteger(level) || level === undefined || level < 1)) { onError('Level must be a whole number of 1 or more.'); return }
       onApplyMember({ type: 'member', index: member.index, ...(pending[`${prefix}name`] !== undefined ? { name: pending[`${prefix}name`] } : {}), ...(level !== undefined ? { level } : {}) }, keys)
-    }}><Field label="Name"><input aria-label={`Member ${member.index + 1} name`} disabled={locked} value={pending[`${prefix}name`] ?? member.name} onChange={event => onFieldChange(`${prefix}name`, event.target.value, member.name)}/></Field><Field label="Level"><input aria-label={`Member ${member.index + 1} level`} disabled={locked} inputMode="numeric" value={pending[`${prefix}level`] ?? String(member.level)} onChange={event => onFieldChange(`${prefix}level`, event.target.value, String(member.level))}/></Field><Button disabled={locked || !memberPending} tone="secondary" type="submit">Apply name & level</Button><p>{member.unlockedJobs} classes unlocked · {member.masteredJobs} mastered · {member.learnedPassives} passives learned</p></form>
+    }}><Field label="Name"><input aria-label={`Member ${member.index + 1} name`} disabled={locked} value={pending[`${prefix}name`] ?? member.name} onChange={event => onFieldChange(`${prefix}name`, event.target.value, member.name)}/></Field><Field label="Level" hint={saveEditorLevelHint(summary)}><input aria-label={`Member ${member.index + 1} level`} disabled={locked} inputMode="numeric" value={pending[`${prefix}level`] ?? String(member.level)} onChange={event => onFieldChange(`${prefix}level`, event.target.value, String(member.level))}/></Field><Button disabled={locked || !memberPending} tone="secondary" type="submit">Apply name & level</Button><p>{member.unlockedJobs} classes unlocked · {member.masteredJobs} mastered · {member.learnedPassives} passives learned</p></form>
     <ScopedDefinitionProvider catalogs={scope.catalogs} filterOption={filterOption}><SaveLoadoutEditor key={`${member.index}:${member.jobId}:${member.subJobId}:${member.equipmentIds.join(',')}:${member.passiveIds.join(',')}`} localData={localData} locked={locked} memberIndex={member.index} modSources={modSources} onDraftChange={handleLoadoutDraftChange} onReview={onReview} save={save} scope={scope} summary={summary}/></ScopedDefinitionProvider>
   </section>
 }
