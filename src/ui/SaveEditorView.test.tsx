@@ -251,6 +251,61 @@ describe('save editor session', () => {
     expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
   })
 
+  it('previews pending copper without applying it and restores the preview on discard', async () => {
+    const bytes = await open()
+    const preview = container.querySelector<HTMLOutputElement>('output[aria-label="In-game money preview"]')!
+    expect(preview).not.toBeNull()
+    expect(input('Copper').id).toBe('save-editor-copper')
+    expect(preview.getAttribute('for')).toBe(input('Copper').id)
+    expect(preview.textContent).toBe('0 gold · 1 silver · 23 copper')
+
+    await type('Copper', '12345')
+    expect(preview.textContent).toBe('1 gold · 23 silver · 45 copper')
+    expect(button('Export edited save').disabled).toBe(true)
+    expect(container.querySelector('.save-editor__review')).toBeNull()
+    expect(container.textContent).toContain('The draft matches the original save.')
+    await act(async () => button('Download original').click())
+    expect(vi.mocked(downloadBytes).mock.calls[0]).toEqual([bytes, 'original-synthetic.sav'])
+    expect(input('Copper').value).toBe('12345')
+    expect(button('Export edited save').disabled).toBe(true)
+
+    await act(async () => button('Discard pending input').click())
+    expect(input('Copper').value).toBe('123')
+    expect(preview.textContent).toBe('0 gold · 1 silver · 23 copper')
+    expect(button('Export edited save').disabled).toBe(false)
+    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
+
+    await type('Copper', '12345')
+    await act(async () => button('Apply currency').click())
+    expect(preview.textContent).toBe('1 gold · 23 silver · 45 copper')
+    expect(button('Export edited save').disabled).toBe(false)
+    await act(async () => button('Export edited save').click())
+    const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[1]![0] as Uint8Array)
+    expect(inspectSave(edited, SAVE_EDITOR_CATALOG).currency).toBe(12345)
+    expect(edited.header.currencyAmount).toBe(12345)
+  })
+
+  it('replaces stale money previews with guidance for invalid pending amounts and accepts the range boundaries', async () => {
+    await open()
+    const preview = () => container.querySelector<HTMLOutputElement>('output[aria-label="In-game money preview"]')!
+    for (const invalid of ['', '-1', '1.5', '1000000000', 'not a number']) {
+      await type('Copper', '12345')
+      expect(preview().textContent).toBe('1 gold · 23 silver · 45 copper')
+      await type('Copper', invalid)
+      expect(preview().textContent).toBe('Enter a whole number from 0 to 999,999,999 copper.')
+      expect(input('Copper').value).toBe(invalid)
+      expect(button('Export edited save').disabled).toBe(true)
+      expect(container.querySelector('.save-editor__review')).toBeNull()
+    }
+    await type('Copper', '0')
+    expect(preview().textContent).toBe('0 gold · 0 silver · 0 copper')
+    expect(button('Export edited save').disabled).toBe(true)
+    await type('Copper', '999999999')
+    expect(preview().textContent).toBe('99,999 gold · 99 silver · 99 copper')
+    expect(button('Export edited save').disabled).toBe(true)
+    expect(vi.mocked(downloadBytes)).not.toHaveBeenCalled()
+  })
+
   it.each([{ path: 'fallback party editor', shared: false }, { path: 'shared party editor', shared: true }])('reveals repeated challenge errors and preserves pending fields through $path', async ({ shared }) => {
     const fixture = createSaveEditorFixture()
     const flags = fixture.party.value.GameplayFlags
@@ -267,7 +322,11 @@ describe('save editor session', () => {
     } else await open(bytes)
 
     expect(container.textContent).not.toContain('Read-only save')
-    expect(input('Member 1 level').closest('label')?.querySelector('.field__hint')?.textContent).toBe('1 to 59')
+    if (shared) {
+      const hintId = input('Member 1 level').getAttribute('aria-describedby')
+      expect(hintId).toBe('save-party-level-hint')
+      expect(document.getElementById(hintId!)?.textContent).toBe('Level: 1 to 59')
+    } else expect(input('Member 1 level').closest('label')?.querySelector('.field__hint')?.textContent).toBe('1 to 59')
     const applyLabel = shared ? 'Apply name & level' : 'Apply member 1'
     await type('Member 1 name', 'Synthetic challenge hero')
     await type('Member 1 level', '60')

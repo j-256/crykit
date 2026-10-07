@@ -370,7 +370,22 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-party.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
     await expect(page.getByRole('heading', { name: 'synthetic-party.sav', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeEnabled()
+    const viewportWidth = page.viewportSize()!.width
+    if (viewportWidth > 480) {
+      const nameBox = await page.getByLabel('Member 1 name', { exact: true }).boundingBox()
+      const levelBox = await page.getByLabel('Member 1 level', { exact: true }).boundingBox()
+      expect(Math.abs(nameBox!.y - levelBox!.y), 'Party name and level controls share a row beneath their labels').toBeLessThanOrEqual(1)
+      if (viewportWidth > 760) {
+        const applyBox = await page.getByRole('button', { name: 'Apply name & level', exact: true }).boundingBox()
+        expect(Math.abs(levelBox!.y - applyBox!.y), 'Party Apply aligns with the inputs rather than the level hint').toBeLessThanOrEqual(1)
+      }
+      const buildBox = await page.getByLabel('Load a compatible Build', { exact: false }).boundingBox()
+      const reviewBox = await page.getByRole('button', { name: 'Review Build', exact: true }).boundingBox()
+      expect(Math.abs(buildBox!.y - reviewBox!.y), 'Build review aligns with its select rather than compatibility guidance').toBeLessThanOrEqual(1)
+    }
     await shot('loaded-party', 'Original synthetic save loaded; party and equipped loadouts are ready to inspect')
+    await page.locator('#save-editor-party').evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+    await shot('party-fields', 'Name, level, and Apply share a control row, with level guidance available below')
     await page.getByLabel('Member 1 name', { exact: true }).fill('Synthetic Hero')
     await shot('character-edit', 'Unapplied character name remains visible alongside its Apply action')
     await page.getByRole('button', { name: 'Apply name & level', exact: true }).click()
@@ -380,8 +395,16 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await expect(page.getByRole('region', { name: 'Review bulk changes', exact: true })).toBeVisible()
     await shot('loadout-review', 'A cleared weapon is reviewed before changes enter the working copy')
     await page.getByRole('button', { name: 'Apply reviewed changes', exact: true }).click()
-    await page.getByLabel('Copper', { exact: true }).fill('456')
-    await shot('money-edit', 'Pending currency input and its Apply action are visible in the loaded editor')
+    await page.getByRole('button', { name: 'Money', exact: true }).click()
+    await page.getByLabel('Copper', { exact: true }).fill('12345')
+    await page.locator('#save-editor-money').evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+    await expect(page.getByLabel('In-game money preview', { exact: true })).toHaveText('1 gold · 23 silver · 45 copper')
+    await expect(page.getByLabel('In-game money preview', { exact: true })).toBeInViewport()
+    const copperBox = await page.getByLabel('Copper', { exact: true }).boundingBox()
+    const currencyApplyBox = await page.getByRole('button', { name: 'Apply currency', exact: true }).boundingBox()
+    expect(copperBox!.width, 'Copper is compact rather than expanding across the panel').toBeLessThanOrEqual(200)
+    expect(Math.abs(copperBox!.y - currencyApplyBox!.y), 'Currency Apply shares the input row').toBeLessThanOrEqual(1)
+    await shot('money-edit', 'Compact copper input aligns with Apply and previews gold, silver, and copper before applying')
     await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
     const appliedReview = page.locator('.save-editor__review')
     if (await appliedReview.count() && await appliedReview.getAttribute('open') === null) await appliedReview.locator('summary').click()
@@ -391,6 +414,16 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await page.getByRole('button', { name: 'Unlocks & presets', exact: true }).click()
     await page.getByRole('heading', { name: 'Unlocks and presets', exact: true }).scrollIntoViewIfNeeded()
     await shot('bulk-actions', 'Bulk changes have equal visual weight, with the broad overpowered preset after narrower actions')
+    await page.getByRole('navigation', { name: 'Save Editor sections', exact: true }).getByRole('button', { name: 'Inventory', exact: true }).click()
+    await page.getByLabel('Search inventory', { exact: true }).fill('Potion')
+    await page.locator('#save-editor-inventory').evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+    await expect(page.locator('.save-editor__inventory-row').first()).toBeVisible()
+    if (viewportWidth > 480) {
+      const stockBox = await page.locator('.save-editor__inventory-row').first().getByRole('textbox').boundingBox()
+      const stockApplyBox = await page.locator('.save-editor__inventory-row').first().getByRole('button').boundingBox()
+      expect(Math.abs(stockBox!.y - stockApplyBox!.y), 'Inventory Apply shares the Stock input row').toBeLessThanOrEqual(1)
+    }
+    await shot('inventory-fields', 'Inventory filters and stock actions retain aligned controls with readable labels')
     return
   }
   throw new Error(`Capture scenario not implemented: ${screen}`)
