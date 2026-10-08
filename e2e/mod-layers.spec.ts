@@ -69,6 +69,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await primary.fill('Second Fighter')
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Second Fighter$/ }) }).click()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Pinned mod build', exact: true })).toBeVisible()
   const old = await exportData(page)
   const build = Object.values(old.localData.builds).find(value => value.title === 'Pinned mod build')!

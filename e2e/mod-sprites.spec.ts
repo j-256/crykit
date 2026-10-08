@@ -44,6 +44,7 @@ test('Moonlight artwork appears in class pickers, saved loadouts, and Reference 
   await expect(page.locator('.build-field__artwork [data-artwork-source="mod"] img').first()).toHaveAttribute('src', referenceUrl!)
   await page.getByLabel('Build title', { exact: true }).fill('Synthetic mod artwork build')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic mod artwork build', exact: true })).toBeVisible()
   const checkpointUrl = page.url()
   await expect(page.locator('.build-field__artwork [data-artwork-source="mod"] img').first()).toHaveAttribute('src', referenceUrl!)
