@@ -77,7 +77,7 @@ test('uses native artwork and the game tree layout with only gray and gold state
 test('opens skill and deity Reference pages without changing unlock progress', async ({ page }) => {
   await summonTile(page, 'Pinga').getByRole('link', { name: 'Pinga: Skill', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Pinga', exact: true })).toBeVisible()
-  await expect(page.locator('.reference-detail .reference-card__meta')).toContainText('ability')
+  await expect(page.locator('.reference-detail .reference-card__meta')).toContainText('Ability')
   await page.goBack()
   await expect(summonTile(page, 'Pinga')).toHaveAttribute('data-unlocked', 'true')
   await expect(summonTile(page, 'Pinga').getByRole('button')).toBeDisabled()
