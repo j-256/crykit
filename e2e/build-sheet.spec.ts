@@ -7,6 +7,8 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
+const OFFLINE_BUILD_JOURNEY_TIMEOUT_MS = 120_000
+
 async function choose(page: Page, label: string, name: string, options: { readonly allowConflicts?: boolean; readonly includeUnavailable?: boolean; readonly requiredMod?: string } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })
@@ -86,6 +88,8 @@ test('loadout columns stay stable before inspection and after clearing or reopen
 })
 
 test('a blank playthrough can plan unowned gear directly and reopen it offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
+  // The full build, backup, offline reload, and second revision exceed the short browser case budget on CI
+  test.setTimeout(OFFLINE_BUILD_JOURNEY_TIMEOUT_MS)
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
