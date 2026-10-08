@@ -5,6 +5,7 @@ import { expectOfflineReady } from './offline-helpers'
 import { expect, test } from '@playwright/test'
 
 const SLIME_PATH = referencePath('base:monster:2')
+const NEW_TAB_REFERENCE_READY_TIMEOUT_MS = 20_000
 
 test('enemy rewards use coins, technical details use integers, and source prices remain readable', async ({ page }) => {
   await page.goto(referencePath('base:monster:179'))
@@ -47,8 +48,9 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
 
 test('enemy loot preserves modified clicks, opens a new tab, and navigates in app', async ({ page, context }) => {
   await page.goto(referencePath('base:monster:179'))
+  const cookiePath = referencePath('base:item:205')
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
-  await expect(cookie).toHaveAttribute('href', referencePath('base:item:205').slice(1))
+  await expect(cookie).toHaveAttribute('href', cookiePath.slice(1))
   // Observe after React's delegated handler so a cancelled native click fails the test
   await cookie.evaluate(link => {
     const recordClick = (event: MouseEvent) => {
@@ -58,14 +60,19 @@ test('enemy loot preserves modified clicks, opens a new tab, and navigates in ap
     }
     document.addEventListener('click', recordClick)
   })
+  const modifiedTabOpened = context.waitForEvent('page')
   await cookie.click({ modifiers: ['ControlOrMeta'] })
+  const modifiedTab = await modifiedTabOpened
   await expect(cookie).toHaveAttribute('data-modified-click', 'true:false')
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
+  await expect(modifiedTab).toHaveURL(new RegExp(`${cookiePath}$`), { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
+  await modifiedTab.close()
   const opened = context.waitForEvent('page')
   await cookie.click({ button: 'middle' })
   const tab = await opened
-  await tab.waitForLoadState('load')
-  await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible()
+  await expect(tab).toHaveURL(new RegExp(`${cookiePath}$`), { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
+  // A new tab can finish navigation before its catalog detail renders
+  await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible({ timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
   await tab.close()
   await cookie.click()
