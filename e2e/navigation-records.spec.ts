@@ -1,6 +1,6 @@
-import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
+import { importSyntheticLibrary, SYNTHETIC_LIBRARY_SOURCES } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { selectedPlaythrough, createBlankPlaythrough, addBundledModToReference, waitForPlannerReady } from './local-data-helpers'
+import { selectedPlaythrough, createBlankPlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -161,7 +161,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
 })
 
 test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
-  await addBundledModToReference(page, 'Equipment Expansion')
+  await importSyntheticLibrary(page, false)
   await navigate(page, 'Reference')
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
   await page.getByRole('button', { name: 'Source', exact: true }).click()
@@ -199,8 +199,8 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   expect(Math.min(...geometry.widths)).toBeGreaterThan(180)
   expect(Math.min(...geometry.gaps)).toBeGreaterThanOrEqual(5.5)
 
-  const source = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
-  const sourceId = `source:${source.sourceDigest}`
+  const source = SYNTHETIC_LIBRARY_SOURCES[0]!
+  const sourceId = `source:sha256:${source.sha256}`
   await sourceSearch.fill(sourceId)
   await expect(sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) })).toBeVisible()
   // This facet searches extraction provenance rather than projected gameplay labels

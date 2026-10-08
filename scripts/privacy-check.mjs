@@ -90,14 +90,18 @@ try {
 for (const file of new Set(files)) {
   if (forbiddenPaths.some(pattern => pattern.test(file))) findings.push(`${file}: prohibited artifact`)
   if (file.startsWith('.github/workflows/') && !reviewedWorkflows.has(file)) findings.push(`${file}: unreviewed CI workflow`)
-  const spriteDirectory = spriteSources.some(source => file.startsWith(source.directory))
-  if (spriteDirectory && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
+  const spriteSource = spriteSources.find(source => file.startsWith(source.directory))
+  const spriteDirectory = !!spriteSource
+  const directoryPlaceholder = spriteSource && file === `${spriteSource.directory}.gitkeep`
+  if (spriteDirectory && !directoryPlaceholder && !reviewedBinaryAssets.has(file)) findings.push(`${file}: sprite is absent from the reviewed manifest`)
   if (file.startsWith(gameAssetDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native game artwork is absent from the reviewed manifest`)
   if (file.startsWith(geometryDirectory) && !reviewedBinaryAssets.has(file)) findings.push(`${file}: native geometry is absent from the reviewed manifest`)
   if (!reviewedBinaryAssets.has(file) && !spriteDirectory && !file.startsWith(gameAssetDirectory) && (file === 'LICENSE' || file.endsWith('.png') || file.endsWith('.ico'))) continue
   let bytes
   try { bytes = options.staged ? git(['show', `:${file}`]) : readFileSync(file) }
   catch { findings.push(`${file}: unable to inspect contents`); continue }
+  // Empty placeholders retain generated directories without admitting unreviewed artwork or hidden payloads
+  if (directoryPlaceholder && bytes.length) findings.push(`${file}: directory placeholder must be empty`)
   if (reviewedBinaryAssets.has(file)) {
     if (reviewedBinaryAssets.get(file) !== createHash('sha256').update(bytes).digest('hex')) findings.push(`${file}: public asset changed; review bytes and digest`)
     continue

@@ -9,17 +9,19 @@ import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitModSetup, exportBackup, loadLocalData, previewImport, undoLocalDataWithStatus } from './local-data'
 
+// Exercise an empty library as a fixture so packaged sources can change without changing this contract
+vi.mock('../catalog/mod-library-metadata', () => ({ BUNDLED_MOD_LIBRARY: [], STARTER_MOD_PROJECT_IDS: [] }))
+
 let database: CryKitDatabase
 beforeEach(() => { database = new CryKitDatabase(`mod-setup-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 const source = (id = 'synthetic-mod-setup') => new TextEncoder().encode(JSON.stringify({ ID: id, Name: 'Synthetic selectable mod', EditorVersion: 34, Version: '1', Equipment: [{ ID: 9000, Name: 'Synthetic test sword', Type: 0, Hands: 1, StatMods: [] }], Passives: [{ ID: 8000, Name: 'Synthetic innate', IsInnate: true, PP: 2 }], UnknownRoot: { retained: true } }))
 
-it('starts fresh profiles with pending mod setup and skips once without changing seeded sources or setups', async () => {
+it('skips initial selection for an empty library without changing saved records or sources', async () => {
   const original = await loadLocalData()
   const originalSources = await database.sources.toArray()
   expect(original.catalogs).toContainEqual(CURRENT_CATALOG)
-  expect(originalSources.length).toBeGreaterThan(0)
-  expect(original.localData.modSetup).toEqual({ version: 1, state: 'pending' })
+  expect(original.localData.modSetup).toEqual({ version: 1, state: 'skipped' })
   const skipped = await commitModSetup([], original.revision, true)
   expect(skipped.localData.modSetup?.state).toBe('skipped')
   expect(skipped.localData.gameSetups).toEqual(original.localData.gameSetups)

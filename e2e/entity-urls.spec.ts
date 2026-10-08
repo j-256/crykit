@@ -1,15 +1,15 @@
+import { importSyntheticLibrary, syntheticReferencePath } from './mod-library-fixtures'
 import { expect, test } from '@playwright/test'
 import { referencePath } from './reference-helpers'
 import { waitForPlannerReady } from './local-data-helpers'
 
 const DESERT_PATH = referencePath('base:monster:316')
-const PUN_STORM_PATH = referencePath('mod:moonlight-project:ability:565')
+const PUN_STORM_PATH = syntheticReferencePath(1, 'Abilities', 9002, 'Synthetic Technique')
 
-test('base, mod, and supplemental entries use the bundled route contract directly', async ({ page }) => {
+test('native and supplemental entries use exact current catalog routes directly', async ({ page }) => {
   for (const [path, name] of [
-    ['/#/reference/catalog/v1/base/item/203/quintar-berries', 'Quintar Berries'],
-    ['/#/reference/catalog/v1/mod/equipment-expansion/equipment/592/heavy-edge', 'Heavy Edge'],
-    ['/#/reference/catalog/v1/base/other/ref-909/achievements', 'Achievements'],
+    ['/#/reference/catalog/crystal-project-public-starter/catalog-v3/base/item/203/quintar-berries', 'Quintar Berries'],
+    ['/#/reference/catalog/crystal-project-public-starter/catalog-v3/base/other/ref-909/achievements', 'Achievements'],
   ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
@@ -68,10 +68,11 @@ test('a wrong slug resolves by ID and normalizes without an extra history entry'
 })
 
 test('mod names survive nested search routes', async ({ page }) => {
+  await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
-  await expect(page).toHaveURL(/\/mod\/moonlight-project\/ability\/565\/100-pun-storm$/)
+  await expect(page).toHaveURL(/\/crystal-edit%3Asynthetic-moonlight\/sha256%3A[a-f0-9]{64}%3Arules-v2%3Alibrary-v3\/mod\/synthetic-moonlight\/ability\/9002\/synthetic-technique$/)
   await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
-  await expect(page).toHaveURL(/\/565\/100-pun-storm\/search$/)
+  await expect(page).toHaveURL(/\/9002\/synthetic-technique\/search$/)
   await page.reload()
   await expect(page.getByRole('dialog', { name: 'Search CryKit', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
@@ -94,4 +95,11 @@ test('retired encoded-colon entity URLs show recovery', async ({ page }) => {
   await page.goto('/#/reference/catalog/crystal-project-public-starter/revisions/catalog-v1/entities/mod%3Amoonlight-project%3Aability%3A565')
   await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toHaveCount(0)
+})
+
+test('historical bundled routes preserve the pin when definitions are unavailable', async ({ page }) => {
+  await page.goto('/#/reference/catalog/v1/mod/equipment-expansion/equipment/592/heavy-edge')
+  await expect(page.getByText('Reference definition unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Heavy Edge', exact: true })).toHaveCount(0)
+  await expect(page).toHaveURL(/\/catalog\/v1\/mod\/equipment-expansion\/equipment\/592\/definition$/)
 })

@@ -1,19 +1,17 @@
 import { expect, it } from 'vitest'
-import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from './mod-library'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { modRevision } from '../domain/mod-library'
 import { sha256 } from '../interchange/util'
 import { crystalEditPlanningRecord, CRYSTAL_EDIT_VERSION_FIELD } from '../domain/crystal-edit-compatibility'
 
-it.each(BUNDLED_MOD_LIBRARY.filter(mod => mod.editorVersion === 4 || mod.key === 'moonlight-project'))('archives the original format of $title ($editorVersion)', async mod => {
-  const source = await bundledModEditableSource(mod)
-  const bytes = new TextEncoder().encode(source.text)
-  const preview = await previewCrystalEdit(bytes, source.filename)
+it.each([4, 34])('archives the original synthetic format %i', async editorVersion => {
+  const bytes = new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-version', Title: 'Synthetic Version', EditorVersion: editorVersion, Passives: [{ ID: 9000, Name: 'Synthetic passive', PP: 1 }] }))
+  const preview = await previewCrystalEdit(bytes, 'synthetic.json')
   const catalog = preview.proposed.catalogs[0]!
-  expect(catalog.id).toBe(mod.id)
-  expect(modRevision(catalog)?.editorVersion).toBe(mod.editorVersion)
-  expect(`sha256:${await sha256(preview.proposed.sources[0]!.bytes)}`).toBe(mod.sourceDigest)
-  expect(catalog.checksum).toBe(mod.sourceDigest)
+  expect(catalog.id).toBe('crystal-edit:synthetic-version')
+  expect(modRevision(catalog)?.editorVersion).toBe(editorVersion)
+  expect(catalog.checksum).toBe(`sha256:${await sha256(bytes)}`)
+  expect(preview.proposed.sources[0]!.bytes).toEqual(bytes)
 })
 
 it('interprets an omitted version as format 0 while retaining the original bytes and project identity', async () => {

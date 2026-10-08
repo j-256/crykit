@@ -7,7 +7,7 @@ import { calculateBuildStats } from '../domain/build-stats'
 import { defaultCalculation } from '../domain/calculation-plan'
 import { calculatePCStats } from '../domain/pc-stats'
 import { createTestLocalData, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
-import type { BuildRevisionContent, CatalogRef, EntityId, EntityRef, GameSetupRevision } from '../domain/types'
+import type { BuildRevisionContent, CatalogRef, EntityId, EntityRef, GameSetupRevision, CatalogSnapshot } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { resolveCalculationEntity } from './model'
 
@@ -54,13 +54,15 @@ it.each(['disabled', 'unknown', 'conflicting'] as const)('does not calculate a %
   const original = data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
   const mod = 'Moonlight Project'
   const setup: GameSetupRevision = { ...original, mods: state === 'conflicting' ? { state: 'conflicting', claims: [{ value: [mod], sources: [] }, { value: [], sources: [] }] } : { state: 'unknown' }, disabledMods: state === 'disabled' ? { state: 'known', value: [mod] } : { state: 'unknown' } }
-  const brawler: CatalogRef = { ...warrior, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.kind === 'class' && entity.name === 'Brawler')!.id }
-  const resolve = (ref: EntityRef) => resolveCalculationEntity(data, [DEFAULT_CATALOG], ref, setup)
+  const id = 'mod:synthetic-switch:class:9000' as EntityId
+  const catalog = { ...DEFAULT_CATALOG, id: 'synthetic-switch-observations' as typeof DEFAULT_CATALOG.id, revisionId: 'synthetic-revision' as typeof DEFAULT_CATALOG.revisionId, checksum: 'synthetic', entities: { [id]: { ...DEFAULT_CATALOG.entities[warrior.entityId]!, id, name: 'Synthetic Switch Class', legacy: { requiredMod: mod } } } } as CatalogSnapshot
+  const brawler: CatalogRef = { ...warrior, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: id }
+  const resolve = (ref: EntityRef) => resolveCalculationEntity(data, [DEFAULT_CATALOG, catalog], ref, setup)
   for (const primaryClass of [warrior, brawler]) {
     const content: BuildRevisionContent = { primaryClass, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { ...defaultCalculation(primaryClass), growth: [{ classRef: brawler, levels: 60 }] } }
     const result = calculatePCStats(content, SUGGESTED_BUILD_SLOTS, resolve)
     expect(result.neutral.HP).toBeNull()
-    expect(result.issues.join(' ')).toContain(`Brawler: ${mod}`)
+    expect(result.issues.join(' ')).toContain(`Synthetic Switch Class: ${mod}`)
     expect(result.issues.join(' ')).toContain('effects are not applied')
   }
 })

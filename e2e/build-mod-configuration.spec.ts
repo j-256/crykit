@@ -1,8 +1,11 @@
+import { importSyntheticLibrary } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
+
+test.beforeEach(async ({ page }) => { await importSyntheticLibrary(page) })
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -24,12 +27,12 @@ async function choose(page: Page, label: string, name: string, source = 'PC 1.6.
   await results.getByRole('option').filter({ hasText: source }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
 }
 
-async function promptFreelancer(page: Page) {
-  await choose(page, 'Class', 'Freelancer', 'Moonlight Project')
-  const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
+async function promptSyntheticClass(page: Page) {
+  await choose(page, 'Class', 'Synthetic Class', 'Synthetic Moonlight')
+  const dialog = page.getByRole('dialog', { name: 'Enable Synthetic Moonlight?', exact: true })
   await expect(dialog).toBeVisible()
-  await expect(dialog).toContainText('Freelancer requires Moonlight Project')
-  await expect(dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true })).toBeFocused()
+  await expect(dialog).toContainText('Synthetic Class requires Synthetic Moonlight')
+  await expect(dialog.getByRole('button', { name: 'Enable and select Synthetic Class', exact: true })).toBeFocused()
   await expect(page.getByRole('button', { name: /^(Save build|Save new revision)$/ })).toBeDisabled()
   return dialog
 }
@@ -42,7 +45,7 @@ test('mod confirmation cancels without selecting, saving, or leaving the picker 
   await expect(page.getByText('Stats unavailable', { exact: true })).toHaveCount(0)
   const before = await storedData(page)
   for (const dismissal of ['Cancel', 'Escape', 'Close dialog']) {
-    const dialog = await promptFreelancer(page)
+    const dialog = await promptSyntheticClass(page)
     await expect(field).toHaveValue('')
     if (dismissal === 'Escape') await page.keyboard.press('Escape')
     else await dialog.getByRole('button', { name: dismissal, exact: true }).click()
@@ -54,10 +57,10 @@ test('mod confirmation cancels without selecting, saving, or leaving the picker 
     expect(await storedData(page)).toEqual(before)
   }
   await choose(page, 'Class', 'Warrior')
-  await field.fill('Freelancer')
+  await field.fill('Synthetic Class')
   await field.press('ArrowDown')
   await field.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Enable Synthetic Moonlight?', exact: true })
   await expect(dialog).toBeVisible()
   await expect(field).toHaveValue('Warrior')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -67,7 +70,7 @@ test('mod confirmation cancels without selecting, saving, or leaving the picker 
   expect(await storedData(page)).toEqual(before)
 })
 
-test('confirming Freelancer enables the exact legacy source and preserves earlier plans offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+test('confirming Synthetic Class enables the exact imported source and preserves earlier plans offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/settings/storage')
@@ -78,18 +81,18 @@ test('confirming Freelancer enables the exact legacy source and preserves earlie
   await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === 'Rowan: sample Warrior')!
-  const dialog = await promptFreelancer(page)
+  const dialog = await promptSyntheticClass(page)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
-  await expect(dialog).toContainText('Version 2.2')
+  await expect(dialog).toContainText('Version 1')
   await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true })).not.toBeVisible()
   await dialog.getByText('Version details', { exact: true }).click()
-  await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true }).locator('option:checked')).toContainText('format 27')
-  await dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true }).click()
+  await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true }).locator('option:checked')).toContainText('format 34')
+  await dialog.getByRole('button', { name: 'Enable and select Synthetic Class', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   await expect(totals).toBeVisible()
   await expect(totals).not.toContainText('Unknown')
-  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Freelancer')
+  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Synthetic Class')
   await expect(page.locator('.build-behavior')).not.toHaveAttribute('open')
   expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
   expect((await storedData(page)).gameSetups).toEqual(before.gameSetups)
@@ -110,67 +113,38 @@ test('confirming Freelancer enables the exact legacy source and preserves earlie
   await page.reload()
   await expect(totals).toBeVisible()
   await expect(totals).not.toContainText('Unknown')
-  await page.getByRole('button', { name: 'Freelancer mod settings', exact: true }).click()
-  const card = page.getByRole('region', { name: 'Mod Moonlight Project', exact: true })
-  await expect(card).toContainText('format 27')
-  await card.getByRole('button', { name: 'Disable Moonlight Project', exact: true }).click()
+  await page.getByRole('button', { name: 'Synthetic Class mod settings', exact: true }).click()
+  const card = page.getByRole('region', { name: 'Mod Synthetic Moonlight', exact: true })
+  await expect(card).toContainText('format 34')
+  await card.getByRole('button', { name: 'Disable Synthetic Moonlight', exact: true }).click()
   await openStatBreakdown(page)
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })
-  await expect(stats).toContainText('Enable Moonlight Project to calculate stats')
+  await expect(stats).toContainText('Enable Synthetic Moonlight to calculate stats')
   await expect(stats).not.toContainText('Stats unavailable')
-  await stats.getByRole('button', { name: 'Enable Moonlight Project', exact: true }).click()
+  await stats.getByRole('button', { name: 'Enable Synthetic Moonlight', exact: true }).click()
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Enable Moonlight Project', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Enable Synthetic Moonlight', exact: true }).click()
   await expect(totals).toBeVisible()
   expect((await storedData(page)).buildRevisions).toEqual(after.buildRevisions)
   expect(errors).toEqual([])
 })
 
-test('a failed confirmation retains the field and supports an explicit retry', async ({ page }) => {
-  await page.goto('/#/builds/library/new')
-  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toBeVisible()
-  const before = await storedData(page)
-  await choose(page, 'Class', 'Blade Dancer', 'Jobs - Blade Dancer and Adept')
-  const dialog = page.getByRole('dialog', { name: 'Enable Jobs - Blade Dancer and Adept?', exact: true })
-  await expect(dialog).toBeVisible()
-  await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    let failOnce = true
-    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
-      if (this.name === 'sources' && failOnce) { failOnce = false; throw new DOMException('Synthetic source import failure', 'QuotaExceededError') }
-      return add.apply(this, args)
-    }
-  })
-  await dialog.getByRole('button', { name: 'Enable and select Blade Dancer', exact: true }).click()
-  await expect(dialog.getByText('Mod could not be enabled', { exact: true })).toBeVisible()
-  expect(await storedData(page)).toEqual(before)
-  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('')
-  await dialog.getByRole('button', { name: 'Enable and select Blade Dancer', exact: true }).click()
-  await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
-  await page.getByLabel('Build title', { exact: true }).fill('Synthetic source retry build')
-  await page.getByRole('button', { name: 'Save build', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Synthetic source retry build', exact: true })).toBeVisible()
-  expect((await storedData(page)).playthroughs).toEqual(before.playthroughs)
-})
-
-test('bundled equipment confirms its exact source once and calculates stats', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('imported equipment confirms its exact source once and calculates stats', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
-  await choose(page, 'Off hand', 'Doge Shield', 'Doge Shield')
-  const dialog = page.getByRole('dialog', { name: 'Enable Doge Shield?', exact: true })
-  await expect(dialog).toContainText('Version 1.0')
+  await choose(page, 'Off hand', 'Synthetic Shield', 'Synthetic Shield')
+  const dialog = page.getByRole('dialog', { name: 'Enable Synthetic Shield?', exact: true })
+  await expect(dialog).toContainText('Version 1')
   await dialog.getByText('Version details', { exact: true }).click()
-  await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true }).locator('option:checked')).toHaveText('1.0 · bundled · format 20')
+  await expect(dialog.getByRole('combobox', { name: 'Mod version', exact: true }).locator('option:checked')).toHaveText('1 · saved · format 34')
   const field = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await expect(field).toHaveValue('')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(field).toHaveValue('')
-  await choose(page, 'Off hand', 'Doge Shield', 'Doge Shield')
-  await dialog.getByRole('button', { name: 'Enable and select Doge Shield', exact: true }).click()
-  await expect(field).toHaveValue('Doge Shield')
-  await choose(page, 'Off hand', 'Doge Shield', 'Doge Shield')
+  await choose(page, 'Off hand', 'Synthetic Shield', 'Synthetic Shield')
+  await dialog.getByRole('button', { name: 'Enable and select Synthetic Shield', exact: true }).click()
+  await expect(field).toHaveValue('Synthetic Shield')
+  await choose(page, 'Off hand', 'Synthetic Shield', 'Synthetic Shield')
   await expect(dialog).toHaveCount(0)
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   await expect(totals).toBeVisible()
@@ -185,21 +159,21 @@ test('growth choices confirm their source and subsequent selections from it need
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   await page.getByText(/^Level-up growth ·/).click()
-  await choose(page, 'Growth class 1', 'Freelancer', 'Moonlight Project')
-  const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
+  await choose(page, 'Growth class 1', 'Synthetic Class', 'Synthetic Moonlight')
+  const dialog = page.getByRole('dialog', { name: 'Enable Synthetic Moonlight?', exact: true })
   const growth = page.getByRole('combobox', { name: 'Growth class 1', exact: true })
   await expect(dialog).toBeVisible()
   await expect(growth).toHaveValue('Warrior')
   await page.keyboard.press('Escape')
   await expect(growth).toHaveValue('Warrior')
-  await growth.fill('Freelancer')
-  await page.getByRole('listbox', { name: 'Choose Growth class 1', exact: true }).getByRole('option').filter({ hasText: 'Moonlight Project' }).filter({ has: page.locator('strong', { hasText: /^Freelancer$/ }) }).click()
-  await dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true }).click()
-  await expect(growth).toHaveValue('Freelancer')
-  await page.getByRole('combobox', { name: 'Sub-command', exact: true }).fill('Brawler')
-  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ hasText: 'Moonlight Project' }).filter({ has: page.locator('strong', { hasText: /^Combo \(Brawler\)$/ }) }).click()
+  await growth.fill('Synthetic Class')
+  await page.getByRole('listbox', { name: 'Choose Growth class 1', exact: true }).getByRole('option').filter({ hasText: 'Synthetic Moonlight' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) }).click()
+  await dialog.getByRole('button', { name: 'Enable and select Synthetic Class', exact: true }).click()
+  await expect(growth).toHaveValue('Synthetic Class')
+  await page.getByRole('combobox', { name: 'Sub-command', exact: true }).fill('Synthetic Second Class')
+  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ hasText: 'Synthetic Moonlight' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Combo \(Synthetic Second Class\)$/ }) }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('Combo (Brawler)')
+  await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('Synthetic Combo (Synthetic Second Class)')
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
 })
 

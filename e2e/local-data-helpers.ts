@@ -45,16 +45,6 @@ export async function createBlankPlaythrough(page: Page): Promise<void> {
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
-export async function addBundledModToReference(page: Page, title: string): Promise<void> {
-  await page.goto('/')
-  await skipInitialModSetup(page)
-  await page.goto('/#/mods')
-  await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill(title)
-  const card = page.getByRole('region', { name: title, exact: true })
-  await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
-  await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
-}
-
 export async function replacePlannerData(panel: Locator): Promise<void> {
   await panel.getByRole('checkbox', { name: /Replace all planner data/ }).check()
   await panel.getByRole('button', { name: 'Replace planner data', exact: true }).click()

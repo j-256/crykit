@@ -1,3 +1,4 @@
+import { withdrawnCatalog } from './withdrawn-catalogs'
 import { DomainError } from './core'
 import { classFields, jsonRecord, LEARN_NODE_TYPES } from './crystal-edit'
 import { catalogEntity } from './entity-identities'
@@ -111,6 +112,15 @@ export function assertModComposition(composition: ModComposition): void {
     if (!match || Number(match[2]) > MAX_NATIVE_ID || keys.has(modLinkKey(link))) throw new DomainError('INVALID_INPUT', 'Mod replacement links require unique native model identities')
     keys.add(modLinkKey(link))
   }
+}
+
+// A saved composition cannot be rebuilt from different revisions without changing its meaning
+// Only recognized historical gaps qualify; arbitrary missing imports still fail validation
+export function hasWithdrawnModDependencies(composition: ModComposition, catalogs: readonly CatalogSnapshot[]): boolean {
+  assertModComposition(composition)
+  const missing = [composition.baseline, ...composition.layers].filter(pin => !modCatalogForPin(catalogs, pin))
+  if (missing.some(pin => !withdrawnCatalog(pin))) throw new DomainError('INVALID_INPUT', 'A mod composition references an unavailable catalog revision')
+  return missing.length > 0
 }
 
 export interface ModLayerChange {
@@ -247,6 +257,8 @@ export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonl
     const pin = metadata?.modBaseline
     if (!jsonRecord(pin) || typeof pin.catalogId !== 'string' || typeof pin.catalogRevisionId !== 'string') throw new DomainError('INVALID_INPUT', 'An effective mod catalog requires an exact baseline pin')
     const baseline = modCatalogForPin(catalogs, pin as unknown as ModCatalogPin)
+    // Keep private imported changes available when the exact withdrawn baseline cannot be supplied
+    if (!baseline && withdrawnCatalog(pin as unknown as ModCatalogPin)) return compactModCatalog(catalog)
     if (!baseline || baseline.schemaVersion === MOD_CATALOG_SCHEMA) throw new DomainError('INVALID_INPUT', 'An effective mod baseline is unavailable or cyclic')
     const compact = compactModCatalog(catalog)
     return { ...compact, entities: { ...baseline.entities, ...compact.entities }, claims: baseline.claims.filter(claim => !Object.hasOwn(compact.entities, claim.entityId)) }

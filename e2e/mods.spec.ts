@@ -1,3 +1,5 @@
+import { STARTER_CATALOG } from '../src/catalog/starter'
+import { referenceObservationFixture } from '../src/catalog/mod.test-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
@@ -5,7 +7,7 @@ import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { DEFAULT_CATALOG, PREVIOUS_CATALOG, BUNDLED_SOURCE_ENTITY_IDS } from '../src/catalog/bundled'
 import { MOONLIGHT_PROJECT_MOD, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
 import { asId, captureCharacter, createCharacter, setPlaythroughGameSetup, updateGameSetupRevision } from '../src/domain'
 import { addTestBuild, createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
@@ -13,13 +15,15 @@ import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
-const BUNDLED_DOGE_SHIELD_SOURCE_ID = 'crystal-edit:e08882e8-77c5-4a64-9e5e-fe6efaa8dc5c'
-const SHIELD: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:ref-1084') }
-const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:617') }
+const BUNDLED_DOGE_SHIELD_SOURCE_ID = `${PREVIOUS_CATALOG.id} · revision ${PREVIOUS_CATALOG.revisionId}`
+const allObservations = referenceObservationFixture(STARTER_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
+const OBSERVATIONS = { ...allObservations, entities: Object.fromEntries(Object.entries(allObservations.entities).filter(([id]) => ['mod:doge-shield:', 'mod:equipment-expansion:', 'mod:barbarian:'].some(prefix => id.startsWith(prefix)))), claims: [] }
+const SHIELD: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:ref-1084') }
+const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:617') }
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
+  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG, PREVIOUS_CATALOG, OBSERVATIONS], evidence: [], history: [] }) })
 }
 
 async function dataPanel(page: Page) {
@@ -57,7 +61,7 @@ async function search(page: Page, query: string) {
 
 test('recorded mod help opens settings and preserves the snapshot after a mod choice changes', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const original = createTestLocalData()
-  let localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId }, slots: original.gameSetups[TEST_GAME_SETUP_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
+  let localData = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, [OBSERVATIONS.id]: OBSERVATIONS.revisionId }, slots: original.gameSetups[TEST_GAME_SETUP_REVISION_ID].slots.map(slot => ({ ...slot, label: slot.id === HAND_SLOT ? 'Accessory 1' : slot.label })) })
   localData = createCharacter(localData, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(12), displayedStats: {}, equipment: { [HAND_SLOT]: BACKBREAKER }, now: TEST_NOW })
   localData = { ...localData, changes: [] }
@@ -99,7 +103,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
 })
 
 test('Reference and pickers retain non-enabled mods at the bottom while recorded sheets keep their pinned context', async ({ page }) => {
-  let localData = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } })
+  let localData = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, mods: known(['Doge Shield']), disabledMods: known(['Equipment Expansion']), catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, [OBSERVATIONS.id]: OBSERVATIONS.revisionId } })
   localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   localData = createCharacter(localData, { id: CHARACTER, name: 'Synthetic Rowan', now: TEST_NOW })
   localData = captureCharacter(localData, { characterId: CHARACTER, level: known(12), displayedStats: {}, equipment: { [HAND_SLOT]: SHIELD }, note: 'Synthetic mod observation', now: TEST_NOW })
@@ -159,16 +163,16 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await form.getByRole('button', { name: 'Choose Hand', exact: true }).click()
   await picker.getByRole('searchbox').fill('Doge Shield')
   const shieldResults = picker.locator('[data-definition-result="true"]').filter({ hasText: 'Doge Shield' })
-  await expect(shieldResults).toHaveCount(2)
+  await expect(shieldResults).toHaveCount(1)
   const bundledShield = shieldResults.filter({ hasText: BUNDLED_DOGE_SHIELD_SOURCE_ID })
-  await expect(bundledShield).toHaveCount(1)
-  await expect(bundledShield).toContainText('Outside the current Game Setup catalog pin')
-  const disabledShield = shieldResults.filter({ hasText: `${DEFAULT_CATALOG.id} · revision ${DEFAULT_CATALOG.revisionId}` })
+  // Base revisions follow the exact setup pin; the private observation retains its own identity
+  await expect(bundledShield).toHaveCount(0)
+  const disabledShield = shieldResults.filter({ hasText: `${OBSERVATIONS.id} · revision ${OBSERVATIONS.revisionId}` })
   await expect(disabledShield).toHaveCount(1)
   await expect(disabledShield).toHaveAttribute('data-mod-state', 'disabled')
   await expect(disabledShield).toBeEnabled()
   await picker.getByRole('searchbox').fill('Heavy Edge')
-  await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Heavy Edge' }).filter({ hasText: `${DEFAULT_CATALOG.id} · revision ${DEFAULT_CATALOG.revisionId}` })).toHaveCount(1)
+  await expect(picker.locator('[data-definition-result="true"]').filter({ hasText: 'Heavy Edge' }).filter({ hasText: `${OBSERVATIONS.id} · revision ${OBSERVATIONS.revisionId}` })).toHaveCount(1)
   await page.keyboard.press('Escape')
   await form.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'History', exact: true }).click()
@@ -194,13 +198,13 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await page.goto(`/#/characters/${CHARACTER}/current`)
   await expect(page.locator('.member-slot-warning [data-mod-badge="Doge Shield"][data-mod-state="enabled"]')).toBeVisible()
   await page.goto('/#/reference?kind=class')
-  await expect(page.getByRole('heading', { name: 'Brawler', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
   const referenceStates = await page.locator('a.reference-card').evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
   const firstInactiveReference = referenceStates.findIndex(value => value !== null && value !== 'enabled')
   expect(firstInactiveReference).toBeGreaterThan(0)
   expect(referenceStates.slice(firstInactiveReference).every(value => value !== null && value !== 'enabled')).toBe(true)
-  palette = await search(page, 'Brawler')
-  await expect(palette.locator('.universal-search__result').nth(1)).toBeVisible()
+  palette = await search(page, 'shield')
+  await expect(palette.locator('.universal-search__result').first()).toBeVisible()
   const searchStates = await palette.locator('.universal-search__result').evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
   const firstInactiveSearch = searchStates.findIndex(value => value !== null && value !== 'enabled')
   expect(firstInactiveSearch).toBeGreaterThan(0)
@@ -333,10 +337,10 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
   test(`build mod choices remain selectable with ${state} state from the pinned Game Setup`, async ({ page }) => {
     const original = createTestLocalData()
     const setup = original.gameSetups[TEST_GAME_SETUP_REVISION_ID]
-    const mods = state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : state === 'conflicting' ? { state: 'conflicting' as const, claims: [{ value: [MOONLIGHT_PROJECT_MOD], sources: [] }, { value: [], sources: [] }] } : { state: 'unknown' as const }
-    const disabledMods = state === 'disabled' ? known([MOONLIGHT_PROJECT_MOD]) : { state: 'unknown' as const }
-    let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
-    localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known([MOONLIGHT_PROJECT_MOD]), disabledMods: state === 'enabled' ? known([MOONLIGHT_PROJECT_MOD]) : known([]) })
+    const mods = state === 'enabled' ? known(['Bloodmage']) : state === 'conflicting' ? { state: 'conflicting' as const, claims: [{ value: ['Bloodmage'], sources: [] }, { value: [], sources: [] }] } : { state: 'unknown' as const }
+    const disabledMods = state === 'disabled' ? known(['Bloodmage']) : { state: 'unknown' as const }
+    let localData = addTestBuild({ ...original, gameSetups: { ...original.gameSetups, [setup.id]: { ...setup, mods, disabledMods, catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId, [OBSERVATIONS.id]: OBSERVATIONS.revisionId } } } }, 'synthetic-pinned-mod-build', '', {})
+    localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known(['Bloodmage']), disabledMods: state === 'enabled' ? known(['Bloodmage']) : known([]) })
     await page.goto('/')
     await skipInitialModSetup(page)
     await importBackup(page, backup(localData))
@@ -346,8 +350,8 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     await picker.click()
     const list = page.getByRole('listbox', { name: 'Choose Class', exact: true })
     await expect(list.getByRole('option').filter({ hasText: 'Warrior' }).first()).toBeVisible()
-    await picker.fill('Brawler')
-    const choice = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) }).filter({ has: page.locator('[data-mod-badge="Moonlight Project"]') })
+    await picker.fill('Bloodmage')
+    const choice = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Bloodmage$/ }) }).filter({ has: page.locator('[data-mod-badge="Bloodmage"]') })
     await expect(choice).toBeVisible()
     await picker.fill('')
     await openBuildPickerFilters(page)
@@ -361,7 +365,7 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     await includeUnavailable.uncheck()
     const scopedStates = await list.getByRole('option').filter({ has: page.locator('.picker-result__heading') }).evaluateAll(elements => elements.map(element => element.getAttribute('data-mod-state')))
     expect(scopedStates.every(value => value === null || value === 'enabled')).toBe(true)
-    await picker.fill('Brawler')
+    await picker.fill('Bloodmage')
     await expect(choice).toHaveCount(state === 'enabled' ? 1 : 0)
     await includeUnavailable.check()
     await expect(choice).toHaveAttribute('data-mod-state', state)
@@ -376,10 +380,11 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
       expect(await choice.locator(':scope > :first-child').evaluate(element => getComputedStyle(element).filter)).toBe('grayscale(1)')
     }
     await choice.click()
-    const confirmation = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
+    if (state === 'enabled') { await expect(picker).toHaveValue('Bloodmage'); return }
+    const confirmation = page.getByRole('dialog', { name: 'Enable Bloodmage?', exact: true })
     await expect(confirmation).toBeVisible()
     await expect(picker).toHaveValue('')
-    await confirmation.getByRole('button', { name: 'Enable and select Brawler', exact: true }).click()
-    await expect(picker).toHaveValue('Brawler')
+    await confirmation.getByRole('button', { name: 'Enable and select Bloodmage', exact: true }).click()
+    await expect(picker).toHaveValue('Bloodmage')
   })
 }
