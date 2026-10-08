@@ -78,7 +78,7 @@ describe('inspector exact edits and navigation', () => {
     const row = { ...saved, originalText: text, draftText: text, referenceId: INSPECTOR_REFERENCE_ID }
     storage.get.mockResolvedValue(row)
     await act(async () => root.render(<ModInspectorView/>))
-    expect(container.textContent).toContain('Exact Enum Names')
+    expect(container.textContent).toContain('Exact enum names')
     expect(container.querySelector('button[aria-label="Sources for enum names"]')).toBeNull()
     await open()
     expect(container.textContent).toContain('JSON explorer')
@@ -350,7 +350,7 @@ describe('inspector exact edits and navigation', () => {
     await click('Remove original and draft')
     expect(storage.remove).toHaveBeenLastCalledWith(saved.id, saved.revision)
     expect(container.querySelector('select')?.value).toBe('')
-    expect(container.textContent).toContain('Exact Enum Names')
+    expect(container.textContent).toContain('Exact enum names')
   })
   it('waits for an in-flight save and restores the persisted draft before discard navigation', async () => {
     let complete: (row: InspectorDraft) => void = () => undefined
