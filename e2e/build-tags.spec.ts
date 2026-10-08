@@ -60,7 +60,7 @@ test('details actions have balanced spacing within the Build actions popover', {
   }
   await openTags(page)
   await page.getByRole('button', { name: 'Remove tag sample', exact: true }).click()
-  await expectSpacing(tagsControl(page).locator('.field__hint'))
+  await expectSpacing(tagsControl(page).locator('.build-tags-field__entry'))
   await page.getByLabel('Add tag', { exact: true }).fill(TAG)
   await openTags(page)
   await expectSpacing(tagsControl(page).locator('summary'))
