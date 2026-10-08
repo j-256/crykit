@@ -11,8 +11,10 @@ const MOD_FILENAME = 'synthetic-refresh.json'
 const MOD_SOURCE = '{"EditorVersion":34,"Title":"Original refresh fixture","FutureData":{"keep":true}}'
 const MOD_DRAFT = MOD_SOURCE.replace('Original refresh fixture', 'Saved refresh draft')
 const MIME_TYPES: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' }
+// Refresh transitions need the app shell; the separate offline journey covers the full asset cache
+const REFRESH_SHELL_ASSET = /^(?:index\.html|icon\.svg|manifest\.webmanifest|assets\/.*\.(?:js|css|woff2))$/
 
-async function startInstallation() {
+async function startInstallation({ shellAssetsOnly = false }: { shellAssetsOnly?: boolean } = {}) {
   let generation = 1
   let failedAsset: string | undefined
   let pausedAsset: string | undefined
@@ -25,7 +27,18 @@ async function startInstallation() {
       if (relative === pausedAsset) await resumed
       if (relative === failedAsset) { response.writeHead(503).end('Synthetic download failure'); return }
       let bytes = await readFile(join(process.cwd(), 'dist', relative))
-      if (relative === 'sw.js') bytes = Buffer.from(bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-refresh-test-${generation}';`))
+      if (relative === 'sw.js') {
+        let source = bytes.toString().replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-refresh-test-${generation}';`)
+        if (shellAssetsOnly) {
+          const manifest = source.match(/^const FILES = (.*);$/m)
+          if (!manifest) throw new Error('The refresh fixture could not find the service worker asset manifest')
+          const files: string[] = JSON.parse(manifest[1])
+          const shellFiles = files.filter(file => REFRESH_SHELL_ASSET.test(file))
+          if (!shellFiles.includes('index.html') || !shellFiles.includes('icon.svg')) throw new Error('The refresh fixture is missing required shell assets')
+          source = source.replace(manifest[0], `const FILES = ${JSON.stringify(shellFiles)};`)
+        }
+        bytes = Buffer.from(source)
+      }
       response.writeHead(200, { 'Content-Type': MIME_TYPES[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' })
       response.end(bytes)
     } catch { response.writeHead(404).end() }
@@ -131,7 +144,7 @@ test('refresh repairs cached files and preserves planner records and saved Mod I
 })
 
 test('refresh discovers updates, keeps other tabs open, and recovers from failed downloads', async ({ page, context }) => {
-  const installation = await startInstallation()
+  const installation = await startInstallation({ shellAssetsOnly: true })
   try {
     await page.goto(`${installation.url}#/inventory`)
     await saveObservation(page)
