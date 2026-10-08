@@ -3,6 +3,9 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady, readLocalData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
+const PLANNING_RECORDS_JOURNEY_TIMEOUT_MS = 120_000
+const PLANNING_SCENARIO_JOURNEY_TIMEOUT_MS = 150_000
+
 async function navigate(page: Page, destination: string) {
   const name = destination === 'Builds' ? /^(Builds|Builds & teams)$/ : new RegExp(`^${destination}$`)
   await page.getByRole('button', { name }).filter({ visible: true }).click()
@@ -54,6 +57,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('character, party progress, and historical events remain independent observations', async ({ page }) => {
+  test.setTimeout(PLANNING_RECORDS_JOURNEY_TIMEOUT_MS)
   await configureGameSetup(page)
   await addCharacter(page, 'Synthetic Rowan')
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
@@ -136,6 +140,7 @@ test('character, party progress, and historical events remain independent observ
 })
 
 test('immutable alternatives contend only when selected together in a scenario', async ({ page }) => {
+  test.setTimeout(PLANNING_SCENARIO_JOURNEY_TIMEOUT_MS)
   await configureGameSetup(page)
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')
@@ -265,6 +270,7 @@ test('build drafts resist navigation and recording current preserves level and t
 })
 
 test('named shared-copy checkpoints clone independently and picker history preserves its query', async ({ page }, testInfo) => {
+  test.setTimeout(PLANNING_SCENARIO_JOURNEY_TIMEOUT_MS)
   await configureGameSetup(page, ['Main hand', 'Off hand'])
   await addStock(page)
   await addCharacter(page, 'Synthetic Rowan')

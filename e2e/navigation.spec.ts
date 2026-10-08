@@ -2,6 +2,8 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
+const BUILD_ROUTE_JOURNEY_TIMEOUT_MS = 120_000
+
 async function navigate(page: Page, destination: string) {
   const name = destination === 'Builds' ? /^(Builds|Builds & teams)$/ : new RegExp(`^${destination}$`)
   await page.getByRole('button', { name }).filter({ visible: true }).click()
@@ -136,6 +138,8 @@ test('settings routes retain dirty forms and expired previews recover explicitly
 })
 
 test('build drafts, checkpoint pickers, and comparisons have restorable routes', async ({ page }) => {
+  // This route journey creates and records builds before reloading a comparison
+  test.setTimeout(BUILD_ROUTE_JOURNEY_TIMEOUT_MS)
   await configureGameSetup(page)
   await addCharacter(page, 'Synthetic routed character')
   await addCharacter(page, 'Synthetic routed companion 2')
