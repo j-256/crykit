@@ -79,6 +79,7 @@ test('a skipped profile discovers an unloaded mod in a picker and enables it onl
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Freelancer')
   await page.getByLabel('Build title', { exact: true }).fill('Synthetic discovered mod build')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic discovered mod build', exact: true })).toBeVisible()
   const saved = await stored(page)
   const build = Object.values(saved.data.builds).find(build => build.title === 'Synthetic discovered mod build')!

@@ -147,6 +147,7 @@ test('a failed confirmation retains the field and supports an explicit retry', a
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Freelancer build', exact: true })).toBeVisible()
   expect((await storedData(page)).playthroughs).toEqual(before.playthroughs)
 })
@@ -212,6 +213,7 @@ test('legacy format 4 passives confirm the saved source before selection', async
   await dialog.getByRole('button', { name: 'Enable and select Synthetic old passive', exact: true }).click()
   await expect(field).toHaveValue('Synthetic old passive')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Untitled build', exact: true })).toBeVisible()
   const after = await storedData(page)
   const build = Object.values(after.builds).find(build => build.title === 'Untitled build')!
