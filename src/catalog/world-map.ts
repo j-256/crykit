@@ -41,7 +41,6 @@ const MANIFEST_SCHEMA = z.object({
   regions: z.array(z.object({ id: NATIVE_ID, name: z.string(), layer: NATIVE_ID, x: COORDINATE, z: COORDINATE, ...PROVENANCE })).max(20_000),
   markers: z.array(z.object({ id: z.string(), entityId: NATIVE_ID, kind: z.enum(WORLD_MARKER_KINDS), sourceId: z.string(), sourceName: z.string(), sourceRevisionId: z.string().optional(), change: z.enum(['base', 'added', 'modified']), name: z.string(), region: z.string().nullable(), biomeId: NATIVE_ID, layer: NATIVE_ID.nullable(), x: COORDINATE, y: COORDINATE, z: COORDINATE, description: z.string(), targets: z.array(TARGET).max(20_000), conditions: z.array(z.string()).optional(), warnings: z.array(z.string()).optional() })).max(100_000),
 }).passthrough()
-let manifestPromise: Promise<WorldMapManifest> | undefined
 const modPromises = new Map<string, Promise<WorldMapModLayer>>()
 
 export function mapModPinKey(pin: ModCatalogPin): string { return JSON.stringify([pin.catalogId, pin.catalogRevisionId]) }
@@ -119,27 +118,34 @@ export function validateWorldMapSource(manifest: WorldMapManifest): void {
   if (manifest.schemaVersion !== 1 || !sourceMatches || !validBounds || !validImages || !validGeometry) throw new Error('The bundled world map does not match its native source or image assets.')
 }
 
-export function loadWorldMap(): Promise<WorldMapManifest> {
-  manifestPromise ??= (async () => {
-    const url = MANIFEST_URLS['./world-map.json']
-    if (!url) throw new Error('The bundled world map is unavailable.')
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`The bundled world map could not be loaded (HTTP ${response.status}).`)
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    if (bytes.length > MAX_MOD_SOURCE_BYTES) throw new Error('The bundled world map exceeds its safe size limit.')
-    const parsed = MANIFEST_SCHEMA.safeParse(parseBoundedJson(bytes, 'Bundled world map'))
-    if (!parsed.success) throw new Error('The bundled world map is malformed.')
-    const manifest: WorldMapManifest = parsed.data
-    validateWorldMapSource(manifest)
-    const definitions: WorldMapDefinition[] = []
-    for (const [family, value] of Object.entries(NATIVE_GAME_DATA.databases)) {
-      if (!Array.isArray(value)) continue
-      for (const record of value) if (jsonRecord(record) && typeof record.ID === 'number' && typeof record.Name === 'string') definitions.push({ family, id: record.ID, name: record.Name, sourceId: 'base', record })
-    }
-    return { ...manifest, definitions }
-  })().catch(error => { manifestPromise = undefined; throw error })
-  return manifestPromise
+export function createWorldMapLoader(): () => Promise<WorldMapManifest> {
+  let manifestPromise: Promise<WorldMapManifest> | undefined
+  return () => {
+    // A failed load clears only this loader's cache so repaired assets can be retried
+    manifestPromise ??= (async () => {
+      const url = MANIFEST_URLS['./world-map.json']
+      if (!url) throw new Error('The bundled world map is unavailable.')
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`The bundled world map could not be loaded (HTTP ${response.status}).`)
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      if (bytes.length > MAX_MOD_SOURCE_BYTES) throw new Error('The bundled world map exceeds its safe size limit.')
+      const parsed = MANIFEST_SCHEMA.safeParse(parseBoundedJson(bytes, 'Bundled world map'))
+      if (!parsed.success) throw new Error('The bundled world map is malformed.')
+      const manifest: WorldMapManifest = parsed.data
+      validateWorldMapSource(manifest)
+      const definitions: WorldMapDefinition[] = []
+      for (const [family, value] of Object.entries(NATIVE_GAME_DATA.databases)) {
+        if (!Array.isArray(value)) continue
+        for (const record of value) if (jsonRecord(record) && typeof record.ID === 'number' && typeof record.Name === 'string') definitions.push({ family, id: record.ID, name: record.Name, sourceId: 'base', record })
+      }
+      return { ...manifest, definitions }
+    })().catch(error => { manifestPromise = undefined; throw error })
+    return manifestPromise
+  }
 }
+
+const defaultWorldMapLoader = createWorldMapLoader()
+export function loadWorldMap(): Promise<WorldMapManifest> { return defaultWorldMapLoader() }
 
 export function loadMapModLayer(pin: ModCatalogPin, catalogs: readonly CatalogSnapshot[]): Promise<WorldMapModLayer> {
   const key = mapModPinKey(pin)
