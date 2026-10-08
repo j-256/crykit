@@ -1545,6 +1545,11 @@ select option[data-mod-state]:not([data-mod-state="enabled"]) { color: var(--tex
   .build-sheet__group, .loadout-stats { scroll-margin-top: 8px; }
 }
 
+@media (max-width: 360px) {
+  /* Keep the editable Build title readable beside a full-size back target */
+  .context-bar .workspace-header__title > .button { width: 44px; min-width: 44px; padding: 0; gap: 0; font-size: 0; }
+}
+
 /* Secondary explanations stay readable; disclosure reduces density before font size */
 .field__hint, .settings-section__intro { font-size: .8125rem; line-height: 1.5; }
 .notice__body { font-size: .8125rem; line-height: 1.5; }
