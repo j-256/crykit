@@ -356,6 +356,7 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
   await page.getByLabel('Build title').fill('Synthetic pinned rules')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true })).toBeVisible()
   const pinned = await storedData(page)
   await page.goto('/#/mods')

@@ -55,6 +55,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await gender.selectOption('id:8')
   await expect(hp).toHaveText('1,344')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic mod calculation', exact: true })).toBeVisible()
   await page.reload()
   await expect(gender).toHaveValue('id:8')
