@@ -172,6 +172,10 @@ test('bundled equipment confirms its exact source once and calculates stats', { 
   const totals = page.getByRole('table', { name: 'Calculated character stats', exact: true })
   await expect(totals).toBeVisible()
   await expect(totals).not.toContainText('Unknown')
+  await openStatBreakdown(page)
+  const classStats = page.getByRole('region', { name: 'Class stats', exact: true })
+  await expect(classStats).toContainText('Warrior stats')
+  await expect(classStats).not.toContainText('unavailable')
 })
 
 test('growth choices confirm their source and subsequent selections from it need no prompt', async ({ page }) => {

@@ -10,6 +10,9 @@ import { skipInitialModSetup, openBuildGameSetup, openCurrentGameSetup, openGame
 import { expectOfflineReady } from './offline-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 
+// Keep the full save, share, and offline journeys from competing for browser cache work
+test.describe.configure({ mode: 'default' })
+
 async function settings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
