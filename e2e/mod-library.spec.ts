@@ -50,8 +50,9 @@ test('mod cards separate Reference browsing from Game Setup state and secondary 
 
 test('temporary mod details retain reporting without publishing or editing the catalog', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
-  const before = await storedData(page)
   const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  await expect(card).toBeVisible()
+  const before = await storedData(page)
   await card.getByRole('button', { name: 'View catalog entries', exact: true }).click()
   await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Doge Shield', exact: true }) }).click()
   await page.getByRole('button', { name: 'Actions', exact: true }).click()
