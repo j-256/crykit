@@ -4,14 +4,18 @@ import { sha256 } from '../interchange/util'
 
 export { BUNDLED_MOD_LIBRARY } from './mod-library-metadata'
 
-interface PackedModSource { readonly schemaVersion: number; readonly encoding: string; readonly sha256: string; readonly sourceBytes: number; readonly data: string }
+export interface PackedModSource { readonly schemaVersion: number; readonly encoding: string; readonly sha256: string; readonly sourceBytes: number; readonly data: string }
 const SOURCE_LOADERS = import.meta.glob<PackedModSource>('../assets/mod-sources/*.json', { import: 'default' })
 
 export async function bundledModEditableSource(mod: BundledLibraryMod): Promise<{ readonly filename: string; readonly text: string }> {
   const digest = mod.sourceDigest.replace(/^sha256:/, '')
   const load = SOURCE_LOADERS[`../assets/mod-sources/${digest}.json`]
   if (!load) throw new Error('The bundled mod source is unavailable.')
-  const source = await load()
+  return decodeBundledModSource(mod, await load())
+}
+
+export async function decodeBundledModSource(mod: BundledLibraryMod, source: PackedModSource): Promise<{ readonly filename: string; readonly text: string }> {
+  const digest = mod.sourceDigest.replace(/^sha256:/, '')
   if (source.schemaVersion !== 1 || source.encoding !== 'gzip-base64' || source.sha256 !== digest) throw new Error('The bundled mod source is damaged.')
   const bytes = gunzipSync(Uint8Array.from(atob(source.data), byte => byte.charCodeAt(0)))
   if (bytes.length !== source.sourceBytes || await sha256(bytes) !== digest) throw new Error('The bundled mod source is damaged.')

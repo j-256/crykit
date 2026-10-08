@@ -1,12 +1,21 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DefinitionFactsPanel, DefinitionPlanningPanel, DefinitionSourcesPanel } from './DefinitionDetailSections'
 import { KnowledgeValue } from './KnowledgeValue'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, DEFAULT_CATALOG } from '../catalog/bundled'
 import { nativeFieldFacts } from '../catalog/native-field-facts'
 import { corroboratedFact } from '../catalog/source-corroboration'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import type { Knowledge, NumericContribution } from '../domain/types'
+
+vi.mock('../catalog/bundled', async importOriginal => {
+  const actual = await importOriginal<typeof import('../catalog/bundled')>()
+  const { SYNTHETIC_MOD_SNAPSHOT } = await import('../catalog/mod.test-helpers')
+  const { NATIVE_GAME_DATA } = await import('../catalog/native-game')
+  const { buildBundledModEntities } = await import('../domain/bundled-mods')
+  const synthetic = { ...actual.CURRENT_CATALOG, id: 'crystal-edit:synthetic-library', revisionId: 'synthetic-source-facts', checksum: 'synthetic-source-facts', entities: buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums), claims: [] }
+  return { ...actual, BUNDLED_CATALOGS: [...actual.BUNDLED_CATALOGS, synthetic] }
+})
 
 const native = { sourceId: 'native-game:windows:1.6.9', snapshot: 'Windows synthetic; database fingerprint', locator: 'Database/job.dat record 7' }
 const wiki = { sourceId: 'https://crystal-project.fandom.com/wiki/Synthetic', locator: 'Community table' }
@@ -58,10 +67,11 @@ describe('quiet game export presentation', () => {
   })
 
   it('retains citations for exact bundled mod facts because mod exports are external sources', () => {
-    const entity = Object.values(DEFAULT_CATALOG.entities).find(entity => bundledModIdentity(entity) && entity.fields['Source mod']?.state === 'known')!
+    const catalog = BUNDLED_CATALOGS.find(catalog => catalog.id === 'crystal-edit:synthetic-library')!
+    const entity = Object.values(catalog.entities).find(entity => bundledModIdentity(entity) && entity.fields['Source mod']?.state === 'known')!
     expect(entity).toBeDefined()
     const value = entity.fields['Source mod']!
-    const corroboration = { catalog: DEFAULT_CATALOG, entity }
+    const corroboration = { catalog, entity }
     expect(corroboratedFact(corroboration, 'Source mod', value)).toBe(true)
     const html = renderToStaticMarkup(<DefinitionFactsPanel corroboration={corroboration} facts={[["Source mod", value]]}/>)
     expect(html).toContain('Sources for Source mod')

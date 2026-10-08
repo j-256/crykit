@@ -6,17 +6,18 @@ import { exportedTree } from '../domain/crystal-edit'
 import { LEARNABLE_INNATE_FIELD } from './switch'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { STARTER_SOURCE_URLS } from './data'
+import { CURRENT_CATALOG } from './bundled'
 
 const SYNTHETIC_CHECKSUM = `builtin:sha256:${'0'.repeat(64)}`
 
-vi.mock('./legacy-catalog-v1.json', () => { throw new Error('Current construction must not read the historical catalog') })
-vi.mock('./certainty-catalog', () => { throw new Error('Current construction must not run the historical mixed assembler') })
-vi.mock('./equipment-expansion.json', () => { throw new Error('Current construction must not read the Equipment Expansion projection') })
-vi.mock('./learnable-innates.json', () => { throw new Error('Current construction must not read the dated innate projection') })
-vi.mock('./moonlight-project-v2.2.json', () => { throw new Error('Current construction must not read the Moonlight projection') })
+vi.mock('./mod-library-metadata', async () => {
+  const { SYNTHETIC_BUNDLED_MOD } = await import('./mod.test-helpers')
+  return { BUNDLED_MOD_LIBRARY: [SYNTHETIC_BUNDLED_MOD], STARTER_MOD_PROJECT_IDS: [] }
+})
 
-it('builds native records and reviewed relationships with historical inputs unavailable', () => {
+it('keeps native records and reviewed relationships unchanged with a populated source library', () => {
   const catalog = vanillaCatalog(SYNTHETIC_CHECKSUM)
+  expect({ ...catalog, checksum: CURRENT_CATALOG.checksum }).toEqual(CURRENT_CATALOG)
   const warrior = catalog.entities['base:job:0']!
   const source = NATIVE_GAME_DATA.databases.job as readonly { readonly ID: number }[]
   expect(nativeSourceRecord(warrior)).toEqual(source.find(job => job.ID === 0))

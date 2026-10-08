@@ -4,9 +4,7 @@ import { composeWorldMap } from '../domain/world-map'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { catalogSnapshotKey } from '../interchange/identity'
 import { CryKitDatabase, setDatabaseForTests } from '../persistence/database'
-import { BUNDLED_MOD_LIBRARY } from './mod-library'
 import { CURRENT_CATALOG, DEFAULT_CATALOG } from './bundled'
-import { bundledModSearchCatalogs } from './mod-search'
 import { createWorldMapLoader, loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
 import { encodeMapGeometry } from '../domain/map-geometry'
 import { sha256 } from '../interchange/util'
@@ -64,35 +62,39 @@ describe('bundled native world map and original mod source joining', () => {
     expect(() => validateWorldMapSource({ ...manifest, layers: [{ id: 0, label: 'Damaged', image: '../private.png' }] })).toThrow('does not match')
   })
 
-  it('joins Equipment Expansion originals into native placements, preserving empty replacement and N/A coordinates', async () => {
-    const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
-    const layer = await loadMapModLayer({ catalogId: bundled.id, catalogRevisionId: bundled.sourceDigest as never }, [DEFAULT_CATALOG])
-    const result = composeWorldMap(await loadWorldMap(), [layer])
-    expect(layer.entities.length).toBeGreaterThan(0)
-    const added = result.markers.filter(marker => marker.sourceId === bundled.id && marker.change === 'added')
-    expect(added.some(marker => marker.kind === 'chest')).toBe(true)
-    expect(added.some(marker => marker.kind === 'boss')).toBe(true)
-    expect(added.filter(marker => marker.region === null).every(marker => marker.biomeId === 0 && marker.layer === null)).toBe(true)
-    expect(result.markers.filter(marker => marker.entityId === 87)).toHaveLength(1)
-    expect(result.markers.find(marker => marker.entityId === 87)).toMatchObject({ change: 'modified', name: 'Empty chest', targets: [] })
-    expect(result.markers.every(marker => marker.targets.every(target => target.sourceId !== 'unresolved'))).toBe(true)
-    const backbreaker = result.markers.find(marker => marker.kind === 'chest' && marker.name === 'Backbreaker')!
-    expect(backbreaker).toBeDefined()
-    const ref = worldMapTargetRef(backbreaker.targets[0]!, [DEFAULT_CATALOG])
-    expect(ref).toBeDefined()
-    expect(DEFAULT_CATALOG.entities[ref!.entityId]?.name).toBe('Backbreaker')
-    const preview = bundledModSearchCatalogs().find(catalog => catalog.id === bundled.id)!
-    const unloaded = worldMapTargetRef(backbreaker.targets[0]!, [CURRENT_CATALOG])
-    expect(unloaded).toMatchObject({ catalogId: preview.id, catalogRevisionId: preview.revisionId })
-    expect(preview.entities[unloaded!.entityId]?.name).toBe('Backbreaker')
-    const changed = { ...preview, revisionId: 'synthetic-updated' as typeof preview.revisionId, checksum: 'sha256:different' }
-    expect(worldMapTargetRef(backbreaker.targets[0]!, [CURRENT_CATALOG, changed])).toEqual(unloaded)
-    expect(worldMapTargetRef({ ...backbreaker.targets[0]!, sourceRevisionId: 'sha256:unknown' }, [DEFAULT_CATALOG])).toBeUndefined()
+  it('joins imported original placements, preserving empty replacements and unknown coordinates', async () => {
+    const database = new CryKitDatabase(`synthetic-map-joining-${crypto.randomUUID()}`)
+    setDatabaseForTests(database)
+    try {
+      const source = { ID: 'synthetic-map-joining', Title: 'Synthetic Map', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic map blade' }], Monsters: [{ ID: 9000, Name: 'Synthetic boss', IsBoss: true }], Troops: [{ ID: 9000, Name: 'Synthetic troop', Members: [{ MonsterID: 9000 }] }], Entities: [
+        { ID: 87, Coord: { X: 1, Y: 100, Z: 1 }, BiomeID: 1, EntityType: 5, TreasureData: { LootType: 0, LootValue: 0 } },
+        { ID: 900000, Coord: { X: 2, Y: 100, Z: 2 }, BiomeID: 1, EntityType: 5, TreasureData: { LootType: 2, LootValue: 9000 } },
+        { ID: 900001, Coord: { X: 3, Y: 100, Z: 3 }, BiomeID: 1, EntityType: 2, SparkData: { TroopPages: [{ TroopID: 9000 }] } },
+        { ID: 900002, Coord: { X: 4, Y: 100, Z: 4 }, BiomeID: 0, EntityType: 5, TreasureData: { LootType: 2, LootValue: 9000 } },
+      ] }
+      const preview = await previewCrystalEdit(new TextEncoder().encode(JSON.stringify(source)), 'synthetic.json')
+      const catalog = preview.proposed.catalogs[0]!
+      await database.sources.put(preview.proposed.sources[0]!)
+      await database.catalogs.put({ key: catalogSnapshotKey(catalog.id, catalog.revisionId), id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum, snapshot: catalog })
+      const layer = await loadMapModLayer({ catalogId: catalog.id, catalogRevisionId: catalog.revisionId }, [CURRENT_CATALOG, catalog])
+      const result = composeWorldMap(await loadWorldMap(), [layer])
+      const added = result.markers.filter(marker => marker.sourceId === catalog.id && marker.change === 'added')
+      expect(added.some(marker => marker.kind === 'chest')).toBe(true)
+      expect(added.some(marker => marker.kind === 'boss')).toBe(true)
+      expect(added.find(marker => marker.entityId === 900002)).toMatchObject({ region: null, biomeId: 0, layer: null })
+      expect(result.markers.filter(marker => marker.entityId === 87)).toHaveLength(1)
+      expect(result.markers.find(marker => marker.entityId === 87)).toMatchObject({ change: 'modified', name: 'Empty chest', targets: [] })
+      const blade = result.markers.find(marker => marker.entityId === 900000)!
+      const ref = worldMapTargetRef(blade.targets[0]!, [CURRENT_CATALOG, catalog])
+      expect(catalog.entities[ref!.entityId]?.name).toBe('Synthetic map blade')
+      const changed = { ...catalog, revisionId: 'synthetic-updated' as typeof catalog.revisionId, checksum: 'sha256:different' }
+      expect(worldMapTargetRef(blade.targets[0]!, [CURRENT_CATALOG, changed])).toBeUndefined()
+      expect(worldMapTargetRef({ ...blade.targets[0]!, sourceRevisionId: 'sha256:unknown' }, [catalog])).toBeUndefined()
+    } finally { setDatabaseForTests(undefined); await database.delete() }
   })
 
   it('reports an unavailable pinned source without substituting another project version', async () => {
-    const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
-    const result = await loadMapModLayer({ catalogId: bundled.id, catalogRevisionId: 'sha256:unavailable' as never }, [DEFAULT_CATALOG])
+    const result = await loadMapModLayer({ catalogId: 'crystal-edit:synthetic-unavailable' as never, catalogRevisionId: 'sha256:unavailable' as never }, [DEFAULT_CATALOG])
     expect(result.entities).toEqual([])
     expect(result.warnings.join(' ')).toContain('exact mod revision is unavailable')
   })

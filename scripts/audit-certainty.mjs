@@ -5,7 +5,6 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { createServer } from 'vite'
-import { validateModSnapshot } from './bundle-mod.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const RECEIPT = join(ROOT, 'src/catalog/certainty-catalog.json')
@@ -24,7 +23,6 @@ catch (error) { console.error(error.message); process.exit(2) }
 if (values.help) { process.stdout.write(USAGE); process.exit(0) }
 let server
 try {
-  validateModSnapshot(JSON.parse(await readFile(join(ROOT, 'src/catalog/moonlight-project-v2.2.json'), 'utf8')))
   server = await createServer({ root: ROOT, configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   const { DEFAULT_CATALOG: catalog } = await server.ssrLoadModule('/src/catalog/bundled.ts')
   const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')

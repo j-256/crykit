@@ -19,15 +19,21 @@ function expectRoundTrip(value: AppRoute) {
 }
 
 describe('semantic navigation routes', () => {
-  it('uses one bundled alias with stable IDs and descriptive final segments', () => {
+  it('uses exact current pins with stable IDs and descriptive final segments', () => {
     for (const [id, path] of [
       ['base:item:203', 'base/item/203/quintar-berries'],
-      ['mod:equipment-expansion:equipment:592', 'mod/equipment-expansion/equipment/592/heavy-edge'],
-      ['mod:moonlight-project:ability:565', 'mod/moonlight-project/ability/565/100-pun-storm'],
       ['base:other:ref-909', 'base/other/ref-909/achievements'],
     ]) {
       const detail = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as CatalogRef['entityId'] } })
-      expect(formatAppRoute(detail)).toBe(`#/reference/catalog/v1/${path}`)
+      expect(formatAppRoute(detail)).toBe(`#/reference/catalog/crystal-project-public-starter/catalog-v3/${path}`)
+      expectRoundTrip(detail)
+    }
+  })
+
+  it('keeps the historical alias pinned when its mod definitions are unavailable', () => {
+    for (const [id, path] of [['mod:equipment-expansion:equipment:592', 'mod/equipment-expansion/equipment/592'], ['mod:moonlight-project:ability:565', 'mod/moonlight-project/ability/565']]) {
+      const detail = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: 'catalog-v1', entityId: id } as CatalogRef })
+      expect(formatAppRoute(detail)).toBe(`#/reference/catalog/v1/${path}/definition`)
       expectRoundTrip(detail)
     }
   })
@@ -95,7 +101,7 @@ describe('semantic navigation routes', () => {
   })
 
   it('keeps the exact numeric identity independent of the readable slug', () => {
-    const root = '#/reference/catalog/v1/'
+    const root = '#/reference/catalog/crystal-project-public-starter/catalog-v3/'
     const desert = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:monster:316' as CatalogRef['entityId'] } })
     expect(formatAppRoute(desert)).toBe(`${root}base/monster/316/brutish-quintar-desert`)
     expect(parseAppRoute(`${root}base/monster/316/completely-wrong-name`)).toEqual(desert)

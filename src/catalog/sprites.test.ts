@@ -119,24 +119,6 @@ describe('bundled artwork identity', () => {
     expect(sprite?.provenance).toBe('community-wiki')
   })
 
-  it('resolves exact Equipment Expansion cells from custom and base-game sheets', () => {
-    const custom = catalogArtwork(builtin, { id: 'mod:equipment-expansion:equipment:642' as EntityId, kind: 'item' })
-    expect(custom?.source).toBe('mod')
-    if (custom?.source !== 'mod') throw new Error('Expected exact mod artwork')
-    expect(custom?.url).toMatch(/mod-sprites\/[a-f0-9]{64}\.png/)
-    expect(custom?.asset).toMatchObject({ width: 34, height: 34 })
-    expect(custom?.asset.descriptionUrl).toBeUndefined()
-    expect(custom?.binding.sources[0]).toMatchObject({ locator: 'Equipment/zrghr-2-32x32, cell 43' })
-    expect(custom?.provenance).toBe('mod-export')
-    const base = catalogArtwork(builtin, { id: 'mod:equipment-expansion:equipment:592' as EntityId, kind: 'item' })
-    expect(base?.source).toBe('mod')
-    if (base?.source !== 'mod') throw new Error('Expected reused base-game mod artwork')
-    expect(base?.url).toMatch(/mod-sprites\/[a-f0-9]{64}\.png/)
-    expect(base?.asset).toMatchObject({ width: 34, height: 34 })
-    expect(base?.binding.sources[0]).toMatchObject({ locator: 'Content/Textures/Equipment.dat > Sword2H, cell 6' })
-    expect(base?.provenance).toBe('base-game-archive')
-  })
-
   it('does not attach artwork to foreign catalogs, different kinds, or unknown identities', () => {
     expect(catalogArtwork('synthetic-import', entity)).toBeUndefined()
     expect(catalogArtwork(builtin, { ...entity, kind: 'ability' })).toBeUndefined()

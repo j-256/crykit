@@ -9,7 +9,6 @@ import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
 import { createModdedSaveEditorFixture, createNeutralSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer, SYNTHETIC_SAVE_MOD } from '../domain/save-editor.fixture'
-import { saveEditorModProjectId } from '../domain/save-editor-mods'
 import { createSampleLocalData } from '../domain/sample-data'
 import { CRYSTAL_SAVE_LIMITS, decodeCrystalSave, encodeCrystalSave } from '../interchange/crystal-save'
 import type { DraftActions } from './drafts'
@@ -24,15 +23,16 @@ let root: Root
 let onDraftChange: ReturnType<typeof vi.fn<(dirty: boolean, actions?: DraftActions) => void>>
 const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
 const scrollIntoView = vi.fn()
-const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY.find(mod => mod.title === 'Cheat Passives')!
-const CHEAT_PASSIVES_FIXTURE = {
-  id: saveEditorModProjectId(CHEAT_PASSIVES.id),
-  title: CHEAT_PASSIVES.title,
-  version: CHEAT_PASSIVES.declaredVersion!,
-  steamWorkshopFileId: CHEAT_PASSIVES.steamWorkshopFileId,
-  jobId: CHEAT_PASSIVES.models.Jobs[0],
-  passiveIds: CHEAT_PASSIVES.models.Passives,
-}
+const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY[0]!
+const CHEAT_PASSIVES_FIXTURE = { ...SYNTHETIC_SAVE_MOD, id: 'synthetic-bundled-save-mod', title: 'Synthetic Bundled Save Mod' }
+vi.mock('../catalog/mod-library-metadata', async () => {
+  const { SYNTHETIC_SAVE_MOD: mod } = await import('../domain/save-editor.fixture')
+  return { BUNDLED_MOD_LIBRARY: [{ id: 'crystal-edit:synthetic-bundled-save-mod', key: 'synthetic-bundled-save-mod', title: 'Synthetic Bundled Save Mod', declaredVersion: mod.version, editorVersion: 34, sourceDigest: 'sha256:synthetic-fixture', models: { Jobs: [mod.jobId], Passives: [...mod.passiveIds] } }], STARTER_MOD_PROJECT_IDS: [] }
+})
+vi.mock('../catalog/mod-library', async importOriginal => {
+  const { createSaveEditorModProjectFixture } = await import('../domain/save-editor.fixture')
+  return { ...await importOriginal<typeof import('../catalog/mod-library')>(), bundledModEditableSource: vi.fn(async () => ({ filename: 'synthetic.json', text: JSON.stringify({ ...createSaveEditorModProjectFixture(), ID: 'synthetic-bundled-save-mod', Title: 'Synthetic Bundled Save Mod' }) })) }
+})
 
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -488,8 +488,8 @@ describe('save editor session', () => {
     // Open both saves in one test so cache reuse does not depend on test order
     await openBundledSave(encodeCrystalSave(createModdedSaveEditorFixture({ mod: CHEAT_PASSIVES_FIXTURE })))
     expect(container.textContent).toContain('Bundled definition matched')
-    expect(input('Cheat Passives definition available').checked).toBe(true)
-    expect(container.textContent).toContain('Cheat Passives 2.0 (bundled)')
+    expect(input('Synthetic Bundled Save Mod definition available').checked).toBe(true)
+    expect(container.textContent).toContain('Synthetic Bundled Save Mod 1.0 (bundled)')
     expect(input('Copper').disabled).toBe(false)
 
     const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModEditableSource')
@@ -499,7 +499,7 @@ describe('save editor session', () => {
       await waitForText('Bundled project identified')
       expect(sourceSpy).not.toHaveBeenCalled()
       expect(previewSpy).not.toHaveBeenCalled()
-      expect(input('Cheat Passives definition available').checked).toBe(true)
+      expect(input('Synthetic Bundled Save Mod definition available').checked).toBe(true)
       expect(container.textContent).toContain('Saved revision unavailable')
       expect(input('Copper').disabled).toBe(true)
       await act(async () => button('Review mod data removal').click())

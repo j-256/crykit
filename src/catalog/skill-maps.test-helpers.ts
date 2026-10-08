@@ -1,4 +1,24 @@
-import type { LearnedNodeKind } from '../domain/types'
+import type { CatalogEntity, CatalogSnapshot, LearnedNodeKind } from '../domain/types'
+import { CONFIRMED_SKILL_MAPS } from './skill-maps'
+
+// Supply only observed names and kinds for the exact map pin; no exported mod records or gameplay values are needed
+export function observedSkillMapCatalogFixture(base: CatalogSnapshot): CatalogSnapshot {
+  const entities = { ...base.entities }
+  const pin = CONFIRMED_SKILL_MAPS[0]!.classRef
+  const record = (id: CatalogEntity['id'], name: string, kind: CatalogEntity['kind']): CatalogEntity => ({ id, kind, name, aliases: [], fields: {}, sources: [] })
+  for (const fixture of CLASS_MAP_FIXTURES) {
+    const map = CONFIRMED_SKILL_MAPS.find(candidate => candidate.classRef.entityId === fixture.classId)
+    if (!map) throw new Error(`Missing observed class map: ${fixture.className}`)
+    entities[map.classRef.entityId] = record(map.classRef.entityId, fixture.className, 'class')
+    for (const mapping of map.mappings) {
+      if (mapping.ref.kind !== 'catalog') throw new Error('A confirmed map fixture requires catalog identities')
+      const square = fixture.squares.find(([row, column]) => row === mapping.row && column === mapping.column)
+      if (!square?.[2]) throw new Error('A confirmed mapping requires an independently observed name')
+      entities[mapping.ref.entityId] = record(mapping.ref.entityId, square[2], mapping.kind)
+    }
+  }
+  return { ...base, id: pin.catalogId, revisionId: pin.catalogRevisionId, checksum: 'synthetic-observed-square-maps', entities }
+}
 
 export const CLASS_MAP_FIXTURES: readonly { readonly className: string; readonly classId?: string; readonly squares: readonly (readonly [number, number, string | null, LearnedNodeKind | null])[] }[] = [
   {

@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
-import { assembleCertaintyCatalog, CERTAINTY_CATALOG_REVISION_ID, MOONLIGHT_SNAPSHOT } from './certainty-catalog'
+import { vanillaCatalog, VANILLA_CATALOG_REVISION_ID } from './vanilla-catalog'
+import { SYNTHETIC_MOD_SNAPSHOT } from './mod.test-helpers'
 import { bundledModEntityId, bundledModIdentity, buildBundledModEntities } from '../domain/bundled-mods'
 import { exportedTree } from '../domain/crystal-edit'
 import { nativeEntityId, nativeIdentity, nativeRelationships, nativeSourceRecord } from '../domain/native-game'
 import { skillWeaponRule } from '../domain/skill-weapons'
 import { definitionWithMechanics } from '../domain/mechanics-facts'
 import { classTreeSkill } from './class-learn-tree'
-import { addNativeBase, NATIVE_GAME_DATA } from './native-game'
-import { assembleBundledCatalog } from './bundled-catalog'
-import { STARTER_CATALOG } from './starter'
+import { NATIVE_GAME_DATA } from './native-game'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { sha256 } from '../interchange/util'
@@ -17,13 +16,13 @@ import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { baseGameEntityId, catalogEntity } from '../domain/entity-identities'
 
 describe('source-backed catalog certainty', () => {
-  const sourceCatalog = addNativeBase(assembleBundledCatalog(STARTER_CATALOG))
+  const sourceCatalog = vanillaCatalog(DEFAULT_CATALOG.checksum)
   it('uses canonical identities directly and rejects obsolete IDs', () => {
     expect(Object.keys(DEFAULT_CATALOG.entities).every(id => /^(base|mod):/.test(id))).toBe(true)
     expect(catalogEntity(DEFAULT_CATALOG, 'base:item:196')?.id).toBe('base:item:196')
-    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:equipment:592')?.id).toBe('mod:equipment-expansion:equipment:592')
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:equipment:592')).toBeUndefined()
     expect(catalogEntity(DEFAULT_CATALOG, nativeEntityId('monster', 2))?.id).toBe(baseGameEntityId('monster', 2))
-    expect(catalogEntity(DEFAULT_CATALOG, 'mod:moonlight-project:class:26')?.id).toBe('mod:moonlight-project:class:26')
+    expect(catalogEntity(DEFAULT_CATALOG, 'mod:moonlight-project:class:26')).toBeUndefined()
     for (const id of ['wiki:item:treasure-finder', 'switch:class:freelancer', 'native:base:monster:2', 'base:item:quintar-berries', 'mod:equipment-expansion:item:heavy-edge']) expect(catalogEntity(DEFAULT_CATALOG, id)).toBeUndefined()
     expect(catalogEntity(DEFAULT_CATALOG, 'wiki:item:nonexistent')).toBeUndefined()
     for (const id of ['__proto__', 'constructor', 'toString']) expect(catalogEntity(DEFAULT_CATALOG, id)).toBeUndefined()
@@ -31,34 +30,35 @@ describe('source-backed catalog certainty', () => {
   })
   it('assembles source snapshots without mutating them and validates the baseline checksum', async () => {
     const before = JSON.stringify(sourceCatalog)
-    expect(assembleCertaintyCatalog(sourceCatalog)).toEqual(DEFAULT_CATALOG)
+    expect(vanillaCatalog(DEFAULT_CATALOG.checksum)).toEqual(DEFAULT_CATALOG)
     expect(JSON.stringify(sourceCatalog)).toBe(before)
-    expect(DEFAULT_CATALOG.revisionId).toBe(CERTAINTY_CATALOG_REVISION_ID)
+    expect(DEFAULT_CATALOG.revisionId).toBe(VANILLA_CATALOG_REVISION_ID)
     expect(NativeCatalogSnapshotSchema.parse(JSON.parse(JSON.stringify(DEFAULT_CATALOG)))).toEqual(DEFAULT_CATALOG)
     const { checksum, ...content } = DEFAULT_CATALOG
     expect(checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
   })
 
-  it('resolves Pun Storm from the versioned Moonlight export, with its exact numeric identity', () => {
-    const id = bundledModEntityId('moonlight-project', 'Abilities', 565)
-    const skill = DEFAULT_CATALOG.entities[id]!
-    expect(skill.name).toBe('100-Pun Storm')
-    expect(bundledModIdentity(skill)).toMatchObject({ key: 'moonlight-project', family: 'Abilities', modelId: 565, version: '2.2' })
-    expect(skill.fields).toMatchObject({ Class: { state: 'known', value: ['Freelancer'] }, 'Source mod': { state: 'known', value: 'Moonlight Project' }, Cost: { state: 'known', value: 'None' }, 'Learning cost': { state: 'known', value: 4 }, Description: { state: 'known', value: expect.stringContaining('signature technique') }, 'Ability modifiers': { state: 'known', value: expect.arrayContaining([expect.objectContaining({ Name: 'InterruptTT' })]) } })
+  it('resolves an imported synthetic technique from its versioned export, with its exact numeric identity', () => {
+    const id = bundledModEntityId('synthetic-library', 'Abilities', 565)
+    const skill = buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums)[id]!
+    expect(skill.name).toBe('Synthetic Technique')
+    expect(bundledModIdentity(skill)).toMatchObject({ key: 'synthetic-library', family: 'Abilities', modelId: 565, version: '2.2' })
+    expect(skill.fields).toMatchObject({ Class: { state: 'known', value: ['Synthetic Class'] }, 'Source mod': { state: 'known', value: 'Synthetic Library' }, Cost: { state: 'known', value: 'None' }, 'Learning cost': { state: 'known', value: 4 }, Description: { state: 'known', value: expect.stringContaining('Synthetic action') }, 'Ability modifiers': { state: 'known', value: [] } })
     expect(Object.values(skill.fields).some(value => value.state === 'unknown')).toBe(false)
     expect(skillWeaponRule(skill)).toMatchObject({ state: 'known', value: { kind: 'nonWeaponAction' } })
   })
 
-  it('links every Moonlight tree to its own numeric definitions without guessing absent external records', () => {
-    for (const job of Object.values(DEFAULT_CATALOG.entities).filter(entity => bundledModIdentity(entity)?.family === 'Jobs')) {
+  const syntheticCatalog = { ...DEFAULT_CATALOG, entities: buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums) }
+  it('links every synthetic tree to its own numeric definitions without guessing absent external records', () => {
+    for (const job of Object.values(syntheticCatalog.entities).filter(entity => bundledModIdentity(entity)?.family === 'Jobs')) {
       for (const node of exportedTree(job).filter(node => node.nodeType === 2 || node.nodeType === 3)) {
-        const skill = classTreeSkill(job, node, DEFAULT_CATALOG)
+        const skill = classTreeSkill(job, node, syntheticCatalog)
         expect(skill.definition, `${job.name} ${node.dataId}`).toBeDefined()
         expect(skill.jp).toBeGreaterThanOrEqual(0)
       }
     }
-    const job = DEFAULT_CATALOG.entities[bundledModEntityId('moonlight-project', 'Jobs', 26)]!
-    expect(classTreeSkill(job, { row: 0, column: 0, nodeType: 2, dataId: 99999, prerequisites: [] }, DEFAULT_CATALOG).definition).toBeUndefined()
+    const job = syntheticCatalog.entities[bundledModEntityId('synthetic-library', 'Jobs', 26)]!
+    expect(classTreeSkill(job, { row: 0, column: 0, nodeType: 2, dataId: 99999, prerequisites: [] }, syntheticCatalog).definition).toBeUndefined()
   })
 
   it('joins exact base-tree identities, keeps native relationships, and exposes no duplicate numeric skill', () => {
@@ -82,9 +82,9 @@ describe('source-backed catalog certainty', () => {
     expect(definitionWithMechanics(sword, SUGGESTED_BUILD_SLOTS).slotKinds).toMatchObject({ state: 'known', value: ['plan-main-hand', 'plan-off-hand'] })
   })
 
-  it('separates identical numeric IDs and names from different mod projects', () => {
-    const other = buildBundledModEntities({ ...MOONLIGHT_SNAPSHOT, key: 'synthetic-mod', requiredMod: 'Synthetic mod' }, NATIVE_GAME_DATA.enums)
-    expect(other[bundledModEntityId('synthetic-mod', 'Abilities', 565)]?.name).toBe('100-Pun Storm')
-    expect(other[bundledModEntityId('moonlight-project', 'Abilities', 565)]).toBeUndefined()
+  it('separates identical numeric IDs and names from different synthetic projects', () => {
+    const other = buildBundledModEntities({ ...SYNTHETIC_MOD_SNAPSHOT, key: 'synthetic-mod', requiredMod: 'Synthetic mod' }, NATIVE_GAME_DATA.enums)
+    expect(other[bundledModEntityId('synthetic-mod', 'Abilities', 565)]?.name).toBe('Synthetic Technique')
+    expect(other[bundledModEntityId('synthetic-library', 'Abilities', 565)]).toBeUndefined()
   })
 })

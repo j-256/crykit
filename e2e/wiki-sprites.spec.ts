@@ -1,3 +1,4 @@
+import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -60,11 +61,15 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
 
-test('the baseline includes the versioned innate unlock evidence', async ({ page }) => {
-  await page.goto(detail('base:innate:ref-1062'))
-  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
-  const unlockCost = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Learnable Innate Skill v1\.0 JP cost$/ }) })
-  await expect(unlockCost).toContainText('500')
+test('imported innate unlock evidence retains the exact source record', async ({ page }) => {
+  await importSyntheticLibrary(page, false, [SYNTHETIC_INNATE_ROOT])
+  await page.goto('/#/reference?q=Synthetic+Learnable+Innate')
+  await page.getByRole('heading', { name: 'Synthetic Learnable Innate', exact: true }).click()
+  await page.getByRole('button', { name: 'Sources for Synthetic Learnable Innate', exact: true }).click()
+  await page.getByText('Complete mod source record', { exact: true }).click()
+  const source = page.getByRole('dialog', { name: 'Sources for Synthetic Learnable Innate', exact: true })
+  await expect(source).toContainText('"JP": 200')
+  await expect(source).toContainText('"IsLearnable": true')
 })
 
 test('failed sprite loading preserves the definition and an explicit fallback', async ({ browser, baseURL }) => {

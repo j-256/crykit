@@ -5,7 +5,7 @@ import type { CatalogSnapshot, EntityId, EntityRef, LocalData } from './types'
 // Rewrite typed references only; source payloads may contain similar-looking IDs with unrelated meanings
 const OPAQUE_FIELDS = new Set(['fields', 'legacy', 'sources', 'changes'])
 
-export function upgradeBundledReferences(data: LocalData, catalog: CatalogSnapshot, sourceIds: ReadonlyMap<string, EntityId>): LocalData {
+export function upgradeBundledReferences(data: LocalData, catalog: Pick<CatalogSnapshot, 'id' | 'revisionId'>, sourceIds: ReadonlyMap<string, EntityId>): LocalData {
   const target = (id: string) => sourceIds.get(id) ?? id
   const walk = (value: unknown): unknown => {
     if (!value || typeof value !== 'object') return value

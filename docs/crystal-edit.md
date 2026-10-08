@@ -25,13 +25,9 @@ Equipment enum meanings and the column-first tree format are documented in the [
 
 ## Bundled mod evidence
 
-The Mods library packages full original projects from a source directory. Every bundled project uses the same Crystal Edit importer as a user-supplied `mod.json`. Exact original bytes, project UUIDs, versions and SHA-256 digests remain available locally. **Edit bundled copy** creates a separate browser draft; saving or importing an update preserves the original.
+The mod library uses the same Crystal Edit importer for packaged and user-supplied sources. Exact project IDs, versions and SHA-256 digests identify each revision. Editing creates a separate browser draft; saving or importing an update preserves earlier revisions.
 
-Fresh profiles start with the native base catalog. **Choose your mods** offers a dense searchable list, an optional starter selection and **Skip for now**. Applying the list loads the selected full sources, adds their definitions to Reference and enables their exact revisions in the initial Game Setup. The order of selected mods determines priority. Earlier Builds and character snapshots keep their saved setup. A skipped chooser can be reopened from **Mods > Choose mods**.
-
-Bundled availability, loaded source revisions, Reference membership and Game Setup enablement are separate states. Picker searches include compact records from all bundled projects. Selecting one loads its complete source before saving; a Build also confirms enablement when needed. Removing Reference membership hides browse results without discarding archived sources or changing saved Builds.
-
-Equipment Expansion, Moonlight Project and Learnable Innate Skill are ordinary projects in this pipeline. Their optional starter membership and historical name aliases live in `src/catalog/mod-defaults.json`. Their source exports do not establish Nintendo Switch parity or which skills a character has learned. Import notes retain unsupported editor formats, absent related definitions and unmodeled game effects.
+Loaded source revisions, Reference membership and Game Setup enablement are separate states. A compact discovery record supplies search information; complete source definitions are required for calculation and saved layers. Removing Reference membership hides browse results without discarding archived sources or changing saved Builds. Source exports do not establish Nintendo Switch parity or which skills a character has learned. Import notes retain unsupported formats, absent related definitions and unmodeled effects.
 
 The compact index is generated from the original source assets with the shared importer:
 
@@ -42,7 +38,7 @@ npm run mods:index:check
 
 The index supplies search and picker compatibility information; it is never a saved catalog or calculation source. The full normalized revision is loaded before a selection is persisted. Source updates require regenerating the index after [directory packaging](development.md#bundle-a-mod-source-directory). Exact artwork bindings continue to use the source digest and numeric model identity.
 
-The immutable `catalog-v1` archive preserves the former mixed catalog, including its reviewed equipment and dated innate projections, for existing saved records, backups and links. The earlier `catalog-v2` base snapshot also remains available for saved pins and links. New profiles use `catalog-v3`, built independently from native databases and attributed reference sources. Source-backed project observations and mod learning costs are omitted from its supplemental inputs; exact mod revisions supply those definitions when selected. Historical projection files and their checks are retained as compatibility evidence; they do not populate new catalogs. Ordinary Reference browsing uses the selected Game Setup's original base revision, so loading an older backup does not show duplicate base revisions. Exact saved references and historical links retain their original identities.
+Fresh profiles use `catalog-v3`, built from native databases and attributed reference sources. The preceding `catalog-v2` snapshot remains available for exact saved pins. Known unavailable revisions retain checksum receipts and stable source identity mappings. Saved references stay pinned and unresolved until their exact snapshot is available; private snapshots and source archives remain part of local backups.
 
 ## Importing custom classes and class edits
 
@@ -90,6 +86,6 @@ The guide's stat and ability modifier glossaries are bundled as searchable **Mec
 
 The reference entry **Growth estimates and damage formula research** leads with the verified [native PC package](calculations.md) and its [readable calculation reference](calculation-reference.md). Original community research and its disagreements remain in the Sources popup. Reviewed modifier descriptions use the inspected native parameter order for ability AP-cost adjustments and secondary-resource damage, the accumulated magical-variance multiplier, and the nonlinear steal-success calculation. Their exact original claims and source evidence remain available without changing saved catalog revisions. Explicit battle-context requirements still limit encounter simulation.
 
-The original guide, embedded images, and original class-copy project are not committed. The Mods library packages full original mod exports as compressed source assets; normalized facts and glossary text retain their source attribution. Their content rights are separate from the application's code license; no redistribution license is established by possession of a source file. Personal project archives stay in local browser storage and backups. The application makes no runtime game-data requests.
+Normalized facts and glossary text retain their source attribution. Imported project archives stay in local browser storage and backups. The application makes no runtime game-data requests.
 
 Imports use `mod:<project-id>:<model-family>:<numeric-id>` entity IDs and revision IDs containing the source digest and parser revision. Reimporting with a changed parser creates a separate immutable snapshot; older snapshots and their pins remain readable. Source digests and Crystal Edit provenance remain metadata. Explicit native family and ID mappings connect imported records and composed layers without relying on display-name similarity.

@@ -1,3 +1,4 @@
+import { importSyntheticLibrary, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -92,6 +93,8 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   test.setTimeout(OFFLINE_BUILD_JOURNEY_TIMEOUT_MS)
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('button', { name: /^Party plan:/ })).toHaveCount(0)
+  await importSyntheticLibrary(page, false, [SYNTHETIC_LIBRARY_ROOTS[0]!])
+  await page.goto('/#/builds/library')
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeVisible()
   await expect(page.locator('dialog:modal')).toHaveCount(0)
@@ -103,7 +106,7 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   await choose(page, 'Head', 'Red Hat', { allowConflicts: true })
   await choose(page, 'Body', 'Shadow Gi', { allowConflicts: true })
   await choose(page, 'Accessory 1', 'Acrobat Shoes')
-  await choose(page, 'Accessory 2', 'Ring of Wizardry', { includeUnavailable: true, requiredMod: 'Equipment Expansion' })
+  await choose(page, 'Accessory 2', 'Synthetic Charm', { includeUnavailable: true, requiredMod: 'Synthetic Equipment' })
   await choose(page, 'Equipped passive 1', 'Counter')
   await expect(page.getByRole('combobox', { name: 'Equipped passive 2', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('planned-sheet.png'), fullPage: true })

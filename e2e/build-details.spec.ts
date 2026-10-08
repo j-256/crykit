@@ -1,3 +1,4 @@
+import { importSyntheticLibrary } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { openBuildActions } from './planning-header-helpers'
@@ -253,7 +254,8 @@ test('equipment searches explicitly reveal incompatible choices below allowed eq
   await expect(page.getByRole('listbox', { name: 'Choose Head', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })).toHaveCount(0)
 })
 
-test('class choices show medium armor icons and identify Brawler as Moonlight Project content', async ({ page }) => {
+test('class choices show medium armor icons and identify Synthetic Class as Synthetic Moonlight content', async ({ page }) => {
+  await importSyntheticLibrary(page)
   await page.goto('/#/builds/library/new')
   const classPicker = page.getByRole('combobox', { name: 'Class', exact: true })
   const classField = page.locator('.build-field').filter({ has: classPicker })
@@ -266,35 +268,35 @@ test('class choices show medium armor icons and identify Brawler as Moonlight Pr
     await expect.poll(() => icon.locator('img').evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   }
   await expect(assassin.locator('.build-class-facts')).not.toContainText('Medium')
-  await classPicker.fill('Brawler')
-  const brawler = results.getByRole('option').filter({ hasText: 'Moonlight Project' }).filter({ has: page.locator('strong', { hasText: /^Brawler$/ }) })
-  const modBadge = '[data-mod-badge="Moonlight Project - Classes"]'
+  await classPicker.fill('Synthetic Class')
+  const brawler = results.getByRole('option').filter({ hasText: 'Synthetic Moonlight' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) })
+  const modBadge = '[data-mod-badge="Synthetic Moonlight"]'
   await expect(brawler).toBeVisible()
-  await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project - Classes')
+  await expect(brawler.locator(`${modBadge} .badge`)).toHaveText('Mod: Synthetic Moonlight')
   await expect(brawler).toHaveAttribute('data-mod-state', 'unknown')
   await expect(brawler).toContainText("Mod status unknown in this Build's Game Setup. You can still select it.")
   await expect(brawler).not.toContainText('Enabled status not recorded')
   await brawler.click()
-  const confirmation = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
-  await expect(confirmation).toContainText('Brawler requires Moonlight Project')
-  await confirmation.getByRole('button', { name: 'Enable and select Brawler', exact: true }).click()
-  await expect(classPicker).toHaveValue('Brawler')
+  const confirmation = page.getByRole('dialog', { name: 'Enable Synthetic Moonlight?', exact: true })
+  await expect(confirmation).toContainText('Synthetic Class requires Synthetic Moonlight')
+  await confirmation.getByRole('button', { name: 'Enable and select Synthetic Class', exact: true }).click()
+  await expect(classPicker).toHaveValue('Synthetic Class')
   await classField.getByText('Details', { exact: true }).click()
-  const sourceBadge = classField.locator('.build-selection-details [data-mod-badge="Moonlight Project - Classes"]')
-  await expect(sourceBadge.locator('.badge')).toHaveText('Mod: Moonlight Project - Classes')
+  const sourceBadge = classField.locator('.build-selection-details [data-mod-badge="Synthetic Moonlight"]')
+  await expect(sourceBadge.locator('.badge')).toHaveText('Mod: Synthetic Moonlight')
   await expect(sourceBadge).toHaveAttribute('data-mod-state', 'enabled')
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await page.goto('/#/mods')
-  const mod = page.getByRole('region', { name: 'Moonlight Project - Classes', exact: true })
+  const mod = page.getByRole('region', { name: 'Synthetic Moonlight', exact: true })
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(mod.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
   if (!await referenceSearch.isVisible()) await page.getByRole('button', { name: /Refine|Filters/ }).click()
-  await referenceSearch.fill('Brawler')
-  const brawlerClass = page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Brawler', exact: true }) }).filter({ has: page.locator(modBadge) })
-  await expect(brawlerClass.locator(`${modBadge} .badge`)).toHaveText('Mod: Moonlight Project - Classes')
+  await referenceSearch.fill('Synthetic Class')
+  const brawlerClass = page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Synthetic Class', exact: true }) }).filter({ has: page.locator(modBadge) })
+  await expect(brawlerClass.locator(`${modBadge} .badge`)).toHaveText('Mod: Synthetic Moonlight')
   await brawlerClass.click()
   await expect(page.locator(`.reference-detail ${modBadge}`)).toBeVisible()
 })

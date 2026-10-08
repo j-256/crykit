@@ -12,9 +12,9 @@ function changedEntity(entityId: string, update: Partial<CatalogEntity>): Catalo
 describe('reviewed native reference links', () => {
   it('links reviewed source definitions while leaving their immutable identities and content intact', () => {
     const entities = BUNDLED_CATALOG.entities
-    const source = entities['base:innate:ref-1062']!
+    const source = entities['base:passive:ref-939']!
     const serialized = JSON.stringify(source)
-    expect(preferredNativeReferenceId(BUNDLED_CATALOG, source.id)).toBe('base:passive:72')
+    expect(preferredNativeReferenceId(BUNDLED_CATALOG, source.id)).toBe('base:passive:58')
     expect(preferredNativeReferenceId(BUNDLED_CATALOG, 'base:passive:ref-939')).toBe('base:passive:58')
     expect(preferredNativeReferenceId(BUNDLED_CATALOG, 'base:item:ref-91')).toBe('base:item:74')
     expect(preferredNativeReferenceId(BUNDLED_CATALOG, 'base:recipe:ref-933')).toBe('base:recipe:36')
@@ -38,10 +38,12 @@ describe('reviewed native reference links', () => {
     expect(nativeReferenceLink(BUNDLED_CATALOG, 'base:monster:ref-795')).toBeUndefined()
     expect(nativeReferenceDisposition(BUNDLED_CATALOG, 'base:monster:ref-795')).toBe('native-identity-review')
     expect(nativeReferenceLink(BUNDLED_CATALOG, 'base:status:ref-965')).toBeUndefined()
+    expect(nativeReferenceLink(BUNDLED_CATALOG, 'base:innate:ref-1062')).toBeUndefined()
+    expect(nativeReferenceDisposition(BUNDLED_CATALOG, 'base:innate:ref-1062')).toBe('native-identity-review')
   })
 
   it('does not apply reviewed links to another catalog revision or a forged checksum', () => {
-    const id = 'base:innate:ref-1062'
+    const id = 'base:passive:ref-939'
     const variants = [
       { ...BUNDLED_CATALOG, id: 'foreign-catalog' },
       { ...BUNDLED_CATALOG, revisionId: 'foreign-revision' },
@@ -50,16 +52,16 @@ describe('reviewed native reference links', () => {
     ] as CatalogSnapshot[]
     for (const catalog of variants) {
       expect(nativeReferenceLink(catalog, id)).toBeUndefined()
-      expect(nativeReferenceAlternatives(catalog, 'base:passive:72')).toEqual([])
+      expect(nativeReferenceAlternatives(catalog, 'base:passive:58')).toEqual([])
       expect(nativeReferenceDisposition(catalog, id)).toBeUndefined()
       expect(() => validateNativeReferenceLinks(NATIVE_REFERENCE_LINKS, catalog)).toThrow('catalog pin differs')
     }
   })
 
   it('rejects altered source, target, and class-membership evidence even under the correct checksum', () => {
-    const id = 'base:innate:ref-1062'
-    const target = BUNDLED_CATALOG.entities['base:passive:72']!
-    const job = BUNDLED_CATALOG.entities['base:job:0']!
+    const id = 'base:passive:ref-939'
+    const target = BUNDLED_CATALOG.entities['base:passive:58']!
+    const job = BUNDLED_CATALOG.entities['base:job:13']!
     const variants = [
       changedEntity(id, { rawDescription: 'An unsupported replacement claim' }),
       changedEntity(target.id, { fields: { ...target.fields, 'Native source record': { state: 'known', value: { ...nativeSourceRecord(target), PP: 999 } as JsonValue } } }),
@@ -67,7 +69,7 @@ describe('reviewed native reference links', () => {
     ]
     for (const catalog of variants) {
       expect(nativeReferenceLink(catalog, id)).toBeUndefined()
-      expect(nativeReferenceAlternatives(catalog, 'base:passive:72')).toEqual([])
+      expect(nativeReferenceAlternatives(catalog, 'base:passive:58')).toEqual([])
       expect(() => validateNativeReferenceLinks(NATIVE_REFERENCE_LINKS, catalog)).toThrow(/baseline|record evidence/)
     }
   })

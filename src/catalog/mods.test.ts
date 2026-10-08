@@ -1,3 +1,4 @@
+import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId } from '../domain/core'
@@ -8,12 +9,11 @@ import { createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID } from '../doma
 import type { CatalogRef, EntityId } from '../domain/types'
 import { buildDefinitionOptions } from '../ui/definitions'
 import { modState, normalizeModName, updateModSelections } from '../domain/mods'
-import { DEFAULT_CATALOG } from './bundled'
+import { DEFAULT_CATALOG, PREVIOUS_CATALOG } from './bundled'
 import { CONFIRMED_SWITCH_MOD_SETUP, definitionModAvailability, modPlanningReason, MOONLIGHT_PROJECT_MOD, SWITCH_MOD_PACKS } from './mods'
-import { STARTER_CATALOG, STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './starter'
 
 function ref(entityId: string): CatalogRef {
-  return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(entityId) }
+  return { kind: 'catalog', catalogId: PREVIOUS_CATALOG.id, catalogRevisionId: PREVIOUS_CATALOG.revisionId, entityId: asId<EntityId>(entityId) }
 }
 
 describe('confirmed catalog mod associations', () => {
@@ -50,85 +50,75 @@ describe('confirmed catalog mod associations', () => {
       ['mod:tempest:class:ref-1099', 'Tempest'],
       ['mod:forcemage:class:ref-1085', 'Forcemage'],
       ['mod:barbarian:class:ref-1078', 'Barbarian'],
-      ['mod:moonlight-project:class:25', MOONLIGHT_PROJECT_MOD],
-      ['mod:moonlight-project:ability:552', MOONLIGHT_PROJECT_MOD],
-      ['mod:moonlight-project:passive:97', MOONLIGHT_PROJECT_MOD],
       ['mod:doge-shield:item:ref-1084', 'Doge Shield'],
-      ['mod:equipment-expansion:equipment:592', 'Equipment Expansion'],
       ['mod:additional-boss-yasha-tar:monster:ref-1068', 'Additional Boss: Yasha Tar'],
       ['mod:additional-boss-pinga:monster:ref-1066', 'Additional Boss: Pinga'],
       ['mod:additional-boss-quintar-husk:monster:ref-1067', 'Additional Boss: Quintar Husk'],
       ['mod:additional-boss-elder-entities:monster:ref-1065', 'Additional Boss: Elder Entities'],
     ] as const
     for (const [id, mod] of cases) {
-      expect(DEFAULT_CATALOG.entities[id]).toBeDefined()
-      expect(definitionModAvailability(localData, ref(id))).toEqual({ requiredMod: mod, state: 'unknown' })
-      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
-      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known([mod]) })).toEqual({ requiredMod: mod, state: 'enabled' })
-      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: DEFAULT_CATALOG.revisionId }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) })).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(PREVIOUS_CATALOG.entities[id]).toBeDefined()
+      expect(definitionModAvailability(localData, ref(id), undefined, [PREVIOUS_CATALOG])).toEqual({ requiredMod: mod, state: 'unknown' })
+      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) }, [PREVIOUS_CATALOG])).toEqual({ requiredMod: mod, state: 'disabled' })
+      expect(definitionModAvailability(localData, ref(id), { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known([mod]) }, [PREVIOUS_CATALOG])).toEqual({ requiredMod: mod, state: 'enabled' })
+      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: 'synthetic-missing' as typeof PREVIOUS_CATALOG.revisionId }, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known([mod]) }, [PREVIOUS_CATALOG])).toEqual({ state: 'unknown' })
     }
     expect(definitionModAvailability(localData, ref('base:innate:ref-1062'))).toEqual({ state: 'unknown' })
   })
 
   it('inherits source associations through overrides without classifying unrelated same-name definitions', () => {
     const base = ref('mod:doge-shield:item:ref-1084')
-    const first = savedCatalogVersion(createTestLocalData(), [DEFAULT_CATALOG], { sourceRef: base, name: 'Personal shield' })
-    const second = savedCatalogVersion(first.localData, [DEFAULT_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
+    const first = savedCatalogVersion(createTestLocalData(), [PREVIOUS_CATALOG], { sourceRef: base, name: 'Personal shield' })
+    const second = savedCatalogVersion(first.localData, [PREVIOUS_CATALOG], { sourceRef: first.ref, name: 'Revised shield' })
     const gameSetup = { ...second.localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Doge Shield']) }
-    expect(definitionModAvailability(second.localData, second.ref, gameSetup).state).toBe('disabled')
+    expect(definitionModAvailability(second.localData, second.ref, gameSetup, [PREVIOUS_CATALOG]).state).toBe('disabled')
     const personal = createPersonalDefinition(second.localData, { kind: 'item', name: 'Doge Shield' })
     const independent = Object.values(personal.personalDefinitions).find(definition => !definition.baseRef)!
-    expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, gameSetup)).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, gameSetup)).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, gameSetup)).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { kind: 'personal', definitionId: independent.id }, gameSetup, [PREVIOUS_CATALOG])).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { ...base, catalogRevisionId: asId('another-revision') }, gameSetup, [PREVIOUS_CATALOG])).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(personal, { ...base, catalogId: asId('unrelated-catalog') }, gameSetup, [PREVIOUS_CATALOG])).toEqual({ state: 'unknown' })
   })
 
-  it('inherits Brawler mod associations without classifying unrelated same-name definitions', () => {
+  it('preserves an imported class association through overrides while keeping same-name entries independent', async () => {
+    const catalog = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-class-association', Title: 'Synthetic class mod', EditorVersion: 34, Jobs: [{ ID: 26, Name: 'Synthetic Class' }] })), 'synthetic.json')).proposed.catalogs[0]!
+    const entity = Object.values(catalog.entities)[0]!
+    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entity.id }
+    const original = createTestLocalData()
+    const changed = savedCatalogVersion(original, [catalog], { sourceRef, name: 'Synthetic revised class' })
+    const setup = { ...original.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, modComposition: { baseline: { catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: false }], links: [] } }
+    expect(definitionModAvailability(changed.localData, changed.ref, setup, [catalog])).toEqual({ requiredMod: 'Synthetic class mod', state: 'disabled' })
+    for (const missing of [{ ...sourceRef, catalogId: asId<typeof catalog.id>('synthetic-foreign') }, { ...sourceRef, catalogRevisionId: asId<typeof catalog.revisionId>('synthetic-foreign') }]) expect(definitionModAvailability(original, missing, setup, [catalog])).toEqual({ state: 'unknown' })
+  })
+
+  it('classifies imported definitions by exact catalog identity and revision', async () => {
+    const { catalogs } = await syntheticModLayers()
+    const source = catalogs[1]!
+    const entity = Object.values(source.entities).find(value => value.name === 'First Sword')!
+    const currentRef: CatalogRef = { kind: 'catalog', catalogId: source.id, catalogRevisionId: source.revisionId, entityId: entity.id }
     const localData = createTestLocalData()
-    for (const id of ['mod:moonlight-project:class:25', 'mod:moonlight-project:ability:552', 'mod:moonlight-project:passive:97']) {
-      expect(definitionModAvailability(localData, ref(id))).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
-      expect(definitionModAvailability(localData, { ...ref(id), catalogRevisionId: DEFAULT_CATALOG.revisionId })).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
-    }
-    const override = savedCatalogVersion(localData, [DEFAULT_CATALOG], { sourceRef: ref('mod:moonlight-project:class:25'), name: 'Revised Brawler' })
-    expect(definitionModAvailability(override.localData, override.ref)).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
-    expect(definitionModAvailability(localData, ref('base:passive:ref-641'))).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(localData, ref('mod:moonlight-project:class:26'))).toEqual({ state: 'unknown', requiredMod: MOONLIGHT_PROJECT_MOD })
-    expect(definitionModAvailability(localData, { ...ref('mod:moonlight-project:class:25'), catalogId: asId('synthetic-foreign') })).toEqual({ state: 'unknown' })
-    expect(definitionModAvailability(localData, { ...ref('mod:moonlight-project:class:25'), catalogRevisionId: asId('synthetic-foreign') })).toEqual({ state: 'unknown' })
+    expect(definitionModAvailability(localData, currentRef, undefined, catalogs)).toEqual({ requiredMod: 'Layer A', state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: asId('unavailable-revision') }, undefined, catalogs)).toEqual({ state: 'unknown' })
+    expect(DEFAULT_CATALOG.entities[entity.id]).toBeUndefined()
   })
 
-  it('classifies newly bundled Equipment Expansion definitions only by exact current identities', () => {
-    const localData = createTestLocalData()
-    const currentRef: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:712') }
-    expect(DEFAULT_CATALOG.entities['mod:equipment-expansion:equipment:712']).toBeDefined()
-    expect(definitionModAvailability(localData, currentRef)).toEqual({ requiredMod: 'Equipment Expansion', state: 'unknown' })
-    expect(definitionModAvailability(localData, { ...currentRef, catalogRevisionId: 'unavailable-revision' as typeof currentRef.catalogRevisionId })).toEqual({ state: 'unknown' })
-    expect(STARTER_CATALOG.entities[currentRef.entityId]).toBeUndefined()
-  })
-
-  it('retains bundled Equipment Expansion availability while imported replacement layers take priority', async () => {
+  it('keeps exact source availability while imported replacements take priority', async () => {
     const { catalogs, composition } = await syntheticModLayers()
-    const localData = addGameSetupRevision(createBlankLocalData(), {
-      label: 'Synthetic layered mod setup',
-      disabledMods: known(['Equipment Expansion']),
-      modComposition: { ...composition, links: [...composition.links, { modelKey: 'crystal-edit:Equipment:50', targetEntityId: asId<EntityId>('mod:equipment-expansion:equipment:712') }] },
-    })
-    const gameSetup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
-    const effectiveCatalogs = expandModCatalogs([...catalogs, composeModCatalog(gameSetup, catalogs)!])
-    const currentRef: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: gameSetup.catalogLock[STARTER_CATALOG_ID]!, entityId: asId<EntityId>('mod:equipment-expansion:equipment:592') }
-    expect(definitionModAvailability(localData, currentRef, gameSetup, effectiveCatalogs)).toEqual({ requiredMod: 'Equipment Expansion', state: 'disabled' })
-    const replacementRef = { ...currentRef, entityId: asId<EntityId>('mod:equipment-expansion:equipment:712') }
-    expect(definitionModAvailability(localData, replacementRef, gameSetup, effectiveCatalogs)).toEqual({ requiredMod: 'Layer A', state: 'enabled' })
-    expect(definitionModAvailability(localData, replacementRef, undefined, effectiveCatalogs)).toEqual({ requiredMod: 'Layer A', state: 'unknown' })
+    const localData = addGameSetupRevision(createBlankLocalData(), { label: 'Synthetic layered setup', modComposition: { ...composition, links: [...composition.links, { modelKey: 'crystal-edit:Equipment:50', targetEntityId: asId<EntityId>('base:equipment:0') }] } })
+    const setup = localData.gameSetups[localData.planningGameSetupRevisionId!]!
+    const effective = expandModCatalogs([...catalogs, composeModCatalog(setup, catalogs)!])
+    const replacement: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]!, entityId: asId('base:equipment:0') }
+    expect(definitionModAvailability(localData, replacement, setup, effective)).toEqual({ requiredMod: 'Layer A', state: 'enabled' })
+    expect(definitionModAvailability(localData, replacement, undefined, effective)).toEqual({ requiredMod: 'Layer A', state: 'unknown' })
+    expect(definitionModAvailability(localData, { ...replacement, entityId: asId('base:equipment:1') }, setup, effective)).toEqual({ state: 'unknown' })
   })
 
   it('retains all exact definitions while attaching the active gameSetup availability to search choices', () => {
     const original = createTestLocalData()
     const localData = { ...original, gameSetups: { ...original.gameSetups, [TEST_GAME_SETUP_REVISION_ID]: { ...original.gameSetups[TEST_GAME_SETUP_REVISION_ID], mods: known(['Bloodmage']), disabledMods: known(['Doge Shield']) } } }
-    const options = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
+    const options = buildDefinitionOptions(localData, [PREVIOUS_CATALOG])
     expect(options.find(option => option.name === 'Doge Shield')?.modAvailability?.state).toBe('disabled')
     expect(options.find(option => option.name === 'Bloodmage')?.modAvailability?.state).toBe('enabled')
-    expect(options.find(option => option.name === 'Heavy Edge')?.modAvailability?.state).toBe('unknown')
-    expect(options).toHaveLength(Object.keys(DEFAULT_CATALOG.entities).length)
+    expect(options.find(option => option.name === 'Tempest')?.modAvailability?.state).toBe('unknown')
+    expect(options).toHaveLength(Object.keys(PREVIOUS_CATALOG.entities).length)
   })
 })

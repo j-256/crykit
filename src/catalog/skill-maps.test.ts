@@ -1,5 +1,5 @@
 import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
-import { CLASS_MAP_FIXTURES } from './skill-maps.test-helpers'
+import { CLASS_MAP_FIXTURES, observedSkillMapCatalogFixture } from './skill-maps.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId, requirePlaythrough } from '../domain/core'
 import { createCharacter } from '../domain/characters'
@@ -12,8 +12,9 @@ import { detectSkillGrid } from '../interchange/skill-grid'
 import { SKILL_BORDER_COLORS, skillGridFixture } from '../interchange/skill-grid.test-helpers'
 import { CONFIRMED_SWITCH_MOD_SETUP } from './mods'
 import { CONFIRMED_SKILL_MAPS, CONFIRMED_SKILL_MAP_SETS, skillMapSetForGameSetup, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
-import { DEFAULT_CATALOG as STARTER_CATALOG } from './bundled'
+import { CURRENT_CATALOG } from './bundled'
 
+const STARTER_CATALOG = observedSkillMapCatalogFixture(CURRENT_CATALOG)
 const catalogs = [STARTER_CATALOG]
 const warrior = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === 'base:job:0')!
 const squares: readonly SkillSquare[] = warrior.mappings.map(mapping => ({ row: mapping.row, column: mapping.column, state: 'unknown' }))

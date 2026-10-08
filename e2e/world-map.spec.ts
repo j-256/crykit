@@ -3,7 +3,19 @@ import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import type { LocalData } from '../src/domain/types'
-import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
+import { importSyntheticLibrary } from './mod-library-fixtures'
+
+
+const SYNTHETIC_MAP = { ID: 'synthetic-map-overlay', Title: 'Synthetic Map', Version: '1', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic map blade', EquipmentType: 0, StatMods: [] }], Entities: [{ ID: 900000, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 2, LootValue: 9000 } }] }
+async function previewSyntheticMap(page: Page) {
+  await page.locator('.world-map-mods > summary').click()
+  await page.getByRole('button', { name: 'Preview vanilla only', exact: true }).click()
+  await page.locator('.world-map-mod-choices').getByRole('checkbox', { name: /^Synthetic Map.*1/ }).first().check()
+}
+async function prepareSyntheticMap(page: Page) {
+  await importSyntheticLibrary(page, false, [SYNTHETIC_MAP])
+  await page.goto('/#/map'); await expectTerrain(page); await previewSyntheticMap(page)
+}
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -202,40 +214,40 @@ test('Silver Ore mining points have resource filters and item references indepen
   expect(await storedData(page)).toEqual(before)
 })
 
-test('Equipment Expansion locations retain source badges, filters, reference links, and offline layers', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }, testInfo) => {
+test('Synthetic Map locations retain source badges, filters, reference links, and offline layers', { tag: MOBILE_TEST_TAG }, async ({ page, context, baseURL }, testInfo) => {
   const externalRequests: string[] = []
   page.on('request', request => { if (!request.url().startsWith(`${baseURL}/`)) externalRequests.push(request.url()) })
-  await page.goto('/#/map')
+  await prepareSyntheticMap(page)
   await expectTerrain(page)
   const before = await storedData(page)
   const search = page.getByRole('searchbox', { name: 'Search map', exact: true })
-  await search.fill('Backbreaker')
-  const result = page.getByRole('button', { name: 'Show Backbreaker on map', exact: true })
+  await search.fill('Synthetic map blade')
+  const result = page.getByRole('button', { name: 'Show Synthetic map blade on map', exact: true })
   await expect(result).toBeVisible()
   await result.click()
   const details = page.getByRole('region', { name: 'Map location details', exact: true })
-  await expect(details.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
-  await expect(details.locator('.world-map-source-badge--mod')).toContainText('Equipment Expansion')
-  await details.getByRole('button', { name: 'Sources for Backbreaker location', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Sources for Backbreaker location', exact: true })).toContainText('Equipment Expansion')
+  await expect(details.getByRole('heading', { name: 'Synthetic map blade', exact: true })).toBeVisible()
+  await expect(details.locator('.world-map-source-badge--mod')).toContainText('Synthetic Map')
+  await details.getByRole('button', { name: 'Sources for Synthetic map blade location', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Synthetic map blade location', exact: true })).toContainText('Synthetic Map')
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Selected location: Backbreaker', exact: true })).toHaveClass(/world-map-marker--mod/)
+  await expect(page.getByRole('button', { name: 'Selected location: Synthetic map blade', exact: true })).toHaveClass(/world-map-marker--mod/)
   const locationUrl = page.url()
   await page.getByRole('button', { name: 'Close location details', exact: true }).click()
   const sources = page.locator('.world-map-source-filters')
-  await sources.getByRole('checkbox', { name: 'Equipment Expansion', exact: true }).uncheck()
+  await sources.getByRole('checkbox', { name: 'Synthetic Map', exact: true }).uncheck()
   await expect(result).toHaveCount(0)
-  await sources.getByRole('checkbox', { name: 'Equipment Expansion', exact: true }).check()
+  await sources.getByRole('checkbox', { name: 'Synthetic Map', exact: true }).check()
   await expect(result).toBeVisible()
   await page.getByRole('button', { name: 'Chests', exact: true }).click()
   await expect(result).toHaveCount(0)
   await page.getByRole('button', { name: 'Chests', exact: true }).click()
   await result.click()
-  await details.getByRole('link', { name: 'Backbreaker', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  await details.getByRole('link', { name: 'Synthetic map blade', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Synthetic map blade', exact: true })).toBeVisible()
   await page.goto(locationUrl)
   await expectTerrain(page)
-  await expect(details).toContainText('Equipment Expansion')
+  await expect(details).toContainText('Synthetic Map')
   expect(await storedData(page)).toEqual(before)
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -247,7 +259,7 @@ test('Equipment Expansion locations retain source badges, filters, reference lin
   await context.setOffline(true)
   await page.reload()
   await expectTerrain(page)
-  await expect(details.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  await expect(details.getByRole('heading', { name: 'Synthetic map blade', exact: true })).toBeVisible()
   await page.getByLabel('Map layer', { exact: true }).selectOption('9')
   await expectTerrain(page)
   await expect(page.getByLabel('Map layer', { exact: true })).toHaveValue('9')
@@ -255,9 +267,9 @@ test('Equipment Expansion locations retain source badges, filters, reference lin
   expect(externalRequests).toEqual([])
 })
 
-test('bundled map links retain their exact source when a different project revision is loaded', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')!
-  const source = JSON.stringify({ ID: bundled.id.replace(/^crystal-edit:/, ''), Title: 'Synthetic Equipment Expansion update', Version: 'synthetic', EditorVersion: 34, Equipment: [{ ID: 617, Name: 'Synthetic replacement blade' }] })
+test('imported map links retain their exact source when a different project revision is loaded', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await prepareSyntheticMap(page)
+  const source = JSON.stringify({ ID: 'synthetic-map-overlay', Title: 'Synthetic Synthetic Map update', Version: 'synthetic', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic replacement blade' }] })
   await page.goto('/#/mods/editor')
   await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: 'synthetic-expansion-update.json', mimeType: 'application/json', buffer: Buffer.from(source) })
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
@@ -266,14 +278,15 @@ test('bundled map links retain their exact source when a different project revis
   const before = await storedData(page)
   await page.goto('/#/map')
   await expectTerrain(page)
-  await page.getByRole('searchbox', { name: 'Search map', exact: true }).fill('Backbreaker')
-  await page.getByRole('button', { name: 'Show Backbreaker on map', exact: true }).click()
-  const link = page.getByRole('region', { name: 'Map location details', exact: true }).getByRole('link', { name: 'Backbreaker', exact: true })
+  await previewSyntheticMap(page)
+  await page.getByRole('searchbox', { name: 'Search map', exact: true }).fill('Synthetic map blade')
+  await page.getByRole('button', { name: 'Show Synthetic map blade on map', exact: true }).click()
+  const link = page.getByRole('region', { name: 'Map location details', exact: true }).getByRole('link', { name: 'Synthetic map blade', exact: true })
   await link.click()
-  await expect(page.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Synthetic map blade', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Synthetic replacement blade', exact: true })).toHaveCount(0)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Backbreaker', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Synthetic map blade', exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(before)
 })
 

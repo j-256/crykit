@@ -4,11 +4,11 @@ import { expect, test, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
-import bundledSources from '../src/catalog/bundled-mod-sources.json' with { type: 'json' }
+import { SYNTHETIC_LIBRARY_SOURCES, importSyntheticLibrary } from './mod-library-fixtures'
+const syntheticSources = { mods: SYNTHETIC_LIBRARY_SOURCES }
 import { CURRENT_CATALOG, DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import { createPersonalDefinition } from '../src/domain'
-import { bundledModIdentity } from '../src/domain/bundled-mods'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
 import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
@@ -18,13 +18,17 @@ import { readFile } from 'node:fs/promises'
 
 const MOD_LIBRARY_JOURNEY_TIMEOUT_MS = 90_000
 
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.title.startsWith('upgrades a historical')) await importSyntheticLibrary(page)
+})
+
 async function includeObservedMod(page: Page, name: string) {
   const card = page.getByRole('region', { name, exact: true })
   await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
 }
 
-const includeObservedDoge = (page: Page) => includeObservedMod(page, 'Doge Shield')
+const includeObservedDoge = (page: Page) => includeObservedMod(page, 'Synthetic Shield')
 const includeObservedBloodmage = (page: Page) => includeObservedMod(page, 'Bloodmage')
 
 function catalogHeading(page: Page, path: string, name: string) {
@@ -42,7 +46,7 @@ const SOURCE = JSON.stringify({ ID: MOD_ID, Title: 'Synthetic calculation mod', 
 
 test('mod cards separate Reference browsing from Game Setup state and secondary editing', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
-  const card = page.getByRole('region', { name: 'Equipment Expansion', exact: true })
+  const card = page.getByRole('region', { name: 'Synthetic Equipment', exact: true })
   await expect(card.getByRole('button', { name: 'View catalog entries', exact: true })).toBeVisible()
   await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
   await expect(card).toContainText('Not in Reference')
@@ -50,7 +54,7 @@ test('mod cards separate Reference browsing from Game Setup state and secondary 
   await expect(card.getByRole('button', { name: 'Edit mod JSON', exact: true })).toBeVisible()
   await expect(card.getByRole('button', { name: 'Add catalog entry', exact: true })).toBeVisible()
   await expect(card.getByRole('button', { name: 'Import updated version', exact: true })).toBeVisible()
-  await expect(card.locator('.mod-library__identity').getByText('Bundled JSON', { exact: true })).toBeVisible()
+  await expect(card.locator('.mod-library__identity').getByText('Imported JSON', { exact: true })).toBeVisible()
   for (const name of ['Import mod', 'Open mod editor', 'Game Setups']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible()
   const manual = page.getByRole('region', { name: 'Additional Boss: Pinga', exact: true })
   await expect(manual.getByText('Mod JSON unavailable', { exact: true })).toBeVisible()
@@ -58,18 +62,18 @@ test('mod cards separate Reference browsing from Game Setup state and secondary 
   expect(await manual.getByRole('button', { name: 'Add catalog entry', exact: true }).evaluate(element => element.closest('details'))).toBeNull()
   await expect(page.getByText("Add to Reference makes a mod browsable.", { exact: false })).toBeVisible()
   await card.locator('.mod-library__versions > summary').click()
-  await expect(card).toContainText('Bundled JSON')
-  await expect(card.getByRole('button', { name: 'Edit bundled copy', exact: true })).toBeVisible()
+  await expect(card).toContainText('Imported JSON')
+  await expect(card.getByRole('button', { name: 'Edit this version', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test('temporary mod details retain reporting without publishing or editing the catalog', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
-  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const card = page.getByRole('region', { name: 'Synthetic Shield', exact: true })
   await expect(card).toBeVisible()
   const before = await storedData(page)
   await card.getByRole('button', { name: 'View catalog entries', exact: true }).click()
-  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Doge Shield', exact: true }) }).click()
+  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic Shield', exact: true }) }).click()
   await page.getByRole('button', { name: 'Actions', exact: true }).click()
   const actions = page.getByRole('dialog', { name: 'Reference actions', exact: true })
   await expect(actions.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
@@ -80,7 +84,7 @@ test('temporary mod details retain reporting without publishing or editing the c
 })
 
 test('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  const before = createSampleLocalData(DEFAULT_CATALOG)
+  const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
   const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
   const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
   const historical = (data: LocalData): LocalData => {
@@ -114,8 +118,9 @@ test('upgrades a historical browser profile before Reference changes and a new b
   await page.goto('/#/mods')
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   expect(await storedData(page)).toEqual(canonical)
+  await importSyntheticLibrary(page)
   const archive = await archiveDigests(page)
-  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+  for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
     const card = page.getByRole('region', { name: title, exact: true })
     const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
     const included = await toggle.getAttribute('aria-pressed') === 'true'
@@ -128,8 +133,15 @@ test('upgrades a historical browser profile before Reference changes and a new b
   expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
   expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
   expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
-  expect(await archiveDigests(page)).not.toEqual(archive)
-  await page.goto('/#/builds/library/new')
+  const afterArchive = await archiveDigests(page)
+  for (const table of ['catalogs', 'sources', 'evidence', 'imports', 'meta']) expect(afterArchive[table]).toBe(archive[table])
+  await page.getByRole('button', { name: 'Game Setups', exact: true }).click()
+  await page.getByRole('button', { name: 'New Game Setup', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Synthetic fresh setup')
+  await page.getByRole('button', { name: 'Create Game Setup', exact: true }).click()
+  await page.getByRole('button', { name: 'Saved setups', exact: true }).click()
+  const fresh = page.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic fresh setup', exact: true }) })
+  await fresh.getByRole('button', { name: 'Start a Build', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /^Warrior Class ·/ }).click()
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
@@ -146,7 +158,7 @@ test('upgrades a historical browser profile before Reference changes and a new b
 test('Reference save failures stay visible beside the action and retry without changing other records', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
   await includeObservedDoge(page)
-  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const card = page.getByRole('region', { name: 'Synthetic Shield', exact: true })
   const toggle = card.getByRole('button', { name: 'Remove from Reference', exact: true })
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
   const before = await storedData(page)
@@ -198,7 +210,7 @@ test('Reference save failures stay visible beside the action and retry without c
 test('a rolled-back save alert stays on screen while scrolling and can be dismissed independently', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/mods')
   await includeObservedDoge(page)
-  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const card = page.getByRole('region', { name: 'Synthetic Shield', exact: true })
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add
@@ -210,7 +222,7 @@ test('a rolled-back save alert stays on screen while scrolling and can be dismis
   await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
   const globalAlert = page.locator('.global-save-alert')
   await expect(globalAlert).toContainText('Change not saved')
-  await page.getByRole('region', { name: bundledSources.mods.find(mod => mod.title.startsWith('Moonlight'))!.title, exact: true }).evaluate(element => element.scrollIntoView({ block: 'start' }))
+  await page.getByRole('region', { name: syntheticSources.mods.find(mod => mod.title.startsWith('Synthetic Moonlight'))!.title, exact: true }).evaluate(element => element.scrollIntoView({ block: 'start' }))
   await expect.poll(async () => {
     const box = (await globalAlert.boundingBox())!
     const visible = await page.evaluate(() => {
@@ -231,7 +243,7 @@ test('every Reference toggle confirms the saved result on its own card, includin
   await page.goto('/#/mods')
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
   const before = await storedData(page)
-  for (const title of ['Doge Shield', ...['Moonlight', 'Apotheosis'].map(prefix => bundledSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+  for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
     const card = page.getByRole('region', { name: title, exact: true })
     const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
     for (let change = 0; change < 3; change += 1) {
@@ -260,11 +272,11 @@ test('every Reference toggle confirms the saved result on its own card, includin
 test('Reference retry retains the requested membership after another tab completes the change', async ({ page, context }) => {
   await page.goto('/#/mods')
   await includeObservedDoge(page)
-  const card = page.getByRole('region', { name: 'Doge Shield', exact: true })
+  const card = page.getByRole('region', { name: 'Synthetic Shield', exact: true })
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   const other = await context.newPage()
   await other.goto('/#/mods')
-  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  await expect(other.getByRole('region', { name: 'Synthetic Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add
     IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
@@ -274,8 +286,8 @@ test('Reference retry retains the requested membership after another tab complet
   })
   await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
   await expect(card.getByRole('alert')).toContainText('Reference not changed')
-  await other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true }).click()
-  await expect(other.getByRole('region', { name: 'Doge Shield', exact: true }).getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
+  await other.getByRole('region', { name: 'Synthetic Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true }).click()
+  await expect(other.getByRole('region', { name: 'Synthetic Shield', exact: true }).getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Dismiss save alert', exact: true }).click()
   await page.getByRole('button', { name: "Load updated data", exact: true }).click()
   await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
@@ -458,20 +470,14 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
   await expect(page.getByRole('region', { name: 'Synthetic calculation mod', exact: true })).toBeVisible()
 })
 
-test('shows the generated bundled library and opens exact full originals offline with Workshop links', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+test('shows imported synthetic projects and opens exact full originals offline with Workshop links', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto('/#/mods')
   await waitForPlannerReady(page)
-  await expect.poll(() => page.locator('.mod-library > .mod-library__card').count()).toBeGreaterThanOrEqual(new Set(bundledSources.mods.map(mod => mod.projectId)).size)
-  await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toHaveCount(1)
-  const barbarian = page.getByRole('region', { name: 'Barbarian', exact: true })
-  await expect(barbarian).toContainText('Bundled version')
-  await expect(barbarian.getByRole('link', { name: 'View Barbarian on Steam Workshop', exact: true })).toHaveAttribute('href', 'https://steamcommunity.com/sharedfiles/filedetails/?id=3161945566')
-  await expect(page.getByRole('region', { name: 'Doge Shield', exact: true })).toContainText('Bundled version')
-  await expect(page.getByRole('region', { name: 'Fusewright - One More Turn', exact: true })).toHaveCount(0)
-  await expect(page.getByText('Named mods and in-game observations', { exact: true })).toHaveCount(0)
+  await expect.poll(() => page.locator('.mod-library > .mod-library__card').count()).toBeGreaterThanOrEqual(new Set(syntheticSources.mods.map(mod => mod.projectId)).size)
+  await expect(page.getByRole('region', { name: 'Synthetic Equipment', exact: true })).toHaveCount(1)
+  const equipment = page.getByRole('region', { name: 'Synthetic Equipment', exact: true })
+  await expect(equipment.getByRole('link', { name: 'View Synthetic Equipment on Steam Workshop', exact: true })).toHaveAttribute('href', 'https://steamcommunity.com/sharedfiles/filedetails/?id=123456')
   await expect(page.getByRole('link', { name: "Browse Crystal Project's Steam Workshop", exact: true })).toHaveAttribute('href', CRYSTAL_PROJECT_WORKSHOP_URL)
-  const equipment = page.getByRole('region', { name: 'Equipment Expansion', exact: true })
-  await expect(equipment.getByRole('link', { name: 'View Equipment Expansion on Steam Workshop', exact: true })).toHaveAttribute('href', 'https://steamcommunity.com/sharedfiles/filedetails/?id=3055060437')
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -480,14 +486,14 @@ test('shows the generated bundled library and opens exact full originals offline
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
-  await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Cheat Passives')
-  const mod = page.getByRole('region', { name: 'Cheat Passives', exact: true })
+  await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Synthetic Rules')
+  const mod = page.getByRole('region', { name: 'Synthetic Rules', exact: true })
   await mod.getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Current file', exact: true })).toContainText('Original file')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download original', exact: true }).click()
   const bytes = await readFile((await (await download).path())!)
-  expect(createHash('sha256').update(bytes).digest('hex')).toBe(bundledSources.mods.find(mod => mod.title === 'Cheat Passives')!.sha256)
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(syntheticSources.mods.find(mod => mod.title === 'Synthetic Rules')!.sha256)
   await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
   const root = JSON.parse(await page.getByRole('textbox', { name: /^Exact JSON value/ }).inputValue()) as Record<string, unknown>
   root.Version = 'Synthetic revised version'
@@ -504,20 +510,20 @@ test('shows the generated bundled library and opens exact full originals offline
   await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
   await expect(mod).toContainText('Synthetic revised version')
   await mod.getByText('Versions', { exact: true }).click()
-  await expect(mod).toContainText('Bundled version')
+  await expect(mod).toContainText('Saved version')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('validates project identity for updates and links exact bundled records when selecting a setup layer', async ({ page }) => {
+test('validates project identity for updates and links exact records when selecting a setup layer', async ({ page }) => {
   await page.goto('/#/mods')
-  const mod = page.getByRole('region', { name: 'Equipment Expansion', exact: true })
+  const mod = page.getByRole('region', { name: 'Synthetic Equipment', exact: true })
   await expect(mod).toBeVisible()
   const before = await storedData(page)
-  const input = mod.getByLabel('Updated JSON for Equipment Expansion', { exact: true })
+  const input = mod.getByLabel('Updated JSON for Synthetic Equipment', { exact: true })
   await input.setInputFiles({ name: 'wrong-project.json', mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
   await expect(page.getByRole('alert')).toContainText("different project ID")
   expect(await storedData(page)).toEqual(before)
-  const source = bundledSources.mods.find(mod => mod.title === 'Equipment Expansion')!
+  const source = syntheticSources.mods.find(mod => mod.title === 'Synthetic Equipment')!
   const target = Object.values(CURRENT_CATALOG.entities).find(entity => entity.id === 'base:equipment:0')!
   const identity = { modelId: 0 }
   const update = JSON.stringify({ ID: source.projectId, Title: source.title, Version: 'Synthetic update', EditorVersion: 34, Equipment: [{ ID: identity.modelId, Name: 'Synthetic revised equipment', EquipmentType: 0 }], FutureSetting: { value: null } })
@@ -525,16 +531,16 @@ test('validates project identity for updates and links exact bundled records whe
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   await expect(mod).toContainText('Synthetic update')
   await mod.getByText('Versions', { exact: true }).click()
-  await expect(mod).toContainText('Version 1.3')
+  await expect(mod.getByText('Version 1', { exact: true })).toBeVisible()
   expect((await storedData(page)).gameSetups).toEqual(before.gameSetups)
   await page.goto('/#/builds/library/new')
   await openBuildGameSetup(page)
   await page.locator('.game-setup-mods > summary').click()
   await page.getByText('Add another mod', { exact: true }).click()
-  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Equipment Expansion')
-  const buildMod = page.getByRole('region', { name: 'Mod Equipment Expansion', exact: true })
-  await buildMod.getByRole('combobox', { name: 'Version of Equipment Expansion', exact: true }).selectOption({ label: 'Synthetic update · saved · format 34' })
-  await buildMod.getByRole('button', { name: 'Enable Equipment Expansion for this build', exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Synthetic Equipment')
+  const buildMod = page.getByRole('region', { name: 'Mod Synthetic Equipment', exact: true })
+  await buildMod.getByRole('combobox', { name: 'Version of Synthetic Equipment', exact: true }).selectOption({ label: 'Synthetic update · saved · format 34' })
+  await buildMod.getByRole('button', { name: 'Enable Synthetic Equipment for this build', exact: true }).click()
   await page.getByText('Mod priority and replacement links', { exact: true }).click()
   await expect(page.getByLabel('Effective mod summary', { exact: true })).toContainText('1 with replacements')
   await page.getByText('Review effective records and replacement links', { exact: true }).click()
@@ -611,7 +617,7 @@ test('keeps an unavailable mod scope empty until the filter is cleared', async (
   // The unknown mod scope resolves before its removable filter appears
   await page.getByRole('status').filter({ hasText: 'Opening mod catalog...' }).waitFor({ state: 'hidden' })
   await expect(page.getByRole('button', { name: 'Remove Mod: Unavailable mod filter', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Doge Shield', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Synthetic Shield', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Clear all filters', exact: true }).click()
   await expect(page).not.toHaveURL(/library-mod=/)
 })
@@ -619,25 +625,25 @@ test('keeps an unavailable mod scope empty until the filter is cleared', async (
 test('browses one temporary catalog without saving it, then explicitly adds it to Reference', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   // Preserve full rollback and source-byte checks across temporary and saved library states
   test.setTimeout(MOD_LIBRARY_JOURNEY_TIMEOUT_MS)
-  const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
+  const source = syntheticSources.mods.find(mod => mod.title.startsWith('Synthetic Rules'))!
   const count = Object.values(source.models).reduce((sum, ids) => sum + ids.length, 0)
   await page.goto('/#/mods')
-  await includeObservedBloodmage(page)
+  await includeObservedDoge(page)
   await page.goto('/#/reference')
   const referenceSearch = page.getByRole('searchbox', { name: 'Search reference', exact: true })
-  await referenceSearch.fill('Bloodmage')
-  await expect(currentBloodmageHeading(page)).toBeVisible()
+  await referenceSearch.fill('Synthetic Shield')
+  await expect(page.getByRole('heading', { name: 'Synthetic Shield', exact: true })).toBeVisible()
   await referenceSearch.fill('Raging Crash')
   await expect(page.getByRole('heading', { name: 'Raging Crash', exact: true })).toHaveCount(0)
   const standingRoute = await page.evaluate(() => sessionStorage.getItem('crykit:reference-route:v1'))
   await page.goto('/#/mods')
   const mod = page.getByRole('region', { name: source.title, exact: true })
-  await expect(mod).toContainText(`${count} definitions in bundled JSON`)
+  await expect(mod).toContainText(`${count} catalog entries`)
   const before = await storedData(page)
   const archive = await archiveDigests(page)
   const requestedSources: string[] = []
   page.on('request', request => {
-    if (bundledSources.mods.some(mod => request.url().includes(mod.sha256))) requestedSources.push(request.url())
+    if (syntheticSources.mods.some(mod => request.url().includes(mod.sha256))) requestedSources.push(request.url())
   })
   await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
   await expect(page.getByText('Temporary mod catalog', { exact: true })).toBeVisible()
@@ -666,13 +672,13 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   expect(await archiveDigests(page)).toEqual(archive)
   expect(await storedData(page)).toEqual(before)
   expect(await page.evaluate(() => sessionStorage.getItem('crykit:reference-route:v1'))).toBe(standingRoute)
-  expect(requestedSources.length).toBeGreaterThan(0)
+  expect(requestedSources).toEqual([])
   expect(requestedSources.every(url => url.includes(source.sha256))).toBe(true)
   await page.getByRole('button', { name: 'Return to Reference', exact: true }).click()
   await expect(referenceSearch).toHaveValue('Raging Crash')
   await expect(page.getByRole('heading', { name: 'Raging Crash', exact: true })).toHaveCount(0)
   await page.goto('/#/mods')
-  await expect(mod).toContainText(`${count} definitions in bundled JSON`)
+  await expect(mod).toContainText(`${count} catalog entries`)
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add
     IDBObjectStore.prototype.add = function (...args) {
@@ -682,7 +688,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   })
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(mod.getByRole('alert')).toContainText('Reference not changed')
-  await expect(mod.getByRole('alert')).toContainText('Existing local data is unchanged')
+  await expect(mod.getByRole('alert')).toContainText('Your previous Reference membership is unchanged')
   expect(await archiveDigests(page)).toEqual(archive)
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(mod).toContainText(`${count} catalog entries`)
@@ -740,18 +746,18 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   expect(await archiveDigests(page)).toEqual(updatedArchive)
 })
 
-test('toggles bundled and source-less catalogs while retaining game enablement, sources, and saved selections', async ({ page }) => {
+test('toggles imported and source-less catalogs while retaining game enablement, sources, and saved selections', async ({ page }) => {
   test.setTimeout(MOD_LIBRARY_JOURNEY_TIMEOUT_MS)
   await page.goto('/#/mods')
-  await expect(page.getByRole('region', { name: 'Equipment Expansion', exact: true })).toBeVisible()
-  for (const name of ['Equipment Expansion', 'Bloodmage']) {
+  await expect(page.getByRole('region', { name: 'Synthetic Equipment', exact: true })).toBeVisible()
+  for (const name of ['Synthetic Equipment', 'Bloodmage']) {
     const card = page.getByRole('region', { name, exact: true })
     await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
     await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   }
   const before = await storedData(page)
   const archive = await archiveDigests(page)
-  for (const [name, entry] of [['Equipment Expansion', 'Ace of Diamonds'], ['Bloodmage', 'Bloodmage']]) {
+  for (const [name, entry] of [['Synthetic Equipment', 'Synthetic Charm'], ['Bloodmage', 'Bloodmage']]) {
     const mod = page.getByRole('region', { name, exact: true })
     const heading = entry === 'Bloodmage' ? currentBloodmageHeading(page) : page.getByRole('heading', { name: entry, exact: true })
     await expect(mod.getByText(`Mod: ${name}`, { exact: true })).toHaveCount(0)
@@ -785,18 +791,24 @@ test('toggles bundled and source-less catalogs while retaining game enablement, 
   for (const table of ['catalogs', 'sources', 'evidence', 'imports']) expect(retained[table]).toBe(archive[table])
 })
 
-test('keeps failed temporary catalog loads separate from the standing library', async ({ page }) => {
-  const source = bundledSources.mods.find(mod => mod.title.startsWith('Apotheosis'))!
+test('keeps failed source reads separate from the standing Reference library', async ({ page }) => {
   await page.goto('/#/mods')
-  await expect(page.getByRole('region', { name: source.title, exact: true })).toBeVisible()
-  await includeObservedBloodmage(page)
-  const before = await archiveDigests(page)
-  await page.route(`**/*${source.sha256}*`, route => route.abort())
-  await page.getByRole('region', { name: source.title, exact: true }).getByRole('button', { name: 'View catalog entries', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Mod catalog unavailable')
-  expect(await archiveDigests(page)).toEqual(before)
-  await page.getByRole('button', { name: 'Return to Reference', exact: true }).click()
-  await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toBeVisible()
-  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Bloodmage')
-  await expect(currentBloodmageHeading(page)).toBeVisible()
+  await includeObservedDoge(page)
+  await page.getByRole('region', { name: 'Synthetic Rules', exact: true }).getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Current file', exact: true })).toContainText('Original file')
+  await page.goto('/#/mods')
+  const before = await storedData(page)
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.get = function (...args) {
+      if (this.name === 'sources' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.get = original; throw new DOMException('Synthetic source read failure', 'UnknownError') }
+      return original.apply(this, args)
+    }
+  })
+  await page.getByRole('region', { name: 'Synthetic Rules', exact: true }).getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
+  await page.goto('/#/reference')
+  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Synthetic Shield')
+  await expect(page.getByRole('heading', { name: 'Synthetic Shield', exact: true })).toBeVisible()
 })

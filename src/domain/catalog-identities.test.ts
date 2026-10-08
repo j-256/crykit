@@ -20,7 +20,7 @@ describe('compiled catalog identities', () => {
       if (native) for (const relationship of nativeRelationships(DEFAULT_CATALOG, definition)) if (relationship.targetId) expect(DEFAULT_CATALOG.entities[relationship.targetId]).toBeDefined()
     }
     expect(DEFAULT_CATALOG.entities['base:item:203']?.name).toBe('Quintar Berries')
-    expect(DEFAULT_CATALOG.entities['mod:equipment-expansion:equipment:592']?.name).toBe('Heavy Edge')
+    expect(DEFAULT_CATALOG.entities['base:equipment:0']?.name).toBe('Short Sword')
     expect(DEFAULT_CATALOG.entities['base:item:quintar-berries']).toBeUndefined()
   })
 

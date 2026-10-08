@@ -1,9 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 import { decodeCrystalSave, encodeCrystalSave, type CrystalSave } from '../src/interchange/crystal-save'
-import { createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../src/domain/save-editor.fixture'
-import { saveEditorModProjectId } from '../src/domain/save-editor-mods'
+import { SYNTHETIC_SAVE_MOD, createModdedSaveEditorFixture, createSaveEditorFixture, createSaveEditorModProjectFixture, setSaveEditorFixtureMode, setSaveEditorFixtureRandomizer } from '../src/domain/save-editor.fixture'
 import { SAVE_EDITOR_CATALOG } from '../src/catalog/save-editor'
 import { inspectSave } from '../src/domain/save-editor'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -12,15 +10,6 @@ import { skipInitialModSetup } from './local-data-helpers'
 
 const ROUTE = '/#/save-editor'
 const FILENAME = 'synthetic-party.sav'
-const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY.find(mod => mod.title === 'Cheat Passives')!
-const CHEAT_PASSIVES_FIXTURE = {
-  id: saveEditorModProjectId(CHEAT_PASSIVES.id),
-  title: CHEAT_PASSIVES.title,
-  version: CHEAT_PASSIVES.declaredVersion!,
-  steamWorkshopFileId: CHEAT_PASSIVES.steamWorkshopFileId,
-  jobId: CHEAT_PASSIVES.models.Jobs[0],
-  passiveIds: CHEAT_PASSIVES.models.Passives,
-}
 
 async function openSave(page: Page, save = createSaveEditorFixture()) {
   const bytes = Buffer.from(encodeCrystalSave(save))
@@ -266,11 +255,11 @@ test('loads an exact mod definition, edits the active save, and removes its mod 
   expect(vanilla.header.modIdMaps).toEqual([])
 })
 
-test('identifies bundled disabled-mod residue without a manual import', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('identifies imported disabled-mod residue by exact project identity', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(ROUTE)
-  await openSave(page, createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE }))
-  await expect(page.getByText('Bundled project identified', { exact: true })).toBeVisible()
-  await expect(page.getByLabel('Cheat Passives definition available', { exact: true })).toBeChecked()
+  await openSave(page, createModdedSaveEditorFixture({ active: false, equipped: true, mod: SYNTHETIC_SAVE_MOD }))
+  await page.getByLabel('Add Crystal Edit mod definitions', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(createSaveEditorModProjectFixture())) })
+  await expect(page.getByLabel('Synthetic Save Mod definition available', { exact: true })).toBeChecked()
   await expect(page.getByText(/Saved revision unavailable/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Review mod data removal', exact: true })).toBeEnabled()
 })

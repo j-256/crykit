@@ -181,6 +181,7 @@ async function gameTextures(directory) {
 
 async function pruneGenerated(directory, expected) {
   for (const name of await readdir(directory)) {
+    if (name === '.gitkeep') continue
     if (expected.has(name)) continue
     // Only remove content-addressed outputs owned by this generator
     assert(/^[a-f0-9]{64}\.png$/.test(name), 'Unexpected mod artwork output file')
@@ -293,9 +294,9 @@ export async function validate(sharp) {
     }
     usedAtlases.add(asset.atlas)
   }
-  const actual = await readdir(ASSET_DIRECTORY)
+  const actual = (await readdir(ASSET_DIRECTORY)).filter(name => name !== '.gitkeep')
   assert(actual.length === expectedFiles.size && actual.every(name => expectedFiles.has(name)), 'Mod artwork directory contains missing or unexpected assets')
-  const atlasNames = await readdir(ATLAS_DIRECTORY)
+  const atlasNames = (await readdir(ATLAS_DIRECTORY)).filter(name => name !== '.gitkeep')
   assert(usedAtlases.size === atlasPixels.size && atlasNames.length === atlasPixels.size && atlasNames.every(name => manifest.atlases[name.replace(/\.png$/, '')]?.file === name), 'Mod atlas directory contains missing or unexpected assets')
   return { bindings, gaps, assets: expectedFiles.size }
 }

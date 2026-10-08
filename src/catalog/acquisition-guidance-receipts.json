@@ -224,7 +224,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -241,7 +241,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -270,7 +270,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -287,7 +287,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -316,7 +316,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:61"
           },
           "location": "Beaurior Rock",
@@ -333,7 +333,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:61"
           },
           "location": "Beaurior Rock",
@@ -362,7 +362,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:79"
           },
           "location": "Beaurior Rock",
@@ -388,7 +388,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:113"
               }
             },
@@ -398,7 +398,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -411,7 +411,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:14"
           },
           "price": 3000,
@@ -432,7 +432,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:113"
               }
             },
@@ -442,7 +442,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -457,7 +457,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:14"
           },
           "price": 3000,
@@ -489,7 +489,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:140"
               }
             },
@@ -499,7 +499,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:5"
               }
             }
@@ -512,7 +512,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:25"
           },
           "price": 50000,
@@ -533,7 +533,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:140"
               }
             },
@@ -543,7 +543,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:5"
               }
             }
@@ -558,7 +558,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:25"
           },
           "price": 50000,
@@ -590,7 +590,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:114"
               }
             },
@@ -600,7 +600,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -613,7 +613,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:15"
           },
           "price": 3000,
@@ -634,7 +634,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:114"
               }
             },
@@ -644,7 +644,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -659,7 +659,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:15"
           },
           "price": 3000,
@@ -691,7 +691,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:141"
               }
             },
@@ -701,7 +701,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:5"
               }
             }
@@ -714,7 +714,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:26"
           },
           "price": 50000,
@@ -735,7 +735,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:141"
               }
             },
@@ -745,7 +745,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:5"
               }
             }
@@ -760,7 +760,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:26"
           },
           "price": 50000,
@@ -792,7 +792,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:115"
               }
             },
@@ -802,7 +802,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -815,7 +815,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:16"
           },
           "price": 3000,
@@ -836,7 +836,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:115"
               }
             },
@@ -846,7 +846,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -861,7 +861,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:16"
           },
           "price": 3000,
@@ -895,7 +895,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:143"
           },
           "location": "Land's End",
@@ -920,7 +920,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:143"
               }
             },
@@ -930,7 +930,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -943,7 +943,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:27"
           },
           "price": 50000,
@@ -964,7 +964,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:143"
               }
             },
@@ -974,7 +974,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -989,7 +989,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:27"
           },
           "price": 50000,
@@ -1051,7 +1051,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:116"
               }
             },
@@ -1061,7 +1061,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1074,7 +1074,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:17"
           },
           "price": 3000,
@@ -1095,7 +1095,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:116"
               }
             },
@@ -1105,7 +1105,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1120,7 +1120,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:17"
           },
           "price": 3000,
@@ -1152,7 +1152,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:145"
               }
             },
@@ -1162,7 +1162,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1175,7 +1175,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:28"
           },
           "price": 50000,
@@ -1196,7 +1196,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:145"
               }
             },
@@ -1206,7 +1206,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1221,7 +1221,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:28"
           },
           "price": 50000,
@@ -1255,7 +1255,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:37"
           },
           "location": "Capital Jail",
@@ -1280,7 +1280,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:117"
               }
             },
@@ -1290,7 +1290,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1303,7 +1303,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:18"
           },
           "price": 3000,
@@ -1324,7 +1324,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:117"
               }
             },
@@ -1334,7 +1334,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1349,7 +1349,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:18"
           },
           "price": 3000,
@@ -1383,7 +1383,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:309"
           },
           "location": "Tall, Tall Heights",
@@ -1408,7 +1408,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:147"
               }
             },
@@ -1418,7 +1418,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1431,7 +1431,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:29"
           },
           "price": 50000,
@@ -1452,7 +1452,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:147"
               }
             },
@@ -1462,7 +1462,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1477,7 +1477,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:29"
           },
           "price": 50000,
@@ -1509,7 +1509,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:118"
               }
             },
@@ -1519,7 +1519,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1532,7 +1532,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:19"
           },
           "price": 3000,
@@ -1553,7 +1553,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:118"
               }
             },
@@ -1563,7 +1563,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -1578,7 +1578,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:19"
           },
           "price": 3000,
@@ -1610,7 +1610,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:149"
               }
             },
@@ -1620,7 +1620,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1633,7 +1633,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:30"
           },
           "price": 50000,
@@ -1654,7 +1654,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:149"
               }
             },
@@ -1664,7 +1664,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:71"
               }
             }
@@ -1679,7 +1679,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:30"
           },
           "price": 50000,
@@ -1711,7 +1711,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:119"
               }
             },
@@ -1721,7 +1721,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -1734,7 +1734,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:20"
           },
           "price": 3000,
@@ -1755,7 +1755,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:119"
               }
             },
@@ -1765,7 +1765,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -1780,7 +1780,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:20"
           },
           "price": 3000,
@@ -1812,7 +1812,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:151"
               }
             },
@@ -1822,7 +1822,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -1835,7 +1835,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:31"
           },
           "price": 50000,
@@ -1856,7 +1856,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:151"
               }
             },
@@ -1866,7 +1866,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -1881,7 +1881,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:31"
           },
           "price": 50000,
@@ -1915,7 +1915,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:18"
           },
           "location": "Draft Shaft Conduit",
@@ -1941,7 +1941,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:120"
               }
             },
@@ -1951,7 +1951,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -1964,7 +1964,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:21"
           },
           "price": 3000,
@@ -1985,7 +1985,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:120"
               }
             },
@@ -1995,7 +1995,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -2010,7 +2010,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:21"
           },
           "price": 3000,
@@ -2083,7 +2083,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:153"
               }
             },
@@ -2093,7 +2093,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -2106,7 +2106,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:32"
           },
           "price": 50000,
@@ -2127,7 +2127,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:153"
               }
             },
@@ -2137,7 +2137,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -2152,7 +2152,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:32"
           },
           "price": 50000,
@@ -2184,7 +2184,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:121"
               }
             },
@@ -2194,7 +2194,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -2207,7 +2207,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:22"
           },
           "price": 3000,
@@ -2228,7 +2228,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:121"
               }
             },
@@ -2238,7 +2238,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -2253,7 +2253,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:22"
           },
           "price": 3000,
@@ -2314,7 +2314,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:155"
               }
             },
@@ -2324,7 +2324,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -2337,7 +2337,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:33"
           },
           "price": 50000,
@@ -2358,7 +2358,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:155"
               }
             },
@@ -2368,7 +2368,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:72"
               }
             }
@@ -2383,7 +2383,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:33"
           },
           "price": 50000,
@@ -2415,7 +2415,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:509"
               }
             },
@@ -2425,7 +2425,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -2440,7 +2440,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:46"
           },
           "price": 3000,
@@ -2461,7 +2461,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:509"
               }
             },
@@ -2471,7 +2471,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -2484,7 +2484,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:46"
           },
           "price": 3000,
@@ -2518,7 +2518,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:263"
           },
           "location": "The New World",
@@ -2546,7 +2546,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:195"
           },
           "location": "Castle Sequoia",
@@ -2572,7 +2572,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:511"
               }
             },
@@ -2582,7 +2582,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -2597,7 +2597,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:47"
           },
           "price": 3000,
@@ -2618,7 +2618,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:511"
               }
             },
@@ -2628,7 +2628,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:69"
               }
             }
@@ -2641,7 +2641,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:47"
           },
           "price": 3000,
@@ -2675,7 +2675,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:201"
           },
           "location": "Castle Sequoia",
@@ -2701,7 +2701,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:513"
               }
             },
@@ -2711,7 +2711,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -2726,7 +2726,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:48"
           },
           "price": 3000,
@@ -2747,7 +2747,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:513"
               }
             },
@@ -2757,7 +2757,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -2770,7 +2770,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:48"
           },
           "price": 3000,
@@ -2832,7 +2832,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:515"
               }
             },
@@ -2842,7 +2842,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -2857,7 +2857,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:49"
           },
           "price": 3000,
@@ -2878,7 +2878,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:515"
               }
             },
@@ -2888,7 +2888,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:4"
               }
             }
@@ -2901,7 +2901,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:49"
           },
           "price": 3000,
@@ -2933,7 +2933,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:517"
               }
             },
@@ -2943,7 +2943,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -2958,7 +2958,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:50"
           },
           "price": 3000,
@@ -2979,7 +2979,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:517"
               }
             },
@@ -2989,7 +2989,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -3002,7 +3002,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:50"
           },
           "price": 3000,
@@ -3034,7 +3034,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:519"
               }
             },
@@ -3044,7 +3044,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -3059,7 +3059,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:51"
           },
           "price": 3000,
@@ -3080,7 +3080,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:519"
               }
             },
@@ -3090,7 +3090,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:70"
               }
             }
@@ -3103,7 +3103,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:51"
           },
           "price": 3000,
@@ -3137,7 +3137,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:63"
           },
           "location": "Okimoto N.S.",
@@ -3163,7 +3163,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:28"
               }
             },
@@ -3173,7 +3173,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:168"
               }
             },
@@ -3183,7 +3183,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:493"
               }
             }
@@ -3196,7 +3196,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:167"
               }
             }
@@ -3209,7 +3209,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:36"
           },
           "price": 2000,
@@ -3240,7 +3240,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:28"
               }
             },
@@ -3250,7 +3250,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:168"
               }
             },
@@ -3260,7 +3260,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:equipment:493"
               }
             }
@@ -3273,7 +3273,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:167"
               }
             }
@@ -3286,7 +3286,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:recipe:36"
           },
           "price": 2000,
@@ -3377,7 +3377,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:213"
           },
           "location": "Rolling Quintar Fields",
@@ -3404,7 +3404,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:213"
           },
           "location": "Rolling Quintar Fields",
@@ -3430,7 +3430,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:197"
               }
             }
@@ -3442,7 +3442,7 @@
               "ref": {
                 "kind": "catalog",
                 "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v1",
+                "catalogRevisionId": "catalog-v3",
                 "entityId": "base:item:197"
               }
             }
@@ -3742,7 +3742,7 @@
           "ref": {
             "kind": "catalog",
             "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v1",
+            "catalogRevisionId": "catalog-v3",
             "entityId": "base:monster:224"
           },
           "location": "Slip Glide Ride",

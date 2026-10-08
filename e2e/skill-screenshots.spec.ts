@@ -1,9 +1,9 @@
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
-import { CLASS_MAP_FIXTURES } from '../src/catalog/skill-maps.test-helpers'
+import { CLASS_MAP_FIXTURES, observedSkillMapCatalogFixture } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
-import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import { CONFIRMED_SWITCH_MOD_SETUP } from '../src/catalog/mods'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -11,6 +11,8 @@ import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { screenshotTestLocalData, CHARACTER } from '../src/domain/skill-trees.test-helpers'
 import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { LocalData } from '../src/domain/types'
+
+const DEFAULT_CATALOG = observedSkillMapCatalogFixture(CURRENT_CATALOG)
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
