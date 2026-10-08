@@ -91,7 +91,7 @@ test('new builds reuse Build rules and can explicitly copy the selected playthro
   await loadFixture(page, compatibilityFixture(true))
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await page.locator('.build-behavior > summary').click()
-  await expect(page.getByText(`Starting with the Game Setup from ${PERSONAL_BUILD_TITLE}. Review or change these rules for this Build.`, { exact: true })).toBeVisible()
+  await expect(page.getByText(`Starting with the Game Setup from ${PERSONAL_BUILD_TITLE}. Review its rules below.`, { exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).locator('option:checked')).toContainText('Sample starter Game Setup')
   await expect(page.getByRole('status', { name: 'Build PP summary', exact: true })).toContainText('0 / 10 PP')
   await openGameSetupSection(page.locator('.build-behavior'), 'Game context')

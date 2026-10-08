@@ -9,6 +9,7 @@ test('reference entries are read-only and offer source issue reporting', { tag: 
   await page.goto(referencePath('base:equipment:160'))
   await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Create personal version', exact: true })).toHaveCount(0)
+  await page.locator('.reference-actions').getByRole('button', { name: 'Actions', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
   await expect(page.getByRole('button', { name: /^(Quick edit|Correct shared reference|Corrections)/ })).toHaveCount(0)
   await page.goto('/#/settings/data')

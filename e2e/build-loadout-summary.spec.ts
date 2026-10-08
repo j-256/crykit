@@ -112,7 +112,7 @@ test('team and library summaries show every equipment slot and PP crystal', { ta
   await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('filter', 'grayscale(1)')
   await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('opacity', '0.46')
   const sol = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Sol: sample Wizard' })
-  await expect(sol.locator('[data-tooltip^="Main hand: Oak Wand"]')).toHaveAttribute('data-tooltip', 'Main hand: Oak Wand\nOne-handed\nAttack: +42\nMind: +12\nMax. MP: +4\nCost: 60 Copper')
+  await expect(sol.locator('[data-tooltip^="Main hand: Oak Wand"]')).toHaveAttribute('data-tooltip', 'Main hand: Oak Wand\nOne-handed\nAttack: +42\nMind: +12\nMax. MP: +4\nCost: 60 copper')
 
   await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
   await page.getByLabel('Revision A').selectOption({ index: 1 })

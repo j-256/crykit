@@ -49,6 +49,7 @@ test('conflicting fields retain every claim and its exact source evidence', { ta
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
   await expect(page.getByRole('button', { name: /Review source differences|Create personal version/ })).toHaveCount(0)
+  await page.locator('.reference-actions').getByRole('button', { name: 'Actions', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Report a data issue', exact: true })).toBeVisible()
   await page.reload()
   await expect(location.getByText('2 differing source values', { exact: true })).toBeVisible()
