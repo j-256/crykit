@@ -7,7 +7,7 @@ import { CryKitDatabase, setDatabaseForTests } from '../persistence/database'
 import { BUNDLED_MOD_LIBRARY } from './mod-library'
 import { CURRENT_CATALOG, DEFAULT_CATALOG } from './bundled'
 import { bundledModSearchCatalogs } from './mod-search'
-import { loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
+import { createWorldMapLoader, loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
 import { encodeMapGeometry } from '../domain/map-geometry'
 import { sha256 } from '../interchange/util'
 import manifestSource from './world-map.json'
@@ -131,8 +131,7 @@ describe('bundled native world map and original mod source joining', () => {
   })
 
   it('retries a rejected manifest load after its source becomes usable', async () => {
-    vi.resetModules()
-    const { loadWorldMap: retryLoad } = await import('./world-map')
+    const retryLoad = createWorldMapLoader()
     const fetchSource = vi.fn().mockResolvedValueOnce(new Response('Unavailable', { status: 503 })).mockResolvedValueOnce(new Response(JSON.stringify(manifestSource)))
     vi.stubGlobal('fetch', fetchSource)
     await expect(retryLoad()).rejects.toThrow('HTTP 503')
@@ -142,8 +141,7 @@ describe('bundled native world map and original mod source joining', () => {
   })
 
   it('rejects malformed marker coordinates and lets a valid bundled source load on retry', async () => {
-    vi.resetModules()
-    const { loadWorldMap: retryLoad } = await import('./world-map')
+    const retryLoad = createWorldMapLoader()
     const malformed = { ...manifestSource, markers: [{ ...manifestSource.markers[0], x: 'unresolved' }] }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(malformed))).mockResolvedValueOnce(new Response(JSON.stringify(manifestSource))))
     await expect(retryLoad()).rejects.toThrow('malformed')
