@@ -69,12 +69,13 @@ test('untracked identity checks exclude personal files, generated screenshots, a
 })
 
 test('review index links actual PNGs and escapes failure text instead of executing imported markup', () => {
-  const index = renderReviewIndex({ label: 'review', startedAt: 'synthetic timestamp', status: 'Incomplete', captures: [{ device: 'mobile', screen: 'mods', state: 'expanded', description: 'A synthetic state', viewport: 'mobile--mods--viewport.png', fullContent: 'mobile--mods--full-content.png' }], failures: [{ device: 'desktop', screen: 'mods', error: '<script>unsafe</script>', image: 'desktop--mods--failure.png' }] })
+  const injectedMarkup = '<ScRiPt>unsafe</ScRiPt>'
+  const index = renderReviewIndex({ label: 'review', startedAt: 'synthetic timestamp', status: 'Incomplete', captures: [{ device: 'mobile', screen: 'mods', state: 'expanded', description: 'A synthetic state', viewport: 'mobile--mods--viewport.png', fullContent: 'mobile--mods--full-content.png' }], failures: [{ device: 'desktop', screen: 'mods', error: injectedMarkup, image: 'desktop--mods--failure.png' }] })
   assert.match(index, /href="mobile--mods--full-content.png"/)
   assert.match(index, /src="mobile--mods--viewport.png"/)
   assert.match(index, /href="desktop--mods--failure.png"/)
-  assert.match(index, /&lt;script&gt;unsafe&lt;\/script&gt;/)
-  assert.doesNotMatch(index, /<script>/)
+  assert.ok(index.includes('&lt;ScRiPt&gt;unsafe&lt;/ScRiPt&gt;'))
+  assert.equal(index.toLowerCase().includes('<script>'), false)
 })
 
 test('both help flags succeed on stdout and invalid usage fails distinctly on stderr', () => {
