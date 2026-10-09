@@ -72,7 +72,7 @@ describe('character-independent build validity', () => {
     const baseClass = { ...passive('base-rogue'), kind: 'class' as const, name: 'Rogue' }
     const report = validateBuildContent(revision, setup, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === baseClass.id ? baseClass : resolve(reference))
     expect(report.status).toBe('undetermined')
-    expect(report.issues).toEqual([{ code: 'CLASS_DEFINITION_UNAVAILABLE', status: 'undetermined', message: "Sub-command: Rogue's saved Synthetic Innates Mod definition is unavailable" }])
+    expect(report.issues).toEqual([{ code: 'CLASS_DEFINITION_UNAVAILABLE', status: 'undetermined', message: "Sub-command: Rogue's saved Synthetic Innates Mod definition is unavailable", slotId: 'secondary-class' }])
   })
 
   it('rejects an innate that is explicitly unavailable as an equippable passive', () => {

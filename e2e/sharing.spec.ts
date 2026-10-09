@@ -401,8 +401,9 @@ test('rejects invalid snapshots and unavailable catalog pins without writing', a
   expect(await storedData(page)).toEqual(original)
 })
 
-for (const historical of [false, true]) test(`modded shares keep selected names and accept matching local JSON and artwork ${historical ? 'from older pins' : 'from current pins'}`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
-  const text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description"}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
+async function portableModFixture(historical: boolean, completePermissions = false) {
+  let text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description"}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
+  if (completePermissions) text = text.replace('"Description":"Local-only description"', '"Description":"Local-only description","EquipmentTypes":[2,13],"PassiveIDs":[]')
   const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'original.json')).proposed.catalogs[0]!
   const catalogs = [...BUNDLED_CATALOGS, source]
   const composition = prepareModComposition({ version: 3, baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, enabled: true }], links: [] }, catalogs)
@@ -424,6 +425,11 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
     const { identityMappings: _mappings, ...oldComposition } = originalSetup.modComposition!
     payload = { ...payload, records: { ...payload.records, gameSetups: { [originalSetup.id]: { ...originalSetup, modComposition: { ...oldComposition, version: 2, baseline: { ...oldComposition.baseline, catalogRevisionId: asId<CatalogRevisionId>('catalog-v1') } } } } } }
   }
+  return { text, source, payload }
+}
+
+for (const historical of [false, true]) test(`modded shares keep selected names and accept matching local JSON and artwork ${historical ? 'from older pins' : 'from current pins'}`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, source, payload } = await portableModFixture(historical)
   const url = createShareUrl(payload, `${baseURL}/`)
   expect(JSON.stringify(payload)).not.toContain('Local-only description')
   await page.goto(url)
@@ -487,4 +493,70 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   const savedSetup = saved.gameSetups[revision.gameSetupRevisionId]!
   expect(savedSetup.modComposition!.layers[0]!.catalogRevisionId).not.toBe(source.revisionId)
   expect(savedSetup.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
+})
+
+test('validity warnings restore missing mod definitions inside the editor without losing unsaved edits', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, payload } = await portableModFixture(true, true)
+  await page.goto(createShareUrl(payload, `${baseURL}/`))
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  const permission = validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' })
+  await expect(permission.getByRole('button', { name: 'Upload mod JSON', exact: true })).toBeVisible()
+  await permission.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
+  let dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
+  await expect(dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const before = await storedData(page)
+  const build = Object.values(before.builds).find(build => build.title === 'Portable mod build')!
+  const checkpoint = before.buildRevisions[build.latestRevisionId!]!
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Rotation or use notes', exact: true }).fill('Keep this unsaved rotation')
+  const mechanics = page.getByRole('region', { name: 'Build mechanics', exact: true })
+  await expect(mechanics.getByRole('list', { name: 'Equipment findings' })).toContainText('Restore the missing class and passive definitions')
+  await mechanics.getByRole('button', { name: 'Review solutions', exact: true }).click()
+  await expect(validity).toBeFocused()
+  const editorPermission = validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' })
+  await editorPermission.getByRole('button', { name: 'Review Class', exact: true }).click()
+  await expect(page.locator('[data-field-key="primary-class"]')).toBeFocused()
+  await page.locator('[data-field-key="slot:plan-main-hand"]').getByRole('button', { name: 'Review solutions', exact: true }).click()
+  await expect(validity).toBeFocused()
+  await editorPermission.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
+  dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
+  const input = dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })
+  const imports = await storedImportCounts(page)
+  await input.setInputFiles({ name: 'changed.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('Synthetic Portable Class', 'Changed Class')) })
+  await expect(dialog.getByText('This JSON does not match the saved mod content and project identity.', { exact: false })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
+  expect(await storedImportCounts(page)).toEqual(imports)
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+      if (this.name === 'catalogs') throw new DOMException('Synthetic warning import write failed', 'QuotaExceededError')
+      return put.apply(this, args)
+    }
+    ;(window as unknown as { restoreWarningImport: () => void }).restoreWarningImport = () => { IDBObjectStore.prototype.put = put }
+  })
+  await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  await expect(dialog.getByText('Mod not imported', { exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
+  expect(await storedImportCounts(page)).toEqual(imports)
+  await page.evaluate(() => (window as unknown as { restoreWarningImport: () => void }).restoreWarningImport())
+  await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await expect(validity.getByText('definition is unavailable', { exact: false })).toHaveCount(0)
+  await expect(validity.getByText('permission is unresolved', { exact: false })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Rotation or use notes', exact: true })).toHaveValue('Keep this unsaved rotation')
+  expect((await storedData(page)).buildRevisions[checkpoint.id]).toEqual(checkpoint)
+  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const saved = await storedData(page)
+  const revision = saved.buildRevisions[saved.builds[build.id]!.latestRevisionId!]!
+  expect(revision.id).not.toBe(checkpoint.id)
+  expect(revision.content.rotationNotes).toBe('Keep this unsaved rotation')
+  expect(saved.buildRevisions[checkpoint.id]).toEqual(checkpoint)
+  expect(saved.gameSetups[revision.gameSetupRevisionId]!.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

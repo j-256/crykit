@@ -17,12 +17,12 @@ export function LoadoutSelectionDetails({ option, comparedWith, catalogs, localD
   return option ? <BuildSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={option} showClassPermissions={showClassPermissions} showIdentity={showIdentity}/> : <p>Select a class, item, or passive for details. Empty means nothing is equipped; Unknown means it has not been recorded.</p>
 }
 
-export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, view, onViewChange, viewLabel, primaryClassField, subCommandField, equipmentFields, passiveFields, passiveTools, selection, comparedWith, notes, context, onCalculationChange, onReviewGameSetup, recorded, unknownInputs, unknownSecondaryClass, unknownPrimaryClass, selectionActions, showClassPermissions, showChecks = true, showStats = true }: {
+export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, view, onViewChange, viewLabel, primaryClassField, subCommandField, equipmentFields, passiveFields, passiveTools, selection, comparedWith, notes, context, onCalculationChange, onReviewGameSetup, onReviewIssues, recorded, unknownInputs, unknownSecondaryClass, unknownPrimaryClass, selectionActions, showClassPermissions, showChecks = true, showStats = true }: {
   content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision
   view: LoadoutView; onViewChange: (view: LoadoutView) => void; viewLabel: string
   primaryClassField: ReactNode; subCommandField: ReactNode; equipmentFields: ReactNode; passiveFields: ReactNode; passiveTools?: ReactNode
   selection?: DefinitionOption; comparedWith?: DefinitionOption; selectionActions?: ReactNode; showClassPermissions?: boolean
-  notes?: ReactNode; context?: ReactNode; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void
+  notes?: ReactNode; context?: ReactNode; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void; onReviewIssues?: () => void
   recorded?: Readonly<Record<string, ObservedStat>>; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; unknownPrimaryClass?: boolean
   showChecks?: boolean; showStats?: boolean
 }) {
@@ -67,7 +67,7 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
       </details>}
     </> : <section aria-label="Build checks and notes" className="build-sheet__checks stack">
       {unknownInputs?.length ? <p className="field__hint">Equipment checks use recorded selections. Unknown slots cannot be checked.</p> : null}
-      <BuildMechanics unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass} gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onChange={onCalculationChange} slots={slots}/>
+      <BuildMechanics unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass} gameSetup={gameSetup} catalogs={catalogs} content={content} localData={localData} onChange={onCalculationChange} onReviewGameSetup={onReviewGameSetup} onReviewIssues={onReviewIssues} slots={slots}/>
       {notes}
     </section>}
   </div>

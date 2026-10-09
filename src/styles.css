@@ -623,10 +623,14 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-validity[data-status="invalid"] .build-validity__summary > svg { color: var(--rust); }
 .build-validity__summary > strong { min-width: 0; color: var(--text); font-size: .78rem; }
 .build-validity__summary > .badge { margin-left: auto; }
-.build-validity > .validation-issues { margin: 0; padding: 9px 10px 2px 28px; border-top: 1px solid currentColor; color: var(--text-dim); font-size: .72rem; }
+.build-validity > .validation-issues { margin: 0; padding: 9px 10px 2px 28px; border-top: 1px solid currentColor; color: var(--text-dim); font-size: .875rem; }
 .build-validity__issue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .build-validity__issue > span { min-width: 0; overflow-wrap: anywhere; }
-.build-validity__review { flex: none; min-height: 28px; max-width: 100%; padding: 3px 8px; font-size: inherit; line-height: 1.4; white-space: normal; }
+.build-validity__review { flex: none; gap: 6px; min-height: 28px; max-width: 100%; padding: 3px 8px; font-size: inherit; font-weight: 600; line-height: 1.4; white-space: normal; }
+.build-validity__review svg { flex: none; width: 1em; height: 1em; }
+.build-validity__actions { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.build-validity__actions:empty { display: none; }
+.build-validity__help { margin: 3px 0 0; color: var(--text-dim); font-size: inherit; }
 @media (pointer: coarse) {
   .build-validity__review { min-height: 44px; }
 }

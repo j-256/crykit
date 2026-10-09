@@ -114,9 +114,9 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
   const add = (code: string, status: MechanicsIssue['status'], message: string, slotId?: string) => issues.push({ code, status, message, ...(slotId ? { slotId } : {}) })
   const primary = content.primaryClass ? resolve(content.primaryClass) : undefined
   const secondary = content.secondaryClass ? resolve(content.secondaryClass) : undefined
-  for (const [definition, field, label] of [[primary, 'Primary class selection disabled', 'primary class'], [secondary, 'Secondary class selection disabled', 'sub-command']] as const) {
-    if (definition && definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${definition.name} is not a class`)
-    if (knownField(definition, field) === true) add('CLASS_DISABLED', 'invalid', `${definition!.name} cannot be selected as the ${label} in its export`)
+  for (const [definition, field, label, target] of [[primary, 'Primary class selection disabled', 'primary class', 'primary-class'], [secondary, 'Secondary class selection disabled', 'sub-command', 'secondary-class']] as const) {
+    if (definition && definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${definition.name} is not a class`, target)
+    if (knownField(definition, field) === true) add('CLASS_DISABLED', 'invalid', `${definition!.name} cannot be selected as the ${label} in its export`, target)
   }
   const { classTypes, permissions, dualWield, twoHanded, unresolvedEffects } = buildEquipmentPermissions(content, resolve)
   const passiveIds = new Set<string>()

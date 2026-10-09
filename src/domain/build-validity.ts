@@ -42,15 +42,16 @@ export function validateBuildContent(
 
   for (const [label, ref] of [['Primary class', content.primaryClass], ['Sub-command', content.secondaryClass]] as const) {
     if (!ref) continue
-    checkCatalogLock(ref, label)
+    const field = label === 'Primary class' ? 'primary-class' : 'secondary-class'
+    checkCatalogLock(ref, label, field)
     const definition = resolve(ref)
     if (!definition) {
       const display = content.referenceNames?.find(entry => entityDefinitionKey(entry.ref) === entityDefinitionKey(ref))
       const source = display?.projectId && gameSetup?.modSourceReceipts?.find(receipt => receipt.catalogId === display.projectId)
       // Saved names explain a missing pinned definition without resolving a base-game namesake
       const savedSource = source ? ` ${source.title}` : display?.projectId ? ' mod' : ''
-      add('CLASS_DEFINITION_UNAVAILABLE', 'undetermined', display ? `${label}: ${display.name}'s saved${savedSource} definition is unavailable` : `${label} definition is unavailable`)
-    } else if (definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${label} must use a class definition`)
+      add('CLASS_DEFINITION_UNAVAILABLE', 'undetermined', display ? `${label}: ${display.name}'s saved${savedSource} definition is unavailable` : `${label} definition is unavailable`, field)
+    } else if (definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${label} must use a class definition`, field)
   }
 
   let knownSubtotal = 0

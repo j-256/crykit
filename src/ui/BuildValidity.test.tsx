@@ -28,4 +28,32 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('This class cannot equip the selected armor')
     expect(markup).toContain('Review Body')
   })
+
+  it('points unresolved permissions to their class and passive inputs and offers source recovery', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined', message: 'Dagger permission is unresolved', slotId: 'main-hand' }] }}/>)
+    expect(markup).toContain('Upload mod JSON')
+    expect(markup).toContain('Review Class')
+    expect(markup).toContain('Review passives')
+    expect(markup).toContain('Restore the missing class and passive definitions')
+  })
+
+  it('provides a passive recovery action even when the PP warning has no single slot', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'PP_COST_UNKNOWN', status: 'undetermined', message: 'Selected passive costs are unresolved' }] }}/>)
+    expect(markup).toContain('Review passives')
+    expect(markup).toContain('Upload mod JSON')
+  })
+
+  it('routes unknown setup rules to settings without promising a JSON import will fix them', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewSetup={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'PP_LIMIT_UNKNOWN', status: 'undetermined', message: 'The PP limit is unknown' }] }}/>)
+    expect(markup).toContain('Review Game Setup')
+    expect(markup).toContain('supply the value for your game')
+    expect(markup).not.toContain('Upload mod JSON')
+  })
+
+  it('explains how to change invalid selections in a read-only share', () => {
+    const markup = renderToStaticMarkup(<BuildValidity readOnly onReviewField={() => undefined} report={{ ...report, status: 'invalid', issues: [{ code: 'DUPLICATE_PASSIVE', status: 'invalid', message: 'Passive selected twice', slotId: 'passive-1' }] }}/>)
+    expect(markup).toContain('Remove or replace the repeated passive')
+    expect(markup).toContain('Save a copy to change selections or rules')
+    expect(markup).toContain('Inspect selection')
+  })
 })
