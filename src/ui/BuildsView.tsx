@@ -17,6 +17,7 @@ import { formatStatRange } from './BuildMechanics'
 import { defaultCalculation, followPrimary } from '../domain/calculation-plan'
 import { calculationGenderLabel } from '../domain/calculation-genders'
 import { BuildValidity } from './BuildValidity'
+import { BuildModFiles } from './BuildModFiles'
 import { calculateBuildStats, CALCULATED_STATS, STAT_LABELS } from '../domain/build-stats'
 import { LoadoutSheet } from './LoadoutSheet'
 import { BuildDetailsControl } from './BuildDetailsControl'
@@ -392,6 +393,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     {titleControl?.({ formId, disabled: busy || loadingMod || locked, markDirty: () => updateDirty(true) })}
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     {error && <div aria-label="Resolve Build revision edits" ref={revisionNoticeRef} role="region" tabIndex={-1}><InlineNotice title={error === REVISION_EXIT_MESSAGE ? 'Revision edits are still open' : 'Revision not saved'} tone={error === REVISION_EXIT_MESSAGE ? 'warning' : 'danger'}>{error} Your selections remain in this editor.{error === REVISION_EXIT_MESSAGE && <div className="cluster"><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">Save revision</Button><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">Cancel and discard</Button></div>}</InlineNotice></div>}
+    <BuildModFiles setup={gameSetup} catalogs={catalogs} disabled={busy || loadingMod || locked} onOpen={onImportMod ? () => setSourcesOpen(true) : undefined}/>
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}>{!build && <p className="field__hint">{startingSetupDescription}</p>}<BuildBehaviorEditor content={draft} onModBusyChange={setLoadingMod} detailsRef={behaviorRef} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
     <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(draft.primaryClass)} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...passiveReviewTargets.map(({ position }) => [position.id, position.label])])} onReviewField={reviewValidityField} onReviewSetup={() => reviewGameSetup()} onUploadMod={onImportMod && gameSetup.modSourceReceipts?.length ? () => setSourcesOpen(true) : undefined} report={validity}/>
     {sourceNotice && <p role="status">{sourceNotice}</p>}
