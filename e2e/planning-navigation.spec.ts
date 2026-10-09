@@ -1,4 +1,4 @@
-import { skipInitialModSetup } from './local-data-helpers'
+import { skipInitialModSetup, waitForPlannerReady } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test } from '@playwright/test'
 
@@ -59,7 +59,9 @@ test('home opens the build library and separates tracking on desktop and touch',
   await expect(inventory).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('button', { name: 'Party plan: Sample starter team', exact: true })).toBeVisible()
   await page.goBack()
+  await expect(reference).toHaveAttribute('aria-current', 'page')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await expect(reference).toHaveAttribute('aria-current', 'page')
   const inspector = menu.getByRole('button', { name: 'Mods', exact: true })
