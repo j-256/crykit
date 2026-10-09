@@ -41,6 +41,7 @@ import { BuildTitleInput } from './BuildTitleInput'
 import { useNavigationNotice } from './useNavigationNotice'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
 import { modState } from '../domain/mods'
+import { passivePosition } from '../domain/passive-loadout'
 import './build-editor-usability.css'
 import { buildStartingSetup } from './build-starting-setup'
 import { battleCalculationSummary } from './battle-calculation-summary'
@@ -328,6 +329,8 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const mainHandDefinition = mainHandSelection ? definitionIndex.get(entityDefinitionKey(mainHandSelection.ref)) : undefined
   const twoHandedMain = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true ? mainHandDefinition : undefined
   const fieldIssues = (slotId: string) => validity.issues.filter(issue => issue.slotId === slotId)
+  // Validity uses domain passive-position IDs while editor links retain their saved field keys
+  const passiveReviewTargets = draft.passives.map((_, index) => ({ position: passivePosition(index), fieldKey: `slot:passive-${index + 1}` }))
   const issueNotes = (slotId: string) => fieldIssues(slotId).length > 0 && <ul className="build-field-issues">{fieldIssues(slotId).map(issue => <li data-status={issue.status} key={`${issue.code}:${issue.message}`}>{issue.message}</li>)}</ul>
   const slotField = (slot: typeof slots[number]) => {
     const selected = draft.equipment[slot.id]
@@ -338,14 +341,14 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   }
   const passiveField = (selection: BuildSelection | undefined, index: number) => {
     const target = targetForFieldKey(`slot:passive-${index + 1}`)!
-    return <div className="slot-entry" data-field-key={`slot:passive-${index + 1}`} tabIndex={-1} key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}{issueNotes(`passive-${index + 1}`)}</div>
+    return <div className="slot-entry" data-field-key={`slot:passive-${index + 1}`} tabIndex={-1} key={`${index}:${selection ? entityDefinitionKey(selection.ref) : 'add'}`}>{field(target, selection?.ref ?? null)}{issueNotes(passivePosition(index).id)}</div>
   }
   return <BuildModSelectionGate content={draft} value={behavior} onChange={value => { onBehaviorChange(value); updateDirty(true) }} onBusyChange={setLoadingMod}><form className="stack build-sheet" data-validity={validity.status} id={formId} onChange={(event) => { const target = event.target as HTMLElement; if (target.getAttribute('role') !== 'combobox' && !target.hasAttribute('data-draft-exempt')) updateDirty(true) }} onInvalid={event => { for (let parent: HTMLElement | null = event.target as HTMLElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true }} onSubmit={submit} ref={formRef}>
     {titleControl?.({ formId, disabled: busy || loadingMod || locked, markDirty: () => updateDirty(true) })}
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     {error && <div aria-label="Resolve Build revision edits" ref={revisionNoticeRef} role="region" tabIndex={-1}><InlineNotice title={error === REVISION_EXIT_MESSAGE ? 'Revision edits are still open' : 'Revision not saved'} tone={error === REVISION_EXIT_MESSAGE ? 'warning' : 'danger'}>{error} Your selections remain in this editor.{error === REVISION_EXIT_MESSAGE && <div className="cluster"><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">Save revision</Button><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">Cancel and discard</Button></div>}</InlineNotice></div>}
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}>{!build && <p className="field__hint">{startingSetupDescription}</p>}<BuildBehaviorEditor content={draft} onModBusyChange={setLoadingMod} detailsRef={behaviorRef} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
-    <BuildValidity hasPrimaryClass={Boolean(draft.primaryClass)} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...draft.passives.map((_, index) => [`passive-${index + 1}`, `Equipped passive ${index + 1}`])])} onReviewField={slotId => { setEditorView('loadout'); focusFieldElement(`slot:${slotId}`) }} report={validity}/>
+    <BuildValidity hasPrimaryClass={Boolean(draft.primaryClass)} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...passiveReviewTargets.map(({ position }) => [position.id, position.label])])} onReviewField={slotId => { setEditorView('loadout'); focusFieldElement(passiveReviewTargets.find(({ position }) => position.id === slotId)?.fieldKey ?? `slot:${slotId}`) }} report={validity}/>
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith} showClassPermissions={inspectClassPermissions}
       primaryClassField={field(targetForFieldKey('primary-class')!, draft.primaryClass)} subCommandField={field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}
       equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" data-field-key={`slot:${id}`} key={id} tabIndex={-1}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
