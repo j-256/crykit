@@ -224,6 +224,7 @@ test('validity review targets unavailable passives without changing the saved ch
   const copy = Object.values(saved.builds).find(build => !original.builds[build.id])!
   await page.goto(`${baseURL}/#/builds/library/${copy.id}`)
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  await validity.locator('.build-validity__details > summary').click()
   for (let index = 0; index < 3; index += 1) {
     await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
     await validity.getByRole('button', { name: `Review Equipped passive ${index + 1}`, exact: true }).click()

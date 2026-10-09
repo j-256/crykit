@@ -23,7 +23,7 @@ export function formatStatRange(value: StatRange | null): string {
 
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 
-export function BuildMechanics({ content, slots, localData, catalogs, gameSetup, onChange, onReviewIssues, onReviewGameSetup, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewIssues?: () => void; onReviewGameSetup?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
+export function BuildMechanics({ content, slots, localData, catalogs, gameSetup, onChange, onReviewIssues, onReviewGameSetup, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewIssues?: () => void; onReviewGameSetup?: () => void; onUploadMod?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
   const resolve = (ref: EntityRef) => resolveEntity(localData, catalogs, ref)
   const identity = (ref: EntityRef) => logicalEntityKey(localData, ref)
   const equipment = analyzeBuildEquipment(content, slots, resolve, identity)
@@ -45,7 +45,7 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
       {equipment.length ? <><ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}<p className="field__hint">{buildValidityGuidance(issue).message}</p></li>)}</ul>{onReviewIssues && <Button onClick={onReviewIssues} tone="secondary" type="button">Review solutions</Button>}</> : <p role="status">{hasSelections ? 'No known equipment conflicts.' : 'Add equipment to check this build.'}</p>}
     </div>
     <details><summary>Ability and hit-chance preview</summary><div className="stack">
-      <CombatPreview content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
+      <CombatPreview onUploadMod={onUploadMod} content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
       <details className="combat-reference"><summary>Formula reference</summary><div className="stack">
         {abilityScope.issues.size > 0 && <InlineNotice title="Ability preview unresolved">{[...abilityScope.issues].join(' ')} Review enabled mods and their source revisions in Game Setup.{onReviewGameSetup && <Button onClick={onReviewGameSetup} tone="secondary" type="button">Review Game Setup</Button>}</InlineNotice>}
         {ability ? <AbilityFormulaReference ability={ability} abilityName={abilityDefinition?.name ?? 'Selected ability'} definition={abilityDefinition} numericRecord={abilityRecord}/> : <p className="field__hint">Choose an ability to see its base power and learning costs.</p>}

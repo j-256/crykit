@@ -27,6 +27,19 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Build needs changes')
     expect(markup).toContain('This class cannot equip the selected armor')
     expect(markup).toContain('Review Body')
+    expect(markup).not.toContain('<details')
+  })
+
+  it('keeps incomplete checks in a closed info disclosure while confirmed conflicts remain visible', () => {
+    const issues = [{ code: 'PASSIVE_LEARNABILITY_UNKNOWN', status: 'undetermined' as const, message: 'Synthetic learning rule is unavailable', slotId: 'passive-1' }]
+    const incomplete = renderToStaticMarkup(<BuildValidity onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues }}/>)
+    expect(incomplete).toContain('<details class="build-validity__details">')
+    expect(incomplete).toContain('More details with mod JSON')
+    expect(incomplete).not.toContain('Build needs changes')
+    expect(incomplete).not.toContain("CryKit can&#x27;t fully check")
+    const mixed = renderToStaticMarkup(<BuildValidity report={{ ...report, status: 'invalid', issues: [{ code: 'DUPLICATE_PASSIVE', status: 'invalid', message: 'Synthetic duplicate passive', slotId: 'passive-2' }, ...issues] }}/>)
+    expect(mixed.indexOf('Synthetic duplicate passive')).toBeLessThan(mixed.indexOf('<details'))
+    expect(mixed.indexOf('Synthetic learning rule is unavailable')).toBeGreaterThan(mixed.indexOf('<details'))
   })
 
   it('points unresolved permissions to their class and passive inputs and offers source recovery', () => {

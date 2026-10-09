@@ -16,6 +16,7 @@ import { previewAbilityGroups } from './preview-ability-groups'
 import { Button, InlineNotice } from './components'
 import { entityName, resolveCalculationEntity } from './model'
 import { Icon } from './icons'
+import { ModCalculationDetails } from './ModCalculationDetails'
 import './combat-preview.css'
 
 const NO_UNKNOWN_INPUTS: readonly string[] = []
@@ -47,8 +48,8 @@ function ChanceMeter({ label, value }: { readonly label: string; readonly value:
   return value !== null && value >= 0 && value <= MAX_PERCENT ? <meter className="combat-chance-meter" aria-label={label} min={0} max={MAX_PERCENT} value={value}>{value}%</meter> : null
 }
 
-export function CombatPreview({ content, slots, localData, catalogs, gameSetup, onChange, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: {
-  readonly content: BuildRevisionContent; readonly slots: readonly SlotDefinition[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly gameSetup?: GameSetupRevision; readonly onChange?: (plan: BuildCalculationPlan | undefined) => void; readonly unknownInputs?: readonly string[]; readonly unknownSecondaryClass?: boolean
+export function CombatPreview({ content, slots, localData, catalogs, gameSetup, onChange, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: {
+  readonly content: BuildRevisionContent; readonly slots: readonly SlotDefinition[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly gameSetup?: GameSetupRevision; readonly onChange?: (plan: BuildCalculationPlan | undefined) => void; readonly onUploadMod?: () => void; readonly unknownInputs?: readonly string[]; readonly unknownSecondaryClass?: boolean
 }) {
   const section = useRef<HTMLElement>(null)
   const plan = content.calculation
@@ -86,6 +87,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
     })
     update({ battle: { ...battle, statuses: [...battle.statuses, ...added] } })
   }
+  const sourceDetailsNeeded = onUploadMod && Boolean(plan?.ability || battle) && Object.keys(preview.unavailable).length > 0
   return <section ref={section} aria-label="Combat preview" className="combat-preview stack">
     <div className="combat-heading">
       <div><h4>{battle ? 'Battle scenario' : 'Ability preview'}</h4><p className="field__hint">{battle ? 'Choose an ability and target. Add any relevant battle conditions.' : 'Choose an ability to see its costs. Add a scenario for damage, healing, or statuses.'}</p></div>
@@ -97,6 +99,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
       </div>
       {battle && <BattleTargetPicker context={{ localData, catalogs, gameSetup }} battle={battle} onChange={onChange ? battle => update({ battle }) : undefined}/>}
     </div>
+    {sourceDetailsNeeded && <ModCalculationDetails onUploadMod={onUploadMod!} issues={preview.issues} partial/>}
     {plan?.ability && <div className="combat-costs"><div className="combat-heading"><h5>Effective ability costs</h5>{noResourceCost && <span className="combat-free-cost"><Icon name="check"/>No resource cost</span>}</div>
       <dl aria-label="Effective ability costs" className="definition-list combat-cost-grid">{ABILITY_COSTS.map(cost => <div className="definition-row" data-resource={cost} data-state={preview.costs[cost] === 0 ? 'zero' : preview.costs[cost] === null ? 'unknown' : 'active'} key={cost}><dt>{COST_LABELS[cost]}</dt><dd><PreviewValue {...valueContext} value={preview.costs[cost]} reasons={preview.unavailable[`${cost} cost`]}/></dd></div>)}</dl>
       <details className="combat-base-costs"><summary>Base ability costs</summary><p className="field__hint">Before gear, passives, and statuses. Base HP cost is a percentage of max HP.</p><dl aria-label="Base ability costs" className="definition-list">{ABILITY_COSTS.map(cost => <div className="definition-row" key={cost}><dt>{COST_LABELS[cost]}</dt><dd>{numberText(preview.baseCosts[cost])}{cost === 'HP' ? '% of max HP' : ''}</dd></div>)}</dl></details>
@@ -125,7 +128,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
       <BattleCalculationControls battle={battle} maxima={preview.maxima} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange ? battle => update({ battle }) : undefined}/>
       {plan.statuses.length > 0 && onChange && <InlineNotice title="Saved status assumptions"><p>Add these saved statuses to the scenario to calculate their effects.</p><Button tone="quiet" type="button" onClick={includeRetainedStatuses}>Use saved statuses in scenario</Button></InlineNotice>}
     </>}
-    {preview.issues.length > 0 && <InlineNotice title="Some battle inputs need attention" tone="warning"><ul>{preview.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
+    {!onUploadMod && preview.issues.length > 0 && <InlineNotice title="Some battle inputs need attention" tone="warning"><ul>{preview.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
     {battle && <details className="combat-scope"><summary>Calculation scope</summary><p>Costs include supported gear, passive, and status effects. Effective HP cost is an amount; base HP cost is a percentage. This preview does not check whether the action or target is allowed.</p><ul>{preview.notes.map(note => <li key={note}>{note}</li>)}</ul></details>}
   </section>
 }
