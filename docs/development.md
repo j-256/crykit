@@ -76,6 +76,8 @@ npm run test:e2e -- e2e/build-sheet.spec.ts --project=desktop
 
 Local Vitest uses a worker budget of 25% of available CPUs. Local Playwright uses at most two workers, and mobile offline journeys use one, so cache installation of the map assets does not overwhelm the preview server. CI retains its separate runner limits. Compare worker settings on the same machine, source revision, production build, and test selection, including a run with both suites active before increasing their combined budget.
 
+Hosted verification runs the non-Vitest deterministic checks and each Vitest project in separate jobs, preserving the full local `check:deterministic` coverage within bounded runner time. The `release-ready` gate and main deployment require every verification job to pass.
+
 Profile imports and compare a fixed browser sample while developing:
 
 ```sh
