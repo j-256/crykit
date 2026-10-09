@@ -15,6 +15,7 @@ import { CalculationInputs } from './CalculationInputs'
 import { resolveGameRules } from '../domain/game-rules'
 import { KnowledgeValue } from './KnowledgeValue'
 import { BuildValidity } from './BuildValidity'
+import { BuildModFiles } from './BuildModFiles'
 import { Button, InlineNotice, ScreenHeader } from './components'
 import { formatAppError, resolveEntity } from './model'
 import { useNavigation } from './navigation'
@@ -67,6 +68,7 @@ function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: Bu
     { label: 'Passive PP limit', value: setup.ppLimit ?? { state: 'unknown' } }, { label: 'Nonnegative PP costs', value: setup.ppCostsNonNegative },
   ]
   return <div className="stack build-sheet" data-validity={report.status}>
+    <BuildModFiles setup={setup} catalogs={catalogs} onOpen={onUploadMod}/>
     <details ref={setupRef} tabIndex={-1}><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
     <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(content.primaryClass)} readOnly report={report} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...content.passives.map((_selection, index) => [passivePosition(index).id, passivePosition(index).label])])} onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewField={target => { setView('loadout'); focusFieldElement(`${fieldScope}:${target === BUILD_REVIEW_FIELDS.passives ? passivePosition(0).id : target}`) }} onReviewSetup={() => { if (setupRef.current) { setupRef.current.open = true; setupRef.current.scrollIntoView({ block: 'center' }); setupRef.current.focus() } }}/>
     <LoadoutSheet onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewIssues={reviewSolutions} gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
