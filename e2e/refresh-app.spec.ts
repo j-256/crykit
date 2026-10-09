@@ -96,7 +96,7 @@ async function saveObservation(page: Page) {
 }
 
 test('refresh repairs cached files and preserves planner records and saved Mod Inspector bytes', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
-  const installation = await startInstallation()
+  const installation = await startInstallation({ shellAssetsOnly: true })
   try {
     await page.goto(`${installation.url}#/inventory`)
     await createBlankPlaythrough(page)
