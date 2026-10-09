@@ -1,5 +1,7 @@
+import { buildModReferences } from './build-references'
+import { withBuildReferenceNames } from './build-reference-names'
 import { CURRENT_CATALOG } from '../catalog/bundled'
-import { battleCalculationReferences, mapBattleCalculationReferences } from './battle-plan'
+import { mapBattleCalculationReferences } from './battle-plan'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { definitionModAvailability } from '../catalog/mods'
 import { bundledModIdentity } from './bundled-mods'
@@ -13,15 +15,13 @@ import { MOD_PROJECT_FIELD } from './mod-library'
 import { normalizeModName, recordedModNames, updateModSelections, type ModState } from './mods'
 import type { BuildRevisionContent, CatalogId, CatalogSnapshot, EntityId, EntityRef, GameSetupRevision, LocalData } from './types'
 
+export { buildModReferences } from './build-references'
+
 export interface BuildModRequirement {
   readonly name: string
   readonly projectId?: CatalogId
   readonly state: ModState
   readonly selections: readonly string[]
-}
-
-export function buildModReferences(content: BuildRevisionContent): readonly EntityRef[] {
-  return [content.primaryClass, content.secondaryClass, ...Object.values(content.equipment).map(selection => selection?.ref), ...content.passives.map(selection => selection.ref), ...content.calculation?.growth.map(row => row.classRef) ?? [], ...content.calculation?.statuses ?? [], content.calculation?.ability, ...battleCalculationReferences(content.calculation?.battle).map(value => value.ref)].filter((ref): ref is EntityRef => Boolean(ref))
 }
 
 export function buildModRequirements(content: BuildRevisionContent, localData: LocalData, catalogs: readonly CatalogSnapshot[], setup?: GameSetupRevision): readonly BuildModRequirement[] {
@@ -79,6 +79,7 @@ export function selectBuildModRevision(behavior: BuildBehavior, catalog: Catalog
 }
 
 export function buildContentForModSetup<Content extends BuildRevisionContent>(content: Content, setup: BuildBehavior, catalogs: readonly CatalogSnapshot[], previousSetup?: BuildBehavior): Content {
+  content = withBuildReferenceNames(content, catalogs)
   const composition = setup.modComposition
   if (!composition) {
     const rebind = (ref: EntityRef | null): EntityRef | null => {
@@ -88,7 +89,7 @@ export function buildContentForModSetup<Content extends BuildRevisionContent>(co
       const target = catalogs.find(catalog => catalog.id === ref.catalogId && catalog.revisionId === pin)
       return source?.schemaVersion === MOD_CATALOG_SCHEMA && target && catalogEntity(target, ref.entityId) ? { ...ref, catalogRevisionId: target.revisionId } : ref
     }
-    return mapBuildModReferences(content, rebind)
+    return withBuildReferenceNames(mapBuildModReferences(content, rebind), catalogs)
   }
   const pin = setup.catalogLock[composition.baseline.catalogId]
   if (!pin) return content
@@ -108,9 +109,9 @@ export function buildContentForModSetup<Content extends BuildRevisionContent>(co
     } else if (source?.schemaVersion !== MOD_CATALOG_SCHEMA && ref.catalogRevisionId !== composition.baseline.catalogRevisionId && previousSetup?.catalogLock[ref.catalogId] !== ref.catalogRevisionId) return ref
     return effective.entities[target] ? { kind: 'catalog', catalogId: composition.baseline.catalogId, catalogRevisionId: pin, entityId: target } : ref
   }
-  return mapBuildModReferences(content, rebind)
+  return withBuildReferenceNames(mapBuildModReferences(content, rebind), catalogs)
 }
 
 function mapBuildModReferences<Content extends BuildRevisionContent>(content: Content, rebind: (ref: EntityRef | null) => EntityRef | null): Content {
-  return { ...content, primaryClass: rebind(content.primaryClass), secondaryClass: rebind(content.secondaryClass), equipment: Object.fromEntries(Object.entries(content.equipment).map(([slot, selection]) => [slot, selection ? { ...selection, ref: rebind(selection.ref)! } : selection])), passives: content.passives.map(selection => ({ ...selection, ref: rebind(selection.ref)! })), ...(content.calculation ? { calculation: { ...content.calculation, ...(content.calculation.battle ? { battle: mapBattleCalculationReferences(content.calculation.battle, ref => rebind(ref)!) } : {}), growth: content.calculation.growth.map(row => ({ ...row, classRef: rebind(row.classRef) })), statuses: content.calculation.statuses.map(ref => rebind(ref)!), ...(content.calculation.ability ? { ability: rebind(content.calculation.ability) } : {}) } } : {}) }
+  return { ...content, ...(content.referenceNames ? { referenceNames: content.referenceNames.map(entry => { const ref = rebind(entry.ref); return ref?.kind === 'catalog' ? { ...entry, ref } : entry }) } : {}), primaryClass: rebind(content.primaryClass), secondaryClass: rebind(content.secondaryClass), equipment: Object.fromEntries(Object.entries(content.equipment).map(([slot, selection]) => [slot, selection ? { ...selection, ref: rebind(selection.ref)! } : selection])), passives: content.passives.map(selection => ({ ...selection, ref: rebind(selection.ref)! })), ...(content.calculation ? { calculation: { ...content.calculation, ...(content.calculation.battle ? { battle: mapBattleCalculationReferences(content.calculation.battle, ref => rebind(ref)!) } : {}), growth: content.calculation.growth.map(row => ({ ...row, classRef: rebind(row.classRef) })), statuses: content.calculation.statuses.map(ref => rebind(ref)!), ...(content.calculation.ability ? { ability: rebind(content.calculation.ability) } : {}) } } : {}) }
 }

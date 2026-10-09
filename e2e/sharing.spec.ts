@@ -1,13 +1,20 @@
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
-import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH } from '../src/interchange/share'
+import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH, type SharePayload } from '../src/interchange/share'
 import { asId } from '../src/domain/core'
 import type { CatalogRevisionId, LocalData, PersonalDefinitionId, GameSetupRevisionId, EntityId } from '../src/domain/types'
-import { addGameSetupRevision, createPersonalDefinition } from '../src/domain'
+import { addGameSetupRevision, createPersonalDefinition, createBuild, saveBuildRevision } from '../src/domain'
 import { known } from '../src/domain/test-helpers'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
 import { defaultCalculation } from '../src/domain/calculation-plan'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../src/catalog/bundled'
+import { createTestLocalData } from '../src/domain/test-helpers'
+import { buildContentForModSetup } from '../src/domain/build-mods'
+import { prepareModComposition } from '../src/domain/mod-layers'
+import { previewCrystalEdit } from '../src/interchange/crystal-edit'
+import { prepareModCatalogs } from '../src/persistence/local-data'
+import type { BuildId } from '../src/domain/types'
 import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup, selectedPlaythrough } from './local-data-helpers'
 
@@ -20,6 +27,25 @@ async function storedData(page: Page): Promise<LocalData> {
       const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
       read.onerror = () => { database.close(); reject(read.error) }
       read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
+    }
+  }))
+}
+
+async function storedImportCounts(page: Page): Promise<Readonly<Record<string, number>>> {
+  return page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('crykit')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const stores = ['catalogs', 'sources', 'imports']
+      const transaction = database.transaction(stores, 'readonly')
+      const counts: Record<string, number> = {}
+      transaction.onerror = () => { database.close(); reject(transaction.error) }
+      transaction.oncomplete = () => { database.close(); resolve(counts) }
+      for (const store of stores) {
+        const count = transaction.objectStore(store).count()
+        count.onsuccess = () => { counts[store] = count.result }
+      }
     }
   }))
 }
@@ -373,4 +399,92 @@ test('rejects invalid snapshots and unavailable catalog pins without writing', a
   await expect(page.getByRole('heading', { name: 'Shared snapshot unavailable' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toHaveCount(0)
   expect(await storedData(page)).toEqual(original)
+})
+
+for (const historical of [false, true]) test(`modded shares keep selected names and accept matching local JSON and artwork ${historical ? 'from older pins' : 'from current pins'}`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description"}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
+  const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'original.json')).proposed.catalogs[0]!
+  const catalogs = [...BUNDLED_CATALOGS, source]
+  const composition = prepareModComposition({ version: 3, baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, enabled: true }], links: [] }, catalogs)
+  let data = addGameSetupRevision(createTestLocalData(), { label: 'Portable mod setup', slots: SUGGESTED_BUILD_SLOTS, modComposition: composition, activate: true })
+  const setup = data.gameSetups[data.planningGameSetupRevisionId!]!
+  const buildId = asId<BuildId>('portable-build')
+  data = createBuild(data, { id: buildId, title: 'Portable mod build', gameSetupId: setup.gameSetupId })
+  const sourceRef = (entityId: EntityId) => ({ kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId })
+  const classRef = sourceRef(Object.values(source.entities).find(entity => entity.kind === 'class')!.id)
+  const passives = Object.values(source.entities).filter(entity => entity.kind === 'passive').map(entity => ({ ref: sourceRef(entity.id) }))
+  const nativeRef = (id: string) => ({ kind: 'catalog' as const, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: asId<EntityId>(id) })
+  const content = buildContentForModSetup({ primaryClass: classRef, secondaryClass: nativeRef('base:job:2'), equipment: { 'plan-main-hand': { ref: nativeRef('base:equipment:41') }, 'plan-head': { ref: nativeRef('base:equipment:481') } }, passives, contextAssumptions: [] }, setup, catalogs)
+  data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
+  const prepared = await prepareModCatalogs(data, catalogs)
+  let payload = createSharePayload(data, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! }, false, prepared)
+  if (historical) {
+    payload = JSON.parse(JSON.stringify(payload).replaceAll('library-v4', 'library-v2')) as SharePayload
+    const originalSetup = Object.values(payload.records.gameSetups)[0]!
+    const { identityMappings: _mappings, ...oldComposition } = originalSetup.modComposition!
+    payload = { ...payload, records: { ...payload.records, gameSetups: { [originalSetup.id]: { ...originalSetup, modComposition: { ...oldComposition, version: 2, baseline: { ...oldComposition.baseline, catalogRevisionId: asId<CatalogRevisionId>('catalog-v1') } } } } } }
+  }
+  const url = createShareUrl(payload, `${baseURL}/`)
+  expect(JSON.stringify(payload)).not.toContain('Local-only description')
+  await page.goto(url)
+  await expect(page.getByRole('heading', { name: 'Portable mod build', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Inspect Class: Synthetic Portable Class', exact: true })).toBeVisible()
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  for (const index of [1, 2, 3]) await expect(validity.getByText(`Equipped passive ${index}: definition is unavailable`, { exact: false })).toHaveCount(1)
+  const input = page.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })
+  const before = await storedData(page)
+  const importCounts = await storedImportCounts(page)
+  await input.setInputFiles({ name: 'changed.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('Synthetic Portable Class', 'Changed Class')) })
+  await expect(page.getByText('This JSON does not match the saved mod content and project identity.', { exact: false })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
+  expect(await storedImportCounts(page)).toEqual(importCounts)
+  const reordered = JSON.stringify(JSON.parse(text), (_key, value) => value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value, 2)
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+      if (this.name === 'catalogs') throw new DOMException('Synthetic mod import write failed', 'QuotaExceededError')
+      return put.apply(this, args)
+    }
+    ;(window as unknown as { restoreModImportWrite: () => void }).restoreModImportWrite = () => { IDBObjectStore.prototype.put = put }
+  })
+  await input.setInputFiles({ name: 'my-mod.json', mimeType: 'application/json', buffer: Buffer.from(reordered) })
+  await expect(page.getByText('Mod not imported', { exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(before)
+  expect(await storedImportCounts(page)).toEqual(importCounts)
+  await page.evaluate(() => (window as unknown as { restoreModImportWrite: () => void }).restoreModImportWrite())
+  await input.setInputFiles({ name: 'my-mod.json', mimeType: 'application/json', buffer: Buffer.from(reordered) })
+  await expect(page.getByRole('status').filter({ hasText: 'was imported and saved in this browser' })).toBeVisible()
+  await expect(page.getByText('Using matching local JSON', { exact: true })).toBeVisible()
+  if (historical) {
+    await expect(page.getByText('Its results may differ from the saved checkpoint.', { exact: false })).toBeVisible()
+    const broken = JSON.parse(JSON.stringify(payload)) as SharePayload
+    const brokenRevision = Object.values(broken.records.buildRevisions)[0]!
+    const missingName = { ...brokenRevision.content.referenceNames![0]!, modelKey: 'crystal-edit:Jobs:65535' }
+    const brokenPayload = { ...broken, records: { ...broken.records, buildRevisions: { [brokenRevision.id]: { ...brokenRevision, content: { ...brokenRevision.content, referenceNames: [missingName] } } } } }
+    const afterImport = await storedData(page)
+    await page.goto(createShareUrl(brokenPayload, `${baseURL}/`))
+    await expect(page.getByText('Imported definitions not applied', { exact: true })).toBeVisible()
+    await expect(page.getByText('The imported sources cannot resolve Synthetic Portable Class.', { exact: false })).toBeVisible()
+    await expect(page.getByText('Using matching local JSON', { exact: true })).toHaveCount(0)
+    expect(await storedData(page)).toEqual(afterImport)
+    await page.goto(url)
+    await expect(page.getByText('Using matching local JSON', { exact: true })).toBeVisible()
+  }
+  await page.reload()
+  await expect(page.getByText('Using matching local JSON', { exact: true })).toBeVisible()
+  await expect(validity.getByText('definition is unavailable', { exact: false })).toHaveCount(0)
+  const selected = page.getByRole('region', { name: 'Mod sources', exact: true })
+  await selected.locator('details').filter({ has: page.locator('summary', { hasText: /^Synthetic Portable Class$/ }) }).locator('summary').first().click()
+  await selected.getByLabel('Local artwork for Synthetic Portable Class', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVJcAAAAASUVORK5CYII=', 'base64') })
+  await expect(page.getByRole('button', { name: 'Inspect Class: Synthetic Portable Class', exact: true }).locator('img')).toHaveAttribute('src', /^blob:/)
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Portable mod build', exact: true }).first()).toBeVisible()
+  const saved = await storedData(page)
+  const build = Object.values(saved.builds).find(build => build.title === 'Portable mod build')!
+  const revision = saved.buildRevisions[build.latestRevisionId!]!
+  expect(revision.content.referenceNames?.[0]?.name).toBe('Synthetic Portable Class')
+  expect(JSON.stringify(revision)).not.toMatch(/blob:|Local-only description|data:image/)
+  const savedSetup = saved.gameSetups[revision.gameSetupRevisionId]!
+  expect(savedSetup.modComposition!.layers[0]!.catalogRevisionId).not.toBe(source.revisionId)
+  expect(savedSetup.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
 })

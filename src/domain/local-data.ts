@@ -391,6 +391,7 @@ export interface AddGameSetupRevisionInput {
   readonly catalogLock?: GameSetupRevision['catalogLock']
   readonly definitionOverrides?: readonly PersonalRef[]
   readonly modComposition?: GameSetupRevision['modComposition']
+  readonly modSourceReceipts?: GameSetupRevision['modSourceReceipts']
   readonly modCatalogRevisionId?: CatalogRevisionId
   readonly activate?: boolean
   readonly now?: Timestamp | string
@@ -463,6 +464,7 @@ export function addGameSetupRevision(localData: LocalData, input: AddGameSetupRe
     slots: [...slots].sort((left, right) => left.order - right.order),
     catalogLock: { ...input.catalogLock, ...(input.modComposition ? { [input.modComposition.baseline.catalogId]: effectiveRevision! } : {}) },
     ...(input.modComposition ? { modComposition: input.modComposition } : {}),
+    ...(input.modSourceReceipts ? { modSourceReceipts: input.modSourceReceipts } : {}),
     ...(input.definitionOverrides === undefined ? {} : { definitionOverrides: input.definitionOverrides }),
     createdAt: at,
   }
@@ -528,6 +530,7 @@ export function updateGameSetupRevision(localData: LocalData, input: UpdateGameS
     catalogLock: input.catalogLock ?? source.catalogLock,
     definitionOverrides: input.definitionOverrides ?? source.definitionOverrides,
     modComposition,
+    modSourceReceipts: source.modSourceReceipts?.filter(receipt => modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)),
     modCatalogRevisionId: sameComposition ? source.catalogLock[modComposition.baseline.catalogId] : undefined,
     activate: input.activate ?? true,
     now: input.now,

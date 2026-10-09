@@ -203,7 +203,14 @@ export interface GameSetupRevision {
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
   readonly definitionOverrides?: readonly PersonalRef[]
   readonly modComposition?: ModComposition
+  readonly modSourceReceipts?: readonly ModSourceReceipt[]
   readonly createdAt: Timestamp
+}
+
+export interface ModSourceReceipt extends ModCatalogPin {
+  readonly checksum: string
+  readonly title: string
+  readonly contentFingerprint?: string
 }
 
 export interface ModCatalogPin {
@@ -386,6 +393,15 @@ export interface BuildRevisionContent {
   readonly rotationNotes?: string
   readonly contextAssumptions: readonly string[]
   readonly calculation?: BuildCalculationPlan
+  readonly referenceNames?: readonly BuildReferenceName[]
+}
+
+// Display receipts do not supply mechanics or substitute for a catalog definition
+export interface BuildReferenceName {
+  readonly ref: CatalogRef
+  readonly name: string
+  readonly projectId?: CatalogId
+  readonly modelKey?: string
 }
 
 export interface BattleResourceInputs {
@@ -560,7 +576,7 @@ export interface ReferenceLibrarySettings {
   readonly excludedMods: readonly string[]
 }
 
-export const LOCAL_DATA_SCHEMA_VERSION = '2.3.0'
+export const LOCAL_DATA_SCHEMA_VERSION = '2.4.0'
 
 export interface LocalData {
   readonly schemaVersion: typeof LOCAL_DATA_SCHEMA_VERSION

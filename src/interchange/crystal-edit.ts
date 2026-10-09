@@ -1,7 +1,7 @@
 import { importedGameRules, IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { z } from 'zod'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
-import { MAX_MOD_SOURCE_NODES, MOD_PROJECT_FIELD } from '../domain/mod-library'
+import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 import { steamWorkshopFileId } from '../domain/mod-workshop'
 import { bundledModEntityId } from '../domain/bundled-mods'
 import { gameRecordFacts } from '../domain/game-record-facts'
@@ -11,13 +11,16 @@ import { MAX_ID_LENGTH } from '../domain/limits'
 import { classFields, jsonRecord, LAST_VANILLA_JOB_ID, LEARN_NODE_TYPES, MAX_GROWTH_RATING, MAX_TREE_COLUMNS, MAX_TREE_ROWS, RATING_FIELDS } from '../domain/crystal-edit'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, JsonValue, LocalData, SourceRef } from '../domain/types'
 import { AppDataError } from './errors'
+import { CRYSTAL_EDIT_JSON_LIMITS } from './crystal-edit-limits'
+import { modContentFingerprint } from './mod-content'
 import { parseBoundedJson } from './json'
 import type { ImportPreview, ImportProblem } from './types'
 import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
 
 export const CRYSTAL_EDIT_FORMAT = CRYSTAL_EDIT_CATALOG_SCHEMA
-export const CRYSTAL_EDIT_JSON_LIMITS = Object.freeze({ maxNodes: MAX_MOD_SOURCE_NODES })
-export const MOD_LIBRARY_IMPORT_REVISION = 'library-v3'
+export { CRYSTAL_EDIT_JSON_LIMITS } from './crystal-edit-limits'
+// Fingerprint metadata gets a new catalog revision; existing snapshots remain immutable
+export const MOD_LIBRARY_IMPORT_REVISION = 'library-v4'
 const MAX_MODELS = 20_000
 const modelId = z.number().int().min(0).max(0xffffffff)
 const ids = z.array(modelId).max(MAX_MODELS)
@@ -47,6 +50,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
   }
   const editorVersion = typeof root.EditorVersion === 'number' ? root.EditorVersion : 0
   const digest = await sha256(bytes)
+  const contentFingerprint = await modContentFingerprint(bytes)
   const importedAt = at ?? nowTimestamp()
   const warnings: ImportProblem[] = []
   if (!supportsCrystalEditVersion(editorVersion)) warnings.push({ severity: 'warning', code: 'unsupported-editor-format', message: `Editor format ${editorVersion} is retained, but planning interpretation only supports formats 0 through ${CURRENT_CRYSTAL_EDIT_VERSION}.` })
@@ -121,7 +125,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
     checksum: `sha256:${digest}`, importedAt, entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
-    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities, ...(steamWorkshopFileId(root.SteamWorkshopFileID) ? { steamWorkshopFileId: steamWorkshopFileId(root.SteamWorkshopFileID)! } : {}) },
+    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities, contentFingerprint, ...(steamWorkshopFileId(root.SteamWorkshopFileID) ? { steamWorkshopFileId: steamWorkshopFileId(root.SteamWorkshopFileID)! } : {}) },
   }
   const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
   const receiptId = asImportReceiptId(`import:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)

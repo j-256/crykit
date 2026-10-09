@@ -21,6 +21,15 @@ const setup = (catalogs: readonly CatalogSnapshot[], difficulty = 0, mode = 'Sta
 const normal = (NATIVE_GAME_DATA.databases.difficulty as Record<string, JsonValue>[])[0]!
 
 describe('data-backed game setup rules', () => {
+  it('requires one explicitly pinned project for imported titles, preserving duplicate-title uncertainty', async () => {
+    const first = await importMod('synthetic-titled-one', { Title: 'Synthetic shared title' })
+    const second = await importMod('synthetic-titled-two', { Title: 'Synthetic shared title' })
+    const mods = { state: 'known' as const, value: ['Synthetic shared title'] }
+    expect(resolveGameRules({ ...setup([first]), mods }, [first]).issues).toEqual([])
+    expect(resolveGameRules({ ...setup([]), mods }, [first]).issues.join()).toContain('Select source versions')
+    expect(resolveGameRules({ ...setup([first, second]), mods }, [first, second]).issues.join()).toContain('Select source versions')
+  })
+
   it('applies complete battle settings in enabled order, including a later return to the base value', async () => {
     const first = await importMod('first', { System: { BattleConfig: { ...NATIVE_DATA.battleConfig, DualWieldPAtkRate: 40 } } })
     const second = await importMod('second', { System: { BattleConfig: { ...NATIVE_DATA.battleConfig, TwoHandedPAtkFlat: 80 } } })

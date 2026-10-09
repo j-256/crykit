@@ -70,7 +70,7 @@ test('a wrong slug resolves by ID and normalizes without an extra history entry'
 test('mod names survive nested search routes', async ({ page }) => {
   await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
-  await expect(page).toHaveURL(/\/crystal-edit%3Asynthetic-moonlight\/sha256%3A[a-f0-9]{64}%3Arules-v2%3Alibrary-v3\/mod\/synthetic-moonlight\/ability\/9002\/synthetic-technique$/)
+  await expect(page).toHaveURL(/\/crystal-edit%3Asynthetic-moonlight\/sha256%3A[a-f0-9]{64}%3Arules-v2%3Alibrary-v4\/mod\/synthetic-moonlight\/ability\/9002\/synthetic-technique$/)
   await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/\/9002\/synthetic-technique\/search$/)
   await page.reload()

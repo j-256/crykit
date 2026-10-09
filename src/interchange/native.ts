@@ -4,6 +4,8 @@ import { battleCalculationReferences } from '../domain/battle-plan'
 import { assertModConfiguration } from '../domain/mods'
 import { composeModCatalog, expandModCatalogs, hasWithdrawnModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { withdrawnCatalog, withdrawnCatalogKey } from '../domain/withdrawn-catalogs'
+import { assertModSourceReceipts } from '../domain/build-reference-names'
+import { buildModReferences } from '../domain/build-references'
 import { nativeRecord } from '../domain/native-game'
 import { TEAM_SIZE } from '../domain/scenarios'
 import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
@@ -469,6 +471,14 @@ function validateLocalData(
     }
     const slotIds = new Set((gameSetup.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
+    const typedContent = content as unknown as import('../domain/types').BuildRevisionContent
+    const selectedNames = new Set(buildModReferences(typedContent).map(entityDefinitionKey))
+    const savedNames = new Set<string>()
+    for (const entry of typedContent.referenceNames ?? []) {
+      const key = entityDefinitionKey(entry.ref)
+      if (!selectedNames.has(key) || savedNames.has(key)) schemaError('A Build display receipt must identify one selected entry')
+      savedNames.add(key)
+    }
     validatePinnedReferences(typedLocalData, content, lock, `${label}.buildRevisions.${id}.content`)
     const equipment = recordValue(content.equipment, `${label}.buildRevisions.${id}.content.equipment`)
     for (const slotId of Object.keys(equipment)) {
@@ -679,11 +689,17 @@ export function unavailableModCatalogKeys(localDatas: readonly LocalData[], cata
   const origins = new Map(setups.map(value => [modCatalogRevision(value.id), value]))
   const keys = new Set<string>()
   for (const setup of setups) {
+    try { assertModSourceReceipts(setup) } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid mod source receipt') }
+    for (const receipt of setup.modSourceReceipts ?? []) {
+      const source = modCatalogForPin(catalogs, receipt)
+      if (source && source.checksum !== receipt.checksum) schemaError('A mod source receipt has a different checksum from its catalog')
+      if (!source) keys.add(catalogSnapshotKey(receipt.catalogId, receipt.catalogRevisionId))
+    }
     const composition = setup.modComposition
     if (!composition) continue
     const origin = origins.get(setup.catalogLock[composition.baseline.catalogId]!)
     if (!origin || !jsonEqual(composition, origin.modComposition)) schemaError('An effective mod catalog has no matching originating Game Setup')
-    if (!hasWithdrawnModDependencies(composition, catalogs)) continue
+    if (!hasWithdrawnModDependencies(composition, catalogs, origin.modSourceReceipts)) continue
     keys.add(catalogSnapshotKey(composition.baseline.catalogId, modCatalogRevision(origin.id)))
   }
   return keys
@@ -718,7 +734,7 @@ export function validateNativeLocalDataGraph(
       const origin = origins.get(gameSetup.catalogLock[gameSetup.modComposition.baseline.catalogId]!)
       if (!origin || !jsonEqual(gameSetup.modComposition, origin.modComposition)) schemaError('An effective mod catalog has no matching originating Game Setup')
       if (checkedOrigins.has(origin.id)) continue
-      if (hasWithdrawnModDependencies(gameSetup.modComposition, catalogs)) {
+      if (hasWithdrawnModDependencies(gameSetup.modComposition, catalogs, origin.modSourceReceipts)) {
         const effective = modCatalogForPin(catalogs, { catalogId: gameSetup.modComposition.baseline.catalogId, catalogRevisionId: modCatalogRevision(origin.id) })
         if (effective && (effective.schemaVersion !== 'game-setup-mod-catalog-1' || !nativeRecord(effective.legacy) || effective.legacy.modGameSetupRevisionId !== origin.id || !jsonEqual(effective.legacy.modBaseline, gameSetup.modComposition.baseline))) schemaError('An unavailable composition has inconsistent effective catalog identity')
         checkedOrigins.add(origin.id)

@@ -13,7 +13,8 @@ export function buildBehavior(setup: GameSetupRevision): BuildBehavior {
 }
 
 function comparableBehavior(behavior: BuildBehavior) {
-  const { label, id, gameSetupId, revision, createdAt, ...configuration } = behavior as GameSetupRevision
+  const { label, id, gameSetupId, revision, createdAt, modSourceReceipts: _receipts, ...configuration } = behavior as GameSetupRevision
+  // Display receipts add evidence without changing the source pins or planning behavior
   const names = (values: readonly string[]) => [...new Set(values.map(normalizeModName))].sort()
   const list = (value: Knowledge<readonly string[]> | undefined) => value?.state === 'known' ? { ...value, value: names(value.value) } : value ?? { state: 'unknown' }
   return { ...configuration, difficulty: configuration.difficulty ?? { version: 1, selection: { state: 'unknown' } }, ppLimit: configuration.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT }, mods: list(configuration.mods), disabledMods: list(configuration.disabledMods), customMods: names(configuration.customMods ?? []), definitionOverrides: configuration.definitionOverrides ?? [] }
@@ -36,6 +37,8 @@ export function uniqueGameSetupLabel(label: string, setups: LocalData['gameSetup
 
 export function saveBuildBehavior(localData: LocalData, behavior: BuildBehavior, now?: Timestamp | string, id?: GameSetupRevisionId): { readonly localData: LocalData; readonly setup: GameSetupRevision } {
   const composition = behavior.modComposition
+  const retainedReceipts = behavior.modSourceReceipts?.filter(receipt => composition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId))
+  behavior = { ...behavior, ...(behavior.modSourceReceipts ? { modSourceReceipts: retainedReceipts } : {}) }
   const origins = composition ? Object.values(localData.gameSetups).filter(setup => sameValue(setup.modComposition, composition) && setup.catalogLock[composition.baseline.catalogId] === modCatalogRevision(setup.id)) : []
   const origin = composition ? origins.find(setup => modCatalogRevision(setup.id) === behavior.catalogLock[composition.baseline.catalogId]) ?? origins[0] : undefined
   const modCatalogRevisionId = origin ? modCatalogRevision(origin.id) : undefined

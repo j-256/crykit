@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
+import { entityDefinitionKey } from '../domain/core'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { catalogArtwork, menuIcon, type MenuIcon } from '../catalog/sprites'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
@@ -7,6 +8,7 @@ import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
 import { Sources } from './Sources'
 
 const ICON_SIZE = 24
+export const LocalArtworkContext = createContext<Readonly<Record<string, string>>>({})
 
 function IconImage({ icon, iconKey, placeholderKind = 'other' }: { icon: MenuIcon; iconKey: string; placeholderKind?: CatalogEntityKind }) {
   const [failed, setFailed] = useState(false)
@@ -26,7 +28,10 @@ export function GameIcon({ iconKey, placeholderKind }: { iconKey?: string; place
 }
 
 export function DefinitionArtwork({ localData, catalogs, value, compact = true }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null; compact?: boolean }) {
+  const localArtwork = useContext(LocalArtworkContext)
   if (!value) return null
+  const localImage = localArtwork[entityDefinitionKey(value)]
+  if (localImage) return <img alt="" className="game-icon" decoding="async" height={ICON_SIZE} src={localImage} width={ICON_SIZE}/>
   const entity = resolveDefinition(localData, catalogs, value)
   if (!entity) return <ArtworkPlaceholder compact={compact} entity={{ kind: 'other', name: 'Unresolved definition' }}/>
   if (value.kind === 'catalog') {

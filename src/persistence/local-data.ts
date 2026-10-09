@@ -47,6 +47,8 @@ import {
 } from './database'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
 import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
+import starterBuildReferenceNames from './starter-build-reference-names.json' with { type: 'json' }
+import type { BuildReferenceName, ModSourceReceipt } from '../domain/types'
 
 const LOCAL_DATA_RECORD_KEY = 'local-data-record'
 const STARTER_BUILD_TITLE_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({ 'Brawler build': 'Prudence' })
@@ -169,7 +171,11 @@ async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalD
     if (existing) return existing
     let localData = createSampleLocalData(CURRENT_CATALOG)
     for (const encoded of starterBuildShares) {
-      const payload = decodeSharePayload(encoded)
+      const original = decodeSharePayload(encoded)
+      const display = (starterBuildReferenceNames as unknown as Readonly<Record<string, { referenceNames: readonly BuildReferenceName[]; modSourceReceipts: readonly ModSourceReceipt[] }>>)[original.title]
+      if (!display) throw new Error('A starter Build display receipt is missing')
+      // These selected names supplement the unchanged supplied checkpoint, without supplying definitions
+      const payload = { ...original, version: 4 as const, records: { ...original.records, gameSetups: Object.fromEntries(Object.entries(original.records.gameSetups).map(([id, setup]) => [id, { ...setup, modSourceReceipts: display.modSourceReceipts }])), buildRevisions: Object.fromEntries(Object.entries(original.records.buildRevisions).map(([id, revision]) => [id, { ...revision, content: { ...revision.content, referenceNames: display.referenceNames } }])) } }
       if (payload.kind !== 'build') throw new Error('A starter Build snapshot is not a Build')
       const copied = saveSharedCopy(localData, payload)
       const build = copied.localData.builds[copied.buildId!]!
@@ -379,7 +385,7 @@ export async function prepareModCatalogs(localData: LocalData, availableCatalogs
     const origin = Object.values(localData.gameSetups).find(value => modCatalogRevision(value.id) === gameSetup.catalogLock[gameSetup.modComposition!.baseline.catalogId])
     if (!origin?.modComposition) throw new AppDataError('schema-mismatch', 'The effective mod catalog has no originating Game Setup')
     if (composed.some(value => value.revisionId === modCatalogRevision(origin.id))) continue
-    if (hasWithdrawnModDependencies(origin.modComposition, availableCatalogs)) continue
+    if (hasWithdrawnModDependencies(origin.modComposition, availableCatalogs, origin.modSourceReceipts)) continue
     const catalog = composeModCatalog(origin, availableCatalogs)!
     composed.push({ ...catalog, checksum: `composition:sha256:${await sha256(new TextEncoder().encode(canonicalJson(catalog)))}` })
   }
@@ -723,7 +729,12 @@ function referencedSourceDigests(...values: readonly unknown[]): ReadonlySet<str
       for (const entry of value) visit(entry)
       return
     }
-    for (const entry of Object.values(value as Readonly<Record<string, unknown>>)) visit(entry)
+    for (const [key, entry] of Object.entries(value as Readonly<Record<string, unknown>>)) {
+      // A display receipt declares an external dependency, not source bytes retained by this browser
+      // Available catalogs and their provenance still require their archived bytes independently
+      const record = value as Readonly<Record<string, unknown>>
+      if (key !== 'modSourceReceipts' || typeof record.gameSetupId !== 'string' || !record.modComposition) visit(entry)
+    }
   }
   for (const value of values) visit(value)
   return digests

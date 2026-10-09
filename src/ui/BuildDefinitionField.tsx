@@ -17,6 +17,7 @@ import { LegacyInnateModBadge, ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
 import { Button, InlineNotice } from './components'
 import { useBuildModSelection } from './BuildModSelectionGate'
+import { buildReferenceName } from '../domain/build-reference-names'
 import { PICKER_STAT_FIELDS, pickerAvailableForSetup, pickerCategoryKey, pickerEquipmentAssessment, pickerHandedness, pickerListedStat, pickerRemainingPp, pickerSearchEntry, pickerSearchMatch } from './build-picker'
 import { referenceCategoryLabel } from './reference-categories'
 import './build-picker.css'
@@ -186,7 +187,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
           else if (open && candidates.length === 1) choose(candidates[0]!.ref)
           else if (open && hasMore && activeIndex === visible.length) onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)
         }
-      }} placeholder="Search names, stats, effects..." ref={inputRef} role="combobox" value={open ? query : (selected ? optionName(selected) : value ? 'Unresolved selection' : '')}/>
+      }} placeholder="Search names, stats, effects..." ref={inputRef} role="combobox" value={open ? query : (selected ? optionName(selected) : value ? (buildContent && buildReferenceName(buildContent, value)) ?? 'Unresolved selection' : '')}/>
       {value && allowEmpty ? <button aria-label={`Clear ${label}`} onClick={() => { onInspect(undefined); onChange(null); if (open) onDismiss() }} type="button"><Icon name="close"/></button> : <Icon name="search"/>}
     </div>
     <Dropdown anchorRef={inputRef} id={`${id}-list`} initialFocusRef={inputRef} onClose={closePicker} onDismiss={onDismiss} open={open} role="listbox" title={`Choose ${label}`}>
