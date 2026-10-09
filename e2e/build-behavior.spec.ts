@@ -1,9 +1,11 @@
 import { skipInitialModSetup, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
-import type { LocalData } from '../src/domain/types'
+import type { EntityId, LocalData } from '../src/domain/types'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { expectOfflineReady } from './offline-helpers'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
+import { HISTORICAL_BUNDLED_CATALOG } from '../src/domain/withdrawn-catalogs'
 
 async function storedData(page: Page): Promise<LocalData> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -150,6 +152,34 @@ test('a preset without a configured layout keeps suggested slots usable and pres
   expect(revision.content.equipment).toEqual(before.content.equipment)
   expect(saved.buildRevisions[before.id]).toEqual(before)
   expect(saved.playthroughs).toEqual(original.playthroughs)
+})
+
+test('validity review targets unavailable passives without changing the saved checkpoint @mobile', async ({ page, baseURL }) => {
+  const { original, before } = await openBuild(page)
+  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const revision = payload.records.buildRevisions[before.id]!
+  const passives = Array.from({ length: 3 }, (_, index) => ({ ref: { ...revision.content.primaryClass!, entityId: `synthetic:unavailable-passive:${index}` as EntityId }, observedName: `Synthetic unavailable passive ${index + 1}` }))
+  const synthetic = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...revision, content: { ...revision.content, passives } } } } }
+  // Missing entities in a complete available catalog are invalid; a withdrawn snapshot retains unresolved selections
+  const unavailable = JSON.parse(JSON.stringify(synthetic).replaceAll(JSON.stringify(CURRENT_CATALOG.revisionId), JSON.stringify(HISTORICAL_BUNDLED_CATALOG.revisionId))) as typeof payload
+  await page.goto(createShareUrl(unavailable, `${baseURL}/`))
+  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const saved = await storedData(page)
+  const copy = Object.values(saved.builds).find(build => !original.builds[build.id])!
+  await page.goto(`${baseURL}/#/builds/library/${copy.id}`)
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  for (let index = 0; index < 3; index += 1) {
+    await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+    await validity.getByRole('button', { name: `Review Equipped passive ${index + 1}`, exact: true }).click()
+    const field = page.locator(`[data-field-key="slot:passive-${index + 1}"]`)
+    await expect(field).toBeFocused()
+    await expect(field.getByRole('combobox', { name: `Equipped passive ${index + 1}`, exact: true })).toBeVisible()
+    await expect(field.getByText(`Equipped passive ${index + 1}: definition is unavailable`, { exact: true })).toBeVisible()
+  }
+  expect((await storedData(page)).buildRevisions).toEqual(saved.buildRevisions)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test('validity review focuses retained equipment after copying a different slot layout', async ({ page, baseURL }) => {

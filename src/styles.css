@@ -624,6 +624,12 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-validity__summary > strong { min-width: 0; color: var(--text); font-size: .78rem; }
 .build-validity__summary > .badge { margin-left: auto; }
 .build-validity > .validation-issues { margin: 0; padding: 9px 10px 2px 28px; border-top: 1px solid currentColor; color: var(--text-dim); font-size: .72rem; }
+.build-validity__issue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.build-validity__issue > span { min-width: 0; overflow-wrap: anywhere; }
+.build-validity__review { flex: none; min-height: 28px; max-width: 100%; padding: 3px 8px; font-size: inherit; line-height: 1.4; white-space: normal; }
+@media (pointer: coarse) {
+  .build-validity__review { min-height: 44px; }
+}
 .build-validity[data-status="invalid"] > .validation-issues strong { color: #f19a84; }
 .build-draft-reminder { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .build-draft-reminder button, .build-innate-toggle, .build-library > summary { scroll-margin-block: 160px; }
