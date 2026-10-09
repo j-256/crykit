@@ -137,10 +137,12 @@ function updateDefinitionOptions(localData: LocalData, catalogs: readonly Catalo
     if (!revisionId || revisionId === option.ref.catalogRevisionId) return []
     const ref = { ...option.ref, catalogRevisionId: revisionId }
     const key = entityDefinitionKey(ref)
-    if (existing.has(key) || preservedNativeDefinition(localData, catalogs, ref) !== option.record) return []
+    if (existing.has(key)) return []
+    const record = preservedNativeDefinition(localData, catalogs, ref)
+    if (!record) return []
     existing.add(key)
-    // Keep the saved pin in editor choices; resolving an identical native entry does not revise the Build
-    return [{ ...option, ref, key }]
+    // Keep saved pins in editor choices; recovering individual facts does not revise the Build
+    return [{ ...option, ref, key, record, description: referenceDescription(record), ppCost: passivePointCost(record) }]
   })
   const personal = Object.values(localData.personalDefinitions).map((definition): DefinitionOption => {
     const ref = { kind: 'personal', definitionId: definition.id } as const

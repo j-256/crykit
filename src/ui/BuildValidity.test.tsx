@@ -43,6 +43,14 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Upload mod JSON')
   })
 
+  it('offers JSON recovery for a specific unavailable innate effect or equipped-passive fact', () => {
+    for (const code of ['CLASS_INNATE_DEFINITION', 'PASSIVE_LEARNABILITY_UNKNOWN']) {
+      const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code, status: 'undetermined', message: 'Synthetic unavailable active fact', slotId: code === 'CLASS_INNATE_DEFINITION' ? 'primary-class' : 'passive-1' }] }}/>)
+      expect(markup).toContain('Upload mod JSON')
+      expect(markup).toContain(code === 'CLASS_INNATE_DEFINITION' ? 'active innates' : 'this passive can be learned')
+    }
+  })
+
   it('routes unknown setup rules to settings without promising a JSON import will fix them', () => {
     const markup = renderToStaticMarkup(<BuildValidity onReviewSetup={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'PP_LIMIT_UNKNOWN', status: 'undetermined', message: 'The PP limit is unknown' }] }}/>)
     expect(markup).toContain('Review Game Setup')

@@ -6,7 +6,7 @@ import { nativeStatRecord, nativeById, type NativeRecord } from './native-stat-r
 import { equipmentRole } from './mechanics-facts'
 import { nativeEntityId, nativeIdentity } from './native-game'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
-import { crystalEditPlanningRecord, CRYSTAL_EDIT_VERSION_FIELD, supportsCrystalEditVersion } from './crystal-edit-compatibility'
+import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 import { entityDefinitionKey } from './core'
 import { jsonRecord } from './crystal-edit'
 import { MOD_PROJECT_FIELD } from './mod-library'
@@ -247,16 +247,15 @@ export function collectEffectiveModifiers(content: BuildRevisionContent, slots: 
     const mod = definition && 'legacy' in definition ? bundledModIdentity(definition) : undefined
     const metadata = definition && 'legacy' in definition && jsonRecord(definition.legacy) ? definition.legacy : undefined
     const links = jsonRecord(metadata?.passiveEntityIds) ? metadata.passiveEntityIds : {}
-    const model = definition?.fields['Crystal Edit model type']
-    const version = definition?.fields[CRYSTAL_EDIT_VERSION_FIELD]
-    const imported = model?.state === 'known' && model.value === 'Jobs' && version?.state === 'known' && supportsCrystalEditVersion(version.value)
     for (const id of job.PassiveIDs) {
       const target = typeof id === 'number' ? links[String(id)] ?? (mod ? bundledModEntityId(mod.key, 'Passives', id) : undefined) : undefined
       const linkedRef = source && typeof target === 'string' ? { ...source.ref, entityId: target as typeof source.ref.entityId } : undefined
       const nativeRef = source && typeof id === 'number' && binding ? { ...source.ref, entityId: nativeEntityId('passive', id) } : undefined
       const aliasRef = source && typeof id === 'number' ? { ...source.ref, entityId: `crystal-edit:Passives:${id}` as typeof source.ref.entityId } : undefined
       const effectiveRef = linkedRef ?? nativeRef ?? aliasRef
-      const passive = effectiveRef ? nativeStatRecord(effectiveRef, 'passive', resolve, mode) ?? (typeof id === 'number' && (binding || imported) && !linkedRef ? nativeById('passive', id, mode) : undefined) : undefined
+      // Class membership identifies a child, but cannot certify its missing pinned definition
+      // A vanilla numeric fallback would hide a modded innate's unavailable effects
+      const passive = effectiveRef ? nativeStatRecord(effectiveRef, 'passive', resolve, mode) : undefined
       if (!passive || typeof passive.IsInnate !== 'boolean') { records.push({ record: {}, label: 'Class innate', group: 'passive' }); continue }
       if (passive.IsInnate) records.push({ record: passive, ref: effectiveRef && resolve(effectiveRef) ? effectiveRef : ref, label: typeof passive.Name === 'string' ? passive.Name : 'Class innate', group: 'passive' })
     }

@@ -1,4 +1,4 @@
-import { analyzeBuildEquipment, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
+import { analyzeBuildEquipment, unavailableClassCommand, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
 import { entityDefinitionKey } from './core'
 import { passivePointCost } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
@@ -52,6 +52,7 @@ export function validateBuildContent(
       const savedSource = source ? ` ${source.title}` : display?.projectId ? ' mod' : ''
       add('CLASS_DEFINITION_UNAVAILABLE', 'undetermined', display ? `${label}: ${display.name}'s saved${savedSource} definition is unavailable` : `${label} definition is unavailable`, field)
     } else if (definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${label} must use a class definition`, field)
+    else if (unavailableClassCommand(ref, resolve)) add('CLASS_COMMAND_DEFINITION', 'undetermined', `${label}: ${definition.name}'s command or an included ability definition is unavailable`, field)
   }
 
   let knownSubtotal = 0

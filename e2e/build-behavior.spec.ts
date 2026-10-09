@@ -185,6 +185,29 @@ test('unavailable mod layers retain unchanged native loadout definitions @mobile
   expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
 })
 
+test('native command facts stay usable independently of an unused modded innate learning node @mobile', async ({ page, baseURL }) => {
+  const { original } = await openBuild(page)
+  const build = Object.values(original.builds).find(build => {
+    const ref = original.buildRevisions[build.latestRevisionId!]!.content.secondaryClass
+    return ref?.kind === 'catalog' && ref.entityId === 'base:job:2'
+  })!
+  const before = original.buildRevisions[build.latestRevisionId!]!
+  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const { calculation: _calculation, ...content } = before.content
+  const primary = { ...before.content.secondaryClass!, entityId: 'base:job:0' as EntityId }
+  const revision = { ...payload.records.buildRevisions[before.id]!, content: { ...content, primaryClass: primary, equipment: {}, passives: [], referenceNames: content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2') } }
+  const native = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: revision } } }
+  await page.goto(createShareUrl(native, `${baseURL}/`))
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  await expect(validity).toContainText('No known loadout conflicts')
+  await expect(page.getByText('Mod definitions needed', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Class and command', exact: true })).toContainText('Trickery')
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('Trickery (Rogue)')
+  await expect(validity).toContainText('No known loadout conflicts')
+  expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
+})
+
 test('validity review targets unavailable passives without changing the saved checkpoint @mobile', async ({ page, baseURL }) => {
   const { original, before } = await openBuild(page)
   const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
