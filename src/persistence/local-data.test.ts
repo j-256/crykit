@@ -6,6 +6,7 @@ import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { decodeSharePayload } from '../interchange/share'
 import { TEAM_SIZE } from '../domain/scenarios'
+import starterBuildReferenceNames from './starter-build-reference-names.json' with { type: 'json' }
 import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import {
@@ -79,8 +80,8 @@ describe('local planner persistence', () => {
       const setup = localData.gameSetups[revision.gameSetupRevisionId]!
       const sourceSetup = source.records.gameSetups[sourceRevision.gameSetupRevisionId]!
       expect(build.tags).toContain('sample')
-      // Shared-copy IDs change the effective revision; every other recorded value stays exact
-      const copiedContent = JSON.parse(JSON.stringify(sourceRevision.content, (_key, entry) => entry && typeof entry === 'object' && entry.kind === 'catalog' ? { ...entry, catalogRevisionId: setup.catalogLock[entry.catalogId] } : entry))
+      // Shared-copy IDs change the effective revision; selected display receipts supplement the exact checkpoint
+      const copiedContent = JSON.parse(JSON.stringify({ ...sourceRevision.content, referenceNames: (starterBuildReferenceNames as Record<string, { referenceNames: readonly unknown[] }>)[source.title]!.referenceNames }, (_key, entry) => entry && typeof entry === 'object' && entry.kind === 'catalog' ? { ...entry, catalogRevisionId: setup.catalogLock[entry.catalogId] } : entry))
       expect(revision.content).toEqual(copiedContent)
       expect(setup.modComposition).toEqual(sourceSetup.modComposition)
       if (setup.modComposition?.layers.length) {

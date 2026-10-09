@@ -176,7 +176,7 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const navigation = useNavigation()
   const { options, planningOptions } = useDefinitionLibrary()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
-  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], calculation: latest?.content.calculation ?? defaultCalculation(latest?.content.primaryClass ?? null), note: undefined })
+  const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], referenceNames: latest?.content.referenceNames, calculation: latest?.content.calculation ?? defaultCalculation(latest?.content.primaryClass ?? null), note: undefined })
   const behaviorRef = useRef<HTMLDetailsElement>(null)
   const [storedDraft, setDraft] = useState<RevisionDraft>(initialDraft)
   const draft = useMemo(() => buildContentForModSetup(storedDraft, behavior, catalogs), [storedDraft, behavior, catalogs])

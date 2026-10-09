@@ -84,6 +84,7 @@ export class CryKitDatabase extends Dexie {
     this.version(3).stores({}).upgrade(migrate)
     this.version(4).stores({}).upgrade(migrate)
     this.version(5).stores({}).upgrade(migrate)
+    this.version(6).stores({}).upgrade(migrate)
   }
 }
 

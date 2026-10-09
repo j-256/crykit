@@ -62,7 +62,13 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`The calculation rules package has no recorded Game Setup applicability for ${setup.platform.value}.`)
   if (setup?.gameVersion?.state === 'known' && !SUPPORTED_PC_CALCULATION_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
   const unboundNames = setup?.mods?.state === 'known' ? setup.mods.value.filter(name => {
-    const projects = [...new Set(BUNDLED_MOD_LIBRARY.filter(mod => mod.catalogNames?.some(alias => normalizeModName(alias) === normalizeModName(name))).map(mod => mod.id))]
+    // Imported titles corroborate an explicitly selected project pin, even without library metadata
+    // Duplicate titles remain ambiguous; a name alone never supplies a source revision
+    const selected = (setup.modComposition?.layers ?? []).filter(layer => layer.enabled).flatMap(layer => {
+      const catalog = modCatalogForPin(catalogs, layer)
+      return catalog && normalizeModName(modRevision(catalog)?.title ?? '') === normalizeModName(name) ? [catalog.id] : []
+    })
+    const projects = [...new Set([...BUNDLED_MOD_LIBRARY.filter(mod => mod.catalogNames?.some(alias => normalizeModName(alias) === normalizeModName(name))).map(mod => mod.id), ...selected])]
     return projects.length !== 1 || !setup.modComposition?.layers.some(layer => layer.enabled && layer.catalogId === projects[0])
   }) : []
   if (unboundNames.length) issues.push(`Select source versions for enabled mods: ${unboundNames.join(', ')}. Mod names alone cannot provide calculation settings.`)

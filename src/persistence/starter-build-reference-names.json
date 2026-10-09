@@ -1,0 +1,504 @@
+{
+  "Judite": {
+    "referenceNames": [
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:moonlight-project:class:26"
+        },
+        "name": "Freelancer",
+        "projectId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "modelKey": "crystal-edit:Jobs:26"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:2"
+        },
+        "name": "Rogue",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Jobs:2"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:41"
+        },
+        "name": "Eclipse"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:695"
+        },
+        "name": "Titanium Shell",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:695"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:481"
+        },
+        "name": "Pirate Hat"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:730"
+        },
+        "name": "XVIII - Moon",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:730"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:749"
+        },
+        "name": "Jadeforged Ring",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:749"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:54"
+        },
+        "name": "Pocket Sand"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:20"
+        },
+        "name": "Eagle Talon"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:44"
+        },
+        "name": "Perfect Vision"
+      }
+    ],
+    "modSourceReceipts": [
+      {
+        "catalogId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "catalogRevisionId": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156:rules-v2:library-v2",
+        "checksum": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156",
+        "title": "Moonlight Project - Classes",
+        "contentFingerprint": "json-content-v1:sha256:a2ee871785247813cccc569c182d2a539376c39a6042adde6ecd5fa4eabc2603"
+      },
+      {
+        "catalogId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "catalogRevisionId": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3:rules-v2:library-v2",
+        "checksum": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3",
+        "title": "Equipment Expansion",
+        "contentFingerprint": "json-content-v1:sha256:213883b898a1423f44c4f6699ef1b72942e431a0c357a0046833f45d51a83e1c"
+      },
+      {
+        "catalogId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "catalogRevisionId": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b:rules-v2:library-v2",
+        "checksum": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b",
+        "title": "Learnable Innate Skills",
+        "contentFingerprint": "json-content-v1:sha256:697ec9daa61b4f5002e7a48548d7d816389da2a420bde764aa21f836566e06b0"
+      }
+    ]
+  },
+  "Marco": {
+    "referenceNames": [
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:0"
+        },
+        "name": "Warrior",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Jobs:0"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:10"
+        },
+        "name": "Aegis",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Jobs:10"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:398"
+        },
+        "name": "Kowakizashi"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:doge-shield:item:ref-1084"
+        },
+        "name": "Doge Shield"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:470"
+        },
+        "name": "Insignia Helm"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:457"
+        },
+        "name": "Dragon Mail"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:673"
+        },
+        "name": "Regenerating Flask",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:673"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:346"
+        },
+        "name": "Ribbon"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:8"
+        },
+        "name": "HP Boost"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:0"
+        },
+        "name": "Counter"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:69"
+        },
+        "name": "Stance Tank"
+      }
+    ],
+    "modSourceReceipts": [
+      {
+        "catalogId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "catalogRevisionId": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156:rules-v2:library-v2",
+        "checksum": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156",
+        "title": "Moonlight Project - Classes",
+        "contentFingerprint": "json-content-v1:sha256:a2ee871785247813cccc569c182d2a539376c39a6042adde6ecd5fa4eabc2603"
+      },
+      {
+        "catalogId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "catalogRevisionId": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3:rules-v2:library-v2",
+        "checksum": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3",
+        "title": "Equipment Expansion",
+        "contentFingerprint": "json-content-v1:sha256:213883b898a1423f44c4f6699ef1b72942e431a0c357a0046833f45d51a83e1c"
+      },
+      {
+        "catalogId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "catalogRevisionId": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b:rules-v2:library-v2",
+        "checksum": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b",
+        "title": "Learnable Innate Skills",
+        "contentFingerprint": "json-content-v1:sha256:697ec9daa61b4f5002e7a48548d7d816389da2a420bde764aa21f836566e06b0"
+      }
+    ]
+  },
+  "Brawler build": {
+    "referenceNames": [
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:moonlight-project:class:25"
+        },
+        "name": "Brawler",
+        "projectId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "modelKey": "crystal-edit:Jobs:25"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:23"
+        },
+        "name": "Beastmaster",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Jobs:23"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:236"
+        },
+        "name": "Diamond Helm"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:235"
+        },
+        "name": "Diamond Mail"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:755"
+        },
+        "name": "Stonecore Beads",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:755"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:756"
+        },
+        "name": "Mistcore Beads",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:756"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:8"
+        },
+        "name": "HP Boost"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:0"
+        },
+        "name": "Counter"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:69"
+        },
+        "name": "Stance Tank"
+      }
+    ],
+    "modSourceReceipts": [
+      {
+        "catalogId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "catalogRevisionId": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156:rules-v2:library-v2",
+        "checksum": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156",
+        "title": "Moonlight Project - Classes",
+        "contentFingerprint": "json-content-v1:sha256:a2ee871785247813cccc569c182d2a539376c39a6042adde6ecd5fa4eabc2603"
+      },
+      {
+        "catalogId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "catalogRevisionId": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3:rules-v2:library-v2",
+        "checksum": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3",
+        "title": "Equipment Expansion",
+        "contentFingerprint": "json-content-v1:sha256:213883b898a1423f44c4f6699ef1b72942e431a0c357a0046833f45d51a83e1c"
+      },
+      {
+        "catalogId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "catalogRevisionId": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b:rules-v2:library-v2",
+        "checksum": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b",
+        "title": "Learnable Innate Skills",
+        "contentFingerprint": "json-content-v1:sha256:697ec9daa61b4f5002e7a48548d7d816389da2a420bde764aa21f836566e06b0"
+      }
+    ]
+  },
+  "Marcy": {
+    "referenceNames": [
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:21"
+        },
+        "name": "Summoner"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:job:14"
+        },
+        "name": "Warlock",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Jobs:14"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:431"
+        },
+        "name": "Sentinel Rod"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:34"
+        },
+        "name": "Bronze Hairpin"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:equipment:241"
+        },
+        "name": "Diamond Robe"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:738"
+        },
+        "name": "Quintar Pheromones",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:738"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:equipment-expansion:equipment:646"
+        },
+        "name": "Mercury's Cloak",
+        "projectId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "modelKey": "crystal-edit:Equipment:646"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:passive:71"
+        },
+        "name": "Initial Focus"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "base:innate:ref-52"
+        },
+        "name": "Aura",
+        "projectId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "modelKey": "crystal-edit:Passives:80"
+      },
+      {
+        "ref": {
+          "kind": "catalog",
+          "catalogId": "crystal-project-public-starter",
+          "catalogRevisionId": "mod-setup:draftBehavior_0809c57b-3e67-4593-bde2-a1d4fe9e4037",
+          "entityId": "mod:moonlight-project:passive:116"
+        },
+        "name": "Quick Thinking",
+        "projectId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "modelKey": "crystal-edit:Passives:116"
+      }
+    ],
+    "modSourceReceipts": [
+      {
+        "catalogId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+        "catalogRevisionId": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156:rules-v2:library-v2",
+        "checksum": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156",
+        "title": "Moonlight Project - Classes",
+        "contentFingerprint": "json-content-v1:sha256:a2ee871785247813cccc569c182d2a539376c39a6042adde6ecd5fa4eabc2603"
+      },
+      {
+        "catalogId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+        "catalogRevisionId": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3:rules-v2:library-v2",
+        "checksum": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3",
+        "title": "Equipment Expansion",
+        "contentFingerprint": "json-content-v1:sha256:213883b898a1423f44c4f6699ef1b72942e431a0c357a0046833f45d51a83e1c"
+      },
+      {
+        "catalogId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+        "catalogRevisionId": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b:rules-v2:library-v2",
+        "checksum": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b",
+        "title": "Learnable Innate Skills",
+        "contentFingerprint": "json-content-v1:sha256:697ec9daa61b4f5002e7a48548d7d816389da2a420bde764aa21f836566e06b0"
+      }
+    ]
+  }
+}

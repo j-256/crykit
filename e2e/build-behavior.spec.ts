@@ -123,7 +123,7 @@ test('retains behavior and loadout after a failed save, and an older checkpoint 
 test('opens an existing version 1 share link', async ({ page, baseURL }) => {
   const { original, before } = await openBuild(page)
   const payload = { ...createSharePayload(original, { kind: 'build', revisionId: before.id }), version: 1 as const }
-  const url = createShareUrl(payload, `${baseURL}/`).replace('/share/v3/', '/share/v1/')
+  const url = createShareUrl(payload, `${baseURL}/`).replace(/\/share\/v[0-9]+\//, '/share/v1/')
   await page.goto(url)
   await expect(page.getByRole('region', { name: 'Shared build loadout' })).toBeVisible()
   expect(await storedData(page)).toEqual(original)

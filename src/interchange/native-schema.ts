@@ -189,6 +189,13 @@ const gameSetupRevision = z.object({
   slots: z.array(slotDefinition).max(MAX_COLLECTION_LENGTH),
   catalogLock,
   definitionOverrides: z.array(personalRef).max(MAX_COLLECTION_LENGTH).optional(),
+  modSourceReceipts: z.array(z.object({
+    catalogId: id,
+    catalogRevisionId: id,
+    checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    title: nonemptyText,
+    contentFingerprint: z.string().regex(/^json-content-v1:sha256:[0-9a-f]{64}$/).optional(),
+  }).strict()).max(MAX_MOD_LAYERS).optional(),
   modComposition: z.object({
     version: z.union([z.literal(2), z.literal(3)]).optional(),
     identityMappings: z.array(z.object({ projectId: id, family: id, originalId: nonnegativeInteger.max(MAX_NATIVE_INTEGER), effectiveId: nonnegativeInteger.max(MAX_NATIVE_INTEGER) }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
@@ -345,6 +352,7 @@ const buildRevisionContent = z.object({
   rotationNotes: longText.optional(),
   contextAssumptions: z.array(shortText).max(MAX_COLLECTION_LENGTH),
   calculation: calculationPlan.optional(),
+  referenceNames: z.array(z.object({ ref: catalogRef, name: nonemptyText, projectId: id.optional(), modelKey: id.optional() }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
 }).strict()
 
 const buildRevision = z.object({
@@ -485,19 +493,21 @@ export const NativeLocalDataSchema = z.object({
   modSetup: z.object({ version: z.literal(1), state: z.enum(['pending', 'skipped', 'completed']) }).strict().optional(),
 }).strict()
 
-const ClassifiedNativeLocalDataSchema = NativeLocalDataSchema.extend({ schemaVersion: z.literal('2.2.0'), builds: z.record(id, StoredBuildSchema) })
+const PreviousBuildRevisionSchema = buildRevision.extend({ content: buildRevisionContent.omit({ referenceNames: true }) })
+export const PreviousLocalDataSchema = NativeLocalDataSchema.extend({ schemaVersion: z.literal('2.3.0'), buildRevisions: z.record(id, PreviousBuildRevisionSchema), gameSetups: z.record(id, gameSetupRevision.omit({ modSourceReceipts: true })) })
+const ClassifiedNativeLocalDataSchema = PreviousLocalDataSchema.extend({ schemaVersion: z.literal('2.2.0'), builds: z.record(id, StoredBuildSchema) })
 const PreviousNativeLocalDataSchema = ClassifiedNativeLocalDataSchema.omit({ teams: true }).extend({ schemaVersion: z.literal('2.1.0') })
 
 export const LegacyNativeLocalDataSchema = PreviousNativeLocalDataSchema.extend({
   schemaVersion: z.literal('2.0.0'),
-  gameSetups: z.record(id, gameSetupRevision.omit({ customMods: true })),
+  gameSetups: z.record(id, gameSetupRevision.omit({ customMods: true, modSourceReceipts: true })),
 }).superRefine((data, context) => {
   for (const revision of Object.values(data.buildRevisions)) {
     if (data.gameSetups[revision.gameSetupRevisionId]?.gameSetupId !== data.builds[revision.buildId]?.gameSetupId) context.addIssue({ code: 'custom', message: 'A legacy checkpoint has inconsistent Game Setup ownership' })
   }
 })
 
-export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, ClassifiedNativeLocalDataSchema, PreviousNativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => {
+export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, PreviousLocalDataSchema, ClassifiedNativeLocalDataSchema, PreviousNativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => {
   return { ...data, schemaVersion: LOCAL_DATA_SCHEMA_VERSION, teams: 'teams' in data ? data.teams : {} }
 })
 
