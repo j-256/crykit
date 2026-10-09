@@ -45,6 +45,10 @@ import { passivePosition } from '../domain/passive-loadout'
 import './build-editor-usability.css'
 import { buildStartingSetup } from './build-starting-setup'
 import { battleCalculationSummary } from './battle-calculation-summary'
+import { BUILD_REVIEW_FIELDS } from './build-validity-guidance'
+import { SharedModSources } from './SharedModSources'
+import { prepareBuildModRecovery } from './build-mod-recovery'
+import type { ImportPreview } from '../interchange/types'
 
 const LEARNABLE_INNATE_MOD = 'Learnable Innate Skill'
 const INNATE_FILTER_PREFERENCE = 'crykit:build-picker:include-innates:v1'
@@ -168,14 +172,15 @@ function RevisionEditor(props: RevisionEditorProps) {
   const planningCatalogs = useMemo(() => composed ? expandModCatalogs([...rawCatalogs, composed]) : rawCatalogs, [composed, rawCatalogs])
   const displayCatalogs = useMemo(() => composed ? expandModCatalogs([...library.catalogs, composed]) : library.catalogs, [composed, library.catalogs])
   const scopedData = useMemo(() => ({ ...props.localData, planningGameSetupRevisionId: draftId, gameSetups: { ...props.localData.gameSetups, [draftId]: gameSetup } }), [props.localData, draftId, gameSetup])
-  return <DefinitionProvider catalogs={displayCatalogs} planningCatalogs={planningCatalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition} onLoadBundledMod={library.onLoadBundledMod} onRequestParentSearch={library.onRequestBundledSearch}><RevisionEditorBody {...props} catalogs={planningCatalogs} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={updateBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData} startingSetupDescription={startingSetup.description}/></DefinitionProvider>
+  return <DefinitionProvider catalogs={displayCatalogs} planningCatalogs={planningCatalogs} localData={scopedData} onSaveDefinition={library.onSaveDefinition} onLoadBundledMod={library.onLoadBundledMod} onImportMod={library.onImportMod} onRequestParentSearch={library.onRequestBundledSearch}><RevisionEditorBody {...props} catalogs={planningCatalogs} behavior={behavior} gameSetup={gameSetup} localData={scopedData} onBehaviorChange={updateBehavior} onDiscardBehavior={() => setBehavior(initialBehavior())} presetData={props.localData} startingSetupDescription={startingSetup.description}/></DefinitionProvider>
 }
 
 function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCancel, onSubmit, onSaved, onDirtyChange, children, titleControl, locked = false, embedded = false, initialFieldKey, behavior, gameSetup, onBehaviorChange, onDiscardBehavior, presetData, startingSetupDescription }: RevisionEditorProps & { readonly behavior: BuildBehavior; readonly gameSetup: GameSetupRevision; readonly onBehaviorChange: (value: BuildBehavior) => void; readonly onDiscardBehavior: () => void; readonly presetData: LocalData; readonly startingSetupDescription: string }) {
   const formId = useId()
   const formRef = useRef<HTMLFormElement>(null)
+  const validityRef = useRef<HTMLElement>(null)
   const navigation = useNavigation()
-  const { options, planningOptions } = useDefinitionLibrary()
+  const { options, planningOptions, onImportMod } = useDefinitionLibrary()
   const latest = sourceRevision ?? (build?.latestRevisionId ? ownRecordValue(localData.buildRevisions, build.latestRevisionId) : undefined)
   const initialDraft = (): RevisionDraft => ({ behavior, primaryClass: latest?.content.primaryClass ?? null, secondaryClass: latest?.content.secondaryClass ?? null, equipment: { ...(latest?.content.equipment ?? {}) }, passives: [...(latest?.content.passives ?? [])], rotationNotes: latest?.content.rotationNotes, contextAssumptions: latest?.content.contextAssumptions ?? [], referenceNames: latest?.content.referenceNames, calculation: latest?.content.calculation ?? defaultCalculation(latest?.content.primaryClass ?? null), note: undefined })
   const behaviorRef = useRef<HTMLDetailsElement>(null)
@@ -184,6 +189,9 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const [assumptions, setAssumptions] = useState(draft.contextAssumptions.join('\n'))
   const [busy, setBusy] = useState(false)
   const [loadingMod, setLoadingMod] = useState(false)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
+  const [sourceNotice, setSourceNotice] = useState<string>()
+  const [sourceRecoveryError, setSourceRecoveryError] = useState<string>()
   const [error, setError] = useState<string>()
   const { noticeRef: revisionNoticeRef, revealNotice: revealRevisionNotice } = useNavigationNotice()
   const dirtyRef = useRef(false)
@@ -310,6 +318,42 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     target.scrollIntoView({ block: 'start' })
     target.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true })
   }
+  const sourceData = { ...localData, gameSetups: { [gameSetup.id]: gameSetup }, buildRevisions: {} }
+  const recoverModDefinitions = (available: readonly CatalogSnapshot[], importedTitle?: string) => {
+    setSourceRecoveryError(undefined)
+    try {
+      // Editor behavior and checkpoint metadata are outside the portable loadout contract
+      const { behavior: _behavior, behaviorRevisionId: _setupId, note: _note, ...content } = draftRef.current
+      const recovery = prepareBuildModRecovery(content, gameSetup, localData, available)
+      if (recovery.error) { setSourceRecoveryError(recovery.error); return }
+      if (!recovery.draft) {
+        const remaining = recovery.missingSources.length ? `Still needed: ${recovery.missingSources.join(', ')}.` : 'Review Game Setup if this definition is still unresolved.'
+        setSourceNotice(`${importedTitle ? `${importedTitle} was saved in this browser. ` : ''}${remaining}`)
+        return
+      }
+      const resolved = recovery.draft
+      onBehaviorChange(resolved.behavior)
+      setDraft(current => ({ ...current, ...resolved.content, behavior: resolved.behavior }))
+      updateDirty(true)
+      setSourceNotice('Matching definitions applied to this draft. Results may differ from the saved checkpoint. Save a new revision to keep them; the original checkpoint is unchanged.')
+    } catch (reason) { setSourceRecoveryError(formatAppError(reason, 'The JSON is saved, but its definitions could not be applied to this draft.')) }
+  }
+  const importMatchingMod = async (preview: ImportPreview) => {
+    if (!onImportMod) throw new Error('Mod import is unavailable in this editor.')
+    setLoadingMod(true)
+    setSourceNotice(undefined)
+    try {
+      await onImportMod(preview)
+      const source = preview.proposed.catalogs[0]!
+      // Apply only after the source transaction succeeds; failed writes leave the draft untouched
+      recoverModDefinitions([...catalogs.filter(catalog => catalog.id !== source.id || catalog.revisionId !== source.revisionId), source], modCatalogTitle(source))
+    } finally { setLoadingMod(false) }
+  }
+  const reviewValidityField = (target: string) => {
+    setEditorView('loadout')
+    const field = target === BUILD_REVIEW_FIELDS.passives ? 'slot:passive-1' : target === BUILD_REVIEW_FIELDS.primaryClass || target === BUILD_REVIEW_FIELDS.secondaryClass ? target : passiveReviewTargets.find(({ position }) => position.id === target)?.fieldKey ?? `slot:${target}`
+    focusFieldElement(field)
+  }
   const field = (target: PickerTarget, value: EntityRef | null) => <BuildDefinitionField onConfigureMod={reviewGameSetup} allowedKinds={target.kinds} buildContent={draft} equipmentSlots={slots} passiveIndex={target.target === 'passive' ? Number(target.key) : undefined} gameSetup={gameSetup} equipmentPermissions={target.target === 'equipment' ? equipmentPermissions : undefined} equipmentSlot={target.target === 'equipment' ? slots.find(slot => slot.id === target.key) : undefined} includeInnates={includeInnates} label={target.label} onChange={(ref) => {
     if (target.target === 'primaryClass') setDraft((current) => ({ ...current, primaryClass: ref, ...(current.calculation ? { calculation: followPrimary(current.calculation, ref) } : {}) }))
     else if (target.target === 'secondaryClass') setDraft((current) => ({ ...current, secondaryClass: ref }))
@@ -329,9 +373,10 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
   const mainHandDefinition = mainHandSelection ? definitionIndex.get(entityDefinitionKey(mainHandSelection.ref)) : undefined
   const twoHandedMain = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true ? mainHandDefinition : undefined
   const fieldIssues = (slotId: string) => validity.issues.filter(issue => issue.slotId === slotId)
+  const reviewSolutions = () => { validityRef.current?.scrollIntoView({ block: 'center' }); validityRef.current?.focus({ preventScroll: true }) }
   // Validity uses domain passive-position IDs while editor links retain their saved field keys
   const passiveReviewTargets = draft.passives.map((_, index) => ({ position: passivePosition(index), fieldKey: `slot:passive-${index + 1}` }))
-  const issueNotes = (slotId: string) => fieldIssues(slotId).length > 0 && <ul className="build-field-issues">{fieldIssues(slotId).map(issue => <li data-status={issue.status} key={`${issue.code}:${issue.message}`}>{issue.message}</li>)}</ul>
+  const issueNotes = (slotId: string) => fieldIssues(slotId).length > 0 && <div className="build-field-feedback"><ul className="build-field-issues">{fieldIssues(slotId).map(issue => <li data-status={issue.status} key={`${issue.code}:${issue.message}`}>{issue.message}</li>)}</ul><Button onClick={reviewSolutions} tone="secondary" type="button">Review solutions</Button></div>
   const slotField = (slot: typeof slots[number]) => {
     const selected = draft.equipment[slot.id]
     const sharesMainHand = Boolean(selected && mainHandSelection?.allocationId && selected.allocationId === mainHandSelection.allocationId && sameLogicalEntity(localData, selected.ref, mainHandSelection.ref))
@@ -348,9 +393,16 @@ function RevisionEditorBody({ build, sourceRevision, localData, catalogs, onCanc
     {locked && <InlineNotice title="Build retained for saving">Use Retry save if needed, then Save build to open the saved sheet.</InlineNotice>}
     {error && <div aria-label="Resolve Build revision edits" ref={revisionNoticeRef} role="region" tabIndex={-1}><InlineNotice title={error === REVISION_EXIT_MESSAGE ? 'Revision edits are still open' : 'Revision not saved'} tone={error === REVISION_EXIT_MESSAGE ? 'warning' : 'danger'}>{error} Your selections remain in this editor.{error === REVISION_EXIT_MESSAGE && <div className="cluster"><Button disabled={busy || loadingMod} form={formId} icon="check" type="submit">Save revision</Button><Button disabled={busy || loadingMod} onClick={discard} tone="quiet" type="button">Cancel and discard</Button></div>}</InlineNotice></div>}
     <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}>{!build && <p className="field__hint">{startingSetupDescription}</p>}<BuildBehaviorEditor content={draft} onModBusyChange={setLoadingMod} detailsRef={behaviorRef} key={behaviorEditorKey} localData={presetData} onChange={value => { onBehaviorChange(value); updateDirty(true) }} value={behavior}/></fieldset>
-    <BuildValidity hasPrimaryClass={Boolean(draft.primaryClass)} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...passiveReviewTargets.map(({ position }) => [position.id, position.label])])} onReviewField={slotId => { setEditorView('loadout'); focusFieldElement(passiveReviewTargets.find(({ position }) => position.id === slotId)?.fieldKey ?? `slot:${slotId}`) }} report={validity}/>
-    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith} showClassPermissions={inspectClassPermissions}
-      primaryClassField={field(targetForFieldKey('primary-class')!, draft.primaryClass)} subCommandField={field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}
+    <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(draft.primaryClass)} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...passiveReviewTargets.map(({ position }) => [position.id, position.label])])} onReviewField={reviewValidityField} onReviewSetup={() => reviewGameSetup()} onUploadMod={onImportMod && gameSetup.modSourceReceipts?.length ? () => setSourcesOpen(true) : undefined} report={validity}/>
+    {sourceNotice && <p role="status">{sourceNotice}</p>}
+    {sourceRecoveryError && <InlineNotice title="Definitions not applied" tone="warning">{sourceRecoveryError} The saved checkpoint is unchanged. Review Game Setup to check its source versions.<Button onClick={() => reviewGameSetup()} type="button" tone="secondary">Review Game Setup</Button></InlineNotice>}
+    <Sheet open={sourcesOpen} title="Restore mod definitions" description="Upload the matching JSON for the mods used by this Build." onClose={() => setSourcesOpen(false)} onRequestClose={() => !loadingMod}>
+      <SharedModSources catalogs={catalogs} importNotice={sourceNotice} localData={sourceData} onImport={importMatchingMod}/>
+      {sourceRecoveryError && <InlineNotice title="Definitions not applied" tone="warning">{sourceRecoveryError} Review the source versions and links in Game Setup.<Button onClick={() => { setSourcesOpen(false); window.requestAnimationFrame(() => reviewGameSetup()) }} type="button" tone="secondary">Review Game Setup</Button></InlineNotice>}
+      <Button disabled={loadingMod} onClick={() => recoverModDefinitions(catalogs)} type="button" tone="secondary">Apply available matching definitions</Button>
+    </Sheet>
+    <fieldset className="build-sheet__fields" disabled={busy || loadingMod || locked}><LoadoutSheet onReviewIssues={reviewSolutions} gameSetup={gameSetup} catalogs={catalogs} content={draft} localData={localData} slots={slots} view={editorView} onViewChange={setEditorView} viewLabel="Build editor view" selection={inspected} comparedWith={comparedWith} showClassPermissions={inspectClassPermissions}
+      primaryClassField={<div data-field-key={BUILD_REVIEW_FIELDS.primaryClass} tabIndex={-1}>{field(targetForFieldKey('primary-class')!, draft.primaryClass)}</div>} subCommandField={<div data-field-key={BUILD_REVIEW_FIELDS.secondaryClass} tabIndex={-1}>{field(targetForFieldKey('secondary-class')!, draft.secondaryClass)}</div>}
       equipmentFields={<>{equipmentSlots.map(slotField)}{retainedEquipment.length > 0 && <InlineNotice title="Previous slots need review" tone="warning">This Game Setup has a different slot layout. Previous selections remain until you remove them.{retainedEquipment.map(([id, selection]) => <div className="cluster" data-field-key={`slot:${id}`} key={id} tabIndex={-1}><span>{id}: {selection ? entityName(localData, catalogs, selection.ref) : 'Empty'}</span><Button onClick={() => { setDraft(value => { const equipment = { ...value.equipment }; delete equipment[id]; return { ...value, equipment } }); updateDirty(true) }} tone="quiet" type="button">Remove {id}</Button></div>)}</InlineNotice>}</>}
       passiveTools={<><PassiveCapacityMeter announce pp={validity.pp}/><details className="build-passive-options" open={passiveOptionsOpen} onToggle={event => setPassiveOptionsOpen(event.currentTarget.open)}><summary>Mod passive options</summary><label className="build-innate-toggle"><input checked={includeInnates} data-draft-exempt="true" onChange={(event) => setIncludeInnates(event.target.checked)} type="checkbox"/><span><strong>Include learnable innates</strong><small>{innateToggleHint}</small></span></label></details></>}
       passiveFields={[...draft.passives, undefined].map(passiveField)}
