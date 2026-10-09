@@ -16,8 +16,17 @@ concurrency:
 jobs:
   verify:
     if: github.event.repository.private == false
+    name: verify (${{ matrix.check.name }})
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - { name: checks, script: 'check:deterministic:base' }
+          - { name: unit, script: 'test:unit' }
+          - { name: dom, script: 'test:dom' }
+          - { name: persistence, script: 'test:persistence' }
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,8 +39,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Verify application
-        run: npm run check:deterministic
+      - name: Verify ${{ matrix.check.name }}
+        run: npm run ${{ matrix.check.script }}
 
   # Browsers need the built artifact; merging and deployment also require verify
   build:
