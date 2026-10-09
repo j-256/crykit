@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks } from './local-data-helpers'
+import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks, waitForPlannerReady } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -58,6 +58,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await page.goBack()
   await expectWeapon(page, isMobile, 'Dagger')
   await page.reload()
+  await waitForPlannerReady(page)
   await expectWeapon(page, isMobile, 'Dagger')
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -68,6 +69,7 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   await expectWeapon(page, isMobile, 'Dagger')
   await context.setOffline(true)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(card(page, 'Backstab')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
@@ -89,5 +91,6 @@ test('the weapon list respects the active unrestricted-skills mod setting', asyn
   await expect(card(page, 'Beat Down')).toContainText('Unarmed / Staff')
   await expect(card(page, 'Fire')).toHaveCount(0)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(card(page, 'Beat Down')).toBeVisible()
 })
