@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "id": "crystal-project-public-starter",
+    "revisionId": "catalog-v1",
+    "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa"
+  },
+  "equivalent": {
+    "id": "crystal-project-public-starter",
+    "revisionId": "catalog-v3",
+    "checksum": "builtin:sha256:a427c8fb1f781ac32fcae7a8b869eecaf8f97049b6d018f316287dd2cae094b8"
+  },
+  "nativeRecordEntityIds": [
+    "base:job:0",
+    "base:job:1",
+    "base:job:10",
+    "base:job:11",
+    "base:job:12",
+    "base:job:13",
+    "base:job:14",
+    "base:job:15",
+    "base:job:16",
+    "base:job:17",
+    "base:job:18",
+    "base:job:19",
+    "base:job:2",
+    "base:job:20",
+    "base:job:22",
+    "base:job:23",
+    "base:job:3",
+    "base:job:4",
+    "base:job:5",
+    "base:job:6",
+    "base:job:7",
+    "base:job:8",
+    "base:job:9",
+    "base:passive:2",
+    "base:passive:58",
+    "base:passive:63"
+  ],
+  "sources": [
+    {
+      "catalogId": "crystal-edit:291840f3-509a-498f-bbf5-bc5d09956176",
+      "checksum": "sha256:b6e4cc8ba31b21c794e9039a74236ff78c9faa9a3ee25368e80714f4c9fdc156",
+      "interpretations": [
+        "rules-v2:library-v2",
+        "rules-v2:library-v4"
+      ],
+      "records": {}
+    },
+    {
+      "catalogId": "crystal-edit:3b6352d2-76f1-430e-8d8a-8bf214ee6c6f",
+      "checksum": "sha256:658c10130265ec8c09eb0806de16dc8084a61435f8f285ed2e074ac44b958af3",
+      "interpretations": [
+        "rules-v2:library-v2",
+        "rules-v2:library-v4"
+      ],
+      "records": {
+        "crystal-edit:Equipment:357": [
+          "Cost",
+          "Level"
+        ]
+      }
+    },
+    {
+      "catalogId": "crystal-edit:d09a5ad1-d627-4703-84ca-dfe9e8511097",
+      "checksum": "sha256:45b0d95c17447ae48c624717cecc14eaf79083d1213304ab02af9ee8f9fe6d2b",
+      "interpretations": [
+        "rules-v2:library-v2",
+        "rules-v2:library-v4"
+      ],
+      "records": {
+        "crystal-edit:Jobs:0": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:1": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:2": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:3": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:4": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:5": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:6": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:7": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:8": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:9": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:10": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:11": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:12": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:13": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:14": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:15": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:16": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:17": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:18": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:19": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:20": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:22": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Jobs:23": [
+          "IsUnselectableJob",
+          "IsUnselectableSubJob",
+          "LearnTree"
+        ],
+        "crystal-edit:Passives:10": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:12": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:17": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:18": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:20": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:23": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:25": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:26": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:30": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:41": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:42": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:43": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:50": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:53": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:59": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:66": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:72": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:74": [
+          "IsDefaultLocked",
+          "IsLearnable",
+          "StatMods"
+        ],
+        "crystal-edit:Passives:75": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:76": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:79": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:80": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:84": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:85": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ],
+        "crystal-edit:Passives:87": [
+          "IsDefaultLocked",
+          "IsLearnable"
+        ]
+      }
+    }
+  ]
+}

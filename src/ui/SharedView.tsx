@@ -26,7 +26,7 @@ import { SharedModSources } from './SharedModSources'
 import { LocalArtworkContext } from './GameIcon'
 import { Sheet } from './Sheet'
 import { focusFieldElement } from './field-focus'
-import { BUILD_REVIEW_FIELDS } from './build-validity-guidance'
+import { BUILD_REVIEW_FIELDS, buildValidityGuidance } from './build-validity-guidance'
 import { passivePosition } from '../domain/passive-loadout'
 
 const MAX_LOCAL_IMAGE_BYTES = 4 * 1024 * 1024
@@ -146,6 +146,13 @@ export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly e
     } catch (reason) { setSaveError(formatAppError(reason, 'The shared copy could not be saved.')) }
     finally { setBusy(false) }
   }
+  // A missing source is a loadout blocker only when an active check needs its unavailable facts
+  // Learning-tree edits and unused class innates do not make an unchanged sub-command unknown
+  const needsSourceFacts = useMemo(() => preview && Object.values(preview.payload.records.buildRevisions).some(revision => {
+    const setup = preview.localData.gameSetups[revision.gameSetupRevisionId]!
+    const report = validateBuildContent(revision.content, setup, setup.slots, ref => resolveEntity(preview.localData, preview.catalogs, ref), ref => logicalEntityKey(preview.localData, ref))
+    return report.issues.some(issue => issue.status === 'undetermined' && buildValidityGuidance(issue, true).importSource)
+  }), [preview])
   if (error) return <><ScreenHeader title="Shared snapshot unavailable" description="The shared snapshot could not be opened." actions={<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })}>Open build library</Button>}/><section className="panel"><div className="panel__body stack"><InlineNotice title="Link could not be opened" tone="danger">{error} Missing catalog revisions are not replaced by another version.</InlineNotice></div></section></>
   if (!preview) return <p role="status">Opening shared snapshot...</p>
   const { payload } = preview
@@ -153,7 +160,7 @@ export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly e
   return <LocalArtworkContext value={artwork}><div className="stack shared-preview">
     <ScreenHeader description="A read-only snapshot from a share link. Save a copy to edit it in this browser." eyebrow={payload.kind === 'team' ? 'Shared team' : 'Shared build'} title={payload.title} actions={<Button disabled={busy} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button>}/>
     <p>Readiness and stock checks need your own Playthrough records.</p>
-    {recovery?.missingSources.length ? <InlineNotice title="Mod definitions needed">Import matching JSON for: {recovery.missingSources.join(', ')}. Accepted files are saved in this browser and update the preview when all required sources are available.<Button onClick={() => setSourcesOpen(true)} tone="secondary" type="button">Upload mod JSON</Button></InlineNotice> : null}
+    {needsSourceFacts && recovery?.missingSources.length ? <InlineNotice title="Mod definitions needed">To recover the complete Game Setup, import matching JSON for: {recovery.missingSources.join(', ')}. Known facts remain usable. Accepted files are saved in this browser and update the preview when all required sources are available.<Button onClick={() => setSourcesOpen(true)} tone="secondary" type="button">Upload mod JSON</Button></InlineNotice> : null}
     {recovery?.error && <InlineNotice title="Imported definitions not applied" tone="warning">{recovery.error} Save a copy to review source versions and replacement links in Game Setup.</InlineNotice>}
     {matchingError && <InlineNotice title="Imported definitions not applied" tone="danger">{matchingError} Save a copy to review its Game Setup, or upload matching JSON to retry.<Button onClick={() => setSourcesOpen(true)} tone="secondary" type="button">Upload mod JSON</Button></InlineNotice>}
     {matched && <InlineNotice title={useMatchingSources ? "Using matching local JSON" : "Original checkpoint"}>{useMatchingSources ? recovery?.changedInterpretation ? "This preview uses your imported definitions and the available base catalog. Its results may differ from the saved checkpoint. The original share link is unchanged." : "The view and saved copy use your local file revisions. The original share link keeps its saved pins." : "This view keeps the saved source pins. Your imported definitions remain available for the recovered preview."}<Button onClick={() => { setMatchingError(undefined); setViewOriginal(value => !value) }} tone="secondary">{useMatchingSources ? "View original checkpoint" : "View imported definitions"}</Button></InlineNotice>}

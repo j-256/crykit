@@ -11,6 +11,12 @@ export function buildValidityGuidance(issue: MechanicsIssue, canUploadMod = fals
     case 'PASSIVE_DEFINITION':
     case 'EQUIPMENT_DEFINITION':
       return { message: canUploadMod ? 'Upload the matching mod JSON to restore this definition, or choose an available selection.' : 'Restore the missing definition from its source, or choose an available selection.', targets, importSource: unknown, reviewSetup: !canUploadMod }
+    case 'CLASS_INNATE_DEFINITION':
+      return { message: 'Upload the matching mod JSON to verify this class\'s active innates, or choose a class with known innate effects.', targets, importSource: true, reviewSetup: !canUploadMod }
+    case 'CLASS_COMMAND_DEFINITION':
+      return { message: 'Upload the matching mod JSON to restore the command and its ability definitions, or choose an available command.', targets, importSource: true, reviewSetup: !canUploadMod }
+    case 'PASSIVE_LEARNABILITY_UNKNOWN':
+      return { message: 'Upload the matching mod JSON to verify that this passive can be learned, or choose another equipped passive.', targets, importSource: true, reviewSetup: !canUploadMod }
     case 'CLASS_EQUIPMENT_PERMISSION':
     case 'DUAL_WIELD_REQUIRED':
     case 'EQUIPMENT_ALLOCATION_HANDS':

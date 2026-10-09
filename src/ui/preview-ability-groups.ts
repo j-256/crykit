@@ -9,6 +9,7 @@ import { resolveGameRules } from '../domain/game-rules'
 import { modModelEntity } from '../domain/mod-layers'
 import { nativeEntityId, nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 import { nativeInteger } from '../domain/native-number'
+import { preservedNativeCatalog } from '../domain/preserved-native-definitions'
 import type { BuildRevisionContent, CatalogEntity, CatalogSnapshot, EntityId, EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import { resolveCalculationEntity } from './model'
 
@@ -36,7 +37,7 @@ export function previewAbilityGroups(content: BuildRevisionContent, localData: L
     if (!classRef) continue
     const definition = resolve(classRef)
     const source = catalogClassSource(classRef, resolve)
-    const catalog = source && catalogs.find(value => value.id === source.ref.catalogId && value.revisionId === source.ref.catalogRevisionId)
+    const catalog = source && (catalogs.find(value => value.id === source.ref.catalogId && value.revisionId === source.ref.catalogRevisionId) ?? preservedNativeCatalog(localData, catalogs, source.ref))
     if (definition?.kind !== 'class' || !source || !catalog) continue
     const imported = crystalEditPlanningRecord(definition)
     if (definition.fields['Crystal Edit source record'] && !imported) continue

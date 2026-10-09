@@ -35,6 +35,52 @@ export function catalogClassSource(ref: EntityRef, resolve: DefinitionResolver):
   return definition ? { ref: current, definition } : undefined
 }
 
+function classPassiveDefinitions(ref: EntityRef, resolve: DefinitionResolver): readonly (MechanicsDefinition | undefined)[] | undefined {
+  const primary = resolve(ref)
+  if (!primary) return undefined
+  const source = catalogClassSource(ref, resolve)
+  const native = nativeIdentity(primary) ?? (source && nativeIdentity(source.definition))
+  const ids = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
+  const mod = source && 'legacy' in source.definition ? bundledModIdentity(source.definition) : undefined
+  const links = source && 'legacy' in source.definition && nativeRecord(source.definition.legacy) && nativeRecord(source.definition.legacy.passiveEntityIds) ? source.definition.legacy.passiveEntityIds : {}
+  return source && Array.isArray(ids) ? ids.map(id => {
+    if (typeof id !== 'number') return undefined
+    const linked = links[String(id)]
+    const candidates = typeof linked === 'string' ? [linked as typeof source.ref.entityId]
+      : mod ? [bundledModEntityId(mod.key, 'Passives', id)]
+      : native ? [nativeEntityId('passive', id, native.mode), nativeEntityId('passive', id)] : []
+    return candidates.map(entityId => resolve({ ...source.ref, entityId })).find(value => value !== undefined)
+  }) : undefined
+}
+
+function unresolvedClassInnates(ref: EntityRef | null, resolve: DefinitionResolver): boolean {
+  const definition = ref && resolve(ref)
+  if (!definition || !definitionSourceRecord(definition)) return false
+  const passives = classPassiveDefinitions(ref!, resolve)
+  return !passives || passives.some(passive => {
+    const record = definitionSourceRecord(passive)
+    return typeof record?.IsInnate !== 'boolean' || record.IsInnate && !Array.isArray(record.StatMods)
+  })
+}
+
+export function unavailableClassCommand(ref: EntityRef, resolve: DefinitionResolver): boolean {
+  const definition = resolve(ref)
+  if (!definition || definition.kind !== 'class' || !definitionSourceRecord(definition)) return false
+  const ids = knownField(definition, CLASS_FIELDS.abilities) ?? knownField(definition, CRYSTAL_EDIT_FIELDS.abilities)
+  const command = knownField(definition, CLASS_FIELDS.command) ?? knownField(definition, CRYSTAL_EDIT_FIELDS.command)
+  if (!Array.isArray(ids) || typeof command !== 'string') return true
+  const source = catalogClassSource(ref, resolve)
+  if (!source) return true
+  const native = nativeIdentity(source.definition)
+  const mod = 'legacy' in source.definition ? bundledModIdentity(source.definition) : undefined
+  // Command membership grants these abilities; the class's learn tree and unrelated passives do not
+  return ids.some(id => {
+    if (typeof id !== 'number') return true
+    const candidates = [`crystal-edit:Abilities:${id}` as typeof source.ref.entityId, ...(mod ? [bundledModEntityId(mod.key, 'Abilities', id)] : []), ...(native ? [nativeEntityId('ability', id, native.mode), nativeEntityId('ability', id)] : [])]
+    return !candidates.some(entityId => { const child = resolve({ ...source.ref, entityId }); return child && ['ability', 'monsterMagic'].includes(child.kind) })
+  })
+}
+
 export function innateEffects(content: Pick<BuildRevisionContent, 'primaryClass' | 'secondaryClass'>, resolve: DefinitionResolver): readonly BuildEffects[] {
   if (!content.primaryClass) return []
   const primary = resolve(content.primaryClass)
@@ -50,20 +96,9 @@ export function innateEffects(content: Pick<BuildRevisionContent, 'primaryClass'
     }
     return [{ text, name: `${primary.name} innate`, definition: primary }]
   }
-  const ids = knownField(primary, CLASS_FIELDS.passives) ?? knownField(primary, CRYSTAL_EDIT_FIELDS.passives)
-  const ref = source?.ref
-  const mod = source && 'legacy' in source.definition ? bundledModIdentity(source.definition) : undefined
-  const links = source && 'legacy' in source.definition && nativeRecord(source.definition.legacy) && nativeRecord(source.definition.legacy.passiveEntityIds) ? source.definition.legacy.passiveEntityIds : {}
-  return ref && Array.isArray(ids) ? ids.flatMap(id => {
-    if (typeof id !== 'number') return []
-    const linked = links[String(id)]
-    const candidates = typeof linked === 'string' ? [linked as typeof ref.entityId]
-      : mod ? [bundledModEntityId(mod.key, 'Passives', id)]
-      : native ? [nativeEntityId('passive', id, native.mode), nativeEntityId('passive', id)]
-      : []
-    const definition = candidates.map(entityId => resolve({ ...ref, entityId })).find(value => value !== undefined)
+  return (classPassiveDefinitions(content.primaryClass, resolve) ?? []).flatMap(definition => {
     return definition && definitionSourceRecord(definition)?.IsInnate === true ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
-  }) : []
+  })
 }
 
 export function buildEquipmentPermissions(content: EquipmentPermissionContent, resolve: DefinitionResolver): BuildEquipmentPermissions {
@@ -87,7 +122,7 @@ export function buildEquipmentPermissions(content: EquipmentPermissionContent, r
     permissions,
     dualWield: effects.some(effect => effect.dualWield),
     twoHanded: effects.some(effect => effect.twoHanded),
-    unresolvedEffects: effects.some(effect => !effect.complete) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innates.length === 0),
+    unresolvedEffects: effects.some(effect => !effect.complete) || unresolvedClassInnates(content.primaryClass, resolve) || Boolean(primary && !classInnateText(primary) && !explicitlyNoPassives && innates.length === 0),
   }
 }
 
@@ -118,6 +153,8 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
     if (definition && definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${definition.name} is not a class`, target)
     if (knownField(definition, field) === true) add('CLASS_DISABLED', 'invalid', `${definition!.name} cannot be selected as the ${label} in its export`, target)
   }
+  // A sub-command contributes no innates by itself; learning-tree entries are not active effects
+  if (unresolvedClassInnates(content.primaryClass, resolve)) add('CLASS_INNATE_DEFINITION', 'undetermined', `${primary!.name}: an innate's identity or effects are unavailable`, 'primary-class')
   const { classTypes, permissions, dualWield, twoHanded, unresolvedEffects } = buildEquipmentPermissions(content, resolve)
   const passiveIds = new Set<string>()
   for (const [index, selection] of content.passives.entries()) {
@@ -130,7 +167,10 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
       add('PASSIVE_DEFINITION', definition ? 'invalid' : 'undetermined', `${slot.label}: ${definition ? 'select a passive' : 'definition is unavailable'}`, slot.id)
       continue
     }
-    if (definitionSourceRecord(definition)?.IsLearnable === false) {
+    const record = definitionSourceRecord(definition)
+    if (record && record.IsLearnable === undefined && definition.fields['Is Learnable']?.state === 'unknown') {
+      add('PASSIVE_LEARNABILITY_UNKNOWN', 'undetermined', `${definition.name}: whether this passive can be learned is unresolved`, slot.id)
+    } else if (record?.IsLearnable === false) {
       const nativeInnate = Boolean(nativeSourceRecord(definition)) && definition.kind === 'innate'
       add('PASSIVE_NOT_LEARNABLE', nativeInnate ? 'undetermined' : 'invalid', nativeInnate ? `${definition.name} cannot be learned in the base game; the mod that makes innates selectable is unverified` : `${definition.name} cannot be learned as an equipped passive in this source`, slot.id)
     }
