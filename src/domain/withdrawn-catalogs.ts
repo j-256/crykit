@@ -9,7 +9,7 @@ if (!originalBundle) throw new Error('The historical bundled catalog receipt is 
 export const HISTORICAL_BUNDLED_CATALOG = originalBundle
 
 // These receipts identify removed bytes, not replacement definitions with the same revision
-// Saved references retain their original identity and resolve only when the user supplies that snapshot
+// Saved references retain their original identity; withdrawal receipts alone do not supply definitions
 export function withdrawnCatalog(pin: Pick<ModCatalogPin, 'catalogId' | 'catalogRevisionId'>) {
   return WITHDRAWN_CATALOGS.find(receipt => receipt.id === pin.catalogId && receipt.revisionId === pin.catalogRevisionId)
 }

@@ -1,5 +1,7 @@
 import { entityDefinitionKey, entityRefKey } from './core'
 import { catalogEntity } from './entity-identities'
+import { preservedNativeDefinition } from './preserved-native-definitions'
+import { MOD_CATALOG_SCHEMA } from './mod-layers'
 import type {
   CatalogEntity,
   CatalogSnapshot,
@@ -22,7 +24,10 @@ export function resolveDefinition(
 ): ResolvedDefinition | undefined {
   if (ref.kind === 'personal') return localData.personalDefinitions[ref.definitionId]
   const catalog = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
-  return catalog ? catalogEntity(catalog, ref.entityId) : undefined
+  const entity = catalog && catalogEntity(catalog, ref.entityId)
+  // A complete available snapshot remains authoritative, including a genuinely missing entity
+  // Compact compositions can retain unchanged native entries when their old baseline is withdrawn
+  return entity ?? (!catalog || catalog.schemaVersion === MOD_CATALOG_SCHEMA ? preservedNativeDefinition(localData, catalogs, ref) : undefined)
 }
 
 export function definitionLineageRootRef(localData: LocalData, ref: EntityRef): EntityRef {

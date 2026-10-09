@@ -1,7 +1,7 @@
 import { definitionModAvailability } from '../catalog/mods'
 import type { CatalogSnapshot, EntityRef, Knowledge, LocalData, Quantity, GameSetupRevision } from '../domain/types'
 import { AppDataError } from '../interchange/errors'
-import { catalogEntity } from '../domain/entity-identities'
+import { resolveDefinition } from '../domain/definitions'
 import { CRYSTAL_EDIT_VERSION_FIELD } from '../domain/crystal-edit-compatibility'
 import { jsonRecord } from '../domain/crystal-edit'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
@@ -38,7 +38,7 @@ export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSn
   if (!ref) return undefined
   if (ref.kind === 'personal') return ownRecordValue(localData.personalDefinitions, ref.definitionId)
   const snapshot = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
-  const entity = snapshot ? catalogEntity(snapshot, ref.entityId) : undefined
+  const entity = resolveDefinition(localData, catalogs, ref)
   const version = snapshot && jsonRecord(snapshot.legacy) ? snapshot.legacy.editorVersion : undefined
   return entity && typeof version === 'number' && !entity.fields[CRYSTAL_EDIT_VERSION_FIELD] ? { ...entity, fields: { ...entity.fields, [CRYSTAL_EDIT_VERSION_FIELD]: { state: 'known' as const, value: version, sources: entity.sources } } } : entity
 }

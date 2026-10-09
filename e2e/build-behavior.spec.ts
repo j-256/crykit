@@ -1,7 +1,7 @@
 import { skipInitialModSetup, openGameSetupSection } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
-import type { EntityId, LocalData } from '../src/domain/types'
+import type { CatalogRevisionId, EntityId, LocalData } from '../src/domain/types'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { expectOfflineReady } from './offline-helpers'
 import { CURRENT_CATALOG } from '../src/catalog/bundled'
@@ -152,6 +152,37 @@ test('a preset without a configured layout keeps suggested slots usable and pres
   expect(revision.content.equipment).toEqual(before.content.equipment)
   expect(saved.buildRevisions[before.id]).toEqual(before)
   expect(saved.playthroughs).toEqual(original.playthroughs)
+})
+
+test('unavailable mod layers retain unchanged native loadout definitions @mobile', async ({ page, baseURL }) => {
+  const { original } = await openBuild(page)
+  const build = Object.values(original.builds).find(build => {
+    const revision = original.buildRevisions[build.latestRevisionId!]
+    return revision?.content.passives.some(selection => selection.ref.kind === 'catalog' && selection.ref.entityId === 'base:passive:20') && Object.values(revision.content.equipment).some(selection => selection?.ref.kind === 'catalog' && selection.ref.entityId === 'base:equipment:41')
+  })!
+  const before = original.buildRevisions[build.latestRevisionId!]!
+  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
+  // Force a missing source revision even if a future library contains this project's definitions
+  const checksum = `sha256:${'0'.repeat(64)}`
+  const sourceRevision = `${checksum}:rules-v2:library-v2` as CatalogRevisionId
+  const unavailableSetup = { ...setup, modComposition: { ...setup.modComposition!, layers: setup.modComposition!.layers.map(layer => ({ ...layer, catalogRevisionId: sourceRevision })) }, modSourceReceipts: setup.modSourceReceipts!.map(({ contentFingerprint: _fingerprint, ...receipt }) => ({ ...receipt, checksum, catalogRevisionId: sourceRevision })) }
+  const unavailable = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: unavailableSetup } } }
+  await page.goto(createShareUrl(unavailable, `${baseURL}/`))
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  const expectNativeSelections = async () => {
+    for (const label of ['Main hand', 'Head', 'Equipped passive 1', 'Equipped passive 3']) await expect(validity.getByText(`${label}: definition is unavailable`, { exact: false })).toHaveCount(0)
+    await expect(validity.getByText('Equipped passive 2: definition is unavailable', { exact: false })).toHaveCount(1)
+  }
+  await expect(validity).toBeVisible()
+  await expectNativeSelections()
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await expectNativeSelections()
+  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Eclipse')
+  await expect(page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })).toHaveValue('Pocket Sand')
+  await expect(page.getByRole('combobox', { name: 'Equipped passive 3', exact: true })).toHaveValue('Perfect Vision')
+  expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
 })
 
 test('validity review targets unavailable passives without changing the saved checkpoint @mobile', async ({ page, baseURL }) => {
