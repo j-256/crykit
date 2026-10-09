@@ -615,18 +615,24 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .definition-row:has(.stat-ratings) { grid-template-columns: minmax(0, 1fr); }
 .build-sheet[data-validity="invalid"] { margin: -10px; padding: 14px; border-radius: var(--radius); background: rgba(198, 111, 85, .1); box-shadow: inset 0 0 0 2px rgba(198, 111, 85, .7); }
 .build-validity { display: grid; gap: 9px; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(155, 183, 121, .06); }
-.build-validity[data-status="undetermined"] { border-color: rgba(215, 167, 86, .55); background: rgba(215, 167, 86, .1); }
+.build-validity[data-status="undetermined"] { background: transparent; }
 .build-validity[data-status="invalid"] { border-color: var(--rust); background: rgba(198, 111, 85, .18); box-shadow: 0 0 0 2px rgba(198, 111, 85, .1); }
 .build-validity__summary { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .build-validity__summary > svg { width: 17px; height: 17px; color: var(--moss); }
-.build-validity[data-status="undetermined"] .build-validity__summary > svg { color: var(--amber); }
-.build-validity[data-status="invalid"] .build-validity__summary > svg { color: var(--rust); }
+.build-validity__details .build-validity__summary > svg { color: var(--sky); }
+.build-validity__details > summary { list-style: none; font-weight: 400; }
+.build-validity__details > summary::-webkit-details-marker { display: none; }
+.build-validity__details > summary > svg:last-child { margin-left: auto; color: var(--text-dim); }
+.build-validity__details[open] > summary > svg:last-child { transform: rotate(180deg); }
+.build-validity__details[open] > .build-validity__help { margin-top: 10px; }
+.build-validity[data-status="invalid"] > .build-validity__summary > svg { color: var(--rust); }
 .build-validity__summary > strong { min-width: 0; color: var(--text); font-size: .78rem; }
 .build-validity__summary > .badge { margin-left: auto; }
-.build-validity > .validation-issues { margin: 0; padding: 9px 10px 2px 28px; border-top: 1px solid currentColor; color: var(--text-dim); font-size: .875rem; }
+.build-validity .validation-issues { margin: 0; padding: 9px 10px 2px 28px; color: var(--text-dim); font-size: .875rem; }
+.build-validity > .validation-issues { border-top: 1px solid currentColor; }
 .build-validity__issue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .build-validity__issue > span { min-width: 0; overflow-wrap: anywhere; }
-.build-validity__review { flex: none; gap: 6px; min-height: 28px; max-width: 100%; padding: 3px 8px; font-size: inherit; font-weight: 600; line-height: 1.4; white-space: normal; }
+.build-validity__review { flex: none; gap: 6px; min-height: 28px; max-width: 100%; padding: 3px 8px; font-size: inherit; font-weight: 400; line-height: 1.4; white-space: normal; }
 .build-validity__review svg { flex: none; width: 1em; height: 1em; }
 .build-validity__actions { display: flex; flex-wrap: wrap; gap: 4px 6px; }
 .build-validity__actions:empty { display: none; }

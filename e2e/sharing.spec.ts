@@ -402,8 +402,8 @@ test('rejects invalid snapshots and unavailable catalog pins without writing', a
 })
 
 async function portableModFixture(historical: boolean, completePermissions = false) {
-  let text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description"}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
-  if (completePermissions) text = text.replace('"Description":"Local-only description"', '"Description":"Local-only description","EquipmentTypes":[2,13],"PassiveIDs":[],"AbilitiesName":"Synthetic Command","AbilityIDs":[]')
+  let text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description","AbilitiesName":"Synthetic Command","AbilityIDs":[]}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
+  if (completePermissions) text = text.replace('"Description":"Local-only description"', '"Description":"Local-only description","EquipmentTypes":[2,13],"PassiveIDs":[]')
   const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'original.json')).proposed.catalogs[0]!
   const catalogs = [...BUNDLED_CATALOGS, source]
   const composition = prepareModComposition({ version: 3, baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, enabled: true }], links: [] }, catalogs)
@@ -495,12 +495,51 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   expect(savedSetup.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
 })
 
+test('missing mod details stay optional while calculation locks offer local JSON recovery', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, payload } = await portableModFixture(true, true)
+  const beforeRevision = Object.values(payload.records.buildRevisions)[0]!
+  const primaryClass = { ...beforeRevision.content.secondaryClass!, entityId: asId<EntityId>('base:job:0') }
+  const content = { ...beforeRevision.content, primaryClass, equipment: {}, passives: [], referenceNames: beforeRevision.content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2'), calculation: defaultCalculation(primaryClass) }
+  const native = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [beforeRevision.id]: { ...beforeRevision, content } } } }
+  await page.goto(createShareUrl(native, `${baseURL}/`))
+  const stats = page.getByRole('region', { name: 'Calculated stats', exact: true })
+  const lock = stats.getByRole('group', { name: 'Calculations need mod JSON', exact: true })
+  await expect(lock).toBeVisible()
+  expect(await lock.getByRole('button', { name: 'Upload mod JSON', exact: true }).evaluate(button => getComputedStyle(button).fontWeight)).toBe('400')
+  await lock.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
+  let dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
+  await expect(dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const before = await storedData(page)
+  const disclosure = page.getByRole('region', { name: 'Build validity', exact: true }).locator('.build-validity__details')
+  if (await disclosure.count()) await expect(disclosure).not.toHaveAttribute('open')
+  await page.getByRole('button', { name: 'Share build', exact: true }).click()
+  const sharing = page.getByRole('dialog', { name: 'Share build', exact: true })
+  await expect(sharing.getByRole('button', { name: 'Copy link', exact: true })).toBeEnabled()
+  await sharing.getByRole('button', { name: 'Close', exact: true }).click()
+  await lock.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
+  dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
+  await dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true }).setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await expect(lock).toHaveCount(0)
+  await expect(stats.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
+  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
 test('validity warnings restore missing mod definitions inside the editor without losing unsaved edits', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   const { text, payload } = await portableModFixture(true, true)
   await page.goto(createShareUrl(payload, `${baseURL}/`))
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  const disclosure = validity.locator('.build-validity__details')
+  await expect(disclosure).not.toHaveAttribute('open')
+  await disclosure.locator(':scope > summary').click()
   const permission = validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' })
   await expect(permission.getByRole('button', { name: 'Upload mod JSON', exact: true })).toBeVisible()
+  expect(await permission.getByRole('button', { name: 'Upload mod JSON', exact: true }).evaluate(button => getComputedStyle(button).fontWeight)).toBe('400')
   await permission.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
   let dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
   await expect(dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })).toBeVisible()
@@ -516,6 +555,7 @@ test('validity warnings restore missing mod definitions inside the editor withou
   await expect(mechanics.getByRole('list', { name: 'Equipment findings' })).toContainText('Restore the missing class and passive definitions')
   await mechanics.getByRole('button', { name: 'Review solutions', exact: true }).click()
   await expect(validity).toBeFocused()
+  await expect(validity.locator('.build-validity__details')).toHaveAttribute('open')
   const editorPermission = validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' })
   await editorPermission.getByRole('button', { name: 'Review Class', exact: true }).click()
   await expect(page.locator('[data-field-key="primary-class"]')).toBeFocused()

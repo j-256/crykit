@@ -17,7 +17,7 @@ import { useBuildModSelection } from './BuildModSelectionGate'
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 const COLUMN_LABELS = Object.freeze({ base: 'Base', equipment: 'Equipment', level: 'Level', gender: 'Gender', total: 'Total' })
 
-export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onReviewGameSetup, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onReviewGameSetup?: () => void; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
+export function BuildStatsOverview({ content, slots, localData, catalogs, gameSetup, onReviewGameSetup, onUploadMod, unknownPrimaryClass = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onReviewGameSetup?: () => void; onUploadMod?: () => void; unknownPrimaryClass?: boolean; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
   const rules = useMemo(() => resolveGameRules(gameSetup, catalogs), [gameSetup, catalogs])
   const modSelection = useBuildModSelection()
   const requiredMod = useMemo(() => buildModRequirements(content, localData, catalogs, gameSetup).find(requirement => requirement.state !== 'enabled'), [content, localData, catalogs, gameSetup])
@@ -26,7 +26,7 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
   const columns = STAT_BREAKDOWN_COLUMNS.filter(column => STAT_KEYS.some(stat => breakdown[stat][column] !== null))
   const hasTotals = STAT_KEYS.some(stat => breakdown[stat].total !== null)
   const primary = content.primaryClass ? resolveEntity(localData, catalogs, content.primaryClass) : undefined
-  if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3><p>{unknownPrimaryClass ? 'Record the primary class to calculate stats.' : 'Choose a primary class to calculate stats.'}</p></section>
+  if (!primary) return <section aria-label="Class stats" className="build-stat-overview"><h3><Icon name="character"/>Class stats</h3>{content.primaryClass && onUploadMod ? <CalculationStatus onUploadMod={onUploadMod} issues={result.issues}/> : <p>{unknownPrimaryClass ? 'Record the primary class to calculate stats.' : 'Choose a primary class to calculate stats.'}</p>}</section>
   const plan = content.calculation
   const genderLabel = calculationGenderLabel(plan, rules.genders)
   return <section aria-label="Class stats" className="build-stat-overview">
@@ -36,7 +36,7 @@ export function BuildStatsOverview({ content, slots, localData, catalogs, gameSe
         <h4>Level {plan?.level ?? 'unknown'} stats</h4>
         <p className="field__hint">Gender: {genderLabel}</p>
         {plan ? <>
-          {!hasTotals && <CalculationStatus issues={result.issues} partial={columns.length > 0} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>}
+          {!hasTotals && <CalculationStatus onUploadMod={onUploadMod} issues={result.issues} partial={columns.length > 0} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>}
           {columns.length > 0 && <><div className="structured-value__table"><table aria-label="Planned build stats" className="stat-breakdown"><thead><tr><th scope="col">Stat</th>{columns.map(column => <th className={`stat-breakdown__${column}`} key={column} scope="col">{column === 'equipment' && plan?.battle ? 'Equipment + statuses' : COLUMN_LABELS[column]}</th>)}</tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row"><abbr aria-hidden="true" title={STAT_LABELS[stat]}>{stat}</abbr><span className="sr-only">{STAT_LABELS[stat]}</span></th>{columns.map(column => {
             const value = breakdown[stat][column]
             const text = formatStatRange(value)

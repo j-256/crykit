@@ -1,7 +1,9 @@
 import { Button, InlineNotice } from './components'
 import type { BuildModRequirement } from '../domain/build-mods'
+import { ModCalculationDetails } from './ModCalculationDetails'
 
-export function CalculationStatus({ issues, partial = false, onReviewGameSetup, requiredMod }: { readonly issues: readonly string[]; readonly partial?: boolean; readonly onReviewGameSetup?: () => void; readonly requiredMod?: BuildModRequirement }) {
+export function CalculationStatus({ issues, partial = false, onReviewGameSetup, onUploadMod, requiredMod }: { readonly issues: readonly string[]; readonly partial?: boolean; readonly onReviewGameSetup?: () => void; readonly onUploadMod?: () => void; readonly requiredMod?: BuildModRequirement }) {
+  if (onUploadMod) return <ModCalculationDetails issues={issues} onUploadMod={onUploadMod} onReviewGameSetup={onReviewGameSetup} partial={partial}/>
   const [reason = 'A required calculation input is unavailable.', ...additional] = issues
   const details = requiredMod ? issues : additional
   return <InlineNotice title={requiredMod ? `Enable ${requiredMod.name} to calculate stats` : partial ? 'Totals unavailable' : 'Stats unavailable'} tone="warning">

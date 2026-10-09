@@ -34,6 +34,7 @@ export type IconName =
   | 'layout-page'
   | 'layout-row'
   | 'layers'
+  | 'lock'
   | 'menu'
   | 'more'
   | 'plus'
@@ -91,6 +92,7 @@ const paths: Record<IconName, React.ReactNode> = {
   'layout-grid': <><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></>,
   'layout-page': <><rect x="5" y="2" width="14" height="16" rx="1"/><path d="M8 21h2m3 0h3"/></>,
   layers: <><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></>,
+  lock: <><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></>,
   menu: <><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>,
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
