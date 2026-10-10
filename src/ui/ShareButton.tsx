@@ -3,8 +3,10 @@ import type { LocalData } from '../domain'
 import { createSharePayload, createShareUrl, MAX_SHARE_URL_LENGTH, type ShareTarget } from '../interchange/share'
 import { Button, Field, InlineNotice } from './components'
 import { Sheet } from './Sheet'
+import { useDefinitionLibrary } from './definitions'
 
 export function ShareButton({ localData, target, disabled = false }: { readonly localData: LocalData; readonly target: ShareTarget; readonly disabled?: boolean }) {
+  const { catalogs } = useDefinitionLibrary()
   const [open, setOpen] = useState(false)
   const [includeNotes, setIncludeNotes] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle')
@@ -13,9 +15,9 @@ export function ShareButton({ localData, target, disabled = false }: { readonly 
   const targetId = target.kind === 'build' ? target.revisionId : ('teamId' in target ? target.teamId : target.scenarioId)
   const result = useMemo(() => {
     if (!open) return undefined
-    try { return { url: createShareUrl(createSharePayload(localData, target, includeNotes), window.location.href) } }
+    try { return { url: createShareUrl(createSharePayload(localData, target, includeNotes, catalogs), window.location.href) } }
     catch (reason) { return { error: reason instanceof Error ? reason.message : 'This snapshot could not be shared.' } }
-  }, [includeNotes, localData, open, target.kind, targetId])
+  }, [catalogs, includeNotes, localData, open, target.kind, targetId])
   const copy = async () => {
     if (!result?.url) return
     try { await navigator.clipboard.writeText(result.url); setCopyState('copied') }

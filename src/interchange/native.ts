@@ -2,7 +2,11 @@ import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledg
 import { entityDefinitionKey } from '../domain/core'
 import { battleCalculationReferences } from '../domain/battle-plan'
 import { assertModConfiguration } from '../domain/mods'
-import { composeModCatalog, expandModCatalogs, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
+import { composeModCatalog, expandModCatalogs, hasWithdrawnModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
+import { withdrawnCatalog, withdrawnCatalogKey } from '../domain/withdrawn-catalogs'
+import { assertModSourceReceipts } from '../domain/build-reference-names'
+import { buildModReferences } from '../domain/build-references'
+import { nativeRecord } from '../domain/native-game'
 import { TEAM_SIZE } from '../domain/scenarios'
 import { assertSkillTreeGeometry, skillTreeShape, squareKey } from '../domain/skill-trees'
 import {
@@ -30,6 +34,15 @@ import type {
 import { asLocalDataId, nowTimestamp, randomId, sha256 } from './util'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
 
+// A compact effective catalog can keep its imported changes even after its bundled baseline is withdrawn
+// Missing baseline entities stay unknown; complete catalogs still reject missing or mistyped references
+const partialCatalogEntities = new WeakSet<ReadonlySet<string>>()
+function unavailableReference(ref: EntityRef, catalogs: ReadonlyMap<string, ReadonlySet<string>>): boolean {
+  if (ref.kind !== 'catalog') return false
+  const key = catalogSnapshotKey(ref.catalogId, ref.catalogRevisionId)
+  const entities = catalogs.get(key)
+  return entities ? !entities.has(ref.entityId) && partialCatalogEntities.has(entities) : withdrawnCatalogKey(key)
+}
 const MAX_NATIVE_HISTORY = 500
 const validatedImmutableCatalogs = new WeakSet<CatalogSnapshot>()
 const frozenCatalogValues = new WeakSet<object>()
@@ -117,7 +130,7 @@ function validateEntityRef(
 ): void {
   if (ref.kind === 'catalog') {
     const entities = catalogs.get(catalogSnapshotKey(ref.catalogId, ref.catalogRevisionId))
-    if (!entities?.has(ref.entityId)) schemaError('A reference points to a missing catalog entity', { path })
+    if (!entities?.has(ref.entityId) && !unavailableReference(ref, catalogs)) schemaError('A reference points to a missing catalog entity', { path })
     return
   }
   if (!personalDefinitionIds.has(ref.definitionId)) {
@@ -159,7 +172,11 @@ function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
     }
     const key = catalogSnapshotKey(id, revisionId)
     if (keys.has(key)) schemaError('The backup contains a duplicate catalog revision', { id, revisionId })
-    keys.set(key, new Set(Object.keys(entities)))
+    const entityIds = new Set(Object.keys(entities))
+    const metadata = nativeRecord(record.legacy) ? record.legacy : undefined
+    const baseline = metadata && nativeRecord(metadata.modBaseline) ? metadata.modBaseline : undefined
+    if (record.schemaVersion === 'game-setup-mod-catalog-1' && baseline && typeof baseline.catalogId === 'string' && typeof baseline.catalogRevisionId === 'string' && withdrawnCatalog(baseline as unknown as import('../domain/types').ModCatalogPin) && !values.some(value => nativeRecord(value) && value.id === baseline.catalogId && value.revisionId === baseline.catalogRevisionId)) partialCatalogEntities.add(entityIds)
+    keys.set(key, entityIds)
     snapshots.push(value as CatalogSnapshot)
     for (const entity of Object.values((value as CatalogSnapshot).entities)) {
       entityKinds.set(entityDefinitionKey({
@@ -363,7 +380,7 @@ function validateLocalData(
   if (localData.skillTreeLayouts) assertIdMap(localData.skillTreeLayouts, `${label}.skillTreeLayouts`)
   const definitionKind = (ref: EntityRef) => ref.kind === 'personal' ? typedLocalData.personalDefinitions[ref.definitionId]?.kind : catalogEntityKinds.get(entityDefinitionKey(ref))
   for (const entry of Object.values(typedLocalData.skillTreeLayouts ?? {})) {
-    if (definitionKind(entry.classRef) !== 'class') schemaError('A skill tree references an unavailable class')
+    if (definitionKind(entry.classRef) !== 'class' && !unavailableReference(entry.classRef, catalogs)) schemaError('A skill tree references an unavailable class')
     if (entry.gameSetupRevisionId && !gameSetups[entry.gameSetupRevisionId]) schemaError('A skill tree references a missing Game Setup')
     const positions = entry.shape.split(',').map(key => { const [row, column] = key.split(':').map(Number); return { row, column } })
     try { assertSkillTreeGeometry(positions) } catch { schemaError('A skill layout has invalid square positions') }
@@ -374,7 +391,7 @@ function validateLocalData(
     for (const mapping of entry.mappings) {
       const position = squareKey(mapping)
       const key = logicalEntityKey(typedLocalData, mapping.ref)
-      if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || definitionKind(mapping.ref) !== mapping.kind) schemaError('A skill tree contains an invalid or duplicate mapping')
+      if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || (definitionKind(mapping.ref) !== mapping.kind && !unavailableReference(mapping.ref, catalogs))) schemaError('A skill tree contains an invalid or duplicate mapping')
       mapped.add(position)
       refs.add(key)
     }
@@ -388,7 +405,7 @@ function validateLocalData(
   for (const [id, gameSetup] of Object.entries(gameSetups)) {
     const lock = recordValue(gameSetup.catalogLock, `${label}.gameSetups.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
-      if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) {
+      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)))) {
         schemaError('A Game Setup references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
@@ -448,12 +465,20 @@ function validateLocalData(
     }
     const lock = recordValue(revision.catalogLock, `${label}.buildRevisions.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
-      if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) {
+      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)))) {
         schemaError('A build revision references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
     const slotIds = new Set((gameSetup.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
+    const typedContent = content as unknown as import('../domain/types').BuildRevisionContent
+    const selectedNames = new Set(buildModReferences(typedContent).map(entityDefinitionKey))
+    const savedNames = new Set<string>()
+    for (const entry of typedContent.referenceNames ?? []) {
+      const key = entityDefinitionKey(entry.ref)
+      if (!selectedNames.has(key) || savedNames.has(key)) schemaError('A Build display receipt must identify one selected entry')
+      savedNames.add(key)
+    }
     validatePinnedReferences(typedLocalData, content, lock, `${label}.buildRevisions.${id}.content`)
     const equipment = recordValue(content.equipment, `${label}.buildRevisions.${id}.content.equipment`)
     for (const slotId of Object.keys(equipment)) {
@@ -530,7 +555,7 @@ function validateLocalData(
     if (playthrough.skillTreeCaptures) assertIdMap(playthrough.skillTreeCaptures, `${playthroughLabel}.skillTreeCaptures`)
     for (const capture of Object.values(typedPlaythrough.skillTreeCaptures ?? {})) {
       if (!characters[capture.characterId]) schemaError('A skill tree references a missing character', { playthroughId, captureId: capture.id })
-      if (definitionKind(capture.classRef) !== 'class') schemaError('A skill tree references an unavailable class')
+      if (definitionKind(capture.classRef) !== 'class' && !unavailableReference(capture.classRef, catalogs)) schemaError('A skill tree references an unavailable class')
       if (capture.gameSetupRevisionId && !gameSetups[capture.gameSetupRevisionId]) schemaError('A skill tree references a missing Game Setup')
       try { assertSkillTreeGeometry(capture.squares) } catch { schemaError('A skill tree has invalid square positions') }
       const shape = skillTreeShape(capture.squares)
@@ -539,7 +564,7 @@ function validateLocalData(
       for (const mapping of capture.mappings) {
         const position = squareKey(mapping)
         const key = logicalEntityKey(typedLocalData, mapping.ref)
-        if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || definitionKind(mapping.ref) !== mapping.kind) schemaError('A skill tree contains an invalid or duplicate mapping')
+        if (!shape.split(',').includes(position) || mapped.has(position) || refs.has(key) || (definitionKind(mapping.ref) !== mapping.kind && !unavailableReference(mapping.ref, catalogs))) schemaError('A skill tree contains an invalid or duplicate mapping')
         mapped.add(position)
         refs.add(key)
       }
@@ -550,7 +575,7 @@ function validateLocalData(
       }
       const lock = recordValue(scenario.catalogLock, `${playthroughLabel}.scenarios.${id}.catalogLock`)
       for (const [catalogId, revisionId] of Object.entries(lock)) {
-        if (typeof revisionId !== 'string' || !catalogs.has(catalogSnapshotKey(catalogId, revisionId))) schemaError('A scenario references a missing catalog revision', { playthroughId, id, catalogId, revisionId })
+        if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)))) schemaError('A scenario references a missing catalog revision', { playthroughId, id, catalogId, revisionId })
       }
       if (!Array.isArray(scenario.memberIds) || scenario.memberIds.length !== TEAM_SIZE) schemaError(`A scenario team must contain exactly ${TEAM_SIZE} characters`, { playthroughId, id })
       const memberIds = scenario.memberIds.map((characterId, index) => stringValue(characterId, `${playthroughLabel}.scenarios.${id}.memberIds[${index}]`))
@@ -657,6 +682,40 @@ function validateHistory(
   return entries
 }
 
+// Effective revision IDs belong to their originating setup, including rekeyed shared copies
+// This permits unresolved references without inventing a replacement snapshot or loosening unrelated pins
+export function unavailableModCatalogKeys(localDatas: readonly LocalData[], catalogs: readonly CatalogSnapshot[]): ReadonlySet<string> {
+  const setups = localDatas.flatMap(value => Object.values(value.gameSetups))
+  const origins = new Map(setups.map(value => [modCatalogRevision(value.id), value]))
+  const keys = new Set<string>()
+  for (const setup of setups) {
+    try { assertModSourceReceipts(setup) } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid mod source receipt') }
+    for (const receipt of setup.modSourceReceipts ?? []) {
+      const source = modCatalogForPin(catalogs, receipt)
+      if (source && source.checksum !== receipt.checksum) schemaError('A mod source receipt has a different checksum from its catalog')
+      if (!source) keys.add(catalogSnapshotKey(receipt.catalogId, receipt.catalogRevisionId))
+    }
+    const composition = setup.modComposition
+    if (!composition) continue
+    const origin = origins.get(setup.catalogLock[composition.baseline.catalogId]!)
+    if (!origin || !jsonEqual(composition, origin.modComposition)) schemaError('An effective mod catalog has no matching originating Game Setup')
+    if (!hasWithdrawnModDependencies(composition, catalogs, origin.modSourceReceipts)) continue
+    keys.add(catalogSnapshotKey(composition.baseline.catalogId, modCatalogRevision(origin.id)))
+  }
+  return keys
+}
+
+function includeUnavailableModCatalogs(keys: ReadonlyMap<string, ReadonlySet<string>>, unavailable: ReadonlySet<string>): ReadonlyMap<string, ReadonlySet<string>> {
+  const result = new Map(keys)
+  for (const key of unavailable) {
+    // These sets exist only for graph validation; the database and definition resolver receive no synthetic catalog
+    const entities = result.get(key) ?? new Set<string>()
+    partialCatalogEntities.add(entities)
+    result.set(key, entities)
+  }
+  return result
+}
+
 export function validateNativeLocalDataGraph(
   localData: LocalData,
   catalogs: readonly CatalogSnapshot[],
@@ -675,6 +734,12 @@ export function validateNativeLocalDataGraph(
       const origin = origins.get(gameSetup.catalogLock[gameSetup.modComposition.baseline.catalogId]!)
       if (!origin || !jsonEqual(gameSetup.modComposition, origin.modComposition)) schemaError('An effective mod catalog has no matching originating Game Setup')
       if (checkedOrigins.has(origin.id)) continue
+      if (hasWithdrawnModDependencies(gameSetup.modComposition, catalogs, origin.modSourceReceipts)) {
+        const effective = modCatalogForPin(catalogs, { catalogId: gameSetup.modComposition.baseline.catalogId, catalogRevisionId: modCatalogRevision(origin.id) })
+        if (effective && (effective.schemaVersion !== 'game-setup-mod-catalog-1' || !nativeRecord(effective.legacy) || effective.legacy.modGameSetupRevisionId !== origin.id || !jsonEqual(effective.legacy.modBaseline, gameSetup.modComposition.baseline))) schemaError('An unavailable composition has inconsistent effective catalog identity')
+        checkedOrigins.add(origin.id)
+        continue
+      }
       const expected = composeModCatalog(origin, catalogs)!
       const actual = modCatalogForPin(catalogs, { catalogId: expected.id, catalogRevisionId: expected.revisionId })
       const expanded = expandModCatalogs([modCatalogForPin(catalogs, gameSetup.modComposition.baseline)!, expected])[1]!
@@ -683,12 +748,13 @@ export function validateNativeLocalDataGraph(
     } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid imported mod composition') }
   }
   const validatedCatalogs = validateCatalogs(catalogs)
-  const validatedLocalData = validateLocalData(localData, validatedCatalogs.keys, 'localData', validatedCatalogs.entityKinds)
+  const validationKeys = includeUnavailableModCatalogs(validatedCatalogs.keys, unavailableModCatalogKeys([localData, ...(history ?? []).flatMap(entry => [entry.before, entry.after])], catalogs))
+  const validatedLocalData = validateLocalData(localData, validationKeys, 'localData', validatedCatalogs.entityKinds)
   if (history) {
     for (const entry of history) {
       if (!NativeHistorySchema.safeParse(entry).success) schemaError('A transformed history entry has an unsupported shape')
     }
-    validateHistory(history, validatedLocalData, validatedCatalogs.keys, validatedCatalogs.entityKinds)
+    validateHistory(history, validatedLocalData, validationKeys, validatedCatalogs.entityKinds)
   }
 }
 
@@ -703,13 +769,14 @@ export function validateNativeLocalDataShape(localData: LocalData): void {
 
 export function resolveBundledCatalogPins(pins: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[], available: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
   const keys = new Set<string>()
-  return pins.map(pin => {
+  return pins.flatMap(pin => {
     const key = catalogSnapshotKey(pin.id, pin.revisionId)
     if (keys.has(key)) schemaError('The backup contains a duplicate bundled catalog pin', { catalogId: pin.id, revisionId: pin.revisionId })
     keys.add(key)
     const catalog = available.find(candidate => candidate.id === pin.id && candidate.revisionId === pin.revisionId)
+    if (!catalog && withdrawnCatalog({ catalogId: pin.id, catalogRevisionId: pin.revisionId })?.checksum === pin.checksum) return []
     if (!catalog || catalog.checksum !== pin.checksum) schemaError('The exact bundled catalog revision required by this backup is unavailable or has a different checksum', { catalogId: pin.id, revisionId: pin.revisionId })
-    return catalog
+    return [catalog]
   })
 }
 
@@ -763,12 +830,17 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
   }
   if (manifest.formatVersion === '2.0.0' && payloadResult.data.bundledCatalogs !== undefined) schemaError('Bundled catalog pins require backup format 2.1.0')
   const pinnedCatalogs = resolveBundledCatalogPins((payloadResult.data.bundledCatalogs ?? []) as unknown as readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[], availableBundledCatalogs)
+  for (const pin of payloadResult.data.bundledCatalogs ?? []) {
+    const supplied = payloadResult.data.catalogs.find(catalog => catalog.id === pin.id && catalog.revisionId === pin.revisionId)
+    if (supplied && supplied.checksum !== pin.checksum) schemaError('A supplied catalog differs from its backup checksum pin')
+  }
   const allCatalogs = [...payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[], ...pinnedCatalogs]
   const catalogs = validateCatalogs(allCatalogs)
-  const localData = validateLocalData(payloadResult.data.localData, catalogs.keys, 'localData', catalogs.entityKinds)
+  const validationKeys = includeUnavailableModCatalogs(catalogs.keys, unavailableModCatalogKeys([payloadResult.data.localData as unknown as LocalData, ...(payloadResult.data.history ?? []).flatMap(entry => [entry.before, entry.after]) as unknown as LocalData[]], allCatalogs))
+  const localData = validateLocalData(payloadResult.data.localData, validationKeys, 'localData', catalogs.entityKinds)
   const lineage = validateLineage(payloadResult.data.lineage, localData.id)
   const evidence = validateEvidence(payloadResult.data.evidence)
-  const history = validateHistory(payloadResult.data.history, localData, catalogs.keys, catalogs.entityKinds)
+  const history = validateHistory(payloadResult.data.history, localData, validationKeys, catalogs.entityKinds)
   const sources: SourceArchiveRecord[] = []
   for (const source of manifest.sources) {
     const sourceBytes = files.get(source.path) ?? schemaError('A source file listed by the backup is missing')
@@ -817,6 +889,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
       ignored: 0,
     },
     warnings: [
+      ...((payloadResult.data.bundledCatalogs ?? []).some(pin => withdrawnCatalog({ catalogId: pin.id as CatalogSnapshot['id'], catalogRevisionId: pin.revisionId as CatalogSnapshot['revisionId'] }) && !allCatalogs.some(catalog => catalog.id === pin.id && catalog.revisionId === pin.revisionId)) ? [{ severity: 'warning' as const, code: 'withdrawn-catalog', message: 'Some catalog definitions are unavailable. Original references are preserved; import the exact snapshot to resolve them' }] : []),
       {
         severity: 'warning',
         code: 'replace-local-data',

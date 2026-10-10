@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "projects": [
     {
+      "projectId": "f57e8dfc-56e3-4b53-ae4a-d5d2431c029e",
+      "title": "Sequoia's Will",
+      "reason": "Excluded from the packaged library"
+    },
+    {
       "projectId": "d1f13445-72c5-4d6e-bfc5-52ee065dab11",
       "title": "Fusewright - One More Turn",
       "reason": "Withheld until the mod is ready for release"

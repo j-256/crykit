@@ -5,10 +5,15 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
-import { bundleModDirectory, checkModLibrary, inspectModSource } from './bundle-mod-library.mjs'
+import { bundleModDirectory, checkModLibrary, inspectModSource, approvedModSource } from './bundle-mod-library.mjs'
 import exclusions from '../src/catalog/mod-bundle-exclusions.json' with { type: 'json' }
 
 const project = (version = '1') => ({ ID: 'synthetic-project', Title: 'Synthetic mod', Version: version, EditorVersion: 34, FutureSetting: { enabled: false, quantity: null }, Passives: [{ ID: 900, Name: 'Synthetic passive', PP: 0 }], Entities: [{ ID: 1, Name: 'Synthetic actor', Message: '@' + ['C', 'Astley.Name'].join('@') + ' @V.Sep @I20.Name' }] })
+
+const approvedBytes = [1, 2, 3].map(version => Buffer.from(JSON.stringify(project(String(version)))))
+approvedBytes.push(Buffer.from(`\ufeff${JSON.stringify(project(), null, 2).replaceAll('\n', '\r\n')}\r\n`))
+for (const workshopId of [0, 123456]) approvedBytes.push(Buffer.from(JSON.stringify({ ...project(), Timestamp: '2025-01-01T00:00:00Z', SteamWorkshopFileID: workshopId })))
+const syntheticApproval = [{ projectId: 'synthetic-project', sourceDigests: approvedBytes.map(bytes => inspectModSource(bytes).sha256) }]
 
 test('scans nested directories, deduplicates exact bytes, retains revisions, and checks without originals', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'crykit-mod-library-'))
@@ -23,24 +28,24 @@ test('scans nested directories, deduplicates exact bytes, retains revisions, and
     await writeFile(join(input, 'nested', 'two.json'), JSON.stringify(project('2')))
     await writeFile(join(input, 'other.json'), '{"schemaVersion":1}')
     await writeFile(join(input, 'readme.txt'), 'Unrelated text')
-    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 2, duplicates: 1, skipped: 1, withheld: 0 })
+    assert.deepEqual(await bundleModDirectory(input, output, manifest, syntheticApproval), { mods: 2, duplicates: 1, skipped: 1, withheld: 0 })
     const generated = JSON.parse(await readFile(manifest, 'utf8'))
     const first = generated.mods.find(source => source.version === '1')
     const asset = JSON.parse(await readFile(join(output, `${first.sha256}.json`), 'utf8'))
     assert.deepEqual(gunzipSync(Buffer.from(asset.data, 'base64')), original)
     const manifestBytes = await readFile(manifest)
     assert.equal(manifestBytes.includes(Buffer.from(directory)), false)
-    await bundleModDirectory(input, output, manifest)
+    await bundleModDirectory(input, output, manifest, syntheticApproval)
     assert.deepEqual(await readFile(manifest), manifestBytes)
     await rename(input, join(directory, 'unavailable'))
-    assert.deepEqual(await checkModLibrary(output, manifest), { mods: 2 })
+    assert.deepEqual(await checkModLibrary(output, manifest, syntheticApproval), { mods: 2 })
     await mkdir(input)
     await writeFile(join(input, 'new-revision.json'), JSON.stringify(project('3')))
-    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 3, skipped: 0, duplicates: 0, withheld: 0 })
-    assert.deepEqual(await checkModLibrary(output, manifest), { mods: 3 })
+    assert.deepEqual(await bundleModDirectory(input, output, manifest, syntheticApproval), { mods: 3, skipped: 0, duplicates: 0, withheld: 0 })
+    assert.deepEqual(await checkModLibrary(output, manifest, syntheticApproval), { mods: 3 })
     asset.data = Buffer.from('{}').toString('base64')
     await writeFile(join(output, `${first.sha256}.json`), JSON.stringify(asset))
-    await assert.rejects(checkModLibrary(output, manifest))
+    await assert.rejects(checkModLibrary(output, manifest, syntheticApproval))
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
@@ -55,12 +60,12 @@ test('withholds an exact project identity across filenames and revisions', async
     await writeFile(join(input, 'renamed.json'), JSON.stringify({ ...project(), ID: withheldId, Title: 'Renamed project' }))
     await writeFile(join(input, 'new-revision.json'), JSON.stringify({ ...project('2'), ID: withheldId }))
     await writeFile(join(input, 'included.json'), JSON.stringify(project()))
-    assert.deepEqual(await bundleModDirectory(input, output, manifest), { mods: 1, skipped: 0, duplicates: 0, withheld: 2 })
+    assert.deepEqual(await bundleModDirectory(input, output, manifest, syntheticApproval), { mods: 1, skipped: 0, duplicates: 0, withheld: 2 })
     const generated = JSON.parse(await readFile(manifest, 'utf8'))
     assert.equal(generated.mods[0].projectId, 'synthetic-project')
     generated.mods[0].projectId = withheldId
     await writeFile(manifest, JSON.stringify(generated))
-    await assert.rejects(checkModLibrary(output, manifest), /Withheld mod project is bundled/)
+    await assert.rejects(checkModLibrary(output, manifest, syntheticApproval), /Unapproved or withheld mod source is bundled/)
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
@@ -73,14 +78,14 @@ test('prefers a Workshop-identified export when the same project timestamp is re
     await mkdir(input)
     const original = { ...project(), Timestamp: '2025-01-01T00:00:00Z', SteamWorkshopFileID: 0 }
     await writeFile(join(input, 'project.json'), JSON.stringify(original))
-    await bundleModDirectory(input, output, manifest)
+    await bundleModDirectory(input, output, manifest, syntheticApproval)
     await writeFile(join(input, 'project.json'), JSON.stringify({ ...original, SteamWorkshopFileID: 123456 }))
-    await bundleModDirectory(input, output, manifest)
+    await bundleModDirectory(input, output, manifest, syntheticApproval)
     const { mods } = JSON.parse(await readFile(manifest, 'utf8'))
     assert.equal(mods.length, 2)
     assert.equal(mods[0].steamWorkshopFileId, '123456')
     assert.equal(mods[1].steamWorkshopFileId, undefined)
-    assert.deepEqual(await checkModLibrary(output, manifest), { mods: 2 })
+    assert.deepEqual(await checkModLibrary(output, manifest, syntheticApproval), { mods: 2 })
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
@@ -92,11 +97,11 @@ test('rejects private content and invalid identities without altering a generate
   try {
     await mkdir(input)
     await writeFile(join(input, 'valid.json'), JSON.stringify(project()))
-    await bundleModDirectory(input, output, manifest)
+    await bundleModDirectory(input, output, manifest, syntheticApproval)
     const before = await readFile(manifest)
     for (const value of [{ ...project(), Notes: ['person', 'private.invalid'].join('@') }, { ...project(), Notes: ['C:', 'Users', 'Private', 'mod.json'].join(String.fromCharCode(92)) }, { ...project(), Passives: [project().Passives[0], project().Passives[0]] }, JSON.parse('{"ID":"synthetic","Title":"Synthetic","EditorVersion":34,"__proto__":{}}')]) {
       await writeFile(join(input, 'bad.json'), JSON.stringify(value))
-      await assert.rejects(bundleModDirectory(input, output, manifest))
+      await assert.rejects(bundleModDirectory(input, output, manifest, syntheticApproval))
       assert.deepEqual(await readFile(manifest), before)
     }
     assert.throws(() => inspectModSource(Buffer.from([0xff, 0xfe])))
@@ -114,8 +119,19 @@ test('CLI accepts help and equivalent option forms and reports usage failures on
     await writeFile(join(input, 'mod.json'), JSON.stringify(project()))
     assert.match(cli('-h'), /Usage:/)
     assert.match(cli('--help'), /No mod code is executed/)
-    assert.match(cli(`-i${input}`, `--output-directory=${output}`, '-m', manifest, '--'), /"mods":1/)
-    assert.match(cli('-co', output, `--manifest=${manifest}`), /"mods":1/)
+    assert.match(cli(`-i${input}`, `--output-directory=${output}`, '-m', manifest, '--'), /"mods":0/)
+    assert.match(cli('-co', output, `--manifest=${manifest}`), /"mods":0/)
     for (const args of [[], ['--bad'], ['--input-directory='], ['-i'], ['-c', '-i', input], ['--', '-c']]) assert.throws(() => cli(...args), error => error.status === 2 && error.stdout === '')
   } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+test('requires reviewed project identity and exact bytes rather than an editable author claim', () => {
+  const source = inspectModSource(Buffer.from(JSON.stringify(project())))
+  assert.equal(approvedModSource(source, syntheticApproval), true)
+  assert.equal(approvedModSource({ ...source, projectId: 'renamed-project' }, syntheticApproval), false)
+  assert.equal(approvedModSource({ ...source, sha256: '0'.repeat(64) }, syntheticApproval), false)
+  const claimed = inspectModSource(Buffer.from(JSON.stringify({ ...project(), Author: 'GargoyleGuy' })))
+  assert.equal(approvedModSource(claimed, []), false)
+  const withheld = { ...source, projectId: exclusions.projects[0].projectId }
+  assert.equal(approvedModSource(withheld, [{ projectId: withheld.projectId, sourceDigests: [withheld.sha256] }]), false)
 })

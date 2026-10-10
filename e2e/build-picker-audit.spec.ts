@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { openBuildPickerFilters } from './build-picker-helpers'
+import { importSyntheticLibrary } from './mod-library-fixtures'
+
+// Omit EquipmentType to exercise uncertain imported categories independently of installed mods
+const UNKNOWN_CATEGORY_MOD = { ID: 'synthetic-picker-audit', Title: 'Synthetic Picker Mod', Version: '1', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic Dagger' }] }
 
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -8,21 +12,22 @@ async function choose(page: Page, label: string, name: string) {
 }
 
 test('equipment searches explain conflicts, search visible facts, and prioritize exact names', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await importSyntheticLibrary(page, false, [UNKNOWN_CATEGORY_MOD])
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Rogue')
   await choose(page, 'Main hand', 'Silver Dagger')
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
   await offHand.fill('dagger')
   const list = page.getByRole('listbox', { name: 'Choose Off hand', exact: true })
-  const ritualDagger = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Ritual Dagger$/ }) })
-  await expect(ritualDagger).toContainText("Mod: Outfitter's Guild")
-  await expect(ritualDagger).toContainText("Ritual Dagger's equipment category is unavailable")
+  const syntheticDagger = list.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Dagger$/ }) })
+  await expect(syntheticDagger).toContainText('Mod: Synthetic Picker Mod')
+  await expect(syntheticDagger).toContainText("Synthetic Dagger's equipment category is unavailable")
   await offHand.fill('Silver Dagger')
-  await expect(list).toContainText('matching choices are hidden by equipment conflicts')
+  await expect(list).toContainText('1 matching choice is hidden by equipment conflicts')
   await expect(list).toContainText('requires Dual Wield')
   await expect(list).toContainText('Choose a class that grants Dual Wield')
   await expect(list.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Silver Dagger$/ }) })).toHaveCount(0)
-  await list.getByRole('button', { name: /^Show \d+ conflicts$/ }).click()
+  await list.getByRole('button', { name: 'Show 1 conflict', exact: true }).click()
   const results = list.getByRole('option').filter({ has: page.locator('.picker-result__heading') })
   await expect(results.first().locator('strong')).toHaveText('Silver Dagger')
   await expect(results.first()).toHaveAttribute('data-permission-state', 'invalid')

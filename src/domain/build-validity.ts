@@ -1,4 +1,4 @@
-import { analyzeBuildEquipment, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
+import { analyzeBuildEquipment, unavailableClassCommand, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
 import { entityDefinitionKey } from './core'
 import { passivePointCost } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
@@ -26,7 +26,7 @@ export function effectivePpLimit(gameSetup?: Pick<GameSetupRevision, 'ppLimit'>)
 
 export function validateBuildContent(
   content: BuildRevisionContent,
-  gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit'> | undefined,
+  gameSetup: Pick<GameSetupRevision, 'catalogLock' | 'ppCostsNonNegative' | 'ppLimit' | 'modSourceReceipts'> | undefined,
   slots: readonly SlotDefinition[],
   resolve: DefinitionResolver,
   identity: (ref: EntityRef) => string = entityDefinitionKey,
@@ -42,10 +42,17 @@ export function validateBuildContent(
 
   for (const [label, ref] of [['Primary class', content.primaryClass], ['Sub-command', content.secondaryClass]] as const) {
     if (!ref) continue
-    checkCatalogLock(ref, label)
+    const field = label === 'Primary class' ? 'primary-class' : 'secondary-class'
+    checkCatalogLock(ref, label, field)
     const definition = resolve(ref)
-    if (!definition) add('CLASS_DEFINITION_UNAVAILABLE', 'undetermined', `${label} definition is unavailable`)
-    else if (definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${label} must use a class definition`)
+    if (!definition) {
+      const display = content.referenceNames?.find(entry => entityDefinitionKey(entry.ref) === entityDefinitionKey(ref))
+      const source = display?.projectId && gameSetup?.modSourceReceipts?.find(receipt => receipt.catalogId === display.projectId)
+      // Saved names explain a missing pinned definition without resolving a base-game namesake
+      const savedSource = source ? ` ${source.title}` : display?.projectId ? ' mod' : ''
+      add('CLASS_DEFINITION_UNAVAILABLE', 'undetermined', display ? `${label}: ${display.name}'s saved${savedSource} definition is unavailable` : `${label} definition is unavailable`, field)
+    } else if (definition.kind !== 'class') add('CLASS_KIND', 'invalid', `${label} must use a class definition`, field)
+    else if (unavailableClassCommand(ref, resolve)) add('CLASS_COMMAND_DEFINITION', 'undetermined', `${label}: ${definition.name}'s command or an included ability definition is unavailable`, field)
   }
 
   let knownSubtotal = 0
@@ -60,9 +67,8 @@ export function validateBuildContent(
     }
     checkCatalogLock(selection.ref, slot.label, slotId)
     const definition = resolve(selection.ref)
-    if (!definition) {
-      add('DEFINITION_UNAVAILABLE', 'undetermined', `${slot.label}: selected definition is unavailable`, slotId)
-    } else if (slot.acceptedEntityKinds?.state === 'known' && !slot.acceptedEntityKinds.value.includes(definition.kind)) {
+    if (!definition) continue
+    if (slot.acceptedEntityKinds?.state === 'known' && !slot.acceptedEntityKinds.value.includes(definition.kind)) {
       add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slotId)
     } else if (!slot.acceptedEntityKinds || slot.acceptedEntityKinds.state === 'unknown' || slot.acceptedEntityKinds.state === 'conflicting') {
       add('SLOT_ACCEPTANCE_UNKNOWN', 'undetermined', `${slot.label}: CryKit doesn't know what can go in this slot`, slotId)
@@ -74,14 +80,15 @@ export function validateBuildContent(
     checkCatalogLock(selection.ref, slot.label, slot.id)
     const definition = resolve(selection.ref)
     selectedPassives += 1
-    if (!definition) add('DEFINITION_UNAVAILABLE', 'undetermined', `${slot.label}: selected definition is unavailable`, slot.id)
-    else if (!['passive', 'innate'].includes(definition.kind)) add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slot.id)
+    if (definition && !['passive', 'innate'].includes(definition.kind)) add('ENTITY_KIND_NOT_ACCEPTED', 'invalid', `${slot.label} does not accept ${definition.kind} definitions`, slot.id)
     const cost = definition ? passivePointCost(definition) : undefined
     if (cost?.state === 'known') knownSubtotal += cost.value
     else if (cost?.state === 'notApplicable') add('PASSIVE_NOT_EQUIPPABLE', 'invalid', `${definition?.name ?? 'This innate'} is not available as an equippable passive`, slot.id)
     else unresolvedCosts += 1
   }
 
+  // Mechanics owns unavailable passive/equipment findings so each position warns once
+  // Missing passive definitions still contribute unresolved costs to the PP accounting above
   issues.push(...analyzeBuildEquipment(content, slots, resolve, identity))
   const limit = effectivePpLimit(gameSetup)
   let ppStatus: BuildValidityStatus = 'valid'

@@ -37,8 +37,8 @@ function envelope(json: string, claimedLength = new TextEncoder().encode(json).l
 }
 
 describe('sharing snapshots', () => {
-  it('continues to decode version 1 links with their original pinned behavior', () => {
-    const payload = { ...createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') }), version: 1 as const }
+  it.each([1, 2, 3] as const)('continues to decode version %s links with their original pinned behavior', version => {
+    const payload = { ...createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') }), version }
     expect(decodeSharePayload(encodeSharePayload(payload))).toEqual(payload)
   })
 
@@ -50,14 +50,15 @@ describe('sharing snapshots', () => {
     expect(decoded.records.buildRevisions).toEqual(current.records.buildRevisions)
   })
 
-  it('writes only the current Build shape and rejects classifications in version 3', () => {
+  it('writes only the current Build shape and rejects obsolete classifications', () => {
     const payload = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
-    expect(payload.version).toBe(3)
+    expect(payload.version).toBe(4)
     expect(payload.records.builds.build).toHaveProperty('archived', false)
     expect(payload.records.builds.build).not.toHaveProperty('kind')
     expect(payload.records.builds.build).not.toHaveProperty('state')
     const builds = { ...payload.records.builds, build: { ...payload.records.builds.build, kind: 'template', state: 'hypothetical' } }
     expect(() => validateSharePayload({ ...payload, records: { ...payload.records, builds } })).toThrow('malformed format')
+    expect(() => validateSharePayload({ ...payload, version: 3, records: { ...payload.records, builds } })).toThrow('malformed format')
   })
 
   it('round trips only a pinned checkpoint and its transitive dependencies', () => {
@@ -333,7 +334,7 @@ describe('sharing snapshots', () => {
 
   it('rejects malformed, truncated, dangerous and unsupported payloads', () => {
     const payload = createSharePayload(fixture(), { kind: 'build', revisionId: asId<BuildRevisionId>('build-revision') })
-    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 4 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
+    for (const encoded of ['', 'invalid!', 'AAA', encodeSharePayload(payload).slice(0, -12), envelope('{"__proto__":{}}'), envelope(JSON.stringify({ ...payload, version: 5 })), envelope(JSON.stringify({ ...payload, unexpected: true }))]) expect(() => decodeSharePayload(encoded)).toThrow()
     expect(() => validateSharePayload({ ...payload, records: { ...payload.records, personalDefinitions: {} } })).toThrow('missing')
     expect(() => validateSharePayload({ ...payload, kind: 'team', slots: [null], teamGameSetupRevisionId: TEST_GAME_SETUP_REVISION_ID })).toThrow()
   })

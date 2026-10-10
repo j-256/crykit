@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CERTAINTY_CATALOG_REVISION_ID } from '../catalog/certainty-catalog'
+import { VANILLA_CATALOG_REVISION_ID } from '../catalog/vanilla-catalog'
 import { STARTER_CATALOG_ID } from '../catalog/starter'
 import {
   advanceClassSealProgress,
@@ -22,7 +22,7 @@ const NOW = '2026-09-29T12:00:00.000Z'
 const SUBJECT = {
   kind: 'catalog' as const,
   catalogId: STARTER_CATALOG_ID,
-  catalogRevisionId: CERTAINTY_CATALOG_REVISION_ID,
+  catalogRevisionId: VANILLA_CATALOG_REVISION_ID,
   entityId: asId<EntityId>('base:job:0'),
 }
 const SECOND_SUBJECT = {

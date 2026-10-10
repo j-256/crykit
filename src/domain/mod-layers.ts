@@ -1,3 +1,4 @@
+import { withdrawnCatalog } from './withdrawn-catalogs'
 import { DomainError } from './core'
 import { classFields, jsonRecord, LEARN_NODE_TYPES } from './crystal-edit'
 import { catalogEntity } from './entity-identities'
@@ -52,13 +53,17 @@ export function modReplacementKindMatches(target: CatalogEntity, incoming: Catal
   return target.kind === incoming.kind || ['innate', 'passive'].includes(target.kind) && ['innate', 'passive'].includes(incoming.kind)
 }
 
+export function nativeModModelKey(entity: CatalogEntity | undefined): string | undefined {
+  const identity = entity && nativeIdentity(entity)
+  const family = identity?.mode === 'base' ? NATIVE_MOD_FAMILIES[identity.database] : undefined
+  return family ? `crystal-edit:${family}:${identity!.databaseId}` : undefined
+}
+
 export function nativeModReplacementLinks(baseline: CatalogSnapshot, incoming: CatalogSnapshot): ModComposition['links'] {
   const targets = new Map<string, CatalogEntity[]>()
   for (const entity of Object.values(baseline.entities)) {
-    const native = nativeIdentity(entity)
-    const family = native && native.mode === 'base' ? NATIVE_MOD_FAMILIES[native.database] : undefined
-    if (!native || !family) continue
-    const key = `crystal-edit:${family}:${native.databaseId}`
+    const key = nativeModModelKey(entity)
+    if (!key) continue
     targets.set(key, [...targets.get(key) ?? [], entity])
   }
   return [...modModelRecords(incoming)].flatMap(([modelKey, entity]) => {
@@ -111,6 +116,15 @@ export function assertModComposition(composition: ModComposition): void {
     if (!match || Number(match[2]) > MAX_NATIVE_ID || keys.has(modLinkKey(link))) throw new DomainError('INVALID_INPUT', 'Mod replacement links require unique native model identities')
     keys.add(modLinkKey(link))
   }
+}
+
+// A saved composition cannot be rebuilt from different revisions without changing its meaning
+// Historical gaps and explicitly declared source receipts stay unknown; unrelated missing imports still fail
+export function hasWithdrawnModDependencies(composition: ModComposition, catalogs: readonly CatalogSnapshot[], receipts: readonly import('./types').ModSourceReceipt[] = []): boolean {
+  assertModComposition(composition)
+  const missing = [composition.baseline, ...composition.layers].filter(pin => !modCatalogForPin(catalogs, pin))
+  if (missing.some(pin => !withdrawnCatalog(pin) && !receipts.some(receipt => receipt.catalogId === pin.catalogId && receipt.catalogRevisionId === pin.catalogRevisionId))) throw new DomainError('INVALID_INPUT', 'A mod composition references an unavailable catalog revision')
+  return missing.length > 0
 }
 
 export interface ModLayerChange {
@@ -197,9 +211,8 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
     changes.push({ ...winner, entity, targetEntityId, targetState, superseded: target ? [baseline.entities[target]!.name + ' (bundled)', ...winner.superseded] : winner.superseded })
   }
   const nativeReferences = new Map<string, EntityId>(Object.values(baseline.entities).flatMap(entity => {
-    const identity = nativeIdentity(entity)
-    const family = identity && identity.mode === 'base' ? NATIVE_MOD_FAMILIES[identity.database] : undefined
-    return family ? [[`crystal-edit:${family}:${identity!.databaseId}`, entity.id] as const] : []
+    const modelKey = nativeModModelKey(entity)
+    return modelKey ? [[modelKey, entity.id] as const] : []
   }))
   for (const [index, change] of changes.entries()) {
     const field = change.entity.fields['Crystal Edit source record']
@@ -247,6 +260,8 @@ export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonl
     const pin = metadata?.modBaseline
     if (!jsonRecord(pin) || typeof pin.catalogId !== 'string' || typeof pin.catalogRevisionId !== 'string') throw new DomainError('INVALID_INPUT', 'An effective mod catalog requires an exact baseline pin')
     const baseline = modCatalogForPin(catalogs, pin as unknown as ModCatalogPin)
+    // Keep private imported changes available when the exact withdrawn baseline cannot be supplied
+    if (!baseline && withdrawnCatalog(pin as unknown as ModCatalogPin)) return compactModCatalog(catalog)
     if (!baseline || baseline.schemaVersion === MOD_CATALOG_SCHEMA) throw new DomainError('INVALID_INPUT', 'An effective mod baseline is unavailable or cyclic')
     const compact = compactModCatalog(catalog)
     return { ...compact, entities: { ...baseline.entities, ...compact.entities }, claims: baseline.claims.filter(claim => !Object.hasOwn(compact.entities, claim.entityId)) }

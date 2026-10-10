@@ -2,6 +2,17 @@ import { expect, test } from '@playwright/test'
 import { referencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 
+test('Eclipse explains Blind as an on-hit effect in its page and result card', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto(referencePath('base:equipment:41'))
+  const effect = 'On hit, inflict: Blind for 1 turn (10% chance). Blind effect: Always miss physical attacks.'
+  await expect(page.locator('.reference-detail .reference-description > p')).toContainText(effect)
+  await page.getByRole('button', { name: 'Back to results', exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Eclipse')
+  const result = page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Eclipse', exact: true }) })
+  await expect(result).toContainText(effect)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
 test('native effects lead the page while original claims remain available', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(referencePath('base:item:132'))
   await expect(page.locator('.reference-detail .reference-description')).toContainText(/missing HP/i)

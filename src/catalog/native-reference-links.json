@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "catalog": {
     "id": "crystal-project-public-starter",
-    "revisionId": "catalog-v1",
-    "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa"
+    "revisionId": "catalog-v3",
+    "checksum": "builtin:sha256:a427c8fb1f781ac32fcae7a8b869eecaf8f97049b6d018f316287dd2cae094b8"
   },
   "native": {
     "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
@@ -855,896 +855,6 @@
           ]
         },
         "relatedRecords": []
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-1060",
-      "targetId": "base:passive:25",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Immortal",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Valkyrie"
-        },
-        "nativeFields": {
-          "ID": 25,
-          "Name": "Immortal",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 7
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:15",
-            "nativeFields": {
-              "ID": 15,
-              "Name": "Valkyrie",
-              "PassiveIDs": [
-                25,
-                15,
-                28,
-                34
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-1061",
-      "targetId": "base:passive:74",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Chaincaster",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Warlock"
-        },
-        "nativeFields": {
-          "ID": 74,
-          "Name": "Chaincaster",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 8
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:14",
-            "nativeFields": {
-              "ID": 14,
-              "Name": "Warlock",
-              "PassiveIDs": [
-                74,
-                32,
-                37
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-1062",
-      "targetId": "base:passive:72",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Fighter",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Warrior"
-        },
-        "nativeFields": {
-          "ID": 72,
-          "Name": "Fighter",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 4
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:0",
-            "nativeFields": {
-              "ID": 0,
-              "Name": "Warrior",
-              "PassiveIDs": [
-                72,
-                4,
-                5,
-                6,
-                7
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-1063",
-      "targetId": "base:passive:75",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Chrono Loop",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Weaver"
-        },
-        "nativeFields": {
-          "ID": 75,
-          "Name": "Chrono Loop",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 9
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:16",
-            "nativeFields": {
-              "ID": 16,
-              "Name": "Weaver",
-              "PassiveIDs": [
-                75,
-                3,
-                47,
-                46,
-                48
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-1064",
-      "targetId": "base:passive:12",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Element Specialist",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Wizard"
-        },
-        "nativeFields": {
-          "ID": 12,
-          "Name": "Element Specialist",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:3",
-            "nativeFields": {
-              "ID": 3,
-              "Name": "Wizard",
-              "PassiveIDs": [
-                12,
-                71,
-                13
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-21",
-      "targetId": "base:passive:26",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "White Knight",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Aegis"
-        },
-        "nativeFields": {
-          "ID": 26,
-          "Name": "White Knight",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 7
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:10",
-            "nativeFields": {
-              "ID": 10,
-              "Name": "Aegis",
-              "PassiveIDs": [
-                26,
-                78,
-                69,
-                36,
-                29
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-22",
-      "targetId": "base:passive:59",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Assassination",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Assassin"
-        },
-        "nativeFields": {
-          "ID": 59,
-          "Name": "Assassination",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 7
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:19",
-            "nativeFields": {
-              "ID": 19,
-              "Name": "Assassin",
-              "PassiveIDs": [
-                59,
-                61,
-                62
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-23",
-      "targetId": "base:passive:84",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Morphology",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Beastmaster"
-        },
-        "nativeFields": {
-          "ID": 84,
-          "Name": "Morphology",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 0
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:23",
-            "nativeFields": {
-              "ID": 23,
-              "Name": "Beastmaster",
-              "PassiveIDs": [
-                85,
-                84,
-                21,
-                67
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-24",
-      "targetId": "base:passive:85",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Savage",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Beastmaster"
-        },
-        "nativeFields": {
-          "ID": 85,
-          "Name": "Savage",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:23",
-            "nativeFields": {
-              "ID": 23,
-              "Name": "Beastmaster",
-              "PassiveIDs": [
-                85,
-                84,
-                21,
-                67
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-25",
-      "targetId": "base:passive:53",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Rhythm",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Beatsmith"
-        },
-        "nativeFields": {
-          "ID": 53,
-          "Name": "Rhythm",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 8
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:9",
-            "nativeFields": {
-              "ID": 9,
-              "Name": "Beatsmith",
-              "PassiveIDs": [
-                53,
-                52,
-                81
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-26",
-      "targetId": "base:passive:66",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Efficience",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Chemist"
-        },
-        "nativeFields": {
-          "ID": 66,
-          "Name": "Efficience",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 9
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:17",
-            "nativeFields": {
-              "ID": 17,
-              "Name": "Chemist",
-              "PassiveIDs": [
-                66,
-                14,
-                86
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-27",
-      "targetId": "base:passive:76",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Pinch Healer",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Cleric"
-        },
-        "nativeFields": {
-          "ID": 76,
-          "Name": "Pinch Healer",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 4
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:4",
-            "nativeFields": {
-              "ID": 4,
-              "Name": "Cleric",
-              "PassiveIDs": [
-                76,
-                77,
-                16
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-52",
-      "targetId": "base:passive:80",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Aura",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Dervish"
-        },
-        "nativeFields": {
-          "ID": 80,
-          "Name": "Aura",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:11",
-            "nativeFields": {
-              "ID": 11,
-              "Name": "Dervish",
-              "PassiveIDs": [
-                80,
-                33,
-                70
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-53",
-      "targetId": "base:passive:20",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Eagle Talon",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Fencer"
-        },
-        "nativeFields": {
-          "ID": 20,
-          "Name": "Eagle Talon",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 7
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:1",
-            "nativeFields": {
-              "ID": 1,
-              "Name": "Fencer",
-              "PassiveIDs": [
-                20,
-                49,
-                22
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-54",
-      "targetId": "base:passive:42",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Camouflage",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Hunter"
-        },
-        "nativeFields": {
-          "ID": 42,
-          "Name": "Camouflage",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:7",
-            "nativeFields": {
-              "ID": 7,
-              "Name": "Hunter",
-              "PassiveIDs": [
-                42,
-                82,
-                44,
-                45
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-639",
-      "targetId": "base:passive:10",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Shapeshift",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Mimic"
-        },
-        "nativeFields": {
-          "ID": 10,
-          "Name": "Shapeshift",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 10
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:22",
-            "nativeFields": {
-              "ID": 22,
-              "Name": "Mimic",
-              "PassiveIDs": [
-                10,
-                68
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-640",
-      "targetId": "base:passive:87",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Aversive",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Monk"
-        },
-        "nativeFields": {
-          "ID": 87,
-          "Name": "Aversive",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:5",
-            "nativeFields": {
-              "ID": 5,
-              "Name": "Monk",
-              "PassiveIDs": [
-                87,
-                2,
-                8,
-                0
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-907",
-      "targetId": "base:passive:50",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Dual Wield",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Ninja"
-        },
-        "nativeFields": {
-          "ID": 50,
-          "Name": "Dual Wield",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 10
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:18",
-            "nativeFields": {
-              "ID": 18,
-              "Name": "Ninja",
-              "PassiveIDs": [
-                50,
-                51,
-                19
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-908",
-      "targetId": "base:passive:23",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "AP Focus",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Nomad"
-        },
-        "nativeFields": {
-          "ID": 23,
-          "Name": "AP Focus",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:12",
-            "nativeFields": {
-              "ID": 12,
-              "Name": "Nomad",
-              "PassiveIDs": [
-                23,
-                27,
-                83
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-932",
-      "targetId": "base:passive:30",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Reaping",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Reaper"
-        },
-        "nativeFields": {
-          "ID": 30,
-          "Name": "Reaping",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 10
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:6",
-            "nativeFields": {
-              "ID": 6,
-              "Name": "Reaper",
-              "PassiveIDs": [
-                30,
-                31,
-                56,
-                1
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-935",
-      "targetId": "base:passive:17",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Pinpoint",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Rogue"
-        },
-        "nativeFields": {
-          "ID": 17,
-          "Name": "Pinpoint",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 6
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:2",
-            "nativeFields": {
-              "ID": 2,
-              "Name": "Rogue",
-              "PassiveIDs": [
-                17,
-                9,
-                54,
-                11
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-936",
-      "targetId": "base:passive:18",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Endless Fury",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Samurai"
-        },
-        "nativeFields": {
-          "ID": 18,
-          "Name": "Endless Fury",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 7
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:20",
-            "nativeFields": {
-              "ID": 20,
-              "Name": "Samurai",
-              "PassiveIDs": [
-                18,
-                43,
-                60,
-                57,
-                40
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-937",
-      "targetId": "base:passive:43",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Two-handed",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Samurai"
-        },
-        "nativeFields": {
-          "ID": 43,
-          "Name": "Two-Handed",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 6
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:20",
-            "nativeFields": {
-              "ID": 20,
-              "Name": "Samurai",
-              "PassiveIDs": [
-                18,
-                43,
-                60,
-                57,
-                40
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-938",
-      "targetId": "base:passive:79",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Studious",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Scholar"
-        },
-        "nativeFields": {
-          "ID": 79,
-          "Name": "Studious",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 5
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:13",
-            "nativeFields": {
-              "ID": 13,
-              "Name": "Scholar",
-              "PassiveIDs": [
-                79,
-                58,
-                39
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "sourceId": "base:innate:ref-940",
-      "targetId": "base:passive:41",
-      "relation": "same-definition",
-      "review": "class-membership",
-      "basis": "The native class includes this exact passive ID; its name and PP cost agree",
-      "evidence": {
-        "sourceName": "Spell Steal",
-        "sourceKind": "innate",
-        "sourceFields": {
-          "Class": "Shaman"
-        },
-        "nativeFields": {
-          "ID": 41,
-          "Name": "Spell Steal",
-          "IsInnate": true,
-          "IsLearnable": false,
-          "PP": 4
-        },
-        "relatedRecords": [
-          {
-            "entityId": "base:job:8",
-            "nativeFields": {
-              "ID": 8,
-              "Name": "Shaman",
-              "PassiveIDs": [
-                41,
-                35
-              ]
-            }
-          }
-        ]
       }
     },
     {
@@ -45596,116 +44706,104 @@
       "disposition": "mod-source-review"
     },
     {
-      "entityId": "mod:tempest:class:ref-1099",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:forcemage:class:ref-1085",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:class:ref-1078",
-      "disposition": "mod-source-review"
-    },
-    {
       "entityId": "base:innate:ref-1062",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-640",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-935",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-27",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-1064",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-1061",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-53",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-940",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-938",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-21",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-54",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-26",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-932",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-907",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-908",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-52",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-25",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-936",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-937",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-22",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-1060",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-24",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-23",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-1063",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:innate:ref-639",
-      "disposition": "native-linked"
+      "disposition": "native-identity-review"
     },
     {
       "entityId": "base:passive:ref-641",
@@ -48548,110 +47646,6 @@
       "disposition": "native-identity-review"
     },
     {
-      "entityId": "mod:barbarian:ability:ref-1076",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1077",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1070",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:passive:ref-1082",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1069",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1075",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:passive:ref-1081",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1074",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1071",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:passive:ref-1080",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1073",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:ability:ref-1072",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:barbarian:innate:ref-1079",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1091",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:passive:ref-1102",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1097",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1089",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1098",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1090",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1092",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1096",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1094",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1095",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:ability:ref-1093",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:passive:ref-1101",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:tempest:innate:ref-1100",
-      "disposition": "mod-source-review"
-    },
-    {
       "entityId": "base:other:ref-913",
       "disposition": "article-review"
     },
@@ -48665,10 +47659,6 @@
     },
     {
       "entityId": "mod:passive-trainer:other:ref-1087",
-      "disposition": "mod-source-review"
-    },
-    {
-      "entityId": "mod:doge-shield:item:ref-1084",
       "disposition": "mod-source-review"
     },
     {

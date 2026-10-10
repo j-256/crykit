@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { BUNDLED_CATALOG, CURRENT_CATALOG, PREVIOUS_CATALOG } from './bundled'
+import { CURRENT_CATALOG, PREVIOUS_CATALOG } from './bundled'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 import { nativeDescription } from './native-description'
@@ -13,7 +13,7 @@ import { sha256 } from '../interchange/util'
 import { vanillaCatalog } from './vanilla-catalog'
 
 it('pins an independently assembled native base without source-backed mods or dated innate overrides', async () => {
-  expect(CURRENT_CATALOG.revisionId).not.toBe(BUNDLED_CATALOG.revisionId)
+  expect(CURRENT_CATALOG.revisionId).not.toBe(PREVIOUS_CATALOG.revisionId)
   expect(CURRENT_CATALOG).toEqual(vanillaCatalog(CURRENT_CATALOG.checksum))
   const { checksum: _checksum, ...content } = CURRENT_CATALOG
   expect(CURRENT_CATALOG.checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
@@ -26,7 +26,6 @@ it('pins an independently assembled native base without source-backed mods or da
   expect(PREVIOUS_CATALOG.entities['mod:barbarian:class:ref-1078']).toBeDefined()
   expect(PREVIOUS_CATALOG.entities['mod:doge-shield:item:ref-1084']).toBeDefined()
   expect(CURRENT_CATALOG.entities['mod:equipment-expansion:equipment:592']).toBeUndefined()
-  expect(BUNDLED_CATALOG.entities['mod:equipment-expansion:equipment:592']).toBeDefined()
 })
 
 it('retains fingerprint-backed presentation for the new base and rejects altered snapshots', () => {

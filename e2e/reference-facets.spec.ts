@@ -1,4 +1,5 @@
-import { addBundledModToReference, waitForPlannerReady } from './local-data-helpers'
+import { importSyntheticLibrary } from './mod-library-fixtures'
+import { waitForPlannerReady } from './local-data-helpers'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -10,7 +11,7 @@ async function showFilters(page: Page, isMobile: boolean) {
 }
 
 test('equipment categories combine base and mod records using stable keys', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
-  await addBundledModToReference(page, 'Equipment Expansion')
+  await importSyntheticLibrary(page, false)
   await page.goto('/#/reference?v=1&kind=item')
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
   await showFilters(page, isMobile)
@@ -27,7 +28,7 @@ test('equipment categories combine base and mod records using stable keys', { ta
   await expect(active.getByRole('button', { name: 'Remove Axes filter', exact: true })).toBeVisible()
   const card = (name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
   await expect(card('Hand Axe')).toBeVisible()
-  await expect(card('Backbreaker')).toBeVisible()
+  await expect(card('Synthetic Axe')).toBeVisible()
   await expect(card('Short Sword')).toHaveCount(0)
   expect(new URLSearchParams(new URL(page.url()).hash.split('?')[1]).get('category')).toBe(EQUIPMENT_CATEGORIES.Axe.key)
   await page.reload()
@@ -37,10 +38,10 @@ test('equipment categories combine base and mod records using stable keys', { ta
   const mods = page.getByRole('group', { name: 'Reference mods filters', exact: true })
   await mods.getByRole('button', { name: /^Base game \(\d+\)$/ }).click()
   await expect(card('Hand Axe')).toBeVisible()
-  await expect(card('Backbreaker')).toHaveCount(0)
+  await expect(card('Synthetic Axe')).toHaveCount(0)
   await active.getByRole('button', { name: 'Remove Source mod: Base game filter', exact: true }).click()
-  await mods.getByRole('button', { name: /^Equipment Expansion \(\d+\)$/ }).click()
-  await expect(card('Backbreaker')).toBeVisible()
+  await mods.getByRole('button', { name: /^Synthetic Equipment \(\d+\)$/ }).click()
+  await expect(card('Synthetic Axe')).toBeVisible()
   await expect(card('Hand Axe')).toHaveCount(0)
 })
 
@@ -169,16 +170,16 @@ test('active filters remain removable when their values are absent from the libr
 })
 
 test('source mod facets include established catalog associations and agree with result badges', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
-  await addBundledModToReference(page, 'Equipment Expansion')
+  await importSyntheticLibrary(page, false)
   await page.goto('/#/reference?v=1&kind=item')
   await showFilters(page, isMobile)
   await page.getByRole('button', { name: 'Source mod', exact: true }).click()
-  await page.getByRole('searchbox', { name: 'Search reference mods', exact: true }).fill('Equipment Expansion')
-  await page.getByRole('group', { name: 'Reference mods filters', exact: true }).getByRole('button', { name: /^Equipment Expansion \(\d+\)$/ }).click()
-  const result = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Backbreaker', exact: true }) })
+  await page.getByRole('searchbox', { name: 'Search reference mods', exact: true }).fill('Synthetic Equipment')
+  await page.getByRole('group', { name: 'Reference mods filters', exact: true }).getByRole('button', { name: /^Synthetic Equipment \(\d+\)$/ }).click()
+  const result = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic Axe', exact: true }) })
   await expect(result).toBeVisible()
-  await expect(result.getByText('Mod: Equipment Expansion', { exact: true })).toBeVisible()
+  await expect(result.getByText('Mod: Synthetic Equipment', { exact: true })).toBeVisible()
   await expect(result).toContainText('Enabled status not recorded')
   await expect(result).not.toContainText('Possible match')
-  await expect(page).toHaveURL(/mod=Equipment\+Expansion/)
+  await expect(page).toHaveURL(/mod=Synthetic\+Equipment/)
 })

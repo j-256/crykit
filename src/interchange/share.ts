@@ -7,11 +7,15 @@ import { effectiveScenarioAssignments, TEAM_SIZE } from '../domain/scenarios'
 import { modCatalogRevision } from '../domain/mod-layers'
 import { sameValue } from '../domain/definition-values'
 import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
-import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
-import { NativeLocalDataSchema, StoredBuildSchema } from './native-schema'
+import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, CatalogSnapshot, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
+import { NativeLocalDataSchema, PreviousLocalDataSchema, StoredBuildSchema } from './native-schema'
 import { parseBoundedJson } from './json'
+import { assertModSourceReceipts, modSourceReceipts, withBuildReferenceNames } from '../domain/build-reference-names'
+import { buildModReferences } from '../domain/build-references'
+import { entityDefinitionKey } from '../domain/core'
+import { modSourceInterpretationMatches } from '../domain/mod-source-match'
 
-const SHARE_FORMAT_VERSION = 3
+const SHARE_FORMAT_VERSION = 4
 export const SHARE_VERSION = `v${SHARE_FORMAT_VERSION}`
 export const SHARE_ROUTE_PREFIX = `#/share/${SHARE_VERSION}/`
 export const MAX_SHARE_URL_LENGTH = 64 * 1024
@@ -30,11 +34,12 @@ const CurrentShareSchema = z.object({
 }).strict()
 const ShareSchema = z.union([
   CurrentShareSchema,
-  CurrentShareSchema.extend({ version: z.union([z.literal(1), z.literal(2)]), records: SHARE_RECORDS_SCHEMA.extend({ builds: z.record(NativeLocalDataSchema.shape.builds.keyType, StoredBuildSchema) }) }),
+  CurrentShareSchema.extend({ version: z.literal(3), records: PreviousLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true }) }),
+  CurrentShareSchema.extend({ version: z.union([z.literal(1), z.literal(2)]), records: PreviousLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true }).extend({ builds: z.record(NativeLocalDataSchema.shape.builds.keyType, StoredBuildSchema) }) }),
 ])
 
 export interface SharePayload {
-  readonly version: 1 | 2 | 3
+  readonly version: 1 | 2 | 3 | 4
   readonly kind: 'build' | 'team'
   readonly title: string
   readonly records: Pick<LocalData, 'personalDefinitions' | 'gameSetups' | 'builds' | 'buildRevisions'>
@@ -60,7 +65,7 @@ function definitionReferences(definition: PersonalDefinition) {
   return { baseRef: definition.baseRef, previousRevision: definition.previousRevision, requirements: definition.requirements }
 }
 
-export function createSharePayload(localData: LocalData, target: ShareTarget, includeNotes = false): SharePayload {
+export function createSharePayload(localData: LocalData, target: ShareTarget, includeNotes = false, catalogs: readonly CatalogSnapshot[] = []): SharePayload {
   const definitions: Record<string, PersonalDefinition> = {}
   const setups: Record<string, GameSetupRevision> = {}
   const builds: Record<string, Build> = {}
@@ -76,7 +81,8 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
     if (own(setups, id)) return
     const setup = own(localData.gameSetups, id)
     if (!setup) throw new Error('The pinned Game Setup is missing.')
-    setups[id] = setup
+    const receipts = modSourceReceipts(setup, catalogs)
+    setups[id] = { ...setup, ...(receipts ? { modSourceReceipts: receipts } : {}) }
     visitRefs(setup.definitionOverrides, addRef)
     for (const revision of Object.values(setup.catalogLock)) {
       const origin = Object.values(localData.gameSetups).find(candidate => modCatalogRevision(candidate.id) === revision)
@@ -90,7 +96,7 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
     if (!revision || !build) throw new Error('A pinned build checkpoint is missing.')
     addSetup(revision.gameSetupRevisionId)
     // Snapshot notes are opt-in; copying the checkpoint wholesale would bypass the sharing choice
-    const { rotationNotes, contextAssumptions, ...content } = revision.content
+    const { rotationNotes, contextAssumptions, ...content } = withBuildReferenceNames(revision.content, catalogs)
     revisions[id] = {
       id, buildId: build.id, revision: revision.revision, gameSetupRevisionId: revision.gameSetupRevisionId,
       catalogLock: revision.catalogLock, createdAt: revision.createdAt,
@@ -130,6 +136,7 @@ export function validateSharePayload(value: unknown): SharePayload {
   if (!result.success) throw new Error('This shared snapshot has an unsupported or malformed format.', { cause: result.error })
   const payload = result.data as unknown as SharePayload
   const { builds, buildRevisions, gameSetups, personalDefinitions } = payload.records
+  for (const setup of Object.values(gameSetups)) assertModSourceReceipts(setup)
   for (const records of [builds, buildRevisions, gameSetups, personalDefinitions]) {
     for (const [id, record] of Object.entries(records)) if (id !== record.id) throw new Error('A shared record has an inconsistent identity.')
   }
@@ -143,6 +150,13 @@ export function validateSharePayload(value: unknown): SharePayload {
     if (!build || !setup || payload.version === 1 && setup.gameSetupId !== build.gameSetupId || revision.parentRevisionId) throw new Error('A shared checkpoint has an invalid dependency.')
     const slots = new Set(setup.slots.map(slot => slot.id as string))
     if (Object.keys(revision.content.equipment).some(id => !slots.has(id))) throw new Error('A shared build references an unavailable equipment slot.')
+    const selected = new Set(buildModReferences(revision.content).map(entityDefinitionKey))
+    const names = new Set<string>()
+    for (const entry of revision.content.referenceNames ?? []) {
+      const key = entityDefinitionKey(entry.ref)
+      if (!selected.has(key) || names.has(key)) throw new Error('A shared display receipt must identify one selected entry.')
+      names.add(key)
+    }
   }
   const checkPersonalRef = (ref: EntityRef) => {
     if (ref.kind === 'personal' && !own(personalDefinitions, ref.definitionId)) throw new Error('A shared personal definition is missing.')
@@ -209,6 +223,36 @@ function mapRefs<T>(value: T, personalIds: ReadonlyMap<string, PersonalDefinitio
   if (entry.kind === 'personal' && typeof entry.definitionId === 'string') return { ...entry, definitionId: personalIds.get(entry.definitionId) ?? entry.definitionId } as T
   if (entry.kind === 'catalog' && typeof entry.catalogRevisionId === 'string') return { ...entry, catalogRevisionId: catalogRevisions.get(entry.catalogRevisionId) ?? entry.catalogRevisionId } as T
   return Object.fromEntries(Object.entries(entry).map(([key, child]) => [key, mapRefs(child, personalIds, catalogRevisions)])) as T
+}
+
+// A content match produces a separate preview/copy with the local source pins
+// No alias claims that a different file has the saved checksum, and the original URL stays unchanged
+export function shareWithMatchingSources(payload: SharePayload, catalogs: readonly CatalogSnapshot[]): SharePayload | undefined {
+  const revisions = new Map<string, string>()
+  const sources = new Map<string, CatalogSnapshot>()
+  for (const setup of Object.values(payload.records.gameSetups)) {
+    const composition = setup.modComposition
+    if (!composition) continue
+    if (!catalogs.some(catalog => catalog.id === composition.baseline.catalogId && catalog.revisionId === composition.baseline.catalogRevisionId)) return undefined
+    for (const pin of composition.layers) {
+      const exact = catalogs.find(catalog => catalog.id === pin.catalogId && catalog.revisionId === pin.catalogRevisionId)
+      const receipt = setup.modSourceReceipts?.find(value => value.catalogId === pin.catalogId && value.catalogRevisionId === pin.catalogRevisionId)
+      const source = exact ?? (receipt && catalogs.find(catalog => modSourceInterpretationMatches(receipt, catalog)))
+      if (!source) return undefined
+      sources.set(pin.catalogRevisionId, source)
+      if (source.revisionId !== pin.catalogRevisionId) revisions.set(pin.catalogRevisionId, source.revisionId)
+    }
+  }
+  if (!revisions.size) return undefined
+  const mapLock = (lock: GameSetupRevision['catalogLock']) => Object.fromEntries(Object.entries(lock).map(([id, revision]) => [id, revisions.get(revision) ?? revision])) as GameSetupRevision['catalogLock']
+  const records = payload.records
+  const gameSetups = Object.fromEntries(Object.entries(records.gameSetups).map(([id, setup]) => {
+    const mapped = { ...mapRefs(setup, new Map(), revisions), catalogLock: mapLock(setup.catalogLock), ...(setup.modComposition ? { modComposition: { ...setup.modComposition, layers: setup.modComposition.layers.map(pin => ({ ...pin, catalogRevisionId: sources.get(pin.catalogRevisionId)?.revisionId ?? pin.catalogRevisionId })) } } : {}) }
+    return [id, { ...mapped, ...(setup.modSourceReceipts ? { modSourceReceipts: modSourceReceipts(mapped, catalogs) } : {}) }]
+  }))
+  const personalDefinitions = Object.fromEntries(Object.entries(records.personalDefinitions).map(([id, definition]) => [id, { ...definition, ...mapRefs(definitionReferences(definition), new Map(), revisions) }]))
+  const buildRevisions = Object.fromEntries(Object.entries(records.buildRevisions).map(([id, revision]) => [id, { ...revision, catalogLock: mapLock(revision.catalogLock), content: mapRefs(revision.content, new Map(), revisions) }]))
+  return validateSharePayload({ ...payload, version: SHARE_FORMAT_VERSION, records: { ...records, gameSetups, personalDefinitions, buildRevisions } })
 }
 
 function sharedCopyDependencies(localData: LocalData, payload: SharePayload) {

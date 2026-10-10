@@ -1,3 +1,4 @@
+import { referenceObservationFixture } from './mod.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { asId, requirePlaythrough } from '../domain/core'
 import { createCharacter } from '../domain/characters'
@@ -9,7 +10,7 @@ import { definitionModAvailability } from './mods'
 import { starterEntitySourceLabel } from './provenance'
 import { CONFIRMED_SKILL_MAPS } from './skill-maps'
 import { STARTER_CATALOG } from './starter'
-import { DEFAULT_CATALOG, compileBundledSourceId } from './bundled'
+import { BUNDLED_SOURCE_ENTITY_IDS, compileBundledSourceId } from './bundled'
 import {
   isPotentiallyLearnableInnate,
   LEARNABLE_INNATE_FIELD,
@@ -19,8 +20,10 @@ import {
   SWITCH_PASSIVE_PP_SOURCE,
 } from './switch'
 
+const observations = referenceObservationFixture(STARTER_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
+
 function ref(id: string): CatalogRef {
-  return { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: compileBundledSourceId(id) }
+  return { kind: 'catalog', catalogId: observations.id, catalogRevisionId: observations.revisionId, entityId: compileBundledSourceId(id) }
 }
 
 describe('confirmed Switch skill identities', () => {
@@ -72,7 +75,7 @@ describe('confirmed Switch skill identities', () => {
     let localData = createCharacter(createTestLocalData(), { id: characterId, name: 'Rowan' })
     for (const className of ['barbarian', 'tempest']) {
       const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === compileBundledSourceId(`mod:${className}:class:${className}`))!
-      localData = importSkillTrees(localData, [DEFAULT_CATALOG], [{ characterId, classRef: map.classRef, sourceDigest: className === 'barbarian' ? 'a'.repeat(64) : 'b'.repeat(64), filename: `synthetic-${className}.png`, squares: map.squares.map(square => ({ ...square, state: 'learned' })), mappings: map.mappings, reviewed: true }], localData.revision)
+      localData = importSkillTrees(localData, [observations], [{ characterId, classRef: { ...map.classRef, catalogId: observations.id, catalogRevisionId: observations.revisionId }, sourceDigest: className === 'barbarian' ? 'a'.repeat(64) : 'b'.repeat(64), filename: `synthetic-${className}.png`, squares: map.squares.map(square => ({ ...square, state: 'learned' })), mappings: map.mappings.map(mapping => ({ ...mapping, ref: { ...mapping.ref, catalogId: observations.id, catalogRevisionId: observations.revisionId } })), reviewed: true }], localData.revision)
     }
     const learned = Object.values(requirePlaythrough(localData).characters[characterId].learnedNodes)
     expect(learned.some(node => node.kind === 'innate')).toBe(false)
@@ -90,12 +93,11 @@ describe('confirmed Switch skill identities', () => {
     const gameSetup = { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID], disabledMods: known(['Barbarian', 'Tempest', 'Moonlight Project']) }
     for (const record of SWITCH_CLASS_RECORDS.filter(record => record.requiredMod)) {
       for (const id of [record.id, ...record.skills.map(([id]) => id), ...(record.innate ? [record.innate.id] : [])]) {
-        expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : { requiredMod: 'Moonlight Project', state: 'disabled' })
+        expect(definitionModAvailability(localData, ref(id), gameSetup, [observations])).toEqual(record.requiredMod ? { requiredMod: record.requiredMod, state: 'disabled' } : { requiredMod: 'Moonlight Project', state: 'disabled' })
       }
     }
-    for (const id of ['mod:moonlight-project:class:25', 'mod:moonlight-project:class:26', 'mod:moonlight-project:ability:565', 'mod:moonlight-project:passive:97']) expect(definitionModAvailability(localData, ref(id), gameSetup)).toEqual({ requiredMod: 'Moonlight Project', state: 'disabled' })
-    expect(STARTER_CATALOG.entities['mod:moonlight-project:class:25'].fields['Source mod'].state).toBe('unknown')
-    expect(STARTER_CATALOG.entities['mod:moonlight-project:class:26'].fields['Source mod'].state).toBe('unknown')
+    // Missing exports do not acquire a source association from their historical display names
+    expect(definitionModAvailability(localData, ref('mod:moonlight-project:class:25'), gameSetup, [observations])).toEqual({ state: 'unknown' })
     expect(Object.values(STARTER_CATALOG.entities).some(entity => entity.kind === 'class' && entity.name === 'Shapeshifter')).toBe(false)
   })
 })

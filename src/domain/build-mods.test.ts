@@ -1,6 +1,9 @@
-import { expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from '../catalog/mod-library'
+import { expect, it, vi } from 'vitest'
+import { DEFAULT_CATALOG as NATIVE_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_MOD_SNAPSHOT } from '../catalog/mod.test-helpers'
+import { buildBundledModEntities } from './bundled-mods'
+import { NATIVE_GAME_DATA } from '../catalog/native-game'
+import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { buildBehavior } from './build-behavior'
 import { buildContentForModSetup, buildModRequirements, selectBuildModRevision } from './build-mods'
@@ -13,37 +16,42 @@ import { calculatePCStats } from './pc-stats'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { resolveCalculationEntity } from '../ui/model'
 
-const freelancer: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.kind === 'class' && entity.name === 'Freelancer')!.id }
+vi.mock('../catalog/mod-library-metadata', async () => {
+  const { SYNTHETIC_BUNDLED_MOD } = await import('../catalog/mod.test-helpers')
+  return { BUNDLED_MOD_LIBRARY: [SYNTHETIC_BUNDLED_MOD], STARTER_MOD_PROJECT_IDS: [] }
+})
+const DEFAULT_CATALOG = { ...NATIVE_CATALOG, entities: { ...NATIVE_CATALOG.entities, ...buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums) } }
+const freelancer: CatalogRef = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: Object.values(DEFAULT_CATALOG.entities).find(entity => entity.kind === 'class' && entity.name === 'Synthetic Class')!.id }
 const content: BuildRevisionContent = { primaryClass: freelancer, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: defaultCalculation(freelancer) }
 
 it('finds the source project for selections and growth without duplicate requirements', () => {
   const data = createTestLocalData()
   const setup = data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
   const requirements = buildModRequirements({ ...content, secondaryClass: freelancer }, data, [DEFAULT_CATALOG], setup)
-  expect(requirements).toEqual([{ name: 'Moonlight Project', projectId: BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'moonlight-project')!.id, state: 'unknown', selections: ['Freelancer'] }])
+  expect(requirements).toEqual([{ name: 'Synthetic Library', projectId: BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'synthetic-library')!.id, state: 'unknown', selections: ['Synthetic Class'] }])
   expect(buildModRequirements({ ...content, primaryClass: null, calculation: content.calculation }, data, [DEFAULT_CATALOG], setup)).toEqual(requirements)
   expect(data.gameSetups[setup.id]).toEqual(setup)
 })
 
-it('enables the exact Moonlight source, reconciles named choices, and calculates Freelancer without changing older setups', async () => {
+it('enables an exact synthetic source, reconciles named choices, and calculates its class without changing older setups', async () => {
   const data = createTestLocalData()
   const original = data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
-  const source = await bundledModEditableSource(BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'moonlight-project')!)
+  const source = { filename: 'synthetic.json', text: JSON.stringify({ ID: SYNTHETIC_MOD_SNAPSHOT.source.projectId, Title: SYNTHETIC_MOD_SNAPSHOT.source.title, Version: '2.2', EditorVersion: 34, ...SYNTHETIC_MOD_SNAPSHOT.families }) }
   const imported = (await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)).proposed.catalogs[0]!
   const catalogs = [DEFAULT_CATALOG, imported]
-  const before = { ...buildBehavior(original), mods: { state: 'known' as const, value: ['Unrelated mod'] }, disabledMods: { state: 'known' as const, value: ['Moonlight Project'] } }
+  const before = { ...buildBehavior(original), mods: { state: 'known' as const, value: ['Unrelated mod'] }, disabledMods: { state: 'known' as const, value: ['Synthetic Library'] } }
   const chosen = selectBuildModRevision(before, imported, catalogs)
-  expect(chosen.mods).toEqual({ state: 'known', value: ['Unrelated mod', 'Moonlight Project'] })
+  expect(chosen.mods).toEqual({ state: 'known', value: ['Unrelated mod', 'Synthetic Library'] })
   expect(chosen.disabledMods).toEqual({ state: 'known', value: [] })
   expect(chosen.modComposition!.layers).toEqual([{ catalogId: imported.id, catalogRevisionId: imported.revisionId, enabled: true }])
-  const setup: GameSetupRevision = { ...original, ...chosen, platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: 'Standard' }, mods: { state: 'known', value: ['Moonlight Project'] }, catalogLock: { ...chosen.catalogLock, [DEFAULT_CATALOG.id]: modCatalogRevision(original.id) } }
+  const setup: GameSetupRevision = { ...original, ...chosen, platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: 'Standard' }, mods: { state: 'known', value: ['Synthetic Library'] }, catalogLock: { ...chosen.catalogLock, [DEFAULT_CATALOG.id]: modCatalogRevision(original.id) } }
   const effective = composeModCatalog(setup, catalogs)
   const result = calculatePCStats(buildContentForModSetup(content, setup, catalogs), SUGGESTED_BUILD_SLOTS, ref => resolveCalculationEntity(data, [...catalogs, effective!], ref, setup), [], false, resolveGameRules(setup, catalogs))
   expect(result.issues).toEqual([])
   expect(result.neutral.HP).toBeGreaterThan(0)
   expect(resolveGameRules(setup, catalogs).issues).toEqual([])
   expect(resolveGameRules({ ...setup, mods: { state: 'known', value: ['Unrelated mod'] } }, catalogs).issues.join(' ')).toContain('Unrelated mod')
-  expect(before.disabledMods.value).toEqual(['Moonlight Project'])
+  expect(before.disabledMods.value).toEqual(['Synthetic Library'])
   expect(data.gameSetups[original.id]).toEqual(original)
   const rebound = buildContentForModSetup(content, setup, catalogs)
   const allCatalogs = [...catalogs, effective!]
@@ -53,7 +61,7 @@ it('enables the exact Moonlight source, reconciles named choices, and calculates
   const reused = { ...setup, catalogLock: { ...setup.catalogLock, [DEFAULT_CATALOG.id]: 'mod-setup:another-checkpoint' as CatalogRef['catalogRevisionId'] } }
   expect(buildContentForModSetup(rebound, reused, catalogs, setup).primaryClass).toEqual({ ...rebound.primaryClass, catalogRevisionId: reused.catalogLock[DEFAULT_CATALOG.id] })
   const changedRoot = JSON.parse(source.text)
-  changedRoot.Jobs.find((record: { ID: number; Name: string }) => record.Name === 'Freelancer').HPRating += 1
+  changedRoot.Jobs.find((record: { ID: number; Name: string }) => record.Name === 'Synthetic Class').HPRating += 1
   const newer = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify(changedRoot)), 'synthetic-revision.json')).proposed.catalogs[0]!
   const newerSetup = { ...setup, ...selectBuildModRevision(buildBehavior(setup), newer, [...catalogs, newer]) }
   const newerCatalog = composeModCatalog(newerSetup, [...catalogs, newer])!

@@ -1,3 +1,4 @@
+import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
@@ -8,6 +9,7 @@ import type { LocalData } from '../src/domain/types'
 
 const MAX_MOBILE_EVIDENCE_GAP_PX = 30
 const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
+const INLINE_BADGE_MOD_NAME = 'Example'
 
 async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -33,6 +35,8 @@ async function addCharacter(page: Page, name: string) {
 }
 
 test('build choices expose native facts, mod scope, and duplicate passive filtering', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+  // This checks alignment on one line; long mod names can wrap below the class on mobile
+  await importSyntheticLibrary(page, true, SYNTHETIC_LIBRARY_ROOTS.map(root => root.ID === 'synthetic-moonlight' ? { ...root, Title: INLINE_BADGE_MOD_NAME } : root))
   await page.goto('/#/builds/library/new')
   await expect(page.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
   await expect(page.getByLabel('Difficulty', { exact: true })).toHaveValue('0')
@@ -43,18 +47,18 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
   await page.mouse.click(20, 20)
   await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).not.toBeVisible()
   await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
-  await classPicker.fill('Barbarian')
+  await classPicker.fill('Synthetic Class')
   await openBuildPickerFilters(page)
   await page.getByText('Broader planning options', { exact: true }).click()
   await expect(page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true })).toBeChecked()
-  const barbarianResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Barbarian$/ }) })
-  await expect(barbarianResult.locator('.picker-result__heading').getByText('Mod: Barbarian', { exact: true })).toBeVisible()
-  await expect(barbarianResult.locator('.picker-result__content > [data-mod-badge="Barbarian"]')).toHaveCount(0)
-  await expect.poll(() => barbarianResult.locator('.picker-result__heading').evaluate(heading => {
+  const syntheticClassResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) })
+  await expect(syntheticClassResult.locator('.picker-result__heading').getByText(`Mod: ${INLINE_BADGE_MOD_NAME}`, { exact: true })).toBeVisible()
+  await expect(syntheticClassResult.locator(`.picker-result__content > [data-mod-badge="${INLINE_BADGE_MOD_NAME}"]`)).toHaveCount(0)
+  await expect.poll(() => syntheticClassResult.locator('.picker-result__heading').evaluate((heading, modName) => {
     const name = heading.querySelector('strong')!.getBoundingClientRect()
-    const badge = heading.querySelector('[data-mod-badge="Barbarian"] > .badge')!.getBoundingClientRect()
+    const badge = heading.querySelector(`[data-mod-badge="${modName}"] > .badge`)!.getBoundingClientRect()
     return Math.abs((name.top + name.bottom - badge.top - badge.bottom) / 2)
-  })).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
+  }, INLINE_BADGE_MOD_NAME)).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
   await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).press('Escape')
   await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
   await expect(classPicker).toBeFocused()
@@ -88,8 +92,8 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
   await expect(hats).not.toContainText('Name only')
   await page.getByRole('combobox', { name: 'Head', exact: true }).press('Escape')
   const offHand = page.getByRole('combobox', { name: 'Off hand', exact: true })
-  await offHand.fill('Doge Shield')
-  await expect(page.getByRole('listbox').getByText('Mod: Doge Shield', { exact: true })).toBeVisible()
+  await offHand.fill('Synthetic Shield')
+  await expect(page.getByRole('listbox').getByText('Mod: Synthetic Shield', { exact: true })).toBeVisible()
   await expect(page.getByRole('listbox')).toContainText("Mod status unknown in this Build's Game Setup")
   await offHand.press('Escape')
   await choose(page, 'Accessory 1', 'Crit Fang')
@@ -115,6 +119,7 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
 })
 
 test('learnable mod innates retain source costs, badges and saved selections', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
+  await importSyntheticLibrary(page, false, [SYNTHETIC_INNATE_ROOT])
   await page.goto('/#/builds/library/new')
   await choose(page, 'Main hand', 'Muramasa')
   await choose(page, 'Accessory 1', 'Crit Fang')
@@ -132,14 +137,14 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' })).toHaveCount(0)
   await passive.fill('Squall')
   await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' })).toHaveCount(0)
-  await passive.fill('Two-Handed')
-  let innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Learnable Innate Skills' }).filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
+  await passive.fill('Synthetic Learnable Innate')
+  let innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Synthetic Innates' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Learnable Innate$/ }) })
   await expect(innateResult).toContainText('Innate')
   await expect(innateResult).toContainText('6 PP')
-  await expect(innateResult.locator('.picker-result__heading').getByText('Mod: Learnable Innate Skills', { exact: true })).toBeVisible()
-  await expect(innateResult.locator('.picker-result__content > [data-mod-badge="Learnable Innate Skills"]')).toHaveCount(0)
+  await expect(innateResult.locator('.picker-result__heading').getByText('Mod: Synthetic Innates', { exact: true })).toBeVisible()
+  await expect(innateResult.locator('.picker-result__content > [data-mod-badge="Synthetic Innates"]')).toHaveCount(0)
   await expect.poll(() => innateResult.locator('.picker-result__heading').evaluate(heading => {
-    const badge = heading.querySelector('[data-mod-badge="Learnable Innate Skills"]')!.getBoundingClientRect()
+    const badge = heading.querySelector('[data-mod-badge="Synthetic Innates"]')!.getBoundingClientRect()
     const ppCost = [...heading.querySelectorAll('small')].find(node => node.textContent === '6 PP')!.getBoundingClientRect()
     return badge.right <= ppCost.left || badge.bottom <= ppCost.top
   })).toBe(true)
@@ -151,27 +156,29 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   })).toBeLessThanOrEqual(32)
   await passive.press('Escape')
   await innateToggle.uncheck()
-  await passive.fill('Two-Handed')
-  const regularResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
-  await expect(regularResult).toContainText('Passive · Learnable Innate Skills')
-  await expect(regularResult).not.toContainText('Innate · Learnable Innate Skills')
+  await passive.fill('Synthetic Learnable Innate')
+  await expect(page.getByRole('listbox')).toContainText("No matches. Try another name, stat, or effect, or change Search filters.")
+  await passive.fill('Synthetic Regular Passive')
+  const regularResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Regular Passive$/ }) })
+  await expect(regularResult).toContainText('Passive · Synthetic Innates')
+  await expect(regularResult).not.toContainText('Innate · Synthetic Innates')
   await passive.press('Escape')
   if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
   await innateToggle.check()
-  await passive.fill('Two-Handed')
-  innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Learnable Innate Skills' }).filter({ has: page.locator('strong', { hasText: /^Two-Handed$/ }) })
+  await passive.fill('Synthetic Learnable Innate')
+  innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Synthetic Innates' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Learnable Innate$/ }) })
   await innateResult.click()
-  const enableInnates = page.getByRole('dialog', { name: /^Enable Learnable Innate Skills?\?$/ })
-  await enableInnates.getByRole('button', { name: 'Enable and select Two-Handed', exact: true }).click()
+  const enableInnates = page.getByRole('dialog', { name: 'Enable Synthetic Innates?', exact: true })
+  await enableInnates.getByRole('button', { name: 'Enable and select Synthetic Learnable Innate', exact: true }).click()
   await expect(enableInnates).not.toBeVisible()
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('15 / 10 PP')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Build needs changes')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Selected passives cost 15 PP, above the 10 PP limit')
   await innateToggle.uncheck()
-  await expect(passive).toHaveValue('Two-Handed')
+  await expect(passive).toHaveValue('Synthetic Learnable Innate')
   await expect(page.getByText('1 equipped innate remains selected. Innates are hidden from search results.', { exact: true })).toBeVisible()
   const nextPassive = page.getByRole('combobox', { name: 'Equipped passive 5', exact: true })
-  await nextPassive.fill('Two-Handed')
+  await nextPassive.fill('Synthetic Learnable Innate')
   await expect(page.getByRole('listbox')).toContainText("No matches. Try another name, stat, or effect, or change Search filters.")
   await nextPassive.press('Escape')
   if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
@@ -181,7 +188,7 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   if (isMobile) await expect(page.locator('.build-library')).not.toHaveAttribute('open')
   await page.reload()
-  await expect(page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })).toHaveValue('Two-Handed')
+  await expect(page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })).toHaveValue('Synthetic Learnable Innate')
   await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   const card = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Untitled build' })
   await expect(card.locator('.build-card__summary-group').filter({ hasText: 'Equipment' })).toContainText('Muramasa')
@@ -190,7 +197,7 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await expect(passives).toContainText('Attack Focus')
   await expect(passives).toContainText('Backstabber')
   await expect(passives).toContainText('Duel Ready')
-  await expect(passives).toContainText('Two-Handed')
+  await expect(passives).toContainText('Synthetic Learnable Innate')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 

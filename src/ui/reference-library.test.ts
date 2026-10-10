@@ -12,7 +12,7 @@ import { buildModLibraryCards } from './mod-library-data'
 import { setModInReference } from '../domain/reference-library'
 
 it('shows only the pinned original base revision while keeping historical catalogs available', () => {
-  const catalogs = [DEFAULT_CATALOG, PREVIOUS_CATALOG, CURRENT_CATALOG]
+  const catalogs = [PREVIOUS_CATALOG, CURRENT_CATALOG]
   const original = createTestLocalData()
   const options = buildDefinitionOptions(original, catalogs)
   for (const catalog of catalogs) {
@@ -28,7 +28,7 @@ it('shows only the pinned original base revision while keeping historical catalo
 
 it('uses the original baseline in Reference when planning pins an effective composition', () => {
   const effective = { ...CURRENT_CATALOG, revisionId: 'synthetic-effective' as typeof CURRENT_CATALOG.revisionId, schemaVersion: MOD_CATALOG_SCHEMA }
-  const catalogs = [DEFAULT_CATALOG, CURRENT_CATALOG, effective]
+  const catalogs = [PREVIOUS_CATALOG, CURRENT_CATALOG, effective]
   const original = createTestLocalData()
   const data = updateGameSetupRevision(original, { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [effective.id]: effective.revisionId }, modComposition: { baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [], links: [] } })
   const selected = standingReferenceOptions(buildDefinitionOptions(data, catalogs), catalogs, data)
@@ -38,28 +38,28 @@ it('uses the original baseline in Reference when planning pins an effective comp
   expect(selected.some(option => option.ref.kind === 'catalog' && option.ref.catalogRevisionId === effective.revisionId)).toBe(false)
 })
 
-it('keeps vanilla and Switch pack records visible independently of planning mod choices', () => {
-  const data = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, disabledMods: known(['Doge Shield', 'Equipment Expansion']), catalogLock: { [DEFAULT_CATALOG.id]: DEFAULT_CATALOG.revisionId } })
-  const options = buildDefinitionOptions(data, [DEFAULT_CATALOG])
-  const selected = standingReferenceOptions(options, [DEFAULT_CATALOG], data)
+it('keeps pinned native and independently sourced mod observations visible independently of planning mod choices', () => {
+  const data = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, disabledMods: known(['Doge Shield', 'Bloodmage']), catalogLock: { [PREVIOUS_CATALOG.id]: PREVIOUS_CATALOG.revisionId } })
+  const options = buildDefinitionOptions(data, [PREVIOUS_CATALOG])
+  const selected = standingReferenceOptions(options, [PREVIOUS_CATALOG], data)
   expect(selected.some(option => option.name === 'Warrior')).toBe(true)
   expect(selected.some(option => option.name === 'Doge Shield' && option.modAvailability?.requiredMod === 'Doge Shield')).toBe(true)
-  expect(selected.some(option => option.modAvailability?.requiredMod === 'Equipment Expansion')).toBe(true)
+  expect(selected.some(option => option.modAvailability?.requiredMod === 'Bloodmage')).toBe(true)
 })
 
-it('removes built-in and source-less mod contents from standing Reference and restores them independently of game state', () => {
-  const original = createTestLocalData()
-  const options = buildDefinitionOptions(original, [DEFAULT_CATALOG])
-  const cards = buildModLibraryCards([DEFAULT_CATALOG], options, original)
+it('removes source-less mod contents from standing Reference and restores them independently of game state', () => {
+  const original = updateGameSetupRevision(createTestLocalData(), { sourceRevisionId: TEST_GAME_SETUP_REVISION_ID, catalogLock: { [PREVIOUS_CATALOG.id]: PREVIOUS_CATALOG.revisionId } })
+  const options = buildDefinitionOptions(original, [PREVIOUS_CATALOG])
+  const cards = buildModLibraryCards([PREVIOUS_CATALOG], options, original)
   let data = original
-  for (const name of ['Equipment Expansion', 'Doge Shield']) {
+  for (const name of ['Bloodmage', 'Doge Shield']) {
     const card = cards.find(card => card.title === name)!
     data = setModInReference(data, card.id, false)
-    expect(standingReferenceOptions(options, [DEFAULT_CATALOG], data).some(option => option.modAvailability?.requiredMod === name)).toBe(false)
+    expect(standingReferenceOptions(options, [PREVIOUS_CATALOG], data).some(option => option.modAvailability?.requiredMod === name)).toBe(false)
     const restored = setModInReference(data, card.id, true)
-    expect(standingReferenceOptions(options, [DEFAULT_CATALOG], restored).some(option => option.modAvailability?.requiredMod === name)).toBe(true)
+    expect(standingReferenceOptions(options, [PREVIOUS_CATALOG], restored).some(option => option.modAvailability?.requiredMod === name)).toBe(true)
   }
-  expect(standingReferenceOptions(options, [DEFAULT_CATALOG], data).some(option => option.name === 'Warrior')).toBe(true)
+  expect(standingReferenceOptions(options, [PREVIOUS_CATALOG], data).some(option => option.name === 'Warrior')).toBe(true)
   expect(data.gameSetups).toBe(original.gameSetups)
 })
 

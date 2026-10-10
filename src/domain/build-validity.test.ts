@@ -44,6 +44,37 @@ describe('character-independent build validity', () => {
     expect(unknownLimit.issues).toContainEqual(expect.objectContaining({ code: 'PP_LIMIT_UNKNOWN' }))
   })
 
+  it('reports unavailable selections once per position while preserving PP uncertainty', () => {
+    const selected = { ...content('missing-one', 'missing-two', 'missing-three'), equipment: { 'plan-main-hand': { ref: ref('missing-weapon') } } }
+    const report = validateBuildContent(selected, gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(report.status).toBe('undetermined')
+    expect(report.pp).toMatchObject({ knownSubtotal: 0, unresolvedCosts: 3, status: 'undetermined' })
+    for (const slotId of ['equipped-passive-1', 'equipped-passive-2', 'equipped-passive-3', 'plan-main-hand']) {
+      const findings = report.issues.filter(issue => issue.slotId === slotId)
+      expect(findings).toHaveLength(1)
+      expect(findings[0]).toMatchObject({ status: 'undetermined', message: expect.stringContaining('definition is unavailable') })
+    }
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PP_COST_UNKNOWN' }))
+  })
+
+  it('retains distinct catalog and duplicate-selection failures for unavailable passives', () => {
+    const report = validateBuildContent(content('missing', 'missing'), { ...gameSetup, catalogLock: {} }, SUGGESTED_BUILD_SLOTS, resolve)
+    expect(report.status).toBe('invalid')
+    expect(report.issues.filter(issue => issue.slotId === 'equipped-passive-2').map(issue => issue.code)).toEqual(['CATALOG_REFERENCE_MISMATCH', 'DUPLICATE_PASSIVE', 'PASSIVE_DEFINITION'])
+    expect(report.pp).toMatchObject({ unresolvedCosts: 2, status: 'undetermined' })
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'PP_COST_UNKNOWN' }))
+  })
+
+  it('identifies an unavailable saved mod class without substituting a base-game namesake', () => {
+    const selected = ref('missing-class')
+    const revision = { ...content(), secondaryClass: selected, referenceNames: [{ ref: selected, name: 'Rogue', projectId: TEST_CATALOG_ID, modelKey: 'crystal-edit:Jobs:2' }] }
+    const setup = { ...gameSetup, modSourceReceipts: [{ catalogId: TEST_CATALOG_ID, catalogRevisionId: TEST_CATALOG_REVISION_ID, checksum: 'synthetic', title: 'Synthetic Innates Mod' }] }
+    const baseClass = { ...passive('base-rogue'), kind: 'class' as const, name: 'Rogue' }
+    const report = validateBuildContent(revision, setup, SUGGESTED_BUILD_SLOTS, reference => reference.kind === 'catalog' && reference.entityId === baseClass.id ? baseClass : resolve(reference))
+    expect(report.status).toBe('undetermined')
+    expect(report.issues).toEqual([{ code: 'CLASS_DEFINITION_UNAVAILABLE', status: 'undetermined', message: "Sub-command: Rogue's saved Synthetic Innates Mod definition is unavailable", slotId: 'secondary-class' }])
+  })
+
   it('rejects an innate that is explicitly unavailable as an equippable passive', () => {
     const report = validateBuildContent(content('unavailable'), gameSetup, SUGGESTED_BUILD_SLOTS, resolve)
     expect(report.status).toBe('invalid')

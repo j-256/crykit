@@ -1,3 +1,4 @@
+import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT, SYNTHETIC_LIBRARY_ROOTS, syntheticReferencePath } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -52,19 +53,24 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(card.locator('img')).toHaveAttribute('alt', '')
   await card.click()
   await expectArtwork(page, 'Aegis')
-  await page.goto(detail('mod:barbarian:class:ref-1078'))
-  await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
-  await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Sources for Barbarian', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Sources for Barbarian', exact: true })).toContainText('No exact artwork linked.')
+  await importSyntheticLibrary(page, false, [SYNTHETIC_LIBRARY_ROOTS[1]!])
+  await page.goto(syntheticReferencePath(1, 'Jobs', 26, 'Synthetic Class'))
+  await expect(page.getByRole('heading', { name: 'Synthetic Class', exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Synthetic Class artwork placeholder', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Sources for Synthetic Class', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Synthetic Class', exact: true })).toContainText('No exact artwork linked.')
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
 
-test('the baseline includes the versioned innate unlock evidence', async ({ page }) => {
-  await page.goto(detail('base:innate:ref-1062'))
-  await expect(page.getByRole('heading', { name: 'Fighter', exact: true })).toBeVisible()
-  const unlockCost = page.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Learnable Innate Skill v1\.0 JP cost$/ }) })
-  await expect(unlockCost).toContainText('500')
+test('imported innate unlock evidence retains the exact source record', async ({ page }) => {
+  await importSyntheticLibrary(page, false, [SYNTHETIC_INNATE_ROOT])
+  await page.goto('/#/reference?q=Synthetic+Learnable+Innate')
+  await page.getByRole('heading', { name: 'Synthetic Learnable Innate', exact: true }).click()
+  await page.getByRole('button', { name: 'Sources for Synthetic Learnable Innate', exact: true }).click()
+  await page.getByText('Complete mod source record', { exact: true }).click()
+  const source = page.getByRole('dialog', { name: 'Sources for Synthetic Learnable Innate', exact: true })
+  await expect(source).toContainText('"JP": 200')
+  await expect(source).toContainText('"IsLearnable": true')
 })
 
 test('failed sprite loading preserves the definition and an explicit fallback', async ({ browser, baseURL }) => {

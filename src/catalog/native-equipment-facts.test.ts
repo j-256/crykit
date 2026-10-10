@@ -105,7 +105,7 @@ describe('native equipment presentation', () => {
       { ...dress, sources: [] },
       { ...dress, fields: { ...dress.fields, [NATIVE_RECORD_FIELD]: { state: 'known' as const, value: { ...nativeSourceRecord(dress), StatMods: null } } } },
     ]) expect(nativeEquipmentFacts(DEFAULT_CATALOG, entity)).toBeUndefined()
-    expect(nativeEquipmentFacts(DEFAULT_CATALOG, DEFAULT_CATALOG.entities['mod:moonlight-project:ability:565']!)).toBeUndefined()
+    expect(nativeEquipmentFacts(DEFAULT_CATALOG, DEFAULT_CATALOG.entities['base:ability:0']!)).toBeUndefined()
   })
 
   it('rejects changed hidden, unknown, duplicated, or malformed native modifiers', () => {

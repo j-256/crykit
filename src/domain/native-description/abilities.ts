@@ -100,7 +100,7 @@ export function describeAbility(context: NativeDescriptionContext, record: Nativ
           const debuff = enumName('SangStatusCategory', status.Category) === 'Debuff'
           const label = key === 'UserStatuses' ? debuff ? 'DESC_STATUS_SELF_INFLICT' : 'DESC_STATUS_SELF_APPLY' : debuff ? 'DESC_STATUS_INFLICT' : 'DESC_STATUS_APPLY'
           add(statusApplication(context, status, setter.Count, setter.Chance, vocab(label)), 'Status application')
-          child('status', setter.StatusID)
+          context.lines.push(...child('status', setter.StatusID))
         }
       }
     }

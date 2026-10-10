@@ -28,6 +28,8 @@ import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA, modCatalogTitle } from
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { bundledModSearchCatalogs } from '../catalog/mod-search'
 import { isModSearchPreview, mergeModSearchCatalogs } from '../domain/mod-search'
+import { preservedNativeDefinition } from '../domain/preserved-native-definitions'
+import type { ImportPreview } from '../interchange/types'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const defaultOptionLabel = (option: DefinitionOption) => option.name
@@ -69,6 +71,7 @@ export interface DefinitionLibraryValue {
   readonly planningOptions: readonly DefinitionOption[]
   readonly availablePlanningOptions: readonly DefinitionOption[]
   readonly onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>
+  readonly onImportMod?: (preview: ImportPreview) => Promise<void>
   readonly onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>
   readonly onRequestBundledSearch: () => void
   readonly bundledSearchPending: boolean
@@ -128,6 +131,19 @@ function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): re
 function updateDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[], catalogOptions: readonly CatalogDefinitionOption[]): readonly DefinitionOption[] {
   const preferredPersonalIds = new Set(preferredPersonalDefinitions(localData).map((definition) => definition.id))
   const activeGameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
+  const existing = new Set(catalogOptions.map(option => option.key))
+  const preserved = catalogOptions.flatMap(option => {
+    const revisionId = activeGameSetup?.catalogLock[option.ref.catalogId]
+    if (!revisionId || revisionId === option.ref.catalogRevisionId) return []
+    const ref = { ...option.ref, catalogRevisionId: revisionId }
+    const key = entityDefinitionKey(ref)
+    if (existing.has(key)) return []
+    const record = preservedNativeDefinition(localData, catalogs, ref)
+    if (!record) return []
+    existing.add(key)
+    // Keep saved pins in editor choices; recovering individual facts does not revise the Build
+    return [{ ...option, ref, key, record, description: referenceDescription(record), ppCost: passivePointCost(record) }]
+  })
   const personal = Object.values(localData.personalDefinitions).map((definition): DefinitionOption => {
     const ref = { kind: 'personal', definitionId: definition.id } as const
     const editable = isEditablePersonalDefinition(localData, ref)
@@ -144,7 +160,7 @@ function updateDefinitionOptions(localData: LocalData, catalogs: readonly Catalo
       ...(activeGameSetup?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup definition collection' : 'No current Game Setup definition collection' }),
     }
   })
-  const catalog = catalogOptions.map((option): DefinitionOption => {
+  const catalog = [...catalogOptions, ...preserved].map((option): DefinitionOption => {
     const ref = option.ref
     return {
       ...option,
@@ -183,7 +199,7 @@ export function definitionOptionsForSetup(options: readonly DefinitionOption[], 
   })
 }
 
-export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, onRequestParentSearch, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>; onRequestParentSearch?: () => void }>) {
+export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestParentSearch, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>; onImportMod?: (preview: ImportPreview) => Promise<void>; onRequestParentSearch?: () => void }>) {
   const [searchRequested, setSearchRequested] = useState(false)
   const [searchCatalogs, setSearchCatalogs] = useState<readonly CatalogSnapshot[]>()
   const [bundledSearchError, setBundledSearchError] = useState<string>()
@@ -213,7 +229,7 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLo
     const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
     return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
   }, [baseline, planningOptions, localData])
-  const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError, options, planningOptions, localData])
+  const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }
 

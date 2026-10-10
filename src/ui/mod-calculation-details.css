@@ -1,0 +1,7 @@
+.mod-calculation-details { display: flex; align-items: start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; color: var(--text-dim); }
+.mod-calculation-details > svg { flex: none; width: 20px; height: 20px; color: var(--sky); }
+.mod-calculation-details > div { min-width: 0; }
+.mod-calculation-details p { margin: 0 0 8px; }
+.mod-calculation-details .mod-calculation-details__upload { font-size: inherit; font-weight: 400; }
+.mod-calculation-details details { margin-top: 8px; font-size: .875rem; overflow-wrap: anywhere; }
+.mod-calculation-details summary { font-weight: 400; }

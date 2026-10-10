@@ -1,6 +1,5 @@
 import type { CatalogEntity } from '../domain/types'
 import gameArtworkJson from './game-artwork.json'
-import modManifestJson from './mod-sprites.json'
 import wikiManifestJson from './wiki-sprites.json'
 import { STARTER_CATALOG_ID } from './catalog-ids'
 import { nativeMenuIcon, NATIVE_MENU_ICON_KEYS } from './native-menu-icons'
@@ -84,11 +83,8 @@ interface MenuIconBinding {
 const gameArtwork: GameArtworkManifest = { ...gameArtworkJson, entities: compileBundledSourceBindings(gameArtworkJson.entities), classWorld: compileBundledSourceBindings(gameArtworkJson.classWorld) }
 const gameArtworkUrls = import.meta.glob<string>('../assets/game-assets/*', { eager: true, query: '?url&no-inline', import: 'default' })
 const wikiManifest: SpriteManifest = { ...wikiManifestJson, entities: compileBundledSourceBindings(wikiManifestJson.entities) }
-const modSourceManifest = modManifestJson as unknown as Omit<SpriteManifest, 'icons'>
-const modManifest: SpriteManifest = { ...modSourceManifest, entities: compileBundledSourceBindings(modSourceManifest.entities), icons: {} }
 export const MENU_ICON_KEYS = [...new Set([...Object.keys(wikiManifest.icons), ...NATIVE_MENU_ICON_KEYS])]
 const wikiUrls = import.meta.glob<string>('../assets/wiki-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
-const modUrls = import.meta.glob<string>('../assets/mod-sprites/*', { eager: true, query: '?url&no-inline', import: 'default' })
 
 export interface WikiSprite {
   readonly asset: SpriteAsset
@@ -156,16 +152,6 @@ export function catalogArtwork(catalogId: string, entity: ArtworkIdentity): Cata
     identityCrosswalk: gameArtwork.sources.identityCrosswalk,
     nativeDefinitions: gameArtwork.sources.nativeDefinitions,
     url: nativeUrl,
-  }
-  const modBinding = modManifest.entities[entity.id]
-  const modAsset = modBinding && modManifest.assets[modBinding.asset]
-  const modUrl = modAsset && modUrls[`../assets/mod-sprites/${modAsset.file}`]
-  if (modBinding?.kind === entity.kind && modAsset && modUrl) return {
-    source: 'mod',
-    asset: modAsset,
-    binding: modBinding,
-    provenance: modBinding.origin ?? 'mod-export',
-    url: modUrl,
   }
   const wiki = wikiSprite(catalogId, entity)
   return wiki && { source: 'wiki', ...wiki }

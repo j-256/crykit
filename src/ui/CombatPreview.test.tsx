@@ -44,6 +44,23 @@ it('imports duplicate historical status assumptions once while preserving active
   expect(plan.battle!.statuses).toEqual([{ ref: first, count: 3 }])
 })
 
+it('offers JSON import for unavailable results while keeping known base ability costs visible', async () => {
+  const localData = createTestLocalData()
+  const primary = { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'synthetic:missing-class' } as CatalogRef
+  const ability = { ...primary, entityId: 'base:ability:37' } as CatalogRef
+  const plan = { ...defaultCalculation(primary), ability }
+  const content = { primaryClass: primary, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: plan }
+  const onUploadMod = vi.fn()
+  await act(async () => root.render(<CombatPreview content={content} localData={localData} catalogs={[DEFAULT_CATALOG]} slots={[]} onUploadMod={onUploadMod}/>))
+  const lock = container.querySelector('[aria-label="Calculations need mod JSON"]')!
+  expect(lock).not.toBeNull()
+  expect(container.querySelector('[aria-label="Base ability costs"]')?.textContent).not.toContain('Unknown')
+  expect(container.querySelector('[aria-label="Effective ability costs"]')?.textContent).toContain('Unknown')
+  await act(async () => lock.querySelector('button')!.click())
+  expect(onUploadMod).toHaveBeenCalledOnce()
+  expect(content.calculation).toBe(plan)
+})
+
 it('fills known resource maxima without clearing entered resources whose maxima are unknown', async () => {
   const battle: BattleCalculationPlan = { ...defaultBattleCalculation(), user: { hp: 1, mp: 2, ap: null }, targetResources: { hp: 7, mp: 8, ap: 9 } }
   const onChange = vi.fn<(value: BattleCalculationPlan) => void>()

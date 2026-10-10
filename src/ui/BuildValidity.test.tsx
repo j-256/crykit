@@ -27,5 +27,54 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Build needs changes')
     expect(markup).toContain('This class cannot equip the selected armor')
     expect(markup).toContain('Review Body')
+    expect(markup).not.toContain('<details')
+  })
+
+  it('keeps incomplete checks in a closed info disclosure while confirmed conflicts remain visible', () => {
+    const issues = [{ code: 'PASSIVE_LEARNABILITY_UNKNOWN', status: 'undetermined' as const, message: 'Synthetic learning rule is unavailable', slotId: 'passive-1' }]
+    const incomplete = renderToStaticMarkup(<BuildValidity onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues }}/>)
+    expect(incomplete).toContain('<details class="build-validity__details">')
+    expect(incomplete).toContain('More details with mod JSON')
+    expect(incomplete).not.toContain('Build needs changes')
+    expect(incomplete).not.toContain("CryKit can&#x27;t fully check")
+    const mixed = renderToStaticMarkup(<BuildValidity report={{ ...report, status: 'invalid', issues: [{ code: 'DUPLICATE_PASSIVE', status: 'invalid', message: 'Synthetic duplicate passive', slotId: 'passive-2' }, ...issues] }}/>)
+    expect(mixed.indexOf('Synthetic duplicate passive')).toBeLessThan(mixed.indexOf('<details'))
+    expect(mixed.indexOf('Synthetic learning rule is unavailable')).toBeGreaterThan(mixed.indexOf('<details'))
+  })
+
+  it('points unresolved permissions to their class and passive inputs and offers source recovery', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'CLASS_EQUIPMENT_PERMISSION', status: 'undetermined', message: 'Dagger permission is unresolved', slotId: 'main-hand' }] }}/>)
+    expect(markup).toContain('Upload mod JSON')
+    expect(markup).toContain('Review Class')
+    expect(markup).toContain('Review passives')
+    expect(markup).toContain('Restore the missing class and passive definitions')
+  })
+
+  it('provides a passive recovery action even when the PP warning has no single slot', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'PP_COST_UNKNOWN', status: 'undetermined', message: 'Selected passive costs are unresolved' }] }}/>)
+    expect(markup).toContain('Review passives')
+    expect(markup).toContain('Upload mod JSON')
+  })
+
+  it('offers JSON recovery for a specific unavailable innate effect or equipped-passive fact', () => {
+    for (const code of ['CLASS_INNATE_DEFINITION', 'PASSIVE_LEARNABILITY_UNKNOWN']) {
+      const markup = renderToStaticMarkup(<BuildValidity onReviewField={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code, status: 'undetermined', message: 'Synthetic unavailable active fact', slotId: code === 'CLASS_INNATE_DEFINITION' ? 'primary-class' : 'passive-1' }] }}/>)
+      expect(markup).toContain('Upload mod JSON')
+      expect(markup).toContain(code === 'CLASS_INNATE_DEFINITION' ? 'active innates' : 'this passive can be learned')
+    }
+  })
+
+  it('routes unknown setup rules to settings without promising a JSON import will fix them', () => {
+    const markup = renderToStaticMarkup(<BuildValidity onReviewSetup={() => undefined} onUploadMod={() => undefined} report={{ ...report, status: 'undetermined', issues: [{ code: 'PP_LIMIT_UNKNOWN', status: 'undetermined', message: 'The PP limit is unknown' }] }}/>)
+    expect(markup).toContain('Review Game Setup')
+    expect(markup).toContain('supply the value for your game')
+    expect(markup).not.toContain('Upload mod JSON')
+  })
+
+  it('explains how to change invalid selections in a read-only share', () => {
+    const markup = renderToStaticMarkup(<BuildValidity readOnly onReviewField={() => undefined} report={{ ...report, status: 'invalid', issues: [{ code: 'DUPLICATE_PASSIVE', status: 'invalid', message: 'Passive selected twice', slotId: 'passive-1' }] }}/>)
+    expect(markup).toContain('Remove or replace the repeated passive')
+    expect(markup).toContain('Save a copy to change selections or rules')
+    expect(markup).toContain('Inspect selection')
   })
 })

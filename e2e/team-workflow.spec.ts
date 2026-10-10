@@ -2,7 +2,9 @@ import { chooseTeamCheckpoint, teamCheckpointControl } from './team-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { buildBehavior } from '../src/domain/build-behavior'
-import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
+import { importSyntheticLibrary, SYNTHETIC_LIBRARY_SOURCES } from './mod-library-fixtures'
+import { IMPORTED_RULES_REVISION } from '../src/domain/game-rules'
+import { MOD_LIBRARY_IMPORT_REVISION } from '../src/interchange/crystal-edit'
 import { formatAppRoute } from '../src/ui/navigation'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -169,8 +171,9 @@ test('a Team member confirms its mod source and retains class and growth pins af
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const teamTitle = 'Synthetic mod member Team'
-  const memberTitle = 'Synthetic Freelancer member'
-  const source = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'moonlight-project' && mod.declaredVersion === '2.2')!
+  const memberTitle = 'Synthetic Synthetic Class member'
+  await importSyntheticLibrary(page)
+  const source = SYNTHETIC_LIBRARY_SOURCES[1]!
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill(teamTitle)
   const before = await storedData(page)
@@ -180,14 +183,14 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await title.fill(memberTitle)
   const context = page.getByRole('region', { name: 'Team member context', exact: true })
   const field = page.getByRole('combobox', { name: 'Class', exact: true })
-  await field.fill('Freelancer')
+  await field.fill('Synthetic Class')
   const results = page.getByRole('listbox', { name: 'Choose Class', exact: true })
-  const freelancer = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Freelancer$/ }) })
+  const freelancer = results.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) })
   await expect(freelancer).toBeVisible()
   await expect(freelancer).toHaveAttribute('data-mod-state', 'unknown')
   await freelancer.click()
-  const dialog = page.getByRole('dialog', { name: 'Enable Moonlight Project?', exact: true })
-  const confirm = dialog.getByRole('button', { name: 'Enable and select Freelancer', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Enable Synthetic Moonlight?', exact: true })
+  const confirm = dialog.getByRole('button', { name: 'Enable and select Synthetic Class', exact: true })
   await expect(confirm).toBeFocused()
   await expect(field).toHaveValue('')
   await expect(page.getByRole('button', { name: SAVE_MEMBER, exact: true })).toBeDisabled()
@@ -200,18 +203,17 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await expect(title).toHaveValue(memberTitle)
   expect(await storedData(page)).toEqual(before)
   await field.click()
-  await field.fill('Freelancer')
+  await field.fill('Synthetic Class')
   await freelancer.click()
-  await expect(dialog).toContainText(`Version ${source.declaredVersion}`)
+  await expect(dialog).toContainText(`Version ${source.version}`)
   await dialog.getByText('Version details', { exact: true }).click()
   const version = dialog.getByRole('combobox', { name: 'Mod version', exact: true })
-  const savedVersion = Object.values(before.gameSetups).flatMap(setup => setup.modComposition?.layers ?? []).find(layer => layer.catalogId === source.id)?.catalogRevisionId
-  expect(savedVersion).toBeDefined()
-  await expect(version).toHaveValue(savedVersion!)
+  await expect(version).toHaveValue(`sha256:${source.sha256}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
+  await expect(version.locator('option:checked')).toHaveText('1 · saved · format 34')
   await expect(version.locator('option:checked')).toContainText(`format ${source.editorVersion}`)
   await confirm.click()
   await expect(dialog).toHaveCount(0)
-  await expect(field).toHaveValue('Freelancer')
+  await expect(field).toHaveValue('Synthetic Class')
   await expect(context).toContainText(`${teamTitle} · Slot 1`)
   await expect(title).toHaveValue(memberTitle)
   const enabled = await storedData(page)
@@ -230,7 +232,7 @@ test('a Team member confirms its mod source and retains class and growth pins af
   expect(team.slots).toEqual([revision.id, null, null, null])
   expect(build).toMatchObject({ title: memberTitle, latestRevisionId: revision.id, gameSetupId: setup.gameSetupId })
   expect(setup.modComposition!.layers).toHaveLength(1)
-  expect(setup.modComposition!.layers[0]).toMatchObject({ catalogId: source.id, enabled: true })
+  expect(setup.modComposition!.layers[0]).toMatchObject({ catalogId: `crystal-edit:${source.projectId}`, enabled: true })
   expect(primaryClass?.kind).toBe('catalog')
   if (primaryClass?.kind === 'catalog') {
     expect(primaryClass.catalogId).toBe(setup.modComposition!.baseline.catalogId)
@@ -244,7 +246,7 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await page.reload()
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toHaveValue(teamTitle)
   await expect(teamCheckpointControl(page, 1)).toHaveAttribute('data-revision-id', revision.id)
-  await expect(first).toContainText('Freelancer')
+  await expect(first).toContainText('Synthetic Class')
   const reloaded = await storedData(page)
   expect(reloaded.teams[team.id]).toEqual(team)
   expect(reloaded.builds[build.id]).toEqual(build)

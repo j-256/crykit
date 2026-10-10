@@ -59,6 +59,16 @@ describe('build choice evidence', () => {
     expect(Object.keys(ring.record.fields)).toHaveLength(4)
   })
 
+  it('keeps Eclipse\'s Blind explanation conditional in compact loadout summaries', () => {
+    const eclipse = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(value => value.record.id === 'base:equipment:41')!
+    expect(selectionSummaryLines(eclipse).slice(0, 3)).toEqual([
+      'Attack: +300',
+      'Crit. Damage: +26%',
+      'On hit, inflict: Blind for 1 turn (10% chance). Blind effect: Always miss physical attacks.',
+    ])
+    expect(selectionSummaryLines(eclipse)).not.toContain('Always miss physical attacks.')
+  })
+
   it('uses one effect representation while preserving every original source field', () => {
     const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
     const sanity = selectionSummaryLines(bundled.find(value => value.name === 'Sanity Ring')!)

@@ -3,6 +3,7 @@ import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { EQUIPMENT_TYPES } from '../domain/crystal-edit'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 import { bundledModRecord } from '../domain/bundled-mods'
+import { previewCrystalEdit } from '../interchange/crystal-edit'
 import type { CatalogEntity, EntityId, JsonValue, Knowledge } from '../domain/types'
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_KEY, equipmentCategory, referenceCategoryKey, referenceCategoryKeys, referenceCategoryLabel, referenceCategorySearchText } from './reference-categories'
 import { referenceCategoryKnowledge } from './reference-facets'
@@ -23,12 +24,13 @@ describe('reference category identities', () => {
     for (const sourceLabel of category.sourceLabels) expect(referenceCategoryKey(sourceLabel)).toBe(category.key)
   })
 
-  it('keeps filter keys distinct from rendered labels and combines actual base and expansion axes', () => {
-    const items = buildReferenceSearchItems([DEFAULT_CATALOG])
+  it('keeps filter keys distinct from rendered labels and combines native and imported axes', async () => {
+    const imported = await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-axe', Title: 'Synthetic Axe Mod', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic Axe', EquipmentType: 1, StatMods: [] }] })), 'synthetic-axe.json')
+    const items = buildReferenceSearchItems([DEFAULT_CATALOG, ...imported.proposed.catalogs])
     const filters = { query: '', kinds: ['item' as const], categories: [EQUIPMENT_CATEGORIES.Axe.key], sources: [] }
     const { confirmed } = partitionReferenceItems(items, filters)
     expect(confirmed.some(item => item.entity.name === 'Hand Axe' && nativeIdentity(item.entity)?.mode === 'base')).toBe(true)
-    expect(confirmed.some(item => item.entity.name === 'Backbreaker' && bundledModRecord(item.entity)?.EquipmentType === 1)).toBe(true)
+    expect(confirmed.some(item => item.entity.name === 'Synthetic Axe' && bundledModRecord(item.entity)?.EquipmentType === 1)).toBe(true)
     const sourceRecord = (entity: CatalogEntity) => nativeSourceRecord(entity) ?? bundledModRecord(entity)
     expect(confirmed.filter(item => sourceRecord(item.entity)).map(item => item.key)).toEqual(items.filter(item => item.entity.kind === 'item' && sourceRecord(item.entity)?.EquipmentType === 1).map(item => item.key))
     expect(confirmed.filter(item => !sourceRecord(item.entity)).map(item => item.entity.name)).toEqual(['Axes'])

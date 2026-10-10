@@ -1,0 +1,6 @@
+.build-mod-files { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.build-mod-files > div { flex: 1 1 240px; min-width: 0; }
+.build-mod-files h3 { margin: 0 0 4px; color: var(--text); font-size: .875rem; }
+.build-mod-files p { margin: 0; color: var(--text-dim); font-size: .875rem; overflow-wrap: anywhere; }
+.build-mod-files p + p { margin-top: 8px; }
+.build-mod-files .build-mod-files__upload { flex: none; max-width: 100%; font-size: .875rem; font-weight: 400; white-space: normal; }
