@@ -1,4 +1,4 @@
-import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT } from './mod-library-fixtures'
+import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT, SYNTHETIC_LIBRARY_ROOTS, syntheticReferencePath } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { referencePath as detail } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -53,11 +53,12 @@ test('reference results retain names and unmatched definitions use placeholders 
   await expect(card.locator('img')).toHaveAttribute('alt', '')
   await card.click()
   await expectArtwork(page, 'Aegis')
-  await page.goto(detail('mod:barbarian:class:ref-1078'))
-  await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
-  await expect(page.getByRole('img', { name: 'Barbarian artwork placeholder', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Sources for Barbarian', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Sources for Barbarian', exact: true })).toContainText('No exact artwork linked.')
+  await importSyntheticLibrary(page, false, [SYNTHETIC_LIBRARY_ROOTS[1]!])
+  await page.goto(syntheticReferencePath(1, 'Jobs', 26, 'Synthetic Class'))
+  await expect(page.getByRole('heading', { name: 'Synthetic Class', exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Synthetic Class artwork placeholder', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Sources for Synthetic Class', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Synthetic Class', exact: true })).toContainText('No exact artwork linked.')
   await expect(page.locator('.wiki-sprite img')).toHaveCount(0)
 })
 

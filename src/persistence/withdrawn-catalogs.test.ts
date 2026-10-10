@@ -77,11 +77,16 @@ function unavailableCompositionData(): LocalData {
 }
 
 it('preserves unresolved effective references through saves, backups and undo when exact composition dependencies are unavailable', async () => {
-  const before = unavailableCompositionData()
+  const data = unavailableCompositionData()
+  const revision = Object.values(data.buildRevisions)[0]!
+  const nativeClass = revision.content.primaryClass as CatalogRef
+  // Use a missing mod identity; reviewed unchanged native entries remain available without its source
+  const ref: CatalogRef = { ...nativeClass, entityId: 'mod:synthetic-missing:class:9000' as CatalogRef['entityId'] }
+  const before = { ...data, buildRevisions: { ...data.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, primaryClass: ref } } } }
   await database.localDatas.put({ id: 'local-data-record', revision: before.revision, updatedAt: before.updatedAt, localData: before, lineage: { rootLocalDataId: before.id } })
   const loaded = await loadLocalData()
-  const ref = Object.values(before.buildRevisions)[0]!.content.primaryClass as CatalogRef
   expect(loaded.localData).toEqual(before)
+  expect(resolveDefinition(before, loaded.catalogs, nativeClass)).toMatchObject({ id: nativeClass.entityId, name: 'Warrior' })
   expect(resolveDefinition(before, loaded.catalogs, ref)).toBeUndefined()
   const changed = createPersonalDefinition(before, { name: 'Synthetic composition note', kind: 'item' })
   const saved = await saveLocalDataWithStatus(changed, before.revision)

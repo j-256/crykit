@@ -27,6 +27,20 @@ function button(name: string) { return [...document.querySelectorAll('button')].
 async function click(name: string) { await act(async () => button(name).click()) }
 async function render(available = library) { await act(async () => root.render(<ModSetupSelector library={available} starterIds={[second.id, SYNTHETIC_BUNDLED_MOD.id]} onApply={onApply} onSkip={async () => {}} onClose={onClose}/>)) }
 
+it('keeps choices collapsed until requested and focuses search when expanded', async () => {
+  await render()
+  const chooser = button('Choose mods')
+  const choices = document.getElementById(chooser.getAttribute('aria-controls')!)!
+  expect(choices.hidden).toBe(true)
+  expect(chooser.getAttribute('aria-expanded')).toBe('false')
+  await click('Choose mods')
+  expect(choices.hidden).toBe(false)
+  expect(chooser.getAttribute('aria-expanded')).toBe('true')
+  expect(document.activeElement).toBe(document.querySelector('input[type="search"]'))
+  await click('Choose mods')
+  expect(choices.hidden).toBe(true)
+})
+
 it('keeps hidden selections and applies their explicit priority with an available library', async () => {
   await render(); await click('Choose mods'); await click('Use starter selection')
   const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
