@@ -1,4 +1,4 @@
-import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT } from './mod-library-fixtures'
+import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
@@ -9,6 +9,7 @@ import type { LocalData } from '../src/domain/types'
 
 const MAX_MOBILE_EVIDENCE_GAP_PX = 30
 const MAX_INLINE_BADGE_CENTER_OFFSET_PX = 6
+const INLINE_BADGE_MOD_NAME = 'Example'
 
 async function choose(page: Page, label: string, name: string, options: { includeConflicts?: boolean } = {}) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
@@ -34,7 +35,8 @@ async function addCharacter(page: Page, name: string) {
 }
 
 test('build choices expose native facts, mod scope, and duplicate passive filtering', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
-  await importSyntheticLibrary(page)
+  // This checks alignment on one line; long mod names can wrap below the class on mobile
+  await importSyntheticLibrary(page, true, SYNTHETIC_LIBRARY_ROOTS.map(root => root.ID === 'synthetic-moonlight' ? { ...root, Title: INLINE_BADGE_MOD_NAME } : root))
   await page.goto('/#/builds/library/new')
   await expect(page.getByLabel('Game mode', { exact: true })).toHaveValue('Standard')
   await expect(page.getByLabel('Difficulty', { exact: true })).toHaveValue('0')
@@ -49,14 +51,14 @@ test('build choices expose native facts, mod scope, and duplicate passive filter
   await openBuildPickerFilters(page)
   await page.getByText('Broader planning options', { exact: true }).click()
   await expect(page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true })).toBeChecked()
-  const barbarianResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) })
-  await expect(barbarianResult.locator('.picker-result__heading').getByText('Mod: Synthetic Moonlight', { exact: true })).toBeVisible()
-  await expect(barbarianResult.locator('.picker-result__content > [data-mod-badge="Synthetic Moonlight"]')).toHaveCount(0)
-  await expect.poll(() => barbarianResult.locator('.picker-result__heading').evaluate(heading => {
+  const syntheticClassResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Class$/ }) })
+  await expect(syntheticClassResult.locator('.picker-result__heading').getByText(`Mod: ${INLINE_BADGE_MOD_NAME}`, { exact: true })).toBeVisible()
+  await expect(syntheticClassResult.locator(`.picker-result__content > [data-mod-badge="${INLINE_BADGE_MOD_NAME}"]`)).toHaveCount(0)
+  await expect.poll(() => syntheticClassResult.locator('.picker-result__heading').evaluate((heading, modName) => {
     const name = heading.querySelector('strong')!.getBoundingClientRect()
-    const badge = heading.querySelector('[data-mod-badge="Synthetic Moonlight"] > .badge')!.getBoundingClientRect()
+    const badge = heading.querySelector(`[data-mod-badge="${modName}"] > .badge`)!.getBoundingClientRect()
     return Math.abs((name.top + name.bottom - badge.top - badge.bottom) / 2)
-  })).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
+  }, INLINE_BADGE_MOD_NAME)).toBeLessThanOrEqual(MAX_INLINE_BADGE_CENTER_OFFSET_PX)
   await page.getByRole('checkbox', { name: 'Include disabled or unconfirmed mods', exact: true }).press('Escape')
   await expect(classPicker).toHaveAttribute('aria-expanded', 'false')
   await expect(classPicker).toBeFocused()
