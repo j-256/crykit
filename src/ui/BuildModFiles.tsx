@@ -9,7 +9,7 @@ export function BuildModFiles({ setup, catalogs, onOpen, disabled = false }: { r
   // This lists the setup's recorded sources, not inferred dependencies of individual selections
   const missing = receipts.filter(receipt => !catalogs.some(catalog => modSourceMatch(receipt, catalog)))
   return <section aria-label="Build mod files" className="build-mod-files">
-    <div><h3>Mod files</h3><p>{missing.length ? `Upload matching JSON for: ${missing.map(receipt => receipt.title).join(', ')}.` : 'Matching JSON is available in this browser.'}</p></div>
+    <div><h3>Mod files</h3><p>{missing.length ? `Upload matching JSON for: ${missing.map(receipt => receipt.title).join(', ')}.` : 'Matching JSON is available in this browser.'}</p>{missing.length > 0 && <p>Upload the matching mod JSON to show more item and skill details and enable calculations that need them. You can still view and share this build. Imported JSON is saved in this browser.</p>}</div>
     <Button disabled={disabled} className="build-mod-files__upload" icon="upload" onClick={onOpen} tone="secondary" type="button">Upload mod JSON</Button>
   </section>
 }
