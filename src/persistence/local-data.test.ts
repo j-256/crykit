@@ -6,6 +6,7 @@ import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { decodeSharePayload } from '../interchange/share'
 import { TEAM_SIZE } from '../domain/scenarios'
+import type { CatalogRef } from '../domain/types'
 import starterBuildReferenceNames from './starter-build-reference-names.json' with { type: 'json' }
 import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
 import { CryKitDatabase, setDatabaseForTests } from './database'
@@ -86,7 +87,14 @@ describe('local planner persistence', () => {
       expect(setup.modComposition).toEqual(sourceSetup.modComposition)
       if (setup.modComposition?.layers.length) {
         expect(revision.content.primaryClass?.kind).toBe('catalog')
-        expect(resolveDefinition(localData, catalogs, revision.content.primaryClass!)).toBeUndefined()
+        const primaryClass = revision.content.primaryClass as CatalogRef
+        const definition = resolveDefinition(localData, catalogs, primaryClass)
+        // Exact native receipts recover unchanged facts even when the modded learning tree is unavailable
+        if (primaryClass.entityId.startsWith('base:')) {
+          const display = revision.content.referenceNames!.find(value => value.ref.entityId === primaryClass.entityId)!
+          expect(definition).toMatchObject({ id: primaryClass.entityId, kind: 'class', name: display.name })
+          if (title === 'Marco') expect(definition!.fields['Class learn tree']).toMatchObject({ state: 'unknown' })
+        } else expect(definition).toBeUndefined()
       }
     }
 

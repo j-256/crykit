@@ -56,9 +56,9 @@
       "archivedEquipmentFields": 1030
     },
     "acquisition": {
-      "replacedFields": 23,
-      "retainedGuideFields": 176,
-      "disagreements": 0
+      "replacedFields": 64,
+      "retainedGuideFields": 138,
+      "disagreements": 1
     },
     "identities": {
       "relations": {

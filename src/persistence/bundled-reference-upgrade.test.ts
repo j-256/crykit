@@ -3,6 +3,7 @@ import Dexie from 'dexie'
 import { afterEach, expect, it } from 'vitest'
 import { DEFAULT_CATALOG, compileBundledSourceId } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
+import { HISTORICAL_BUNDLED_CATALOG } from '../domain/withdrawn-catalogs'
 import { createPersonalDefinition } from '../domain'
 import { setModInReference } from '../domain/reference-library'
 import type { LocalData } from '../domain/types'
@@ -24,7 +25,8 @@ async function fixture(badHistory = false) {
   names.push(name)
   const database = new Dexie(name)
   database.version(4).stores(TABLES)
-  const before = createSampleLocalData(DEFAULT_CATALOG)
+  // Source-key references belong to the original bundled revision, never the fresh-profile catalog
+  const before = createSampleLocalData({ ...DEFAULT_CATALOG, ...HISTORICAL_BUNDLED_CATALOG })
   const after = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
   const oldBefore = historical(before)
   const oldAfter = historical(after)
@@ -45,7 +47,7 @@ it('upgrades historical bundled references and undo history before saving Refere
   const database = new CryKitDatabase(original.name)
   setDatabaseForTests(database)
   const loaded = await loadLocalData()
-  expect(database.verno).toBe(5)
+  expect(database.verno).toBe(6)
   expect(loaded.localData).toEqual(original.after)
   expect((await database.history.get('history'))?.before).toEqual(original.before)
   expect((await database.history.get('history'))?.after).toEqual(original.after)

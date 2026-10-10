@@ -201,12 +201,12 @@ test('member details stay pinned during pointer transit and follow deliberate fo
   await page.getByRole('button', { name: 'Choose Off hand', exact: true }).click()
   await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()
   const picker = page.getByRole('dialog', { name: 'Choose Off hand', exact: true })
-  await picker.getByRole('searchbox').fill('Ace of Diamonds')
-  const candidate = picker.locator('[data-definition-result="true"]').filter({ has: page.getByText('Ace of Diamonds', { exact: true }) })
+  await picker.getByRole('searchbox').fill('Stout Shield')
+  const candidate = picker.locator('[data-definition-result="true"]').filter({ has: page.getByText('Stout Shield', { exact: true }) })
   await candidate.hover()
   await expect(details.getByRole('heading', { name: 'Buckler', exact: true })).toBeVisible()
   await candidate.focus()
-  await expect(details.getByRole('heading', { name: 'Ace of Diamonds', exact: true })).toBeVisible()
+  await expect(details.getByRole('heading', { name: 'Stout Shield', exact: true })).toBeVisible()
 })
 
 test('direct slot editing protects a draft and saves a new observation offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {

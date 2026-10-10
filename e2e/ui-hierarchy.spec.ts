@@ -6,17 +6,21 @@ import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
 import { decodeCrystalSave, encodeCrystalSave } from '../src/interchange/crystal-save'
 import { createBlankPlaythrough, selectedPlaythrough, skipInitialModSetup } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
+import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 
 test('base-game onboarding and mobile navigation reach the primary planning controls', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/')
   const onboarding = page.getByRole('dialog', { name: 'Choose your mods', exact: true })
-  await expect(onboarding).toBeVisible()
-  await expect(onboarding.getByRole('searchbox', { name: 'Search mods', exact: true })).not.toBeVisible()
-  await onboarding.getByRole('button', { name: 'Choose mods', exact: true }).press('Enter')
-  await expect(onboarding.getByRole('searchbox', { name: 'Search mods', exact: true })).toBeFocused()
-  await onboarding.getByRole('button', { name: 'Choose mods', exact: true }).click()
-  await onboarding.getByRole('button', { name: 'Continue without mods', exact: true }).click()
-  await expect(onboarding).not.toBeVisible()
+  // The chooser requires an available library; planning and navigation must also work without one
+  if (BUNDLED_MOD_LIBRARY.length > 0) {
+    await expect(onboarding).toBeVisible()
+    await expect(onboarding.getByRole('searchbox', { name: 'Search mods', exact: true })).not.toBeVisible()
+    await onboarding.getByRole('button', { name: 'Choose mods', exact: true }).press('Enter')
+    await expect(onboarding.getByRole('searchbox', { name: 'Search mods', exact: true })).toBeFocused()
+    await onboarding.getByRole('button', { name: 'Choose mods', exact: true }).click()
+    await onboarding.getByRole('button', { name: 'Continue without mods', exact: true }).click()
+    await expect(onboarding).not.toBeVisible()
+  }
   if (isMobile) {
     const more = page.getByRole('button', { name: 'More destinations', exact: true })
     await more.click()
