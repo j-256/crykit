@@ -8,7 +8,7 @@ import { statusApplication } from './statuses.ts'
 const COMPLEX_STAT_TAGS = new Set(['DamageOnApply', 'DamageRateOnApply', 'Addi_PDmgReturn', 'Addi_PDmgReturn_OnKill', 'Flat_PDmgReturn', 'Addi_MDmgReturn', 'Addi_MDmgReturn_OnKill', 'Addi_HealingReturn', 'Reaction', 'RemoveStatusOnApply', 'SetStatusOnApply', 'SetStatusAfterRemoval', 'SetStatusAfterExpiry', 'ForceTurnAbility', 'ReplaceAttackWith'])
 
 export function describeStatModifiers(context: NativeDescriptionContext, family: string, record: NativeRecord): void {
-  const { snapshot, mode, vocabulary, general, sourceText, enumName, join, vocab, listName, name, child, add, unresolved } = context
+  const { snapshot, mode, vocabulary, general, sourceText, enumName, join, vocab, listName, name, child, add, lines, unresolved } = context
     if (record.HideStatModsFromDescription !== true && !Array.isArray(record.StatMods)) unresolved.push('Invalid stat modifiers')
     if (record.HideStatModsFromDescription !== true && Array.isArray(record.StatMods)) for (const modifier of record.StatMods) {
       if (!nativeRecord(modifier)) { unresolved.push('Invalid stat modifier'); continue }
@@ -49,7 +49,11 @@ export function describeStatModifiers(context: NativeDescriptionContext, family:
         const status = nativeDescriptionRecord(snapshot, 'status', value1, mode)
         if (status && typeof value3 === 'number' && value3 > 0) {
           text = statusApplication(context, status, value3, value2, tag === 'StatusAuto' ? vocab('DESC_STATUS_ON_BATTLE_START') : vocab(enumName('SangStatusCategory', status.Category) === 'Debuff' ? 'DESC_STATUS_ON_HIT_INFLICT' : 'DESC_STATUS_ON_HIT_APPLY'))
-          child('status', value1)
+          const effects = child('status', value1)
+          // An on-hit status is conditional, not an unconditional equipment modifier
+          // Keep its explanation with the trigger and chance even in truncated summaries
+          if (tag === 'PStatusApply') text = text && (effects.length ? `${text} ${status.Name} effect: ${effects.join(' ')}` : text)
+          else lines.push(...effects)
         }
       } else if (tag === 'ImmuneToStatusCategory') {
         const category = enumName('SangStatusCategory', value1)
