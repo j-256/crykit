@@ -1,4 +1,5 @@
 import { closeBuildActions, clickBuildAction, openBuildActions, openBuildComparison } from './planning-header-helpers'
+import { waitForPlannerReady } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -101,6 +102,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   expect((await previewNativeBackup(bytes, 'synthetic-tags.zip', BUNDLED_CATALOGS)).proposed.localData.builds).toEqual(after.builds)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()
+  await waitForPlannerReady(page)
   await openTags(page)
   await expect(page.getByRole('list', { name: 'Build tags', exact: true })).toContainText(TAG)
   await page.getByRole('button', { name: 'Cancel details', exact: true }).click()
