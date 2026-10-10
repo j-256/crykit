@@ -42,14 +42,14 @@ export function createNativeDescriptionContext(snapshot: NativeGameSnapshot, mod
     const values = vocabulary[key]
     return Array.isArray(values) && typeof id === 'number' && typeof values[id] === 'string' ? nativeVocabularyText(values[id] as string, general) : undefined
   }
-  const child = (database: string, id: JsonValue | undefined, item = false) => {
+  const child = (database: string, id: JsonValue | undefined, item = false): readonly string[] => {
     const target = typeof id === 'number' ? nativeDescriptionRecord(snapshot, database, id, mode) : undefined
     // Each nested family inherits the depth budget, including cycles through item abilities and statuses
-    if (!target || depth >= MAX_REFERENCE_DEPTH) { unresolved.push(`Unresolved ${database} description`); return }
+    if (!target || depth >= MAX_REFERENCE_DEPTH) { unresolved.push(`Unresolved ${database} description`); return [] }
     const result = describeChild(database, target, depth + 1, item)
-    // Keep child diagnostics with its lines so a useful fragment cannot conceal incomplete interpretation
-    lines.push(...result.lines)
+    // Callers can group child lines with their trigger, but child diagnostics must still mark the parent incomplete
     unresolved.push(...result.unresolved)
+    return result.lines
   }
   return { snapshot, mode, depth, lines, unresolved, vocabulary, general, sourceText, add, vocab, join, name, enumName, listName, child }
 }

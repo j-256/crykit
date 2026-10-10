@@ -33,6 +33,31 @@ describe('native description templates', () => {
     expect(describeNativeRecord(snapshot, 'equipment', record('equipment', 320))).toMatchObject({ lines: ['Dexterity:  +14', 'Agility:  +16', 'Only one can be equipped at a time.'], complete: true })
   })
 
+  it('keeps an on-hit status explanation with its trigger, duration, and chance', () => {
+    expect(describeNativeRecord(snapshot, 'equipment', record('equipment', 41))).toEqual({
+      lines: ['Attack:  +300', 'Crit. Damage:  +26%', 'On hit, inflict: Blind for 1 turn (10% chance). Blind effect: Always miss physical attacks.'],
+      complete: true,
+      unresolved: [],
+    })
+    expect(describeNativeRecord(snapshot, 'status', record('status', 7)).lines).toContain('Always miss physical attacks.')
+  })
+
+  it('retains the on-hit application when the nested status cannot be fully described', () => {
+    const status = { ...record('status', 7), StatMods: [stat('Flat_HP', 5), { Tag: -1, Value1: 0, Value2: 0, Value3: 0 }] }
+    const changed = { ...snapshot, databases: { ...snapshot.databases, status: [status] } }
+    expect(describeNativeRecord(changed, 'equipment', { StatMods: [stat('PStatusApply', 7, 25, 3)] })).toEqual({
+      lines: ['On hit, inflict: Blind for 3 turns (25% chance). Blind effect: Max. HP:  +5'],
+      complete: false,
+      unresolved: ['Unknown stat modifier'],
+    })
+    expect(describeNativeRecord(changed, 'equipment', { StatMods: [stat('PStatusApply', 7, 101, 3)] })).toMatchObject({ lines: [], complete: false })
+    expect(describeNativeRecord(snapshot, 'equipment', { StatMods: [stat('PStatusApply', 7, 25, 3)] }, 'base', 4)).toEqual({
+      lines: ['On hit, inflict: Blind for 3 turns (25% chance).'],
+      complete: false,
+      unresolved: ['Unresolved status description'],
+    })
+  })
+
   it('resolves reviewed static battle settings and class references for passive text', () => {
     expect(describeNativeRecord(snapshot, 'passive', record('passive', 43))).toMatchObject({ lines: ['Hold a One-Handed weapon with both hands to increase its attack by 50.'], complete: true })
     expect(describeNativeRecord(snapshot, 'passive', record('passive', 58))).toMatchObject({ lines: ["Learn Monster Magic by seeing an enemy use it, even while you're not a Scholar."], complete: true })
