@@ -720,6 +720,8 @@ it('carries shared import feedback only for its exact snapshot through guest reo
   function Owner() { selected = useWorkspace(); return <span>Ready</span> }
   await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
   const old = selected
+  // The real import UI is available only after initial admission, before another writer publishes its successor
+  await observe(() => old.repository.load())
   const other = createGuestRepository(db), before = await observe(() => other.load())
   await act(async () => { await other.save(before.localData, before.revision) })
   const result = { sharedSnapshot: 'synthetic-exact-share', source: { catalogId: 'synthetic-mod' as import('../domain/types').CatalogId, catalogRevisionId: 'synthetic-revision' as import('../domain/types').CatalogRevisionId, title: 'Synthetic imported mod' } }

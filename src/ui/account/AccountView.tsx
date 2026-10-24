@@ -120,7 +120,7 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
     setToken(next); setBusy(false); setPendingEmail(''); setStatus(profileAccess(next) === 'connected' ? 'Signed in. Your local records have not been copied to this account.' : 'Unlocked on this device. Online access is disconnected.')
     setCached(await listCachedProfiles())
     if (profileAccess(next) === 'connected') {
-      setMetadata(await management.readAccountView(next))
+      // The token effect owns initial metadata loading; another read here competes with that same request
       const result = await lifecycle.reconcilePendingRevocations(next)
       assertActiveProfile(next)
       if (result.revocationPending) setStatus('Signed in. An earlier sign-out is still pending. Retry reconciliation when connected.')
