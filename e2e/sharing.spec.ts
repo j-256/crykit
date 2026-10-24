@@ -1,3 +1,5 @@
+import { decodePublicSnapshot } from '../src/interchange/public-share'
+import { teamSlots, withTeamBuildViews } from '../src/domain/team-checkpoints'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
@@ -16,24 +18,15 @@ import { previewCrystalEdit } from '../src/interchange/crystal-edit'
 import { prepareModCatalogs } from '../src/persistence/local-data'
 import type { BuildId } from '../src/domain/types'
 import { expectOfflineReady } from './offline-helpers'
-import { skipInitialModSetup, selectedPlaythrough } from './local-data-helpers'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
+import { skipInitialModSetup, selectedPlaythrough, selectedGuestPlannerName, readLocalData as storedData } from './local-data-helpers'
+import { readManagedGuestPlanner } from './guest-planner-reader'
 
 async function storedImportCounts(page: Page): Promise<Readonly<Record<string, number>>> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
+  const managed = await readManagedGuestPlanner(page)
+  if (managed) return { catalogs: managed.catalogs.length, sources: managed.sources.length, imports: Object.keys(managed.localData.importReceipts).length }
+  const name = await selectedGuestPlannerName(page)
+  return page.evaluate(name => new Promise((resolve, reject) => {
+    const request = indexedDB.open(name)
     request.onerror = () => reject(request.error)
     request.onsuccess = () => {
       const database = request.result
@@ -47,7 +40,7 @@ async function storedImportCounts(page: Page): Promise<Readonly<Record<string, n
         count.onsuccess = () => { counts[store] = count.result }
       }
     }
-  }))
+  }), name)
 }
 
 for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? 'with' : 'without'} a model marker and personal definition details match the saved editor offline`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, context }, testInfo) => {
@@ -218,7 +211,7 @@ test('absent and unknown calculation inputs stay unknown until explicitly edited
   expect(saved.buildRevisions[saved.builds[copy.id]!.latestRevisionId!]!.content.calculation).toMatchObject({ level: 24, growth: [{ levels: 24 }] })
 })
 
-test('shares a saved build, supports manual copying, previews without writes and adds a copy', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('creates a receipt-only build link with manual copying and preserves legacy preview and copy', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
@@ -231,10 +224,10 @@ test('shares a saved build, supports manual copying, previews without writes and
   await expect(card.getByRole('button', { name: 'Share build', exact: true })).toBeVisible()
   await card.getByRole('button', { name: 'Share build', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Share build', exact: true })
-  await dialog.getByText('Anyone with this link can view the saved snapshot. Further edits need a new link.', { exact: true }).click()
+  await dialog.getByText('Preview the saved snapshot before sharing. Private edits do not change a published version.', { exact: true }).click()
   await expect(page).toHaveURL(libraryUrl)
   const url = await dialog.getByLabel('Share URL', { exact: true }).inputValue()
-  expect(url.length).toBeLessThan(MAX_SHARE_URL_LENGTH / 16)
+  expect(url.length).toBeLessThanOrEqual(MAX_SHARE_URL_LENGTH)
   await expect(dialog.getByRole('checkbox', { name: 'Include written notes' })).not.toBeChecked()
   await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('Synthetic denied clipboard')) } }) })
   await dialog.getByRole('button', { name: 'Copy link', exact: true }).click()
@@ -243,6 +236,11 @@ test('shares a saved build, supports manual copying, previews without writes and
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.goto(url)
   await expect(page.getByRole('heading', { name: build.title, exact: true }).first()).toBeVisible()
+  expect(decodePublicSnapshot(new URL(url).hash.split('/')[3]!).kind).toBe('build')
+  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(original)
+  // Legacy copying remains covered against an explicitly created legacy fixture
+  await page.goto(createShareUrl(createSharePayload(original, { kind: 'build', revisionId: build.latestRevisionId! }, false, BUNDLED_CATALOGS), libraryUrl))
   await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('region', { name: 'Shared build loadout' })).toBeVisible()
@@ -269,7 +267,7 @@ test('shares a saved build, supports manual copying, previews without writes and
   expect(errors).toEqual([])
 })
 
-test('opens four portable team slots in a fresh browser and saves them as an independent Team', { tag: MOBILE_TEST_TAG }, async ({ page, browser, baseURL, isMobile }) => {
+test('opens four public Team slots and preserves independent copying for legacy Team links', { tag: MOBILE_TEST_TAG }, async ({ page, browser, baseURL, isMobile }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
@@ -278,7 +276,7 @@ test('opens four portable team slots in a fresh browser and saves them as an ind
   await page.goto(`/#/builds/teams/${sourceTeam.id}`)
   await page.getByRole('button', { name: 'Share team', exact: true }).click()
   const url = await page.getByRole('dialog', { name: 'Share team', exact: true }).getByLabel('Share URL').inputValue()
-  expect(url.length).toBeLessThan(MAX_SHARE_URL_LENGTH / 16)
+  expect(url.length).toBeLessThanOrEqual(MAX_SHARE_URL_LENGTH)
   const recipientContext = await browser.newContext({ viewport: page.viewportSize()!, isMobile })
   const recipient = await recipientContext.newPage()
   try {
@@ -286,6 +284,11 @@ test('opens four portable team slots in a fresh browser and saves them as an ind
     // Share decoding can finish after navigation; wait for the recipient view before checking its contents
     await recipient.getByRole('heading', { name: sourceTeam.label, exact: true }).waitFor()
     await expect(recipient.getByRole('heading', { name: sourceTeam.label, exact: true })).toBeVisible()
+    expect(decodePublicSnapshot(new URL(url).hash.split('/')[3]!).slots).toHaveLength(4)
+    await expect(recipient.getByRole('heading', { name: /^Slot [1-4]$/ })).toHaveCount(4)
+    await expect(recipient.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
+    await recipient.goto(createShareUrl(createSharePayload(source, { kind: 'team', scenarioId: sourceTeam.id }, false, BUNDLED_CATALOGS), `${baseURL}/`))
+    await expect(recipient.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
     const before = await storedData(recipient)
     const members = Object.values(selectedPlaythrough(before).characters)
     expect(members.map(character => character.id)).not.toEqual(sourceTeam.memberIds)
@@ -300,8 +303,8 @@ test('opens four portable team slots in a fresh browser and saves them as an ind
     expect(selectedPlaythrough(after).inventory).toEqual(selectedPlaythrough(before).inventory)
     expect(after.gameSetups).toEqual(before.gameSetups)
     const added = Object.values(after.teams).find(team => !before.teams[team.id])!
-    expect(added.slots).toHaveLength(4)
-    expect(added.slots.every(id => id && after.buildRevisions[id])).toBe(true)
+    expect(teamSlots(after, added)).toHaveLength(4)
+    expect(teamSlots(after, added).every(id => id && withTeamBuildViews(after).buildRevisions[id])).toBe(true)
     expect(after.playthroughs).toEqual(before.playthroughs)
     await recipient.goto(`${baseURL}/#/teams`)
     await expect(recipient.getByRole('heading', { name: sourceTeam.label, exact: true })).toHaveCount(1)
@@ -356,7 +359,7 @@ test('a failed copy rolls back, remains previewable and retries without duplicat
     const originalPut = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof originalPut>) {
-      if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic share save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic share save failure', 'QuotaExceededError') }
       return originalPut.apply(this, args)
     }
   })
@@ -448,13 +451,14 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'catalogs') throw new DOMException('Synthetic mod import write failed', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { sessionStorage.setItem('synthetic-share-fault-fired', 'true'); throw new DOMException('Synthetic mod import write failed', 'QuotaExceededError') }
       return put.apply(this, args)
     }
     ;(window as unknown as { restoreModImportWrite: () => void }).restoreModImportWrite = () => { IDBObjectStore.prototype.put = put }
   })
   await input.setInputFiles({ name: 'my-mod.json', mimeType: 'application/json', buffer: Buffer.from(reordered) })
   await expect(page.getByText('Mod not imported', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-share-fault-fired'))).toBe('true')
   expect(await storedData(page)).toEqual(before)
   expect(await storedImportCounts(page)).toEqual(importCounts)
   await page.evaluate(() => (window as unknown as { restoreModImportWrite: () => void }).restoreModImportWrite())
@@ -481,7 +485,7 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   await expect(validity.getByText('definition is unavailable', { exact: false })).toHaveCount(0)
   const selected = page.getByRole('region', { name: 'Mod sources', exact: true })
   await selected.locator('details').filter({ has: page.locator('summary', { hasText: /^Synthetic Portable Class$/ }) }).locator('summary').first().click()
-  await selected.getByLabel('Local artwork for Synthetic Portable Class', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVJcAAAAASUVORK5CYII=', 'base64') })
+  await selected.getByLabel('Local artwork for Synthetic Portable Class', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4AWJiYGD4DwAAAP//cGajQwAAAAZJREFUAwABDgEC81VxbAAAAABJRU5ErkJggg==', 'base64') })
   await expect(page.getByRole('button', { name: 'Inspect Class: Synthetic Portable Class', exact: true }).locator('img')).toHaveAttribute('src', /^blob:/)
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Portable mod build', exact: true }).first()).toBeVisible()
@@ -527,7 +531,8 @@ test('missing mod details stay optional while calculation locks offer local JSON
   if (await disclosure.count()) await expect(disclosure).not.toHaveAttribute('open')
   await page.getByRole('button', { name: 'Share build', exact: true }).click()
   const sharing = page.getByRole('dialog', { name: 'Share build', exact: true })
-  await expect(sharing.getByRole('button', { name: 'Copy link', exact: true })).toBeEnabled()
+  await expect(sharing.getByRole('button', { name: 'Copy link', exact: true })).toBeDisabled()
+  await expect(sharing).toContainText('restore the matching source before sharing')
   await sharing.getByRole('button', { name: 'Close', exact: true }).click()
   await modFiles.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
   dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
@@ -583,14 +588,16 @@ test('validity warnings restore missing mod definitions inside the editor withou
   expect(await storedImportCounts(page)).toEqual(imports)
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
+    // Fail the actual managed head publication without changing source preparation or owned draft input
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'catalogs') throw new DOMException('Synthetic warning import write failed', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { sessionStorage.setItem('synthetic-warning-fault-fired', 'true'); throw new DOMException('Synthetic warning import write failed', 'QuotaExceededError') }
       return put.apply(this, args)
     }
     ;(window as unknown as { restoreWarningImport: () => void }).restoreWarningImport = () => { IDBObjectStore.prototype.put = put }
   })
   await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
   await expect(dialog.getByText('Mod not imported', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-warning-fault-fired'))).toBe('true')
   expect(await storedData(page)).toEqual(before)
   expect(await storedImportCounts(page)).toEqual(imports)
   await page.evaluate(() => (window as unknown as { restoreWarningImport: () => void }).restoreWarningImport())
@@ -611,4 +618,27 @@ test('validity warnings restore missing mod definitions inside the editor withou
   expect(saved.buildRevisions[checkpoint.id]).toEqual(checkpoint)
   expect(saved.gameSetups[revision.gameSetupRevisionId]!.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('canceling a recovered source-only draft preserves the saved checkpoint', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, payload } = await portableModFixture(true, true)
+  await page.goto(createShareUrl(payload, `${baseURL}/`))
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const before = await storedData(page)
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Rotation or use notes', exact: true }).fill('Cancel this unsaved recovery note')
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  await validity.locator('.build-validity__details > summary').click()
+  await validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' }).getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
+  await dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true }).setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Rotation or use notes', exact: true })).toHaveValue('Cancel this unsaved recovery note')
+  await page.getByRole('button', { name: 'Discard edits', exact: true }).click()
+  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
+  await page.reload()
+  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
 })

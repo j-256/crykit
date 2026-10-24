@@ -1,0 +1,107 @@
+import { expect, it } from 'vitest'
+import { EditorInputController } from './editor-input-controller'
+
+it('acknowledges immutable V while preserving typed descendant input and fences the old view', () => {
+  const controller = new EditorInputController(), view = controller.attach()
+  controller.open(view, 'document', 1, { original: 'original', applied: 'applied', reference: 'native' }, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' })
+  controller.editText(view, '{"V":')
+  const ticket = controller.capture(view, 'saveUnfinished', () => {})
+  controller.editText(view, '{"V+1":')
+  expect(() => ticket.command.assertMayActivate()).not.toThrow()
+  controller.acknowledge(ticket, 2)
+  expect(controller.snapshot().input?.text).toBe('{"V+1":')
+  expect(controller.snapshot().dirty).toBe(true)
+  const nextView = controller.transfer(view)
+  expect(() => controller.editText(view, 'late')).toThrow()
+  controller.hydrated(nextView)
+  const next = controller.capture(nextView, 'saveUnfinished', () => {})
+  expect(next.input?.text).toBe('{"V+1":')
+})
+it.each(['text', 'map'] as const)('coalesces %s input returned to its exact saved value without weakening captured ancestry', kind => {
+  const controller = new EditorInputController(), view = controller.attach()
+  controller.open(view, 'document', 1, { original: 'original', applied: 'applied', reference: 'native' }, { text: '{}', editedPath: [], fieldState: { map: { values: { X: '0', Y: '', Z: '0' } } }, validation: 'unchecked' })
+  const apply = controller.capture(view, 'apply', () => {})
+  if (kind === 'text') { controller.editText(view, '{"next":'); controller.editText(view, '{}') }
+  else { controller.editMapField(view, 'values', { X: '1', Y: '', Z: '0' }); controller.editMapField(view, 'values', { X: '0', Y: '', Z: '0' }) }
+  expect(controller.snapshot().dirty).toBe(false)
+  expect(controller.snapshot().revision).toBe(1)
+  expect(() => apply.command.assertMayActivate()).toThrow('changed')
+})
+it('acknowledges a captured input after later typing returns to that exact input', () => {
+  const controller = new EditorInputController(), view = controller.attach()
+  controller.open(view, 'document', 1, { original: 'original', applied: 'applied', reference: 'native' }, { text: '{}', editedPath: [], fieldState: null, validation: 'unchecked' })
+  controller.editText(view, '{"captured":')
+  const saved = controller.capture(view, 'saveUnfinished', () => {})
+  controller.editText(view, '{"captured": ')
+  controller.editText(view, '{"captured":')
+  controller.acknowledge(saved, 2)
+  expect(controller.snapshot()).toMatchObject({ dirty: false, revision: 2, input: { text: '{"captured":' } })
+})
+it('Apply requires an unchanged input version and discard invalidates unfinished ancestry', () => {
+  const c = new EditorInputController(), view = c.attach()
+  c.open(view, 'document', 1, { original: 'o', applied: 'a', reference: 'r' }, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' })
+  const apply = c.capture(view, 'apply', () => {})
+  c.editText(view, '{"next":1}')
+  expect(() => apply.command.assertMayActivate()).toThrow()
+  const save = c.capture(view, 'saveUnfinished', () => {})
+  c.discard(view)
+  expect(() => save.command.assertMayActivate()).toThrow()
+})
+it('composition and live gestures block transfer without discarding input', () => {
+  const c = new EditorInputController(), view = c.attach()
+  c.setInteraction(view, 'composition', true)
+  expect(() => c.transfer(view)).toThrow()
+  c.setInteraction(view, 'composition', false)
+  c.setInteraction(view, 'gesture', true)
+  expect(() => c.transfer(view)).toThrow()
+  c.setInteraction(view, 'gesture', false)
+  expect(c.transfer(view)).toBeDefined()
+})
+
+it('does not admit arbitrary replacement through the exposed snapshot', () => {
+  const c = new EditorInputController(), view = c.attach()
+  c.open(view, 'document', 1, { original: 'o', applied: 'a', reference: 'r' }, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' })
+  const ticket = c.capture(view, 'saveUnfinished', () => {})
+  expect(() => { (c.snapshot() as { input: { text: string } }).input = { text: 'unproved replacement' } }).toThrow()
+  expect(ticket.input?.text).toBe('{}')
+  expect(c.snapshot().input?.text).toBe('{}')
+})
+
+it('binds a captured command to its exact input, revision and file identity', () => {
+  const c = new EditorInputController(), view = c.attach()
+  c.open(view, 'document', 1, { original: 'o', applied: 'a', reference: 'r' }, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' })
+  const ticket = c.capture(view, 'saveUnfinished', () => {})
+  expect(() => ticket.command.assertInput?.('document', 1, { ...ticket.input!, text: 'different' })).toThrow()
+  expect(() => ticket.command.assertInput?.('other', 1, ticket.input)).toThrow()
+  expect(() => ticket.command.assertInput?.('document', 2, ticket.input)).toThrow()
+  expect(() => ticket.command.assertInput?.('document', 1, ticket.input)).not.toThrow()
+})
+
+it('disposal retires live interactions and wakes a waiting completion without granting a new view authority', async () => {
+  const controller = new EditorInputController(), view = controller.attach()
+  controller.setInteraction(view, 'composition', true)
+  let settled = false
+  const waiting = controller.waitForTransfer().then(() => { settled = true })
+  controller.release(view)
+  expect(controller.canTransfer()).toBe(true)
+  await waiting
+  expect(settled).toBe(true)
+  expect(() => controller.assertView(view)).toThrow('retired')
+  const successor = controller.attach()
+  expect(controller.canTransfer()).toBe(true)
+  expect(() => controller.setInteraction(view, 'composition', true)).toThrow('retired')
+  expect(() => controller.assertView(successor)).not.toThrow()
+})
+
+it('carries inert attempted action through unfinished descendants without granting Apply authority', () => {
+  const controller = new EditorInputController(), view = controller.attach()
+  controller.open(view, 'document', 1, { original: 'o', applied: 'a', reference: 'r' }, { text: '{}', editedPath: [], fieldState: { map: { validationAttempted: true } }, validation: 'valid' })
+  const save = controller.capture(view, 'saveUnfinished', () => {})
+  controller.editMapField(view, 'validationAction', 'platform')
+  expect(() => save.command.assertMayActivate()).not.toThrow()
+  const apply = controller.capture(view, 'apply', () => {})
+  controller.editMapField(view, 'validationAction', 'move')
+  expect(() => apply.command.assertMayActivate()).toThrow()
+  expect(controller.snapshot().input?.fieldState).toMatchObject({ map: { validationAttempted: true, validationAction: 'move' } })
+  expect(() => controller.editMapField(view, 'validationAction', 'execute')).toThrow()
+})

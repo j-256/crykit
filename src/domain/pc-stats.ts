@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from './retained-selections'
 import { collectEffectiveModifiers } from './effective-modifiers'
 import { nativeStatRecord, type NativeRecord } from './native-stat-record'
 export { nativeStatRecord, type NativeRecord } from './native-stat-record'
@@ -32,7 +33,7 @@ const number = (record: NativeRecord | undefined, key: string) => nativeInteger(
 const unknownStats = (): PCStats => Object.fromEntries(Object.keys(PC_RULES.stats).map(stat => [stat, null]))
 
 export function calculatePCStats(content: BuildRevisionContent, slots: readonly SlotDefinition[], resolve: Resolve, unknownInputs: readonly string[] = [], unknownSecondaryClass = false, gameRules?: GameRuleResolution): PCStatResult {
-  try { return calculateNativeStats(content, slots, resolve, unknownInputs, unknownSecondaryClass, gameRules) }
+  try { return calculateNativeStats(content, slots, withoutRetainedMechanics(content, resolve), unknownInputs, unknownSecondaryClass, gameRules) }
   catch {
     const empty = unknownStats()
     return { base: empty, neutral: empty, male: empty, female: empty, genders: {}, effects: [], issues: [...unknownInputs, ...gameRules?.issues ?? [], 'Native arithmetic is outside the supported range.'] }

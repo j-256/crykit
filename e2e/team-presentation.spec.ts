@@ -1,22 +1,8 @@
-import { skipInitialModSetup } from './local-data-helpers'
+import { skipInitialModSetup, waitForPlannerReady, readLocalData as storedData } from './local-data-helpers'
 import { chooseTeamCheckpoint } from './team-helpers'
-import { expect, test, type Locator, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
+import { expect, test, type Locator } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { MOBILE_TEST_TAG } from './test-tags'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 async function checkLoadoutOrder(sheet: Locator) {
   const equipment = sheet.getByRole('region', { name: 'Equipment', exact: true })
@@ -72,6 +58,7 @@ test('build, character, and shared loadouts put controls before collapsible stat
 
 test('new and shared plans report their own persistence until explicitly saved', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   await page.goto('/#/builds/library/new')
+  await waitForPlannerReady(page)
   await expect(page.locator('.context-status')).toHaveText('Not yet saved')
   await page.goto('/#/teams/new')
   await expect(page.locator('.context-status')).toHaveText('Not yet saved')
@@ -87,6 +74,7 @@ test('new and shared plans report their own persistence until explicitly saved',
   const saved = await storedData(page)
   expect(Object.keys(saved.builds)).toHaveLength(Object.keys(before.builds).length + 1)
   await page.goto('/#/teams/new')
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic saved draft Team')
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
   await expect(page.locator('.context-status')).toHaveText('Saved locally')
@@ -132,6 +120,7 @@ test('team equipment names remain visible and keyboard activation opens exact de
   await page.goto('/#/teams/new')
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible()
   const before = await storedData(page)
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   const build = Object.values(before.builds).find(build => build.title === 'Rowan: sample Warrior')!
   await chooseTeamCheckpoint(page, 1, build.latestRevisionId!)
   const slot = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })

@@ -85,20 +85,25 @@ function categoryKnowledge(fields: Readonly<Record<string, Knowledge<JsonValue>>
   return value
 }
 
-function inventoryLabel(localData: LocalData, ref: EntityRef) {
-  const positions = Object.values(selectedPlaythrough(localData)?.inventory ?? {}).filter((position) => logicalEntityKey(localData, position.ref) === logicalEntityKey(localData, ref))
-  if (!positions.length) return 'Stock unrecorded'
-  let confirmed = 0
-  let uncertain = false
-  for (const position of positions) {
+function inventoryLabels(localData: LocalData): (ref: EntityRef) => string {
+  // Resolve each recorded position once instead of rescanning stock for every catalog option
+  // The domain key preserves personal lineage without merging unrelated same-name catalog records
+  const groups = new Map<string, { confirmed: number; uncertain: boolean }>()
+  for (const position of Object.values(selectedPlaythrough(localData)?.inventory ?? {})) {
+    const key = logicalEntityKey(localData, position.ref)
+    let group = groups.get(key)
+    if (!group) { group = { confirmed: 0, uncertain: false }; groups.set(key, group) }
     if (position.possession === 'notOwned') continue
-    if (position.possession === 'unknown' || position.quantity.kind === 'unknown') uncertain = true
-    else confirmed += position.quantity.value
-    if (position.quantity.kind === 'atLeast') uncertain = true
+    if (position.possession === 'unknown' || position.quantity.kind === 'unknown') group.uncertain = true
+    else group.confirmed += position.quantity.value
+    if (position.quantity.kind === 'atLeast') group.uncertain = true
   }
-  if (confirmed && uncertain) return `${confirmed}+ recorded owned; total uncertain`
-  if (confirmed) return `${confirmed} recorded owned`
-  return uncertain ? 'Ownership or count uncertain' : 'Recorded not owned'
+  const labels = new Map([...groups].map(([key, { confirmed, uncertain }]) => [key,
+    confirmed && uncertain ? `${confirmed}+ recorded owned; total uncertain`
+      : confirmed ? `${confirmed} recorded owned`
+        : uncertain ? 'Ownership or count uncertain' : 'Recorded not owned',
+  ]))
+  return ref => labels.get(logicalEntityKey(localData, ref)) ?? 'Stock unrecorded'
 }
 
 function catalogProvenance(catalogs: readonly CatalogSnapshot[], ref: EntityRef | undefined) {
@@ -109,26 +114,48 @@ function catalogProvenance(catalogs: readonly CatalogSnapshot[], ref: EntityRef 
 
 type CatalogDefinitionOption = Omit<DefinitionOption, 'ref' | 'record' | 'stockLabel' | 'gameSetupStatus' | 'modAvailability'> & { readonly ref: CatalogRef; readonly record: CatalogEntity }
 
+// Owned view remounts can reuse presentation only after every nested input is immutable
+// Shallow freezing is insufficient: mutable imported fields must still be reinterpreted
+const immutableCatalogOptions = new WeakMap<CatalogSnapshot, readonly CatalogDefinitionOption[]>()
+const deeplyImmutableInputs = new WeakSet<object>()
+function recursivelyImmutable(value: unknown, visiting = new Set<object>()): boolean {
+  if (!value || typeof value !== 'object') return true
+  if (deeplyImmutableInputs.has(value)) return true
+  if (!Object.isFrozen(value) || visiting.has(value)) return false
+  visiting.add(value)
+  const immutable = Object.values(value).every(child => recursivelyImmutable(child, visiting))
+  visiting.delete(value)
+  if (immutable) deeplyImmutableInputs.add(value)
+  return immutable
+}
+
 function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): readonly CatalogDefinitionOption[] {
-  return catalogs.flatMap((snapshot) => Object.values(snapshot.entities).map((entity): CatalogDefinitionOption => {
-    const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
-    const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? (snapshot.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? modCatalogTitle(snapshot) : starterEntitySourceLabel(entity))
-    const effectiveLayer = entity.fields['Effective mod layer']
-    const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
-    const category = categoryKnowledge(entity.fields)
-    return {
-      key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
-      description: referenceDescription(entity),
-      nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
-      ...(category === undefined ? {} : { category }),
-      ppCost: passivePointCost(entity),
-      sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,
-      preferred: true, record: entity,
-    }
-  }))
+  return catalogs.flatMap(snapshot => {
+    const cached = immutableCatalogOptions.get(snapshot)
+    if (cached) return cached
+    const options = Object.values(snapshot.entities).map((entity): CatalogDefinitionOption => {
+      const ref: CatalogRef = { kind: 'catalog', catalogId: snapshot.id, catalogRevisionId: snapshot.revisionId, entityId: entity.id }
+      const provenance = nativeDefinitionLabel(entity) ?? bundledModLabel(entity) ?? (snapshot.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? modCatalogTitle(snapshot) : starterEntitySourceLabel(entity))
+      const effectiveLayer = entity.fields['Effective mod layer']
+      const layerLabel = effectiveLayer?.state === 'known' && typeof effectiveLayer.value === 'string' ? `${effectiveLayer.value} · effective definition · ` : ''
+      const category = categoryKnowledge(entity.fields)
+      return {
+        key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
+        description: referenceDescription(entity),
+        nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
+        ...(category === undefined ? {} : { category }),
+        ppCost: passivePointCost(entity),
+        sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,
+        preferred: true, record: entity,
+      }
+    })
+    if (recursivelyImmutable(snapshot)) immutableCatalogOptions.set(snapshot, options)
+    return options
+  })
 }
 
 function updateDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[], catalogOptions: readonly CatalogDefinitionOption[]): readonly DefinitionOption[] {
+  const stockLabel = inventoryLabels(localData)
   const preferredPersonalIds = new Set(preferredPersonalDefinitions(localData).map((definition) => definition.id))
   const activeGameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
   const existing = new Set(catalogOptions.map(option => option.key))
@@ -155,7 +182,7 @@ function updateDefinitionOptions(localData: LocalData, catalogs: readonly Catalo
       ...(categoryKnowledge(definition.fields) === undefined ? {} : { category: categoryKnowledge(definition.fields) }),
       ppCost: passivePointCost(definition),
       sourceLabel: `${editable ? `Custom revision ${definition.revision}${preferred ? ' · preferred' : ' · older exact definition'}` : 'Saved catalog version · read-only'}${provenance ? ` · ${provenance}` : ''}`,
-      stockLabel: inventoryLabel(localData, ref), preferred, record: definition,
+      stockLabel: stockLabel(ref), preferred, record: definition,
       modAvailability: definitionModAvailability(localData, ref, activeGameSetup, catalogs),
       ...(activeGameSetup?.definitionOverrides?.some((pinned) => entityDefinitionKey(pinned) === entityDefinitionKey(ref)) ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup definition collection' : 'No current Game Setup definition collection' }),
     }
@@ -164,7 +191,7 @@ function updateDefinitionOptions(localData: LocalData, catalogs: readonly Catalo
     const ref = option.ref
     return {
       ...option,
-      stockLabel: inventoryLabel(localData, ref),
+      stockLabel: stockLabel(ref),
       modAvailability: definitionModAvailability(localData, ref, activeGameSetup, catalogs),
       ...(activeGameSetup?.catalogLock[ref.catalogId] === ref.catalogRevisionId ? {} : { gameSetupStatus: activeGameSetup ? 'Outside the current Game Setup catalog pin' : 'No current Game Setup catalog pin' }),
     }
@@ -199,6 +226,21 @@ export function definitionOptionsForSetup(options: readonly DefinitionOption[], 
   })
 }
 
+function useCurrentDefinitionOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[], sameOptions?: readonly DefinitionOption[]): readonly DefinitionOption[] {
+  const cached = useRef<{ inputs: readonly unknown[]; options: readonly DefinitionOption[] } | undefined>(undefined)
+  if (sameOptions) { cached.current = undefined; return sameOptions }
+  // These are the exact inputs used by stock, personal lineage, mod availability and preserved-pin projections
+  // Notes, Build history and file edits do not change them; mutable or shallow-frozen inputs never qualify
+  const inputs = [localData.personalDefinitions, localData.gameSetups, localData.planningGameSetupRevisionId, selectedPlaythrough(localData)?.inventory, ...catalogs]
+  const immutable = inputs.every(input => recursivelyImmutable(input))
+  const prior = cached.current
+  if (immutable && prior && inputs.length === prior.inputs.length && inputs.every((input, index) => input === prior.inputs[index])) return prior.options
+  const options = buildDefinitionOptions(localData, catalogs)
+  // This display cache stays within the mounted provider's existing profile-bound lifetime
+  cached.current = immutable ? { inputs, options } : undefined
+  return options
+}
+
 export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestParentSearch, children, planningCatalogs }: PropsWithChildren<{ localData: LocalData; catalogs: readonly CatalogSnapshot[]; planningCatalogs?: readonly CatalogSnapshot[]; onSaveDefinition: (draft: DefinitionEditorDraft) => Promise<EntityRef>; onLoadBundledMod?: (mod: BundledLibraryMod) => Promise<CatalogSnapshot>; onImportMod?: (preview: ImportPreview) => Promise<void>; onRequestParentSearch?: () => void }>) {
   const [searchRequested, setSearchRequested] = useState(false)
   const [searchCatalogs, setSearchCatalogs] = useState<readonly CatalogSnapshot[]>()
@@ -214,21 +256,12 @@ export function DefinitionProvider({ localData, catalogs, onSaveDefinition, onLo
   }, [canSearchBundled, searchRequested])
   const bundledSearchPending = canSearchBundled && searchCatalogs === undefined && !bundledSearchError
   const searchable = useMemo(() => canSearchBundled && searchCatalogs ? mergeModSearchCatalogs(catalogs, searchCatalogs) : catalogs, [catalogs, canSearchBundled, searchCatalogs])
-  // Catalog metadata can be reused, but stock, personal revisions, and setup labels must follow each local save
-  // Rebuilding the catalog projection on every tile click delays the immediate-save queue
-  const catalogOptions = useMemo(() => buildCatalogDefinitionOptions(searchable), [searchable])
-  const options = useMemo(() => updateDefinitionOptions(localData, searchable, catalogOptions), [searchable, catalogOptions, localData])
-  const availableOptions = useMemo(() => {
-    const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
-    return definitionOptionsForSetup(options, searchable, gameSetup)
-  }, [searchable, options, localData])
+  const options = useCurrentDefinitionOptions(localData, searchable)
+  const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
+  const availableOptions = useMemo(() => definitionOptionsForSetup(options, searchable, gameSetup), [searchable, options, gameSetup])
   const baseline = planningCatalogs ?? searchable
-  const planningCatalogOptions = useMemo(() => baseline === searchable ? catalogOptions : buildCatalogDefinitionOptions(baseline), [baseline, searchable, catalogOptions])
-  const planningOptions = useMemo(() => baseline === searchable ? options : updateDefinitionOptions(localData, baseline, planningCatalogOptions), [baseline, searchable, options, planningCatalogOptions, localData])
-  const availablePlanningOptions = useMemo(() => {
-    const gameSetup = localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined
-    return definitionOptionsForSetup(planningOptions, baseline, gameSetup)
-  }, [baseline, planningOptions, localData])
+  const planningOptions = useCurrentDefinitionOptions(localData, baseline, baseline === searchable ? options : undefined)
+  const availablePlanningOptions = useMemo(() => definitionOptionsForSetup(planningOptions, baseline, gameSetup), [baseline, planningOptions, gameSetup])
   const value = useMemo(() => ({ localData, catalogs: searchable, options, availableOptions, planningOptions, availablePlanningOptions, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError }), [availableOptions, availablePlanningOptions, searchable, onSaveDefinition, onLoadBundledMod, onImportMod, onRequestBundledSearch, bundledSearchPending, bundledSearchError, options, planningOptions, localData])
   return <DefinitionLibraryContext.Provider value={value}>{children}</DefinitionLibraryContext.Provider>
 }

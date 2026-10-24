@@ -1,8 +1,15 @@
+import { OFFLINE_CONTENT_MANIFEST, OFFLINE_CONTENT_VERSION, OFFLINE_EXTRAS, type OfflineContent, type OfflineExtra, type OfflineProgress } from './offline-content'
+
 export interface OfflineStatus {
   state: 'checking' | 'not-ready' | 'ready' | 'unsupported' | 'error'
   detail?: string
   updateAvailable?: boolean
+  contents?: readonly OfflineContent[]
+  selectionKnown?: boolean
+  progress?: OfflineProgress
 }
+
+interface CacheReply { ready: boolean; error?: string; pending?: boolean; contents?: readonly OfflineContent[] }
 
 const READINESS_TIMEOUT_MS = 8_000
 const REFRESH_TIMEOUT_MS = 120_000
@@ -14,6 +21,7 @@ let status: OfflineStatus = { state: 'not-ready', detail: 'Prepare the app for u
 const listeners = new Set<(status: OfflineStatus) => void>()
 let pending: Promise<OfflineStatus> | undefined
 let refreshPending: Promise<void> | undefined
+let manifestPending: Promise<readonly OfflineContent[] | undefined> | undefined
 
 function publish(next: OfflineStatus): OfflineStatus {
   status = next
@@ -27,29 +35,53 @@ export function subscribeOfflineStatus(listener: (value: OfflineStatus) => void)
   return () => { listeners.delete(listener) }
 }
 
-function requestCache(worker: ServiceWorker, type: 'CHECK_READINESS' | 'PREPARE_CACHE' | 'REFRESH_CACHE'): Promise<boolean> {
+function requestCache(worker: ServiceWorker, type: 'CHECK_READINESS' | 'PREPARE_CACHE' | 'REFRESH_CACHE', extras?: readonly OfflineExtra[]): Promise<CacheReply> {
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel()
-    const timer = setTimeout(() => { channel.port1.close(); resolve(false) }, type === 'REFRESH_CACHE' ? REFRESH_TIMEOUT_MS : READINESS_TIMEOUT_MS)
-    channel.port1.onmessage = (event: MessageEvent<{ ready?: boolean; error?: string }>) => {
+    // A preparation can outlive this status request; the worker still reports its actual completion
+    const timer = setTimeout(() => { channel.port1.close(); resolve({ ready: false, pending: type === 'PREPARE_CACHE' }) }, type === 'REFRESH_CACHE' ? REFRESH_TIMEOUT_MS : READINESS_TIMEOUT_MS)
+    channel.port1.onmessage = (event: MessageEvent<CacheReply>) => {
       clearTimeout(timer)
       channel.port1.close()
       if (type === 'REFRESH_CACHE' && event.data.error) { reject(new Error(event.data.error)); return }
-      resolve(event.data.ready === true)
+      resolve(event.data)
     }
-    try { worker.postMessage({ type }, [channel.port2]) } catch (error) { clearTimeout(timer); channel.port1.close(); reject(error) }
+    try { worker.postMessage({ type, contentVersion: OFFLINE_CONTENT_VERSION, ...(extras === undefined ? {} : { extras }) }, [channel.port2]) } catch (error) { clearTimeout(timer); channel.port1.close(); reject(error) }
   })
 }
 
-async function inspectCache(prepare = false): Promise<OfflineStatus> {
-  const worker = registration?.active
-  if (!worker) return publish({ state: 'not-ready', detail: 'The offline download has not finished.' })
-  const ready = await requestCache(worker, prepare ? 'PREPARE_CACHE' : 'CHECK_READINESS')
+function publishCacheReply(reply: CacheReply): OfflineStatus {
+  // Older workers report readiness only after caching every feature, without per-feature metadata
+  const contents = reply.contents ?? (reply.ready ? status.contents?.map(content => ({ ...content, ready: true, selected: true })) : status.contents)
   return publish({
-    state: ready ? 'ready' : 'not-ready',
-    detail: ready ? 'The application is cached. Your records stay in this browser.' : 'Some application files are missing from the cache. Reconnect and prepare again.',
+    state: reply.error ? 'error' : reply.pending ? 'checking' : reply.ready ? 'ready' : 'not-ready',
+    detail: reply.error ?? (reply.pending ? 'The download is continuing in the background.' : reply.ready ? 'Selected app files are ready offline. Your saved work is kept.' : 'Some selected app files are missing. Reconnect and prepare again.'),
+    contents,
+    selectionKnown: !reply.pending,
+    ...(reply.pending && status.progress ? { progress: status.progress } : {}),
     updateAvailable: Boolean(registration?.waiting),
   })
+}
+
+async function inspectCache(prepare = false, extras?: readonly OfflineExtra[]): Promise<OfflineStatus> {
+  const worker = registration?.active
+  if (!worker) return publish({ state: 'not-ready', detail: 'The offline download has not finished.' })
+  return publishCacheReply(await requestCache(worker, prepare ? 'PREPARE_CACHE' : 'CHECK_READINESS', extras))
+}
+
+function readContentManifest(): Promise<readonly OfflineContent[] | undefined> {
+  manifestPending ??= (async () => {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}${OFFLINE_CONTENT_MANIFEST}`)
+      if (!response.ok) return
+      const data = await response.json() as { version?: unknown; contents?: OfflineContent[] }
+      const ids = new Set(['core', ...Object.keys(OFFLINE_EXTRAS)])
+      if (data.version !== OFFLINE_CONTENT_VERSION || !Array.isArray(data.contents) || data.contents.length !== ids.size) return
+      if (data.contents.some(content => !ids.delete(content.id) || !Number.isSafeInteger(content.files) || content.files < 0 || !Number.isSafeInteger(content.bytes) || content.bytes < 0)) return
+      return data.contents.map(content => ({ ...content, ready: false, selected: content.id === 'core' }))
+    } catch { return }
+  })()
+  return manifestPending
 }
 
 export async function getOfflineStatus(): Promise<OfflineStatus> {
@@ -62,12 +94,24 @@ export async function getOfflineStatus(): Promise<OfflineStatus> {
       return publish({ state: 'error', detail: 'Unable to inspect the offline installation.' })
     }
   }
-  return registration?.active ? inspectCache() : { ...status }
+  if (registration?.active) return inspectCache()
+  const contents = !import.meta.env.DEV ? await readContentManifest() : undefined
+  // A first-install reply can arrive while the size manifest loads; verified worker state takes precedence
+  return contents && !status.selectionKnown ? publish({ ...status, contents }) : { ...status }
 }
 
 const watchedRegistrations = new WeakSet<ServiceWorkerRegistration>()
+let watchingMessages = false
 
 function watchRegistration(value: ServiceWorkerRegistration): void {
+  if (!watchingMessages) {
+    watchingMessages = true
+    navigator.serviceWorker.addEventListener('message', (event: MessageEvent<{ type?: string; progress?: OfflineProgress } & CacheReply>) => {
+      if (!event.source || ![registration?.active, registration?.installing, registration?.waiting].includes(event.source as ServiceWorker)) return
+      if (event.data.type === 'OFFLINE_PROGRESS' && event.data.progress) publish({ ...status, state: 'checking', detail: 'Downloading and checking selected app files...', progress: event.data.progress })
+      if (event.data.type === 'OFFLINE_STATUS') publishCacheReply(event.data)
+    })
+  }
   if (watchedRegistrations.has(value)) return
   watchedRegistrations.add(value)
   const watchedWorkers = new WeakSet<ServiceWorker>()
@@ -129,26 +173,28 @@ function waitForInstalledWorker(worker: ServiceWorker): Promise<void> {
   })
 }
 
-export function requestOfflineReadiness(): Promise<OfflineStatus> {
+export function requestOfflineReadiness(extras: readonly OfflineExtra[] = []): Promise<OfflineStatus> {
   if (pending) return pending
-  pending = prepareOffline().finally(() => { pending = undefined })
+  pending = prepareOffline(extras).finally(() => { pending = undefined })
   return pending
 }
 
-async function prepareOffline(): Promise<OfflineStatus> {
+async function prepareOffline(extras: readonly OfflineExtra[]): Promise<OfflineStatus> {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) {
     return publish({ state: 'unsupported', detail: 'Offline installation needs a secure browser context.' })
   }
   if (import.meta.env.DEV) {
     return publish({ state: 'not-ready', detail: 'Offline caching is available in the production preview or installed application.' })
   }
-  publish({ state: 'checking', detail: 'Downloading and checking application files...' })
+  publish({ ...status, state: 'checking', detail: 'Downloading and checking selected app files...' })
   try {
     registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
     watchRegistration(registration)
     if (!registration.active) await waitForActiveWorker(registration)
     const inspected = await inspectCache()
-    return inspected.state === 'ready' ? inspected : await inspectCache(true)
+    const changedSelection = inspected.contents?.some(content => content.id !== 'core' && content.selected !== extras.includes(content.id))
+    const missingSelection = extras.some(id => inspected.contents?.find(content => content.id === id)?.ready === false)
+    return inspected.state === 'ready' && !changedSelection && !missingSelection ? inspected : await inspectCache(true, extras)
   } catch (error) {
     return publish({ state: 'error', detail: error instanceof Error ? error.message : 'Unable to cache the application.' })
   }
@@ -188,7 +234,7 @@ async function refreshApplication(): Promise<void> {
     if (registration.installing) await waitForInstalledWorker(registration.installing)
     if (!registration.active) await waitForActiveWorker(registration)
     const worker = registration.waiting ?? registration.active
-    if (!worker || !await requestCache(worker, registration.waiting ? 'CHECK_READINESS' : 'REFRESH_CACHE')) throw new Error(REFRESH_FAILURE_MESSAGE)
+    if (!worker || !(await requestCache(worker, registration.waiting ? 'CHECK_READINESS' : 'REFRESH_CACHE')).ready) throw new Error(REFRESH_FAILURE_MESSAGE)
     if (registration.waiting) await activateOfflineUpdate()
     else window.location.reload()
   } catch (error) {

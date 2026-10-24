@@ -1,22 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { OfflineContent } from './offline-content'
 
 const SLOW_INSTALL_DELAY_MS = 60_000
 const CACHE_REFRESH_TIMEOUT_MS = 120_000
 const UPDATE_ACTIVATION_TIMEOUT_MS = 8_000
 
-type WorkerMessage = { type: string }
+type WorkerMessage = { type: string; contentVersion?: number; extras?: string[] }
 
 class FakeWorker extends EventTarget {
   state: ServiceWorkerState = 'installing'
   readonly messages: WorkerMessage[] = []
   refreshReady = true
+  contents?: OfflineContent[]
+  holdPreparation = false
   onActivate?: () => void
 
   postMessage(message: WorkerMessage, transfer: Transferable[] = []): void {
     this.messages.push(message)
     const port = transfer[0] as MessagePort | undefined
+    if (message.type === 'PREPARE_CACHE' && this.holdPreparation) return
     if (message.type === 'CHECK_READINESS' || message.type === 'PREPARE_CACHE' || message.type === 'REFRESH_CACHE') {
-      queueMicrotask(() => port?.postMessage({ ready: message.type !== 'REFRESH_CACHE' || this.refreshReady }))
+      queueMicrotask(() => port?.postMessage({ ready: message.type !== 'REFRESH_CACHE' || this.refreshReady, contents: this.contents }))
     }
     if (message.type === 'ACTIVATE_UPDATE') this.onActivate?.()
   }
@@ -101,6 +105,60 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   vi.resetModules()
+})
+
+it('prepares explicit extras even when the core is already ready', async () => {
+  const active = new FakeWorker()
+  active.state = 'activated'
+  active.contents = [
+    { id: 'core', files: 2, bytes: 100, ready: true, selected: true },
+    { id: 'maps', files: 1, bytes: 50, ready: false, selected: false },
+  ]
+  const serviceWorker = makeServiceWorkerContainer(new FakeRegistration(undefined, active))
+  const offline = await loadOffline(serviceWorker)
+
+  await offline.requestOfflineReadiness(['maps'])
+
+  expect(active.messages).toContainEqual({ type: 'PREPARE_CACHE', contentVersion: 1, extras: ['maps'] })
+})
+
+it('only accepts progress and late completion from this installation worker', async () => {
+  const active = new FakeWorker()
+  active.state = 'activated'
+  const serviceWorker = makeServiceWorkerContainer(new FakeRegistration(undefined, active))
+  const offline = await loadOffline(serviceWorker)
+  const statuses: Awaited<ReturnType<typeof offline.getOfflineStatus>>[] = []
+  offline.subscribeOfflineStatus(value => statuses.push(value))
+  await offline.getOfflineStatus()
+  const progress = { completedFiles: 3, totalFiles: 10, completedBytes: 30, totalBytes: 100 }
+  const dispatch = (source: FakeWorker) => serviceWorker.dispatchEvent(Object.assign(new Event('message'), { source, data: { type: 'OFFLINE_PROGRESS', progress } }))
+  dispatch(new FakeWorker())
+  expect(statuses.at(-1)?.progress).toBeUndefined()
+  dispatch(active)
+  expect(statuses.at(-1)).toMatchObject({ state: 'checking', progress })
+  serviceWorker.dispatchEvent(Object.assign(new Event('message'), { source: active, data: { type: 'OFFLINE_STATUS', ready: true, contents: active.contents } }))
+  expect(statuses.at(-1)?.state).toBe('ready')
+  expect(statuses.at(-1)?.progress).toBeUndefined()
+})
+
+it('keeps an unfinished optional download visible after its status request expires and accepts the final receipt', async () => {
+  const active = new FakeWorker()
+  active.state = 'activated'
+  active.holdPreparation = true
+  active.contents = [
+    { id: 'core', files: 2, bytes: 100, ready: true, selected: true },
+    { id: 'maps', files: 1, bytes: 50, ready: false, selected: false },
+  ]
+  const serviceWorker = makeServiceWorkerContainer(new FakeRegistration(undefined, active))
+  const offline = await loadOffline(serviceWorker)
+  const states: string[] = []
+  offline.subscribeOfflineStatus(value => states.push(value.state))
+  const preparation = offline.requestOfflineReadiness(['maps'])
+  await vi.advanceTimersByTimeAsync(8_000)
+  await expect(preparation).resolves.toMatchObject({ state: 'checking' })
+  expect(states.at(-1)).toBe('checking')
+  serviceWorker.dispatchEvent(Object.assign(new Event('message'), { source: active, data: { type: 'OFFLINE_STATUS', ready: true } }))
+  expect(states.at(-1)).toBe('ready')
 })
 
 describe('manual app refresh', () => {

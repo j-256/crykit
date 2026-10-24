@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { readdir, lstat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
 const MAX_FILES = 20_000
 const MAX_FILE_BYTES = 25 * 1024 * 1024
+const FORBIDDEN_ASSET_PATH = /(^|\/)(?:\.account-tests|\.superpowers|__accounts(?:-proof)?|private|imports|backups|worker|node_modules|\.git)(?:\/|$)|(^|\/)\.(?:env|dev\.vars)(?:\.|$)|(^|\/)[^/]+-service-secrets\.json(?:\.|$)|\.(?:map|sqlite|db|pem|key|xlsx|zip)$/i
 const USAGE = `Usage: node scripts/check-assets.mjs [-h|--help]
-Validate the dist directory against Workers Free static asset limits.
+Validate dist against private-artifact exclusions and Workers Free static asset limits.
 Requires Node.js and a production build from npm run build. No credentials,
 network requests, or writes. Reports file count, bytes, and largest file as JSON.
 Exit: 0 valid/help, 1 filesystem or limit failure, 2 invalid arguments.
@@ -23,6 +24,10 @@ let largest = { path: '', bytes: 0 }
 async function inspect(directory) {
   for (const name of await readdir(directory)) {
     const path = join(directory, name)
+    const asset = relative('dist', path)
+    // The deployment runbook reserves *-service-secrets.json so every configured store is excluded
+    // Published assets must never include local probes, secret stores or source maps
+    if (FORBIDDEN_ASSET_PATH.test(asset)) throw new Error(`Private or fixture artifact in static assets: ${asset}`)
     const info = await lstat(path)
     if (info.isSymbolicLink()) throw new Error(`Static assets must not contain symlinks: ${path}`)
     if (info.isDirectory()) { await inspect(path); continue }

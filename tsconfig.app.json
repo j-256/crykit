@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src"]
+  "include": ["src", "worker/testing/account-ui.tsx", "worker/testing/account-workspace.tsx", "worker/testing/local-save-performance.tsx", "worker/testing/crypto-proof-client.ts", "worker/testing/crypto-proof-worker.ts"]
 }

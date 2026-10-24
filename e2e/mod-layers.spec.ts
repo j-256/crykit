@@ -1,5 +1,5 @@
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
-import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -24,7 +24,8 @@ async function openSettings(page: Page, section: string) {
 async function exportData(page: Page) {
   const panel = await openSettings(page, 'Import & backup')
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const bytes = await readFile((await (await download).path())!)
   const files = unzipSync(bytes)
   const bundle = JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }
@@ -129,6 +130,7 @@ test('changing layers requires an explicit personal override decision and label 
   await importing.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mod-overrides.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(importing)
   await expect(importing).not.toBeVisible()
+  await choosePlaythrough(page, localData.playthroughs[localData.selectedPlaythroughId!]!.label)
   const adding = await openSettings(page, 'Import & backup')
   await adding.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: mods.first.filename, mimeType: 'application/json', buffer: Buffer.from(mods.first.proposed.sources[0]!.bytes) })
   await adding.getByRole('button', { name: 'Add references', exact: true }).click()

@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from '../domain/retained-selections'
 import { useMemo, useState } from 'react'
 import { entityDefinitionKey, logicalEntityKey, validateBuildContent } from '../domain'
 import { definitionModAvailability, modAvailabilityLabel } from '../catalog/mods'
@@ -14,7 +15,7 @@ import { DefinitionModLabel } from './DefinitionModLabel'
 import { DefinitionArtwork } from './GameIcon'
 import { summaryFactLines } from './build-evidence'
 import { Icon, type IconName } from './icons'
-import { entityName, resolveEntity } from './model'
+import { entityName, resolveEntity, resolveCalculationEntity } from './model'
 import { Button } from './components'
 import { buildReferenceName } from '../domain/build-reference-names'
 
@@ -76,10 +77,11 @@ export function PassiveCapacityMeter({ pp, announce = false }: { pp: BuildPpVali
 
 export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, catalogs, gameSetup, announcePp = false, onEquipmentSelect, onEquipmentEdit, equipmentNames = false, showClasses = true, showModLabels = true }: { content?: BuildRevisionContent; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; announcePp?: boolean; onEquipmentSelect?: (slotId: string) => void; onEquipmentEdit?: (slotId: string) => void; equipmentNames?: boolean; showClasses?: boolean; showModLabels?: boolean }) {
   const [inspectedSlotId, setInspectedSlotId] = useState<string>()
-  const slots = [...(gameSetup?.slots.length ? gameSetup.slots : SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
+  const slots = [...(gameSetup?.slots ?? SUGGESTED_BUILD_SLOTS)].sort((left, right) => left.order - right.order)
   const mainHandSlot = slots.find(slot => equipmentRole(slot) === 'mainHand')
   const mainHandSelection = mainHandSlot ? content.equipment[mainHandSlot.id] : undefined
-  const mainHandDefinition = mainHandSelection ? resolveEntity(localData, catalogs, mainHandSelection.ref) : undefined
+  const mechanics = withoutRetainedMechanics(content, (ref: EntityRef) => resolveCalculationEntity(localData, catalogs, ref, gameSetup))
+  const mainHandDefinition = mainHandSelection ? mechanics(mainHandSelection.ref) : undefined
   const twoHandedMain = mainHandDefinition && mainHandSelection && equipmentFacts(mainHandDefinition).twoHanded === true ? { name: mainHandDefinition.name, value: mainHandSelection.ref } : undefined
   const inspectedSlot = slots.find(slot => slot.id === inspectedSlotId)
   const inspectedSelection = inspectedSlot ? content.equipment[inspectedSlot.id] : undefined
@@ -87,9 +89,14 @@ export function BuildLoadoutSummary({ content = EMPTY_BUILD_CONTENT, localData, 
   const inspectedRef = inspectedOccupied?.value ?? inspectedSelection?.ref
   const inspectedOption = useMemo(() => inspectedRef ? findDefinitionOption(buildDefinitionOptions({ ...localData, planningGameSetupRevisionId: gameSetup?.id }, catalogs), inspectedRef) : undefined, [inspectedRef, localData, gameSetup?.id, catalogs])
   const secondary = content.secondaryClass ? resolveEntity(localData, catalogs, content.secondaryClass) : undefined
-  const report = validateBuildContent(content, gameSetup, slots, ref => resolveEntity(localData, catalogs, ref), ref => logicalEntityKey(localData, ref))
+  const report = validateBuildContent(content, gameSetup, slots, ref => resolveCalculationEntity(localData, catalogs, ref, gameSetup), ref => logicalEntityKey(localData, ref))
   const invalidIssues = report.issues.filter(issue => issue.status === 'invalid').length
+  if (gameSetup?.publicSourceContext) {
+    const name = (ref: EntityRef) => buildReferenceName(content, ref) ?? localData.unavailableDefinitions?.find(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))?.name ?? 'Unresolved selection'
+    return <span className="build-loadout-summary" data-validity="undetermined"><span>Copied source context; open to use matching files.</span>{[content.primaryClass, content.secondaryClass, ...Object.values(content.equipment).map(value => value?.ref), ...content.passives.map(value => value.ref)].filter((ref): ref is EntityRef => Boolean(ref)).map((ref, index) => <span key={index}>{name(ref)}</span>)}</span>
+  }
   return <span className="build-loadout-summary" data-validity={report.status}>
+    {content.retainedSelections && <span className="build-loadout-summary__issues">Recorded selections outside this Game Setup remain unresolved. {content.retainedSelections.slotIds.map(id => <span key={id}>{id}: {entityName(localData, catalogs, content.equipment[id]?.ref, content.equipment[id]?.observedName ?? 'Unresolved entry')}</span>)}</span>}
     {report.status === 'invalid' && <span className="build-loadout-summary__warning"><Icon name="warning"/><strong>Needs changes</strong><small>{invalidIssues} known {invalidIssues === 1 ? 'issue' : 'issues'}</small></span>}
     {showClasses && <span className="build-card__classes">
       <SummarySelection catalogs={catalogs} empty="No class selected" label="Class" localData={localData} gameSetup={gameSetup} showModLabels={showModLabels} value={content.primaryClass} displayName={!resolveEntity(localData, catalogs, content.primaryClass) ? buildReferenceName(content, content.primaryClass) : undefined}/>

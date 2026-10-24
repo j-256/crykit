@@ -138,7 +138,7 @@ export function parsePage(segments: readonly string[], requestedPath: string): {
   }
   if (segments[0] === 'settings') {
     const section = segments[1]
-    if (section !== 'playthrough' && section !== 'data' && section !== 'game-setup' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
+    if (section !== 'account' && section !== 'playthrough' && section !== 'data' && section !== 'game-setup' && section !== 'history' && section !== 'storage' && section !== 'credits') return bad('inventory')
     if (section === 'data' && segments[2] === 'import') {
       const previewId = decodeSegment(segments[3] ?? '')
       return previewId ? { page: { page: 'settings', section, previewId }, consumed: 4 } : bad('inventory', 'malformed-identifier')
@@ -153,9 +153,10 @@ export function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver
   if (page.page === 'map') return '/map'
   if (page.page === 'mods') return page.view === 'editor' ? '/mods/editor' : '/mods'
   if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : page.view === 'edit' ? '/edit' : ''}`
+  if (page.page === 'hosted-share') return `/s/${page.shareId}`
   if (page.page === 'share') {
     if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
-    return `${SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
+    return `${page.version === 5 ? '/share/v5/' : SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
   }
   if (page.page === 'inventory') {
     if (page.view === 'new') return '/inventory/new'

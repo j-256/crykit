@@ -72,6 +72,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
       const parsed = (family === 'Jobs' ? job : model).safeParse(entry)
       if (!parsed.success) throw new AppDataError('schema-mismatch', `Invalid Crystal Edit record at /${family}/${index}: ${parsed.error.issues[0]?.message ?? 'Invalid fields'}`, { recoverable: true })
       const record = parsed.data as Record<string, JsonValue>
+      // IsInnate classifies the record; IsLearnable independently controls equipped choice eligibility
       const effectiveKind = family === 'Passives' && record.IsInnate === true ? 'innate' : kind
       const id = bundledModEntityId(projectKey, family, record.ID as number)
       identities[`crystal-edit:${family}:${record.ID}`] = id

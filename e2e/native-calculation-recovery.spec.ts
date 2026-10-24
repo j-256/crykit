@@ -1,22 +1,9 @@
+import { readLocalData as storedData } from './local-data-helpers'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
 
 const SAMPLE_BUILD = 'Rowan: sample Warrior'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 async function openSample(page: Page) {
   await page.goto('/#/builds/library')

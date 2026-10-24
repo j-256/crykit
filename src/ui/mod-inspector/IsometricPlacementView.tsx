@@ -1,10 +1,11 @@
+import type { EditorMapCameraInput } from '../../workspace/editor-input-controller'
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { loadMapSurface } from '../../catalog/world-map'
 import { mapSurfaceCell, type MapSurface } from '../../domain/map-surface'
 import { MAP_FACE } from '../../domain/map-geometry'
 import type { WorldMapManifest, WorldMarker } from '../../domain/world-map'
 import { MAP_EDITOR_LIMITS, type MapPlacement, type PlacementCoord } from '../../mod-inspector/map-editor'
-import { ISO, ISO_ELEVATION, ISO_PRESET, isoCellVisible, isoDragCoord, isoGroundDelta, isoFaces, isoProject, isoSurfaceIndex, isoVisibleSurface, isoVisibleGeometry, placementPreview, type IsoCamera, type IsoElevation, type IsoPoint, type IsoRotation } from '../../mod-inspector/isometric'
+import { ISO, ISO_ELEVATION, ISO_PRESET, isoCellVisible, isoDragCoord, isoGroundDelta, isoFaces, isoProject, isoSurfaceIndex, isoVisibleSurface, isoVisibleGeometry, placementPreview, type IsoCamera, type IsoPoint, type IsoRotation } from '../../mod-inspector/isometric'
 import { Button, Field, IconButton, InlineNotice } from '../components'
 import MapOrientation from './MapOrientation'
 import IsometricScene, { type IsoTerrainCell } from './IsometricScene'
@@ -17,6 +18,7 @@ import { voxelBrushStamp, voxelCellKey, type BrushCell } from '../../mod-inspect
 
 interface Drag { readonly pointerId: number; readonly start: IsoPoint; readonly origin: PlacementCoord; readonly camera: IsoCamera; readonly mode: 'ground' | 'height' | 'pan'; readonly placement?: MapPlacement; readonly brush?: boolean; readonly source: string; moved: boolean; coord: PlacementCoord }
 interface Props {
+  readonly initialCamera?: EditorMapCameraInput; readonly onCameraInput?: (value: EditorMapCameraInput) => void
   readonly manifest: WorldMapManifest; readonly layerId: number; readonly placements: readonly MapPlacement[]; readonly nativeMarkers: readonly WorldMarker[]
   readonly selected?: MapPlacement; readonly destination?: PlacementCoord; readonly brush?: { readonly width: number; readonly depth: number; readonly voxelId: number }
   readonly visibleIds: ReadonlySet<number>; readonly active: boolean; readonly disabled: boolean; readonly source: string; readonly onSelect: (placement: MapPlacement) => void
@@ -35,18 +37,28 @@ function planeCoordinate(value: string | undefined): number | undefined {
   return Number.isSafeInteger(height) && height >= MAP_EDITOR_LIMITS.intMin && height <= MAP_EDITOR_LIMITS.intMax ? height : undefined
 }
 
-export default function IsometricPlacementView({ manifest, layerId, placements, nativeMarkers, selected, destination, brush, visibleIds, active, disabled, source, onSelect, onMove, onDestination, brushAction, cancelAttempt, onBrush, onGestureChange, tool, onTool, history, constructionPlane, onPlane, platformHeight }: Props) {
+export default function IsometricPlacementView({ initialCamera, onCameraInput, manifest, layerId, placements, nativeMarkers, selected, destination, brush, visibleIds, active, disabled, source, onSelect, onMove, onDestination, brushAction, cancelAttempt, onBrush, onGestureChange, tool, onTool, history, constructionPlane, onPlane, platformHeight }: Props) {
   const [surface, setSurface] = useState<MapSurface>()
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const [rotation, setRotation] = useState<IsoRotation>(ISO_PRESET.isometric.rotation)
-  const [elevation, setElevation] = useState<IsoElevation>(ISO_PRESET.isometric.elevation)
-  const [planeHeight, setPlaneHeight] = useState<string>()
-  const [zoom, setZoom] = useState(1)
+  const cameraInput = useRef<EditorMapCameraInput>(initialCamera ?? { rotation: ISO_PRESET.isometric.rotation, elevation: ISO_PRESET.isometric.elevation, zoom: 1, center: { X: 0, Y: 0, Z: 0 }, planeHeight: null, mode: 'ground' })
+  function useCameraInput<K extends keyof EditorMapCameraInput>(key: K): [EditorMapCameraInput[K], (next: EditorMapCameraInput[K] | ((previous: EditorMapCameraInput[K]) => EditorMapCameraInput[K]), publish?: boolean) => void] {
+    const [value, setValue] = useState(cameraInput.current[key])
+    return [value, (next, publish = true) => {
+      const previous = cameraInput.current[key], updated = typeof next === 'function' ? next(previous) : next
+      if (JSON.stringify(updated) === JSON.stringify(previous)) return
+      cameraInput.current = { ...cameraInput.current, [key]: updated }
+      setValue(updated); if (publish) onCameraInput?.(cameraInput.current)
+    }]
+  }
+  const [rotationValue, setRotation] = useCameraInput('rotation'), rotation = rotationValue as IsoRotation
+  const [elevation, setElevation] = useCameraInput('elevation')
+  const [planeHeightValue, setPlaneHeight] = useCameraInput('planeHeight'), planeHeight = planeHeightValue ?? undefined
+  const [zoom, setZoom] = useCameraInput('zoom')
   const [canvasScale, setCanvasScale] = useState(1)
-  const [center, setCenter] = useState<PlacementCoord>({ X: 0, Y: 0, Z: 0 })
+  const [center, setCenter] = useCameraInput('center')
   const [preview, setPreview] = useState<{ readonly id?: number; readonly coord: PlacementCoord }>()
-  const [mode, setMode] = useState<'ground' | 'height'>('ground')
+  const [mode, setMode] = useCameraInput('mode')
   const dragRef = useRef<Drag | undefined>(undefined)
   const frameRef = useRef<number | undefined>(undefined)
   const frameUpdate = useRef<{ readonly coord: PlacementCoord; readonly pan: boolean; readonly id?: number } | undefined>(undefined)
@@ -66,12 +78,12 @@ export default function IsometricPlacementView({ manifest, layerId, placements, 
   const planeSurface = surface && mapSurfaceCell(surface, Math.floor(center.X), Math.floor(center.Z))
   useEffect(() => {
     // Initialize once from the camera; clearing the input must remain invalid rather than repaint terrain
-    if (constructionPlane) setPlaneHeight(previous => previous ?? String(center.Y))
+    if (constructionPlane) setPlaneHeight(previous => previous ?? String(center.Y), false)
   }, [constructionPlane, center.Y])
   useEffect(() => {
     // Selection, undo and surface loading can recenter the camera at another height
     // Keep the active guide visible without changing any authored coordinate
-    if (constructionPlane && planeY !== undefined && center.Y !== planeY) setCenter(previous => ({ ...previous, Y: planeY }))
+    if (constructionPlane && planeY !== undefined && center.Y !== planeY) setCenter(previous => ({ ...previous, Y: planeY }), false)
   }, [constructionPlane, planeY, center.Y])
 
   useEffect(() => {
@@ -89,15 +101,25 @@ export default function IsometricPlacementView({ manifest, layerId, placements, 
     void loadMapSurface(manifest, layerId).then(value => { if (!cancelled) setSurface(value) }).catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason)) })
     return () => { cancelled = true }
   }, [manifest, layerId, attempt, active])
+  const initialFocus = useRef(JSON.stringify([layerId, selected?.id, focusX, focusY, focusZ]))
+  const restoredFocus = useRef(initialCamera ? initialFocus.current : undefined)
   useEffect(() => {
+    // Reopening the same selection preserves the saved camera even when surface data arrives later
+    const selection = JSON.stringify([layerId, selected?.id, focusX, focusY, focusZ])
+    if (restoredFocus.current === selection) return
+    restoredFocus.current = undefined
     // Recenter on explicit coordinates without manufacturing a placement height
     // When height is blank, the mapped height positions only the camera
     const ground = surface && mapSurfaceCell(surface, focusX, focusZ)
-    setCenter({ X: focusX, Y: focusY ?? ground?.height ?? 0, Z: focusZ })
+    // Surface loading initializes the view; only a user selection change creates durable presentation input
+    const changedSelection = initialFocus.current !== selection
+    initialFocus.current = selection
+    setCenter({ X: focusX, Y: focusY ?? ground?.height ?? 0, Z: focusZ }, changedSelection)
   }, [selected?.id, focusX, focusY, focusZ, surface])
   useEffect(() => {
     // Document, layer, view and camera changes invalidate any in-flight gesture
     // No partially dragged coordinate reaches storage until the release is accepted
+    if (dragRef.current) onGestureChange(false)
     cancelFrame(); dragRef.current = undefined; setPreview(undefined)
   }, [source, layerId, disabled, rotation, elevation, zoom, active])
   useEffect(() => () => { cancelFrame() }, [])
@@ -147,6 +169,7 @@ export default function IsometricPlacementView({ manifest, layerId, placements, 
     if ((placement || dragBrush) && disabled) return
     const origin = placement?.coord ?? (dragBrush ? destination : undefined) ?? center
     dragRef.current = { pointerId: event.pointerId, start: eventPoint(event), origin, coord: origin, camera, mode: placement || dragBrush ? height || mode === 'height' ? 'height' : 'ground' : 'pan', placement, brush: dragBrush, source, moved: false }
+    onGestureChange(true)
     svgRef.current!.setPointerCapture(event.pointerId)
   }
   function cancelFrame() {
@@ -199,7 +222,7 @@ export default function IsometricPlacementView({ manifest, layerId, placements, 
     }
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    cancelFrame(); dragRef.current = undefined; setPreview(undefined)
+    cancelFrame(); dragRef.current = undefined; setPreview(undefined); onGestureChange(false)
     if (svgRef.current?.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId)
     if (cancelled || !active || drag.source !== source || disabled && (drag.placement || drag.brush)) return
     if (drag.mode === 'pan') { if (drag.moved) setCenter(drag.coord); return }
@@ -271,7 +294,7 @@ export default function IsometricPlacementView({ manifest, layerId, placements, 
     {!surface && !error && <p role="status">Opening native surface heights...</p>}
     {geometry.pending && <p role="status">Loading nearby native voxel geometry...</p>}
     {geometry.error && <InlineNotice title="Native geometry needs attention" tone="warning"><p>{geometry.error}</p><Button tone="secondary" onClick={() => setAttempt(value => value + 1)}>Retry native geometry</Button></InlineNotice>}
-    <div className="iso-workspace"><div className="iso-scene"><IsometricScene active={active} terrain={terrain} placements={visible} camera={camera} colors={colors} selectedId={selected?.id} preview={preview?.id === undefined ? undefined : preview}/><IsometricConstructionPlane active={active && constructionPlane} height={planeY} mappedHeight={planeSurface?.height} camera={camera}/><IsometricBrushOverlay active={active} stroke={voxelBrush.stroke} camera={camera} color={brushAction === 'erase' ? '#ed7777' : colors?.[String(brush?.voxelId)] ?? DEFAULT_COLOR}/><svg ref={svgRef} className={`iso-canvas${brushAction ? ' iso-canvas--brush' : ''}`} tabIndex={0} onKeyDown={event => { if (event.key === 'Escape') { voxelBrush.cancel(); cancelFrame(); dragRef.current = undefined; setPreview(undefined) } }} onContextMenu={event => event.preventDefault()} viewBox={`0 0 ${ISO.viewWidth} ${ISO.viewHeight}`} role="img" aria-label="Isometric terrain and authored placements" data-camera={`${center.X},${center.Y},${center.Z}`} data-zoom={zoom} data-rotation={rotation * ISO.angleStep} data-elevation={elevation} data-terrain-cells={terrain.length} onPointerDown={event => start(event)} onPointerMove={update} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => finish(event, true)}>
+    <div className="iso-workspace"><div className="iso-scene"><IsometricScene active={active} terrain={terrain} placements={visible} camera={camera} colors={colors} selectedId={selected?.id} preview={preview?.id === undefined ? undefined : preview}/><IsometricConstructionPlane active={active && constructionPlane} height={planeY} mappedHeight={planeSurface?.height} camera={camera}/><IsometricBrushOverlay active={active} stroke={voxelBrush.stroke} camera={camera} color={brushAction === 'erase' ? '#ed7777' : colors?.[String(brush?.voxelId)] ?? DEFAULT_COLOR}/><svg ref={svgRef} className={`iso-canvas${brushAction ? ' iso-canvas--brush' : ''}`} tabIndex={0} onKeyDown={event => { if (event.key === 'Escape') { voxelBrush.cancel(); if (dragRef.current) onGestureChange(false); cancelFrame(); dragRef.current = undefined; setPreview(undefined) } }} onContextMenu={event => event.preventDefault()} viewBox={`0 0 ${ISO.viewWidth} ${ISO.viewHeight}`} role="img" aria-label="Isometric terrain and authored placements" data-camera={`${center.X},${center.Y},${center.Z}`} data-zoom={zoom} data-rotation={rotation * ISO.angleStep} data-elevation={elevation} data-terrain-cells={terrain.length} onPointerDown={event => start(event)} onPointerMove={update} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => finish(event, true)}>
       {sorted.map(value => value.render)}
       {contextMarkers}
       {brush && brushPreview.map((coord, index) => cube(coord, colors?.[String(brush.voxelId)] ?? DEFAULT_COLOR, `ghost:${index}`, brushAction ? 'iso-ghost iso-brush-ghost' : 'iso-ghost', brushAction ? undefined : event => start(event, undefined, false, true)))}

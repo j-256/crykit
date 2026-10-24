@@ -1,12 +1,12 @@
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { skipInitialModSetup, selectedPlaythrough, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough, replacePlannerData, choosePlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { selectWithSeparateEvents } from './select-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { addGameSetupRevision, asId, captureCharacter, createCharacter, createPersonalDefinition, createScenario, upsertCharacterClassProgress } from '../src/domain'
+import { addGameSetupRevision, asId, captureCharacter, createCharacter, createPersonalDefinition, createScenario, setPlaythroughGameSetup, upsertCharacterClassProgress } from '../src/domain'
 import { addTestBuild, addTestDefinition, createTestLocalData, HAND_SLOT, PASSIVE_SLOT, known, personalRef, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
 import type { BuildRevisionId, CharacterId, CharacterSnapshotId, LocalData, GameSetupRevisionId } from '../src/domain/types'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
@@ -42,6 +42,8 @@ function syntheticLocalData(changedContext = false, nativeCalculations = false):
     localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
     localData = captureCharacter(localData, { characterId: CHARACTER_ID, gameSetupRevisionId: setupId, primaryClass: known(personalRef('Synthetic warrior')), secondaryClass: { state: 'notApplicable' }, level: known(24), displayedStats: { 'Max HP': { value: known(777), unit: 'points' } }, equipment: Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null])), passives: known([]), now: TEST_NOW })
   }
+  // The selected tracked setup must match the intended fixture context after device selections are restored explicitly
+  if (changedContext || nativeCalculations) localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   return { ...localData, changes: [] }
 }
 
@@ -60,11 +62,12 @@ async function loadFixture(page: Page, changedContext = false, nativeCalculation
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], evidence: [], history: [] }),
   })
   const panel = await dataPanel(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-sheet.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-sheet.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, selectedPlaythrough(localData).label)
   await page.goto(`/#/characters/${CHARACTER_ID}/current`)
   await expect(page.getByRole('heading', { name: 'Synthetic Rowan', exact: true })).toBeVisible()
   return localData
@@ -73,7 +76,8 @@ async function loadFixture(page: Page, changedContext = false, nativeCalculation
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await download).path()
   if (!path) throw new Error('Backup download failed')
   const archive = unzipSync(await readFile(path))
@@ -113,8 +117,10 @@ test('character growth calculations save separately from observed level and disp
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('female')
   await expect(overviewHP.getByRole('cell').nth(4)).toHaveText(await hp.getByRole('cell').first().innerText())
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  // The button becomes "Saving..." before the write commits; only the cleared draft confirms completion
+  await expect(page.getByRole('region', { name: 'Member navigation warning', exact: true })).toHaveCount(0)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('19')
   await expect(page.getByLabel('Calculation gender', { exact: true })).toHaveValue('female')
   await expect(hp.getByRole('cell', { name: '777', exact: true })).toBeVisible()
@@ -163,6 +169,7 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   await expect(page.locator('.member-state')).toHaveText('Historical')
   await expect(page.getByRole('button', { name: 'Edit Hand', exact: true })).toHaveCount(0)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(stats.getByText('540 points', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to snapshot history', exact: true }).click()
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
@@ -178,6 +185,7 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   const values = hp.locator('.snapshot-difference__values > div')
   expect(Math.abs((await values.nth(0).boundingBox())!.y - (await values.nth(1).boundingBox())!.y)).toBeLessThan(2)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(hp).toContainText('+80')
   await page.getByRole('combobox', { name: 'Snapshot A', exact: true }).selectOption(AFTER_ID)
   await expect(page.getByText('Same snapshot selected', { exact: true })).toBeVisible()
@@ -218,6 +226,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
+  await waitForPlannerReady(page)
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)
   expect(await page.evaluate(() => fetch('/synthetic-uncached-offline-probe').then(() => false, () => true))).toBe(true)
   await page.getByRole('button', { name: 'Choose Hand', exact: true }).click()
@@ -238,6 +247,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await expect(page.getByRole('heading', { name: 'Synthetic Mira', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Previous member', exact: true }).click()
   await page.reload()
+  await waitForPlannerReady(page)
   await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
   await expect(page.getByText('Synthetic changed hand', { exact: true })).toBeVisible()
   const saved = await exportLocalData(page)
@@ -253,6 +263,7 @@ test('direct slot editing protects a draft and saves a new observation offline',
   await page.getByRole('button', { name: 'Compare snapshots', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Hand', exact: true })).toContainText('Empty')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('region', { name: 'Hand', exact: true })).toContainText('Empty')
   await context.setOffline(false)
 })
@@ -295,7 +306,7 @@ test('snapshot save failure retains entered fields and retries a single observat
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -311,6 +322,7 @@ test('snapshot save failure retains entered fields and retries a single observat
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
+  await waitForPlannerReady(page)
   const localData = await exportLocalData(page)
   const snapshots = Object.values(selectedPlaythrough(localData).characters[CHARACTER_ID]!.snapshots)
   expect(snapshots.filter((snapshot) => snapshot.note === 'Synthetic retained observation')).toHaveLength(1)
@@ -352,6 +364,7 @@ test('member picker links preserve unknown and empty selections and guard the in
   const picker = page.getByRole('dialog', { name: 'Choose Hand', exact: true })
   await expect(picker.getByRole('searchbox')).toBeFocused()
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(picker.getByRole('searchbox')).toBeFocused()
   await picker.getByRole('button', { name: /^Unknown/ }).click()
   await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Unknown')
@@ -386,7 +399,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
       const put = IDBObjectStore.prototype.put
       let failOnce = true
       IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-        if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+        if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
         return put.apply(this, args)
       }
     })
@@ -399,6 +412,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
     await expect(page.getByRole('button', { name: 'Retry member save', exact: true })).toHaveCount(0)
     await expect(page.getByText('Snapshot not saved', { exact: true })).toHaveCount(0)
     await page.reload()
+    await waitForPlannerReady(page)
     await expect(page.getByRole('button', { name: 'Choose Hand', exact: true })).toContainText('Empty')
     const saved = await exportLocalData(page)
     const member = selectedPlaythrough(saved).characters[CHARACTER_ID]!

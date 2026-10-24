@@ -333,6 +333,7 @@ test('invalid builds remain saveable and stay red in the library and team', asyn
   await expect(card).toHaveCSS('background-color', 'rgba(198, 111, 85, 0.16)')
 
   await page.goto('/#/teams/new')
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   const slot = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   await slot.getByRole('button', { name: 'Choose checkpoint for Team slot 1', exact: true }).click()
   await page.getByRole('dialog', { name: 'Choose checkpoint for Team slot 1', exact: true }).getByRole('button').filter({ hasText: 'Untitled build' }).click()

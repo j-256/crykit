@@ -6,7 +6,7 @@ import { decodeSharePayload, sharePreviewData, type SharePayload } from '../inte
 import { prepareSharedModRecovery } from '../interchange/share-mod-recovery'
 import { modCatalogTitle } from '../domain/mod-layers'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { prepareModCatalogs } from '../persistence'
+import { useWorkspace } from './WorkspaceProvider'
 import { BuildLoadoutSummary, PassiveCapacityMeter } from './BuildLoadoutSummary'
 import { LoadoutSheet, type LoadoutView } from './LoadoutSheet'
 import { ReadOnlyDefinitionField } from './ReadOnlyDefinitionField'
@@ -29,13 +29,14 @@ import { Sheet } from './Sheet'
 import { focusFieldElement } from './field-focus'
 import { BUILD_REVIEW_FIELDS } from './build-validity-guidance'
 import { passivePosition } from '../domain/passive-loadout'
+import { validateArtwork } from '../workspace/artwork-validation'
 
 const MAX_LOCAL_IMAGE_BYTES = 4 * 1024 * 1024
 const MAX_LOCAL_ARTWORK_BYTES = 16 * 1024 * 1024
 
 interface SharedPreview { readonly payload: SharePayload; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }
 
-function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: BuildRevision; readonly preview: SharedPreview; readonly onUploadMod: () => void }) {
+export function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: BuildRevision; readonly preview: Pick<SharedPreview, 'localData' | 'catalogs'>; readonly onUploadMod: () => void }) {
   const fieldScope = useId()
   const validityRef = useRef<HTMLElement>(null)
   const reviewSolutions = () => { validityRef.current?.scrollIntoView({ block: 'center' }); validityRef.current?.focus({ preventScroll: true }) }
@@ -82,21 +83,30 @@ function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: Bu
 }
 
 export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly encoded: string; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onImport: (preview: ImportPreview) => Promise<void>; readonly onSave: (payload: SharePayload) => Promise<{ readonly buildId?: BuildId; readonly teamId?: TeamId }> }) {
+  const { repository: { prepareModCatalogs } } = useWorkspace()
   const navigation = useNavigation()
   const [viewOriginal, setViewOriginal] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const [artwork, setArtwork] = useState<Readonly<Record<string, string>>>({})
   const artworkFiles = useRef(new Map<string, { url: string; size: number }>())
+  const artworkGeneration = useRef(new Map<string, number>())
+  const artworkLive = useRef(true)
   const [artworkError, setArtworkError] = useState<string>()
-  useEffect(() => { const files = artworkFiles.current; return () => { for (const file of files.values()) URL.revokeObjectURL(file.url) } }, [])
-  const attachArtwork = (entry: BuildReferenceName, file: File | undefined) => {
+  useEffect(() => { artworkLive.current = true; const files = artworkFiles.current; return () => { artworkLive.current = false; for (const file of files.values()) URL.revokeObjectURL(file.url) } }, [])
+  const attachArtwork = async (entry: BuildReferenceName, file: File | undefined) => {
     if (!file) return
     setArtworkError(undefined)
     const key = entityDefinitionKey(entry.ref)
+    const generation = (artworkGeneration.current.get(key) ?? 0) + 1
+    artworkGeneration.current.set(key, generation)
+    if (file.size > MAX_LOCAL_IMAGE_BYTES) { setArtworkError('Choose a PNG, JPEG, or WebP up to 4 MB, with up to 16 MB of artwork in this view.'); return }
+    try { await validateArtwork(file) } catch (error) { if (artworkLive.current && artworkGeneration.current.get(key) === generation) setArtworkError(error instanceof Error ? error.message : 'The selected image could not be decoded'); return }
+    if (!artworkLive.current || artworkGeneration.current.get(key) !== generation) return
     const previous = artworkFiles.current.get(key)
     const total = [...artworkFiles.current.values()].reduce((sum, image) => sum + image.size, 0) - (previous?.size ?? 0) + file.size
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > MAX_LOCAL_IMAGE_BYTES || total > MAX_LOCAL_ARTWORK_BYTES) { setArtworkError('Choose a PNG, JPEG, or WebP up to 4 MB, with up to 16 MB of artwork in this view.'); return }
+    if (total > MAX_LOCAL_ARTWORK_BYTES) { setArtworkError('Choose a PNG, JPEG, or WebP up to 4 MB, with up to 16 MB of artwork in this view.'); return }
     const url = URL.createObjectURL(file)
+    if (!artworkLive.current) { URL.revokeObjectURL(url); return }
     if (previous) URL.revokeObjectURL(previous.url)
     artworkFiles.current.set(key, { url, size: file.size })
     setArtwork(current => ({ ...current, [key]: url }))

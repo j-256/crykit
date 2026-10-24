@@ -1,3 +1,4 @@
+import { retainedSelectionRefs, withoutRetainedMechanics } from './retained-selections'
 import { analyzeBuildEquipment, unavailableClassCommand, type DefinitionResolver, type MechanicsIssue } from './build-mechanics'
 import { entityDefinitionKey } from './core'
 import { passivePointCost } from './mechanics-facts'
@@ -31,13 +32,15 @@ export function validateBuildContent(
   resolve: DefinitionResolver,
   identity: (ref: EntityRef) => string = entityDefinitionKey,
 ): BuildValidityReport {
+  resolve = withoutRetainedMechanics(content, resolve)
+  const retained = retainedSelectionRefs(content)
   const issues: MechanicsIssue[] = []
   const add = (code: string, status: MechanicsIssue['status'], message: string, slotId?: string) => issues.push({ code, status, message, ...(slotId ? { slotId } : {}) })
   const slotMap = new Map(slots.map(slot => [slot.id as string, slot]))
   const checkCatalogLock = (ref: EntityRef, label: string, slotId?: string) => {
     if (ref.kind !== 'catalog' || !gameSetup) return
     const lockedRevision = gameSetup.catalogLock[ref.catalogId]
-    if (lockedRevision !== ref.catalogRevisionId) add('CATALOG_REFERENCE_MISMATCH', 'invalid', `${label} is outside the build's pinned catalog revision`, slotId)
+    if (lockedRevision !== ref.catalogRevisionId) add('CATALOG_REFERENCE_MISMATCH', retained.has(entityDefinitionKey(ref)) ? 'undetermined' : 'invalid', `${label} is outside the build's pinned catalog revision`, slotId)
   }
 
   for (const [label, ref] of [['Primary class', content.primaryClass], ['Sub-command', content.secondaryClass]] as const) {
@@ -62,7 +65,7 @@ export function validateBuildContent(
     if (!selection) continue
     const slot = slotMap.get(slotId)
     if (!slot) {
-      add('SLOT_REFERENCE_MISSING', 'invalid', 'A selection uses a slot missing from this Game Setup', slotId)
+      add('SLOT_REFERENCE_MISSING', content.retainedSelections?.slotIds.includes(slotId as import('./types').SlotId) ? 'undetermined' : 'invalid', 'A selection uses a slot missing from this Game Setup', slotId)
       continue
     }
     checkCatalogLock(selection.ref, slot.label, slotId)

@@ -4,7 +4,8 @@ import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
 import { decodeCrystalSave, encodeCrystalSave } from '../src/interchange/crystal-save'
-import { createBlankPlaythrough, selectedPlaythrough, skipInitialModSetup } from './local-data-helpers'
+import { createBlankPlaythrough, selectedPlaythrough, skipInitialModSetup, waitForPlannerReady } from './local-data-helpers'
+import { blockGuestSavePublication } from './save-write-failure'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_MOD_LIBRARY } from '../src/catalog/mod-library-metadata'
 
@@ -51,7 +52,7 @@ test('failed saves expose diagnostics on demand and export the retained transact
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function(...args: Parameters<typeof put>) {
-      if (this.name === 'localDatas') throw new DOMException('Synthetic recovery test', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') throw new DOMException('Synthetic recovery test', 'QuotaExceededError')
       return put.apply(this, args)
     }
   })
@@ -92,19 +93,37 @@ test('backup help remains reachable in the dialog keyboard cycle', { tag: MOBILE
   const help = panel.getByText("What's included in a backup?", { exact: true })
   await expect(help).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(panel.getByText("Download Mod Inspector files and edited game saves separately.", { exact: false })).toBeVisible()
+  await expect(panel.getByText('Includes saved planner records, exact source files, Editor and Save documents, unfinished drafts, file history and conflict alternatives. Authentication and recovery keys are excluded. Open forms must be saved first.', { exact: true })).toBeVisible()
+  const plannerExport = panel.getByRole('button', { name: 'Export planner ZIP', exact: true })
+  const restore = panel.getByRole('button', { name: /^Choose complete workspace backup Preview/ })
+  const restoreFile = panel.getByLabel('Choose complete workspace backup', { exact: true })
+  await page.keyboard.press('Tab')
+  await expect(plannerExport).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(restore).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(restoreFile).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(panel.getByRole('button', { name: 'Close dialog', exact: true })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(restoreFile).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(restore).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(plannerExport).toBeFocused()
   await page.keyboard.press('Shift+Tab')
   await expect(help).toBeFocused()
 })
 
 test('blocked navigation reveals recovery choices and retains deep editor fields', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/')
+  await waitForPlannerReady(page)
   await skipInitialModSetup(page)
   await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
   await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-navigation.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
   const copper = page.getByLabel('Copper', { exact: true })
+  await expect(copper).toBeEnabled()
+  const restoreWrites = await blockGuestSavePublication(page)
   const warning = page.getByRole('region', { name: 'Resolve unsaved edits', exact: true })
   for (const value of ['456', '789']) {
     await copper.fill(value)
@@ -118,23 +137,29 @@ test('blocked navigation reveals recovery choices and retains deep editor fields
     expect(bounds).not.toBeNull()
     expect(bounds!.y).toBeGreaterThanOrEqual(0)
     expect(bounds!.y + bounds!.height).toBeLessThan(page.viewportSize()!.height)
-    await expect(warning.getByRole('button', { name: 'Export and continue', exact: true })).toBeVisible()
+    await expect(warning.getByRole('button', { name: 'Save and continue', exact: true })).toBeVisible()
   }
-  await warning.getByRole('button', { name: 'Export and continue', exact: true }).click()
-  await expect(page.getByText('Apply or discard pending fields and loadout choices before exporting. Unreviewed input has not been included in the draft.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export edited save', exact: true })).toBeDisabled()
   await expect(page.getByRole('heading', { name: 'Save Editor', exact: true })).toBeVisible()
   await expect(copper).toHaveValue('789')
+  const downloads: string[] = []
+  page.on('download', download => downloads.push(download.suggestedFilename()))
+  await restoreWrites()
+  await warning.getByRole('button', { name: 'Save and continue', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  expect(downloads).toEqual([])
+  await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
+  await expect(copper).toHaveValue('789')
+  await expect(page.getByRole('region', { name: 'Draft and export', exact: true })).toContainText('The draft matches the original save')
+  await page.getByRole('button', { name: 'Export edited save', exact: true }).click()
+  await expect(page.getByText('Apply or discard pending fields and loadout choices before exporting. Unreviewed input has not been included in the draft.', { exact: true })).toBeVisible()
+  await expect(copper).toHaveValue('789')
   await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
-  if (isMobile) {
-    await page.getByRole('button', { name: 'More destinations', exact: true }).click()
-    await page.getByRole('dialog', { name: 'Navigate CryKit', exact: true }).getByRole('button', { name: 'Inventory', exact: true }).click()
-  } else await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).getByRole('button', { name: 'Inventory', exact: true }).click()
-  await expect(warning).toBeFocused()
   const downloading = page.waitForEvent('download')
-  await warning.getByRole('button', { name: 'Export and continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Export edited save', exact: true }).click()
   const download = await downloading
   const path = await download.path()
   if (!path) throw new Error('The retained editor changes did not finish downloading')
   expect(decodeCrystalSave(await readFile(path)).header.currencyAmount).toBe(789)
-  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Save Editor', exact: true })).toBeVisible()
 })

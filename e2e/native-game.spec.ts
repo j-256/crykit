@@ -241,6 +241,7 @@ test('new native loot icons, status cells, and distinct enemy sprites stay avail
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   const prepare = settings.getByRole('button', { name: 'Prepare for offline use', exact: true })
+  await settings.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()

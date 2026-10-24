@@ -4,6 +4,8 @@ import { nativeEntityId, nativeIdentity, nativeRecord, nativeSourceRecord } from
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 import { classEquipmentTypes, classInnateText, definitionSourceRecord, definitionPermissionEffects, effectText, equipmentFacts, equipmentFitsRole, equipmentRole, isWeapon, knownField, permissionEffects, type MechanicsDefinition } from './mechanics-facts'
 import { passivePosition } from './passive-loadout'
+import { passiveRoles } from './passive-roles'
+import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 import type { BuildRevisionContent, EntityRef, SlotDefinition } from './types'
 
 export type DefinitionResolver = (ref: EntityRef) => MechanicsDefinition | undefined
@@ -58,8 +60,10 @@ function unresolvedClassInnates(ref: EntityRef | null, resolve: DefinitionResolv
   if (!definition || !definitionSourceRecord(definition)) return false
   const passives = classPassiveDefinitions(ref!, resolve)
   return !passives || passives.some(passive => {
-    const record = definitionSourceRecord(passive)
-    return typeof record?.IsInnate !== 'boolean' || record.IsInnate && !Array.isArray(record.StatMods)
+    if (!passive) return true
+    const record = crystalEditPlanningRecord(passive) ?? nativeSourceRecord(passive)
+    const automatic = passiveRoles(passive).automatic
+    return automatic === 'unknown' || automatic === 'true' && !Array.isArray(record?.StatMods)
   })
 }
 
@@ -97,7 +101,7 @@ export function innateEffects(content: Pick<BuildRevisionContent, 'primaryClass'
     return [{ text, name: `${primary.name} innate`, definition: primary }]
   }
   return (classPassiveDefinitions(content.primaryClass, resolve) ?? []).flatMap(definition => {
-    return definition && definitionSourceRecord(definition)?.IsInnate === true ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
+    return definition && passiveRoles(definition).automatic === 'true' ? [{ text: effectText(definition) ?? '', name: `${primary.name}: ${definition.name}`, definition }] : []
   })
 }
 
@@ -167,12 +171,12 @@ export function analyzeBuildEquipment(content: BuildRevisionContent, slots: read
       add('PASSIVE_DEFINITION', definition ? 'invalid' : 'undetermined', `${slot.label}: ${definition ? 'select a passive' : 'definition is unavailable'}`, slot.id)
       continue
     }
-    const record = definitionSourceRecord(definition)
-    if (record && record.IsLearnable === undefined && definition.fields['Is Learnable']?.state === 'unknown') {
+    const roles = passiveRoles(definition)
+    if (roles.learnable === 'unknown' && definition.fields['Is Learnable']?.state === 'unknown') {
       add('PASSIVE_LEARNABILITY_UNKNOWN', 'undetermined', `${definition.name}: whether this passive can be learned is unresolved`, slot.id)
-    } else if (record?.IsLearnable === false) {
+    } else if (roles.learnable === 'false') {
       const nativeInnate = Boolean(nativeSourceRecord(definition)) && definition.kind === 'innate'
-      add('PASSIVE_NOT_LEARNABLE', nativeInnate ? 'undetermined' : 'invalid', nativeInnate ? `${definition.name} cannot be learned in the base game; the mod that makes innates selectable is unverified` : `${definition.name} cannot be learned as an equipped passive in this source`, slot.id)
+      add('PASSIVE_NOT_LEARNABLE', nativeInnate ? 'undetermined' : 'invalid', nativeInnate ? `${definition.name} cannot be learned in this native source; this historical selection needs an exact learnable source` : `${definition.name} cannot be learned as an equipped passive in this source`, slot.id)
     }
   }
   const equipment = slots.flatMap(slot => {

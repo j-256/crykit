@@ -1,3 +1,5 @@
+import { retainedSelectionRefs, withoutRetainedMechanics } from './retained-selections'
+import { checkpointBuildView } from './team-checkpoints'
 import { sameBuildBehavior } from './build-behavior'
 import { DomainError, entityDefinitionKey, requirePlaythrough } from './core'
 import { definitionLineageRootRef, logicalEntityKey } from './definitions'
@@ -119,7 +121,7 @@ function validateCatalogRefLock(
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_NOT_LOCKED',
       dimension: 'gameSetupCertainty',
-      status: 'invalid',
+      status: retainedSelectionRefs(revision.content).has(entityDefinitionKey(ref)) ? 'undetermined' : 'invalid',
       message: 'A catalog selection is not covered by the build catalog lock',
       characterId,
       buildRevisionId: revision.id,
@@ -129,7 +131,7 @@ function validateCatalogRefLock(
     issue(accumulator, {
       code: 'CATALOG_REFERENCE_REVISION_MISMATCH',
       dimension: 'gameSetupCertainty',
-      status: 'invalid',
+      status: retainedSelectionRefs(revision.content).has(entityDefinitionKey(ref)) ? 'undetermined' : 'invalid',
       message: 'A catalog selection uses a different revision than the build catalog lock',
       characterId,
       buildRevisionId: revision.id,
@@ -199,7 +201,7 @@ function collectSelections(
       })
       continue
     }
-    const revision = localData.buildRevisions[revisionId]
+    const revision = checkpointBuildView(localData, revisionId)
     if (!revision) {
       issue(accumulator, {
         code: 'BUILD_REVISION_REFERENCE_MISSING',
@@ -211,7 +213,7 @@ function collectSelections(
       continue
     }
     const build = localData.builds[revision.buildId]
-    if (!build) {
+    if (!build && revisionId.kind === 'build') {
       issue(accumulator, {
         code: 'BUILD_REFERENCE_MISSING',
         dimension: 'structure',
@@ -251,7 +253,7 @@ function collectSelections(
         issue(accumulator, {
           code: 'SLOT_REFERENCE_MISSING',
           dimension: 'structure',
-          status: 'invalid',
+          status: revision.content.retainedSelections?.slotIds.includes(slotIdValue as SlotId) ? 'undetermined' : 'invalid',
           message: 'Build selection references a slot outside its Game Setup',
           characterId,
           buildRevisionId: revision.id,
@@ -260,7 +262,7 @@ function collectSelections(
         })
         continue
       }
-      const definition = resolveDefinition(localData, catalogs, selection.ref)
+      const definition = withoutRetainedMechanics(revision.content, ref => resolveDefinition(localData, catalogs, ref))(selection.ref)
       if (!definition) {
         issue(accumulator, {
           code: 'DEFINITION_UNAVAILABLE',
@@ -286,7 +288,7 @@ function collectSelections(
     for (const [index, selection] of revision.content.passives.entries()) {
       validateCatalogRefLock(localData, selection.ref, revision, characterId, accumulator)
       const slot = passivePosition(index)
-      const definition = resolveDefinition(localData, catalogs, selection.ref)
+      const definition = withoutRetainedMechanics(revision.content, ref => resolveDefinition(localData, catalogs, ref))(selection.ref)
       if (!definition) {
         issue(accumulator, {
           code: 'DEFINITION_UNAVAILABLE',
@@ -332,7 +334,7 @@ function validateClassReadiness(
     validateCatalogRefLock(localData, ref, revision, character.id, accumulator)
     const progress = character.classProgress[logicalEntityKey(localData, ref)]
     // Party-wide unlock and mastery do not establish this member's readiness to use the class
-    const definition = resolveDefinition(localData, catalogs, ref)
+    const definition = withoutRetainedMechanics(revision.content, selected => resolveDefinition(localData, catalogs, selected))(ref)
     if (!definition) {
       issue(accumulator, {
         code: 'CLASS_DEFINITION_UNAVAILABLE',
@@ -593,7 +595,7 @@ function classPermissionBase(
       for (const permission of definition.grants.value) {
         permissions.add(permission)
       }
-      for (const innate of innateEffects(revision.content, ref => resolveDefinition(localData, catalogs, ref))) {
+      for (const innate of innateEffects(revision.content, withoutRetainedMechanics(revision.content, ref => resolveDefinition(localData, catalogs, ref)))) {
         for (const type of permissionEffects(innate.text).equipment) permissions.add(equipmentPermission(type))
       }
     }
@@ -1115,9 +1117,9 @@ export function validateScenario(
   }
   const selected = collectSelections(localData, catalogs, scenario, gameSetup, accumulator)
   for (const [characterId, revisionId] of Object.entries(effectiveScenarioAssignments(scenario))) {
-    const revision = localData.buildRevisions[revisionId]
+    const revision = checkpointBuildView(localData, revisionId)
     if (!revision) continue
-    const resolve = (ref: EntityRef) => resolveDefinition(localData, catalogs, ref)
+    const resolve = withoutRetainedMechanics(revision.content, (ref: EntityRef) => resolveDefinition(localData, catalogs, ref))
     const primary = revision.content.primaryClass ? resolve(revision.content.primaryClass) : undefined
     const modeled = classEquipmentTypes(primary) || gameSetup.slots.some(slot => {
       const selection = revision.content.equipment[slot.id]

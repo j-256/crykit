@@ -8,15 +8,21 @@ import { NavigationProvider, useNavigationController } from './navigation'
 import { APP_REFRESH_PENDING_MESSAGE, StorageSection } from './StorageSection'
 
 const refresh = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => undefined))
+const offlineState = vi.hoisted(() => ({
+  value: { state: 'unsupported', detail: 'This browser does not support offline installation.' } as OfflineStatus,
+  prepare: vi.fn(),
+  listener: undefined as ((status: OfflineStatus) => void) | undefined,
+}))
 
 vi.mock('../offline', () => ({
   activateOfflineUpdate: vi.fn(),
-  getOfflineStatus: vi.fn(async () => ({ state: 'unsupported' })),
+  getOfflineStatus: vi.fn(async () => offlineState.value),
   refreshOfflineApplication: refresh,
-  requestOfflineReadiness: vi.fn(),
+  requestOfflineReadiness: offlineState.prepare,
   requestPersistentStorage: vi.fn(),
   subscribeOfflineStatus: (listener: (status: OfflineStatus) => void) => {
-    listener({ state: 'unsupported', detail: 'This browser does not support offline installation.' })
+    offlineState.listener = listener
+    listener(offlineState.value)
     return () => undefined
   },
 }))
@@ -34,6 +40,7 @@ const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.proto
 const scrollIntoView = vi.fn()
 
 beforeEach(() => {
+  offlineState.value = { state: 'unsupported', detail: 'This browser does not support offline installation.' }
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   vi.stubEnv('DEV', true)
   window.history.replaceState(null, '', '#/reference')
@@ -56,6 +63,39 @@ async function render(props: Partial<Props> = {}) {
   await act(async () => root.render(<Harness localData={createBlankLocalData()} dirty={false} saving={false} onExport={async () => new Uint8Array()} onReloadingChange={() => undefined} {...props}/>))
   return [...container.querySelectorAll('button')].find(button => button.textContent === 'Refresh app')!
 }
+
+it('keeps core included and submits only the optional downloads chosen by the user', async () => {
+  offlineState.value = { state: 'not-ready', contents: [
+    { id: 'core', files: 10, bytes: 2_000_000, ready: false, selected: true },
+    { id: 'maps', files: 20, bytes: 3_000_000, ready: false, selected: false },
+  ] }
+  await render()
+  const checkboxes = [...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+  expect(checkboxes).toHaveLength(3)
+  expect(checkboxes.every(checkbox => !checkbox.checked)).toBe(true)
+  expect(container.textContent).toContain('Core app included')
+  expect(container.textContent).toContain('3.0 MB')
+  const maps = container.querySelector<HTMLInputElement>('input[aria-label="Maps"]')!
+  await act(async () => maps.click())
+  const button = [...container.querySelectorAll('button')].find(value => value.textContent === 'Prepare for offline use')!
+  await act(async () => button.click())
+  expect(offlineState.prepare).toHaveBeenCalledWith(['maps'])
+})
+
+it('shows actual completed-file progress and preserves downloaded-extra choices', async () => {
+  offlineState.value = { state: 'ready', selectionKnown: true, contents: [
+    { id: 'core', files: 10, bytes: 2_000_000, ready: true, selected: true },
+    { id: 'maps', files: 20, bytes: 3_000_000, ready: true, selected: true },
+  ] }
+  await render()
+  expect(container.querySelector<HTMLInputElement>('input[aria-label="Maps"]')?.checked).toBe(true)
+  await act(async () => offlineState.listener?.({ state: 'checking', progress: { completedFiles: 7, totalFiles: 20, completedBytes: 100, totalBytes: 300 } }))
+  const progress = container.querySelector('progress')!
+  expect(progress.value).toBe(7)
+  expect(progress.max).toBe(20)
+  expect(container.textContent).toContain('7 of 20 files')
+  expect([...container.querySelectorAll('button')].find(button => button.textContent === 'Refresh app')!.disabled).toBe(true)
+})
 
 describe('development preview refresh controls', () => {
   it('allows a clean preview to reload when offline installation is unsupported', async () => {
@@ -122,4 +162,14 @@ describe('development preview refresh controls', () => {
     await act(async () => leaveButton.click())
     expect(window.location.hash).not.toBe(originalHash)
   })
+})
+
+it('downloadsCompleteWorkspaceAndSurfacesCaptureFailure', async () => {
+  const onExportWorkspace = vi.fn(async () => { throw new Error('Open form could not be saved') })
+  await render({ onExportWorkspace })
+  expect(container.textContent).toContain('private files')
+  const button = [...container.querySelectorAll('button')].find(value => value.textContent === 'Export backup')!
+  await act(async () => button.click())
+  expect(onExportWorkspace).toHaveBeenCalledOnce()
+  expect(container.textContent).toContain('Open form could not be saved')
 })

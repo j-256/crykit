@@ -1,4 +1,7 @@
 import 'fake-indexeddb/auto'
+import Dexie from 'dexie'
+import { prepareGuestRestorePlanner, requirePreparedGuestPlanner } from '../workspace/guest-planner'
+import type { WorkspacePlannerState } from '../workspace/documents'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPersonalDefinition, requirePlaythrough, resolveDefinition, setAcquisitionProgress } from '../domain'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
@@ -12,6 +15,9 @@ import starterBuildShares from './starter-build-shares.json' with { type: 'json'
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
+  commitModSetup,
+  subscribeLocalData,
+  undoLocalData,
   exportBackup,
   loadLocalData,
   previewImport,
@@ -37,6 +43,16 @@ describe('local planner persistence', () => {
     vi.restoreAllMocks()
     setDatabaseForTests(undefined)
     await database.delete()
+  })
+
+  it('preserves marker-free latest fallback physical keys and canonical precedence', async () => {
+    const first = createSampleLocalData(DEFAULT_CATALOG), later = { ...first, updatedAt: '2030-01-01T00:00:00.000Z' as typeof first.updatedAt }
+    const root = (id: string, localData: typeof first) => ({ id, localData, revision: localData.revision, updatedAt: localData.updatedAt, lineage: { rootLocalDataId: localData.id } })
+    await database.localDatas.bulkAdd([root('older', first), root('latest', later)])
+    expect((await loadLocalData(database)).localData).toEqual(later)
+    expect(await database.localDatas.get('local-data-record')).toBeUndefined()
+    await database.localDatas.add(root('local-data-record', first))
+    expect((await loadLocalData(database)).localData).toEqual(first)
   })
 
   it('round-trips travel acquisitions through local persistence and native backups', async () => {
@@ -221,6 +237,16 @@ describe('local planner persistence', () => {
     expect((await loadLocalData()).localData.personalDefinitions).toEqual(loaded.localData.personalDefinitions)
   })
 
+  it('keeps highly compressible guest backups readable without changing saved data', async () => {
+    const loaded = await loadLocalData()
+    let draft = loaded.localData
+    for (const marker of ['A', 'B', 'C', 'D']) draft = createPersonalDefinition(draft, { kind: 'item', name: marker.repeat(64_000) })
+    const saved = await saveLocalData(draft, loaded.revision)
+    const preview = await previewImport(await exportBackup(), 'compressible-guest.zip')
+    expect(preview.proposed.localData.personalDefinitions).toEqual(saved.personalDefinitions)
+    expect((await loadLocalData()).localData).toEqual(saved)
+  })
+
   it('rejects invalid graphs before storage', async () => {
     const loaded = await loadLocalData()
     const playthrough = requirePlaythrough(loaded.localData)
@@ -235,4 +261,182 @@ describe('local planner persistence', () => {
     expect(() => validateLocalDataForStorage(invalid, loaded.catalogs)).toThrow()
     await expect(saveLocalDataWithStatus(invalid, loaded.revision)).rejects.toMatchObject({ code: 'schema-mismatch', recoverable: true })
   })
+})
+
+
+// These cold-call fixtures use native requests, independent of CryKit's opening and migration implementation
+const openingTables = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
+function nativeResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+}
+async function coldSnapshot(name: string) {
+  let absent = false
+  const request = indexedDB.open(name)
+  request.onupgradeneeded = () => { absent = true; request.transaction!.abort() }
+  const db = await nativeResult(request).catch(error => { if (absent) return undefined; throw error })
+  if (!db) return { exists: false }
+  try {
+    return { exists: true, version: db.version, stores: await Promise.all(Array.from(db.objectStoreNames).sort().map(async name => {
+      const store = db.transaction(name, 'readonly').objectStore(name)
+      const keys = nativeResult(store.getAllKeys()), rows = nativeResult(store.getAll())
+      return { name, keyPath: store.keyPath, autoIncrement: store.autoIncrement, indexes: Array.from(store.indexNames).sort().map(name => { const index = store.index(name); return { name, keyPath: index.keyPath, unique: index.unique, multiEntry: index.multiEntry } }), keys: await keys, rows: await rows }
+    })) }
+  } finally { db.close() }
+}
+const CURRENT_COLD_NATIVE_VERSION = 70
+const FUTURE_COLD_NATIVE_VERSION = 80
+async function coldFixture(kind: string) {
+  const name = `cold-required-${crypto.randomUUID()}`, localData = createSampleLocalData(DEFAULT_CATALOG)
+  const source: WorkspacePlannerState = { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], history: [], sources: [], evidence: [] }
+  const prepared = requirePreparedGuestPlanner(prepareGuestRestorePlanner(source, source, 'replace'))
+  if (kind !== 'absent') {
+    const request = indexedDB.open(name, kind === 'future' ? FUTURE_COLD_NATIVE_VERSION : CURRENT_COLD_NATIVE_VERSION)
+    request.onupgradeneeded = () => {
+      for (const [name, definition] of Object.entries(openingTables)) {
+        if (kind === 'missing store' && name === 'imports') continue
+        const [keyPath, ...indexes] = definition.split(',').map(value => value.trim())
+        const store = request.result.createObjectStore(name, { keyPath })
+        for (const index of indexes) store.createIndex(index, index.startsWith('[') ? index.slice(1, -1).split('+') : index)
+      }
+      const tx = request.transaction!
+      if (kind === 'extra index') tx.objectStore('meta').createIndex('extra', 'value')
+      tx.objectStore('localDatas').put(prepared.record)
+      tx.objectStore('meta').put(prepared.declaration)
+      tx.objectStore('meta').put({ key: 'unrelated', value: '<script>inert</script>' })
+      for (const row of prepared.planner.history) tx.objectStore('history').put(row)
+      tx.objectStore('catalogs').put({ key: JSON.stringify([DEFAULT_CATALOG.id, DEFAULT_CATALOG.revisionId]), id: DEFAULT_CATALOG.id, revisionId: DEFAULT_CATALOG.revisionId, checksum: DEFAULT_CATALOG.checksum, snapshot: DEFAULT_CATALOG })
+      tx.objectStore('sources').put({ id: 'unrelated-bytes', bytes: new Uint8Array([0, 128, 255]), buffer: new Uint8Array([255, 0]).buffer })
+      if (kind === 'bad tuple') tx.objectStore('meta').delete(prepared.declaration.key)
+      if (kind === 'bad graph') tx.objectStore('localDatas').put({ ...prepared.record, localData: { ...prepared.record.localData, selectedPlaythroughId: 'missing' } })
+      if (kind === 'bad history') {
+        const history = prepared.planner.history[0]!
+        tx.objectStore('localDatas').put({ ...prepared.record, operativePlanner: { ...prepared.record.operativePlanner, checkpointIds: [history.id], undoable: true } })
+        tx.objectStore('history').put({ ...history, before: { ...history.before, schemaVersion: 'unknown' } })
+      }
+      if (kind === 'bad catalog') tx.objectStore('catalogs').put({ key: 'broken', id: DEFAULT_CATALOG.id, revisionId: DEFAULT_CATALOG.revisionId, checksum: 'wrong', snapshot: DEFAULT_CATALOG })
+    }
+    const db = await nativeResult(request); db.close()
+  }
+  const preview = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'cold-guard', Title: 'Cold guard', EditorVersion: 34, Items: [{ ID: 51, Name: 'Guard item' }] })), 'guard.json')
+  expect(preview.errors).toEqual([])
+  return { name, prepared, preview }
+}
+const coldOperations = ['load', 'save', 'mod setup', 'import', 'undo', 'export', 'save delegate', 'undo delegate'] as const
+async function coldOperation(operation: typeof coldOperations[number], db: CryKitDatabase, fixture: Awaited<ReturnType<typeof coldFixture>>) {
+  const { record } = fixture.prepared
+  switch (operation) {
+    case 'load': return loadLocalData(db)
+    case 'save': return saveLocalDataWithStatus(record.localData, record.revision, db)
+    case 'mod setup': return commitModSetup([fixture.preview], record.revision, false, db)
+    case 'import': return commitImport(fixture.preview, { mode: 'add-reference', expectedRevision: record.revision }, db)
+    case 'undo': return undoLocalDataWithStatus(record.revision, db)
+    case 'export': return exportBackup(undefined, db)
+    case 'save delegate': setDatabaseForTests(db); return saveLocalData(record.localData, record.revision)
+    case 'undo delegate': setDatabaseForTests(db); return undoLocalData(record.revision)
+  }
+}
+
+describe('cold required planner application boundaries', () => {
+  it.each(['absent', 'missing store', 'extra index', 'future'])('normalizes all owning operations for %s while preserving native data and notifications', async kind => {
+    const fixture = await coldFixture(kind), before = await coldSnapshot(fixture.name), notifications: unknown[] = []
+    const unsubscribe = subscribeLocalData(value => notifications.push(value))
+    try {
+      for (const operation of coldOperations) {
+        const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+        try {
+          await expect(coldOperation(operation, db, fixture)).rejects.toMatchObject({ code: 'schema-mismatch', recoverable: true, userMessage: 'The journaled planner database cannot be opened safely. Keep your draft and reopen the workspace' })
+        } finally { db.close(); setDatabaseForTests(undefined) }
+        expect(await coldSnapshot(fixture.name)).toEqual(before)
+      }
+      expect(notifications).toEqual([])
+    } finally { unsubscribe(); await nativeResult(indexedDB.deleteDatabase(fixture.name)) }
+  })
+
+  it('loads a genuine journal tuple on a cold admitted connection without mutating packaged records', async () => {
+    const fixture = await coldFixture('valid'), before = await coldSnapshot(fixture.name)
+    const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+    try {
+      const loaded = await loadLocalData(db)
+      expect(loaded.localData).toEqual(fixture.prepared.record.localData)
+      expect(loaded.canUndo).toBe(false)
+      expect(loaded.catalogs).toContainEqual(DEFAULT_CATALOG)
+    } finally { db.close() }
+    expect(await coldSnapshot(fixture.name)).toEqual(before)
+    await nativeResult(indexedDB.deleteDatabase(fixture.name))
+  })
+
+  it.each(['bad tuple', 'bad graph', 'bad history', 'bad catalog'])('keeps %s in the existing transaction admission boundary after structural success', async kind => {
+    const fixture = await coldFixture(kind), before = await coldSnapshot(fixture.name)
+    const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+    try {
+      await db.open()
+      await expect(loadLocalData(db)).rejects.toMatchObject({ code: 'schema-mismatch' })
+    } finally { db.close() }
+    expect(await coldSnapshot(fixture.name)).toEqual(before)
+    await nativeResult(indexedDB.deleteDatabase(fixture.name))
+  })
+
+  it('keeps missing native capability as a cold storage failure for all owning operations', async () => {
+    const fixture = await coldFixture('valid'), before = await coldSnapshot(fixture.name), saved = Dexie.dependencies.indexedDB
+    try {
+      Dexie.dependencies.indexedDB = undefined as unknown as IDBFactory
+      for (const operation of coldOperations) {
+        const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+        try { await expect(coldOperation(operation, db, fixture)).rejects.toMatchObject({ code: 'storage-failure' }) }
+        finally { db.close(); setDatabaseForTests(undefined) }
+      }
+    } finally { Dexie.dependencies.indexedDB = saved }
+    expect(await coldSnapshot(fixture.name)).toEqual(before)
+    await nativeResult(indexedDB.deleteDatabase(fixture.name))
+  })
+})
+
+it.each(['absent', 'extra index'])('keeps later owning calls on a denied %s handle as storage failures', async kind => {
+  const fixture = await coldFixture(kind), before = await coldSnapshot(fixture.name), notifications: unknown[] = []
+  const unsubscribe = subscribeLocalData(value => notifications.push(value))
+  try {
+    for (const operation of coldOperations) {
+      const nativeOpen = indexedDB.open.bind(indexedDB), requests: [string, number | undefined][] = []
+      const observation = vi.spyOn(indexedDB, 'open').mockImplementation((name, version) => { requests.push([name, version]); return nativeOpen(name, version) })
+      const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+      try {
+        await expect(coldOperation(operation, db, fixture)).rejects.toMatchObject({ code: 'schema-mismatch', recoverable: true, userMessage: 'The journaled planner database cannot be opened safely. Keep your draft and reopen the workspace' })
+        const later = await coldOperation(operation, db, fixture).catch(error => error)
+        expect.soft(later, operation).toMatchObject({ code: 'storage-failure', recoverable: true })
+        db.close()
+        await expect(coldOperation(operation, db, fixture)).rejects.toMatchObject({ code: 'storage-failure', recoverable: true })
+        expect(requests).toEqual([[fixture.name, CURRENT_COLD_NATIVE_VERSION]])
+      } finally { observation.mockRestore(); db.close(); setDatabaseForTests(undefined) }
+      expect(await coldSnapshot(fixture.name)).toEqual(before)
+    }
+    expect(notifications).toEqual([])
+  } finally { unsubscribe(); await nativeResult(indexedDB.deleteDatabase(fixture.name)) }
+})
+
+it.each(['absent', 'extra index'])('preserves every original concurrent owning diagnosis for %s', async kind => {
+  const fixture = await coldFixture(kind), before = await coldSnapshot(fixture.name), notifications: unknown[] = []
+  const unsubscribe = subscribeLocalData(value => notifications.push(value))
+  const nativeOpen = indexedDB.open.bind(indexedDB), requests: [string, number | undefined][] = []
+  const observation = vi.spyOn(indexedDB, 'open').mockImplementation((name, version) => { requests.push([name, version]); return nativeOpen(name, version) })
+  const db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+  try {
+    const outcomes = await Promise.allSettled(coldOperations.map(operation => coldOperation(operation, db, fixture)))
+    for (const outcome of outcomes) expect(outcome).toMatchObject({ status: 'rejected', reason: { code: 'schema-mismatch', recoverable: true, userMessage: 'The journaled planner database cannot be opened safely. Keep your draft and reopen the workspace' } })
+    expect(requests).toEqual([[fixture.name, CURRENT_COLD_NATIVE_VERSION]])
+    expect(notifications).toEqual([])
+  } finally { observation.mockRestore(); unsubscribe(); db.close(); setDatabaseForTests(undefined) }
+  expect(await coldSnapshot(fixture.name)).toEqual(before)
+  await nativeResult(indexedDB.deleteDatabase(fixture.name))
+})
+
+it('preserves pure validation precedence before capturing a denied handle', async () => {
+  const fixture = await coldFixture('extra index'), db = new CryKitDatabase(fixture.name, { plannerFormatRequirement: 'journaled' })
+  try {
+    await expect(db.open()).rejects.toThrow()
+    const observation = vi.spyOn(indexedDB, 'open')
+    await expect(commitModSetup([fixture.preview], fixture.prepared.record.revision, true, db)).rejects.toMatchObject({ code: 'schema-mismatch', userMessage: 'Skipping mod selection cannot import sources' })
+    await expect(commitImport({ ...fixture.preview, errors: [{ severity: 'error', code: 'synthetic-invalid-preview', message: 'Invalid preview' }] }, {}, db)).rejects.toMatchObject({ code: 'schema-mismatch', userMessage: 'The import preview contains errors and cannot be applied' })
+    expect(observation).not.toHaveBeenCalled()
+    observation.mockRestore()
+  } finally { db.close(); await nativeResult(indexedDB.deleteDatabase(fixture.name)) }
 })

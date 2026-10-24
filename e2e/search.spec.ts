@@ -3,13 +3,14 @@ import { currentReferencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { resolveBundledCatalogPins } from '../src/interchange/native'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, readLocalData } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, readLocalData, choosePlaythrough } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { CatalogSnapshot, LocalData } from '../src/domain/types'
 import { createSaveEditorFixture } from '../src/domain/save-editor.fixture'
 import { encodeCrystalSave } from '../src/interchange/crystal-save'
+import { blockGuestSavePublication } from './save-write-failure'
 
 const CATALOG_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
@@ -22,7 +23,8 @@ async function exportLocalData(page: Page) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await downloaded).path()
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
@@ -268,6 +270,8 @@ test('blocked deep search results reveal local recovery repeatedly and return to
   await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
   await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'synthetic-search-recovery.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeCrystalSave(createSaveEditorFixture())) })
   const copper = page.getByLabel('Copper', { exact: true })
+  await expect(copper).toBeEnabled()
+  const restoreWrites = await blockGuestSavePublication(page)
   await copper.fill('789')
   const editorUrl = page.url()
   const palette = await search(page, 'Item')
@@ -300,7 +304,8 @@ test('blocked deep search results reveal local recovery repeatedly and return to
   await expect(copper).toHaveValue('789')
   const warning = page.getByRole('region', { name: 'Resolve unsaved edits', exact: true })
   await expect(warning).toBeFocused()
-  await expect(warning.getByRole('button', { name: 'Export and continue', exact: true })).toBeVisible()
+  await expect(warning.getByRole('button', { name: 'Save and continue', exact: true })).toBeVisible()
+  await restoreWrites()
 })
 
 test('saved catalog versions preserve stock and checkpoints and can be collected into an inactive Game Setup revision', async ({ page }) => {
@@ -387,9 +392,10 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   expect(linked.localData.buildRevisions).toEqual(before.buildRevisions)
 
   const restore = await openData(page)
-  await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overrides.zip', mimeType: 'application/zip', buffer: linked.bytes })
+  await restore.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-overrides.zip', mimeType: 'application/zip', buffer: linked.bytes })
   await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
+  await choosePlaythrough(page, selectedPlaythrough(linked.localData).label)
   const restored = await readLocalData(page)
   expect(restored.personalDefinitions).toEqual(linked.localData.personalDefinitions)
   expect(selectedPlaythrough(restored).inventory).toEqual(selectedPlaythrough(linked.localData).inventory)

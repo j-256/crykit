@@ -1,3 +1,4 @@
+import { useOptionalWorkspace } from './WorkspaceProvider'
 import { Sources } from './Sources'
 import { projectModAvailability } from '../catalog/mods'
 import { modState, modListPriority } from '../domain/mods'
@@ -16,6 +17,9 @@ import { CRYSTAL_PROJECT_WORKSHOP_URL, steamWorkshopItemUrl } from '../domain/mo
 import './mod-library.css'
 import { formatAppError } from './model'
 import { Icon } from './icons'
+import { previewModFolder, type FolderImportPreview as FolderPreview, type FolderSelection } from '../workspace/folder-import'
+import { FolderImportPreview } from './mods/FolderImportPreview'
+import type { LibraryImportReceipt } from '../workspace/mod-repository'
 
 export type SetModReference = (modId: string, included: boolean) => Promise<void>
 
@@ -88,19 +92,63 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
   </div></section>
 }
 
-export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSetReference }: { readonly onOpenEditor: () => void; readonly onEdit: (revision: ModRevision) => Promise<void>; readonly onEditBundled: (mod: BundledLibraryMod) => Promise<void>; readonly onImport: SaveModToLibrary; readonly onSetReference: SetModReference }) {
+export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onConfirmFolder, onSetReference }: { readonly onOpenEditor: () => void; readonly onEdit: (revision: ModRevision) => Promise<void>; readonly onEditBundled: (mod: BundledLibraryMod) => Promise<void>; readonly onImport: SaveModToLibrary; readonly onConfirmFolder: (preview: FolderPreview, selection: FolderSelection) => Promise<readonly LibraryImportReceipt[]>; readonly onSetReference: SetModReference }) {
+  const workspace = useOptionalWorkspace()
   const library = useDefinitionLibrary()
   const catalogs = library.catalogs
   const cards = useMemo(() => buildModLibraryCards(catalogs, library.options, library.localData), [catalogs, library.options, library.localData])
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)
+  const filesInput = useRef<HTMLInputElement>(null)
+  const folderInput = useRef<HTMLInputElement>(null)
+  useEffect(() => { folderInput.current?.setAttribute('webkitdirectory', '') }, [])
   const [pending, setPending] = useState<string>()
   const [error, setError] = useState<string>()
-  const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback>()
-  const [result, setResult] = useState<Awaited<ReturnType<SaveModToLibrary>>>()
+  const [referenceFeedback, setReferenceFeedback] = useState<ReferenceFeedback | undefined>(() => {
+    const retry = workspace?.readReferenceRetry()
+    return retry && { ...retry, status: 'failed' }
+  })
+  const [result, setResult] = useState<{ readonly saved: Awaited<ReturnType<SaveModToLibrary>>; readonly futureDefault: boolean } | undefined>(() => workspace?.readModLibraryResult())
+  const [selectedImport, setSelectedImport] = useState<{ readonly file: File; readonly catalogId?: CatalogId }>()
+  const [folderPreview, setFolderPreview] = useState<FolderPreview>()
+  const [folderResult, setFolderResult] = useState<string>()
+  const [includeInReference, setIncludeInReference] = useState(false)
+  const [futureDefault, setFutureDefault] = useState(false)
   const [query, setQuery] = useState('')
   const busy = Boolean(pending)
+  const directorySupported = typeof document !== 'undefined' && 'webkitdirectory' in document.createElement('input')
+  const selectImport = (file: File, catalogId?: CatalogId) => {
+    workspace?.clearModLibraryResult()
+    setFolderPreview(undefined)
+    setSelectedImport({ file, catalogId })
+    setIncludeInReference(false)
+    setFutureDefault(false)
+  }
+  const cancelImport = () => { setSelectedImport(undefined); setIncludeInReference(false); setFutureDefault(false) }
+  const selectFolderFiles = async (files: readonly File[]) => {
+    if (!files.length) return
+    workspace?.clearModLibraryResult()
+    setSelectedImport(undefined); setFolderPreview(undefined); setFolderResult(undefined); setError(undefined); setPending('Reviewing selected files...')
+    try {
+      setFolderPreview(await previewModFolder(files.map(file => ({ relativePath: file.webkitRelativePath || file.name, file }))))
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The selected files could not be reviewed.') }
+    finally { setPending(undefined) }
+  }
+  const confirmFolder = async (selection: FolderSelection) => {
+    if (!folderPreview) return
+    setError(undefined); setPending('Saving selected mod files...')
+    try {
+      const receipts = await onConfirmFolder(folderPreview, selection)
+      const receipt = receipts[0]
+      const excluded = receipt?.excludedArtwork ?? []
+      setFolderResult(`${receipt?.filename ?? 'The selected JSON'} was saved to your library.${receipt?.savedArtworkCount ? ` ${receipt.savedArtworkCount} matching image${receipt.savedArtworkCount === 1 ? '' : 's'} saved privately.` : ''}${excluded.length ? ` ${excluded.length} image${excluded.length === 1 ? ' was' : 's were'} excluded: ${excluded.map(value => `${value.relativePath} (${value.reason})`).join('; ')}.` : ''}`)
+      setFolderPreview(undefined)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The selected revision could not be saved.') }
+    finally { setPending(undefined) }
+  }
   const toggleReference = async (card: ModLibraryCard, included = !modIsInReference(library.localData, card)) => {
+    workspace?.clearModLibraryResult()
+    workspace?.rememberReferenceRetry(undefined)
     setPending(included ? 'Adding mod to Reference...' : 'Removing mod from Reference...'); setError(undefined); setReferenceFeedback(undefined); setResult(undefined)
     try {
       const mod = card.project
@@ -112,17 +160,26 @@ export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSe
         warnings = (await onImport(source.text, source.filename, mod.id, true)).warnings
       }
       setReferenceFeedback({ cardId: card.id, included, status: 'saved', warnings })
-    } catch (reason) { setReferenceFeedback({ cardId: card.id, included, status: 'failed', message: formatAppError(reason, 'Reference membership could not be changed.') }) }
+    } catch (reason) {
+      const retry = { cardId: card.id, included, message: formatAppError(reason, 'Reference membership could not be changed.') }
+      if (!workspace || workspace.isCurrent()) { workspace?.rememberReferenceRetry(retry); setReferenceFeedback({ ...retry, status: 'failed' }) }
+    }
     finally { setPending(undefined) }
   }
   const edit = async (open: () => Promise<void>) => {
+    workspace?.clearModLibraryResult()
     setPending('Opening mod JSON...'); setError(undefined); setResult(undefined)
     try { await open() } catch (reason) { setError(reason instanceof Error ? reason.message : 'The mod revision could not be opened.') }
     finally { setPending(undefined) }
   }
-  const importFile = async (file: File, catalogId?: CatalogId) => {
+  const importFile = async () => {
+    if (!selectedImport) return
     setPending('Importing mod...'); setError(undefined); setResult(undefined)
-    try { setResult(await onImport(await readModFile(file), file.name, catalogId)) }
+    try {
+      const saved = await onImport(await readModFile(selectedImport.file), selectedImport.file.name, selectedImport.catalogId, includeInReference, futureDefault)
+      setResult({ saved, futureDefault })
+      cancelImport()
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'The mod revision could not be imported.') }
     finally { setPending(undefined) }
   }
@@ -132,14 +189,19 @@ export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onSe
   const visible = cards.filter(card => [card.title, card.id, ...card.catalogNames].some(value => value.toLocaleLowerCase().includes(search))).sort((a, b) => cardPriority(a) - cardPriority(b))
   return <div className="stack mod-library">
     <h2 className="sr-only">Mod library</h2>
-    <div className="mod-library__toolbar"><Field label="Search mods"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Mod name or project ID"/></Field><div className="cluster mod-library__tools"><Button disabled={busy} onClick={() => input.current?.click()} icon="upload" tone="secondary">Import mod</Button><Button disabled={busy} onClick={onOpenEditor} tone="secondary">Open mod editor</Button><Button disabled={busy} onClick={() => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: {} })} tone="secondary">Game Setups</Button></div></div>
-    <input ref={input} type="file" accept=".json,application/json" className="sr-only" aria-label="Import mod JSON" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void importFile(file) }}/>
+    <div className="mod-library__toolbar"><Field label="Search mods"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Mod name or project ID"/></Field><div className="cluster mod-library__tools"><Button disabled={busy} onClick={() => input.current?.click()} icon="upload" tone="secondary">Import mod</Button>{directorySupported && <Button disabled={busy} onClick={() => folderInput.current?.click()} icon="upload" tone="secondary">Choose folder</Button>}<Button disabled={busy} onClick={() => filesInput.current?.click()} icon="upload" tone="secondary">Choose files</Button><Button disabled={busy} onClick={onOpenEditor} tone="secondary">Open mod editor</Button><Button disabled={busy} onClick={() => navigation.navigate({ page: { page: 'settings', section: 'game-setup' }, overlays: [], query: {} })} tone="secondary">Game Setups</Button></div></div>
+    <input ref={input} type="file" accept=".json,application/json" className="sr-only" aria-label="Import mod JSON" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) selectImport(file) }}/>
+    <input ref={folderInput} type="file" multiple className="sr-only" aria-label="Import mod folder" disabled={busy} onChange={event => { const files = Array.from(event.target.files ?? []); event.target.value = ''; void selectFolderFiles(files) }}/>
+    <input ref={filesInput} type="file" multiple accept=".json,.png,.jpg,.jpeg,.webp" className="sr-only" aria-label="Import mod files" disabled={busy} onChange={event => { const files = Array.from(event.target.files ?? []); event.target.value = ''; void selectFolderFiles(files) }}/>
+    {folderPreview && <FolderImportPreview preview={folderPreview} busy={busy} onConfirm={selection => void confirmFolder(selection)} onCancel={() => setFolderPreview(undefined)}/>}
+    {selectedImport && <section aria-label="Import mod choices" className="panel"><div className="panel__body stack"><h3>Add {selectedImport.file.name}</h3><p>The JSON is saved privately in this workspace. Existing Builds and Teams keep their saved mod versions.</p><label className="check-row"><input checked={includeInReference} disabled={busy} onChange={event => setIncludeInReference(event.target.checked)} type="checkbox"/><span>Add this mod to Reference</span></label><label className="check-row"><input checked={futureDefault} disabled={busy} onChange={event => setFutureDefault(event.target.checked)} type="checkbox"/><span>Enable this version for new Game Setups</span></label><div className="cluster"><Button disabled={busy} onClick={() => void importFile()} icon="upload">{pending ? 'Adding...' : 'Add mod JSON'}</Button><Button disabled={busy} onClick={cancelImport} tone="quiet">Cancel</Button></div></div></section>}
     <p className="field__hint mod-library__help">Add to Reference makes a mod browsable. Choose mods changes your Game Setup. Neither changes your game or saved Builds.</p>
     <div className="mod-library__links"><a href={CRYSTAL_PROJECT_WORKSHOP_URL} target="_blank" rel="noopener noreferrer" aria-label="Browse Crystal Project's Steam Workshop">Find mods on Steam Workshop</a><span>Enabled mods appear first.</span></div>
     {pending && <p role="status">{pending}</p>}
     {error && <InlineNotice title="Mod operation failed" tone="danger">{error}</InlineNotice>}
-    {result && <InlineNotice title={result.unchanged ? 'This mod revision is already saved' : 'Mod revision saved to CryKit'} tone="positive"><p>{result.title}. Select this version in a Game Setup to use it.</p>{result.warnings.length > 0 && <details><summary>Import notes</summary><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}
-    {visible.map(card => <ModCard key={card.id} card={card} busy={busy} referenceFeedback={referenceFeedback?.cardId === card.id ? referenceFeedback : undefined} onBrowse={() => navigation.navigate({ page: { page: 'reference', view: 'list' }, overlays: [], query: { 'library-mod': [card.id], audience: ['alternatives'] } })} onToggleReference={included => void toggleReference(card, included)} onEdit={revision => void edit(() => onEdit(revision))} onEditBundled={source => void edit(() => onEditBundled(source))} onImport={(file, catalogId) => void importFile(file, catalogId)}/>)}
+    {folderResult && <InlineNotice title="Mod source saved" tone="positive">{folderResult}</InlineNotice>}
+    {result && <InlineNotice title={result.saved.unchanged ? 'This mod revision is already saved' : 'Mod revision saved to CryKit'} tone="positive"><p>{result.saved.title}. {result.futureDefault ? 'New Game Setups will use this version.' : 'Select this version in a Game Setup to use it.'}</p>{result.saved.warnings.length > 0 && <details><summary>Import notes</summary><ul>{result.saved.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}</InlineNotice>}
+    {visible.map(card => <ModCard key={card.id} card={card} busy={busy} referenceFeedback={referenceFeedback?.cardId === card.id ? referenceFeedback : undefined} onBrowse={() => navigation.navigate({ page: { page: 'reference', view: 'list' }, overlays: [], query: { 'library-mod': [card.id], audience: ['alternatives'] } })} onToggleReference={included => void toggleReference(card, included)} onEdit={revision => void edit(() => onEdit(revision))} onEditBundled={source => void edit(() => onEditBundled(source))} onImport={selectImport}/>)}
     {!visible.length && <p>No mods match this search.</p>}
   </div>
 }

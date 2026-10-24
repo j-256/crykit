@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crykit-accounts-local",
+  "alias": { "@serenity-kit/opaque": "./.account-tests/opaque-runtime.js" },
+  "build": { "command": "node scripts/build-account-tests.mjs --prepare-opaque", "watch_dir": ["worker", "src/account", "scripts/opaque-worker-module.mjs", "package-lock.json"] },
+  "main": "worker/testing/local-entry.ts",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  "ratelimits": [
+    { "name": "CLOUD_NETWORK_LIMITER", "namespace_id": "16377300301", "simple": { "limit": 12000, "period": 60 } },
+    { "name": "CLOUD_ACCOUNT_LIMITER", "namespace_id": "16377300302", "simple": { "limit": 7200, "period": 60 } },
+    { "name": "CLOUD_AUTH_LIMITER", "namespace_id": "16377300303", "simple": { "limit": 60, "period": 60 } },
+    { "name": "CLOUD_LOCATION_LIMITER", "namespace_id": "16377300304", "simple": { "limit": 24000, "period": 60 } }
+  ],
+  "secrets": { "required": ["OPAQUE_SERVER_SETUP", "SESSION_SECRET", "CURSOR_SECRET", "CAPABILITY_SECRET", "EMAIL_STATE_SECRET", "DUMMY_IDENTITY_SECRET"] },
+  "dev": { "ip": "127.0.0.1", "port": 8787 },
+  "vars": {
+    "ACCOUNTS_ACTIVE": "true",
+    "SIGNUP_ACTIVE": "true",
+    "EMAIL_SENDING_ACTIVE": "true",
+    "EMAIL_HEADROOM": "available",
+    "SERVICE_ORIGIN": "http://127.0.0.1:8787",
+    "STORAGE_CAP_BYTES": "2147483648"
+  },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*", "/admin", "/admin/*", "/__accounts/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "crykit-accounts-local", "migrations_dir": "worker/migrations", "database_id": "00000000-0000-0000-0000-000000000001" }],
+  "r2_buckets": [
+    { "binding": "OBJECTS", "bucket_name": "crykit-accounts-local-objects" },
+    { "binding": "LEDGER_BACKUPS", "bucket_name": "crykit-accounts-local-ledger-backups" },
+    { "binding": "REVOCATION_LEDGER", "bucket_name": "crykit-accounts-local-revocation-ledger" }
+  ],
+  "services": [{ "binding": "EMAIL", "service": "crykit-accounts-local", "entrypoint": "EmailCapture" }]
+}

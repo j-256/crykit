@@ -1,3 +1,4 @@
+import { equivalentTeamSetup } from '../domain/team-checkpoints'
 import { saveTeam } from '../domain/teams'
 import { deflateSync, inflateSync } from 'fflate'
 import { z } from 'zod'
@@ -8,7 +9,7 @@ import { modCatalogRevision } from '../domain/mod-layers'
 import { sameValue } from '../domain/definition-values'
 import { sameBuildBehavior, uniqueGameSetupLabel } from '../domain/build-behavior'
 import type { Build, BuildId, BuildRevision, BuildRevisionId, EntityRef, GameSetupId, GameSetupRevision, GameSetupRevisionId, TeamId, CatalogSnapshot, LocalData, PersonalDefinition, PersonalDefinitionId, ScenarioId } from '../domain/types'
-import { NativeLocalDataSchema, PreviousLocalDataSchema, StoredBuildSchema } from './native-schema'
+import { NativeLocalData240Schema, PreviousLocalDataSchema, StoredBuildSchema } from './native-schema'
 import { parseBoundedJson } from './json'
 import { assertModSourceReceipts, modSourceReceipts, withBuildReferenceNames } from '../domain/build-reference-names'
 import { buildModReferences } from '../domain/build-references'
@@ -23,11 +24,11 @@ export const MAX_SHARE_JSON_BYTES = 1024 * 1024
 const LENGTH_HEADER_BYTES = 4
 const BASE64_CHUNK_BYTES = 8192
 const SHARE_COMPRESSION_LEVEL = 9
-const SHARE_RECORDS_SCHEMA = NativeLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true })
+const SHARE_RECORDS_SCHEMA = NativeLocalData240Schema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true })
 const CurrentShareSchema = z.object({
   version: z.literal(SHARE_FORMAT_VERSION),
   kind: z.enum(['build', 'team']),
-  title: NativeLocalDataSchema.shape.builds.valueType.shape.title,
+  title: NativeLocalData240Schema.shape.builds.valueType.shape.title,
   records: SHARE_RECORDS_SCHEMA,
   slots: z.array(z.string().min(1).nullable()).length(TEAM_SIZE).optional(),
   teamGameSetupRevisionId: z.string().min(1).optional(),
@@ -35,7 +36,7 @@ const CurrentShareSchema = z.object({
 const ShareSchema = z.union([
   CurrentShareSchema,
   CurrentShareSchema.extend({ version: z.literal(3), records: PreviousLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true }) }),
-  CurrentShareSchema.extend({ version: z.union([z.literal(1), z.literal(2)]), records: PreviousLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true }).extend({ builds: z.record(NativeLocalDataSchema.shape.builds.keyType, StoredBuildSchema) }) }),
+  CurrentShareSchema.extend({ version: z.union([z.literal(1), z.literal(2)]), records: PreviousLocalDataSchema.pick({ personalDefinitions: true, gameSetups: true, builds: true, buildRevisions: true }).extend({ builds: z.record(NativeLocalData240Schema.shape.builds.keyType, StoredBuildSchema) }) }),
 ])
 
 export interface SharePayload {
@@ -65,6 +66,7 @@ function definitionReferences(definition: PersonalDefinition) {
   return { baseRef: definition.baseRef, previousRevision: definition.previousRevision, requirements: definition.requirements }
 }
 
+// Frozen legacy projection remains for historical recovery; new publication uses createPublicSnapshot
 export function createSharePayload(localData: LocalData, target: ShareTarget, includeNotes = false, catalogs: readonly CatalogSnapshot[] = []): SharePayload {
   const definitions: Record<string, PersonalDefinition> = {}
   const setups: Record<string, GameSetupRevision> = {}
@@ -94,9 +96,11 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
     const revision = own(localData.buildRevisions, id)
     const build = revision && own(localData.builds, revision.buildId)
     if (!revision || !build) throw new Error('A pinned build checkpoint is missing.')
+    if (revision.content.retainedSelections) throw new Error('Sharing retained out-of-context selections needs the newer share format.')
     addSetup(revision.gameSetupRevisionId)
     // Snapshot notes are opt-in; copying the checkpoint wholesale would bypass the sharing choice
-    const { rotationNotes, contextAssumptions, ...content } = withBuildReferenceNames(revision.content, catalogs)
+    // Active drafts may carry an absent v5-only field; the frozen v4 projection must omit that key
+    const { rotationNotes, contextAssumptions, retainedSelections: _retainedSelections, ...content } = withBuildReferenceNames(revision.content, catalogs)
     revisions[id] = {
       id, buildId: build.id, revision: revision.revision, gameSetupRevisionId: revision.gameSetupRevisionId,
       catalogLock: revision.catalogLock, createdAt: revision.createdAt,
@@ -112,6 +116,7 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
   }
   if ('teamId' in target) {
     const team = own(localData.teams, target.teamId)
+    if (team?.kind === 'shared') throw new Error('Sharing Team-owned checkpoints is not available yet.')
     const first = team?.slots.find(id => id !== null)
     const setupId = first ? localData.buildRevisions[first]?.gameSetupRevisionId : undefined
     if (!team || !setupId) throw new Error('Choose a build before sharing the Team.')
@@ -121,7 +126,7 @@ export function createSharePayload(localData: LocalData, target: ShareTarget, in
   const scenario = own(requirePlaythrough(localData).scenarios, target.scenarioId)
   if (!scenario || scenario.memberIds.length !== TEAM_SIZE || new Set(scenario.memberIds).size !== TEAM_SIZE) throw new Error('Sharing requires a complete four-slot team.')
   const assignments = effectiveScenarioAssignments(scenario)
-  const slots = scenario.memberIds.map(id => own(assignments, id) ?? null)
+  const slots = scenario.memberIds.map(id => { const ref = own(assignments, id); if (ref?.kind === 'team-slot') throw new Error('Sharing Team-owned checkpoints is not available yet.'); return ref?.revisionId ?? null })
   addSetup(scenario.gameSetupRevisionId)
   for (const id of slots) if (id) addRevision(id)
   return validateSharePayload({ version: SHARE_FORMAT_VERSION, kind: 'team', title: scenario.label, records: { personalDefinitions: definitions, gameSetups: setups, builds, buildRevisions: revisions }, slots, teamGameSetupRevisionId: scenario.gameSetupRevisionId })
@@ -387,6 +392,12 @@ export function saveSharedCopy(localData: LocalData, input: SharePayload): { rea
   let next = updateLocalData(localData, { personalDefinitions, gameSetups, builds, buildRevisions }, 'share.saveCopy', ['personalDefinitions', 'gameSetups', 'builds', 'buildRevisions'], now)
   if (payload.kind === 'build') return { localData: next, buildId: [...buildIds.values()][0]! }
   const teamId = createId<TeamId>('team')
-  next = saveTeam(next, { id: teamId, title: payload.title, slots: payload.slots!.map(id => id ? revisionIds.get(id)! : null), now, expectedRevision: next.revision })
+  const slots = payload.slots!.map(id => id ? revisionIds.get(id)! : null)
+  if (equivalentTeamSetup(next, slots)) next = saveTeam(next, { id: teamId, title: payload.title, slots, now, expectedRevision: next.revision })
+  else {
+    // Legacy public snapshots retain each member's context until the user chooses one shared setup
+    const team = { id: teamId, kind: 'legacy-mixed' as const, title: payload.title, slots, revision: 0, createdAt: now, updatedAt: now }
+    next = updateLocalData(next, { teams: { ...next.teams, [teamId]: team } }, 'share.saveCopy', [`teams.${teamId}`], now)
+  }
   return { localData: next, teamId }
 }

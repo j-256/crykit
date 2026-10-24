@@ -47,7 +47,7 @@ it('upgrades historical bundled references and undo history before saving Refere
   const database = new CryKitDatabase(original.name)
   setDatabaseForTests(database)
   const loaded = await loadLocalData()
-  expect(database.verno).toBe(6)
+  expect(database.verno).toBe(7)
   expect(loaded.localData).toEqual(original.after)
   expect((await database.history.get('history'))?.before).toEqual(original.before)
   expect((await database.history.get('history'))?.after).toEqual(original.after)

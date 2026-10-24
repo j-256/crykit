@@ -57,15 +57,15 @@ On a saved build, expand **Use with Tracking** to check it against your tracked 
 
 ## Keep your data safe
 
-Save open forms, then choose **Data & settings > Import & backup > Export backup** to download a copy of your planner data. Use that file to recover your records or move them to another browser or device.
+Choose **Data & settings > Import & backup > Export backup** to download a private `.crykit` workspace backup. It includes saved planner records, original sources, catalogs, Editor and Save documents, unfinished saved input, retained history, pending content, and conflict branches. An open form must save successfully before export; unresolved saves stop the download and keep your input available.
 
-Mods saved to the Mod Library and their original source files are included in planner backups. Editor workspace originals and working drafts have separate downloads; export those drafts from **Mods > Map Editor** or **Mods > JSON Editor** before clearing browser storage or moving to another browser.
+The complete backup reader validates the archive before exposing its contents. Installing a complete backup into another workspace requires a separate reviewed restore flow. The existing import screen continues to accept native planner ZIP backups (versions 2.0 and 2.1); those contain planner records and sources rather than private Editor or Save documents.
 
-Game saves and save-specific mod definitions opened in **Save Editor** stay in memory for that tab. Add Crystal Edit JSON to resolve missing active or historical mod definitions. Supported disabled-mod residue can be reviewed for removal without changing the save's game mode. Download edited saves separately before leaving or reloading; planner backups do not include the opened saves or session-only manual definitions.
+**Save Editor** stores exact original bytes, working copies, and unfinished input in the selected workspace. Account workspaces encrypt saved documents before synchronization. Add Crystal Edit JSON to resolve missing active or historical mod definitions; manually supplied definitions remain temporary reference context. Supported disabled-mod residue can be reviewed for removal without changing the save's game mode. Download a working copy explicitly to use it in the game. Complete workspace backups retain saved documents and pending fields; temporary definitions must be supplied again after reopening.
 
-**Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. There is no automatic cloud sync or telemetry. Backup files can contain private notes and source files; keep them private. Restoring a backup replaces all planner data in the destination browser after confirmation. See [backups and recovery](docs/data-formats.md).
+**Browser storage is not a backup.** Clearing site data can remove your records, and another browser or app address has separate storage. Guest workspaces do not synchronize across devices. Complete backup downloads are unencrypted files containing private records and file history; store them privately. Large downloads require a browser that offers streamed file saving. See [backups and recovery](docs/data-formats.md) and [the complete workspace format](docs/workspace-backups.md).
 
-For offline use, open **Data & settings > Offline & storage** while connected. Choose **Prepare for offline use** if needed, and wait for **Offline ready** before disconnecting.
+For offline use, open **Data & settings > Offline & storage** while connected. The core app is included; choose optional artwork, maps or screenshot recognition, then **Prepare for offline use**. Wait for **Offline ready** before disconnecting. Progress shows the files being downloaded and checked.
 
 The same section offers **Apply app update** for a staged update and **Refresh app** to download fresh app files while preserving saved records and editor drafts. Save open forms first. See [offline use and updates](docs/user-guide.md#use-the-app-offline).
 
@@ -85,6 +85,8 @@ The same section offers **Apply app update** for a staged update and **Refresh a
 | Import Learn-menu screenshots | [Screenshot learning](docs/screenshot-learning.md) |
 | Report incorrect reference data | [GitHub issues](https://github.com/j-256/crykit/issues) |
 | Work on the app or host a copy | [Development](docs/development.md) and [deployment](docs/deployment.md) |
+
+The optional account backend has separate [deployment preparation](docs/accounts-deployment.md), [privacy and upload terms](docs/accounts-privacy.md), [capacity limits](docs/accounts-capacity.md), [preview acceptance](docs/accounts-preview.md), [encrypted sync storage](docs/account-sync-storage.md) and [service recovery](docs/accounts-recovery.md). Guest editing remains available without it.
 
 ## Run locally
 

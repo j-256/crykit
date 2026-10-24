@@ -5,7 +5,7 @@ import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { catalogSnapshotKey } from '../interchange/identity'
 import { CryKitDatabase, setDatabaseForTests } from '../persistence/database'
 import { CURRENT_CATALOG, DEFAULT_CATALOG } from './bundled'
-import { createWorldMapLoader, loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
+import { createWorldMapLoader, createMapModLayerLoader, loadMapGeometryTile, loadMapModLayer, loadWorldMap, validateWorldMapSource, worldMapImage, worldMapTargetRef } from './world-map'
 import { encodeMapGeometry } from '../domain/map-geometry'
 import { sha256 } from '../interchange/util'
 import manifestSource from './world-map.json'
@@ -130,6 +130,35 @@ describe('bundled native world map and original mod source joining', () => {
       setDatabaseForTests(undefined)
       await database.delete()
     }
+  })
+
+  it('binds imported layer reuse to the exact captured reader and rejects retired cached or late results', async () => {
+    const text = JSON.stringify({ ID: 'captured-map', Title: 'Captured map', EditorVersion: 34, Equipment: [{ ID: 900, Name: 'Captured blade' }], Entities: [{ ID: 5000, Coord: { X: 1, Y: 100, Z: 1 }, BiomeID: 1, EntityType: 5, TreasureData: { LootType: 2, LootValue: 900 } }] })
+    const preview = await previewCrystalEdit(new TextEncoder().encode(text), 'captured.json')
+    const catalog = preview.proposed.catalogs[0]!, pin = { catalogId: catalog.id, catalogRevisionId: catalog.revisionId }
+    let current = true
+    const assertCurrent = () => { if (!current) throw new Error('Captured reader retired') }
+    const read = vi.fn(async () => ({ filename: 'captured.json', text }))
+    const load = createMapModLayerLoader(read, assertCurrent)
+    const first = await load(pin, [catalog])
+    expect(first.entities).toHaveLength(1)
+    expect(first.definitions[0]?.name).toBe('Captured blade')
+    expect(await load(pin, [catalog])).toBe(first)
+    expect(read).toHaveBeenCalledTimes(1)
+    current = false
+    await expect(load(pin, [catalog])).rejects.toThrow('Captured reader retired')
+    const otherRead = vi.fn(async () => { throw new Error('Source unavailable in this profile') })
+    expect((await createMapModLayerLoader(otherRead, () => {})(pin, [catalog])).warnings).toEqual(['Source unavailable in this profile'])
+    expect(otherRead).toHaveBeenCalledTimes(1)
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    current = true
+    const late = createMapModLayerLoader(async () => { await gate; return { filename: 'captured.json', text } }, assertCurrent)(pin, [catalog])
+    current = false; release()
+    await expect(late).rejects.toThrow('Captured reader retired')
+    const wrong = createMapModLayerLoader(async () => ({ filename: 'wrong.json', text: text.replace('captured-map', 'different-project') }), () => {})
+    expect((await wrong(pin, [catalog])).warnings.join(' ')).toContain('identity does not match')
+    expect((await loadMapModLayer(pin, [])).entities).toEqual([])
   })
 
   it('retries a rejected manifest load after its source becomes usable', async () => {

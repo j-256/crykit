@@ -1,3 +1,4 @@
+import { waitForPlannerReady, openBuildGameSetup } from './local-data-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -21,23 +22,25 @@ const members = [
 ] as const
 
 test('creates and equips four members from a Team and retains them after reload and sharing', { tag: MOBILE_TEST_TAG }, async ({ page, browser }, testInfo) => {
-  // Four saved member Builds and a fresh recipient browser complete one Team journey
+  // Four Team-owned member checkpoints and a fresh recipient browser complete one Team journey
   test.setTimeout(COMPLETE_TEAM_JOURNEY_TIMEOUT_MS)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/teams/new')
+  await waitForPlannerReady(page)
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
+  await openBuildGameSetup(page)
+  await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('vanilla')
+  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption({ label: '1.6.9' })
+  await page.locator('.build-behavior > summary').click()
   await page.getByRole('textbox', { name: 'Team name' }).fill('Audit Expedition')
   for (const [index, member] of members.entries()) {
     await test.step(`Equip ${member.name}`, async () => {
       await page.getByRole('region', { name: `Team slot ${index + 1} loadout`, exact: true }).getByRole('button', { name: 'Create member', exact: true }).click()
-      await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(member.name)
-      if (index === 0) {
-        await page.locator('.build-behavior > summary').click()
-        await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('vanilla')
-        await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption({ label: '1.6.9' })
-        await page.locator('.build-behavior > summary').click()
-      } else await expect(page.getByRole('region', { name: 'Team member context' })).toContainText("Starting with this Team's Game Setup: Unmodified game")
-      await expect(page.getByRole('checkbox', { name: /^Include learnable innates/, includeHidden: true })).not.toBeChecked()
+      await page.getByRole('textbox', { name: 'Member name', exact: true }).fill(member.name)
+      await expect(page.getByRole('region', { name: 'Team member context' })).toContainText('Shared Team Game Setup:')
+      if (index > 0) await expect(page.getByRole('region', { name: 'Team member context' })).toContainText('Unmodified game')
+      await expect(page.getByRole('checkbox', { name: /^Include learnable innates/, includeHidden: true })).toHaveCount(0)
       await choose(page, 'Class', member.primary)
       await choose(page, 'Sub-command', member.secondary)
       for (const [passiveIndex, passive] of member.passives.entries()) await choose(page, `Equipped passive ${passiveIndex + 1}`, passive)
@@ -60,6 +63,7 @@ test('creates and equips four members from a Team and retains them after reload 
   }
   await page.getByRole('button', { name: 'Return to Team', exact: true }).click()
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByLabel('Team overview')).toContainText('4/4 members')
   await expect(page.getByLabel('Team overview')).toContainText('No known build issues')
   const layout = page.getByRole('group', { name: 'Team layout' })
@@ -122,7 +126,7 @@ test('creates and equips four members from a Team and retains them after reload 
   expect(errors).toEqual([])
 })
 
-test('explains hand conflicts beside slots and remembers innate search preference without editing checkpoints', async ({ page }) => {
+test('explains hand conflicts beside slots and retains saved equipment without a special innate preference', async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Hand allocation review')
   await choose(page, 'Class', 'Warrior')
@@ -143,16 +147,15 @@ test('explains hand conflicts beside slots and remembers innate search preferenc
   await page.getByRole('button', { name: 'Clear Mainhand to choose Off hand', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('')
   await choose(page, 'Off hand', 'Diamond Shield')
-  await page.locator('.build-passive-options > summary').click()
-  const innate = page.getByRole('checkbox', { name: /^Include learnable innates/, includeHidden: true })
-  await innate.check()
+  await expect(page.locator('.build-passive-options')).toHaveCount(0)
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   await page.reload()
-  await expect(innate).toBeChecked()
-  await innate.uncheck()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  await page.reload()
-  await expect(innate).not.toBeChecked()
+  await waitForPlannerReady(page)
+  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Cleric')
+  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('')
+  await expect(page.getByRole('combobox', { name: 'Off hand', exact: true })).toHaveValue('Diamond Shield')
+  await expect(page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })).toHaveValue('Equip Shield')
+  await expect(page.getByRole('checkbox', { name: /^Include learnable innates/, includeHidden: true })).toHaveCount(0)
 })

@@ -4,6 +4,7 @@ import { NATIVE_GAME_DATA } from './native-game'
 import { nativeMechanic } from './native-mechanics'
 import { projectSourceSemantics } from './source-semantics'
 import { describeNativeRecord, nativeDescriptionRecord, type NativeDescription } from '../domain/native-description'
+import { isImmutableCatalogRecord } from '../interchange/native'
 import { sameValue } from '../domain/definition-values'
 import { nativeDisplayDescription, nativeIdentity, nativeSourceRecord, type NativeGameSnapshot } from '../domain/native-game'
 import type { CatalogEntity, PersonalDefinition } from '../domain/types'
@@ -20,7 +21,9 @@ export function nativeDescription(entity: Definition): NativeDescription | undef
   const identity = nativeIdentity(entity)
   if (!identity) return undefined
   const cached = descriptions.get(entity)
-  if (cached && BUNDLED_CATALOGS.some(catalog => catalog.entities[entity.id] === entity)) return cached
+  // A cached description has already passed complete source corroboration
+  // Admitted nested values cannot change; mutable imports must repeat those checks
+  if (cached && (!('revision' in entity) && isImmutableCatalogRecord(entity) || BUNDLED_CATALOGS.some(catalog => catalog.entities[entity.id] === entity))) return cached
   const originals = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).filter(original => original !== undefined)
   const baseline = originals.find(original => entity === original) ?? originals.find(original => sameValue(entity, original) || sameValue(entity, projectSourceSemantics(original)))
   const record = nativeSourceRecord(entity)

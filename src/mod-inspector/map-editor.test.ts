@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseDocument } from './document'
-import { addVoxelPlatform, paintVoxelBlocks, eraseVoxelBlocks, applyMapTextPatch, inspectMapProject, MAP_EDITOR_LIMITS, mapTextPatch, moveMapPlacement, newMapProject } from './map-editor'
+import { validateMapPlacementMove, validateVoxelPlatform, addVoxelPlatform, paintVoxelBlocks, eraseVoxelBlocks, applyMapTextPatch, inspectMapProject, MAP_EDITOR_LIMITS, mapTextPatch, moveMapPlacement, newMapProject } from './map-editor'
 
 const PROJECT_ID = 'a1943ce8-2a42-486a-9549-d497685b671e'
 const TIMESTAMP = '2026-01-01T00:00:00.000Z'
@@ -97,4 +97,19 @@ describe('precise map placement authoring', () => {
     expect(() => applyMapTextPatch(imported, add, 'undo')).toThrow('changed outside')
     expect(add.before.length + add.after.length).toBeLessThan(platform.length)
   })
+})
+
+it('revalidates complete attempted actions without producing replacement text', () => {
+  expect(validateMapPlacementMove(imported, 1, options.coord)).toBeUndefined()
+  expect(validateVoxelPlatform(imported, options)).toBeUndefined()
+  const invalid = [{ ...options, width: 0 }, { ...options, depth: 9 }, { ...options, biomeId: 256 }, { ...options, voxelId: 8 }, { ...options, lastNativeEntityId: NaN }, { ...options, coord: { ...options.coord, X: MAP_EDITOR_LIMITS.intMax } }]
+  for (const candidate of invalid) expect(() => validateVoxelPlatform(imported, candidate)).toThrow()
+  expect(() => validateMapPlacementMove(imported, 1, { ...options.coord, Y: MAP_EDITOR_LIMITS.intMax + 1 })).toThrow('signed 32-bit')
+  expect(() => validateMapPlacementMove(imported, 99, options.coord)).toThrow('unavailable')
+  const placed = addVoxelPlatform(imported, options)
+  expect(() => validateVoxelPlatform(placed, options)).toThrow('overlaps')
+  expect(() => validateMapPlacementMove(placed, LAST_NATIVE_ENTITY + 1, { ...options.coord, Z: options.coord.Z + 1 })).toThrow('overlaps')
+  expect(() => validateVoxelPlatform(imported.replace('"ID":1,', '"ID":2147483647,'), options)).toThrow('safe entity IDs')
+  expect(placed).toContain(treasure)
+  expect(inspectMapProject(parseDocument(imported)).placements).toHaveLength(1)
 })

@@ -1,0 +1,6 @@
+.cloud-service-notice { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; padding: .75rem 1rem; margin-bottom: 1rem; border: 1px solid var(--line); border-inline-start: .25rem solid var(--amber); background: var(--panel-raised); overflow-wrap: anywhere; }
+.cloud-service-notice > div { min-width: 0; }
+.cloud-service-notice p { margin: .35rem 0; }
+.cloud-service-notice details { margin-top: .5rem; }
+.cloud-service-notice a { display: inline-block; padding-block: .35rem; }
+.cloud-service-notice > button { flex-shrink: 0; }

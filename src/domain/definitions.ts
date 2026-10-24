@@ -25,6 +25,8 @@ export function resolveDefinition(
   if (ref.kind === 'personal') return localData.personalDefinitions[ref.definitionId]
   const catalog = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
   const entity = catalog && catalogEntity(catalog, ref.entityId)
+  // Receipt-only public selections never acquire native mechanics through a missing-source fallback
+  if (!entity && localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))) return undefined
   // A complete available snapshot remains authoritative, including a genuinely missing entity
   // Compact compositions can retain unchanged native entries when their old baseline is withdrawn
   return entity ?? (!catalog || catalog.schemaVersion === MOD_CATALOG_SCHEMA ? preservedNativeDefinition(localData, catalogs, ref) : undefined)

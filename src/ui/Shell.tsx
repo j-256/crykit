@@ -9,6 +9,9 @@ import { Sheet } from './Sheet'
 import { UniversalSearch } from './UniversalSearch'
 import { ProgressBoards } from './ProgressBoards'
 import { ModWorkspaceLinks } from './ModWorkspaceLinks'
+import { useOptionalWorkspace } from './WorkspaceProvider'
+import { SyncStatus } from './account/SyncStatus'
+import { CloudServiceNotice } from './CloudServiceNotice'
 import { PreviewNotice } from './PreviewNotice'
 import { WorkspaceHeaderContext } from './WorkspaceHeader'
 import { parseAppRoute, routeDestination, routeForDestination, routeWithOverlay, useNavigation, type Destination } from './navigation'
@@ -54,8 +57,9 @@ function Brand() {
   </div>
 }
 
-export function Shell({ localData, catalogs, destination, saveState, contextBusy, developmentRefreshBlocked, onDevelopmentRefresh, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; contextBusy: boolean; developmentRefreshBlocked: boolean; onDevelopmentRefresh: () => void; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
+export function Shell({ localData, catalogs, destination, saveState, pendingLocalChanges, contextBusy, developmentRefreshBlocked, onDevelopmentRefresh, onSelectPlaythrough, onSelectScenario, onOpenData, children }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; destination: Destination; saveState: 'saved' | 'saving' | 'unsaved' | 'error'; pendingLocalChanges?: boolean; contextBusy: boolean; developmentRefreshBlocked: boolean; onDevelopmentRefresh: () => void; onSelectPlaythrough: (id: PlaythroughId) => Promise<void>; onSelectScenario: (id: ScenarioId | null) => Promise<void>; onOpenData: () => void; children: ReactNode }) {
   const navigation = useNavigation()
+  const workspace = useOptionalWorkspace()
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null)
@@ -72,7 +76,12 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
   const activeDestination = navigation.route.page.page === 'settings' ? undefined : partyPage ? 'characters' : destination
   const searchOpen = navigation.route.overlays.some((overlay) => overlay.kind === 'search')
   const page = navigation.route.page
-  const sharedSnapshot = page.page === 'share'
+  const accountPage = page.page === 'settings' && page.section === 'account'
+  const openAccount = () => {
+    navigation.navigate({ page: { page: 'settings', section: 'account' }, overlays: [], query: {} })
+    setMobileNavigationOpen(false)
+  }
+  const sharedSnapshot = page.page === 'share' || page.page === 'hosted-share'
   const newPlan = unsavedObject || (page.page === 'builds' && page.view === 'build-new') || (page.page === 'teams' && page.view === 'new')
   const saveLabel = sharedSnapshot ? 'Read-only snapshot' : saveState === 'saved' ? newPlan ? 'Not yet saved' : 'Saved locally' : saveState === 'saving' ? 'Saving locally' : saveState === 'error' ? 'Save failed' : 'Unsaved changes'
   const saveExplanation = sharedSnapshot ? 'Choose Save a copy to keep this snapshot in your browser.' : newPlan && saveState === 'saved' ? 'Save this plan to keep it in your browser.' : saveLabel
@@ -138,8 +147,8 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       </nav>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
-        <button aria-current={navigation.route.page.page === 'settings' ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button>
-        <div className="local-note"><strong>Saved in this browser</strong>Export a backup to keep a separate copy.</div>
+        <button aria-current={navigation.route.page.page === 'settings' && !accountPage ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link" onClick={openAccount} type="button"><Icon name="settings"/><span>Account</span></button>
+        <div className="local-note">Export a backup to keep a separate copy.</div>
         <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={toggleSidebar} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>
@@ -148,14 +157,14 @@ export function Shell({ localData, catalogs, destination, saveState, contextBusy
       <header className={`context-bar${tracking ? '' : ' context-bar--planning'}${destination === 'map' ? ' context-bar--map' : ''}`} ref={contextRef}>
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
-          {destination !== 'mods' && destination !== 'map' && destination !== 'save-editor' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
+          {!accountPage && destination !== 'mods' && destination !== 'map' && destination !== 'save-editor' && <div aria-live="polite" className={`context-status context-status--${statusState}`} title={saveExplanation}><span className="context-status__dot"/>{saveLabel}</div>}
           <DevelopmentRefresh blocked={developmentRefreshBlocked} onRefresh={onDevelopmentRefresh}/>
         </div>
       </header>
-      <WorkspaceHeaderContext value={headerSlots}><div className="content"><PreviewNotice/>{children}</div></WorkspaceHeaderContext>
+      <WorkspaceHeaderContext value={headerSlots}><div className="content"><PreviewNotice/>{!accountPage && <CloudServiceNotice/>}{workspace?.token && !sharedSnapshot && <SyncStatus localSaveState={(newPlan || pendingLocalChanges) && saveState === 'saved' ? 'unsaved' : saveState} syncState={workspace.syncState} onRetry={workspace.retrySync} onReview={openAccount}/>}{children}</div></WorkspaceHeaderContext>
     </main>
     <nav aria-label="Primary navigation" className="bottom-nav"><div className="bottom-nav__scroll" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></div><button aria-label="More destinations" aria-expanded={mobileNavigationOpen} aria-haspopup="dialog" className="bottom-nav__more" onClick={() => setMobileNavigationOpen(true)} type="button"><Icon name="menu"/><span>More</span></button></nav>
-    <Sheet description="Choose a planning tool or track your Playthrough." onClose={() => setMobileNavigationOpen(false)} open={mobileNavigationOpen} title="Navigate CryKit"><nav aria-label="All destinations" className="mobile-destinations"><section><h3>Planning</h3>{MAIN_DESTINATIONS.map(destinationButton)}</section><section><h3>Tracking</h3>{TRACKING_DESTINATIONS.map(destinationButton)}</section><button className="nav-link" onClick={() => { setMobileNavigationOpen(false); onOpenData() }} type="button"><Icon name="settings"/><span>Data & settings</span></button></nav></Sheet>
+    <Sheet description="Choose a planning tool or track your Playthrough." onClose={() => setMobileNavigationOpen(false)} open={mobileNavigationOpen} title="Navigate CryKit"><nav aria-label="All destinations" className="mobile-destinations"><section><h3>Planning</h3>{MAIN_DESTINATIONS.map(destinationButton)}</section><section><h3>Tracking</h3>{TRACKING_DESTINATIONS.map(destinationButton)}</section><button className="nav-link" onClick={() => { setMobileNavigationOpen(false); onOpenData() }} type="button"><Icon name="settings"/><span>Data & settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link" onClick={openAccount} type="button"><Icon name="settings"/><span>Account</span></button></nav></Sheet>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }

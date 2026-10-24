@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { readFile } from 'node:fs/promises'
-import { replacePlannerData } from './local-data-helpers'
+import { replacePlannerData, readLocalData } from './local-data-helpers'
 import { expect, type Page } from '@playwright/test'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
@@ -11,16 +11,7 @@ import type { EntityId, LocalData, PersonalDefinition, PersonalDefinitionId } fr
 
 export async function readPlannerData(page: Page): Promise<LocalData> {
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const get = database.transaction('localDatas').objectStore('localDatas').get('local-data-record')
-      get.onsuccess = () => { database.close(); resolve(get.result.localData) }
-      get.onerror = () => { database.close(); reject(get.error) }
-    }
-  }))
+  return readLocalData(page)
 }
 
 async function storeFixture(page: Page, localData: LocalData, definition: PersonalDefinition) {
@@ -28,7 +19,8 @@ async function storeFixture(page: Page, localData: LocalData, definition: Person
   await page.goto('/#/settings/data')
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   const downloaded = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await downloaded).path()
   if (!path) throw new Error('The fixture backup download did not finish')
   const files = unzipSync(await readFile(path))

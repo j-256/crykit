@@ -13,7 +13,8 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
+  await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
@@ -113,7 +114,7 @@ test('failed title persistence retains both drafts for retry without creating a 
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed title save', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed title save', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

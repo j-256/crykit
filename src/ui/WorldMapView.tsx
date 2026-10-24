@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
-import { loadMapModLayer, loadWorldMap, mapModPinKey, worldMapTargetRef } from '../catalog/world-map'
+import { createMapModLayerLoader, loadWorldMap, mapModPinKey, worldMapTargetRef } from '../catalog/world-map'
 import { latestGameSetups } from '../domain/game-setups'
 import { completeModLibrary } from '../domain/mod-library'
 import { normalizeModName } from '../domain/mods'
@@ -12,6 +12,8 @@ import { Icon } from './icons'
 import { useNavigation } from './navigation'
 import { ReferenceLink } from './ReferenceLink'
 import { MAP_KIND_ICONS, MAP_KIND_LABELS, WorldMapCanvas } from './WorldMapCanvas'
+import { useWorkspace } from './WorkspaceProvider'
+import { assertActiveProfile } from '../account/profile'
 import './world-map.css'
 
 const PREVIEW_SETUP = 'preview'
@@ -60,6 +62,11 @@ function MarkerDetails({ marker, manifest, catalogs, onClose }: { readonly marke
 
 export default function WorldMapView({ localData, catalogs }: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }) {
   const navigation = useNavigation()
+  const workspace = useWorkspace()
+  const loadModLayer = useMemo(() => createMapModLayerLoader(pin => workspace.repository.readModSource(pin), () => {
+    if (!workspace.isCurrent()) throw new Error('This map workspace was retired')
+    if (workspace.token) assertActiveProfile(workspace.token)
+  }), [workspace.repository])
   const [manifest, setManifest] = useState<WorldMapManifest>()
   const [baseError, setBaseError] = useState('')
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -105,9 +112,9 @@ export default function WorldMapView({ localData, catalogs }: { readonly localDa
     setModLoading(true)
     setModError('')
     setLayers([])
-    void Promise.all(pins.map(pin => loadMapModLayer(pin, catalogs))).then(value => { if (!cancelled) { setLayers(value); setModLoading(false) } }, () => { if (!cancelled) { setModError('A selected mod source could not be opened. Its placements have not been substituted.'); setModLoading(false) } })
+    void Promise.all(pins.map(pin => loadModLayer(pin, catalogs))).then(value => { if (!cancelled) { setLayers(value); setModLoading(false) } }, () => { if (!cancelled) { setModError('A selected mod source could not be opened. Its placements have not been substituted.'); setModLoading(false) } })
     return () => { cancelled = true }
-  }, [pins, catalogs])
+  }, [pins, catalogs, loadModLayer])
   const composed = useMemo(() => manifest ? composeWorldMap(manifest, layers) : undefined, [manifest, layers])
   const layerParameter = Number(navigation.route.query.layer?.[0] ?? 0)
   const validLayer = manifest?.layers.some(layer => layer.id === layerParameter)

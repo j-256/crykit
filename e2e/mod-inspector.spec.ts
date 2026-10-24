@@ -1,3 +1,6 @@
+import { decodeEditorText, readEditorContent } from '../src/workspace/editor-document'
+import { readManagedGuestWorkspace } from './guest-planner-reader'
+import { selectedGuestPlannerName, waitForPlannerReady } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -31,7 +34,8 @@ async function downloadText(page: Page, buttonName: string) {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: buttonName, exact: true }).click()
   const result = await download
-  return readFile((await result.path())!, 'utf8')
+  const bytes = await readFile((await result.path())!)
+  return result.suggestedFilename().endsWith('.utf16le') ? decodeEditorText(bytes) : bytes.toString('utf8')
 }
 
 test('switches between document and shared dictionary tabs by keyboard without importing', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -95,7 +99,7 @@ test('edits a tag through its picklist, restores a saved draft, and exports only
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
 })
 
-test('keeps invalid edits open, protects navigation, and links mod-local relationships', async ({ page }) => {
+test('preserves saved invalid edits through navigation and links mod-local relationships', async ({ page }) => {
   await importMod(page)
   await selectPath(page, '$.Jobs[0].AbilityIDs[0]')
   await expect(page.locator('.inspector-context')).toContainText('Synthetic action')
@@ -108,25 +112,42 @@ test('keeps invalid edits open, protects navigation, and links mod-local relatio
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Unterminated JSON string')
   await expect(page.getByRole('button', { name: 'Review export', exact: true })).toBeDisabled()
-  await expect(page.getByRole('tab', { name: 'Mod Library', exact: true })).toBeDisabled()
-  await expect(page.getByRole('tab', { name: 'Map Editor', exact: true })).toBeDisabled()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved JSON edit; not applied$/ })).toBeVisible()
+  const persisted = (await readManagedGuestWorkspace(page))!
+  const file = persisted.editorDocuments.find(value => value.filename === FILENAME)!
+  expect(file.unfinished.editedPath).toEqual(['Title'])
+  expect(file.unfinished.fieldState).toMatchObject({ editor: '"unfinished', editorDirty: true, workingText: SOURCE })
+  const content = await readEditorContent(persisted, file)
+  expect(content.originalBytes).toEqual(new Uint8Array(Buffer.from(SOURCE)))
+  expect(content.originalText).toBe(SOURCE)
+  expect(content.lastAppliedText).toBe(SOURCE)
+  expect(content.unfinishedText).toBe(SOURCE.replace('"Synthetic inspector"', '"unfinished'))
+  // Only the durable unfinished draft permits navigation; invalid input never becomes applied content
+  await expect(page.getByRole('tab', { name: 'Mod Library', exact: true })).toBeEnabled()
+  await expect(page.getByRole('tab', { name: 'Map Editor', exact: true })).toBeEnabled()
   await page.getByRole('tab', { name: 'Enum Dictionary', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Current file', exact: true })).not.toBeVisible()
   await page.getByLabel('Search enum names and values', { exact: true }).fill('RevealStatsAuto')
-  await page.getByRole('tab', { name: 'Enum Dictionary', exact: true }).press('Home')
+  await page.getByRole('tab', { name: 'Enum Dictionary', exact: true }).press('ArrowLeft')
   await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toBeFocused()
   await expect(page.getByRole('textbox', { name: /^Exact JSON value/ })).toHaveValue('"unfinished')
   await expect(page.getByRole('alert')).toContainText('Unterminated JSON string')
   await expect(page.getByRole('button', { name: 'Review export', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
-  await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).not.toBeVisible()
+  await expect(page.getByText('Unsaved edits are still open', { exact: true })).not.toBeVisible()
   await page.goto(ROUTE)
+  await page.reload()
   await reopenFile(page)
+  await expect(page.getByRole('textbox', { name: /^Exact JSON value/ })).toHaveValue('"unfinished')
+  await expect(page.getByRole('alert')).toContainText('Unterminated JSON string')
+  await expect(page.getByRole('button', { name: 'Review export', exact: true })).toBeDisabled()
+  const reopened = (await readManagedGuestWorkspace(page))!
+  expect(reopened.editorDocuments.find(value => value.id === file.id)).toEqual(file)
+  expect(await readEditorContent(reopened, file)).toEqual(content)
+  expect(await downloadText(page, 'Download original')).toBe(SOURCE)
+  await page.getByRole('button', { name: 'Discard pending edit', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   await page.getByRole('button', { name: 'Review export', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Export review', exact: true })).toContainText("No changes. The draft matches the original.")
 })
@@ -149,16 +170,24 @@ test('keeps a conflicting tab recoverable without overwriting the winning draft'
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill('"Winning draft"')
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
+  const winning = (await readManagedGuestWorkspace(page))!
   await other.getByRole('textbox', { name: /^Exact JSON value/ }).fill('"Conflicting draft"')
   await other.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-  await expect(other.getByRole('alert')).toContainText('changed in another tab')
+  await expect(other.getByRole('alert')).toContainText('Draft is not saved')
   expect(await downloadText(other, 'Download unsaved draft for recovery')).toBe(SOURCE.replace('"Synthetic inspector"', '"Conflicting draft"'))
   await other.getByRole('button', { name: 'Retry save', exact: true }).click()
-  await expect(other.getByRole('alert')).toContainText('changed in another tab')
+  await expect(other.getByRole('alert')).toContainText('Draft is not saved')
+  expect((await readManagedGuestWorkspace(page))!.editorDocuments).toEqual(winning.editorDocuments)
   await other.getByRole('button', { name: 'Reopen saved version', exact: true }).click()
   await expect(other.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   await selectPath(other, '$.Title')
   await expect(other.getByRole('textbox', { name: /^Exact JSON value/ })).toHaveValue('"Winning draft"')
+  expect(await downloadText(other, 'Download original')).toBe(SOURCE)
+  await other.getByRole('textbox', { name: /^Exact JSON value/ }).fill('"After reopening"')
+  await other.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
+  await expect(other.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
+  await other.getByRole('button', { name: 'Review export', exact: true }).click()
+  expect(await downloadText(other, 'Download mod')).toBe(SOURCE.replace('"Synthetic inspector"', '"After reopening"'))
   expect(await downloadText(other, 'Download original')).toBe(SOURCE)
 })
 
@@ -188,7 +217,7 @@ test('retains a failed save for recovery and retries the same exact draft', asyn
     const originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof originalPut>) {
       const request = originalPut.apply(this, args)
-      if (this.transaction.db.name === 'crykit-mod-inspector-v1' && sessionStorage.getItem('synthetic-reject-inspector-write') === 'true') this.transaction.abort()
+      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-inspector-write') === 'true') { sessionStorage.setItem('synthetic-reject-inspector-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })
@@ -198,6 +227,7 @@ test('retains a failed save for recovery and retries the same exact draft', asyn
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill('"Recoverable draft"')
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Draft is not saved')
+  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-reject-inspector-write-fired'))).toBe('true')
   expect(await downloadText(page, 'Download unsaved draft for recovery')).toBe(SOURCE.replace('"Synthetic inspector"', '"Recoverable draft"'))
   expect(await downloadText(page, 'Download original')).toBe(SOURCE)
   await page.evaluate(() => sessionStorage.removeItem('synthetic-reject-inspector-write'))
@@ -341,23 +371,29 @@ test('recognizes external file versions and edits one copy without importing pla
   const firstSource = JSON.stringify(mod, null, 2)
   const secondSource = JSON.stringify({ ...mod, Version: '1.1', Notes: 'A later external file' }, null, 2)
   await page.goto(ROUTE)
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  const plannerCounts = () => page.evaluate(async () => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crykit')
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-    try {
-      const stores = ['catalogs', 'sources', 'imports', 'localDatas']
-      const transaction = database.transaction(stores, 'readonly')
-      return await Promise.all(stores.map(store => new Promise<number>((resolve, reject) => {
-        const request = transaction.objectStore(store).count()
+  const plannerCounts = async () => {
+    const managed = await readManagedGuestWorkspace(page)
+    if (managed) return [managed.planner.catalogs.length, managed.planner.sources.length, Object.keys(managed.planner.localData.importReceipts).length, 1]
+    const name = await selectedGuestPlannerName(page)
+    return page.evaluate(async name => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(name)
         request.onsuccess = () => resolve(request.result)
         request.onerror = () => reject(request.error)
-      })))
-    } finally { database.close() }
-  })
+      })
+      try {
+        const stores = ['catalogs', 'sources', 'imports', 'localDatas']
+        const transaction = database.transaction(stores, 'readonly')
+        return await Promise.all(stores.map(store => new Promise<number>((resolve, reject) => {
+          const request = transaction.objectStore(store).count()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })))
+      } finally { database.close() }
+    }, name)
+  }
   const before = await plannerCounts()
   const upload = page.getByLabel('Open mod JSON file', { exact: true })
   const files = page.getByRole('combobox', { name: 'Files opened in this tool', exact: true })
@@ -368,6 +404,7 @@ test('recognizes external file versions and edits one copy without importing pla
   await upload.setInputFiles({ name: FILENAME, mimeType: 'application/json', buffer: Buffer.from(secondSource) })
   await expect(summary).toContainText('Version 1.1')
   await page.reload()
+  await waitForPlannerReady(page)
   const firstOption = files.locator('option').filter({ hasText: 'Version 1.0' })
   const secondOption = files.locator('option').filter({ hasText: 'Version 1.1' })
   await expect(firstOption).toContainText('Synthetic external mod')

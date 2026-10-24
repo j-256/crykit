@@ -8,7 +8,9 @@ import {
   requirePlaythrough,
   updatePlaythrough,
 } from './core'
+import { resolveCheckpoint } from './team-checkpoints'
 import type {
+  CheckpointRef,
   BuildRevisionId,
   CatalogRevisionId,
   CharacterId,
@@ -30,8 +32,8 @@ export interface CreateScenarioInput {
   readonly label: string
   readonly kind?: ScenarioKind
   readonly memberIds: readonly CharacterId[]
-  readonly baseline?: ScenarioBaseline
-  readonly assignments?: Readonly<Record<string, BuildRevisionId | null>>
+  readonly baseline?: ScenarioBaseline | { readonly kind: 'recordedParty'; readonly playthroughRevision: number; readonly assignments: Readonly<Record<string, BuildRevisionId>> }
+  readonly assignments?: Readonly<Record<string, CheckpointRef | BuildRevisionId | null>>
   readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock?: Readonly<Record<string, CatalogRevisionId>>
   readonly inventoryPolicy?: InventoryPolicy
@@ -42,23 +44,23 @@ export interface CreateScenarioInput {
 
 export const TEAM_SIZE = 4
 
-function assertBuildRevisionExists(localData: LocalData, revisionId: BuildRevisionId): void {
-  if (!localData.buildRevisions[revisionId]) {
-    throw new DomainError('MISSING_BUILD_REVISION', `Build revision does not exist: ${revisionId}`)
-  }
+function assertBuildRevisionExists(localData: LocalData, revisionId: BuildRevisionId): void { resolveCheckpoint(localData, { kind: 'build', revisionId }) }
+
+function normalizeAssignments(values: Readonly<Record<string, CheckpointRef | BuildRevisionId | null>>): Readonly<Record<string, CheckpointRef | null>> {
+  return Object.fromEntries(Object.entries(values).map(([id, value]) => [id, typeof value === 'string' ? { kind: 'build', revisionId: value } : value]))
 }
 
 function validateAssignments(
   localData: LocalData,
   playthrough: Playthrough,
-  assignments: Readonly<Record<string, BuildRevisionId | null>>,
+  assignments: Readonly<Record<string, CheckpointRef | null>>,
 ): void {
   for (const [characterId, revisionId] of Object.entries(assignments)) {
     if (!playthrough.characters[characterId]) {
       throw new DomainError('MISSING_CHARACTER', `Character does not exist: ${characterId}`)
     }
     if (revisionId) {
-      assertBuildRevisionExists(localData, revisionId)
+      resolveCheckpoint(localData, revisionId)
     }
   }
 }
@@ -75,7 +77,7 @@ function assertTeamMembers(playthrough: Playthrough, memberIds: readonly Charact
 }
 
 function assertAssignmentsBelongToTeam(
-  assignments: Readonly<Record<string, BuildRevisionId | null>>,
+  assignments: Readonly<Record<string, CheckpointRef | null>>,
   memberIds: readonly CharacterId[],
 ): void {
   const members = new Set<string>(memberIds)
@@ -92,7 +94,7 @@ export function createScenario(localData: LocalData, input: CreateScenarioInput)
   if (!gameSetup) {
     throw new DomainError('MISSING_GAME_SETUP', `Game Setup revision does not exist: ${input.gameSetupRevisionId}`)
   }
-  const baseline = input.baseline ?? { kind: 'empty' }
+  const baseline: ScenarioBaseline = input.baseline?.kind === 'recordedParty' ? { ...input.baseline, assignments: normalizeAssignments(input.baseline.assignments) as Readonly<Record<string, CheckpointRef>> } : input.baseline ?? { kind: 'empty' }
   assertTeamMembers(playthrough, input.memberIds)
   if (baseline.kind === 'recordedParty') {
     assertNonnegativeInteger(baseline.playthroughRevision, 'Scenario baseline playthrough revision')
@@ -102,7 +104,7 @@ export function createScenario(localData: LocalData, input: CreateScenarioInput)
     validateAssignments(localData, playthrough, baseline.assignments)
     assertAssignmentsBelongToTeam(baseline.assignments, input.memberIds)
   }
-  const assignments = input.assignments ?? {}
+  const assignments = normalizeAssignments(input.assignments ?? {})
   validateAssignments(localData, playthrough, assignments)
   assertAssignmentsBelongToTeam(assignments, input.memberIds)
   const id = input.id ?? createId<ScenarioId>('scenario')
@@ -186,7 +188,7 @@ export function replaceScenarioBuild(localData: LocalData, input: ReplaceScenari
   const scenario: TeamScenario = {
     ...current,
     revision: current.revision + 1,
-    assignments: { ...current.assignments, [input.characterId]: input.buildRevisionId },
+    assignments: { ...current.assignments, [input.characterId]: input.buildRevisionId === null ? null : { kind: 'build', revisionId: input.buildRevisionId } },
     updatedAt: at,
   }
   return updatePlaythrough(
@@ -237,9 +239,9 @@ export function updateScenario(localData: LocalData, input: UpdateScenarioInput)
 
 export function effectiveScenarioAssignments(
   scenario: TeamScenario,
-): Readonly<Record<string, BuildRevisionId>> {
+): Readonly<Record<string, CheckpointRef>> {
   const members = new Set<string>(scenario.memberIds)
-  const assignments: Record<string, BuildRevisionId> =
+  const assignments: Record<string, CheckpointRef> =
     scenario.baseline.kind === 'recordedParty'
       ? Object.fromEntries(Object.entries(scenario.baseline.assignments).filter(([characterId]) => members.has(characterId)))
       : {}

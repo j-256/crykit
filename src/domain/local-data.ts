@@ -63,6 +63,7 @@ export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): Loc
     builds: {},
     buildRevisions: {},
     teams: {},
+    teamRevisions: {},
     playthroughs: {},
     importReceipts: {},
     changes: [],

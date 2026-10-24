@@ -1,42 +1,22 @@
+import { readLocalData as storedData, replacePlannerFixture, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { LocalData } from '../src/domain/types'
 import { CONFLICTING_MOD, DISABLED_MOD, ENABLED_MOD, MODDED_BUILD_TITLE, UNKNOWN_MOD, modsBadgeFixture } from './build-mods-badge-fixture'
 import { MOBILE_TEST_TAG } from './test-tags'
 
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
-
 async function loadFixture(page: Page): Promise<LocalData> {
   await page.goto('/#/builds/library')
   await expect(page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true })).toBeVisible()
   const fixture = modsBadgeFixture(await storedData(page))
-  await page.evaluate(serialized => new Promise<void>((resolve, reject) => {
-    const localData = JSON.parse(serialized) as LocalData
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const transaction = database.transaction('localDatas', 'readwrite')
-      const store = transaction.objectStore('localDatas')
-      const read = store.getAll()
-      transaction.onerror = transaction.onabort = () => { database.close(); reject(transaction.error) }
-      transaction.oncomplete = () => { database.close(); resolve() }
-      read.onsuccess = () => store.put({ ...read.result[0], localData, revision: localData.revision, updatedAt: localData.updatedAt })
-    }
-  }), JSON.stringify(fixture))
+  const committed = await replacePlannerFixture(page, fixture)
+  expect(committed.builds).toEqual(fixture.builds)
+  expect(committed.buildRevisions).toEqual(fixture.buildRevisions)
+  expect(committed.gameSetups).toEqual(fixture.gameSetups)
+  expect(committed.personalDefinitions).toEqual(fixture.personalDefinitions)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('button', { name: MODDED_BUILD_TITLE, exact: true })).toBeVisible()
-  return fixture
+  return committed
 }
 
 async function expectWithinViewport(tooltip: Locator) {

@@ -1,7 +1,28 @@
+import { editCopiedCheckpoint } from './interchange/public-checkpoint-edit'
+import type { SaveCopiedCheckpoint } from './ui/PublicSharedView'
+import { copyPublicSnapshot } from './interchange/public-share-enrichment'
+import type { PublicSnapshot } from './interchange/public-share-schema'
+import { HostedSharedView, PublicSharedView } from './ui/PublicSharedView'
+import { saveTeamSlotAsBuild, teamSlots, checkpointBuildView } from './domain/team-checkpoints'
+import { BuildInputProvider } from './ui/build-input-session'
+import { downloadCapturedWorkspace } from './ui/download-stream'
+import { readWorkspaceBackup } from './interchange/workspace-backup'
+import { disposeWorkspaceSnapshot, type WorkspaceSnapshot } from './workspace/snapshot'
+import { activateGuestWorkspaceRestore, beginGuestWorkspaceRestore, previewGuestWorkspaceRestore, releaseGuestWorkspaceRestorePreview, stageGuestWorkspaceRestore, type GuestRestorePreview } from './workspace/repository-guest-restore'
+import { activateAccountWorkspaceRestore, previewAccountWorkspaceRestore, releaseAccountWorkspaceRestorePreview, releaseAccountWorkspaceRestoreStage, stageAccountWorkspaceRestore, type AccountRestorePreview } from './workspace/account-restore'
+import { AccountDatabase } from './persistence/account-database'
+import type { ProfileToken } from './account/profile'
+import type { CompleteWorkspaceRestorePreview } from './ui/CompleteWorkspaceRestore'
+import { AccountView } from './ui/account/AccountView'
 import { buildContentForModSetup } from './domain/build-mods'
+import { retainOutOfContextSelections } from './domain/retained-selections'
 import { changesModDraftContext } from './ui/mod-workspace'
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
 import { modRevision, type BundledLibraryMod } from './domain/mod-library'
+import { applyLibraryDefaultsToNewSetup, assertLibraryProject } from './domain/mod-library-actions'
+import type { BuildBehavior } from './domain/build-behavior'
+import { importLibrarySource } from './workspace/mod-repository'
+import { confirmModFolder, type FolderImportPreview, type FolderSelection } from './workspace/folder-import'
 import { bundledModEditableSource } from './catalog/mod-library'
 import { setModInReference } from './domain/reference-library'
 import { adoptTeam, deleteTeam, recordBuildForCharacter, saveTeam, type SaveTeamInput } from './domain/teams'
@@ -10,7 +31,7 @@ import { TeamsView } from './ui/TeamsView'
 import { SaveFailureAlert } from './ui/SaveFailureAlert'
 import { saveTeamMember, type SaveTeamMemberInput } from './domain/team-member'
 import { createPlaythroughWithSetup } from './domain/game-setups'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   activateScenario,
   advanceClassSealProgress,
@@ -36,6 +57,7 @@ import {
   observeInventory,
   recordInventoryEvent,
   requirePlaythrough,
+  selectedPlaythrough,
   replaceScenarioBuild,
   saveBuildRevision,
   setClassSealProgressBatch,
@@ -73,7 +95,9 @@ import {
 import type { DraftActions, DraftChangeHandler } from './ui/drafts'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from './catalog/bundled'
 import { BUNDLED_MOD_LIBRARY } from './catalog/mod-library-metadata'
-import { commitModSetup, commitImport, exportBackup, loadLocalData, previewImport, prepareModCatalogs, saveLocalDataWithStatus, subscribeLocalData, undoLocalDataWithStatus, validateLocalDataForStorage } from './persistence'
+import { validateLocalDataForStorage } from './persistence'
+import { useWorkspace } from './ui/WorkspaceProvider'
+import { ConflictPanel } from './ui/account/ConflictPanel'
 import type { ImportCommitMode, ImportPreview, LoadedLocalData } from './interchange/types'
 import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } from './ui/BuildsView'
 import { WorkspaceHeaderScope } from './ui/WorkspaceHeader'
@@ -93,14 +117,14 @@ import type { QuintarBreedingStepId } from './catalog/quintar-breeding'
 import { createEntityRouteNameResolver } from './ui/entity-route-names'
 import { ReferenceView } from './ui/ReferenceView'
 import { Shell } from './ui/Shell'
-import { Button, InlineNotice, Spinner } from './ui/components'
+import { Button, InlineNotice, LoadingScreen } from './ui/components'
 import { catalogLocksMatch, formatAppError } from './ui/model'
 import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions'
 import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
 
 const ModsView = lazy(() => import('./ui/ModsView').then(module => ({ default: module.ModsView })))
 const ModCatalogReference = lazy(() => import('./ui/ModCatalogReference'))
-const SaveEditorView = lazy(() => import('./ui/SaveEditorView').then(module => ({ default: module.SaveEditorView })))
+const SaveEditorView = lazy(() => import('./ui/SaveEditorView').then(module => ({ default: module.SaveEditorWorkspaceView })))
 const WorldMapView = lazy(() => import('./ui/WorldMapView'))
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
@@ -143,13 +167,36 @@ function catalogIndex(catalogs: readonly CatalogSnapshot[]): CatalogIndex {
   return { snapshots, entitiesByRef }
 }
 
-function LoadingView() {
-  return <main className="loading-screen"><div className="loading-screen__content"><span className="brand__mark"><Spinner/></span><h1>Opening Crystal Kit</h1><p>Loading local records from this browser...</p></div></main>
-}
-
 const ModSetupSelector = lazy(() => import('./ui/ModSetupSelector').then(module => ({ default: module.ModSetupSelector })))
 
+async function* workspaceBackupFile(file: File): AsyncIterable<Uint8Array> {
+  const reader = file.stream().getReader()
+  try {
+    for (;;) {
+      const next = await reader.read()
+      if (next.done) return
+      yield next.value
+    }
+  } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
+}
+
+type SelectedGuestRestore = { preview: GuestRestorePreview; snapshot: WorkspaceSnapshot }
+type SelectedAccountRestore = { preview: AccountRestorePreview; snapshot: WorkspaceSnapshot; database: AccountDatabase; token: ProfileToken }
+type SelectedRestore = SelectedGuestRestore | SelectedAccountRestore
+async function disposeSelectedRestore(selected: SelectedRestore): Promise<void> {
+  try {
+    if (selected.preview.target === 'guest') await releaseGuestWorkspaceRestorePreview(selected.preview)
+    else releaseAccountWorkspaceRestorePreview(selected.preview)
+  } finally {
+    try { await disposeWorkspaceSnapshot(selected.snapshot) }
+    finally { if ('database' in selected) selected.database.close() }
+  }
+}
+
 export default function App() {
+  const workspace = useWorkspace()
+  const { repository } = workspace
+  const { load: loadLocalData, save: saveLocalDataWithStatus, undo: undoLocalDataWithStatus, previewImport, commitImport, commitModSetup, prepareModCatalogs, exportPlannerBackup: exportBackup, subscribe: subscribeLocalData } = repository
   const initialLanding = useRef(!window.location.hash || window.location.hash === '#/' )
   const [modSelectorOpen, setModSelectorOpen] = useState(false)
   const [loadedData, setLoadedData] = useState<LoadedLocalData>()
@@ -174,6 +221,8 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<ImportPreview>()
   const [importError, setImportError] = useState<string>()
   const [importBusy, setImportBusy] = useState(false)
+  const workspaceRestoreRef = useRef<SelectedRestore | undefined>(undefined)
+  const workspaceRestoreGeneration = useRef(0)
   const [externalUpdate, setExternalUpdate] = useState(false)
   const [routeCatalogs, setRouteCatalogs] = useState<readonly CatalogSnapshot[]>([])
   const resolveEntityName = useMemo(() => createEntityRouteNameResolver([...BUNDLED_CATALOGS, ...(loadedData?.catalogs ?? []), ...routeCatalogs]), [loadedData?.catalogs, routeCatalogs])
@@ -187,8 +236,11 @@ export default function App() {
     },
     onBlocked: (to) => { pendingNavigationRef.current = to; setNavigationWarning({ ...to }); revealNavigationWarning() },
   })
+  // Settings and overlay forms register independently from planner/editor draft flags
+  useLayoutEffect(() => workspace.registerDraftPresence(owner => dirtyRef.current || (formDirtyRef.current && (!owner || draftActionsRef.current?.owner !== owner)) || pendingCommitCountRef.current > 0 || navigation.hasOpenDraft(owner)), [workspace.registerDraftPresence, navigation.hasOpenDraft])
   const destination = routeDestination(navigation.route)
-  const dataOpen = navigation.route.page.page === 'settings'
+  const accountOpen = navigation.route.page.page === 'settings' && navigation.route.page.section === 'account'
+  const dataOpen = navigation.route.page.page === 'settings' && !accountOpen
   const searchOpen = navigation.route.overlays.some(overlay => overlay.kind === 'search')
   const wasSearchOpen = useRef(searchOpen)
   useEffect(() => {
@@ -229,8 +281,9 @@ export default function App() {
     if (!actions || !destination) return
     setResolvingDraft(true)
     try {
+      if (resolution === 'save') { workspace.captureEditorNavigation(destination, actions.owner); workspace.captureSaveNavigation(destination, actions.owner) }
       const resolved = resolution === 'save' ? await actions.save() : (await actions.discard()) !== false
-      if (resolved) navigation.navigate(destination)
+      if (resolved && workspace.isCurrent()) navigation.navigate(destination)
     } finally { setResolvingDraft(false) }
   }, [navigation])
 
@@ -244,18 +297,23 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', preventLoss)
   }, [])
 
+  const localDataReady = loadedData !== undefined
   useEffect(() => {
-    if (!loadedDataRef.current) return
+    if (!localDataReady) return
     return subscribeLocalData((notification) => {
       const current = loadedDataRef.current
-      if (!current || notification.localDataId !== current.localData.id || notification.revision <= current.localData.revision) return
+      // A first pull can adopt another planner ID at revision zero; source-only pulls can also keep the revision
+      if (!current || (notification.reason !== 'sync' && (notification.localDataId !== current.localData.id || notification.revision <= current.localData.revision))) return
       setExternalUpdate(true)
     })
-  }, [loadedData?.localData.id])
+  // The repository replays its latest remote hint on subscribe; loading that hint must not resubscribe
+  }, [localDataReady, subscribeLocalData])
 
   const commitLocalData = useCallback((transform: (localData: LocalData) => LocalData, options: { rollbackOnFailure?: boolean; showSavingState?: boolean; deferUntilPaint?: boolean; validateOnCommitOnly?: boolean } = {}) => {
+    if (workspace.fileCommandPending() || !workspace.isCurrent()) return Promise.reject(new Error('Finish saving the open file before changing planner records.'))
     pendingCommitCountRef.current += 1
-    if (import.meta.env.DEV) setPendingCommitCount(pendingCommitCountRef.current)
+    // Tile queues suppress saving chrome, but cannot claim durability until every local intent settles
+    setPendingCommitCount(pendingCommitCountRef.current)
     const run = async () => {
       if (options.deferUntilPaint) await waitForNextPaint()
       const current = loadedDataRef.current
@@ -307,13 +365,15 @@ export default function App() {
     commitQueueRef.current = queued.catch(() => undefined)
     const settle = () => {
       pendingCommitCountRef.current = Math.max(0, pendingCommitCountRef.current - 1)
-      if (import.meta.env.DEV) setPendingCommitCount(pendingCommitCountRef.current)
+      if (options.showSavingState !== false) workspace.flushSync()
+      setPendingCommitCount(pendingCommitCountRef.current)
     }
     void queued.then(settle, settle)
     return queued
   }, [])
 
   const retrySave = useCallback(() => {
+    if (workspace.fileCommandPending() || !workspace.isCurrent()) return Promise.reject(new Error('The captured planner is not ready for another save.'))
     const run = async () => {
       const current = loadedDataRef.current
       if (!current || !dirtyRef.current) return
@@ -483,9 +543,22 @@ export default function App() {
       const build = localData.builds[buildId]
       if (!build) throw new Error('The selected Build no longer exists.')
       const gameSetupRevisionId = configured.setup.id
-      return saveBuildRevision(localData, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build.latestRevisionId, gameSetupRevisionId, content: buildContentForModSetup({ primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation, referenceNames: draft.referenceNames }, configured.setup, loadedDataRef.current!.catalogs, draft.behavior), note: draft.note, expectedRevision: localData.revision })
+      return saveBuildRevision(localData, { buildId: asId<BuildId>(buildId), id: revisionId, parentRevisionId: parentRevisionId ? asId<BuildRevisionId>(parentRevisionId) : build.latestRevisionId, gameSetupRevisionId, content: retainOutOfContextSelections(localData, buildContentForModSetup({ primaryClass: draft.primaryClass, secondaryClass: draft.secondaryClass, equipment: draft.equipment, passives: draft.passives, rotationNotes: draft.rotationNotes, contextAssumptions: draft.contextAssumptions, calculation: draft.calculation, referenceNames: draft.referenceNames, retainedSelections: draft.retainedSelections }, configured.setup, loadedDataRef.current!.catalogs, draft.behavior), configured.setup, configured.setup.catalogLock), note: draft.note, expectedRevision: localData.revision })
     })
     return revisionId
+  }, [commitLocalData])
+
+  const saveCopiedCheckpoint = useCallback<SaveCopiedCheckpoint>(async (viewer, input) => {
+    let checkpoint: Awaited<ReturnType<SaveCopiedCheckpoint>> | undefined
+    await commitLocalData(current => {
+      // The viewer supplies inert source evidence, never permission to adopt a newer planner
+      if (current.id !== viewer.planner.localData.id || current.revision !== viewer.planner.localData.revision) throw new Error('The workspace changed. Reopen the copied checkpoint before saving.')
+      const result = editCopiedCheckpoint({ ...viewer, planner: { ...viewer.planner, localData: current, catalogs: loadedDataRef.current!.catalogs } }, input)
+      checkpoint = result.checkpoint
+      return result.localData
+    }, { rollbackOnFailure: true })
+    if (!checkpoint) throw new Error('The checkpoint was not saved.')
+    return checkpoint
   }, [commitLocalData])
 
   const addScenario = useCallback(async (draft: ScenarioDraft) => commitLocalData((localData) => {
@@ -529,27 +602,41 @@ export default function App() {
   const savePlanningTeamMember = useCallback(async (input: Omit<SaveTeamMemberInput, 'revisionId' | 'expectedRevision'>) => {
     const revisionId = input.build?.revisionId ?? createId<BuildRevisionId>('buildRevision')
     let buildId: BuildId | undefined
+    let savedRevisionId = revisionId
     await commitLocalData(localData => {
       const next = saveTeamMember(localData, { ...input, revisionId, expectedRevision: localData.revision }, loadedDataRef.current!.catalogs)
-      buildId = next.buildRevisions[revisionId]!.buildId
+      const team = input.team.id ? next.teams[input.team.id] : Object.values(next.teams).find(team => !localData.teams[team.id])
+      if (!team || team.kind !== 'shared') throw new Error('The Team checkpoint was not saved')
+      savedRevisionId = teamSlots(next, team)[input.slotIndex]!
+      buildId = checkpointBuildView(next, { kind: 'team-slot', teamRevisionId: team.latestRevisionId, slot: input.slotIndex as 0 | 1 | 2 | 3 })!.buildId
       return next
     }, { rollbackOnFailure: true })
-    return { buildId: buildId!, revisionId }
+    return { buildId: buildId!, revisionId: savedRevisionId }
+  }, [commitLocalData])
+
+  const savePlanningTeamSlotAsBuild = useCallback(async (teamRevisionId: import('./domain/types').TeamRevisionId, slot: 0 | 1 | 2 | 3, title: string) => {
+    await commitLocalData(localData => saveTeamSlotAsBuild(localData, { teamRevisionId, slot, title, expectedRevision: localData.revision }), { rollbackOnFailure: true })
   }, [commitLocalData])
 
   const adoptPlanningTeam = useCallback(async (teamId: TeamId, characterIds: readonly CharacterId[]) => {
     await commitLocalData(localData => adoptTeam(localData, { teamId, characterIds, expectedRevision: localData.revision }), { rollbackOnFailure: true })
   }, [commitLocalData])
 
-  const saveGameSetup = useCallback(async (draft: GameSetupDraft, options: GameSetupSaveOptions) => commitLocalData((localData) => {
-    const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: 'equipment', order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
-    const sourceRevisionId = draft.sourceGameSetupRevisionId
-    const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
-    const catalogLock = { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId, ...source?.catalogLock }
-    const values = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, difficulty: draft.difficulty, mods: draft.mods, disabledMods: draft.disabledMods, customMods: draft.customMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides, id: options.id, activate: false, expectedRevision: localData.revision }
-    const next = sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
-    return next
-  }), [commitLocalData])
+  const saveGameSetup = useCallback(async (draft: GameSetupDraft, options: GameSetupSaveOptions) => {
+    const defaults = !draft.sourceGameSetupRevisionId && !draft.modComposition ? await repository.readWorkspace() : undefined
+    return commitLocalData((localData) => {
+      // Default pins and the saved setup must use the same workspace revision
+      if (defaults && localData.revision !== defaults.planner.localData.revision) throw new Error('The workspace changed. Reopen Game Setup creation and try again')
+      const slots: SlotDefinition[] = draft.slots.map((slot, index) => ({ id: slot.id ?? createId<SlotId>('slot'), label: slot.label, kind: 'equipment', order: index, equipmentRole: slot.equipmentRole, acceptedEntityKinds: slot.acceptedEntityKinds, provenance: slot.provenance, sources: slot.sources }))
+      const sourceRevisionId = draft.sourceGameSetupRevisionId
+      const source = sourceRevisionId ? localData.gameSetups[sourceRevisionId] : undefined
+      const catalogLock = { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId, ...source?.catalogLock }
+      const behavior: BuildBehavior = { label: draft.label, platform: draft.platform, gameVersion: draft.gameVersion, mode: draft.mode, difficulty: draft.difficulty, mods: draft.mods, disabledMods: draft.disabledMods, customMods: draft.customMods, ppLimit: draft.ppLimit, ppCostsNonNegative: draft.ppCostsNonNegative, slots, catalogLock, modComposition: draft.modComposition, definitionOverrides: draft.definitionOverrides }
+      const configured = defaults ? applyLibraryDefaultsToNewSetup(behavior, defaults.libraryDefaults, defaults.planner.catalogs) : behavior
+      const values = { ...configured, id: options.id, activate: false, expectedRevision: localData.revision }
+      return sourceRevisionId ? updateGameSetupRevision(localData, { sourceRevisionId, ...values }) : createGameSetupRevision(localData, values)
+    })
+  }, [commitLocalData, repository])
 
   const installLoadedData = useCallback((loaded: LoadedLocalData, preserveFormDraft = false) => {
     loadedDataRef.current = loaded
@@ -574,8 +661,13 @@ export default function App() {
 
   const createLocalPlaythrough = useCallback(async (label: string, setupId?: GameSetupRevisionId) => {
     await waitForSafeTransition()
-    await commitLocalData((localData) => createPlaythroughWithSetup(localData, { label, currentGameSetupRevisionId: setupId, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, select: true, expectedRevision: localData.revision }))
-  }, [commitLocalData, waitForSafeTransition])
+    const defaults = setupId ? undefined : await repository.readWorkspace()
+    await commitLocalData((localData) => {
+      // Another queued change may replace the catalog list after the defaults read
+      if (defaults && localData.revision !== defaults.planner.localData.revision) throw new Error('The workspace changed. Reopen Playthrough creation and try again')
+      return createPlaythroughWithSetup(localData, { label, currentGameSetupRevisionId: setupId, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, select: true, expectedRevision: localData.revision, ...(defaults ? { defaultMods: { defaults: defaults.libraryDefaults, catalogs: defaults.planner.catalogs } } : {}) })
+    })
+  }, [commitLocalData, repository, waitForSafeTransition])
 
   const selectLocalPlaythrough = useCallback(async (playthroughId: PlaythroughId) => {
     await waitForSafeTransition()
@@ -617,31 +709,65 @@ export default function App() {
 
   const handleImport = useCallback(async (preview: ImportPreview, mode: ImportCommitMode) => {
     setImportBusy(true); setImportError(undefined)
+    let committed = false
     try {
       await waitForSafeTransition()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
       const loaded = await commitImport(preview, { mode, targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
+      committed = true
+      // Guest bulk publication retires the old writer; keep import busy until its exact successor is installed
+      if (repository.kind === 'guest') await workspace.reopenGuest()
       installLoadedData(loaded); setImportPreview(undefined); closeData()
-    } catch (error) { setImportError(formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
-  }, [closeData, installLoadedData, waitForSafeTransition])
+    } catch (error) { setImportError(committed ? `The import was saved. Reopen the selected workspace to continue. ${formatAppError(error, 'Reopening is pending.')}` : formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
+  }, [closeData, installLoadedData, waitForSafeTransition, repository, workspace.reopenGuest])
 
-  const saveModDraft = useCallback(async (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference = false) => {
+  const saveModDraft = useCallback(async (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference = false, futureDefault = false, editorOwner?: symbol) => {
     setImportBusy(true)
+    let committed = false
     try {
       const preview = await previewImport(new TextEncoder().encode(text), filename)
       const revision = preview.proposed.catalogs[0] && modRevision(preview.proposed.catalogs[0])
       if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a valid Crystal Edit project ID and structure before saving to the mod library.')
-      if (expectedCatalogId && revision.catalogId !== expectedCatalogId) throw new Error('This file has a different project ID. Open it in the mod editor to save it as a separate mod.')
+      assertLibraryProject(revision.catalogId, expectedCatalogId)
       await waitForSafeTransition()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
       const unchanged = current.catalogs.some(catalog => catalog.id === revision.catalogId && catalog.revisionId === revision.catalogRevisionId)
-      const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current, ...(includeInReference ? { includeModInReference: revision.catalogId } : {}) })
-      installLoadedData(loaded)
+      const result = { title: revision.title, unchanged, warnings: preview.warnings.map(warning => warning.message) }
+      if (editorOwner) {
+        await workspace.importEditorSource(preview, { id: current.localData.id, revision: persistedRevisionRef.current }, editorOwner, result)
+        return result
+      }
+      await importLibrarySource(repository, preview, { inReference: includeInReference, futureDefault })
+      committed = true
+      // Finish the captured successor admission before another library import can use the old catalogs
+      if (repository.kind === 'guest') await workspace.reopenGuest(false, { saved: result, futureDefault })
+      else installLoadedData(await repository.load())
       return { title: revision.title, unchanged, warnings: preview.warnings.map(warning => warning.message) }
+    } catch (error) {
+      if (committed) throw new Error(`The mod files were saved. Reopen the selected workspace to continue. ${formatAppError(error, 'Reopening is pending.')}`)
+      throw error
     } finally { setImportBusy(false) }
-  }, [installLoadedData, waitForSafeTransition])
+  }, [installLoadedData, repository, waitForSafeTransition, workspace.reopenGuest, workspace.importEditorSource])
+
+  const saveFolderSource = useCallback(async (preview: FolderImportPreview, selection: FolderSelection) => {
+    setImportBusy(true)
+    let committed = false
+    try {
+      await waitForSafeTransition()
+      if (!loadedDataRef.current) throw new Error('The local planner data is not ready.')
+      const receipts = await confirmModFolder(repository, preview, selection)
+      committed = true
+      // Folder contents share one publication and must finish the same successor handoff
+      if (repository.kind === 'guest') await workspace.reopenGuest()
+      else installLoadedData(await repository.load())
+      return receipts
+    } catch (error) {
+      if (committed) throw new Error(`The mod files were saved. Reopen the selected workspace to continue. ${formatAppError(error, 'Reopening is pending.')}`)
+      throw error
+    } finally { setImportBusy(false) }
+  }, [installLoadedData, repository, waitForSafeTransition, workspace.reopenGuest])
 
   const importSharedMod = useCallback(async (preview: ImportPreview) => {
     await waitForSafeTransition()
@@ -652,14 +778,12 @@ export default function App() {
   }, [installLoadedData, waitForSafeTransition])
 
   const importBuildMod = useCallback(async (preview: ImportPreview) => {
-    // Adding a matched source preserves the open form instead of requiring its draft to be discarded
     await commitQueueRef.current
-    if (dirtyRef.current) throw new Error('Retry the failed local save before importing mod JSON.')
+    if (dirtyRef.current || pendingCommitCountRef.current) throw new Error('Finish the pending planner save before importing mod JSON.')
     const current = loadedDataRef.current
     if (!current) throw new Error('The local planner data is not ready.')
-    const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
-    installLoadedData(loaded, true)
-  }, [installLoadedData])
+    await workspace.importBuildSource(preview, { id: current.localData.id, revision: persistedRevisionRef.current })
+  }, [workspace])
 
   const loadBuildModSource = useCallback(async (mod: BundledLibraryMod) => {
     setImportBusy(true)
@@ -705,6 +829,15 @@ export default function App() {
     await commitLocalData(data => setModInReference(data, modId, included, data.revision), { rollbackOnFailure: true })
   }, [commitLocalData, waitForSafeTransition])
 
+  const savePublicShare = useCallback(async (snapshot: PublicSnapshot) => {
+    await waitForSafeTransition()
+    const result = await copyPublicSnapshot(repository, snapshot)
+    if (!workspace.isCurrent()) throw new Error('The copy was saved in its original workspace. Reopen that workspace to view it.')
+    // Repository notifications only offer external updates; install this owned commit before its destination opens
+    installLoadedData(result.loaded)
+    return result
+  }, [repository, installLoadedData, waitForSafeTransition, workspace.isCurrent])
+
   const saveShare = useCallback(async (payload: SharePayload) => {
     await waitForSafeTransition()
     let result: { readonly buildId?: BuildId; readonly teamId?: TeamId } = {}
@@ -717,7 +850,7 @@ export default function App() {
   }, [commitLocalData, waitForSafeTransition])
 
   const validations = useMemo(() => {
-    if (!loadedData) return {}
+    if (!loadedData || !selectedPlaythrough(loadedData.localData)) return {}
     const index = catalogIndex(loadedData.catalogs)
     return Object.fromEntries(Object.values(requirePlaythrough(loadedData.localData).scenarios).map((scenario) => {
       try { return [scenario.id, validateScenario(loadedData.localData, scenario.id, index)] } catch { return [scenario.id, undefined] }
@@ -726,9 +859,9 @@ export default function App() {
 
   const loadExternalUpdate = useCallback(async () => {
     await waitForSafeTransition()
-    const loaded = await loadLocalData()
-    installLoadedData(loaded)
-  }, [installLoadedData, waitForSafeTransition])
+    if (repository.kind === 'account') { await workspace.reopenAccount(); return }
+    await workspace.reopenGuest(true)
+  }, [waitForSafeTransition, repository, workspace.reopenAccount, workspace.reopenGuest])
 
   const exportCurrentLocalData = useCallback(async () => {
     await commitQueueRef.current
@@ -736,6 +869,102 @@ export default function App() {
     if (!current) throw new Error('The local planner data is not ready.')
     return exportBackup(dirtyRef.current ? current.localData : undefined)
   }, [])
+
+  const exportCompleteWorkspace = useCallback(async () => {
+    await downloadCapturedWorkspace(repository, async () => {
+      await commitQueueRef.current
+      if (dirtyRef.current) throw new Error('The planner has a failed save. Retry it or use the planner recovery copy before creating a complete backup.')
+      if (formDirtyRef.current) {
+        const actions = draftActionsRef.current
+        if (!actions || !await actions.save()) throw new Error('An open form could not be saved. Your input is still open; save or recover it before exporting.')
+      }
+      // Owned file saves can remount App; the old callback must never follow the successor implicitly
+      if (!workspace.isCurrent()) throw new Error('Your file was saved in a reopened workspace. Choose Export backup again.')
+      if (formDirtyRef.current || pendingCommitCountRef.current || navigation.hasOpenDraft() || workspace.fileCommandPending()) throw new Error('Finish the open form or pending file operation before creating a complete backup.')
+    })
+  }, [repository, workspace, navigation])
+
+  const clearWorkspaceRestore = useCallback(async () => {
+    workspaceRestoreGeneration.current++
+    const pending = workspaceRestoreRef.current
+    workspaceRestoreRef.current = undefined
+    if (pending) await disposeSelectedRestore(pending)
+  }, [])
+
+  const previewWorkspaceRestore = useCallback(async (file: File): Promise<CompleteWorkspaceRestorePreview> => {
+    const token = repository.kind === 'account' ? workspace.token : undefined
+    if (repository.kind === 'account' && !token) throw new Error('Open your account workspace before restoring a backup.')
+    await waitForSafeTransition()
+    if (workspace.fileCommandPending() || !workspace.isCurrent()) throw new Error('Finish saving the open file before restoring a backup.')
+    const generation = ++workspaceRestoreGeneration.current
+    const prior = workspaceRestoreRef.current
+    workspaceRestoreRef.current = undefined
+    if (prior) await disposeSelectedRestore(prior)
+    const snapshot = await readWorkspaceBackup(workspaceBackupFile(file))
+    let selected: SelectedRestore | undefined
+    let database: AccountDatabase | undefined
+    try {
+      if (generation !== workspaceRestoreGeneration.current || !workspace.isCurrent() || (token && workspace.token !== token)) throw new Error('The workspace changed while reading the backup. Choose it again.')
+      if (repository.kind === 'account') {
+        if (!token) throw new Error('Open your account workspace before restoring a backup.')
+        database = new AccountDatabase(token.accountId)
+        const preview = await previewAccountWorkspaceRestore(database, token, snapshot)
+        selected = { preview, snapshot, database, token }
+      } else {
+        const preview = await previewGuestWorkspaceRestore(repository, snapshot)
+        selected = { preview, snapshot }
+      }
+      if (generation !== workspaceRestoreGeneration.current || !workspace.isCurrent() || (token && workspace.token !== token)) throw new Error('The workspace changed while preparing restore. Choose the backup again.')
+      workspaceRestoreRef.current = selected
+      return selected.preview
+    } catch (error) {
+      if (selected) await disposeSelectedRestore(selected)
+      else { try { await disposeWorkspaceSnapshot(snapshot) } finally { database?.close() } }
+      throw error
+    }
+  }, [repository, waitForSafeTransition, workspace])
+
+  const activateWorkspaceRestore = useCallback(async (preview: CompleteWorkspaceRestorePreview): Promise<void> => {
+    const pending = workspaceRestoreRef.current
+    if (!pending || pending.preview !== preview || repository.kind !== preview.target) throw new Error('Choose the complete backup again before restoring.')
+    const assertMayActivate = () => {
+      if (workspaceRestoreRef.current !== pending || !workspace.isCurrent() || dirtyRef.current || formDirtyRef.current
+        || pendingCommitCountRef.current || navigation.hasOpenDraft() || workspace.fileCommandPending()
+        || ('token' in pending && workspace.token !== pending.token)) throw new Error('The selected workspace or an open edit changed. Reopen and review saved data before retrying.')
+    }
+    let published = false
+    try {
+      await waitForSafeTransition(); assertMayActivate()
+      if (preview.target === 'account') {
+        if (!('token' in pending)) throw new Error('The selected account workspace changed. Choose the backup again.')
+        const stage = await stageAccountWorkspaceRestore(preview)
+        try {
+          await waitForSafeTransition(); assertMayActivate()
+          await activateAccountWorkspaceRestore(stage, assertMayActivate)
+          // Once the pointer is active, cleanup failure must still retire this rendered workspace
+          published = true
+        } finally { await releaseAccountWorkspaceRestoreStage(stage) }
+      } else {
+        const journal = await beginGuestWorkspaceRestore(preview)
+        assertMayActivate()
+        await stageGuestWorkspaceRestore(preview, journal.id)
+        await waitForSafeTransition(); assertMayActivate()
+        await activateGuestWorkspaceRestore(preview, journal.id, assertMayActivate)
+        published = true
+      }
+    } finally {
+      try {
+        // Release the input snapshot before navigation can interrupt cleanup
+        if (workspaceRestoreRef.current === pending) {
+          workspaceRestoreRef.current = undefined
+          await disposeSelectedRestore(pending)
+        }
+      } finally {
+        // Every open view must bind to the newly selected workspace before editing resumes
+        if (published) window.location.reload()
+      }
+    }
+  }, [navigation, repository, waitForSafeTransition, workspace])
 
   const definitionCatalogs = useMemo(() => {
     const catalogs = loadedData?.catalogs ?? []
@@ -747,7 +976,7 @@ export default function App() {
   }, [loadedData?.catalogs, navigation.route.page])
 
   if (loadingError) return <main className="error-screen panel"><div className="panel__body stack"><p className="eyebrow">Local planner data unavailable</p><h1>Your records could not be opened</h1><InlineNotice title="No data was cleared" tone="danger">{loadingError}</InlineNotice><Button icon="history" onClick={() => window.location.reload()}>Reload app</Button></div></main>
-  if (!loadedData) return <LoadingView/>
+  if (!loadedData) return <LoadingScreen detail="Loading local records from this browser..."/>
 
   const refreshDevelopment = () => {
     if (!import.meta.env.DEV || dirtyRef.current || formDirtyRef.current || pendingCommitCountRef.current > 0 || saveError || importBusy || navigation.hasOpenDraft()) return
@@ -757,14 +986,18 @@ export default function App() {
   const localData = loadedData.localData
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
-  const content = sharedPage ? <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare} onImport={importSharedMod}/> : unresolvedPage
+  const hostedPage = navigation.route.page.page === 'hosted-share' ? navigation.route.page : undefined
+  const content = hostedPage ? <HostedSharedView shareId={hostedPage.shareId} onSave={savePublicShare} key={hostedPage.shareId}/> : sharedPage ? sharedPage.version === 5 ? <PublicSharedView encoded={sharedPage.encoded} onSave={savePublicShare}/> : <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare} onImport={importSharedMod}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">This address is invalid or unrecognized.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
-    : destination === 'save-editor' ? <Suspense fallback={<p role="status">Opening Save Editor...</p>}><SaveEditorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'map' ? <Suspense fallback={<p role="status">Opening world map...</p>}><WorldMapView localData={localData} catalogs={loadedData.catalogs}/></Suspense> : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onSetReference={setReferenceMembership} onChooseMods={() => setModSelectorOpen(true)}/></Suspense> : destination === 'teams' ? <TeamsView onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onSaveMember={savePlanningTeamMember} onAdopt={adoptPlanningTeam} onDelete={deletePlanningTeam}/> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
+    : !selectedPlaythrough(localData) && ['inventory', 'characters', 'progress'].includes(destination) ? <InlineNotice title="Choose a Playthrough">Create or select a Playthrough to track characters, inventory, and progress.<Button onClick={() => navigation.navigate({ page: { page: 'settings', section: 'playthrough' }, overlays: [], query: { create: ['true'] } })}>Create or select Playthrough</Button></InlineNotice>
+    : destination === 'save-editor' ? <Suspense fallback={<p role="status">Opening Save Editor...</p>}><SaveEditorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'map' ? <Suspense fallback={<p role="status">Opening world map...</p>}><WorldMapView localData={localData} catalogs={loadedData.catalogs}/></Suspense> : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onConfirmFolder={saveFolderSource} onSetReference={setReferenceMembership} onChooseMods={() => setModSelectorOpen(true)}/></Suspense> : destination === 'teams' ? <BuildInputProvider scope={JSON.stringify(navigation.route.page)}><TeamsView onEditCopiedCheckpoint={saveCopiedCheckpoint} onSaveAsBuild={savePlanningTeamSlotAsBuild} onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onSaveMember={savePlanningTeamMember} onAdopt={adoptPlanningTeam} onDelete={deletePlanningTeam}/></BuildInputProvider> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>
 
   const appNavigation: NavigationController = { ...navigation, navigate: (to, options) => navigation.navigate(buildDraftRouteRef.current && to.page.page === 'builds' && to.page.view === 'library' ? buildDraftRouteRef.current : to, options) }
   const buildRoute = navigation.route.page.page === 'builds' ? navigation.route : buildDraftRouteRef.current
-  const buildContent = buildRoute && <WorkspaceHeaderScope active={destination === 'builds'}><div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildsView shareBlocked={dirty || formDirty || saveState === 'saving'} catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveDetails={saveBuildDetails} onSaveRevision={saveRevision} localData={localData} validations={validations}/></NavigationProvider></div></WorkspaceHeaderScope>
+  const buildContent = buildRoute && <WorkspaceHeaderScope active={destination === 'builds'}><div hidden={destination !== 'builds'}><NavigationProvider controller={{ ...appNavigation, route: buildRoute, destination: 'builds' }}><BuildInputProvider scope={JSON.stringify(buildRoute.page)}><BuildsView onEditCopiedCheckpoint={saveCopiedCheckpoint} shareBlocked={dirty || formDirty || saveState === 'saving'} catalogs={loadedData.catalogs} onAssign={assignScenario} onCloneBuild={cloneExistingBuild} onCreateBuild={addBuild} onCreateScenario={addScenario} onDraftChange={setBuildDraftDirty} onRecordCurrent={recordBuildCurrent} onSaveDetails={saveBuildDetails} onSaveRevision={saveRevision} localData={localData} validations={validations}/></BuildInputProvider></NavigationProvider></div></WorkspaceHeaderScope>
+  // Conflicts share the content grid so fixed navigation never covers their inspection or choice controls
+  const conflicts = workspace.token && <ConflictPanel key={`${workspace.token.accountId}:${workspace.token.generation}`} token={workspace.token} repository={workspace.repository}/>
   const draftReminder = (destination === 'reference' || destination === 'map') && buildDraftRouteRef.current && <div className="build-draft-reminder"><InlineNotice title="Your build draft is kept in this tab">Return to finish your Build. Save before closing or reloading this tab.</InlineNotice><Button onClick={() => { if (buildDraftRouteRef.current) navigation.navigate(buildDraftRouteRef.current) }} tone="secondary">Return to build draft</Button></div>
 
-  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={definitionCatalogs} onLoadBundledMod={loadBuildModSource} onImportMod={importBuildMod} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} developmentRefreshBlocked={developmentRefreshBlocked} onDevelopmentRefresh={refreshDevelopment} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} saveState={formDirty ? 'unsaved' : saveState}>{navigationWarning && <div aria-label="Resolve unsaved edits" className="external-update navigation-warning" ref={navigationWarningRef} role="region" tabIndex={-1}><InlineNotice title="Unsaved edits are still open" tone="warning">Save or discard your edits to continue.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : destination === 'save-editor' ? 'Export and continue' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Another tab changed the planner data" tone="warning">Save or discard open edits before loading the updated data.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish editing before loading' : 'Load updated data'}</Button></div>}{saveError && <SaveFailureAlert dirty={dirty} error={saveError} onDismiss={() => setSaveError(undefined)} onExport={exportCurrentLocalData} onRetry={retrySave} saving={saveState === 'saving'}/>}{!modSelectorOpen && BUNDLED_MOD_LIBRARY.length > 0 && localData.modSetup?.state === 'pending' && !sharedPage && destination !== 'mods' && <div className="external-update"><InlineNotice title="Choose the mods you use">Add selected mods to Reference and enable their versions in your starting Game Setup.</InlineNotice><Button disabled={dirty || formDirty || importBusy} onClick={() => setModSelectorOpen(true)} tone="secondary">Choose mods</Button><Button disabled={dirty || formDirty || importBusy} tone="quiet" onClick={() => void skipModSetup().catch(reason => setSaveError(formatAppError(reason, 'Mod selection could not be skipped.')))}>Skip for now</Button></div>}{buildContent}{draftReminder}{content}</Shell>{modSelectorOpen && <Suspense fallback={<p role="status">Opening mod selection...</p>}><ModSetupSelector setup={localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined} onApply={applyModSetup} onSkip={skipModSetup} onClose={() => setModSelectorOpen(false)}/></Suspense>}<DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
+  return <NavigationProvider controller={appNavigation}><DefinitionProvider catalogs={definitionCatalogs} onLoadBundledMod={loadBuildModSource} onImportMod={importBuildMod} onSaveDefinition={saveDefinition} localData={localData}><Shell catalogs={loadedData.catalogs} developmentRefreshBlocked={developmentRefreshBlocked} onDevelopmentRefresh={refreshDevelopment} contextBusy={importBusy || saveState === 'saving'} destination={destination} onOpenData={openData} onSelectPlaythrough={selectContextPlaythrough} onSelectScenario={selectScenario} localData={localData} pendingLocalChanges={pendingCommitCount > 0} saveState={saveError || saveState === 'error' ? 'error' : formDirty ? 'unsaved' : saveState}>{conflicts}{navigationWarning && <div aria-label="Resolve unsaved edits" className="external-update navigation-warning" ref={navigationWarningRef} role="region" tabIndex={-1}><InlineNotice title="Unsaved edits are still open" tone="warning">Save or discard your edits to continue.</InlineNotice><div className="cluster"><Button disabled={resolvingDraft} onClick={() => void resolveDraftNavigation('discard')} tone="quiet">Discard and continue</Button><Button disabled={resolvingDraft} icon="check" onClick={() => void resolveDraftNavigation('save')}>{resolvingDraft ? 'Saving...' : 'Save and continue'}</Button></div></div>}{externalUpdate && <div className="external-update"><InlineNotice title="Updated data is ready" tone="warning">Save or discard open edits before loading the updated data.</InlineNotice><Button disabled={dirty || formDirty || saveState === 'saving'} onClick={() => void loadExternalUpdate().catch((reason: unknown) => setSaveError(formatAppError(reason, 'The newer local revision could not be loaded.')))} tone="secondary">{dirty || formDirty ? 'Finish editing before loading' : 'Load updated data'}</Button></div>}{saveError && <SaveFailureAlert dirty={dirty} error={saveError} onDismiss={() => setSaveError(undefined)} onExport={exportCurrentLocalData} onRetry={retrySave} saving={saveState === 'saving'}/>}{!modSelectorOpen && BUNDLED_MOD_LIBRARY.length > 0 && localData.modSetup?.state === 'pending' && !sharedPage && destination !== 'mods' && <div className="external-update"><InlineNotice title="Choose the mods you use">Add selected mods to Reference and enable their versions in your starting Game Setup.</InlineNotice><Button disabled={dirty || formDirty || importBusy} onClick={() => setModSelectorOpen(true)} tone="secondary">Choose mods</Button><Button disabled={dirty || formDirty || importBusy} tone="quiet" onClick={() => void skipModSetup().catch(reason => setSaveError(formatAppError(reason, 'Mod selection could not be skipped.')))}>Skip for now</Button></div>}{accountOpen ? <AccountView repository={repository} assertMayRemove={() => { if (dirtyRef.current || formDirtyRef.current || pendingCommitCountRef.current || navigation.hasOpenDraft() || workspace.fileCommandPending() || !workspace.isCurrent()) throw new Error('Finish or recover open edits before removing this device copy') }} localCopy={workspace.localCopy} onBackup={repository.kind === 'account' ? exportCompleteWorkspace : undefined} onOpenWorkspace={workspace.openAccount} onContinueLocal={workspace.continueLocal}/> : <>{buildContent}{draftReminder}{content}</>}</Shell>{modSelectorOpen && <Suspense fallback={<p role="status">Opening mod selection...</p>}><ModSetupSelector setup={localData.planningGameSetupRevisionId ? localData.gameSetups[localData.planningGameSetupRevisionId] : undefined} onApply={applyModSetup} onSkip={skipModSetup} onClose={() => setModSelectorOpen(false)}/></Suspense>}<DataPanel busy={importBusy || saveState === 'saving'} canUndo={loadedData.canUndo} dirty={dirty || formDirty} importError={importError} onClearPreview={() => { setImportPreview(undefined); setImportError(undefined); navigation.navigate({ page: { page: 'settings', section: 'data' }, overlays: [], query: {} }, { replace: true }) }} onClose={closeData} onCommit={handleImport} onCreatePlaythrough={createLocalPlaythrough} onExport={exportCurrentLocalData} onExportWorkspace={exportCompleteWorkspace} onWorkspaceRestoreTarget={repository.kind} onWorkspaceRestorePreview={previewWorkspaceRestore} onWorkspaceRestoreActivate={activateWorkspaceRestore} onWorkspaceRestoreClear={clearWorkspaceRestore} onPreview={handlePreview} onSaveGameSetup={saveGameSetup} onRetrySave={retrySave} onSelectGameSetup={selectGameSetup} onSelectPlaythrough={selectLocalPlaythrough} onUndo={undoLatestChange} open={dataOpen} preview={importPreview} localData={localData} saveError={saveError}/></DefinitionProvider></NavigationProvider>
 }

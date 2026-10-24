@@ -1,0 +1,175 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crykit-accounts-disabled-example",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false, "logs": { "enabled": false, "invocation_logs": false } },
+  "alias": {
+    "@serenity-kit/opaque": "./.account-tests/opaque-runtime.js"
+  },
+  "build": {
+    "command": "node scripts/build-account-tests.mjs --prepare-opaque"
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/admin",
+      "/admin/*"
+    ]
+  },
+  "secrets": {
+    "required": [
+      "OPAQUE_SERVER_SETUP",
+      "SESSION_SECRET",
+      "CURSOR_SECRET",
+      "CAPABILITY_SECRET",
+      "DUMMY_IDENTITY_SECRET",
+      "EMAIL_STATE_SECRET",
+      "SERVICE_BACKUP_KEY"
+    ]
+  },
+  "vars": {
+    "ACCOUNTS_ACTIVE": "false",
+    "SIGNUP_ACTIVE": "false",
+    "EMAIL_SENDING_ACTIVE": "false",
+    "EMAIL_HEADROOM": "unknown"
+  },
+  "env": {
+    "preview": {
+      "name": "replace-crykit-preview",
+      "workers_dev": false,
+      "preview_urls": false,
+      "limits": { "cpu_ms": 1000 },
+      "ratelimits": [
+        { "name": "CLOUD_NETWORK_LIMITER", "namespace_id": "16377300201", "simple": { "limit": 12000, "period": 60 } },
+        { "name": "CLOUD_ACCOUNT_LIMITER", "namespace_id": "16377300202", "simple": { "limit": 7200, "period": 60 } },
+        { "name": "CLOUD_AUTH_LIMITER", "namespace_id": "16377300203", "simple": { "limit": 60, "period": 60 } },
+        { "name": "CLOUD_LOCATION_LIMITER", "namespace_id": "16377300204", "simple": { "limit": 24000, "period": 60 } }
+      ],
+      "vars": {
+        "ACCOUNTS_ACTIVE": "false",
+        "SIGNUP_ACTIVE": "false",
+        "EMAIL_SENDING_ACTIVE": "false",
+        "EMAIL_HEADROOM": "unknown",
+        "SERVICE_ORIGIN": "https://preview.crykit.lasers.app",
+        "STORAGE_CAP_BYTES": "68719476736",
+        "EMAIL_FROM": "preview-sender@example.org",
+        "ADMIN_ACCESS_CONFIG": "{\"version\":1,\"issuer\":\"https://replace-crykit-preview.cloudflareaccess.com\",\"jwksUrl\":\"https://replace-crykit-preview.cloudflareaccess.com/cdn-cgi/access/certs\",\"adminAudience\":\"replace-crykit-preview-admin-audience\",\"confirmationAudience\":\"replace-crykit-preview-confirmation-audience\",\"confirmationEnabled\":false}"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "replace-crykit-preview-metadata",
+          "database_id": "11111111-1111-4111-8111-111111111111",
+          "migrations_dir": "worker/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "OBJECTS",
+          "bucket_name": "replace-crykit-preview-objects"
+        },
+        {
+          "binding": "LEDGER_BACKUPS",
+          "bucket_name": "replace-crykit-preview-backups"
+        },
+        {
+          "binding": "REVOCATION_LEDGER",
+          "bucket_name": "replace-crykit-preview-revocations"
+        }
+      ],
+      "send_email": [
+        {
+          "name": "NATIVE_EMAIL",
+          "allowed_sender_addresses": [
+            "preview-sender@example.org"
+          ]
+        }
+      ],
+      "triggers": {
+        "crons": []
+      },
+      "secrets": {
+        "required": [
+          "OPAQUE_SERVER_SETUP",
+          "SESSION_SECRET",
+          "CURSOR_SECRET",
+          "CAPABILITY_SECRET",
+          "DUMMY_IDENTITY_SECRET",
+          "EMAIL_STATE_SECRET",
+          "SERVICE_BACKUP_KEY"
+        ]
+      }
+    },
+    "production": {
+      "name": "replace-crykit-production",
+      "workers_dev": false,
+      "preview_urls": false,
+      "limits": { "cpu_ms": 1000 },
+      "ratelimits": [
+        { "name": "CLOUD_NETWORK_LIMITER", "namespace_id": "16377300101", "simple": { "limit": 12000, "period": 60 } },
+        { "name": "CLOUD_ACCOUNT_LIMITER", "namespace_id": "16377300102", "simple": { "limit": 7200, "period": 60 } },
+        { "name": "CLOUD_AUTH_LIMITER", "namespace_id": "16377300103", "simple": { "limit": 60, "period": 60 } },
+        { "name": "CLOUD_LOCATION_LIMITER", "namespace_id": "16377300104", "simple": { "limit": 24000, "period": 60 } }
+      ],
+      "vars": {
+        "ACCOUNTS_ACTIVE": "false",
+        "SIGNUP_ACTIVE": "false",
+        "EMAIL_SENDING_ACTIVE": "false",
+        "EMAIL_HEADROOM": "unknown",
+        "SERVICE_ORIGIN": "https://crykit.lasers.app",
+        "STORAGE_CAP_BYTES": "2147483648",
+        "EMAIL_FROM": "production-sender@example.org",
+        "ADMIN_ACCESS_CONFIG": "{\"version\":1,\"issuer\":\"https://replace-crykit-production.cloudflareaccess.com\",\"jwksUrl\":\"https://replace-crykit-production.cloudflareaccess.com/cdn-cgi/access/certs\",\"adminAudience\":\"replace-crykit-production-admin-audience\",\"confirmationAudience\":\"replace-crykit-production-confirmation-audience\",\"confirmationEnabled\":false}"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "replace-crykit-production-metadata",
+          "database_id": "22222222-2222-4222-8222-222222222222",
+          "migrations_dir": "worker/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "OBJECTS",
+          "bucket_name": "replace-crykit-production-objects"
+        },
+        {
+          "binding": "LEDGER_BACKUPS",
+          "bucket_name": "replace-crykit-production-backups"
+        },
+        {
+          "binding": "REVOCATION_LEDGER",
+          "bucket_name": "replace-crykit-production-revocations"
+        }
+      ],
+      "send_email": [
+        {
+          "name": "NATIVE_EMAIL",
+          "allowed_sender_addresses": [
+            "production-sender@example.org"
+          ]
+        }
+      ],
+      "triggers": {
+        "crons": []
+      },
+      "secrets": {
+        "required": [
+          "OPAQUE_SERVER_SETUP",
+          "SESSION_SECRET",
+          "CURSOR_SECRET",
+          "CAPABILITY_SECRET",
+          "DUMMY_IDENTITY_SECRET",
+          "EMAIL_STATE_SECRET",
+          "SERVICE_BACKUP_KEY"
+        ]
+      }
+    }
+  }
+}

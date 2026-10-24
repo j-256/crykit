@@ -14,6 +14,8 @@ export type ProgressRecordId = Brand<string, 'ProgressRecordId'>
 export type BuildId = Brand<string, 'BuildId'>
 export type BuildRevisionId = Brand<string, 'BuildRevisionId'>
 export type TeamId = Brand<string, 'TeamId'>
+export type TeamRevisionId = Brand<string, 'TeamRevisionId'>
+export type TeamSlotCheckpointId = Brand<string, 'TeamSlotCheckpointId'>
 export type ScenarioId = Brand<string, 'ScenarioId'>
 export type GameSetupId = Brand<string, 'GameSetupId'>
 export type GameSetupRevisionId = Brand<string, 'GameSetupRevisionId'>
@@ -38,6 +40,8 @@ export type DomainId =
   | BuildId
   | BuildRevisionId
   | TeamId
+  | TeamRevisionId
+  | TeamSlotCheckpointId
   | ScenarioId
   | GameSetupId
   | GameSetupRevisionId
@@ -186,6 +190,7 @@ export interface SlotDefinition {
 }
 
 export interface GameSetupRevision {
+  readonly publicSourceContext?: import('../interchange/public-source-context-schema').PublicSetupContext
   readonly id: GameSetupRevisionId
   readonly gameSetupId: GameSetupId
   readonly revision: number
@@ -386,6 +391,7 @@ export interface BuildSelection {
 }
 
 export interface BuildRevisionContent {
+  readonly retainedSelections?: { readonly refs: readonly EntityRef[]; readonly slotIds: readonly SlotId[] }
   readonly primaryClass: EntityRef | null
   readonly secondaryClass: EntityRef | null
   readonly equipment: Readonly<Record<string, BuildSelection | null>>
@@ -450,6 +456,7 @@ export interface BuildCalculationPlan {
 }
 
 export interface BuildRevision {
+  readonly publicSourceContext?: import('../interchange/public-source-context-schema').PublicCheckpointContext
   readonly id: BuildRevisionId
   readonly buildId: BuildId
   readonly revision: number
@@ -476,13 +483,57 @@ export interface Build {
 
 export type ScenarioKind = 'recordedCurrent' | 'draft' | 'hypothetical'
 
-export interface Team {
+interface TeamMetadata {
   readonly id: TeamId
   readonly revision: number
   readonly title: string
-  readonly slots: readonly (BuildRevisionId | null)[]
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
+}
+
+export interface SharedTeam extends TeamMetadata {
+  readonly kind: 'shared'
+  readonly latestRevisionId: TeamRevisionId
+}
+
+export interface LegacyMixedTeam extends TeamMetadata {
+  readonly kind: 'legacy-mixed'
+  readonly slots: readonly (BuildRevisionId | null)[]
+}
+
+export type Team = SharedTeam | LegacyMixedTeam
+
+export interface TeamSlotCheckpoint {
+  readonly name?: string
+  readonly note?: string
+  readonly id: TeamSlotCheckpointId
+  readonly content: BuildRevisionContent
+  readonly sourceBuildRevisionId?: BuildRevisionId
+  readonly createdAt: Timestamp
+}
+
+export interface TeamRevision {
+  readonly publicSourceContext?: import('../interchange/public-source-context-schema').PublicCheckpointContext
+  readonly id: TeamRevisionId
+  readonly teamId: TeamId
+  readonly revision: number
+  readonly parentRevisionId?: TeamRevisionId
+  readonly gameSetupRevisionId: GameSetupRevisionId
+  readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
+  readonly slots: readonly (TeamSlotCheckpoint | null)[]
+  readonly createdAt: Timestamp
+  readonly note?: string
+}
+
+export type CheckpointRef =
+  | { readonly kind: 'build'; readonly revisionId: BuildRevisionId }
+  | { readonly kind: 'team-slot'; readonly teamRevisionId: TeamRevisionId; readonly slot: 0 | 1 | 2 | 3 }
+
+export interface UnavailableDefinitionReceipt {
+  readonly ref: EntityRef
+  readonly kind: CatalogEntityKind
+  readonly name: string
+  readonly fingerprint?: { readonly kind: 'json-content-v1' | 'personal-definition-v1'; readonly value: string }
 }
 
 export interface InventoryPolicy {
@@ -495,7 +546,7 @@ export type ScenarioBaseline =
   | {
       readonly kind: 'recordedParty'
       readonly playthroughRevision: number
-      readonly assignments: Readonly<Record<string, BuildRevisionId>>
+      readonly assignments: Readonly<Record<string, CheckpointRef>>
     }
 
 export interface TeamScenario {
@@ -505,7 +556,7 @@ export interface TeamScenario {
   readonly kind: ScenarioKind
   readonly memberIds: readonly CharacterId[]
   readonly baseline: ScenarioBaseline
-  readonly assignments: Readonly<Record<string, BuildRevisionId | null>>
+  readonly assignments: Readonly<Record<string, CheckpointRef | null>>
   readonly gameSetupRevisionId: GameSetupRevisionId
   readonly catalogLock: Readonly<Record<string, CatalogRevisionId>>
   readonly inventoryPolicy: InventoryPolicy
@@ -576,7 +627,7 @@ export interface ReferenceLibrarySettings {
   readonly excludedMods: readonly string[]
 }
 
-export const LOCAL_DATA_SCHEMA_VERSION = '2.4.0'
+export const LOCAL_DATA_SCHEMA_VERSION = '2.5.0'
 
 export interface LocalData {
   readonly schemaVersion: typeof LOCAL_DATA_SCHEMA_VERSION
@@ -591,6 +642,8 @@ export interface LocalData {
   readonly builds: Readonly<Record<string, Build>>
   readonly buildRevisions: Readonly<Record<string, BuildRevision>>
   readonly teams: Readonly<Record<string, Team>>
+  readonly teamRevisions: Readonly<Record<string, TeamRevision>>
+  readonly unavailableDefinitions?: readonly UnavailableDefinitionReceipt[]
   readonly playthroughs: Readonly<Record<string, Playthrough>>
   readonly importReceipts: Readonly<Record<string, ImportReceipt>>
   readonly changes: readonly ChangeEntry[]

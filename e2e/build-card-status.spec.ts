@@ -1,33 +1,16 @@
 import { clickBuildAction } from './planning-header-helpers'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
+import { readLocalData, replacePlannerFixture, waitForPlannerReady } from './local-data-helpers'
 
 const ORIGINAL_TITLE = 'Rowan: sample Warrior'
 
 async function archiveBuildFixture(page: Page): Promise<readonly string[]> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const transaction = database.transaction('localDatas', 'readwrite')
-      const store = transaction.objectStore('localDatas')
-      const read = store.getAll()
-      let titles: readonly string[] = []
-      transaction.onerror = transaction.onabort = () => { database.close(); reject(transaction.error) }
-      transaction.oncomplete = () => { database.close(); resolve(titles) }
-      read.onsuccess = () => {
-        const record = read.result[0] as { localData: LocalData }
-        const archived = Object.values(record.localData.builds).find(build => build.title === 'Rowan: sample Warrior')
-        if (!archived) { transaction.abort(); return }
-        titles = [archived.title]
-        store.put({ ...record, localData: { ...record.localData, builds: {
-          ...record.localData.builds,
-          [archived.id]: { ...archived, archived: true },
-        } } })
-      }
-    }
-  }))
+  const localData = await readLocalData(page)
+  const archived = Object.values(localData.builds).find(build => build.title === ORIGINAL_TITLE)
+  if (!archived) throw new Error('The synthetic Build is missing')
+  const stored = await replacePlannerFixture(page, { ...localData, builds: { ...localData.builds, [archived.id]: { ...archived, archived: true } } })
+  expect(stored.builds[archived.id]).toEqual({ ...archived, archived: true })
+  return [archived.title]
 }
 
 test('saved and cloned Builds have no classification badges', async ({ page }) => {
@@ -49,6 +32,7 @@ test('archived Builds stay hidden without lifecycle classifications', async ({ p
   const originalCount = await page.locator('.build-card').count()
   const [archived] = await archiveBuildFixture(page)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('button', { name: archived, exact: true })).toHaveCount(0)
   await expect(page.locator('.build-card')).toHaveCount(originalCount - 1)
   await expect(page.locator('.build-card__header > .badge')).toHaveCount(0)

@@ -1,3 +1,4 @@
+import { teamSlots, checkpointBuildView, withTeamBuildViews } from './team-checkpoints'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { validateNativeLocalDataGraph } from '../interchange/native'
@@ -17,10 +18,10 @@ describe('sample starter team', () => {
     const savedTeam = Object.values(localData.teams)
     expect(savedTeam).toHaveLength(1)
     expect(savedTeam[0]!.title).toBe('Sample starter Team')
-    expect(new Set(savedTeam[0]!.slots).size).toBe(4)
+    expect(new Set(teamSlots(localData, savedTeam[0]!)).size).toBe(4)
     expect(Object.values(requirePlaythrough(localData).scenarios)).toHaveLength(1)
     const scenario = requirePlaythrough(localData).scenarios[requirePlaythrough(localData).activeScenarioId!]!
-    expect(savedTeam[0]!.slots).toEqual(scenario.memberIds.map(id => scenario.assignments[id]))
+    expect(teamSlots(localData, savedTeam[0]!).map(id => withTeamBuildViews(localData).buildRevisions[id!]!.content)).toEqual(scenario.memberIds.map(id => checkpointBuildView(localData, scenario.assignments[id]!)!.content))
     expect(scenario.gameSetupRevisionId).toBe(localData.planningGameSetupRevisionId)
     expect(scenario.inventoryPolicy.enforceStock).toBe(true)
     expect(localData.gameSetups[scenario.gameSetupRevisionId]!.ppLimit).toEqual({ state: 'known', value: 10 })
@@ -31,7 +32,7 @@ describe('sample starter team', () => {
     expect(Object.keys(scenario.assignments).sort()).toEqual(Object.keys(requirePlaythrough(localData).characters).sort())
     for (const character of Object.values(requirePlaythrough(localData).characters)) {
       const snapshot = character.snapshots[character.currentSnapshotId!]!
-      const revision = localData.buildRevisions[scenario.assignments[character.id]!]!
+      const revision = checkpointBuildView(localData, scenario.assignments[character.id]!)!
       expect(localData.builds[revision.buildId]!.gameSetupId).toBe(localData.gameSetups[revision.gameSetupRevisionId]!.gameSetupId)
       expect(snapshot.note).toContain('Sample data')
       expect(snapshot.primaryClass).toEqual({ state: 'known', value: revision.content.primaryClass })

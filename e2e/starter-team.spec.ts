@@ -1,3 +1,4 @@
+import { checkpointBuildView } from '../src/domain/team-checkpoints'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
@@ -16,7 +17,8 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
@@ -57,7 +59,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   await page.goto(`/#/builds/teams/${encodeURIComponent(team.id)}`)
   await expect(page.getByRole('heading', { name: 'Sample starter team', exact: true })).toBeVisible()
   for (const character of Object.values(selectedPlaythrough(original).characters)) {
-    await expect(page.getByRole('combobox', { name: character.name, exact: true })).toHaveValue(team.assignments[character.id]!)
+    await expect(page.getByRole('combobox', { name: character.name, exact: true })).toHaveValue(checkpointBuildView(original, team.assignments[character.id]!)!.id)
   }
   await page.screenshot({ path: testInfo.outputPath('sample-team.png'), fullPage: true })
 

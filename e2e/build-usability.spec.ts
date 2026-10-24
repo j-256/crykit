@@ -1,7 +1,7 @@
 import { importSyntheticLibrary, SYNTHETIC_INNATE_ROOT, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
@@ -128,10 +128,8 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await choose(page, 'Equipped passive 3', 'Duel Ready')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('9 / 10 PP')
   const innateToggle = page.getByRole('checkbox', { name: /^Include learnable innates/ })
-  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
-  await expect(innateToggle).toHaveCount(1)
-  await expect(innateToggle).not.toBeChecked()
-  await innateToggle.check()
+  await expect(innateToggle).toHaveCount(0)
+  await expect(page.locator('.build-passive-options')).toHaveCount(0)
   const passive = page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })
   await passive.fill('Toughness')
   await expect(page.getByRole('listbox').getByRole('option').filter({ hasText: 'PC 1.6.9.0' })).toHaveCount(0)
@@ -148,23 +146,19 @@ test('learnable mod innates retain source costs, badges and saved selections', {
     const ppCost = [...heading.querySelectorAll('small')].find(node => node.textContent === '6 PP')!.getBoundingClientRect()
     return badge.right <= ppCost.left || badge.bottom <= ppCost.top
   })).toBe(true)
-  await expect(innateResult.locator('[data-game-icon="skill:passive"]')).toBeVisible()
-  await expect(innateResult.locator('[data-artwork-placeholder]')).toHaveCount(0)
+  // This source supplies no artwork; its private mod identity cannot borrow a native image
+  await expect(innateResult.locator('[data-game-icon="skill:passive"]')).toHaveCount(0)
+  await expect(innateResult.locator('[data-artwork-placeholder="innate"]')).toBeVisible()
   await expect.poll(() => innateResult.evaluate(row => {
     const artwork = row.querySelector(':scope > .wiki-sprite, :scope > .game-icon')!.getBoundingClientRect()
     return artwork.width
   })).toBeLessThanOrEqual(32)
   await passive.press('Escape')
-  await innateToggle.uncheck()
-  await passive.fill('Synthetic Learnable Innate')
-  await expect(page.getByRole('listbox')).toContainText("No matches. Try another name, stat, or effect, or change Search filters.")
   await passive.fill('Synthetic Regular Passive')
   const regularResult = page.getByRole('listbox').getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic Regular Passive$/ }) })
   await expect(regularResult).toContainText('Passive · Synthetic Innates')
   await expect(regularResult).not.toContainText('Innate · Synthetic Innates')
   await passive.press('Escape')
-  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
-  await innateToggle.check()
   await passive.fill('Synthetic Learnable Innate')
   innateResult = page.getByRole('listbox').getByRole('option').filter({ hasText: 'Synthetic Innates' }).filter({ has: page.locator('strong', { hasText: /^Synthetic Learnable Innate$/ }) })
   await innateResult.click()
@@ -174,20 +168,18 @@ test('learnable mod innates retain source costs, badges and saved selections', {
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('15 / 10 PP')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Build needs changes')
   await expect(page.getByRole('region', { name: 'Build validity' })).toContainText('Selected passives cost 15 PP, above the 10 PP limit')
-  await innateToggle.uncheck()
   await expect(passive).toHaveValue('Synthetic Learnable Innate')
-  await expect(page.getByText('1 equipped innate remains selected. Innates are hidden from search results.', { exact: true })).toBeVisible()
+  await expect(innateToggle).toHaveCount(0)
   const nextPassive = page.getByRole('combobox', { name: 'Equipped passive 5', exact: true })
   await nextPassive.fill('Synthetic Learnable Innate')
-  await expect(page.getByRole('listbox')).toContainText("No matches. Try another name, stat, or effect, or change Search filters.")
+  await expect(page.getByRole('listbox')).toContainText('That passive is already equipped. Clear its other slot or choose another.')
   await nextPassive.press('Escape')
-  if (!await innateToggle.isVisible()) await page.getByText('Mod passive options', { exact: true }).click()
-  await innateToggle.check()
   await page.screenshot({ path: testInfo.outputPath('build-catalog-evidence.png'), fullPage: true })
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   if (isMobile) await expect(page.locator('.build-library')).not.toHaveAttribute('open')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('combobox', { name: 'Equipped passive 4', exact: true })).toHaveValue('Synthetic Learnable Innate')
   await page.getByRole('button', { name: 'Back to Build library', exact: true }).click()
   const card = page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card').filter({ hasText: 'Untitled build' })
@@ -323,6 +315,7 @@ test('readiness creates a team pinned to the saved build when the current Game S
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   const buildUrl = page.url()
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await navigate(page, /^(Data & settings|Open data and settings)$/)
@@ -349,7 +342,8 @@ test('readiness creates a team pinned to the saved build when the current Game S
   await navigate(page, /^(Data & settings|Open data and settings)$/)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
+  await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   const localData = (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
   const buildId = decodeURIComponent(/#\/builds\/library\/([^/]+)/.exec(buildUrl)?.[1] ?? '')
@@ -358,7 +352,7 @@ test('readiness creates a team pinned to the saved build when the current Game S
   expect(team.gameSetupRevisionId).toBe(revision.gameSetupRevisionId)
   expect(team.catalogLock).toEqual(revision.catalogLock)
   expect(localData.planningGameSetupRevisionId).not.toBe(revision.gameSetupRevisionId)
-  expect(Object.values(team.assignments)).toEqual([revision.id])
+  expect(Object.values(team.assignments)).toEqual([{ kind: 'build', revisionId: revision.id }])
   expect(selectedPlaythrough(localData).inventory).toEqual({})
 })
 

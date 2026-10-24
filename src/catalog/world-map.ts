@@ -41,7 +41,6 @@ const MANIFEST_SCHEMA = z.object({
   regions: z.array(z.object({ id: NATIVE_ID, name: z.string(), layer: NATIVE_ID, x: COORDINATE, z: COORDINATE, ...PROVENANCE })).max(20_000),
   markers: z.array(z.object({ id: z.string(), entityId: NATIVE_ID, kind: z.enum(WORLD_MARKER_KINDS), sourceId: z.string(), sourceName: z.string(), sourceRevisionId: z.string().optional(), change: z.enum(['base', 'added', 'modified']), name: z.string(), region: z.string().nullable(), biomeId: NATIVE_ID, layer: NATIVE_ID.nullable(), x: COORDINATE, y: COORDINATE, z: COORDINATE, description: z.string(), targets: z.array(TARGET).max(20_000), conditions: z.array(z.string()).optional(), warnings: z.array(z.string()).optional() })).max(100_000),
 }).passthrough()
-const modPromises = new Map<string, Promise<WorldMapModLayer>>()
 
 export function mapModPinKey(pin: ModCatalogPin): string { return JSON.stringify([pin.catalogId, pin.catalogRevisionId]) }
 
@@ -147,26 +146,44 @@ export function createWorldMapLoader(): () => Promise<WorldMapManifest> {
 const defaultWorldMapLoader = createWorldMapLoader()
 export function loadWorldMap(): Promise<WorldMapManifest> { return defaultWorldMapLoader() }
 
-export function loadMapModLayer(pin: ModCatalogPin, catalogs: readonly CatalogSnapshot[]): Promise<WorldMapModLayer> {
-  const key = mapModPinKey(pin)
-  const existing = modPromises.get(key)
-  if (existing) return existing
-  const catalog = modCatalogForPin(catalogs, pin)
-  const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.id === pin.catalogId && (mod.sourceDigest === pin.catalogRevisionId || mod.sourceDigest === catalog?.checksum))
-  const identity = { sourceId: pin.catalogId, sourceName: catalog ? modCatalogTitle(catalog) : bundled?.title ?? pin.catalogId, revisionId: pin.catalogRevisionId }
-  const promise = (async () => {
-    try {
-      const source = catalog ? await readModSource(pin).catch(error => { if (bundled) return bundledModEditableSource(bundled); throw error }) : bundled ? await bundledModEditableSource(bundled) : undefined
-      if (!source) return { ...identity, entities: [], definitions: [], warnings: ['This exact mod revision is unavailable. Import its original Crystal Edit JSON to preview it.'] }
-      const root = parseBoundedJson(new TextEncoder().encode(source.text), source.filename, { maxNodes: MAX_MOD_SOURCE_NODES })
-      if (!jsonRecord(root) || typeof root.ID !== 'string' || `crystal-edit:${root.ID}` !== pin.catalogId || typeof root.EditorVersion !== 'number' || !Number.isSafeInteger(root.EditorVersion) || root.EditorVersion < 0) throw new Error('The mod source project identity does not match its pinned catalog.')
-      return worldMapModLayer(identity, root)
-    } catch (error) {
-      modPromises.delete(key)
-      return { ...identity, entities: [], definitions: [], warnings: [error instanceof Error ? error.message : 'The original mod source could not be read.'] }
+type MapModSourceReader = (pin: ModCatalogPin) => Promise<{ readonly filename: string; readonly text: string }>
+
+export function createMapModLayerLoader(readSource: MapModSourceReader, assertCurrent: () => void) {
+  // Imported plaintext belongs to this captured reader, never to a process-wide pin cache
+  const promises = new Map<string, Promise<WorldMapModLayer>>()
+  return async (pin: ModCatalogPin, catalogs: readonly CatalogSnapshot[]): Promise<WorldMapModLayer> => {
+    assertCurrent()
+    const catalog = modCatalogForPin(catalogs, pin)
+    const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.id === pin.catalogId && (mod.sourceDigest === pin.catalogRevisionId || mod.sourceDigest === catalog?.checksum))
+    const identity = { sourceId: pin.catalogId, sourceName: catalog ? modCatalogTitle(catalog) : bundled?.title ?? pin.catalogId, revisionId: pin.catalogRevisionId }
+    const key = JSON.stringify([mapModPinKey(pin), catalog?.checksum, identity.sourceName, !!catalog, bundled?.sourceDigest])
+    let promise = promises.get(key)
+    if (!promise) {
+      promise = (async () => {
+        try {
+          const source = catalog ? await readSource(pin).catch(error => { assertCurrent(); if (bundled) return bundledModEditableSource(bundled); throw error }) : bundled ? await bundledModEditableSource(bundled) : undefined
+          assertCurrent()
+          if (!source) return { ...identity, entities: [], definitions: [], warnings: ['This exact mod revision is unavailable. Import its original Crystal Edit JSON to preview it.'] }
+          const root = parseBoundedJson(new TextEncoder().encode(source.text), source.filename, { maxNodes: MAX_MOD_SOURCE_NODES })
+          if (!jsonRecord(root) || typeof root.ID !== 'string' || `crystal-edit:${root.ID}` !== pin.catalogId || typeof root.EditorVersion !== 'number' || !Number.isSafeInteger(root.EditorVersion) || root.EditorVersion < 0) throw new Error('The mod source project identity does not match its pinned catalog.')
+          return worldMapModLayer(identity, root)
+        } catch (error) {
+          assertCurrent()
+          return { ...identity, entities: [], definitions: [], warnings: [error instanceof Error ? error.message : 'The original mod source could not be read.'] }
+        }
+      })()
+      promises.set(key, promise)
     }
-  })()
-  modPromises.set(key, promise)
-  void promise.then(layer => { if (layer.warnings.length && !layer.entities.length && !layer.definitions.length) modPromises.delete(key) })
-  return promise
+    try {
+      const layer = await promise
+      // A cache hit and a read that completes after retirement obey the same owner fence
+      assertCurrent()
+      if (layer.warnings.length && !layer.entities.length && !layer.definitions.length) promises.delete(key)
+      return layer
+    } catch (error) { promises.delete(key); throw error }
+  }
+}
+
+export function loadMapModLayer(pin: ModCatalogPin, catalogs: readonly CatalogSnapshot[]): Promise<WorldMapModLayer> {
+  return createMapModLayerLoader(readModSource, () => {})(pin, catalogs)
 }

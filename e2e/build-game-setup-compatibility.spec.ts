@@ -5,7 +5,7 @@ import { createBuild, createGameSetupRevision, saveBuildRevision, setPlaythrough
 import { DEFAULT_GAME_VERSION } from '../src/domain/local-data'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { BuildId, LocalData } from '../src/domain/types'
-import { skipInitialModSetup, openGameSetupSection, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, openGameSetupSection, replacePlannerData, readLocalData, choosePlaythrough } from './local-data-helpers'
 
 const TEST_NOW = '2026-01-01T00:00:00.000Z'
 const ALTERNATE_GAME_SETUP = 'Synthetic alternate Game Setup'
@@ -53,9 +53,15 @@ async function loadFixture(page: Page, localData = compatibilityFixture()): Prom
   })
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-build-compatibility.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-build-compatibility.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  // Native restore preserves device choices, so explicitly select the fixture's planning context
+  const imported = await readLocalData(page)
+  expect(imported.planningGameSetupRevisionId).not.toBe(localData.planningGameSetupRevisionId)
+  const playthrough = localData.playthroughs[localData.selectedPlaythroughId!]!
+  await choosePlaythrough(page, playthrough.label)
+  expect((await readLocalData(page)).planningGameSetupRevisionId).toBe(localData.planningGameSetupRevisionId)
   await page.goto('/#/builds/library')
 }
 
