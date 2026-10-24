@@ -124,7 +124,8 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const previewStats = await totals.locator('th, td').allTextContents()
   const exporting = await settings(page, 'Import & backup')
   const download = page.waitForEvent('download')
-  await exporting.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await exporting.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await exporting.getByText("What's included in a backup?", { exact: true }).click()
+  await exporting.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const files = unzipSync(await readFile((await (await download).path())!))
   const { localData } = JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }
   const build = Object.values(localData.builds).find(build => build.title === 'Synthetic mod calculation')!
@@ -222,7 +223,8 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   const previewStats = await totals.locator('th, td').allTextContents()
   const exporting = await settings(page, 'Import & backup')
   const download = page.waitForEvent('download')
-  await exporting.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await exporting.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await exporting.getByText("What's included in a backup?", { exact: true }).click()
+  await exporting.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const files = unzipSync(await readFile((await (await download).path())!))
   const { localData } = JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }
   const build = Object.values(localData.builds).find(build => build.title === 'Synthetic mod battle calculation')!

@@ -1,3 +1,4 @@
+import { checkpointBuildView } from '../domain/team-checkpoints'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
 import type {
@@ -136,16 +137,30 @@ function BooleanKnowledgeField({ label, value, onChange }: {
 }
 
 function AddCharacterForm({ onCancel, onSubmit }: { readonly onCancel: () => void; readonly onSubmit: (draft: CharacterDraft) => Promise<void> }) {
+  const navigation = useNavigation()
   const [draft, setDraft] = useState<CharacterDraft>({ name: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [closeWarning, setCloseWarning] = useState(false)
+  const scope = useRef(routeWithoutOverlays(navigation.route))
+  const live = useRef(true), exitAllowed = useRef(false), blocked = useRef(false)
+  blocked.current = !exitAllowed.current && (busy || draft.name !== '' || Boolean(draft.appearanceLabel))
+  // Sync and navigation share this captured form guard; a typed draft must hold remote activation until explicit exit
+  useNavigationBlocker(scope.current, () => blocked.current, () => setCloseWarning(true))
+  useEffect(() => {
+    live.current = true
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (blocked.current) { event.preventDefault(); event.returnValue = '' } }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => { live.current = false; blocked.current = false; window.removeEventListener('beforeunload', beforeUnload) }
+  }, [])
+  const finish = () => { if (live.current) { exitAllowed.current = true; blocked.current = false; onCancel() } }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(undefined)
-    try { await onSubmit(draft) } catch (reason) { setError(reason instanceof Error ? reason.message : 'The character could not be added.') } finally { setBusy(false) }
+    try { await onSubmit(draft); finish() } catch (reason) { setError(reason instanceof Error ? reason.message : 'The character could not be added.') } finally { setBusy(false) }
   }
-  return <form className="stack" onSubmit={submit}><Field label="Character name" required><input autoFocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Name used in your playthrough" required value={draft.name}/></Field><Field hint="An optional description of their appearance." label="Appearance label"><input onChange={(event) => setDraft({ ...draft, appearanceLabel: event.target.value || undefined })} placeholder="For example: blue cloak" value={draft.appearanceLabel ?? ''}/></Field><InlineNotice title="Blank character record">Add stats, equipment, and learning after creating the character.</InlineNotice>{error && <InlineNotice title="Character not added" tone="danger">{error}</InlineNotice>}<div className="form-actions"><Button onClick={onCancel} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="plus" type="submit">{busy ? 'Adding...' : 'Add character'}</Button></div></form>
+  return <form className="stack" onSubmit={submit}>{closeWarning && <InlineNotice title="Unsaved character" tone="warning">Add the character or cancel to discard these fields before leaving.</InlineNotice>}<Field label="Character name" required><input autoFocus onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Name used in your playthrough" required value={draft.name}/></Field><Field hint="An optional description of their appearance." label="Appearance label"><input onChange={(event) => setDraft({ ...draft, appearanceLabel: event.target.value || undefined })} placeholder="For example: blue cloak" value={draft.appearanceLabel ?? ''}/></Field><InlineNotice title="Blank character record">Add stats, equipment, and learning after creating the character.</InlineNotice>{error && <InlineNotice title="Character not added" tone="danger">{error}</InlineNotice>}<div className="form-actions"><Button disabled={busy} onClick={finish} tone="quiet" type="button">Cancel</Button><Button disabled={busy || !draft.name.trim()} icon="plus" type="submit">{busy ? 'Adding...' : 'Add character'}</Button></div></form>
 }
 
 function snapshotDraft(gameSetupRevisionId: GameSetupRevisionId | undefined, initial?: CharacterSnapshot): SnapshotDraft {
@@ -357,7 +372,7 @@ export function CharactersView({ localData, catalogs, hasPendingSave, onAdd, onC
   const editorRequestMissing = (page.view === 'skill-screenshots' || page.view === 'snapshot-new' || page.view === 'class-new' || page.view === 'class-edit' || page.view === 'learning-new' || page.view === 'learning-edit') && (!selected || page.view === 'class-edit' && !classEditor || page.view === 'learning-edit' && !learnedEditor)
   const navigate = (next: CharactersPageRoute) => navigation.navigate({ ...navigation.route, page: next, overlays: [] })
 
-  const add = async (draft: CharacterDraft) => { await onAdd(draft); navigation.close() }
+  const add = async (draft: CharacterDraft) => { await onAdd(draft) }
   const capture = async (draft: SnapshotDraft) => { if (!selected) return; await onCapture(selected.id, draft) }
   const saveClass = async (draft: ClassProgressDraft) => { if (!selected) return; await onUpsertClass(selected.id, draft); navigation.close() }
   const saveLearned = async (draft: LearnedNodeDraft) => { if (!selected) return; await onUpsertLearned(selected.id, draft); navigation.close() }
@@ -376,7 +391,7 @@ export function CharactersView({ localData, catalogs, hasPendingSave, onAdd, onC
       <nav aria-label="Character views" className="member-navigation"><div><Button aria-current={tab !== 'history' ? 'page' : undefined} icon="user" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'current' })} tone="quiet">Character</Button><Button aria-current={tab === 'history' ? 'page' : undefined} icon="history" onClick={() => navigate({ page: 'characters', view: 'character', characterId: selected.id, tab: 'history' })} tone="quiet">History</Button><Button disabled={memberDirty} icon="edit" onClick={record} tone="quiet">Capture snapshot</Button></div></nav>
       <div className="member-window__body">
         {tab === 'current' && <>{snapshot ? <MemberSheet catalogs={catalogs} hasPendingSave={hasPendingSave} key={selected.id} onDirtyChange={updateMemberDirty} onRetrySave={onRetrySave} onRecord={record} onSave={capture} onSkills={() => setSkillsOpen(value => !value)} localData={localData} skillsOpen={skillsOpen} snapshot={snapshot}/> : <><EmptyState description="Start with what you can see in game. Leave the rest unknown." icon="character" title="No snapshot recorded"><Button onClick={record}>Capture current sheet</Button></EmptyState><div className="member-menu__group member-skills-standalone"><MemberSkillsToggle onToggle={() => setSkillsOpen(value => !value)} open={skillsOpen}/></div></>}
-          <details className="member-record member-plans"><summary>Compare or apply a Build</summary><TrackedBuildPicker localData={localData} characterId={selected.id} disabled={memberDirty}/>{Object.values(requirePlaythrough(localData).scenarios).flatMap(scenario => { const revisionId = effectiveScenarioAssignments(scenario)[selected.id]; const revision = revisionId ? localData.buildRevisions[revisionId] : undefined; const build = revision ? localData.builds[revision.buildId] : undefined; return build ? [{ scenario, build }] : [] }).map(({ scenario, build }) => <div className="list-row" key={`${scenario.id}:${build.id}`}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{scenario.label}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds</Button></details>
+          <details className="member-record member-plans"><summary>Compare or apply a Build</summary><TrackedBuildPicker localData={localData} characterId={selected.id} disabled={memberDirty}/>{Object.values(requirePlaythrough(localData).scenarios).flatMap(scenario => { const revisionId = effectiveScenarioAssignments(scenario)[selected.id]; const revision = revisionId ? checkpointBuildView(localData, revisionId) : undefined; const build = revision ? localData.builds[revision.buildId] : undefined; return build ? [{ scenario, build }] : [] }).map(({ scenario, build }) => <div className="list-row" key={`${scenario.id}:${build.id}`}><Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'build', buildId: build.id }, overlays: [], query: {} })} tone="quiet">{build.title}</Button><Badge>{scenario.label}</Badge></div>)}<Button onClick={() => navigation.navigate({ page: { page: 'builds', view: 'library' }, overlays: [], query: {} })} tone="quiet">Open Builds</Button></details>
         </>}
         {tab === 'current' && skillsOpen && <CharacterLearning catalogs={catalogs} character={selected} initialKind={initialLearningKind} key={selected.id} localData={localData}/>}
         {tab === 'history' && <CharacterHistory catalogs={catalogs} character={selected} key={selected.id} page={page} localData={localData}/>}

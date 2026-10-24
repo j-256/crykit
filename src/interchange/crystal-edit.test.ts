@@ -6,6 +6,7 @@ import { previewImport } from './import'
 import { isCrystalEdit, MOD_LIBRARY_IMPORT_REVISION } from './crystal-edit'
 import { NativeCatalogSnapshotSchema } from './native-schema'
 import { requirePlaythrough } from '../domain'
+import { passiveRoles } from '../domain/passive-roles'
 import type { CatalogSnapshot } from '../domain/types'
 
 import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crystal-edit.test-helpers'
@@ -13,6 +14,16 @@ import { syntheticCrystalEdit, syntheticPrerequisiteCrystalEdit } from './crysta
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 
 describe('Crystal Edit reference import', () => {
+  it('preserves independent automatic and learnable roles for an ordinary named project', async () => {
+    const preview = await previewImport(encode({ ID: 'ordinary-source-flags', Title: 'A Different Title', EditorVersion: 34, Jobs: [{ ID: 40, Name: 'A Different Class', PassiveIDs: [41] }], Passives: [{ ID: 41, Name: 'A Different Passive', IsInnate: true, IsLearnable: true, PP: 1, StatMods: [] }] }), 'ordinary.json')
+    const catalog = preview.proposed.catalogs[0]!
+    const passive = modModelEntity(catalog, 'crystal-edit:Passives:41')!
+    expect(passive.kind).toBe('innate')
+    expect(passiveRoles(passive)).toEqual({ automatic: 'true', learnable: 'true' })
+    expect(catalog.entities[passive.id]).toBe(passive)
+    expect(modModelEntity(catalog, 'crystal-edit:Jobs:40')?.legacy).toMatchObject({ passiveEntityIds: { 41: passive.id } })
+  })
+
   it('recognizes gender-only projects and retains explicit flags, unknown fields and exact source bytes', async () => {
     const input = { ID: 'synthetic-genders', EditorVersion: 34, Genders: [{ ID: 8, Name: 'Synthetic gender', BoostHP: false, BoostStr: true, FutureBonus: { value: 7 } }] }
     const bytes = encode(input)

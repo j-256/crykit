@@ -1,24 +1,11 @@
+import { readLocalData as storedData } from './local-data-helpers'
 import { importSyntheticLibrary } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 
 test.beforeEach(async ({ page }) => { await importSyntheticLibrary(page) })
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 async function choose(page: Page, label: string, name: string, source = 'PC 1.6.9.0') {
   await page.getByRole('combobox', { name: label, exact: true }).click()
@@ -181,6 +168,9 @@ test('legacy format 4 passives confirm the saved source before selection', async
   const source = JSON.stringify({ ID: 'synthetic-legacy-prompt', Title: 'Synthetic legacy mod', Version: '1', EditorVersion: 4, Passives: [{ ID: 9001, Name: 'Synthetic old passive', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [] }] })
   await page.goto('/#/mods')
   await page.getByLabel('Import mod JSON', { exact: true }).setInputFiles({ name: 'synthetic-legacy.json', mimeType: 'application/json', buffer: Buffer.from(source) })
+  await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   const before = await storedData(page)
   await page.goto('/#/builds/library/new')

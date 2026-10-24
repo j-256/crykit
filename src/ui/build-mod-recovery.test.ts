@@ -5,7 +5,7 @@ import { asId, createId } from '../domain/core'
 import { buildContentForModSetup } from '../domain/build-mods'
 import { modCatalogRevision, prepareModComposition } from '../domain/mod-layers'
 import { createTestLocalData } from '../domain/test-helpers'
-import type { BuildId, GameSetupRevisionId } from '../domain/types'
+import type { BuildId, CatalogRef, GameSetupRevisionId, SlotId } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { createSharePayload, sharePreviewData } from '../interchange/share'
 import { prepareModCatalogs } from '../persistence/local-data'
@@ -26,14 +26,14 @@ async function fixture() {
   const revision = Object.values(original.buildRevisions)[0]!
   // An editor draft has a new setup identity while its references retain the saved origin pin
   const draftSetup = { ...original.gameSetups[revision.gameSetupRevisionId]!, id: createId<GameSetupRevisionId>('draftBehavior') }
-  return { original, content: revision.content, draftSetup, catalogs }
+  return { original, content: revision.content, draftSetup, catalogs, current: { data, setup, content } }
 }
 
 describe('draft mod definition recovery', () => {
-  it('rebinds an older interpretation to the stable editor setup without changing saved data or notes', async () => {
+  it.each([false, true])('rebinds an older interpretation without changing saved data or notes with an explicit empty retained selection field: %s', async explicitEmpty => {
     const { original, content, draftSetup, catalogs } = await fixture()
     const before = JSON.stringify(original)
-    const recovery = prepareBuildModRecovery(content, draftSetup, original, catalogs)
+    const recovery = prepareBuildModRecovery(explicitEmpty ? { ...content, retainedSelections: undefined } : content, draftSetup, original, catalogs)
     expect(recovery.error).toBeUndefined()
     expect(recovery.draft).toBeDefined()
     expect(recovery.draft!.content.rotationNotes).toBe(content.rotationNotes)
@@ -42,6 +42,32 @@ describe('draft mod definition recovery', () => {
     expect(recovery.draft!.behavior.catalogLock[CURRENT_CATALOG.id]).toBe(modCatalogRevision(draftSetup.id))
     expect(recovery.draft!.behavior.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
     expect(JSON.stringify(original)).toBe(before)
+  })
+
+  it('reopens exact matching sources without requiring a changed interpretation', async () => {
+    const { current, catalogs } = await fixture()
+    const recovery = prepareBuildModRecovery(current.content, current.setup, current.data, catalogs)
+    expect(recovery.error).toBeUndefined()
+    expect(recovery.draft).toBeDefined()
+    expect(recovery.changedInterpretation).toBe(false)
+    expect(recovery.draft!.content).toEqual(current.content)
+  })
+
+  it('preserves retained references, removed occupied slots and whole unsaved content while recovering active selections', async () => {
+    const { original, content, draftSetup, catalogs } = await fixture()
+    const retained: CatalogRef = { kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: asId('synthetic-retained-old-pin'), entityId: asId('base:equipment:300') }
+    const removedSlot = asId<SlotId>('removed-slot')
+    const draft = { ...content, secondaryClass: null, equipment: { ...content.equipment, [removedSlot]: { ref: retained } }, retainedSelections: { refs: [retained], slotIds: [removedSlot] }, rotationNotes: 'Whole unsaved rotation', contextAssumptions: ['Whole unsaved assumption'] }
+    const before = structuredClone({ original, draft })
+    const recovery = prepareBuildModRecovery(draft, draftSetup, original, catalogs)
+    expect(recovery.error).toBeUndefined()
+    expect(recovery.draft).toBeDefined()
+    expect(recovery.draft!.content.retainedSelections).toEqual(draft.retainedSelections)
+    expect(recovery.draft!.content.equipment).toEqual(draft.equipment)
+    expect(recovery.draft!.content.rotationNotes).toBe(draft.rotationNotes)
+    expect(recovery.draft!.content.contextAssumptions).toEqual(draft.contextAssumptions)
+    expect(recovery.draft!.content.primaryClass).toMatchObject({ catalogRevisionId: modCatalogRevision(draftSetup.id) })
+    expect({ original, draft }).toEqual(before)
   })
 
   it('waits for matching sources and reports incomplete identity recovery without touching the draft', async () => {

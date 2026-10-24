@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import { expect, test, type Page } from '@playwright/test'
 import { SUMMONS } from '../src/catalog/summons'
 import type { LocalData } from '../src/domain'
-import { createBlankPlaythrough, replacePlannerData, selectedPlaythrough } from './local-data-helpers'
+import { createBlankPlaythrough, replacePlannerData, selectedPlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { currentReferencePath } from './reference-helpers'
 
@@ -19,7 +19,8 @@ async function exportBackup(page: Page) {
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloading = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await downloading).path()
   if (!path) throw new Error('The backup download is unavailable')
   const bytes = await readFile(path)
@@ -33,6 +34,7 @@ const summonTile = (page: Page, name: string) => page.locator('.summon-tile').fi
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/progress/summons')
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible()
   await createBlankPlaythrough(page)
 })
@@ -47,6 +49,7 @@ test('uses native artwork and the game tree layout with only gray and gold state
   await expect(page.locator('.progress-summary__number')).toHaveText(`1 / ${SUMMONS.length}`)
   await pinga.getByRole('button').evaluate(element => (element as HTMLButtonElement).click())
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(pinga).toHaveAttribute('data-unlocked', 'true')
   await expect(pinga.getByRole('button')).toBeDisabled()
   await expect(page.locator('.summon-tile')).toHaveCount(SUMMONS.length)
@@ -118,6 +121,7 @@ test('rapid odd and even clicks preserve the final request and keep neighboring 
     return { sameNode: state.neighbor === document.querySelector(`[data-summon="${neighborId}"]`), changes: state.changes }
   }, neighborId)).toEqual({ sameNode: true, changes: [] })
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(summonTile(page, 'Shaku')).toHaveAttribute('data-unlocked', 'true')
   await expect(summonTile(page, 'Pamoa')).toHaveAttribute('data-unlocked', 'false')
   const { localData } = await exportBackup(page)
@@ -151,7 +155,7 @@ test('rolls back a failed save, reports it, and persists a retry', { tag: MOBILE
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') {
         IDBObjectStore.prototype.put = original
         throw new DOMException('Synthetic summon storage failure', 'QuotaExceededError')
       }
@@ -167,6 +171,7 @@ test('rolls back a failed save, reports it, and persists a retry', { tag: MOBILE
   await expect(shaku).toHaveAttribute('data-unlocked', 'true')
   await expect(shaku.getByRole('button')).not.toHaveAttribute('aria-busy', 'true')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(shaku).toHaveAttribute('data-unlocked', 'true')
 })
 
@@ -188,6 +193,11 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-summons.zip', mimeType: 'application/zip', buffer: backup.bytes })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  const selection = page.getByRole('button', { name: 'Playthrough: None selected', exact: true })
+  await expect(selection).toBeVisible()
+  await selection.click()
+  await page.getByRole('dialog', { name: 'Choose playthrough', exact: true }).getByRole('button').filter({ has: page.getByText(first.label, { exact: true }) }).click()
+  await page.getByRole('navigation', { name: 'Progress guides', exact: true }).getByRole('link', { name: 'Summons', exact: true }).click()
   await expect(shaku).toHaveAttribute('data-unlocked', 'true')
   const restored = await exportBackup(page)
   expect(selectedPlaythrough(restored.localData).progress).toEqual(first.progress)
@@ -196,15 +206,18 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
 test('records summon unlocks and reads their artwork offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
+  await waitForPlannerReady(page)
   const coyote = summonTile(page, 'Coyote')
   await coyote.getByRole('button').click()
   await expect(coyote.getByRole('button')).not.toHaveAttribute('aria-busy', 'true')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(coyote).toHaveAttribute('data-unlocked', 'true')
   await expect.poll(() => coyote.locator('img').evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await context.setOffline(false)

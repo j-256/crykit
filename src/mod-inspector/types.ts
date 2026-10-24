@@ -101,6 +101,8 @@ export interface InspectorDraft {
   readonly id: string
   readonly filename: string
   readonly fileInfo?: InspectorFileInfo
+  readonly originalBytes?: Uint8Array
+  readonly unfinished?: import('../workspace/editor-repository').UnfinishedEditorInput
   readonly originalText: string
   readonly draftText: string
   readonly referenceId: string

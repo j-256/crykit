@@ -12,7 +12,8 @@
     <title>CryKit - A Crystal Project planner</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Show feedback while the entry module downloads and evaluates, before React can render -->
+    <div id="root"><main aria-busy="true" class="loading-screen"><div class="loading-screen__content"><span aria-hidden="true" class="brand__mark"><span class="spinner"></span></span><h1>Opening Crystal Kit</h1><p role="status">Loading application files...</p></div></main></div>
     <noscript>Crystal Kit needs JavaScript to keep your records in this browser.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

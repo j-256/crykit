@@ -11,8 +11,8 @@ import { exportBackup, loadLocalData, prepareModCatalogs, previewImport, undoLoc
 
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
 const names: string[] = []
-const legacy = (data: LocalData) => { const { teams, ...rest } = data; return { ...rest, schemaVersion: '2.0.0' } }
-const classified = (data: LocalData) => ({ ...data, schemaVersion: '2.2.0', builds: Object.fromEntries(Object.entries(data.builds).map(([id, { archived, ...build }]) => [id, { ...build, kind: 'template', state: archived ? 'archived' : 'hypothetical' }])) })
+const legacy = (data: LocalData) => { const { teams, teamRevisions: _teamRevisions, ...rest } = data; return { ...rest, schemaVersion: '2.0.0' } }
+const classified = (data: LocalData) => ({ ...Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'teamRevisions')), schemaVersion: '2.2.0', builds: Object.fromEntries(Object.entries(data.builds).map(([id, { archived, ...build }]) => [id, { ...build, kind: 'template', state: archived ? 'archived' : 'hypothetical' }])) })
 
 async function classifiedDatabase(badHistory = false) {
   const name = `classification-migration-${crypto.randomUUID()}`
@@ -52,7 +52,7 @@ describe('persisted behavior format migration', () => {
     const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
-    expect(database.verno).toBe(6)
+    expect(database.verno).toBe(7)
     expect(loaded.localData).toEqual(fixture.after)
     expect((await database.localDatas.get('local-data-record'))?.localData).toEqual(fixture.after)
     const history = await database.history.get('history')
@@ -83,7 +83,7 @@ describe('persisted behavior format migration', () => {
     const database = new CryKitDatabase(fixture.name)
     setDatabaseForTests(database)
     const loaded = await loadLocalData()
-    expect(database.verno).toBe(6)
+    expect(database.verno).toBe(7)
     expect(loaded.localData).toEqual(fixture.after)
     expect(loaded.canUndo).toBe(true)
     const history = await database.history.get('history')
@@ -137,7 +137,7 @@ describe('persisted behavior format migration', () => {
     names.push(name)
     const before = addTestBuild(createTestLocalData(), 'migration-build', '', {})
     const after = updateBuild(before, { buildId: before.builds['migration-build']!.id, title: 'Renamed Build', now: TEST_NOW })
-    const old = (data: LocalData) => ({ ...data, schemaVersion: '2.3.0' })
+    const old = (data: LocalData) => ({ ...Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'teamRevisions')), schemaVersion: '2.3.0' })
     const original = new Dexie(name)
     original.version(5).stores(TABLES)
     await original.table('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: old(after), lineage: { rootLocalDataId: before.id } })
@@ -162,4 +162,38 @@ describe('persisted behavior format migration', () => {
       database.close()
     }
   })
+})
+
+
+it('keeps the per-handle journal requirement immutable across options edits and terminal close', async () => {
+  const name = `format-requirement-${crypto.randomUUID()}`; names.push(name)
+  const legacyHandle = new CryKitDatabase(name)
+  await legacyHandle.open(); legacyHandle.close()
+  const options = { plannerFormatRequirement: 'journaled' as const }
+  const required = new CryKitDatabase(name, options)
+  Object.assign(options, { plannerFormatRequirement: 'legacy-or-journaled' })
+  expect(Reflect.set(required, 'plannerFormatRequirement', 'legacy-or-journaled')).toBe(false)
+  expect(Reflect.deleteProperty(required, 'plannerFormatRequirement')).toBe(false)
+  expect(() => Object.defineProperty(required, 'plannerFormatRequirement', { value: 'legacy-or-journaled' })).toThrow()
+  await required.open()
+  expect(required.plannerFormatRequirement).toBe('journaled')
+  await expect(loadLocalData(required)).rejects.toMatchObject({ code: 'schema-mismatch', recoverable: true })
+  required.close()
+  await expect(required.open()).rejects.toBeInstanceOf(Dexie.DatabaseClosedError)
+  const ordinary = new CryKitDatabase(name)
+  await ordinary.open()
+  expect(ordinary.plannerFormatRequirement).toBe('legacy-or-journaled')
+  expect((await loadLocalData(ordinary)).revision).toBe(0)
+  ordinary.close()
+})
+it.each(['guess', null, false])('rejects unknown runtime planner format requirement %s', value => {
+  expect(() => new CryKitDatabase('invalid-format', { plannerFormatRequirement: value as never })).toThrow()
+})
+
+it('captures the supplied requirement once before any database open', async () => {
+  let reads = 0
+  const database = new CryKitDatabase('capture-format', { get plannerFormatRequirement() { return ++reads === 1 ? 'journaled' : 'legacy-or-journaled' } })
+  expect(database.plannerFormatRequirement).toBe('journaled')
+  expect(reads).toBe(1)
+  database.close()
 })

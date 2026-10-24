@@ -1,5 +1,5 @@
 import type { CatalogEntity, EntityId, Knowledge, JsonValue, SourceRef } from '../domain/types'
-import { nativeRecord } from '../domain/native-game'
+import { passiveRoles } from '../domain/passive-roles'
 import switchData from './switch-data.json' with { type: 'json' }
 
 interface ConfirmedSwitchClass {
@@ -80,11 +80,8 @@ function withUnavailableInnate(entity: CatalogEntity, reason: string): CatalogEn
 
 export function isPotentiallyLearnableInnate(entity: Pick<CatalogEntity, 'kind' | 'fields'>): boolean {
   if (entity.kind !== 'innate') return false
-  const availability = entity.fields[LEARNABLE_INNATE_FIELD]
-  if (availability?.state === 'known') return availability.value !== false
-  const source = entity.fields['Crystal Edit source record'] ?? entity.fields['Native source record']
-  if (source?.state === 'known' && nativeRecord(source.value) && typeof source.value.IsLearnable === 'boolean') return source.value.IsLearnable
-  return true
+  // Historical named availability remains readable above, but cannot certify an exact source's learning flag
+  return passiveRoles(entity as CatalogEntity).learnable === 'true'
 }
 
 export function confirmedSwitchDefinitions(existing: readonly CatalogEntity[], { includeModLearning = true }: { readonly includeModLearning?: boolean } = {}): readonly CatalogEntity[] {

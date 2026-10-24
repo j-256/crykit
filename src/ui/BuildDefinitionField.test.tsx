@@ -8,7 +8,10 @@ import { TEST_NOW } from '../domain/test-helpers'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { buildEquipmentPermissions } from '../domain/build-mechanics'
 import { CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
-import type { EntityRef, PersonalDefinition, PersonalDefinitionId } from '../domain/types'
+import { LEARNABLE_INNATE_FIELD } from '../catalog/switch'
+import { modModelEntity } from '../domain/mod-layers'
+import { previewImport } from '../interchange/import'
+import type { CatalogSnapshot, EntityRef, PersonalDefinition, PersonalDefinitionId } from '../domain/types'
 import { DefinitionLibraryContext, type DefinitionOption } from './definitions'
 import { BuildDefinitionField } from './BuildDefinitionField'
 
@@ -42,9 +45,9 @@ afterEach(async () => {
   container.remove()
 })
 
-async function render(overrides: Partial<Parameters<typeof BuildDefinitionField>[0]> = {}, choiceOptions = options) {
+async function render(overrides: Partial<Parameters<typeof BuildDefinitionField>[0]> = {}, choiceOptions = options, catalogs: readonly CatalogSnapshot[] = []) {
   const props = { allowedKinds: ['passive'] as const, label: 'Equipped passive 1', value: null, open: true, query: '', resultLimit: 100, onOpen: vi.fn(), onClose: vi.fn(), onDismiss: vi.fn(), onQueryChange: vi.fn(), onResultLimitChange: vi.fn(), onChange: vi.fn(), onInspect: vi.fn(), ...overrides }
-  const providedLibrary = { ...library, options: choiceOptions, planningOptions: choiceOptions, availableOptions: choiceOptions, availablePlanningOptions: choiceOptions, localData: { ...localData, personalDefinitions: Object.fromEntries(choiceOptions.map(option => [option.record.id, option.record])) as Record<string, PersonalDefinition> } }
+  const providedLibrary = { ...library, catalogs, options: choiceOptions, planningOptions: choiceOptions, availableOptions: choiceOptions, availablePlanningOptions: choiceOptions, localData: { ...localData, personalDefinitions: Object.fromEntries(choiceOptions.filter(option => option.ref.kind === 'personal').map(option => [option.record.id, option.record])) as Record<string, PersonalDefinition> } }
   await act(async () => root.render(<DefinitionLibraryContext.Provider value={providedLibrary}><BuildDefinitionField {...props}/></DefinitionLibraryContext.Provider>))
   return props
 }
@@ -54,6 +57,40 @@ function checkbox(label: string) {
 }
 
 describe('Build picker interaction', () => {
+  it('shows exact learnable innates without a named mod toggle and leaves unknown learning unclaimed', async () => {
+    const innate = (name: string, isLearnable?: boolean, historical = false): DefinitionOption => {
+      const option = passive(name, 1)
+      return { ...option, kind: 'innate', record: { ...option.record, kind: 'innate', fields: { ...option.record.fields, ...(isLearnable === undefined ? {} : { 'Crystal Edit source record': { state: 'known', value: { IsInnate: true, IsLearnable: isLearnable } } }), ...(historical ? { [LEARNABLE_INNATE_FIELD]: { state: 'known', value: true } } : {}) } } }
+    }
+    const choices = [innate('Ordinary project innate', true), innate('Unknown source innate'), innate('Historical named annotation', undefined, true), innate('Not learnable', false)]
+    await render({ allowedKinds: ['innate'] }, choices)
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toEqual(['Ordinary project innate'])
+    await render({ allowedKinds: ['innate'], value: choices[1]!.ref }, choices)
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toContain('Unknown source innate')
+    expect(container.querySelector('.build-field__evidence')?.textContent).toContain('Unknown source innate')
+  })
+
+  it('hides a source-proven unlearnable passive while retaining a historical equipped selection', async () => {
+    const option = passive('Unlearnable ordinary passive', 1)
+    const unlearnable: DefinitionOption = { ...option, record: { ...option.record, fields: { ...option.record.fields, 'Crystal Edit source record': { state: 'known', value: { IsInnate: false, IsLearnable: false } } } } }
+    await render({}, [unlearnable])
+    expect(results()).toHaveLength(0)
+    await render({ value: unlearnable.ref }, [unlearnable])
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toEqual(['Unlearnable ordinary passive'])
+  })
+
+  it('lists an imported differently named project innate as an ordinary learnable choice', async () => {
+    const preview = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'unrelated-learning-source', Title: 'A Different Project', EditorVersion: 34, Passives: [{ ID: 41, Name: 'A Different Innate', IsInnate: true, IsLearnable: true, PP: 1, StatMods: [] }] })), 'different-project.json')
+    const catalog = preview.proposed.catalogs[0]!
+    const record = modModelEntity(catalog, 'crystal-edit:Passives:41')!
+    const ref: EntityRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: record.id }
+    const option: DefinitionOption = { key: entityDefinitionKey(ref), ref, kind: record.kind, name: record.name, aliases: [], record, ppCost: record.ppCost, sourceLabel: 'Imported project', stockLabel: 'Unknown', preferred: true }
+    const props = await render({ allowedKinds: ['innate'] }, [option], [catalog])
+    expect(results().map(result => result.querySelector('strong')?.textContent)).toEqual(['A Different Innate'])
+    await act(async () => results()[0]!.click())
+    expect(props.onChange).toHaveBeenCalledWith(ref)
+  })
+
   it('places class groups before other results and preserves keyboard selection across pagination', async () => {
     const priorityGroups = [
       { key: 'class', label: 'Class: Hunter', refs: [second.ref] },

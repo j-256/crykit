@@ -1,3 +1,4 @@
+import { decodeEditorText } from '../src/workspace/editor-document'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { addVoxelPlatform, newMapProject } from '../src/mod-inspector/map-editor'
@@ -69,7 +70,7 @@ test('opens Map Editor directly from Mods menus and preserves view history and p
   await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: FILENAME, mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
   await expectMap(page)
   await page.locator('.map-editor-placement-list button').filter({ hasText: 'Treasure #1' }).click()
-  await page.getByRole('spinbutton', { name: 'Placement height Y', exact: true }).fill('100')
+  await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
   if (!isMobile) {
     await menu.getByRole('link', { name: 'JSON Editor', exact: true }).click()
     await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
@@ -79,6 +80,8 @@ test('opens Map Editor directly from Mods menus and preserves view history and p
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   const undo = page.getByRole('button', { name: 'Undo map edit', exact: true })
   await expect(undo).toBeEnabled()
+  // The owned file command remounts its admitted successor; later in-page view switches keep that menu
+  mapTabId = await mapTab.getAttribute('id')
   await documentTab.click()
   await expect(documentTab).toHaveAttribute('aria-selected', 'true')
   await expectWorkspace()
@@ -187,7 +190,8 @@ test('retains map context and the exact draft when native geometry loading fails
 async function download(page: Page, name: string) {
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name, exact: true }).click()
-  return readFile((await (await downloaded).path())!, 'utf8')
+  const result = await downloaded, bytes = await readFile((await result.path())!)
+  return result.suggestedFilename().endsWith('.utf16le') ? decodeEditorText(bytes) : bytes.toString('utf8')
 }
 async function exportDraft(page: Page) {
   await page.getByRole('button', { name: 'Review map export', exact: true }).click()
@@ -196,9 +200,9 @@ async function exportDraft(page: Page) {
 }
 async function moveTreasure(page: Page) {
   await page.locator('.map-editor-placement-list button').filter({ hasText: 'Treasure #1' }).click()
-  await page.getByRole('spinbutton', { name: 'Placement X', exact: true }).fill('-10')
-  await page.getByRole('spinbutton', { name: 'Placement height Y', exact: true }).fill('100')
-  await page.getByRole('spinbutton', { name: 'Placement Z', exact: true }).fill('3')
+  await page.getByRole('textbox', { name: 'Placement X', exact: true }).fill('-10')
+  await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
+  await page.getByRole('textbox', { name: 'Placement Z', exact: true }).fill('3')
   await expect(page.locator('.iso-draft-destination')).toHaveAttribute('data-coord', '-10,100,3')
   await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Move selected placement', exact: true }).click()
@@ -224,16 +228,30 @@ async function pointerGesture(page: Page, mobile: boolean) {
 }
 
 async function scenePoint(page: Page, coord: { X: number; Y: number; Z: number }) {
+  return (await scenePoints(page, [coord]))[0]!
+}
+async function scenePoints(page: Page, coords: readonly { X: number; Y: number; Z: number }[]) {
   const svg = page.locator('.iso-canvas')
-  await svg.scrollIntoViewIfNeeded()
-  const camera = await svg.evaluate(element => {
-    const [X, Y, Z] = element.getAttribute('data-camera')!.split(',').map(Number)
-    return { coord: { X: X!, Y: Y!, Z: Z! }, rotation: Number(element.getAttribute('data-rotation')) / 45, elevation: Number(element.getAttribute('data-elevation')), zoom: Number(element.getAttribute('data-zoom')) }
-  }) as IsoCamera
-  return svg.evaluate((element, point) => {
-    const p = new DOMPoint(point.x, point.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!)
-    return { x: p.x, y: p.y }
-  }, isoProject(coord, camera))
+  let projection: { camera: IsoCamera; matrix: readonly number[] } | undefined
+  // A quiet-save handoff can replace or hide the SVG between automation calls
+  // Capture one visible canvas's camera and screen transform atomically before projecting the real touch point
+  await expect.poll(async () => {
+    // Field edits can recenter and reflow the canvas before the next physical pointer action
+    await svg.scrollIntoViewIfNeeded()
+    projection = await svg.evaluate(element => {
+      if (!element.isConnected || !element.getClientRects().length) return undefined
+      const matrix = (element as SVGSVGElement).getScreenCTM()
+      if (!matrix) return undefined
+      const [X, Y, Z] = element.getAttribute('data-camera')!.split(',').map(Number)
+      return { camera: { coord: { X: X!, Y: Y!, Z: Z! }, rotation: Number(element.getAttribute('data-rotation')) / 45, elevation: Number(element.getAttribute('data-elevation')), zoom: Number(element.getAttribute('data-zoom')) } as IsoCamera, matrix: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f] }
+    })
+    return projection !== undefined
+  }).toBe(true)
+  const [a, b, c, d, e, f] = projection!.matrix
+  return coords.map(coord => {
+    const point = isoProject(coord, projection!.camera)
+    return { x: a! * point.x + c! * point.y + e!, y: b! * point.x + d! * point.y + f! }
+  })
 }
 const BRUSH_SOURCE = addVoxelPlatform(newMapProject(ID, '2026-01-01T00:00:00.000Z'), { coord: { X: -12, Y: 140, Z: 4 }, width: 1, depth: 1, biomeId: 1, voxelId: 9, lastNativeEntityId: 3824, knownVoxelIds: [9] })
 async function openBrush(page: Page) {
@@ -353,14 +371,19 @@ test('paints floating blocks on a construction plane without adding spacers or c
   await expect(page.getByRole('button', { name: 'Undo map edit', exact: true })).toBeDisabled()
   const gesture = await pointerGesture(page, testInfo.project.name === 'mobile')
   const list = page.locator('.map-editor-placement-list button')
-  const start = await scenePoint(page, { X: .25, Y: 140, Z: .25 })
   // The visible reference outline must not constrain the construction plane's brush area
-  const end = await scenePoint(page, { X: 7.25, Y: 140, Z: .25 })
+  const stroke = [{ X: .25, Y: 140, Z: .25 }, { X: 7.25, Y: 140, Z: .25 }]
+  let [start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The brush stroke needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y)
   await expect(page.getByText('8 blocks in this stroke.', { exact: false })).toBeVisible()
   await expect(list).toHaveCount(0)
   await gesture.cancel()
+  await expect(page.getByText('8 blocks in this stroke.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
+  // Cancellation can settle a quiet save, so derive both retry endpoints from the same current camera
+  ;[start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The retried brush stroke needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
   await expect(list).toHaveCount(8)
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
@@ -401,7 +424,7 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   const list = page.locator('.map-editor-placement-list button')
   await svg.focus(); await page.keyboard.press('f')
   await expect(page.getByRole('button', { name: 'Voxel platform', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('spinbutton', { name: 'Platform depth Z', exact: true }).fill('3')
+  await page.getByRole('textbox', { name: 'Platform depth Z', exact: true }).fill('3')
   const undo = page.getByRole('button', { name: 'Undo map edit', exact: true })
   const redo = page.getByRole('button', { name: 'Redo map edit', exact: true })
   await expect(page.locator('.iso-toolbar .map-editor-history button')).toHaveCount(2)
@@ -438,10 +461,10 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   // Changing dimensions invalidates the captured footprint rather than applying a different rectangle
   start = await scenePoint(page, { X: .25, Y: 99, Z: .25 })
   await gesture.start(start.x, start.y)
-  await page.getByRole('spinbutton', { name: 'Platform width X', exact: true }).fill('3')
+  await page.getByRole('textbox', { name: 'Platform width X', exact: true }).fill('3')
   await gesture.end()
   await expect(list).toHaveCount(0)
-  const height = page.getByRole('spinbutton', { name: 'Placement height Y', exact: true })
+  const height = page.getByRole('textbox', { name: 'Placement height Y', exact: true })
   await height.fill('140')
   start = await scenePoint(page, { X: .25, Y: 140, Z: .25 })
   await gesture.start(start.x, start.y); await gesture.end()
@@ -519,7 +542,7 @@ test('cancels brush gestures on Escape and camera changes, and recovers failed s
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
       const request = put.apply(this, args)
-      if (this.transaction.db.name === 'crykit-mod-inspector-v1' && sessionStorage.getItem('synthetic-reject-brush-write') === 'true') this.transaction.abort()
+      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-brush-write') === 'true') { sessionStorage.setItem('synthetic-reject-brush-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })
@@ -546,6 +569,7 @@ test('cancels brush gestures on Escape and camera changes, and recovers failed s
   const nextEnd = await scenePoint(page, { X: -7.5, Y: 141, Z: 4.5 })
   await gesture.start(nextStart.x, nextStart.y); await gesture.move(nextEnd.x, nextEnd.y); await gesture.end()
   await expect(page.getByRole('alert')).toContainText('Draft is not saved')
+  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-reject-brush-write-fired'))).toBe('true')
   const recovery = await download(page, 'Download unsaved draft for recovery')
   expect(JSON.parse(recovery).Entities).toHaveLength(6)
   await page.evaluate(() => sessionStorage.removeItem('synthetic-reject-brush-write'))
@@ -560,7 +584,7 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await page.getByRole('button', { name: 'New map mod', exact: true }).click()
   await expectMap(page)
   await page.getByRole('button', { name: 'Voxel platform', exact: true }).click()
-  await page.getByRole('spinbutton', { name: 'Placement height Y', exact: true }).fill('100')
+  await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
   await page.getByRole('button', { name: 'Choose destination on map', exact: true }).click()
   const viewport = page.locator('.map-editor .world-map-viewport')
   await viewport.scrollIntoViewIfNeeded()
@@ -569,18 +593,18 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await page.mouse.down()
   await page.mouse.move(rect.x + rect.width / 2 + 30, rect.y + rect.height / 2, { steps: 3 })
   await page.mouse.up()
-  await expect(page.getByRole('spinbutton', { name: 'Placement X', exact: true })).toHaveValue('0')
+  await expect(page.getByRole('textbox', { name: 'Placement X', exact: true })).toHaveValue('0')
   await expect(page.getByRole('button', { name: 'Cancel destination pick', exact: true })).toBeVisible()
   // Aim at the native cell's center with fractional CSS coordinates, including the viewport border
   const terrain = (await page.locator('.map-editor .world-map-terrain').boundingBox())!
   await page.mouse.click(terrain.x + terrain.width / 2 + terrain.width / worldMap.bounds.width / 2, terrain.y + terrain.height / 2 + terrain.height / worldMap.bounds.height / 2)
-  await expect(page.getByRole('spinbutton', { name: 'Placement X', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.x + worldMap.bounds.width / 2)))
-  await expect(page.getByRole('spinbutton', { name: 'Placement Z', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.z + worldMap.bounds.height / 2)))
-  await expect(page.getByRole('spinbutton', { name: 'Placement height Y', exact: true })).toHaveValue('100')
+  await expect(page.getByRole('textbox', { name: 'Placement X', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.x + worldMap.bounds.width / 2)))
+  await expect(page.getByRole('textbox', { name: 'Placement Z', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.z + worldMap.bounds.height / 2)))
+  await expect(page.getByRole('textbox', { name: 'Placement height Y', exact: true })).toHaveValue('100')
   await expect(page.getByRole('button', { name: 'Choose destination on map', exact: true })).toBeVisible()
-  await page.getByRole('spinbutton', { name: 'Placement X', exact: true }).fill('-12')
-  await page.getByRole('spinbutton', { name: 'Placement height Y', exact: true }).fill('100')
-  await page.getByRole('spinbutton', { name: 'Placement Z', exact: true }).fill('4')
+  await page.getByRole('textbox', { name: 'Placement X', exact: true }).fill('-12')
+  await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
+  await page.getByRole('textbox', { name: 'Placement Z', exact: true }).fill('4')
   await page.getByRole('combobox', { name: 'Block biome', exact: true }).selectOption('1')
   await page.getByRole('button', { name: 'Add voxel platform', exact: true }).click()
   const placements = page.locator('.map-editor-placement-list button')
@@ -590,7 +614,7 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await expect(placements).toHaveCount(0)
   await page.getByRole('button', { name: 'Redo map edit', exact: true }).click()
   await expect(placements).toHaveCount(4)
-  expect(JSON.parse(await download(page, 'Download original')).Entities).toEqual([])
+  expect(JSON.parse(await download(page, 'Download original text')).Entities).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('map-editor-platform.png'), fullPage: true })
   const exported = JSON.parse(await exportDraft(page))
@@ -601,9 +625,16 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   const id = await files.locator('option').filter({ hasText: 'map-placements.json' }).getAttribute('value')
   await files.selectOption(id!)
   await page.getByRole('tab', { name: 'Map Editor', exact: true }).click()
+  // Presentation and operative history belong to the durable owned form, including after a full reload
+  await expect(page.getByRole('button', { name: 'World map overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Isometric', exact: true }).click()
   await expectMap(page)
   await expect(placements).toHaveCount(4)
-  await expect(page.getByRole('button', { name: 'Undo map edit', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Undo map edit', exact: true }).click()
+  await expect(placements).toHaveCount(0)
+  await page.getByRole('button', { name: 'Redo map edit', exact: true }).click()
+  await expect(placements).toHaveCount(4)
+  expect(JSON.parse(await exportDraft(page))).toEqual(exported)
 })
 
 test('moves imported treasure without losing unknown fields and restores exact export through undo', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -627,7 +658,7 @@ test('retains failed map saves for recovery and retries the exact authored draft
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
       const request = put.apply(this, args)
-      if (this.transaction.db.name === 'crykit-mod-inspector-v1' && sessionStorage.getItem('synthetic-reject-map-write') === 'true') this.transaction.abort()
+      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-map-write') === 'true') { sessionStorage.setItem('synthetic-reject-map-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })
@@ -635,6 +666,7 @@ test('retains failed map saves for recovery and retries the exact authored draft
   await page.evaluate(() => sessionStorage.setItem('synthetic-reject-map-write', 'true'))
   await moveTreasure(page)
   await expect(page.getByRole('alert')).toContainText('Draft is not saved')
+  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-reject-map-write-fired'))).toBe('true')
   expect(await download(page, 'Download unsaved draft for recovery')).toBe(SOURCE.replace('"X":-12,"Y":99,"Z":4', '"X":-10,"Y":100,"Z":3'))
   await expect(page.getByRole('button', { name: 'New map mod', exact: true })).toBeDisabled()
   await page.evaluate(() => sessionStorage.removeItem('synthetic-reject-map-write'))
@@ -651,6 +683,7 @@ test('loads the map editor and exports its saved draft after offline preparation
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await settings.getByRole('checkbox', { name: 'Maps', exact: true }).check()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -754,14 +787,14 @@ test('authors precise platform coordinates and explicitly chooses native surface
   await page.getByRole('button', { name: 'New map mod', exact: true }).click()
   await expectMap(page)
   await page.getByRole('button', { name: 'Voxel platform', exact: true }).click()
-  await page.getByRole('spinbutton', { name: 'Placement X', exact: true }).fill('-11')
-  await page.getByRole('spinbutton', { name: 'Placement height Y', exact: true }).fill('100')
-  await page.getByRole('spinbutton', { name: 'Placement Z', exact: true }).fill('4')
-  await page.getByRole('spinbutton', { name: 'Platform width X', exact: true }).fill('1')
-  await page.getByRole('spinbutton', { name: 'Platform depth Z', exact: true }).fill('1')
+  await page.getByRole('textbox', { name: 'Placement X', exact: true }).fill('-11')
+  await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
+  await page.getByRole('textbox', { name: 'Placement Z', exact: true }).fill('4')
+  await page.getByRole('textbox', { name: 'Platform width X', exact: true }).fill('1')
+  await page.getByRole('textbox', { name: 'Platform depth Z', exact: true }).fill('1')
   await expect(page.locator('.iso-canvas')).toHaveAttribute('data-camera', '-11,100,4')
-  await expect(page.getByRole('spinbutton', { name: 'Placement X', exact: true })).toHaveValue('-11')
-  await expect(page.getByRole('spinbutton', { name: 'Placement height Y', exact: true })).toHaveValue('100')
+  await expect(page.getByRole('textbox', { name: 'Placement X', exact: true })).toHaveValue('-11')
+  await expect(page.getByRole('textbox', { name: 'Placement height Y', exact: true })).toHaveValue('100')
   await expect(page.locator('.map-editor-placement-list button')).toHaveCount(0)
   await page.getByRole('button', { name: 'Use mapped surface height', exact: true }).click()
   await expect(page.locator('.iso-preview-status')).toContainText('Aligned with mapped surface')

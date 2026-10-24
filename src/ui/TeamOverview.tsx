@@ -1,4 +1,6 @@
+import { withoutRetainedMechanics } from '../domain/retained-selections'
 import { useState } from 'react'
+import { teamMemberName } from '../domain/team-checkpoints'
 import { sameBuildBehavior } from '../domain/build-behavior'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { resolveGameRules } from '../domain/game-rules'
@@ -11,7 +13,7 @@ import { Badge } from './components'
 import { subCommandLabel } from './definition-fields'
 import { DefinitionArtwork } from './GameIcon'
 import { Icon, type IconName } from './icons'
-import { entityName, resolveEntity } from './model'
+import { entityName, resolveEntity, resolveCalculationEntity } from './model'
 import { newerTeamCheckpoint, reviewTeam } from './TeamReview'
 
 interface Props {
@@ -53,14 +55,16 @@ export function teamSetupStatus(slots: readonly (BuildRevisionId | null)[], loca
 
 function TeamMemberCard({ id, index, localData, catalogs, compact = false, showSetup, layout, check }: MemberProps) {
   const revision = id ? localData.buildRevisions[id] : undefined
-  const build = revision ? localData.builds[revision.buildId] : undefined
-  const setup = revision ? localData.gameSetups[revision.gameSetupRevisionId] : undefined
-  const slotsForBuild = setup?.slots.length ? setup.slots : SUGGESTED_BUILD_SLOTS
+  const memberName = id ? teamMemberName(localData, id, `Team member ${index + 1}`) : undefined
+  const sourceSetup = revision ? localData.gameSetups[revision.gameSetupRevisionId] : undefined
+  // Slot mechanics use checkpoint pins even when the saved setup carries a different lock
+  const setup = sourceSetup && revision ? { ...sourceSetup, catalogLock: revision.catalogLock } : undefined
+  const slotsForBuild = setup?.slots ?? SUGGESTED_BUILD_SLOTS
   const mainHandSlot = slotsForBuild.find(slot => equipmentRole(slot) === 'mainHand')
   const offHandSlot = slotsForBuild.find(slot => equipmentRole(slot) === 'offHand')
   const mainHand = mainHandSlot ? revision?.content.equipment[mainHandSlot.id] : undefined
   const offHand = offHandSlot ? revision?.content.equipment[offHandSlot.id] : undefined
-  const mainHandDefinition = mainHand ? resolveEntity(localData, catalogs, mainHand.ref) : undefined
+  const mainHandDefinition = mainHand && revision ? withoutRetainedMechanics(revision.content, ref => resolveCalculationEntity(localData, catalogs, ref, setup))(mainHand.ref) : undefined
   // A two-handed item can occupy the off hand through a shared allocation or an empty slot
   const offHandOccupied = mainHandDefinition && equipmentFacts(mainHandDefinition).twoHanded === true && (!offHand || Boolean(offHand.allocationId && offHand.allocationId === mainHand?.allocationId))
   const primaryClass = revision?.content.primaryClass
@@ -69,12 +73,13 @@ function TeamMemberCard({ id, index, localData, catalogs, compact = false, showS
   const commandName = command ? subCommandLabel({ record: command, name: command.name }) : secondaryClass ? entityName(localData, catalogs, secondaryClass) : undefined
   const newer = revision ? newerTeamCheckpoint(localData, revision) : undefined
   const MemberHeading = compact ? 'h3' : 'h2'
+  if (setup?.publicSourceContext && revision) return <li className="team-overview__member"><section aria-label={`Team slot ${index + 1} overview`}><h3>{memberName ?? `Slot ${index + 1}`}</h3><BuildLoadoutSummary content={revision.content} localData={localData} catalogs={catalogs} gameSetup={setup}/></section></li>
   return <li className="team-overview__member">
     <section aria-label={`Team slot ${index + 1} overview`}>
       <div className="team-overview__hero">
         <span aria-hidden="true" className="team-overview__portrait">{primaryClass ? <DefinitionArtwork catalogs={catalogs} compact={false} localData={localData} value={primaryClass}/> : <Icon name="character"/>}</span>
         <div className="team-overview__identity">
-          <MemberHeading>{build?.title ?? (id ? 'Checkpoint unavailable' : 'Unassigned member')}</MemberHeading>
+          <MemberHeading>{revision ? memberName : id ? 'Checkpoint unavailable' : 'Unassigned member'}</MemberHeading>
           {revision ? <p><strong>{primaryClass ? entityName(localData, catalogs, primaryClass) : 'Class not selected'}</strong>{commandName && <span> · {commandName}</span>}</p> : <p>{id ? 'Review this slot in Edit Team' : 'Choose a checkpoint in Edit Team'}</p>}
         </div>
         <span aria-label={`Slot ${index + 1}`} className="team-overview__slot">{String(index + 1).padStart(2, '0')}</span>
@@ -119,7 +124,7 @@ export function TeamOverview({ slots, localData, catalogs, compact = false }: Pr
     <button disabled={page === 0} onClick={() => setPageIndex(page - 1)} title="Previous member" type="button"><Icon name="arrow-left"/><span className="sr-only">Previous member</span></button>
     <div className="team-overview__page-links">{slots.map((id, index) => {
       const revision = id ? localData.buildRevisions[id] : undefined
-      const label = revision ? localData.builds[revision.buildId]?.title ?? 'Build' : 'Empty'
+      const label = revision && id ? teamMemberName(localData, id, `Team member ${index + 1}`) : 'Empty'
       return <button aria-current={page === index ? 'page' : undefined} key={index} onClick={() => setPageIndex(index)} type="button">{index + 1}. {label}</button>
     })}</div>
     <button disabled={page === slots.length - 1} onClick={() => setPageIndex(page + 1)} title="Next member" type="button"><Icon name="arrow-right"/><span className="sr-only">Next member</span></button>

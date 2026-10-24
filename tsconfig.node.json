@@ -15,5 +15,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "playwright*.config.ts", "scripts/*.ts", "e2e/**/*.ts"]
+  "include": ["vite.config.ts", "vite.accounts.config.ts", "playwright*.config.ts", "scripts/*.ts", "e2e/**/*.ts"],
+  "exclude": ["e2e/accounts/**"]
 }

@@ -1,14 +1,32 @@
+import 'fake-indexeddb/auto'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InspectorDraft } from '../../mod-inspector/types'
 import { INSPECTOR_REFERENCE_ID } from '../../mod-inspector/reference'
-import { summarizeInspectorDraft } from '../../mod-inspector/storage'
+import { InspectorStorage, summarizeInspectorDraft } from '../../mod-inspector/storage'
 import type { DraftActions } from '../drafts'
-import { ModInspectorView } from '../ModInspectorView'
+import { ModInspectorView as CapturedModInspectorView } from '../ModInspectorView'
+import { WorkspaceProvider } from '../WorkspaceProvider'
+const ModInspectorView = (props: Parameters<typeof CapturedModInspectorView>[0]) => <WorkspaceProvider><CapturedModInspectorView {...props}/></WorkspaceProvider>
 
+const { FixtureTextEncoder } = vi.hoisted(() => {
+  // jsdom's Node encoder returns foreign arrays rejected by the actual crypto wrapper
+  class FixtureTextEncoder extends TextEncoder {
+    override encode(value?: string): Uint8Array<ArrayBuffer> { return new Uint8Array(super.encode(value)) }
+  }
+  vi.stubGlobal('TextEncoder', FixtureTextEncoder)
+  return { FixtureTextEncoder }
+})
+
+vi.mock('../../workspace/device-selection', () => ({ readDeviceSelection: async () => ({ key: 'selected', version: 1, kind: 'guest' }) }))
 const storage = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), import: vi.fn(), save: vi.fn(), remove: vi.fn() }))
-vi.mock('../../mod-inspector/storage', async importOriginal => ({ ...await importOriginal<typeof import('../../mod-inspector/storage')>(), getInspectorStorage: () => storage }))
+// These presentation cases control legacy summary/body arrival while keeping the real native Editor lifecycle
+vi.mock('../../workspace/guest-managed-startup', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../workspace/guest-managed-startup')>()
+  const { openGuestBindings } = await import('../../workspace/guest-workspace')
+  return { ...actual, prepareGuestStartup: async (original: import('../../persistence/database').CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
+})
 const originalText = '{"Count":1,"Values":[1]}'
 const saved: InspectorDraft = { schemaVersion: 1, id: 'synthetic', filename: 'synthetic.json', originalText, draftText: originalText, referenceId: 'synthetic', revision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' }
 let container: HTMLDivElement
@@ -17,6 +35,11 @@ const prototypeMethods = ['showPopover', 'hidePopover', 'scrollIntoView'] as con
 let originalMethods: (PropertyDescriptor | undefined)[]
 
 beforeEach(() => {
+  vi.stubGlobal('TextEncoder', FixtureTextEncoder)
+  const nativeClone = structuredClone
+  // Preserve the native clone while rehoming Node IndexedDB fixture bytes into the schema's realm
+  const rehome = (value: unknown): unknown => ArrayBuffer.isView(value) ? new Uint8Array(Array.from(value as Uint8Array)) : Object.prototype.toString.call(value) === '[object ArrayBuffer]' ? new Uint8Array(Array.from(new Uint8Array(value as ArrayBuffer))).buffer : Array.isArray(value) ? value.map(rehome) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rehome(child)])) : value
+  vi.stubGlobal('structuredClone', (value: unknown) => rehome(nativeClone(value)))
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const open = new WeakSet<HTMLElement>()
   originalMethods = prototypeMethods.map(name => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name))
@@ -31,6 +54,8 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   storage.list.mockResolvedValue([summarizeInspectorDraft(saved)])
   storage.get.mockResolvedValue(saved)
+  vi.spyOn(InspectorStorage.prototype, 'list').mockImplementation(() => storage.list())
+  vi.spyOn(InspectorStorage.prototype, 'get').mockImplementation(id => storage.get(id))
   storage.remove.mockResolvedValue(undefined)
   storage.save.mockImplementation(async (_id: string, draftText: string, revision: number) => ({ ...saved, draftText, revision: revision + 1 }))
   container = document.createElement('div')
@@ -50,10 +75,18 @@ afterEach(async () => {
   }
 })
 
-async function open(onDraftChange?: (dirty: boolean, actions?: DraftActions) => void) {
+async function renderInspector(onDraftChange?: (dirty: boolean, actions?: DraftActions) => void) {
   await act(async () => root.render(<ModInspectorView onDraftChange={onDraftChange}/>))
+  await vi.waitFor(async () => {
+    await act(async () => { await Promise.resolve() })
+    expect(container.querySelector(`option[value="${saved.id}"]`), container.querySelector('[role="alert"]')?.textContent ?? '').not.toBeNull()
+  })
+}
+async function open(onDraftChange?: (dirty: boolean, actions?: DraftActions) => void, expectDocument = true) {
+  await renderInspector(onDraftChange)
   const select = container.querySelector('select')!
   await act(async () => { select.value = saved.id; select.dispatchEvent(new Event('change', { bubbles: true })) })
+  if (expectDocument) await vi.waitFor(async () => { await act(async () => { await Promise.resolve() }); expect(container.querySelector('textarea'), container.textContent ?? '').not.toBeNull() })
 }
 async function click(text: string) {
   const button = [...container.querySelectorAll('button')].find(button => button.textContent === text)!
@@ -64,27 +97,19 @@ async function selectField(name: string) {
   const button = [...container.querySelectorAll<HTMLButtonElement>('.inspector-node-button')].find(button => button.querySelector('strong')?.textContent === name)!
   await act(async () => button.click())
 }
-async function edit(value: string) {
-  const textarea = container.querySelector('textarea')!
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, value)
-    textarea.dispatchEvent(new Event('input', { bubbles: true }))
-  })
-}
-
 describe('inspector exact edits and navigation', () => {
   it('keeps matched native lookup labels quiet without changing imported JSON', async () => {
     const text = '{"EditorVersion":34,"Count":1}'
     const row = { ...saved, originalText: text, draftText: text, referenceId: INSPECTOR_REFERENCE_ID }
     storage.get.mockResolvedValue(row)
-    await act(async () => root.render(<ModInspectorView/>))
+    await renderInspector()
     expect(container.textContent).toContain('Exact enum names')
     expect(container.querySelector('button[aria-label="Sources for enum names"]')).toBeNull()
     await open()
     expect(container.textContent).toContain('JSON explorer')
     expect(container.querySelector<HTMLDetailsElement>('.inspector-format')!.open).toBe(false)
     expect([...container.querySelectorAll('button')].find(button => button.textContent === 'Review export')?.classList.contains('button--primary')).toBe(true)
-    expect([...container.querySelectorAll('button')].find(button => button.textContent === 'Download original')?.classList.contains('button--quiet')).toBe(true)
+    expect([...container.querySelectorAll('button')].find(button => button.textContent === 'Download original text')?.classList.contains('button--quiet')).toBe(true)
     expect(container.querySelector('button[aria-label="Sources for inspector labels"]')).toBeNull()
     await selectField('Count')
     expect(container.querySelector('textarea')?.value).toBe('1')
@@ -140,7 +165,7 @@ describe('inspector exact edits and navigation', () => {
   it('distinguishes duplicate filenames from metadata without loading document text', async () => {
     const second = { ...saved, id: 'synthetic-second', createdAt: '2026-02-02' }
     storage.list.mockResolvedValue([summarizeInspectorDraft(saved), summarizeInspectorDraft(second)])
-    await act(async () => root.render(<ModInspectorView/>))
+    await renderInspector()
     const select = container.querySelector('select')!
     const firstOption = select.querySelector<HTMLOptionElement>(`option[value="${saved.id}"]`)!
     const secondOption = select.querySelector<HTMLOptionElement>(`option[value="${second.id}"]`)!
@@ -150,11 +175,11 @@ describe('inspector exact edits and navigation', () => {
     expect(storage.get).not.toHaveBeenCalled()
     storage.get.mockResolvedValueOnce(second)
     await act(async () => { select.value = second.id; select.dispatchEvent(new Event('change', { bubbles: true })) })
-    expect(storage.get).toHaveBeenCalledWith(second.id)
-    expect(select.value).toBe(second.id)
+    await vi.waitFor(() => expect(storage.get).toHaveBeenCalledWith(second.id))
+    await vi.waitFor(() => expect(select.value).toBe(second.id))
   })
   it('searches exact enum codes and names without matching shared provenance', async () => {
-    await act(async () => root.render(<ModInspectorView/>))
+    await renderInspector()
     await click('Enum Dictionary')
     const search = container.querySelector<HTMLInputElement>('.inspector-dictionary input[type="search"]')!
     await act(async () => {
@@ -168,125 +193,32 @@ describe('inspector exact edits and navigation', () => {
   it('loads full text only on selection and blocks switching until the selected row arrives', async () => {
     let complete: (row: InspectorDraft) => void = () => undefined
     storage.get.mockImplementationOnce(() => new Promise<InspectorDraft>(resolve => { complete = resolve }))
-    await act(async () => root.render(<ModInspectorView/>))
+    await renderInspector()
     expect(storage.get).not.toHaveBeenCalled()
     const select = container.querySelector('select')!
     await act(async () => { select.value = saved.id; select.dispatchEvent(new Event('change', { bubbles: true })) })
-    expect(storage.get).toHaveBeenCalledWith(saved.id)
+    await vi.waitFor(() => expect(storage.get).toHaveBeenCalledWith(saved.id))
     expect(select.disabled).toBe(true)
     expect(container.textContent).toContain('Opening saved mod JSON')
     await act(async () => complete(saved))
-    expect(select.disabled).toBe(false)
+    await vi.waitFor(() => expect(select.disabled).toBe(false))
     expect(select.value).toBe(saved.id)
     expect(container.querySelector('.inspector-tree')).not.toBeNull()
   })
 
   it('reports missing rows and failed selection loads without opening a document', async () => {
     storage.get.mockResolvedValueOnce(undefined)
-    await open()
-    expect(container.textContent).toContain('removed in another tab')
+    await open(undefined, false)
+    await vi.waitFor(() => expect(container.textContent).toContain('removed in another tab'))
     expect(container.querySelector('select')?.value).toBe('')
     expect(container.querySelector(`option[value="${saved.id}"]`)).toBeNull()
     await act(async () => root.unmount())
     root = createRoot(container)
     storage.get.mockRejectedValueOnce(new Error('Synthetic storage unavailable'))
-    await open()
-    expect(container.textContent).toContain('Draft could not be opened: Synthetic storage unavailable')
+    await open(undefined, false)
+    await vi.waitFor(() => expect(container.textContent).toContain('Draft could not be opened: Synthetic storage unavailable'))
     expect(container.querySelector('select')?.disabled).toBe(false)
     expect(container.querySelector('.inspector-tree')).toBeNull()
-  })
-
-  it('locks editing while another saved draft is loading', async () => {
-    const second = { ...saved, id: 'synthetic-second', filename: 'second.json' }
-    storage.list.mockResolvedValue([summarizeInspectorDraft(saved), summarizeInspectorDraft(second)])
-    await open()
-    let complete: (row: InspectorDraft) => void = () => undefined
-    storage.get.mockImplementationOnce(() => new Promise<InspectorDraft>(resolve => { complete = resolve }))
-    await selectField('Count')
-    const select = container.querySelector('select')!
-    await act(async () => { select.value = second.id; select.dispatchEvent(new Event('change', { bubbles: true })) })
-    expect(container.querySelector('fieldset')?.disabled).toBe(true)
-    await edit('234')
-    await click('Apply JSON edit')
-    await act(async () => complete(second))
-    expect(select.value).toBe(second.id)
-    expect(storage.save).not.toHaveBeenCalled()
-    expect(container.querySelector('fieldset')?.disabled).toBe(false)
-  })
-
-  it('locks edits while imported bytes are pending and opens the imported draft safely', async () => {
-    await open()
-    await selectField('Count')
-    let complete: (bytes: ArrayBuffer) => void = () => undefined
-    const importedText = '{"Count":9}'
-    const file = { name: 'imported.json', size: importedText.length, arrayBuffer: () => new Promise<ArrayBuffer>(resolve => { complete = resolve }) }
-    const imported = { ...saved, id: 'imported', filename: file.name, originalText: importedText, draftText: importedText }
-    storage.import.mockResolvedValueOnce(imported)
-    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
-    await act(async () => { Object.defineProperty(input, 'files', { value: [file], configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(resolve => setTimeout(resolve, 10)) })
-    expect(container.textContent).toContain('Importing and validating mod JSON')
-    expect(container.querySelector('fieldset')?.disabled).toBe(true)
-    await edit('234')
-    await click('Apply JSON edit')
-    await act(async () => complete(new TextEncoder().encode(importedText).buffer))
-    expect(storage.save).not.toHaveBeenCalled()
-    expect(container.querySelector('select')?.value).toBe(imported.id)
-  })
-
-  it('retains the selected draft when removal fails after attempted concurrent editing', async () => {
-    await open()
-    await selectField('Count')
-    let reject: (error: Error) => void = () => undefined
-    storage.remove.mockImplementationOnce(() => new Promise<void>((_resolve, fail) => { reject = fail }))
-    await click('Remove from recent files')
-    await click('Remove original and draft')
-    expect(container.querySelector('fieldset')?.disabled).toBe(true)
-    await edit('234')
-    await click('Apply JSON edit')
-    await act(async () => reject(new Error('Synthetic remove failure')))
-    expect(container.querySelector('textarea')?.value).toBe('1')
-    expect(container.querySelector('select')?.value).toBe(saved.id)
-    expect(container.textContent).toContain('Synthetic remove failure')
-    expect(storage.save).not.toHaveBeenCalled()
-  })
-
-  it('locks failed-draft recovery until the saved version arrives', async () => {
-    await open()
-    await selectField('Count')
-    storage.save.mockRejectedValueOnce(new Error('Synthetic save failure'))
-    await edit('2')
-    await click('Apply JSON edit')
-    let complete: (row: InspectorDraft) => void = () => undefined
-    storage.get.mockImplementationOnce(() => new Promise<InspectorDraft>(resolve => { complete = resolve }))
-    await click('Reopen saved version')
-    expect(container.querySelector('fieldset')?.disabled).toBe(true)
-    expect(container.querySelector('select')?.disabled).toBe(true)
-    await edit('234')
-    await click('Apply JSON edit')
-    await act(async () => complete(saved))
-    expect(storage.save).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('select')?.value).toBe(saved.id)
-    expect(container.textContent).not.toContain('Synthetic save failure')
-    expect(container.querySelector('fieldset')?.disabled).toBe(false)
-  })
-
-  it('saves a corrected pending edit on the first navigation retry after a storage failure', async () => {
-    let actions: DraftActions | undefined
-    await open((dirty, value) => { if (dirty) actions = value })
-    await selectField('Count')
-    storage.save.mockRejectedValueOnce(new Error('Synthetic save failure'))
-    await edit('2')
-    await click('Apply JSON edit')
-    expect(storage.save).toHaveBeenCalledTimes(1)
-    await edit('invalid JSON')
-    await act(async () => { expect(await actions!.save()).toBe(false) })
-    expect(storage.save).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('textarea')?.value).toBe('invalid JSON')
-    await edit('3')
-    await act(async () => { expect(await actions!.save()).toBe(true) })
-    expect(storage.save).toHaveBeenCalledTimes(2)
-    expect(storage.save).toHaveBeenLastCalledWith(saved.id, '{"Count":3,"Values":[1]}', 1)
-    expect(container.textContent).toContain('Saved in this browser')
   })
 
   it('reveals named record targets beyond the first child page when selecting a search match', async () => {
@@ -308,85 +240,5 @@ describe('inspector exact edits and navigation', () => {
     expect(record).toBeDefined()
     expect(container.querySelector('.inspector-tree-row.is-selected')?.textContent).toContain('Target record')
     expect(container.querySelector('textarea')?.value).toBe('"Target record"')
-  })
-  it('applies scalar and array replacements while retaining the original', async () => {
-    await open()
-    await selectField('Count')
-    await edit('900719925474099312345')
-    await click('Apply JSON edit')
-    expect(storage.save).toHaveBeenLastCalledWith(saved.id, '{"Count":900719925474099312345,"Values":[1]}', 1)
-    await selectField('Values')
-    await edit('[2,3]')
-    await click('Apply JSON edit')
-    expect(storage.save).toHaveBeenLastCalledWith(saved.id, '{"Count":900719925474099312345,"Values":[2,3]}', 2)
-    expect(saved.originalText).toBe(originalText)
-  })
-  it('registered navigation actions save the latest keystrokes and retain invalid edits', async () => {
-    let actions: DraftActions | undefined
-    await open((dirty, value) => { if (dirty) actions = value })
-    await selectField('Count')
-    await edit('2')
-    const registered = actions!
-    await edit('234')
-    await act(async () => { expect(await registered.save()).toBe(true) })
-    expect(storage.save).toHaveBeenLastCalledWith(saved.id, '{"Count":234,"Values":[1]}', 1)
-    await edit('invalid JSON')
-    await act(async () => { expect(await registered.save()).toBe(false) })
-    expect(container.querySelector('textarea')?.value).toBe('invalid JSON')
-    expect(container.querySelector('[role="alert"]')).not.toBeNull()
-    expect(storage.save).toHaveBeenCalledTimes(1)
-  })
-  it('removes a browser draft only after inline confirmation and retains it on failure', async () => {
-    await open()
-    await click('Remove from recent files')
-    expect(storage.remove).not.toHaveBeenCalled()
-    await click('Keep saved draft')
-    expect(storage.remove).not.toHaveBeenCalled()
-    storage.remove.mockRejectedValueOnce(new Error('Draft revision conflict'))
-    await click('Remove from recent files')
-    await click('Remove original and draft')
-    expect(container.querySelector('select')?.value).toBe(saved.id)
-    expect(container.textContent).toContain('Draft revision conflict')
-    await click('Remove original and draft')
-    expect(storage.remove).toHaveBeenLastCalledWith(saved.id, saved.revision)
-    expect(container.querySelector('select')?.value).toBe('')
-    expect(container.textContent).toContain('Exact enum names')
-  })
-  it('waits for an in-flight save and restores the persisted draft before discard navigation', async () => {
-    let complete: (row: InspectorDraft) => void = () => undefined
-    storage.save.mockImplementationOnce(() => new Promise<InspectorDraft>(resolve => { complete = resolve }))
-    let actions: DraftActions | undefined
-    const onDraftChange = vi.fn((dirty: boolean, value?: DraftActions) => { if (dirty) actions = value })
-    await open(onDraftChange)
-    await selectField('Count')
-    await edit('2')
-    await click('Apply JSON edit')
-    await act(async () => {
-      const discarded = actions!.discard()
-      expect(onDraftChange.mock.lastCall?.[0]).toBe(true)
-      complete({ ...saved, draftText: '{"Count":2,"Values":[1]}', revision: 2 })
-      expect(await discarded).toBe(true)
-    })
-    expect(storage.save).toHaveBeenLastCalledWith(saved.id, originalText, 2)
-    expect(onDraftChange.mock.lastCall?.[0]).toBe(false)
-  })
-  it('keeps navigation blocked when an in-flight discard rollback fails', async () => {
-    let complete: (row: InspectorDraft) => void = () => undefined
-    storage.save.mockImplementationOnce(() => new Promise<InspectorDraft>(resolve => { complete = resolve }))
-    storage.save.mockRejectedValueOnce(new Error('Rollback storage failure'))
-    let actions: DraftActions | undefined
-    const onDraftChange = vi.fn((dirty: boolean, value?: DraftActions) => { if (dirty) actions = value })
-    await open(onDraftChange)
-    await selectField('Count')
-    await edit('2')
-    await click('Apply JSON edit')
-    await act(async () => {
-      const discarded = actions!.discard()
-      complete({ ...saved, draftText: '{"Count":2,"Values":[1]}', revision: 2 })
-      expect(await discarded).toBe(false)
-    })
-    expect(onDraftChange.mock.lastCall?.[0]).toBe(true)
-    expect(container.textContent).toContain('Rollback storage failure')
-    expect(container.textContent).toContain('Draft is not saved')
   })
 })

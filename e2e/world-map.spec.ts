@@ -1,10 +1,8 @@
-import { skipInitialModSetup } from './local-data-helpers'
+import { skipInitialModSetup, readLocalData as storedData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import type { LocalData } from '../src/domain/types'
 import { importSyntheticLibrary } from './mod-library-fixtures'
-
 
 const SYNTHETIC_MAP = { ID: 'synthetic-map-overlay', Title: 'Synthetic Map', Version: '1', EditorVersion: 34, Equipment: [{ ID: 9000, Name: 'Synthetic map blade', EquipmentType: 0, StatMods: [] }], Entities: [{ ID: 900000, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 2, LootValue: 9000 } }] }
 async function previewSyntheticMap(page: Page) {
@@ -15,19 +13,6 @@ async function previewSyntheticMap(page: Page) {
 async function prepareSyntheticMap(page: Page) {
   await importSyntheticLibrary(page, false, [SYNTHETIC_MAP])
   await page.goto('/#/map'); await expectTerrain(page); await previewSyntheticMap(page)
-}
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
 }
 
 async function expectTerrain(page: Page) {
@@ -252,6 +237,7 @@ test('Synthetic Map locations retain source badges, filters, reference links, an
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await settings.getByRole('checkbox', { name: 'Maps', exact: true }).check()
   const prepare = settings.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(settings)

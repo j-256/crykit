@@ -4,9 +4,12 @@ import { catalogArtwork, classWorldArtwork, type CatalogArtwork as Artwork } fro
 import { Icon, type IconName } from './icons'
 import { Sources } from './Sources'
 import './wiki-sprite.css'
+import { PrivateArtwork } from './mods/PrivateArtwork'
+import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 
 interface Props {
   readonly catalogId: string
+  readonly catalogRevisionId?: string
   readonly entity: Pick<CatalogEntity, 'id' | 'kind' | 'name'> & Partial<Pick<CatalogEntity, 'legacy' | 'fields'>>
   readonly detailed?: boolean
   readonly compact?: boolean
@@ -53,9 +56,10 @@ function ArtworkImage({ artwork, entity, detailed, compact, maximumScale }: { re
   return <span className={`wiki-sprite${detailed ? ' wiki-sprite--detail' : ''}${compact ? ' wiki-sprite--compact' : ''}`} data-artwork-source={artwork.source}><img alt={detailed ? `${entity.name} ${artworkType} artwork` : ''} decoding="async" height={Math.round(artwork.asset.height * scale)} loading={detailed ? 'eager' : 'lazy'} onError={() => setFailed(true)} src={artwork.url} style={style} width={Math.round(artwork.asset.width * scale)}/></span>
 }
 
-export function CatalogArtwork({ catalogId, entity, detailed = false, compact = false }: Props) {
+export function CatalogArtwork({ catalogId, catalogRevisionId, entity, detailed = false, compact = false }: Props) {
   const artwork = catalogArtwork(catalogId, entity)
-  return artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
+  const fallback = artwork ? <ArtworkImage artwork={artwork} compact={compact} detailed={detailed} entity={entity} key={artwork.asset.file}/> : <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
+  return entity.fields?.[MOD_PROJECT_FIELD] ? <PrivateArtwork catalogId={catalogId} catalogRevisionId={catalogRevisionId} compact={compact} detailed={detailed} entity={entity as Pick<CatalogEntity, 'id' | 'kind' | 'name' | 'fields'>} fallback={fallback}/> : fallback
 }
 
 export function ClassWorldArtwork({ catalogId, entity, detailed = false, compact = false }: Props) {

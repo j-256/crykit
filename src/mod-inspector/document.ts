@@ -306,6 +306,12 @@ export function parseDocument(text: string): ParsedDocument {
   return new DocumentParser(text, true).parse(true)
 }
 
+// Selected values use the same lossless grammar and limits without requiring a mod's object root
+// A fragment cannot introduce a BOM inside the enclosing document
+export function parseJsonFragment(text: string): ParsedDocument {
+  return new DocumentParser(text, false).parse(false)
+}
+
 /** Counts source-backed children without creating their nodes */
 export function childCount(node: JsonNode): number {
   if (node.kind !== 'object' && node.kind !== 'array') return 0
@@ -352,7 +358,7 @@ export function replaceJsonValue(text: string, path: JsonPath, replacementJson: 
   const parsed = parseDocument(text)
   const target = nodeAtPath(parsed.root, path)
   if (!target) throw new Error(`Cannot edit missing value at ${formatJsonPath(path)}`)
-  new DocumentParser(replacementJson, false).parse(false)
+  parseJsonFragment(replacementJson)
   const result = text.slice(0, target.start) + replacementJson + text.slice(target.end)
   parseDocument(result)
   return result

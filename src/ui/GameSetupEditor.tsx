@@ -148,7 +148,7 @@ export function GameSetupEditor({ localData, current, focus, blocked, saveError,
   const [fieldsKey, setFieldsKey] = useState(0)
   const formId = useId()
   const changed = !sameValue(initial, draft)
-  const update = (values: Partial<GameSetupDraft>) => { setDraft(value => ({ ...value, ...values })); setError(undefined); setDiscardRequested(false) }
+  const update = (values: Partial<GameSetupDraft>) => { onDirty(true); setDraft(value => ({ ...value, ...values })); setError(undefined); setDiscardRequested(false) }
   const incompatibleOverrides = gameSetupOverrideConflicts(localData, draft, current)
   useEffect(() => { onDirty(changed); return () => onDirty(false) }, [changed, onDirty])
   useEffect(() => {

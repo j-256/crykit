@@ -1,4 +1,5 @@
 export interface DraftActions {
+  readonly owner?: symbol
   readonly save: () => Promise<boolean>
   readonly discard: () => void | boolean | Promise<void | boolean>
 }

@@ -1,3 +1,7 @@
+import { DEFAULT_CATALOG } from '../src/catalog/bundled'
+import type { LocalData } from '../src/domain/types'
+import { createSampleLocalData } from '../src/domain/sample-data'
+import { waitForPlannerReady } from './local-data-helpers'
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { unzipSync } from 'fflate'
@@ -20,24 +24,39 @@ test('reference entries are read-only and offer source issue reporting', { tag: 
 
 test('unused correction metadata cannot change source values or break planner backups', async ({ page }) => {
   const path = referencePath('base:equipment:160')
-  await page.goto(path)
-  await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
-  await page.evaluate(() => new Promise<void>((resolve, reject) => {
-    const request = indexedDB.open('crykit')
+  // Obsolete metadata belongs to the supported legacy source, seeded before managed startup captures it
+  await page.goto('/icon.svg')
+  await page.evaluate(serialized => new Promise<void>((resolve, reject) => {
+    const localData = JSON.parse(serialized) as LocalData
+    const HISTORICAL_NATIVE_DATABASE_VERSION = 40
+    const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
+    request.onupgradeneeded = () => {
+      const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
+      for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
+        const store = request.result.createObjectStore(name, { keyPath })
+        for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+      }
+    }
     request.onerror = () => reject(request.error)
     request.onsuccess = () => {
       const database = request.result
-      const transaction = database.transaction('meta', 'readwrite')
+      const transaction = database.transaction(['localDatas', 'meta'], 'readwrite')
+      transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
       transaction.objectStore('meta').put({ key: 'catalog-corrections-v1', value: '{obsolete and unreadable' })
       transaction.oncomplete = () => { database.close(); resolve() }
       transaction.onerror = () => { database.close(); reject(transaction.error) }
     }
-  }))
+  }), JSON.stringify(createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')))
+  await page.goto(path)
+  await waitForPlannerReady(page)
+  await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await page.goto('/#/settings/data')
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await page.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await page.getByText("What's included in a backup?", { exact: true }).click()
+  await page.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const file = await (await download).path()
   if (!file) throw new Error('The planner backup download did not finish')
   const archive = unzipSync(await readFile(file))

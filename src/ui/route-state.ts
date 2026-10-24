@@ -1,3 +1,4 @@
+import { readSelectionPreference, writeSelectionPreference } from '../workspace/profile-selection'
 import { normalizeWeaponType, type WeaponType } from '../domain/skill-weapons'
 import type { CatalogEntityKind, CatalogRef } from '../domain/types'
 import { decodeReferenceEntityKey, encodeReferenceEntityKey } from './search'
@@ -205,7 +206,7 @@ export function readReferenceRouteState(): ReferenceRouteState {
   if (typeof window === 'undefined') return DEFAULT_REFERENCE_ROUTE_STATE
   let stored: string | null = null
   try {
-    stored = window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY)
+    stored = readSelectionPreference(REFERENCE_ROUTE_STORAGE_KEY)
   } catch {
     // Browsers can disable session storage while history navigation remains usable
   }
@@ -216,7 +217,7 @@ export function commitReferenceRouteState(value: ReferenceRouteState, mode: 'pus
   const state = normalizeReferenceRouteState(value)
   if (typeof window === 'undefined') return state
   try {
-    if (!state.libraryMod) window.sessionStorage.setItem(REFERENCE_ROUTE_STORAGE_KEY, JSON.stringify(state))
+    if (!state.libraryMod) writeSelectionPreference(REFERENCE_ROUTE_STORAGE_KEY, JSON.stringify(state))
   } catch {
     // Route state remains in browser history when session storage is unavailable
   }
@@ -300,7 +301,7 @@ export function readInventoryRouteState(): InventoryRouteState {
   if (typeof window === 'undefined') return DEFAULT_INVENTORY_ROUTE_STATE
   let stored: string | null = null
   try {
-    stored = window.sessionStorage.getItem(INVENTORY_ROUTE_STORAGE_KEY)
+    stored = readSelectionPreference(INVENTORY_ROUTE_STORAGE_KEY)
   } catch {
     // Browser history still carries inventory filters when session storage is unavailable
   }
@@ -311,7 +312,7 @@ export function commitInventoryRouteState(value: InventoryRouteState, mode: 'pus
   const state = normalizeInventoryRouteState(value)
   if (typeof window === 'undefined') return state
   try {
-    window.sessionStorage.setItem(INVENTORY_ROUTE_STORAGE_KEY, JSON.stringify(state))
+    writeSelectionPreference(INVENTORY_ROUTE_STORAGE_KEY, JSON.stringify(state))
   } catch {
     // Route state remains in browser history when session storage is unavailable
   }

@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from './retained-selections'
 import modifierData from '../calculations/native-modifiers-v1.json' with { type: 'json' }
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_RULES } from './calculation-rules'
 import { calculationModResolver } from './calculation-mods'
@@ -216,7 +217,7 @@ function automaticStatusCount(status: AutomaticStatus, modifiers: EffectiveModif
 }
 
 export function collectEffectiveModifiers(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: DefinitionResolver, options: EffectiveModifierOptions = {}): EffectiveModifiers {
-  const scope = calculationModResolver(sourceResolve)
+  const scope = calculationModResolver(withoutRetainedMechanics(content, sourceResolve))
   const resolve = scope.resolve
   const mode = options.mode ?? content.calculation?.pcMode ?? 'standard'
   const level = content.calculation?.level ?? null
@@ -261,6 +262,7 @@ export function collectEffectiveModifiers(content: BuildRevisionContent, slots: 
     }
   }
   innates(content.primaryClass)
+  // Automatic class innates and equipped passives are separate native contributions, even when they resolve to the same source
   for (const selection of content.passives) records.push({ record: nativeStatRecord(selection.ref, 'passive', resolve, mode) ?? {}, ref: selection.ref, label: resolve(selection.ref)?.name ?? 'Equipped passive', group: 'passive' })
   if (records.some(source => source.group === 'passive' && Array.isArray(source.record.StatMods) && source.record.StatMods.some(mod => jsonRecord(mod) && mod.Tag === PC_RULES.equipment.secondaryInnatesTag))) innates(content.secondaryClass)
   const activeIDs = new Set<unknown>()

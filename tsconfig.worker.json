@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "target": "ES2023",
+    "lib": [
+      "ES2023"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "exclude": ["worker/testing/local-save-performance.tsx", "worker/testing/local-save-workload.ts", "worker/testing/account-ui.tsx", "worker/testing/account-workspace.tsx", "worker/testing/crypto-proof-client.ts", "worker/testing/crypto-proof-worker.ts"],
+  "include": [
+    "worker",
+    "src/account/protocol.ts",
+    ".account-tests/worker-configuration.d.ts"
+  ]
+}

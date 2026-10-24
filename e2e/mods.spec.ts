@@ -2,7 +2,7 @@ import { STARTER_CATALOG } from '../src/catalog/starter'
 import { referenceObservationFixture } from '../src/catalog/mod.test-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData, choosePlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -35,21 +35,23 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const bytes = await readFile((await (await downloaded).path())!)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(unzipSync(bytes)['bundle.json'])) as { localData: LocalData }).localData
 }
 
-async function importBackup(page: Page, bytes: Uint8Array) {
+async function importBackup(page: Page, bytes: Uint8Array, playthroughLabel: string) {
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
   const manifest = JSON.parse(strFromU8(unzipSync(bytes)['manifest.json']!)) as { formatVersion: string }
   await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText(`native-backup-${manifest.formatVersion}`, { exact: true })).toBeVisible({ timeout: NATIVE_BACKUP_PREVIEW_TIMEOUT_MS })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, playthroughLabel)
 }
 
 async function search(page: Page, query: string) {
@@ -67,7 +69,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   localData = { ...localData, changes: [] }
   await page.goto('/')
   await skipInitialModSetup(page)
-  await importBackup(page, backup(localData))
+  await importBackup(page, backup(localData), selectedPlaythrough(localData).label)
   await page.goto(`/#/characters/${CHARACTER}/current`)
   const help = page.getByRole('region', { name: 'Equipment', exact: true }).locator('.recorded-mod').filter({ has: page.locator('[data-mod-badge="Equipment Expansion"]') })
   const summary = help.locator('summary')
@@ -111,7 +113,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   localData = { ...localData, changes: [] }
   await page.goto('/')
   await skipInitialModSetup(page)
-  await importBackup(page, backup(localData))
+  await importBackup(page, backup(localData), selectedPlaythrough(localData).label)
   let palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -183,15 +185,17 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const bytes = await readFile((await (await downloaded).path())!)
   const saved = (JSON.parse(strFromU8(unzipSync(bytes)['bundle.json'])) as { localData: LocalData }).localData
   expect(selectedPlaythrough(saved).characters).toEqual(selectedPlaythrough(localData).characters)
   expect(saved.gameSetups[saved.planningGameSetupRevisionId!].disabledMods).toEqual(known(['Doge Shield']))
   expect(saved.gameSetups[localData.planningGameSetupRevisionId!].mods).toEqual(known(['Doge Shield']))
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await importBackup(page, bytes)
+  await importBackup(page, bytes, selectedPlaythrough(saved).label)
   await page.reload()
+  await waitForPlannerReady(page)
   palette = await search(page, 'Doge Shield')
   await expect(palette.locator('.universal-search__result')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -272,7 +276,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -289,6 +293,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await applySavedGameSetup(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()
+  await waitForPlannerReady(page)
   panel = await dataPanel(page)
   await openCurrentGameSetup(panel)
   await openSwitchModPacks(panel)
@@ -312,7 +317,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   localData = setPlaythroughGameSetup(localData, { gameSetupRevisionId: localData.planningGameSetupRevisionId!, now: TEST_NOW })
   await page.goto('/')
   await skipInitialModSetup(page)
-  await importBackup(page, backup(localData))
+  await importBackup(page, backup(localData), selectedPlaythrough(localData).label)
   const panel = await dataPanel(page)
   await openCurrentGameSetup(panel)
   await openSwitchModPacks(panel)
@@ -327,6 +332,7 @@ test('Switch selections retain other imported names and unrelated conflicting cl
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.reload()
+  await waitForPlannerReady(page)
   const saved = await exportLocalData(page)
   expect(saved.gameSetups[saved.planningGameSetupRevisionId!].mods).toEqual({ state: 'conflicting', claims: [{ value: ['Synthetic imported mod', 'Bloodmage'], sources: [] }, { value: ['Tempest', 'Bloodmage'], sources: [] }] })
   expect(saved.gameSetups[saved.planningGameSetupRevisionId!].disabledMods).toEqual(known(['Synthetic disabled mod', 'Doge Shield']))
@@ -343,7 +349,7 @@ for (const state of ['enabled', 'disabled', 'unknown', 'conflicting'] as const) 
     localData = updateGameSetupRevision(localData, { sourceRevisionId: setup.id, mods: state === 'enabled' ? known([]) : known(['Bloodmage']), disabledMods: state === 'enabled' ? known(['Bloodmage']) : known([]) })
     await page.goto('/')
     await skipInitialModSetup(page)
-    await importBackup(page, backup(localData))
+    await importBackup(page, backup(localData), selectedPlaythrough(localData).label)
     await page.goto('/#/builds/library')
     await page.getByRole('button', { name: 'synthetic-pinned-mod-build', exact: true }).click()
     const picker = page.getByRole('combobox', { name: 'Class', exact: true })

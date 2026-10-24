@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DOCUMENT_LIMITS, childAt, childCount, childSlice, formatJsonPath, nodeAtPath, objectProperty, parseDocument, replaceJsonValue } from './document'
+import { DOCUMENT_LIMITS, childAt, childCount, childSlice, formatJsonPath, nodeAtPath, objectProperty, parseDocument, parseJsonFragment, replaceJsonValue } from './document'
 
 describe('lossless inspector documents', () => {
+  it.each(['900719925474099312345', '1.2300e+400', '-0', '"\\ud800"', '[true,null]', 'false', 'null', '{"Unknown":1}'])('validates selected fragments with their exact original lexemes: %s', text => {
+    expect(parseJsonFragment(text).root.raw).toBe(text)
+  })
+  it.each(['\ufeff1', '1 2', '[1,', 'true false'])('rejects malformed or extra selected fragment content: %s', text => {
+    expect(() => parseJsonFragment(text)).toThrow()
+  })
   it('retains number lexemes, BOM, whitespace and unknown fields without numeric coercion', () => {
     const text = '\ufeff {\r\n "ID": 900719925474099312345, "Unknown": [-0, 1.2300e+400, {"__proto__": "inert"}]\r\n}  '
     const document = parseDocument(text)

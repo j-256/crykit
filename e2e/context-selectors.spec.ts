@@ -1,8 +1,7 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
+import { openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection, waitForPlannerReady, readLocalData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
 
 type ContextLabel = 'Playthrough' | 'Party plan'
 
@@ -17,25 +16,6 @@ async function chooseContext(page: Page, label: ContextLabel, name: string) {
   const picker = await openContext(page, label)
   await picker.locator('.picker-result').filter({ has: page.getByText(name, { exact: true }) }).click()
   await expect(picker).not.toBeVisible()
-}
-
-async function readLocalData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const db = request.result
-      const transaction = db.transaction('localDatas', 'readonly')
-      transaction.oncomplete = () => db.close()
-      transaction.onerror = () => { db.close(); reject(transaction.error) }
-      const records = transaction.objectStore('localDatas').getAll()
-      records.onsuccess = () => {
-        const record = (records.result as { localData: LocalData }[])[0]
-        if (record) resolve(record.localData)
-        else reject(new Error('Synthetic planner data not found'))
-      }
-    }
-  }))
 }
 
 async function addGameSetupRevision(page: Page) {
@@ -114,6 +94,7 @@ test('Playthrough switching isolates tracked records while sharing Game Setups a
   expect(switched.builds).toEqual(blank.builds)
   expect(switched.gameSetups).toEqual(blank.gameSetups)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('button', { name: 'Playthrough: Blank test playthrough', exact: true })).toBeVisible()
   await chooseContext(page, 'Playthrough', 'Sample playthrough')
   await expect(page.getByRole('button', { name: 'Party plan: Sample starter team', exact: true })).toBeVisible()
@@ -179,7 +160,7 @@ test('the selected scenario supplies readiness when a checkpoint belongs to mult
   const original = await readLocalData(page)
   const revision = Object.values(original.buildRevisions)[0]!
   const originalPlaythrough = selectedPlaythrough(original)
-  const characterId = Object.entries(originalPlaythrough.scenarios[originalPlaythrough.activeScenarioId!]!.assignments).find(([, assignedRevisionId]) => assignedRevisionId === revision.id)?.[0]
+  const characterId = Object.entries(originalPlaythrough.scenarios[originalPlaythrough.activeScenarioId!]!.assignments).find(([, assignedRevisionId]) => assignedRevisionId?.kind === 'build' && assignedRevisionId.revisionId === revision.id)?.[0]
   const character = originalPlaythrough.characters[characterId!]!
   const picker = await openContext(page, 'Party plan')
   await picker.getByRole('button', { name: 'New party plan', exact: true }).click()
@@ -214,7 +195,7 @@ test('failed selection remains recoverable and can be retried and reopened offli
   await page.evaluate(() => {
     const originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof originalPut>) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = originalPut; throw new DOMException('Synthetic context save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = originalPut; throw new DOMException('Synthetic context save failure', 'QuotaExceededError') }
       return originalPut.apply(this, args)
     }
   })

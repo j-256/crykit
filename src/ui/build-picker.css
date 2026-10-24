@@ -1,3 +1,31 @@
+/* Collapsed filters share the import row to preserve space for results */
+/* Expanded filters and import feedback retain the default full-width layout */
+.build-definition-dropdown:popover-open:has(> .build-library-import:not(.build-library-import--expanded)):not(:has(> .build-picker-filters[open])) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.build-definition-dropdown > .build-library-import {
+  grid-area: 1 / 2;
+  padding: 2px 4px;
+  flex: 0 0 auto;
+}
+
+.build-definition-dropdown > .build-picker-filters {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.build-definition-dropdown > .picker-results {
+  grid-column: 1 / -1;
+}
+
+/* Preserve room for result details when the anchor limits the popup height */
+.build-definition-dropdown .picker-result {
+  padding-block: 8px;
+}
+
 .build-picker-filters {
   flex: 0 0 auto;
   overflow-y: auto;

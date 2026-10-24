@@ -22,7 +22,8 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const settings = await openData(page)
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
+  await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const entries = unzipSync(await readFile((await (await download).path())!))
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }).localData

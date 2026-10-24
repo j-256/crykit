@@ -1,3 +1,4 @@
+import { publicContextContainers } from './public-source-context'
 import { DomainError } from './core'
 import { logicalEntityKey } from './definitions'
 import type { CatalogSnapshot, EntityId, EntityRef, LocalData } from './types'
@@ -6,6 +7,7 @@ import type { CatalogSnapshot, EntityId, EntityRef, LocalData } from './types'
 const OPAQUE_FIELDS = new Set(['fields', 'legacy', 'sources', 'changes'])
 
 export function upgradeBundledReferences(data: LocalData, catalog: Pick<CatalogSnapshot, 'id' | 'revisionId'>, sourceIds: ReadonlyMap<string, EntityId>): LocalData {
+  const inert = publicContextContainers(data)
   const target = (id: string) => sourceIds.get(id) ?? id
   const walk = (value: unknown): unknown => {
     if (!value || typeof value !== 'object') return value
@@ -14,6 +16,7 @@ export function upgradeBundledReferences(data: LocalData, catalog: Pick<CatalogS
       return next.some((entry, index) => entry !== value[index]) ? next : value
     }
     const record = value as Readonly<Record<string, unknown>>
+    if (inert.has(record)) return value
     if (record.kind === 'catalog' && record.catalogId === catalog.id && record.catalogRevisionId === catalog.revisionId && typeof record.entityId === 'string') {
       const entityId = target(record.entityId)
       return entityId === record.entityId ? value : { ...record, entityId }

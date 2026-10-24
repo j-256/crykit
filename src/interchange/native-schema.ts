@@ -1,3 +1,4 @@
+import { PublicSetupContextSchema, PublicCheckpointContextSchema } from './public-source-context-schema'
 import { PC_LEVEL_CAP } from '../domain/calculation-rules'
 import { GENDER_SELECTION_VERSION, MAX_GENDER_ID } from '../domain/calculation-genders'
 import { CALCULATION_GENDERS } from '../domain/calculation-plan'
@@ -10,7 +11,8 @@ import { assertModComposition, MAX_MOD_LAYERS } from '../domain/mod-layers'
 import { REFERENCE_LIBRARY_SETTINGS_VERSION } from '../domain/reference-library'
 import { z } from 'zod'
 import { asTimestamp } from '../domain/core'
-import { TEAM_SIZE } from '../domain/scenarios'
+// Keep historical schema construction independent from commands that consume these readers
+const TEAM_SIZE = 4
 import { LOCAL_DATA_SCHEMA_VERSION } from '../domain/types'
 import {
   MAX_COLLECTION_LENGTH,
@@ -472,8 +474,9 @@ const playthrough = z.object({
   skillTreeCaptures: z.record(id, skillCapture).optional(),
 }).strict()
 
-export const NativeLocalDataSchema = z.object({
-  schemaVersion: z.literal(LOCAL_DATA_SCHEMA_VERSION),
+// Frozen historical records must remain readable without acquiring newer graph semantics
+export const NativeLocalData240Schema = z.object({
+  schemaVersion: z.literal('2.4.0'),
   id,
   revision: nonnegativeInteger,
   createdAt: timestamp,
@@ -494,7 +497,7 @@ export const NativeLocalDataSchema = z.object({
 }).strict()
 
 const PreviousBuildRevisionSchema = buildRevision.extend({ content: buildRevisionContent.omit({ referenceNames: true }) })
-export const PreviousLocalDataSchema = NativeLocalDataSchema.extend({ schemaVersion: z.literal('2.3.0'), buildRevisions: z.record(id, PreviousBuildRevisionSchema), gameSetups: z.record(id, gameSetupRevision.omit({ modSourceReceipts: true })) })
+export const PreviousLocalDataSchema = NativeLocalData240Schema.extend({ schemaVersion: z.literal('2.3.0'), buildRevisions: z.record(id, PreviousBuildRevisionSchema), gameSetups: z.record(id, gameSetupRevision.omit({ modSourceReceipts: true })) })
 const ClassifiedNativeLocalDataSchema = PreviousLocalDataSchema.extend({ schemaVersion: z.literal('2.2.0'), builds: z.record(id, StoredBuildSchema) })
 const PreviousNativeLocalDataSchema = ClassifiedNativeLocalDataSchema.omit({ teams: true }).extend({ schemaVersion: z.literal('2.1.0') })
 
@@ -507,9 +510,32 @@ export const LegacyNativeLocalDataSchema = PreviousNativeLocalDataSchema.extend(
   }
 })
 
-export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, PreviousLocalDataSchema, ClassifiedNativeLocalDataSchema, PreviousNativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => {
-  return { ...data, schemaVersion: LOCAL_DATA_SCHEMA_VERSION, teams: 'teams' in data ? data.teams : {} }
+export const StoredPre250LocalDataSchema = z.union([NativeLocalData240Schema, PreviousLocalDataSchema, ClassifiedNativeLocalDataSchema, PreviousNativeLocalDataSchema, LegacyNativeLocalDataSchema]).transform(data => ({ ...data, schemaVersion: '2.4.0' as const, teams: 'teams' in data ? data.teams : {} }))
+
+export const CheckpointRefSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('build'), revisionId: id }).strict(),
+  z.object({ kind: z.literal('team-slot'), teamRevisionId: id, slot: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]) }).strict(),
+])
+const teamMetadata = NativeLocalData240Schema.shape.teams.valueType.omit({ slots: true })
+// Current private receipts must not widen the frozen 2.4 or public readers
+const currentBuildRevisionContent = buildRevisionContent.extend({ retainedSelections: z.object({ refs: z.array(entityRef).max(MAX_COLLECTION_LENGTH), slotIds: z.array(id).max(MAX_COLLECTION_LENGTH) }).strict().optional() })
+const teamSlot = z.object({ name: nonemptyText.optional(), note: longText.optional(), id, content: currentBuildRevisionContent, sourceBuildRevisionId: id.optional(), createdAt: timestamp }).strict()
+const teamRevision = z.object({ publicSourceContext: PublicCheckpointContextSchema.optional(), id, teamId: id, revision: nonnegativeInteger, parentRevisionId: id.optional(), gameSetupRevisionId: id, catalogLock, slots: z.array(teamSlot.nullable()).length(TEAM_SIZE), createdAt: timestamp, note: longText.optional() }).strict()
+const currentScenario = scenario.extend({
+  assignments: z.record(id, CheckpointRefSchema.nullable()),
+  baseline: z.discriminatedUnion('kind', [z.object({ kind: z.literal('empty') }).strict(), z.object({ kind: z.literal('recordedParty'), playthroughRevision: nonnegativeInteger, assignments: z.record(id, CheckpointRefSchema) }).strict()]),
 })
+export const NativeLocalDataSchema = NativeLocalData240Schema.extend({
+  schemaVersion: z.literal(LOCAL_DATA_SCHEMA_VERSION),
+  gameSetups: z.record(id, gameSetupRevision.extend({ publicSourceContext: PublicSetupContextSchema.optional() })),
+  buildRevisions: z.record(id, buildRevision.extend({ content: currentBuildRevisionContent, publicSourceContext: PublicCheckpointContextSchema.optional() })),
+  teams: z.record(id, z.discriminatedUnion('kind', [teamMetadata.extend({ kind: z.literal('shared'), latestRevisionId: id }), teamMetadata.extend({ kind: z.literal('legacy-mixed'), slots: z.array(id.nullable()).length(TEAM_SIZE) })])),
+  teamRevisions: z.record(id, teamRevision),
+  unavailableDefinitions: z.array(z.object({ ref: entityRef, kind: personalDefinition.shape.kind, name: nonemptyText, fingerprint: z.object({ kind: z.enum(['json-content-v1', 'personal-definition-v1']), value: z.string().regex(/^[a-f0-9]{64}$/) }).strict().optional() }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
+  playthroughs: z.record(id, playthrough.extend({ scenarios: z.record(id, currentScenario) })),
+})
+// Keep frozen 2.4 bodies intact after the accepted older normalizations; live 2.5 projection is explicit
+export const StoredNativeLocalDataSchema = z.union([NativeLocalDataSchema, StoredPre250LocalDataSchema])
 
 export const NativeLineageSchema = z.object({
   rootLocalDataId: id,

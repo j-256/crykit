@@ -116,7 +116,7 @@ type LocalDataUpdate = Partial<
     | 'gameSetups'
     | 'builds'
     | 'buildRevisions'
-    | 'teams'
+    | 'teams' | 'teamRevisions' | 'unavailableDefinitions'
     | 'playthroughs'
     | 'importReceipts'
     | 'skillTreeLayouts'

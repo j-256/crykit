@@ -1,20 +1,30 @@
+import { INSPECTOR_FILE_INFO_SCHEMA_VERSION, INSPECTOR_FILE_INFO_TEXT_LIMIT, INSPECTOR_FILE_INFO_FIELDS, readInspectorFileInfo } from './file-info-contract'
+export { INSPECTOR_FILE_INFO_SCHEMA_VERSION, INSPECTOR_FILE_INFO_TEXT_LIMIT, readInspectorFileInfo } from './file-info-contract'
 import { objectProperty } from './document'
 import type { InspectorFileInfo, InspectorFileInfoState, ParsedDocument } from './types'
+import type { JsonValue } from '../domain/types'
+import { isJsonObject } from '../interchange/json'
 
-export const INSPECTOR_FILE_INFO_SCHEMA_VERSION = 1
-export const INSPECTOR_FILE_INFO_TEXT_LIMIT = 160
+export function inspectorInputFileInfo(fields: JsonValue): InspectorFileInfo | undefined {
+  return isJsonObject(fields) ? readInspectorFileInfo(fields.fileInfo) : undefined
+}
 
-const FIELDS = Object.freeze([
-  ['Title', 'title', 'titleState'],
-  ['Version', 'version', 'versionState'],
-  ['ID', 'projectId', 'projectIdState'],
-] as const)
+export function withInspectorInputFileInfo(fields: JsonValue, info: InspectorFileInfo): JsonValue {
+  if (fields !== null && !isJsonObject(fields)) return fields
+  const previous = fields?.fileInfo
+  if (previous !== undefined && isJsonObject(previous) && typeof previous.schemaVersion === 'number' && previous.schemaVersion > INSPECTOR_FILE_INFO_SCHEMA_VERSION) return fields
+  // This bounded hint travels in the existing inert form namespace, never as file or source authority
+  // Preserve unknown form values and future hint versions instead of interpreting them as this format
+  // Legacy readers materialize absent optional fields as undefined, which is not a JSON value
+  const hint = Object.fromEntries(Object.entries(info).filter(([, value]) => value !== undefined))
+  return { ...fields, fileInfo: hint as JsonValue }
+}
 
 export function deriveInspectorFileInfo(document: ParsedDocument, edited: boolean): InspectorFileInfo {
   const info: { schemaVersion: 1; edited: boolean; title?: string; version?: string; projectId?: string; titleState: InspectorFileInfoState; versionState: InspectorFileInfoState; projectIdState: InspectorFileInfoState } = {
     schemaVersion: INSPECTOR_FILE_INFO_SCHEMA_VERSION, edited, titleState: 'missing', versionState: 'missing', projectIdState: 'missing',
   }
-  for (const [key, valueKey, stateKey] of FIELDS) {
+  for (const [key, valueKey, stateKey] of INSPECTOR_FILE_INFO_FIELDS) {
     const node = objectProperty(document.root, key)
     if (!node) continue
     info[stateKey] = 'invalid'
@@ -25,21 +35,4 @@ export function deriveInspectorFileInfo(document: ParsedDocument, edited: boolea
     info[valueKey] = text.length > INSPECTOR_FILE_INFO_TEXT_LIMIT ? text.slice(0, INSPECTOR_FILE_INFO_TEXT_LIMIT - 3) + '...' : text
   }
   return info
-}
-
-export function readInspectorFileInfo(cache: unknown): InspectorFileInfo | undefined {
-  if (!cache || typeof cache !== 'object') return undefined
-  const row = cache as Record<string, unknown>
-  if (row.schemaVersion !== INSPECTOR_FILE_INFO_SCHEMA_VERSION || typeof row.edited !== 'boolean') return undefined
-  for (const [, valueKey, stateKey] of FIELDS) {
-    const state = row[stateKey]
-    const value = row[valueKey]
-    if (state !== 'present' && state !== 'missing' && state !== 'invalid') return undefined
-    if (state === 'present' ? typeof value !== 'string' || !value.trim() || value.length > INSPECTOR_FILE_INFO_TEXT_LIMIT : value !== undefined) return undefined
-  }
-  return {
-    schemaVersion: INSPECTOR_FILE_INFO_SCHEMA_VERSION, edited: row.edited,
-    title: row.title as string | undefined, version: row.version as string | undefined, projectId: row.projectId as string | undefined,
-    titleState: row.titleState as InspectorFileInfoState, versionState: row.versionState as InspectorFileInfoState, projectIdState: row.projectIdState as InspectorFileInfoState,
-  }
 }

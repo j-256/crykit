@@ -1,0 +1,13 @@
+{
+  "name": "crykit-alerts",
+  "main": "worker/alerts/index.ts",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 100 },
+  "observability": { "enabled": true, "logs": { "invocation_logs": false, "head_sampling_rate": 1 } },
+  "durable_objects": { "bindings": [{ "name": "ALERTS", "class_name": "OwnerAlertState" }] },
+  "migrations": [{ "tag": "owner-alerts-v1", "new_sqlite_classes": ["OwnerAlertState"] }],
+  "ratelimits": [{ "name": "ALERT_PROCESSING_LIMITER", "namespace_id": "16377300105", "simple": { "limit": 1, "period": 60 } }],
+  "vars": { "ALERTS_ENABLED": "false", "DIAGNOSTICS_ENABLED": "false", "ALERT_SOURCE_WORKER": "crykit", "SERVICE_ORIGIN": "https://crykit.lasers.app", "EMAIL_FROM": "noreply@example.org", "ALERT_EMAIL_TO": "" }
+}

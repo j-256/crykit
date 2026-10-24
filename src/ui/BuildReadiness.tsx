@@ -1,5 +1,6 @@
+import { checkpointBuildView } from '../domain/team-checkpoints'
 import { useState } from 'react'
-import { sameBuildBehavior, effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough } from '../domain'
+import { sameBuildBehavior, effectiveScenarioAssignments, entityDefinitionKey, requirePlaythrough, selectedPlaythrough } from '../domain'
 import type { Build, BuildRevision, CatalogRef, CatalogSnapshot, LocalData, TeamScenario, ValidationIssue, ValidationReport } from '../domain/types'
 import { groupValidationIssues } from './build-evidence'
 import { NATIVE_SCOPE_UNVERIFIED } from '../domain/native-game'
@@ -46,7 +47,7 @@ function issueContext(issue: ValidationIssue, localData: LocalData, catalogs: re
   if (issue.slotId) details.push(ownRecordValue(localData.gameSetups, report.gameSetupRevisionId)?.slots.find((slot) => slot.id === issue.slotId)?.label ?? issue.slotId)
   if (issue.ref && scenario && !issue.characterId) {
     const affected = Object.entries(effectiveScenarioAssignments(scenario)).flatMap(([characterId, revisionId]) => {
-      const revision = revisionId ? ownRecordValue(localData.buildRevisions, revisionId) : undefined
+      const revision = revisionId ? checkpointBuildView(localData, revisionId) : undefined
       return revision && [...Object.values(revision.content.equipment).flatMap(selection => selection ? [selection] : []), ...revision.content.passives].some((selection) => entityDefinitionKey(selection.ref) === entityDefinitionKey(issue.ref!)) ? [ownRecordValue(requirePlaythrough(localData).characters, characterId)?.name ?? characterId] : []
     })
     if (affected.length) details.push(`Assigned to ${affected.join(', ')}`)
@@ -118,17 +119,18 @@ export function ValidationPanel({ report, localData, catalogs, scenario }: { rep
 export function BuildReadinessAssignment({ build, revision, localData, disabled, onAssign, scenarioId, onScenarioChange }: { scenarioId?: string; onScenarioChange: (scenarioId: string) => void; build: Build; revision: BuildRevision; localData: LocalData; disabled: boolean; onAssign: (scenarioId: string, characterId: string, revisionId: string) => Promise<void> }) {
   void build
   const navigation = useNavigation()
-  const scenarios = Object.values(requirePlaythrough(localData).scenarios).filter((scenario) => {
+  const scenarios = Object.values((selectedPlaythrough(localData)?.scenarios ?? {})).filter((scenario) => {
     return scenario.kind !== 'recordedCurrent' && sameBuildBehavior(localData.gameSetups[scenario.gameSetupRevisionId], localData.gameSetups[revision.gameSetupRevisionId]) && catalogLocksMatch(scenario.catalogLock, revision.catalogLock)
   })
   const [characterChoice, setCharacterChoice] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const scenario = scenarios.find((entry) => entry.id === scenarioId) ?? scenarios.find((entry) => entry.id === requirePlaythrough(localData).activeScenarioId) ?? scenarios[0]
+  const scenario = scenarios.find((entry) => entry.id === scenarioId) ?? scenarios.find((entry) => entry.id === selectedPlaythrough(localData)?.activeScenarioId) ?? scenarios[0]
   const members = new Set(scenario?.memberIds ?? [])
-  const characters = Object.values(requirePlaythrough(localData).characters).filter((character) => members.has(character.id))
+  const characters = Object.values((selectedPlaythrough(localData)?.characters ?? {})).filter((character) => members.has(character.id))
   const character = characters.find((entry) => entry.id === characterChoice) ?? characters[0]
-  const assigned = Boolean(scenario && character && effectiveScenarioAssignments(scenario)[character.id] === revision.id)
+  const assignment = scenario && character ? effectiveScenarioAssignments(scenario)[character.id] : undefined
+  const assigned = Boolean(assignment && checkpointBuildView(localData, assignment)?.id === revision.id)
   const assign = async () => {
     if (!scenario || !character || busy || disabled) return
     setBusy(true)

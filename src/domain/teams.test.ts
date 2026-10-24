@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { teamSlots, resolveCheckpoint } from './team-checkpoints'
 import { adoptTeam, deleteTeam, recordBuildForCharacter, saveTeam } from './teams'
 import { addTestBuild, addTestCharacter, addTestTeam, createTestLocalData, TEST_NOW, TEST_PLAYTHROUGH_ID } from './test-helpers'
 import { asId, requirePlaythrough } from './core'
@@ -35,7 +36,10 @@ describe('independent Teams and optional tracking', () => {
     const original = { ...builds, selectedPlaythroughId: undefined, planningGameSetupRevisionId: undefined, playthroughs: {} }
     const { data, team } = teamFrom(original)
     expect(data.playthroughs).toBe(original.playthroughs)
-    expect(team.slots).toEqual([revisionId, revisionId, revisionId, revisionId])
+    expect(teamSlots(data, team)).toHaveLength(4)
+    expect(data.buildRevisions).toEqual(original.buildRevisions)
+    if (team.kind !== 'shared') throw new Error('Expected shared Team')
+    expect(data.teamRevisions[team.latestRevisionId]!.slots.map(slot => slot?.sourceBuildRevisionId)).toEqual([revisionId, revisionId, revisionId, revisionId])
     expect(saveTeam(data, { ...team, slots: [revisionId, null, null, null] }).teams[team.id]?.revision).toBe(team.revision + 1)
     expect(() => saveTeam(data, { title: 'Bad shape', slots: [revisionId] })).toThrow('four')
     expect(() => saveTeam(data, { title: 'Missing build', slots: [asId<BuildRevisionId>('missing'), null, null, null] })).toThrow('unavailable')
@@ -83,7 +87,9 @@ describe('independent Teams and optional tracking', () => {
     }
     const party = Object.values(after.scenarios).find(scenario => scenario.kind === 'recordedCurrent')!
     expect(party.memberIds).toEqual(roster.memberIds)
-    expect(Object.values(party.assignments)).toEqual(team.slots)
+    if (team.kind !== 'shared') throw new Error('Expected shared Team')
+    expect(Object.values(party.assignments)).toEqual(roster.memberIds.map((_, slot) => ({ kind: 'team-slot', teamRevisionId: team.latestRevisionId, slot })))
+    for (const ref of Object.values(party.assignments)) if (ref) expect(resolveCheckpoint(adopted, ref).content).toEqual(data.buildRevisions[revisionId]!.content)
     expect(() => adoptTeam(data, { teamId: team.id, characterIds: [...roster.memberIds.slice(1), roster.memberIds[1]!] })).toThrow('different')
     expect(data.playthroughs[TEST_PLAYTHROUGH_ID]).toBe(before)
     validateNativeLocalDataGraph(adopted, [])

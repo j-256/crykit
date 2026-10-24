@@ -1,24 +1,11 @@
-import { skipInitialModSetup, openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openGameSetupSection, readLocalData as storedData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
-import type { CatalogRevisionId, EntityId, LocalData } from '../src/domain/types'
+import type { CatalogRevisionId, EntityId } from '../src/domain/types'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { expectOfflineReady } from './offline-helpers'
 import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import { HISTORICAL_BUNDLED_CATALOG } from '../src/domain/withdrawn-catalogs'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 async function openBuild(page: Page) {
   await page.goto('/')
@@ -95,7 +82,7 @@ test('retains behavior and loadout after a failed save, and an older checkpoint 
     const put = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'localDatas' && failOnce) { failOnce = false; throw new DOMException('Synthetic behavior save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic behavior save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })

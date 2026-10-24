@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from '../domain/retained-selections'
 import { calculationModResolver } from '../domain/calculation-mods'
 import { resolveGameRules } from '../domain/game-rules'
 import { logicalEntityKey } from '../domain'
@@ -24,11 +25,11 @@ export function formatStatRange(value: StatRange | null): string {
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 
 export function BuildMechanics({ content, slots, localData, catalogs, gameSetup, onChange, onReviewIssues, onReviewGameSetup, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewIssues?: () => void; onReviewGameSetup?: () => void; onUploadMod?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
-  const resolve = (ref: EntityRef) => resolveEntity(localData, catalogs, ref)
+  const resolve = withoutRetainedMechanics(content, (ref: EntityRef) => resolveEntity(localData, catalogs, ref))
   const identity = (ref: EntityRef) => logicalEntityKey(localData, ref)
   const equipment = analyzeBuildEquipment(content, slots, resolve, identity)
   const rules = resolveGameRules(gameSetup, catalogs)
-  const calculationResolve = (ref: EntityRef) => resolveCalculationEntity(localData, catalogs, ref, gameSetup)
+  const calculationResolve = withoutRetainedMechanics(content, (ref: EntityRef) => resolveCalculationEntity(localData, catalogs, ref, gameSetup))
   const estimate = calculateBuildStats(content, slots, calculationResolve, identity, rules, unknownInputs, unknownSecondaryClass)
   const plan = content.calculation
   const abilityScope = calculationModResolver(calculationResolve)

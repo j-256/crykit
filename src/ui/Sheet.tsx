@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type PropsWithChildren, type ReactNode, type RefObject } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { IconButton } from './components'
+import { CloudServiceNotice } from './CloudServiceNotice'
 
 interface OpenSheet {
   readonly dialog: HTMLDialogElement
@@ -178,5 +179,5 @@ export function Sheet({ open, title, description, onClose, onRequestClose, foote
   }, [initialFocusRef, layer, open])
 
   if (!open) return null
-  return createPortal(<dialog aria-describedby={description ? descriptionId : undefined} aria-labelledby={titleId} className={`sheet-dialog sheet-dialog--${width}`} data-sheet-layer={layer} data-universal-search={universalSearch ? 'true' : undefined} ref={dialogRef}><section className="sheet"><header className="sheet__header"><div><p className="eyebrow">Crystal Kit</p><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><IconButton icon="close" label="Close dialog" onClick={requestClose}/></header><div className="sheet__body">{children}</div>{footer && <footer className="sheet__footer">{footer}</footer>}</section></dialog>, document.body)
+  return createPortal(<dialog aria-describedby={description ? descriptionId : undefined} aria-labelledby={titleId} className={`sheet-dialog sheet-dialog--${width}`} data-sheet-layer={layer} data-universal-search={universalSearch ? 'true' : undefined} ref={dialogRef}><section className="sheet"><header className="sheet__header"><div><p className="eyebrow">Crystal Kit</p><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><IconButton icon="close" label="Close dialog" onClick={requestClose}/></header><div className="sheet__body"><CloudServiceNotice/>{children}</div>{footer && <footer className="sheet__footer">{footer}</footer>}</section></dialog>, document.body)
 }

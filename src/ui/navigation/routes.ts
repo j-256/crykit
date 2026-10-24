@@ -1,3 +1,4 @@
+import { OpaqueIdSchema } from '../../account/protocol'
 import { MAX_SHARE_URL_LENGTH } from '../../interchange/share'
 import { type EntityRouteNameResolver, bundledEntityRouteName } from '../entity-route-names'
 import { type AppRoute, type PageRoute, BUILDS_ROUTE } from './types.ts'
@@ -6,12 +7,18 @@ import { parseOverlays, overlaysSupported, queryFromParams, appendQuery, hasOver
 import { MAX_ROUTE_LENGTH, DEFAULT_PICKER_LIMIT } from './segments.ts'
 
 export function parseAppRoute(hash: string): AppRoute {
+  // Intake owns email secrets; generic route/error state must never retain their raw paths
+  if (/^#\/account\/(verify|confirm-email)(?:\/|$)/.test(hash)) return { page: { page: 'settings', section: 'account' }, overlays: [], query: {} }
+  if (hash.startsWith('#/s/')) {
+    const id = OpaqueIdSchema.safeParse(hash.slice(4))
+    return { page: id.success ? { page: 'hosted-share', shareId: id.data } : unresolved('/s', 'builds'), overlays: [], query: {} }
+  }
   if (hash.startsWith('#/share/')) {
-    if (!/^#\/share\/v[1234]\//.test(hash) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
+    if (!/^#\/share\/v[12345]\//.test(hash) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
     const [rawPath, rawQuery = ''] = hash.slice(1).split('?', 2)
     const segments = rawPath.split('/').filter(Boolean)
     const encoded = segments[2] ?? ''
-    const page: PageRoute = { page: 'share', encoded }
+    const page: PageRoute = { page: 'share', encoded, ...(segments[1] === 'v5' ? { version: 5 as const } : {}) }
     const params = new URLSearchParams(rawQuery)
     const overlays = parseOverlays(segments, 3, params)
     return /^[A-Za-z0-9_-]+$/.test(encoded) && overlays && overlaysSupported(page, overlays)

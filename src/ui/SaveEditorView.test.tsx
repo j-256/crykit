@@ -13,7 +13,7 @@ import { createSampleLocalData } from '../domain/sample-data'
 import { CRYSTAL_SAVE_LIMITS, decodeCrystalSave, encodeCrystalSave } from '../interchange/crystal-save'
 import type { DraftActions } from './drafts'
 import { downloadBytes } from './model'
-import { SaveEditorView } from './SaveEditorView'
+import { SaveEditorView } from './save-workspace.fixture'
 import { DefinitionProvider } from './definitions'
 
 vi.mock('./model', async importOriginal => ({ ...await importOriginal<typeof import('./model')>(), downloadBytes: vi.fn() }))
@@ -43,13 +43,16 @@ beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
   scrollIntoView.mockClear()
   vi.stubGlobal('confirm', vi.fn(() => true))
-  vi.mocked(downloadBytes).mockClear()
+  vi.mocked(downloadBytes).mockReset()
 })
 
 afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
   vi.useRealTimers()
+  vi.restoreAllMocks()
+  Reflect.deleteProperty(HTMLElement.prototype, 'showPopover')
+  Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover')
   vi.unstubAllGlobals()
   if (originalScrollIntoView) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView)
   else delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView
@@ -64,7 +67,8 @@ function button(label: string) {
 function input(label: string) {
   const direct = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)
   const field = [...container.querySelectorAll('label')].find(element => element.querySelector('.field__label')?.textContent === label)
-  const result = direct ?? field?.querySelector<HTMLInputElement>('input')
+  const linked = [...container.querySelectorAll('label')].find(element => element.textContent === label)?.htmlFor
+  const result = direct ?? field?.querySelector<HTMLInputElement>('input') ?? (linked ? document.getElementById(linked) as HTMLInputElement : null)
   if (!result) throw new Error(`Missing input ${label}`)
   return result
 }
@@ -163,6 +167,24 @@ describe('save editor session', () => {
     expect(inspectSave(edited, SAVE_EDITOR_CATALOG).inventory.find(row => row.kind === 'equipment' && row.id === 0)).toMatchObject({ count: 2, equipped: 3 })
   })
 
+  it('retains the open loadout picker query across a pending navigation save', async () => {
+    const popovers = new WeakSet<HTMLElement>()
+    Object.defineProperties(HTMLElement.prototype, { showPopover: { configurable: true, value: function (this: HTMLElement) { popovers.add(this) } }, hidePopover: { configurable: true, value: function (this: HTMLElement) { popovers.delete(this) } } })
+    const matches = HTMLElement.prototype.matches
+    vi.spyOn(HTMLElement.prototype, 'matches').mockImplementation(function (this: HTMLElement, selector) { return selector === ':popover-open' ? popovers.has(this) : matches.call(this, selector) })
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(performance.now()); return 0 })
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+    const localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
+    await act(async () => root.render(<DefinitionProvider catalogs={[DEFAULT_CATALOG]} localData={localData} onSaveDefinition={async () => { throw new Error('Not used') }}><SaveEditorView localData={localData} onDraftChange={onDraftChange}/></DefinitionProvider>))
+    await choose(file(encodeCrystalSave(createSaveEditorFixture())))
+    await act(async () => input('Main hand').focus())
+    await type('Main hand', 'sword query')
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
+    expect(input('Main hand').getAttribute('aria-expanded')).toBe('true')
+    expect(input('Main hand').value).toBe('sword query')
+    expect(vi.mocked(downloadBytes)).not.toHaveBeenCalled()
+  })
+
   it('offers a saved Build with missing prerequisites and highlights additions through review and export', async () => {
     let localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
     const build = Object.values(localData.builds).find(candidate => candidate.title.startsWith('Mira:'))!
@@ -198,6 +220,31 @@ describe('save editor session', () => {
     expect(inspectSave(edited, SAVE_EDITOR_CATALOG).members[0]).toMatchObject({ jobId: 4, passiveIds: [0], equipmentIds: [5, null, null, 19, 50, null] })
     expect(edited.members.slice(1)).toEqual(decodeCrystalSave(encodeCrystalSave(original)).members.slice(1))
     expect(original.members[0]!.value.LearnedJobs.value[4]).toEqual({ type: 'int32', value: 0 })
+  })
+
+  it('preserves a missing immutable Build revision until deliberate pending-input reset', async () => {
+    let localData = createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')
+    const render = () => root.render(<DefinitionProvider catalogs={[DEFAULT_CATALOG]} localData={localData} onSaveDefinition={async () => { throw new Error('Not used') }}><SaveEditorView localData={localData} onDraftChange={onDraftChange}/></DefinitionProvider>)
+    await act(async () => render())
+    await choose(file(encodeCrystalSave(createSaveEditorFixture())))
+    const choices = container.querySelector<HTMLSelectElement>('.save-party__build-import select')!
+    const chosen = [...choices.options].find(option => option.value)!
+    await act(async () => { choices.value = chosen.value; choices.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
+    localData = { ...localData, buildRevisions: Object.fromEntries(Object.entries(localData.buildRevisions).filter(([id]) => id !== chosen.value)) }
+    await act(async () => render())
+    expect(container.textContent).toContain('Recorded context unavailable')
+    expect(container.textContent).toContain(`${chosen.textContent} (recorded revision)`)
+    expect(button('Review Build').disabled).toBe(true)
+    await type('Copper', '999')
+    vi.mocked(window.confirm).mockReturnValueOnce(false)
+    await act(async () => button('Apply currency').click())
+    expect(container.textContent).toContain(`${chosen.textContent} (recorded revision)`)
+    expect(input('Copper').value).toBe('999')
+    await act(async () => button('Reset unfinished input').click())
+    expect(container.textContent).not.toContain('Recorded context unavailable')
+    await act(async () => button('Export edited save').click())
+    expect(vi.mocked(downloadBytes).mock.calls[0]![0]).toEqual(encodeCrystalSave(createSaveEditorFixture()))
   })
 
   it.each([0, 3, 12, 20, 27])('opens and exports legacy format %i without inventing a saved date', async version => {
@@ -261,20 +308,20 @@ describe('save editor session', () => {
     await act(async () => button('Export edited save').click())
     const edited = vi.mocked(downloadBytes).mock.calls[2]![0]
     expect(decodeCrystalSave(edited).header.currencyAmount).toBe(321)
-    expect(decodeCrystalSave(edited).header.lastUpdated).toEqual({ year: 2031, month: 5, day: 6, hour: 7, minute: 8, second: 9 })
+    expect(decodeCrystalSave(edited).header.lastUpdated).toEqual(decodeCrystalSave(bytes).header.lastUpdated)
     expect(decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[1]![0]).header.lastUpdated).toEqual({ year: 2026, month: 1, day: 2, hour: 3, minute: 4, second: 5 })
     expect(container.querySelector('[aria-label="Open save details"]')!.textContent).toContain('2026-01-02 03:04:05')
     expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
   })
 
-  it('protects pending invalid input from export and navigation save', async () => {
+  it('persists invalid navigation input without applying or downloading it', async () => {
     await open()
     await type('Copper', '1.5')
     expect(button('Export edited save').disabled).toBe(true)
     expect(onDraftChange.mock.calls.at(-1)![0]).toBe(true)
     let saved = true
     await act(async () => { saved = await draftActions().save() })
-    expect(saved).toBe(false)
+    expect(saved).toBe(true)
     expect(vi.mocked(downloadBytes)).not.toHaveBeenCalled()
     expect(input('Copper').value).toBe('1.5')
     await act(async () => button('Apply currency').click())
@@ -285,7 +332,8 @@ describe('save editor session', () => {
     expect(container.textContent).toContain('The draft matches the original save.')
     await act(async () => button('Discard pending input').click())
     expect(input('Copper').value).toBe('123')
-    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
+    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(true)
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
   })
 
   it('previews pending copper without applying it and restores the preview on discard', async () => {
@@ -309,12 +357,13 @@ describe('save editor session', () => {
     await act(async () => button('Discard pending input').click())
     expect(input('Copper').value).toBe('123')
     expect(preview.textContent).toBe('0 gold · 1 silver · 23 copper')
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
     expect(button('Export edited save').disabled).toBe(false)
     expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
 
     await type('Copper', '12345')
     await act(async () => button('Apply currency').click())
-    expect(preview.textContent).toBe('1 gold · 23 silver · 45 copper')
+    expect(container.querySelector('output[aria-label="In-game money preview"]')!.textContent).toBe('1 gold · 23 silver · 45 copper')
     expect(button('Export edited save').disabled).toBe(false)
     await act(async () => button('Export edited save').click())
     const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[1]![0] as Uint8Array)
@@ -417,11 +466,26 @@ describe('save editor session', () => {
     expect(edited.header).toMatchObject({ challengeFlags: fixture.header.challengeFlags, assistFlags: fixture.header.assistFlags })
   })
 
+  it('retains saved unapplied fields and blocks working export until Apply', async () => {
+    await open()
+    await type('Copper', '789')
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
+    expect(input('Copper').value).toBe('789')
+    expect(button('Export edited save').disabled).toBe(false)
+    await act(async () => button('Export edited save').click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Apply or discard pending fields')
+    expect(downloadBytes).not.toHaveBeenCalled()
+    expect(input('Copper').value).toBe('789')
+    await act(async () => button('Apply currency').click())
+    await act(async () => button('Export edited save').click())
+    expect(decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array).header.currencyAmount).toBe(789)
+  })
+
   it('keeps a draft and pending form after a malformed or oversized replacement', async () => {
     await open()
     await type('Copper', '987')
     await choose(file(new Uint8Array([28, 0, 0]), 'broken.sav'))
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('open draft has not changed')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Wait for pending input to be saved')
     expect(input('Copper').value).toBe('987')
     expect(container.textContent).toContain('synthetic.sav')
     const read = vi.fn<() => Promise<ArrayBuffer>>()
@@ -448,7 +512,7 @@ describe('save editor session', () => {
     const bytes = new Uint8Array([29, 0, 0, 1, 2, 3])
     await open(bytes)
     expect(container.textContent).toContain('Read-only save')
-    expect(container.textContent).toContain('Save format 29')
+    expect(container.textContent).toContain('save format 29')
     expect(container.querySelector('input[inputmode="numeric"]')).toBeNull()
     await act(async () => button('Download original').click())
     expect(vi.mocked(downloadBytes).mock.calls[0]![0]).toEqual(bytes)
@@ -460,7 +524,7 @@ describe('save editor session', () => {
     await open(encodeCrystalSave(fixture))
     expect(container.textContent).toContain('Read-only save')
     expect(input('Copper').disabled).toBe(true)
-    expect(button('Export edited save').disabled).toBe(true)
+    expect(button('Export edited save').disabled).toBe(false)
     expect(button('Download original').disabled).toBe(false)
   })
 
@@ -482,6 +546,24 @@ describe('save editor session', () => {
     expect(edited.header.currencyAmount).toBe(456)
     expect(edited.header.isModded).toBe(true)
     expect(edited.header.mods).toHaveLength(1)
+  })
+
+  it('preserves numeric input and blocks Apply when matching mod IDs arrive from changed source bytes', async () => {
+    await open(encodeCrystalSave(createModdedSaveEditorFixture()))
+    const project = createSaveEditorModProjectFixture()
+    await chooseMods(file(new TextEncoder().encode(JSON.stringify(project)), 'original.json'))
+    await waitForText('Imported definition matched')
+    await type('Copper', '456')
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
+    await chooseMods(file(new TextEncoder().encode(JSON.stringify({ ...project, Title: 'Changed exact source' })), 'changed.json'))
+    await waitForText('Recorded input context unavailable')
+    expect(input('Copper').value).toBe('456')
+    expect(button('Apply currency').disabled).toBe(true)
+    await act(async () => button('Reset unfinished input').click())
+    expect(input('Copper').value).toBe(String(createModdedSaveEditorFixture().header.currencyAmount))
+    expect(container.textContent).not.toContain('Recorded input context unavailable')
+    await act(async () => button('Export edited save').click())
+    expect(decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array).header.currencyAmount).toBe(createModdedSaveEditorFixture().header.currencyAmount)
   })
 
   it('loads a bundled active mod and reuses its source without claiming a disabled mod revision', async () => {
@@ -524,7 +606,7 @@ describe('save editor session', () => {
     fixture.party = { type: 'document', value: {} }
     await open(encodeCrystalSave(fixture))
     expect(container.textContent).toContain('Read-only save')
-    expect(button('Export edited save').disabled).toBe(true)
+    expect(button('Export edited save').disabled).toBe(false)
     await act(async () => button('Download original').click())
     expect(vi.mocked(downloadBytes)).toHaveBeenCalledTimes(1)
   })
@@ -641,6 +723,7 @@ describe('save editor session', () => {
     expect(button('Export edited save').disabled).toBe(true)
     await act(async () => button('Discard pending input').click())
     expect(input('Potion Pouch stock').value).toBe('2')
+    await act(async () => { expect(await draftActions().save()).toBe(true) })
     expect(button('Export edited save').disabled).toBe(false)
     await act(async () => button('Export edited save').click())
     const edited = decodeCrystalSave(vi.mocked(downloadBytes).mock.calls[0]![0] as Uint8Array)
@@ -664,33 +747,28 @@ describe('save editor session', () => {
       draftActions().discard()
       expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
     })
-    expect(input('Member 1 name').value).toBe('Alex')
+    expect(input('Member 1 name').value).toBe('New name')
   })
 
-  it('retains a draft when replacement or reset is cancelled', async () => {
+  it('retains durable working bytes when reset is cancelled', async () => {
     await open()
     await type('Copper', '444')
     await act(async () => button('Apply currency').click())
     vi.mocked(window.confirm).mockReturnValue(false)
-    const read = vi.fn<() => Promise<ArrayBuffer>>()
-    await choose(file(new Uint8Array([27]), 'other.sav', read))
-    expect(read).not.toHaveBeenCalled()
     await act(async () => button('Reset to original').click())
     expect(input('Copper').value).toBe('444')
-    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(true)
+    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
   })
 
-  it('retains dirty state and draft when a download cannot be started', async () => {
+  it('retains durable working bytes when a download cannot be started', async () => {
     await open()
     await type('Copper', '444')
     await act(async () => button('Apply currency').click())
     vi.mocked(downloadBytes).mockImplementationOnce(() => { throw new Error('Synthetic browser download failure') })
-    let exported = true
-    await act(async () => { exported = await draftActions().save() })
-    expect(exported).toBe(false)
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Export failed')
+    await act(async () => button('Export edited save').click())
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Synthetic browser download failure')
     expect(input('Copper').value).toBe('444')
-    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(true)
+    expect(onDraftChange.mock.calls.at(-1)![0]).toBe(false)
   })
 
   it('keeps pending input and allows retry when the original download fails', async () => {

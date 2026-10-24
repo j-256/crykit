@@ -17,6 +17,18 @@ export const MOD_COMPOSITION_VERSION = 3
 export const MAX_MOD_LAYERS = 100
 const MAX_NATIVE_ID = 0xffffffff
 const MODEL_KEY = /^crystal-edit:(Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes|Genders):(0|[1-9]\d*)$/
+const immutableExpandedCatalogs = new WeakMap<CatalogSnapshot, WeakMap<CatalogSnapshot, CatalogSnapshot>>()
+const deeplyImmutableCatalogValues = new WeakSet<object>()
+function immutableCatalogValue(value: unknown, visiting = new Set<object>()): boolean {
+  if (!value || typeof value !== 'object') return true
+  if (deeplyImmutableCatalogValues.has(value)) return true
+  if (!Object.isFrozen(value) || visiting.has(value)) return false
+  visiting.add(value)
+  const immutable = Object.values(value).every(child => immutableCatalogValue(child, visiting))
+  visiting.delete(value)
+  if (immutable) deeplyImmutableCatalogValues.add(value)
+  return immutable
+}
 const BASELINE_METADATA_KEYS = ['nativeIdentityBindings', 'nativeModeIdentityBindings', 'nativeEnums'] as const
 const NATIVE_MOD_FAMILIES: Readonly<Record<string, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', equipment: 'Equipment', item: 'Items', monster: 'Monsters', status: 'Statuses', recipe: 'Recipes', biome: 'Biomes', gender: 'Genders' })
 
@@ -263,8 +275,21 @@ export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonl
     // Keep private imported changes available when the exact withdrawn baseline cannot be supplied
     if (!baseline && withdrawnCatalog(pin as unknown as ModCatalogPin)) return compactModCatalog(catalog)
     if (!baseline || baseline.schemaVersion === MOD_CATALOG_SCHEMA) throw new DomainError('INVALID_INPUT', 'An effective mod baseline is unavailable or cyclic')
+    // Unchanged effective catalogs must retain identity across saves, including after their first expansion
+    // Both exact inputs must be deeply immutable; labels, digests and a frozen shell cannot authorize reuse
+    const immutable = immutableCatalogValue(catalog) && immutableCatalogValue(baseline)
+    const cached = immutable ? immutableExpandedCatalogs.get(catalog)?.get(baseline) : undefined
+    if (cached) return cached
     const compact = compactModCatalog(catalog)
-    return { ...compact, entities: { ...baseline.entities, ...compact.entities }, claims: baseline.claims.filter(claim => !Object.hasOwn(compact.entities, claim.entityId)) }
+    const expanded = { ...compact, entities: { ...baseline.entities, ...compact.entities }, claims: baseline.claims.filter(claim => !Object.hasOwn(compact.entities, claim.entityId)) }
+    if (immutable) {
+      Object.freeze(expanded.entities); Object.freeze(expanded.claims); Object.freeze(expanded)
+      const views = immutableExpandedCatalogs.get(catalog) ?? new WeakMap<CatalogSnapshot, CatalogSnapshot>()
+      views.set(baseline, expanded); immutableExpandedCatalogs.set(catalog, views)
+      const prepared = new WeakMap<CatalogSnapshot, CatalogSnapshot>()
+      prepared.set(baseline, expanded); immutableExpandedCatalogs.set(expanded, prepared)
+    }
+    return expanded
   })
 }
 

@@ -153,6 +153,8 @@ Native game artwork remains copyrighted Crystal Project material and receives no
 
 Artwork resolves by project, source digest, model family, model ID, kind, and declared texture reference. Bundled definitions, saved imports of those exact source files, and composed replacement records share the same binding. A replacement does not inherit the original definition's native artwork. Different revisions, unrelated same-name projects, and imports without a reviewed source binding retain generic type icons or placeholders. Pickers prefer exact artwork over generic skill glyphs. Custom mod artwork retains its source and rights disclosure; reused base-game textures remain quiet. Existing catalog and personal data are unchanged.
 
+Folder imports may include optional PNG, JPEG, or WebP artwork after choosing one exact Crystal Edit revision. Each selected image must match a declared texture path in that revision, either directly or inside the companion directory named for the selected JSON file. Indexed icon cells or actor crops must fit within the decoded image. Images begin unchecked. A selected image that fails validation or matching leaves the preview open with its reason; deselect it to save the JSON alone. Private originals are retained as encrypted workspace blobs, and matching artwork is available on another unlocked device after account sync. Guest artwork stays local. The artwork binding has its own asset identity, so replacing an image does not revise the immutable mod source or saved Builds and Teams. Share links contain neither artwork bytes nor private asset IDs.
+
 Refresh and validate the snapshot independently:
 
 ```sh

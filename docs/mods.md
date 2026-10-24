@@ -69,3 +69,7 @@ Reference exclusions use the optional, versioned `referenceLibrary` settings fie
 Mod settings and filtering work locally without game-data requests. Existing transaction rollback, retry, undo, and offline backup behavior applies to Game Setup saves. A source association controls list ordering and calculation applicability; it never deletes a personal record or marks an ability learned.
 
 If a saved catalog revision is unavailable, its references remain unchanged and its definitions stay unresolved. Importing the exact snapshot restores those definitions; another revision or a similarly named project does not substitute for it. Backups retain receipts for known historical revisions and include privately stored snapshots and source bytes.
+
+## Private account copies and publication rights
+
+Guest mod imports stay local. With an optional account workspace, private source bytes, exact revision pins, history and unfinished drafts are encrypted before account storage or sync; imported formulas and code remain inert. Public sharing is a separate deliberate action and does not inherit a right to redistribute a privately imported mod. Follow [account privacy and upload terms](accounts-privacy.md) and retain creator attribution and permissions. The service makes no runtime requests for game data.

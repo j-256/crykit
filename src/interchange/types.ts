@@ -112,7 +112,7 @@ export interface LoadedLocalData {
 export interface LocalDataNotification {
   readonly localDataId: LocalDataId
   readonly revision: number
-  readonly reason: 'save' | 'import' | 'undo'
+  readonly reason: 'save' | 'import' | 'undo' | 'sync'
 }
 
 export interface NativeBackupSourceManifest {

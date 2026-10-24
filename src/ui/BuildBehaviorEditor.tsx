@@ -2,7 +2,7 @@ import { useState, type Ref } from 'react'
 import { CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../catalog/mods'
 import { buildBehavior, sameBuildBehavior, type BuildBehavior } from '../domain/build-behavior'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
-import { createId, requirePlaythrough } from '../domain'
+import { createId, selectedPlaythrough } from '../domain'
 import { latestGameSetups } from '../domain/game-setups'
 import { DEFAULT_GAME_MODE, DEFAULT_PP_LIMIT } from '../domain/local-data'
 import { recordedModNames } from '../domain/mods'
@@ -25,8 +25,8 @@ export function BuildBehaviorEditor({ localData, value, onChange, content, onMod
   const match = matches.find(setup => setup.label === value.label) ?? matches[0]
   const selected = match?.id ?? PRESET.CUSTOM
   const choices = match && !presets.some(setup => setup.id === match.id) ? [match, ...presets] : presets
-  const playthrough = requirePlaythrough(localData)
-  const actual = playthrough.currentGameSetupRevisionId ? localData.gameSetups[playthrough.currentGameSetupRevisionId] : undefined
+  const playthrough = selectedPlaythrough(localData)
+  const actual = playthrough?.currentGameSetupRevisionId ? localData.gameSetups[playthrough.currentGameSetupRevisionId] : undefined
   const origin = value.modComposition ? Object.values(localData.gameSetups).find(setup => setup.modComposition && setup.catalogLock[value.modComposition!.baseline.catalogId] === value.catalogLock[value.modComposition!.baseline.catalogId]) : undefined
   const draft: GameSetupDraft = { ...value, ppLimit: value.ppLimit ?? { state: 'known', value: DEFAULT_PP_LIMIT } }
   const update = (changes: Partial<GameSetupDraft>) => {
@@ -46,7 +46,7 @@ export function BuildBehaviorEditor({ localData, value, onChange, content, onMod
   return <details className="build-behavior panel" onToggle={event => setOpen(event.currentTarget.open)} open={open} ref={detailsRef}>
     <summary><span><strong>Game Setup</strong><small>{match?.label ?? value.label}{value.gameVersion.state === 'known' && ` · ${knowledgeLabel(value.gameVersion)}`}{(recordedModNames(value).length > 0 || Boolean(value.modComposition?.layers.length)) && ` · ${gameSetupModSummary(value, library.catalogs)}`}</small></span><Icon name="chevron-down"/></summary>
     <div className="panel__body stack">
-      <Field label="Copy Game Setup" hint="Other Builds and your Playthrough keep their rules."><select aria-label="Copy Game Setup" onChange={event => preset(event.target.value)} value={selected}><option value={PRESET.CUSTOM}>Custom rules</option><optgroup label="Starting points"><option value={PRESET.VANILLA}>Unmodified game</option><option value={PRESET.NINTENDO}>{CONFIRMED_SWITCH_MOD_SETUP.label}</option>{actual && <option value={PRESET.PLAYTHROUGH}>From playthrough: {playthrough.label}</option>}</optgroup><optgroup label="Saved Game Setups">{choices.map(setup => <option key={setup.id} value={setup.id}>{setup.label} · r{setup.revision}</option>)}</optgroup></select></Field>
+      <Field label="Copy Game Setup" hint="Other Builds and your Playthrough keep their rules."><select aria-label="Copy Game Setup" onChange={event => preset(event.target.value)} value={selected}><option value={PRESET.CUSTOM}>Custom rules</option><optgroup label="Starting points"><option value={PRESET.VANILLA}>Unmodified game</option><option value={PRESET.NINTENDO}>{CONFIRMED_SWITCH_MOD_SETUP.label}</option>{actual && <option value={PRESET.PLAYTHROUGH}>From playthrough: {playthrough?.label}</option>}</optgroup><optgroup label="Saved Game Setups">{choices.map(setup => <option key={setup.id} value={setup.id}>{setup.label} · r{setup.revision}</option>)}</optgroup></select></Field>
       <GameRulesFields calculation={content.calculation} current={origin} localData={localData} onChange={update} value={draft} modsEditor={<BuildModsEditor content={content} value={value} onChange={onChange} onBusyChange={onModBusyChange}/>}/>
     </div>
   </details>

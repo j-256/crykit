@@ -4,12 +4,14 @@ import { verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
 
 const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed]
-Run deterministic checks alongside the asset build and full browser suite.
-Browser tests start after the asset build; every required command must pass.
-Requires Node.js, npm, Git, npm ci, and Playwright Chromium.
-Run npx playwright install chromium to install the test browser.
+Prepare each required build once, then pass prerequisite checks before Vitest.
+After Vitest passes, run guest browsers alongside isolated HTTPS account journeys.
+Every required command must pass; ownership lasts until running siblings settle.
+Requires Node.js, npm, Git, npm ci, openssl, and Playwright Chromium, Firefox, WebKit.
+Run npx playwright install chromium firefox webkit to install the test browsers.
 No positional arguments or test filters are accepted.
 CRYKIT_E2E_PORT selects the local preview port (default 4173).
+Account acceptance workers own ephemeral HTTPS loopback ports and fresh backends.
 Installed, configured wt-queue coordinates full runs and checks base freshness.
 Other clones can verify standalone without wt-queue. Busy coordination exits 4.
 CRYKIT_WT_QUEUE selects a coordinator executable for review or custom installs.

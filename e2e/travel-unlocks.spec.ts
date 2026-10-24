@@ -16,7 +16,8 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloading = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await downloading).path()
   if (!path) throw new Error('The backup download is unavailable')
   const files = unzipSync(await readFile(path))
@@ -132,7 +133,7 @@ test('retains a failed acquisition and retries one record before continuing', as
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') {
         IDBObjectStore.prototype.put = original
         throw new DOMException('Synthetic acquisition storage failure', 'QuotaExceededError')
       }

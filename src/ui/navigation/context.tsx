@@ -15,7 +15,7 @@ export function useNavigation(): NavigationController {
   return value
 }
 
-export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: (to: AppRoute) => void, allows?: (to: AppRoute) => boolean, matchQuery = false): void {
+export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => boolean), onBlocked?: (to: AppRoute) => void, allows?: (to: AppRoute) => boolean, matchQuery = false, owner?: symbol): void {
   const { registerBlocker } = useNavigation()
   const dirtyRef = useRef(dirty)
   const blockedRef = useRef(onBlocked)
@@ -25,5 +25,5 @@ export function useNavigationBlocker(scope: AppRoute, dirty: boolean | (() => bo
   allowsRef.current = allows
   const scopeHash = formatAppRoute(scope)
   // Keep the guard registered for a stable route while callbacks read the latest draft state
-  useEffect(() => registerBlocker({ scope, matchQuery, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: to => blockedRef.current?.(to), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash, matchQuery])
+  useEffect(() => registerBlocker({ scope, matchQuery, owner, blocked: () => typeof dirtyRef.current === 'function' ? dirtyRef.current() : dirtyRef.current, onBlocked: to => blockedRef.current?.(to), allows: (to) => allowsRef.current?.(to) ?? false }), [registerBlocker, scopeHash, matchQuery, owner])
 }

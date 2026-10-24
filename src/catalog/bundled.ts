@@ -12,7 +12,8 @@ export const PREVIOUS_CATALOG = immutableCatalogSnapshot(unpackJson<CatalogSnaps
 if (PREVIOUS_CATALOG.checksum !== previousVanillaReceipt.checksum) throw new Error('The previous vanilla catalog does not match its checksum receipt')
 export const CURRENT_CATALOG = immutableCatalogSnapshot(unpackJson<CatalogSnapshot>(vanillaPacked))
 if (CURRENT_CATALOG.checksum !== vanillaReceipt.checksum) throw new Error('The generated vanilla catalog does not match its checksum receipt')
-export const BUNDLED_CATALOGS = [CURRENT_CATALOG, PREVIOUS_CATALOG]
+// Stable immutable membership lets native validation reuse this exact catalog lookup
+export const BUNDLED_CATALOGS = Object.freeze([CURRENT_CATALOG, PREVIOUS_CATALOG])
 export const DEFAULT_CATALOG = CURRENT_CATALOG
 export const BUNDLED_CATALOG = CURRENT_CATALOG
 

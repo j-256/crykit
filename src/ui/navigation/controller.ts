@@ -6,6 +6,7 @@ import { routeTitle, isRouteWithin, parentRoute, routeDestination } from './hier
 import { navigationState, withNavigationState, NAVIGATION_EVENT, writeRouteHistory } from './history.ts'
 
 export interface NavigationBlocker {
+  readonly owner?: symbol
   readonly scope: AppRoute
   readonly matchQuery?: boolean
   readonly blocked: () => boolean
@@ -20,7 +21,7 @@ export interface NavigationController {
   readonly close: () => boolean
   readonly href: (route: AppRoute) => string
   readonly registerBlocker: (blocker: NavigationBlocker) => () => void
-  readonly hasOpenDraft: () => boolean
+  readonly hasOpenDraft: (exceptOwner?: symbol) => boolean
 }
 
 export function useNavigationController(options: { readonly resolveEntityName?: EntityRouteNameResolver; readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: (to: AppRoute) => void } = {}): NavigationController {
@@ -144,7 +145,7 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
     return () => blockersRef.current.delete(blocker)
   }, [])
 
-  const hasOpenDraft = useCallback(() => [...blockersRef.current].some((blocker) => blocker.blocked()), [])
+  const hasOpenDraft = useCallback((exceptOwner?: symbol) => [...blockersRef.current].some((blocker) => (!exceptOwner || blocker.owner !== exceptOwner) && blocker.blocked()), [])
 
   return useMemo(() => ({ route, destination: routeDestination(route), navigate, close, href, registerBlocker, hasOpenDraft }), [close, navigate, registerBlocker, hasOpenDraft, href, options.resolveEntityName, route])
 }

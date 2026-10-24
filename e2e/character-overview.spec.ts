@@ -8,7 +8,7 @@ import { addGameSetupRevision, asId, captureCharacter, createCharacter, upsertCh
 import { createSampleLocalData } from '../src/domain/sample-data'
 import { addTestDefinition, known, personalRef, TEST_NOW } from '../src/domain/test-helpers'
 import type { CharacterId, CharacterSnapshotId, LocalData } from '../src/domain/types'
-import { skipInitialModSetup, selectedPlaythrough, createBlankPlaythrough, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, selectedPlaythrough, createBlankPlaythrough, replacePlannerData, choosePlaythrough } from './local-data-helpers'
 
 const CURRENT_SNAPSHOT = asId<CharacterSnapshotId>('synthetic-overview-current')
 const DENSE_CHARACTER_CARD_MAX_HEIGHT_PX = 410
@@ -22,7 +22,8 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
@@ -71,11 +72,12 @@ async function importLocalData(page: Page, localData: LocalData) {
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-overview.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-overview.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, selectedPlaythrough(localData).label)
   await page.goto('/#/characters')
 }
 

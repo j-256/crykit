@@ -20,7 +20,7 @@ test('starts fresh with explicit rules and draft feedback while retaining sample
   await expect(page.locator('.build-behavior > summary')).not.toContainText('Sample')
   await expect(page.getByRole('region', { name: 'Build validity', exact: true })).not.toContainText('No known loadout conflicts')
   await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('Choose a class')
-  await expect(page.locator('.build-passive-options')).not.toHaveAttribute('open')
+  await expect(page.locator('.build-passive-options')).toHaveCount(0)
   await page.getByRole('textbox', { name: 'Build title', exact: true }).fill('Fresh Wizard')
   await choose(page, 'Class', 'Wizard')
   await choose(page, 'Accessory 1', 'Earring')

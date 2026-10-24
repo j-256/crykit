@@ -1,27 +1,14 @@
+import { teamSlots, withTeamBuildViews } from '../src/domain/team-checkpoints'
 import { chooseTeamCheckpoint } from './team-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
-import { createBlankPlaythrough, selectedPlaythrough } from './local-data-helpers'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
+import { createBlankPlaythrough, selectedPlaythrough, readLocalData as storedData } from './local-data-helpers'
 
 async function failNextSave(page: Page) {
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Team save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Team save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -81,6 +68,7 @@ test('plans and shares four checkpoints with no tracked characters and retries a
   expect(selectedPlaythrough(before).characters).toEqual({})
   await expect(page.getByRole('button', { name: /^Playthrough:/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'New Team', exact: true }).click()
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic independent Team')
   const revisions = Object.values(before.builds).filter(build => build.title.includes(': sample ')).map(build => build.latestRevisionId!)
   for (let index = 0; index < 4; index += 1) await chooseTeamCheckpoint(page, index + 1, revisions[index]!)
@@ -93,10 +81,15 @@ test('plans and shares four checkpoints with no tracked characters and retries a
   await expect(page).toHaveURL(/#\/teams\/team_/)
   const after = await storedData(page)
   const team = Object.values(after.teams).find(team => team.title === 'Synthetic independent Team')!
-  expect(team.slots).toEqual(revisions)
+  if (team.kind !== 'shared') throw new Error('Expected a Team-owned shared checkpoint')
+  const checkpoint = after.teamRevisions[team.latestRevisionId]!
+  expect(checkpoint.revision).toBe(0)
+  expect(checkpoint.slots.map(slot => slot?.sourceBuildRevisionId)).toEqual(revisions)
+  expect(teamSlots(after, team).map(id => id ? withTeamBuildViews(after).buildRevisions[id]!.content : null)).toEqual(revisions.map(id => after.buildRevisions[id]!.content))
+  expect(after.buildRevisions).toEqual(before.buildRevisions)
   expect(after.playthroughs).toEqual(before.playthroughs)
   await expect(page.getByLabel('Team overview')).toContainText('4/4 members')
-  await expect(page.getByRole('region', { name: 'Team slot 1 overview', exact: true })).toContainText('Checkpoint r1')
+  await expect(page.getByRole('region', { name: 'Team slot 1 overview', exact: true })).toContainText(`Checkpoint r${checkpoint.revision}`)
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Team slot 1 overview', exact: true }).getByRole('button', { name: /^Open Main hand:/ })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -162,6 +155,7 @@ test('compares without changing tracking, then records one build without a party
 
 test('adopts a whole Team atomically after reviewing characters and shared equipment', async ({ page }) => {
   await page.goto('/#/teams/new')
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await expect(page.getByLabel('Team name')).toBeVisible()
   const initial = await storedData(page)
   await page.getByLabel('Team name').fill('Synthetic adopted Team')

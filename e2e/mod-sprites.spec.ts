@@ -41,6 +41,7 @@ test('an imported class without verified artwork remains selectable and saved of
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await settings.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()

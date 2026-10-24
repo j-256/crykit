@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as definitionValues from '../domain/definition-values'
+import { immutableCatalogSnapshot } from '../interchange/native'
 import { DEFAULT_CATALOG } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeDescription, nativeDescriptionSourceMatches, referenceDescription } from './native-description'
 import { projectSourceSemantics } from './source-semantics'
 import type { CatalogEntity } from '../domain/types'
+
+afterEach(() => vi.restoreAllMocks())
 
 const stew = DEFAULT_CATALOG.entities['base:item:132']!
 
@@ -44,4 +48,29 @@ describe('source-bound native descriptions', () => {
     expect(recipe.rawDescription).toBe('Windows 1.6.9 recipes base database.')
     expect(JSON.stringify(recipe)).toBe(before)
   })
+})
+
+// Repeated display derivation must not repeat native provenance comparisons for the same admitted record
+it('reuses a corroborated description only for an exact admitted immutable record', () => {
+  const catalog = immutableCatalogSnapshot(structuredClone(DEFAULT_CATALOG))
+  const entity = catalog.entities[stew.id]!
+  const comparison = vi.spyOn(definitionValues, 'sameValue')
+  const first = nativeDescription(entity)
+  expect(first?.complete).toBe(true)
+  expect(comparison).toHaveBeenCalled()
+  comparison.mockClear()
+  expect(nativeDescription(entity)).toEqual(first)
+  expect(comparison).not.toHaveBeenCalled()
+
+  const changed = structuredClone(entity)
+  Object.assign(changed, { rawDescription: 'Changed immutable source' })
+  const changedCatalog = immutableCatalogSnapshot({ ...catalog, entities: { [changed.id]: changed } })
+  expect(nativeDescription(changedCatalog.entities[changed.id]!)).toBeUndefined()
+})
+
+it('rechecks a cached record when only its shell is frozen', () => {
+  const entity = Object.freeze(structuredClone(stew))
+  expect(nativeDescription(entity)).toBeDefined()
+  Object.assign(entity.fields, { 'Synthetic provenance': { state: 'unknown' } })
+  expect(nativeDescription(entity)).toBeUndefined()
 })
