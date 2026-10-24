@@ -27,6 +27,8 @@ async function includeObservedMod(page: Page, name: string) {
   const card = page.getByRole('region', { name, exact: true })
   await card.getByRole('button', { name: 'Add to Reference', exact: true }).click()
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
+  // Membership is optimistic; fault injection and later edits require the confirmed durable save
+  await expect(card.getByRole('status').filter({ hasText: 'Added to Reference' })).toBeVisible()
 }
 
 const includeObservedDoge = (page: Page) => includeObservedMod(page, 'Synthetic Shield')

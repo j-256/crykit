@@ -141,7 +141,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       await arm(page, 'click', 'button[type=submit]', mode === 'account-mapping')
       await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
       await page.waitForFunction(revision => document.querySelector('select[title="View or edit the latest checkpoint."] option:checked')?.textContent?.startsWith(`r${revision}`) && document.querySelector('.context-status--saved')?.textContent?.includes('Saved locally'), index + 2, { timeout: SAVE_CEILING_MS })
-      await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+      await expect(notes).toBeVisible({ timeout: SAVE_CEILING_MS })
       expect(await notes.inputValue()).toBe(value)
       await notes.fill(`${value} next`)
       expected = value

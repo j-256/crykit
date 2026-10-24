@@ -71,6 +71,19 @@ it('focusesValidationAndPreservesPasswordWhitespace', async () => {
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ password: ' e\u0301 synthetic password ', remember: false }), false)
   expect(password.value).toBe('')
 })
+it('loads account details once when sign-in installs a new profile', async () => {
+  profile.invalidateProfile()
+  const metadata = vi.spyOn(management, 'readAccountView').mockResolvedValue({ username: 'synthetic', email: 'synthetic@example.org', revision: 1, recoveryRevision: null, expiresAt: Date.now() + 10000, access: 'active' })
+  vi.spyOn(lifecycle, 'signInProfile').mockImplementation(async () => profile.installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32), { accountId: 'AAAAAAAAAAAAAAAAAAAAAA', username: 'synthetic', sessionId: 'session', deviceId: 'device', csrf: 'secret', authenticatedAt: 1 }))
+  vi.spyOn(lifecycle, 'reconcilePendingRevocations').mockResolvedValue({ revocationPending: false })
+  await render()
+  const form = container.querySelector('form')!
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic account password'
+  await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+  expect(container.textContent).toContain('Signed in as synthetic')
+  expect(metadata).toHaveBeenCalledTimes(1)
+})
 it('discardsLateFailureAfterLock', async () => {
   const profile = await import('../../account/profile')
   const lifecycle = await import('../../account/lifecycle')
