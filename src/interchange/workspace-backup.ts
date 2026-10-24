@@ -5,7 +5,7 @@ import { snapshotMetadata, validateWorkspaceSnapshot, assertWorkspaceSnapshotCur
 import { createBackupStaging } from '../workspace/backup-staging'
 import { hashBlob, memoryBlob, blobIdentity } from '../workspace/blobs'
 import type { WorkspaceState, WorkspaceBlobRef, BlobSource } from '../workspace/documents'
-import { capturedBackupEvidence, inheritWorkspaceSnapshot, finishEvidenceSnapshot, readBackupMetadata, registerBackupMetadata, type BackupDocument } from './workspace-backup-evidence'
+import { capturedBackupEvidence, inheritWorkspaceSnapshot, finishEvidenceSnapshot, registerBackupMetadata, type BackupDocument } from './workspace-backup-evidence'
 export { inheritWorkspaceSnapshot } from './workspace-backup-evidence'
 import { parseBoundedJson } from './json'
 
@@ -145,11 +145,9 @@ export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, opt
         await terminalEnd()
         if (value.version === WORKSPACE_BACKUP_EVIDENCE_VERSION) {
           if (route !== 2) throw new Error('Backup metadata and manifest version mismatch')
-          const stagedVector = async () => vectorDigest((await readBackupMetadata(current!) as { revisionVector: Readonly<Record<string, string>> }).revisionVector)
-          if (value.vector !== await stagedVector()) throw new Error('Backup revision vector mismatch')
           // Complete framing and iterator cleanup precede all historical closure validation
           returned = true; await iterator.return?.()
-          return await finishEvidenceSnapshot(current, documents, staging, options.signal)
+          return await finishEvidenceSnapshot(current, documents, staging, value.vector, options.signal)
         }
         if (route !== 1) throw new Error('Backup metadata and manifest version mismatch')
         const raw = portable as Omit<WorkspaceSnapshotV1, 'state'> & { state: Omit<WorkspaceState, 'blobs'> & { blobs: WorkspaceBlobRef[] } }

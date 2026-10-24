@@ -5,7 +5,7 @@ import { getSodium } from '../account/crypto/sodium'
 import { withImmutableWorkspaceBodyValidation, type WorkspaceBodyValidation } from '../workspace/closure'
 import { blobIdentity, hashBlob } from '../workspace/blobs'
 import type { BlobSource, WorkspaceBlobRef, WorkspaceState } from '../workspace/documents'
-import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type SnapshotOwner } from '../workspace/snapshot'
+import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type SnapshotOwner } from '../workspace/snapshot'
 
 type MetadataState = Omit<WorkspaceState, 'blobs'> & { blobs: WorkspaceBlobRef[] }
 export type SnapshotMetadataV1 = Omit<WorkspaceSnapshotV1, 'state'> & { state: MetadataState }
@@ -104,8 +104,11 @@ export function capturedBackupEvidence(snapshot: WorkspaceSnapshot): CapturedEvi
 
 // The terminal manifest and EOF must already be checked before this serial full-validation pass
 // Keep current metadata plus one historical value; the returned parent owns every staged view
-export async function finishEvidenceSnapshot(current: BlobSource, documents: readonly BackupDocument[], staging: Staging, signal?: AbortSignal): Promise<WorkspaceSnapshotV2> {
+export async function finishEvidenceSnapshot(current: BlobSource, documents: readonly BackupDocument[], staging: Staging, expectedVector: string, signal?: AbortSignal): Promise<WorkspaceSnapshotV2> {
   const raw = await readBackupMetadata(current) as SnapshotMetadataV2
+  // Bind the terminal vector and admission to the same complete staged decode after iterator cleanup
+  // Decoding it again wastes work and could check a different value if the backing source changes
+  if (expectedVector !== await vectorDigest(raw.revisionVector)) throw new Error('Backup revision vector mismatch')
   return constructEvidenceSnapshot(raw, current, documents, staging, signal)
 }
 
@@ -215,7 +218,7 @@ export async function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sourc
     const stagedCurrent = await stage(metadataSource(metadata))
     const documents: BackupDocument[] = [...historical.map(([id, content]) => ({ key: `historical:${id}`, encoding: 'deflate-json-tokens-v1' as const, content })), ...blobs.map(blob => ({ key: blobIdentity(blob.ref), encoding: 'bytes' as const, content: blob.content }))]
     for (const input of [current, ...sources]) await assertWorkspaceSnapshotCurrent(input)
-    return await finishEvidenceSnapshot(stagedCurrent, documents, staging, options.signal)
+    return await finishEvidenceSnapshot(stagedCurrent, documents, staging, await vectorDigest(current.revisionVector), options.signal)
   } catch (error) { await staging.dispose(); throw error }
 }
 
