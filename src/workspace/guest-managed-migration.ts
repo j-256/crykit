@@ -106,7 +106,7 @@ export async function captureGuestNativeForCopy(binding: GuestBindings): Promise
       await assertGuestCurrent(binding); alive()
       if (comparison.status !== 'equal') throw new Error('The local workspace changed during copy preview')
     }
-    const source = await readUnselectedGuestRecoveryCapture(frozen, capture, alive)
+    const source = await readUnselectedGuestRecoveryCapture(frozen, capture, alive, { omitUnreferencedBundledCatalogs: true })
     const projection = projectLegacyPlanner(source.state, opened.participants[0].database.verno)
     const inherited = await readCapturedGuestEvidence(frozen, capture, check, true, alive)
     const header = { version: 1 as const, snapshotId: capture.id, capturedAt: projection.original.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: capture.id } }

@@ -24,18 +24,39 @@ import { joinWorkspaceSnapshotEvidence, type InheritedSnapshotSources } from '..
 
 const allowed = (value: object, fields: readonly string[]) => { if (Object.keys(value).some(key => !fields.includes(key))) throw new Error('Unsupported legacy backup metadata. Original data was retained.') }
 const PLANNER_TABLES = ['catalogs', 'evidence', 'history', 'imports', 'localDatas', 'meta', 'sources'] as const
+
+function capturedCatalogs(state: WorkspaceState, stored: readonly CatalogRecord[]): WorkspaceState['planner']['catalogs'] {
+  const physical = new Set(stored.map(row => catalogSnapshotKey(row.snapshot.id, row.snapshot.revisionId)))
+  const bundledRevisions = new Set(BUNDLED_CATALOGS.map(catalog => catalog.revisionId as string))
+  const mentioned = new Set<string>(), seen = new WeakSet<object>()
+  const pending: unknown[] = [{ ...state, planner: { ...state.planner, catalogs: [] }, blobs: [] }]
+  // Bundled catalogs are app inputs, not captured native rows
+  // Keep every physical catalog and conservatively retain bundled revisions mentioned anywhere in
+  // current or historical metadata, including inert fields; this grants no reference or source authority
+  while (pending.length) {
+    const value = pending.pop()
+    if (typeof value === 'string') { if (bundledRevisions.has(value)) mentioned.add(value) }
+    else if (value && typeof value === 'object' && !seen.has(value)) {
+      seen.add(value)
+      for (const [key, child] of Object.entries(value)) { if (bundledRevisions.has(key)) mentioned.add(key); pending.push(child) }
+    }
+  }
+  return state.planner.catalogs.filter(catalog => physical.has(catalogSnapshotKey(catalog.id, catalog.revisionId)) || mentioned.has(catalog.revisionId))
+}
 const INSPECTOR_TABLES = ['chunks', 'drafts', 'meta'] as const
 const FILE_TABLES = [...Object.keys(GUEST_FILES_V1_STORES), ...Object.keys(GUEST_EVIDENCE_STORES)].sort()
 type LegacyRow = { schemaVersion: number; layoutVersion?: number; id: string; filename: string; referenceId: string; createdAt: string; updatedAt: string; revision: number; fileInfo?: unknown; originalText?: string; draftText?: string; originalPayload?: Manifest; draftPayload?: Manifest }
 type Manifest = { codeUnits: number; chunkCount: number; checksums: number[] }
+interface GuestCaptureOptions { readonly omitUnreferencedBundledCatalogs?: boolean }
 async function projectCapturedGuestState(
   frozen: LegacyCaptureDatabase,
   capture: LegacyCapture,
   guard: () => void,
   check: () => Promise<void>,
   mode: 'legacy' | 'journaled',
-  allowLegacyEmpty = false,
+  options: GuestCaptureOptions & { readonly allowLegacyEmpty?: boolean } = {},
 ): Promise<{ state: WorkspaceState; sidecar: CapturedGuestEvidence; destinationChanges: WorkspaceState['planner']['localData']['changes'] }> {
+  const { allowLegacyEmpty = false, omitUnreferencedBundledCatalogs = false } = options
   let local: LocalDataRecord | undefined
   const catalogs: WorkspaceState['planner']['catalogs'][number][] = [...BUNDLED_CATALOGS], catalogRows: CatalogRecord[] = [], metaRows: MetaRecord[] = [], sources: WorkspaceState['planner']['sources'][number][] = [], evidence: WorkspaceState['planner']['evidence'][number][] = [], history: WorkspaceState['planner']['history'][number][] = []
   const files = { editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [] } as unknown as Omit<WorkspaceState, 'planner' | 'blobs'>
@@ -162,7 +183,7 @@ async function projectCapturedGuestState(
     : sidecar.planner.savedChanges.length ? mergeGuestSavedChanges(sidecar.planner.savedChanges, local.localData.changes) : undefined
   const state: WorkspaceState = { ...files, planner: { localData: local.localData, lineage: local.lineage, catalogs: [...new Map(catalogs.map(value => [JSON.stringify([value.id, value.revisionId]), value])).values()], sources, evidence, history, ...(savedChanges ? { savedChanges } : {}), ...(admitted ? { journal: admitted.journal } : {}) }, blobs }
   await check()
-  return { state, sidecar, destinationChanges: admitted?.descriptor.savedDestinationChanges ?? local.localData.changes }
+  return { state: omitUnreferencedBundledCatalogs ? { ...state, planner: { ...state.planner, catalogs: capturedCatalogs(state, catalogRows) } } : state, sidecar, destinationChanges: admitted?.descriptor.savedDestinationChanges ?? local.localData.changes }
 }
 
 export async function captureGuestSnapshot(binding: GuestBindings): Promise<WorkspaceSnapshot> {
@@ -189,7 +210,7 @@ export async function captureGuestSnapshot(binding: GuestBindings): Promise<Work
       await assertGuestCurrent(binding); alive()
       if (comparison.status !== 'equal') throw new WorkspaceBackupError('SNAPSHOT_CHANGED', 'The workspace changed during backup. Retry the export.')
     }
-    const { state, sidecar } = await projectCapturedGuestState(frozen, capture, alive, check, binding.manifest.version === 2 ? 'journaled' : 'legacy')
+    const { state, sidecar } = await projectCapturedGuestState(frozen, capture, alive, check, binding.manifest.version === 2 ? 'journaled' : 'legacy', { omitUnreferencedBundledCatalogs: true })
     const snapshot: WorkspaceSnapshot = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: binding.manifest.id, capture: capture.id, metadata: await backupMetadataDigest({ ...state, blobs: state.blobs.map(({ ref }) => ref) }) }, state }
     await validateWorkspaceSnapshot(snapshot)
     await check()
@@ -230,6 +251,7 @@ export async function readUnselectedGuestCapture(
   capture: LegacyCapture,
   target: import('zod').infer<typeof GuestManifestV2Schema>,
   assertOwned: () => void,
+  options: GuestCaptureOptions = {},
 ): Promise<{ state: WorkspaceState; inherited: InheritedSnapshotSources }> {
   const guard = () => assertSynchronousCaptureOwner(assertOwned)
   guard()
@@ -247,7 +269,8 @@ export async function readUnselectedGuestCapture(
     || capture.participants.some((participant, index) => Object.keys(participant).sort().join(',') !== 'kind,name,tables'
       || participant.kind !== expected[index].kind || participant.name !== expected[index].name
       || JSON.stringify(participant.tables) !== JSON.stringify(expected[index].tables))) throw new Error('Guest target capture association is invalid')
-  const { state, sidecar } = await projectCapturedGuestState(frozen, capture, guard, async () => { guard() }, 'journaled')
+  // Native staging comparisons retain the full app view by default; portable captures opt into smaller metadata
+  const { state, sidecar } = await projectCapturedGuestState(frozen, capture, guard, async () => { guard() }, 'journaled', options)
   const source = guestEvidenceSources(sidecar)
   // Current and inherited body readers must retain the same frozen owner beyond this projection call
   const inherited: InheritedSnapshotSources = {
@@ -259,7 +282,7 @@ export async function readUnselectedGuestCapture(
 }
 
 /** Projects a retained recovery branch without consulting the selected pointer or reopening retired stores */
-export async function readUnselectedGuestRecoveryCapture(frozen: LegacyCaptureDatabase, capture: LegacyCapture, assertOwned: () => void): Promise<{ state: WorkspaceState; inherited: InheritedSnapshotSources; destinationChanges: WorkspaceState['planner']['localData']['changes'] }> {
+export async function readUnselectedGuestRecoveryCapture(frozen: LegacyCaptureDatabase, capture: LegacyCapture, assertOwned: () => void, options: GuestCaptureOptions = {}): Promise<{ state: WorkspaceState; inherited: InheritedSnapshotSources; destinationChanges: WorkspaceState['planner']['localData']['changes'] }> {
   const guard = () => assertSynchronousCaptureOwner(assertOwned)
   guard()
   const participants = capture.participants
@@ -268,7 +291,7 @@ export async function readUnselectedGuestRecoveryCapture(frozen: LegacyCaptureDa
     || participants.some(value => !value.name || new Set(value.tables).size !== value.tables.length)) throw new Error('Retained recovery capture association is invalid')
   // Restored target names require journaled rows; older retained branches keep their legacy planner layout
   const mode = participants[0].name.startsWith('crykit-restored-v2-') ? 'journaled' : 'legacy'
-  const { state, sidecar, destinationChanges } = await projectCapturedGuestState(frozen, capture, guard, async () => { guard() }, mode, true)
+  const { state, sidecar, destinationChanges } = await projectCapturedGuestState(frozen, capture, guard, async () => { guard() }, mode, { ...options, allowLegacyEmpty: true })
   const source = guestEvidenceSources(sidecar)
   const inherited: InheritedSnapshotSources = {
     members: source.members.map(member => ({ ...member, metadata: bindCapturedBody(member.metadata, guard) })),

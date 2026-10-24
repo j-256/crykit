@@ -1,7 +1,9 @@
+import { deepStrictEqual } from 'node:assert'
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createBlankLocalData } from '../domain/local-data'
+import { addGameSetupRevision, createBlankLocalData } from '../domain/local-data'
+import { createTestLocalData } from '../domain/test-helpers'
 import { changedLocalData, saveLocalDataWithStatus } from './local-data'
 import { CryKitDatabase } from './database'
 import { GUEST_PLANNER_LAYOUT_KEY } from './guest-planner-record'
@@ -46,7 +48,7 @@ async function fixture() {
   const inspectorDatabase = await inspector.openDatabase()
   await files.open()
   const capture = () => captureLegacyBranch(frozen, [{ kind: 'planner' as const, database: required }, { kind: 'inspector' as const, database: inspectorDatabase }, { kind: 'files' as const, database: files }])
-  const read = (captured: LegacyCapture, assertOwned: () => void = () => {}) => readUnselectedGuestCapture(frozen, captured, target, assertOwned)
+  const read = (captured: LegacyCapture, assertOwned: () => void = () => {}) => readUnselectedGuestCapture(frozen, captured, target, assertOwned, { omitUnreferencedBundledCatalogs: true })
   const close = () => { required.close(); inspector.close(); files.close(); frozen.close() }
   return { target, localData, required, inspector, files, frozen, capture, read, close }
 }
@@ -66,10 +68,35 @@ it('projects one complete unselected journaled target from its frozen native par
     const capture = await setup.capture()
     const { state, inherited } = await setup.read(capture)
     expect(state.planner.localData.id).toBe(setup.localData.id)
+    expect(state.planner.catalogs).toEqual([])
+    const native = await readUnselectedGuestCapture(setup.frozen, capture, setup.target, () => {})
+    expect(native.state.planner.catalogs.map(catalog => catalog.revisionId)).toEqual(BUNDLED_CATALOGS.map(catalog => catalog.revisionId))
     expect(state.planner.journal).toMatchObject({ version: 1, undoable: false, checkpoints: [] })
     expect(state.planner.savedChanges).toEqual(state.planner.localData.changes)
     expect(state.editorDocuments).toEqual([])
     expect(inherited).toEqual({ members: [], bodies: [] })
+  } finally { setup.close() }
+})
+
+it('retains history-only bundled pins and every stored catalog without adding unused app catalogs', async () => {
+  const setup = await fixture()
+  try {
+    const [stored, historical] = BUNDLED_CATALOGS
+    const first = (await setup.required.localDatas.get('local-data-record'))!
+    const template = Object.values(createTestLocalData().gameSetups)[0]!
+    const pinned = addGameSetupRevision(first.localData, { ...template, catalogLock: { [historical.id]: historical.revisionId } })
+    const saved = await saveLocalDataWithStatus(pinned, first.revision, setup.required)
+    const current = await setup.read(await setup.capture())
+    expect(current.state.planner.catalogs.map(catalog => catalog.revisionId)).toEqual([historical.revisionId])
+    await saveLocalDataWithStatus({ ...saved.localData, gameSetups: {}, planningGameSetupRevisionId: undefined }, saved.localData.revision, setup.required)
+    await setup.required.catalogs.put({ key: JSON.stringify([stored.id, stored.revisionId]), id: stored.id, revisionId: stored.revisionId, checksum: stored.checksum, snapshot: stored })
+    const before = await nativeVector(setup)
+    const { state } = await setup.read(await setup.capture())
+    expect(state.planner.localData.gameSetups).toEqual({})
+    expect(state.planner.history.some(entry => Object.values(entry.before.gameSetups).some(setup => setup.catalogLock[historical.id] === historical.revisionId))).toBe(true)
+    expect(state.planner.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
+    deepStrictEqual(state.planner.catalogs.find(catalog => catalog.revisionId === stored.revisionId), stored)
+    deepStrictEqual(await nativeVector(setup), before)
   } finally { setup.close() }
 })
 
@@ -96,7 +123,7 @@ it.each(['descriptor', 'declaration', 'extra-root'] as const)('denies a %s defec
     }
     const capture = await setup.capture(), before = await nativeVector(setup)
     await expect(setup.read(capture)).rejects.toThrow()
-    expect(await nativeVector(setup)).toEqual(before)
+    deepStrictEqual(await nativeVector(setup), before)
     expect(await setup.frozen.captures.get(capture.id)).toEqual(capture)
   } finally { setup.close() }
 })
@@ -109,7 +136,7 @@ it('denies a mismatched target or changed frozen capture record without opening 
     const first = (await setup.frozen.records.get([capture.id, 0]))!
     await setup.frozen.records.put({ ...first, table: 'foreign-table' })
     await expect(setup.read(capture)).rejects.toThrow()
-    expect(await nativeVector(setup)).toEqual(before)
+    deepStrictEqual(await nativeVector(setup), before)
     expect(await Dexie.exists('another-target')).toBe(false)
   } finally { setup.close() }
 })
@@ -153,7 +180,7 @@ it('keeps older genuine destination changes beyond the live window through a com
     joined = await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(current, { check: async () => {}, dispose: async () => {} }), inherited)
     imported = await readWorkspaceBackup(exportWorkspaceBackup(joined))
     expect(imported.state.planner.savedChanges?.[0]).toEqual(oldest)
-    expect(await nativeVector(setup)).toEqual(before)
+    deepStrictEqual(await nativeVector(setup), before)
     setup.frozen.close()
     await setup.frozen.delete()
     // The archive reader already validates the full graph; source deletion must leave the exact saved change readable
@@ -182,7 +209,7 @@ it('keeps historical bytes in the same freeze and retires lazy historical reader
     const projected = await setup.read(capture, () => { if (!current) throw new Error('retired captured owner') })
     expect(projected.inherited.members).toHaveLength(1)
     const historical = projected.inherited.bodies.find(body => body.ref.documentId === ref.documentId)!
-    expect(await readBlob(historical.content, ref.byteLength)).toEqual(bytes)
+    deepStrictEqual(await readBlob(historical.content, ref.byteLength), bytes)
     const currentSnapshot: WorkspaceSnapshotV1 = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: setup.target.id, capture: capture.id }, state: projected.state }
     joined = await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(currentSnapshot, { check: async () => { if (!current) throw new Error('retired captured owner') }, dispose: async () => {} }), projected.inherited)
     imported = await readWorkspaceBackup(exportWorkspaceBackup(joined))
@@ -193,12 +220,12 @@ it('keeps historical bytes in the same freeze and retires lazy historical reader
     current = false
     await expect(iterator.next()).rejects.toThrow('retired captured owner')
     await expect(readBlob(projected.inherited.members[0]!.metadata, projected.inherited.members[0]!.metadata.byteLength)).rejects.toThrow('retired captured owner')
-    expect(await nativeVector(setup)).toEqual(before)
+    deepStrictEqual(await nativeVector(setup), before)
     setup.frozen.close()
     await setup.frozen.delete()
     const restored = await openHistoricalSnapshot(imported, imported.historicalEvidence.snapshots[0]!.id)
     const restoredBody = restored.state.blobs.find(blob => blob.ref.documentId === ref.documentId)!
-    expect(await readBlob(restoredBody.content, ref.byteLength)).toEqual(bytes)
+    deepStrictEqual(await readBlob(restoredBody.content, ref.byteLength), bytes)
   } finally { if (imported) await disposeWorkspaceSnapshot(imported); if (joined) await disposeWorkspaceSnapshot(joined); if (inheritedSource) await disposeWorkspaceSnapshot(inheritedSource); if (source) await disposeWorkspaceSnapshot(source); setup.close() }
 })
 
