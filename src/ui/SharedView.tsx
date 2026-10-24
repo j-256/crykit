@@ -35,6 +35,7 @@ const MAX_LOCAL_IMAGE_BYTES = 4 * 1024 * 1024
 const MAX_LOCAL_ARTWORK_BYTES = 16 * 1024 * 1024
 
 interface SharedPreview { readonly payload: SharePayload; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }
+const sharedImportNotice = (title: string): string => `${title} was imported and saved in this browser. Matching definitions update the preview when all required sources are available. The original checkpoint is unchanged.`
 
 export function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: BuildRevision; readonly preview: Pick<SharedPreview, 'localData' | 'catalogs'>; readonly onUploadMod: () => void }) {
   const fieldScope = useId()
@@ -82,8 +83,9 @@ export function SharedBuild({ revision, preview, onUploadMod }: { readonly revis
   </div>
 }
 
-export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly encoded: string; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onImport: (preview: ImportPreview) => Promise<void>; readonly onSave: (payload: SharePayload) => Promise<{ readonly buildId?: BuildId; readonly teamId?: TeamId }> }) {
-  const { repository: { prepareModCatalogs } } = useWorkspace()
+export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly encoded: string; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly onImport: (preview: ImportPreview, encoded: string) => Promise<void>; readonly onSave: (payload: SharePayload) => Promise<{ readonly buildId?: BuildId; readonly teamId?: TeamId }> }) {
+  const workspace = useWorkspace()
+  const { repository: { prepareModCatalogs } } = workspace
   const navigation = useNavigation()
   const [viewOriginal, setViewOriginal] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
@@ -121,14 +123,19 @@ export function SharedView({ encoded, catalogs, onSave, onImport }: { readonly e
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string>()
   const [matchingError, setMatchingError] = useState<string>()
-  const [importNotice, setImportNotice] = useState<string>()
+  const [importNotice, setImportNotice] = useState<string | undefined>(() => {
+    const completed = workspace.readSharedModResult(encoded)
+    // A notice belongs to this share and the exact source admitted by its successor, not a matching title
+    return completed && catalogs.some(source => source.id === completed.catalogId && source.revisionId === completed.catalogRevisionId) ? sharedImportNotice(completed.title) : undefined
+  })
   const importMod = async (imported: ImportPreview) => {
+    workspace.clearSharedModResult()
     setImportNotice(undefined)
-    await onImport(imported)
+    await onImport(imported, encoded)
     setMatchingError(undefined)
     setViewOriginal(false)
     const source = imported.proposed.catalogs[0]
-    setImportNotice(`${source ? modCatalogTitle(source) : 'Matching JSON'} was imported and saved in this browser. Matching definitions update the preview when all required sources are available. The original checkpoint is unchanged.`)
+    setImportNotice(sharedImportNotice(source ? modCatalogTitle(source) : 'Matching JSON'))
   }
   useEffect(() => {
     let live = true

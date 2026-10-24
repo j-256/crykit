@@ -715,6 +715,26 @@ it('carries completed mod import feedback through its explicit guest successor a
   expect(selected.readModLibraryResult()).toBeUndefined()
 })
 
+it('carries shared import feedback only for its exact snapshot through guest reopening', async () => {
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner() { selected = useWorkspace(); return <span>Ready</span> }
+  await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
+  const old = selected
+  const other = createGuestRepository(db), before = await observe(() => other.load())
+  await act(async () => { await other.save(before.localData, before.revision) })
+  const result = { sharedSnapshot: 'synthetic-exact-share', source: { catalogId: 'synthetic-mod' as import('../domain/types').CatalogId, catalogRevisionId: 'synthetic-revision' as import('../domain/types').CatalogRevisionId, title: 'Synthetic imported mod' } }
+  await act(async () => { await selected.reopenGuest(false, result) })
+  expect(selected.repository).not.toBe(old.repository)
+  expect(selected.readSharedModResult(result.sharedSnapshot)).toEqual(result.source)
+  expect(selected.readSharedModResult('another-snapshot')).toBeUndefined()
+  expect(selected.readModLibraryResult()).toBeUndefined()
+  result.source.title = 'Unowned later mutation'
+  expect(selected.readSharedModResult(result.sharedSnapshot)?.title).toBe('Synthetic imported mod')
+  expect(() => old.readSharedModResult(result.sharedSnapshot)).toThrow()
+  await act(async () => { await selected.continueLocal() })
+  expect(selected.readSharedModResult(result.sharedSnapshot)).toBeUndefined()
+})
+
 
 async function openedEditorOwner(kind: 'guest' | 'account' = 'guest') {
   await sameRealmIndexedDb()

@@ -19,6 +19,7 @@ import { retainOutOfContextSelections } from './domain/retained-selections'
 import { changesModDraftContext } from './ui/mod-workspace'
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
 import { modRevision, type BundledLibraryMod } from './domain/mod-library'
+import { modCatalogTitle } from './domain/mod-layers'
 import { applyLibraryDefaultsToNewSetup, assertLibraryProject } from './domain/mod-library-actions'
 import type { BuildBehavior } from './domain/build-behavior'
 import { importLibrarySource } from './workspace/mod-repository'
@@ -769,13 +770,17 @@ export default function App() {
     } finally { setImportBusy(false) }
   }, [installLoadedData, repository, waitForSafeTransition, workspace.reopenGuest])
 
-  const importSharedMod = useCallback(async (preview: ImportPreview) => {
+  const importSharedMod = useCallback(async (preview: ImportPreview, encoded: string) => {
     await waitForSafeTransition()
     const current = loadedDataRef.current
     if (!current) throw new Error('The local planner data is not ready.')
+    const source = preview.proposed.catalogs[0]
+    if (!source) throw new Error('The matching JSON has no mod source.')
     const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
-    installLoadedData(loaded)
-  }, [installLoadedData, waitForSafeTransition])
+    // Publication retires the guest view; carry only completed feedback through its admitted successor
+    if (repository.kind === 'guest') await workspace.reopenGuest(false, { sharedSnapshot: encoded, source: { catalogId: source.id, catalogRevisionId: source.revisionId, title: modCatalogTitle(source) } })
+    else installLoadedData(loaded)
+  }, [installLoadedData, waitForSafeTransition, commitImport, repository.kind, workspace.reopenGuest])
 
   const importBuildMod = useCallback(async (preview: ImportPreview) => {
     await commitQueueRef.current
